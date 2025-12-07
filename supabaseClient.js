@@ -27,6 +27,13 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY) {
     if (client) {
       liveClient = client;
       console.info("[RTN] Supabase client initialized (live mode)");
+      try {
+        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+          window.dispatchEvent(new CustomEvent('supabase:ready'));
+        }
+      } catch (e) {
+        /* ignore */
+      }
     }
   })();
 }
@@ -60,6 +67,40 @@ const mockDatabase = {
   game_runs: [],
   bet_plays: []
 };
+
+// Persist mock database to localStorage so offline changes survive reloads
+const MOCK_DB_KEY = "rtn:mockdb:v1";
+function loadMockDatabase() {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    const raw = window.localStorage.getItem(MOCK_DB_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      // shallow merge arrays if available
+      Object.keys(parsed).forEach((k) => {
+        if (Array.isArray(parsed[k])) {
+          mockDatabase[k] = parsed[k];
+        }
+      });
+      console.info("[RTN] Loaded offline mock database from localStorage");
+    }
+  } catch (e) {
+    console.warn("[RTN] Unable to load mock database from localStorage", e);
+  }
+}
+
+function saveMockDatabase() {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    window.localStorage.setItem(MOCK_DB_KEY, JSON.stringify(mockDatabase));
+  } catch (e) {
+    console.warn("[RTN] Unable to save mock database to localStorage", e);
+  }
+}
+
+// attempt to hydrate mock DB from storage
+loadMockDatabase();
 
 function cloneRow(row) {
   return row ? JSON.parse(JSON.stringify(row)) : row;
@@ -97,6 +138,12 @@ function createQuery(table) {
           tableRows.push(cloneRow(item));
         }
       }
+      // persist changes
+      try {
+        saveMockDatabase();
+      } catch (e) {
+        /* ignore */
+      }
       return Promise.resolve({ data: cloneRow(items), error: null });
     },
     update(values) {
@@ -107,6 +154,12 @@ function createQuery(table) {
               Object.assign(row, values);
             }
           });
+          // persist changes
+          try {
+            saveMockDatabase();
+          } catch (e) {
+            /* ignore */
+          }
           return Promise.resolve({ data: cloneRow(rows), error: null });
         }
       };
@@ -116,6 +169,11 @@ function createQuery(table) {
         eq() {
           rows = [];
           mockDatabase[table] = rows;
+          try {
+            saveMockDatabase();
+          } catch (e) {
+            /* ignore */
+          }
           return Promise.resolve({ error: null });
         }
       };
@@ -126,26 +184,44 @@ function createQuery(table) {
 }
 
 const offlineStub = {
+  // Lightweight in-memory auth stub so the app can sign in while the
+  // CDN-based real client is unavailable. This mirrors the supabase-js
+  // API surface used by the app: getSession, getUser, onAuthStateChange,
+  // signInWithPassword, signUp, signOut.
+  _stubCurrentUser: null,
   auth: {
     async getSession() {
-      return { data: { session: null }, error: null };
+      return { data: { session: this._stubCurrentUser ? { user: this._stubCurrentUser } : null }, error: null };
     },
     async getUser() {
-      return { data: { user: null }, error: null };
+      return { data: { user: this._stubCurrentUser }, error: null };
     },
     onAuthStateChange(callback) {
+      // Call the callback immediately with current state so UI can react.
+      try {
+        const event = this._stubCurrentUser ? "SIGNED_IN" : "SIGNED_OUT";
+        const session = this._stubCurrentUser ? { user: this._stubCurrentUser } : null;
+        // follow supabase-js callback shape: (event, session) => {}
+        setTimeout(() => callback(event, session), 0);
+      } catch (e) {
+        /* ignore */
+      }
       const subscription = { unsubscribe() {} };
       return { data: { subscription }, error: null };
     },
-    async signInWithPassword() {
-      // In live mode this will be handled by Supabase. For offline mode,
-      // return the mock user to allow UI testing when desired.
-      return { data: { user: mockUser }, error: null };
+    async signInWithPassword({ email, password } = {}) {
+      // In offline mode we accept any password and return a mock user.
+      // Populate an in-memory session so subsequent getUser/getSession
+      // calls return a real user object.
+      this._stubCurrentUser = { ...mockUser, email: email || mockUser.email };
+      return { data: { user: this._stubCurrentUser }, error: null };
     },
-    async signUp() {
-      return { data: { user: mockUser }, error: null };
+    async signUp({ email } = {}) {
+      this._stubCurrentUser = { ...mockUser, email: email || mockUser.email };
+      return { data: { user: this._stubCurrentUser }, error: null };
     },
     async signOut() {
+      this._stubCurrentUser = null;
       return { error: null };
     }
   },

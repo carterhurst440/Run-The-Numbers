@@ -749,6 +749,14 @@ async function handleAuthFormSubmit(event) {
       return;
     }
 
+    // Ensure we fetch and apply the authoritative profile from the backend
+    // immediately after sign-in so header balances reflect stored values.
+    try {
+      await ensureProfileSynced({ force: true });
+    } catch (err) {
+      console.warn("[RTN] post-signin profile sync failed", err);
+    }
+
     showToast("Signed in", "success");
     await setRoute("home");
   } catch (error) {
@@ -1383,43 +1391,179 @@ async function handlePurchase(prize, button) {
     return;
   }
 
+  // Instead of performing the purchase immediately, prompt the user for
+  // contact details. Credits aren't deducted until the user SUBMITs the
+  // contact form.
   if (button) {
-    button.disabled = true;
+    // keep the original button reference so we can re-enable if needed
+    button.disabled = false;
   }
+  openRedeemModal(prize);
+}
+
+// -- Redeem modal flow -------------------------------------------------
+let redeemModal = null;
+let redeemAddressInput = null;
+let redeemPhoneInput = null;
+let redeemEmailInput = null;
+let redeemSubmitButton = null;
+let redeemCancelButton = null;
+let redeemCurrentPrize = null;
+
+function ensureRedeemModal() {
+  if (redeemModal) return;
+  const modal = document.createElement("div");
+  modal.className = "redeem-modal modal";
+  modal.innerHTML = `
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <h2>Contact Details</h2>
+      <form class="redeem-form">
+        <label>Shipping Address<textarea name="address" required></textarea></label>
+        <label>Contact Phone Number (optional)<input name="phone" type="tel" /></label>
+        <label>Contact Email<input name="email" type="email" required /></label>
+        <div class="modal-actions">
+          <button type="button" class="secondary redeem-cancel">Cancel</button>
+          <button type="submit" class="primary redeem-submit">Submit</button>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  redeemModal = modal;
+  const form = modal.querySelector(".redeem-form");
+  redeemAddressInput = form.querySelector('textarea[name="address"]');
+  redeemPhoneInput = form.querySelector('input[name="phone"]');
+  redeemEmailInput = form.querySelector('input[name="email"]');
+  redeemSubmitButton = form.querySelector(".redeem-submit");
+  redeemCancelButton = form.querySelector(".redeem-cancel");
+
+  redeemCancelButton.addEventListener("click", (e) => {
+    e.preventDefault();
+    closeRedeemModal();
+  });
+
+  let redeemSubmitting = false;
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (redeemSubmitting) return;
+    if (!redeemCurrentPrize) return;
+    const addr = (redeemAddressInput.value || "").trim();
+    const phone = (redeemPhoneInput.value || "").trim();
+    const email = (redeemEmailInput.value || "").trim();
+    if (!addr || !email) {
+      showToast("Please provide Shipping Address and Contact Email.", "error");
+      return;
+    }
+    redeemSubmitting = true;
+    redeemSubmitButton.disabled = true;
+    const originalText = redeemSubmitButton.textContent;
+    redeemSubmitButton.textContent = "Purchasing...";
+    try {
+      await submitRedeem(redeemCurrentPrize, { address: addr, phone, email });
+      closeRedeemModal();
+    } catch (err) {
+      console.error("Redeem submit failed", err);
+      showToast(err?.message || "Unable to complete purchase", "error");
+    } finally {
+      redeemSubmitButton.disabled = false;
+      redeemSubmitButton.textContent = originalText;
+      redeemSubmitting = false;
+    }
+  });
+}
+
+function openRedeemModal(prize) {
+  ensureRedeemModal();
+  redeemCurrentPrize = prize;
+  if (redeemAddressInput) redeemAddressInput.value = "";
+  if (redeemPhoneInput) redeemPhoneInput.value = "";
+  if (redeemEmailInput) redeemEmailInput.value = currentUser?.email || "";
+  redeemModal.classList.add("is-open");
+  redeemModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  redeemAddressInput.focus();
+}
+
+function closeRedeemModal() {
+  if (!redeemModal) return;
+  redeemModal.classList.remove("is-open");
+  redeemModal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
+  redeemCurrentPrize = null;
+}
+
+async function submitRedeem(prize, contact) {
+  if (!currentUser || !prize) throw new Error("Missing user or prize");
+
+  const currencyKey = (prize.cost_currency ?? "units").toLowerCase();
+  const costValue = Math.max(0, Math.round(Number(prize.cost ?? 0)));
+
   try {
-    const { data, error } = await supabase.rpc("purchase_prize", { _prize_id: prize.id });
-    if (error) {
-      throw error;
+    // First: verify prize is still active before attempting purchase
+    const { data: prizeCheck, error: checkError } = await supabase
+      .from("prizes")
+      .select("id, active")
+      .eq("id", prize.id)
+      .single();
+
+    if (checkError || !prizeCheck || prizeCheck.active === false) {
+      throw new Error("This prize was just claimed by someone else.");
     }
 
-    if (currencyDetails.key === "carter_cash") {
+    // Second: insert purchase record with cost
+    const { error: purchaseError } = await supabase
+      .from("prize_purchases")
+      .insert({
+        prize_id: prize.id,
+        user_id: currentUser.id,
+        shipping_address: contact.address,
+        shipping_phone: contact.phone || null,
+        contact_email: contact.email || null,
+        cost: costValue
+      });
+
+    if (purchaseError) {
+      console.error("prize_purchases insert error", purchaseError);
+      throw new Error("Failed to record purchase. Please try again.");
+    }
+
+    // Third: mark prize as sold (inactive)
+    const { error: prizeUpdateError, data: updateData } = await supabase
+      .from("prizes")
+      .update({ active: false })
+      .eq("id", prize.id)
+      .select();
+
+    if (prizeUpdateError) {
+      console.error("Failed to mark prize sold", prizeUpdateError);
+      throw new Error("Purchase recorded but could not mark prize sold. Contact support.");
+    }
+
+    console.info("[RTN] Prize marked sold:", { prizeId: prize.id, updateData });
+
+    // Deduct cost locally and persist
+    if (currencyKey === "carter_cash") {
       deductCarterCash(costValue);
     } else {
       bankroll = Math.max(0, bankroll - costValue);
       handleBankrollChanged();
     }
-
     await persistBankroll();
     await ensureProfileSynced({ force: true });
 
     showToast(`Purchased ${prize.name}!`, "success");
     prizesLoaded = false;
     dashboardLoaded = false;
-    const purchaseRecord = await resolvePurchaseRecord(prize, data);
+
+    // Refresh admin and store lists so sold tag appears and admin sees contact info
     await loadDashboard(true);
     await loadPrizeShop(true);
-    if (purchaseRecord) {
-      openShippingModalForPurchase(purchaseRecord, prize);
-    } else {
-      showToast("Purchase recorded. Please contact support to provide shipping details.", "warning");
-    }
+    await loadAdminPrizeList(true);
   } catch (error) {
-    console.error(error);
-    showToast(error?.message || "Unable to purchase prize", "error");
-  } finally {
-    if (button) {
-      button.disabled = false;
-    }
+    console.error("submitRedeem error", error);
+    throw error;
   }
 }
 
@@ -1890,6 +2034,38 @@ function renderAdminPrizeRow(prize) {
 
   controls.append(statusWrap, buttonRow);
 
+  // If this prize has purchase information (sold), render contact details
+  if (prize && prize.purchase_info) {
+    const purchase = prize.purchase_info;
+    const purchaseSection = document.createElement("div");
+    purchaseSection.className = "admin-prize-purchase";
+
+    const soldLabel = document.createElement("div");
+    soldLabel.className = "admin-prize-purchase-sold";
+    soldLabel.textContent = "SOLD";
+    purchaseSection.appendChild(soldLabel);
+
+    const buyerLine = document.createElement("div");
+    buyerLine.className = "admin-prize-purchase-buyer";
+    const buyerEmail = purchase.contact_email ? ` (${String(purchase.contact_email)})` : "";
+    buyerLine.textContent = `User: ${String(purchase.user_id)}${buyerEmail}`;
+    purchaseSection.appendChild(buyerLine);
+
+    const addrLine = document.createElement("div");
+    addrLine.className = "admin-prize-purchase-address";
+    addrLine.textContent = `Shipping Address: ${String(purchase.shipping_address || "")}`;
+    purchaseSection.appendChild(addrLine);
+
+    if (purchase.shipping_phone) {
+      const phoneLine = document.createElement("div");
+      phoneLine.className = "admin-prize-purchase-phone";
+      phoneLine.textContent = `Phone: ${String(purchase.shipping_phone)}`;
+      purchaseSection.appendChild(phoneLine);
+    }
+
+    controls.appendChild(purchaseSection);
+  }
+
   item.append(main, controls);
   return item;
 }
@@ -1922,6 +2098,33 @@ async function loadAdminPrizeList(force = false) {
     }
     adminPrizeCache = Array.isArray(prizes) ? prizes.slice() : [];
     adminPrizeListEl.innerHTML = "";
+    // For any prizes that are already sold (active=false), fetch the
+    // latest purchase record so the admin view can display contact details.
+    try {
+      const soldIds = adminPrizeCache.filter((p) => p?.active === false).map((p) => p.id).filter(Boolean);
+      if (soldIds.length > 0) {
+        const { data: purchases, error: purchasesError } = await supabase
+          .from("prize_purchases")
+          .select("*")
+          .in("prize_id", soldIds)
+          .order("created_at", { ascending: false });
+        if (!purchasesError && Array.isArray(purchases)) {
+          const latestByPrize = new Map();
+          purchases.forEach((rec) => {
+            if (!latestByPrize.has(rec.prize_id)) {
+              latestByPrize.set(rec.prize_id, rec);
+            }
+          });
+          adminPrizeCache.forEach((p) => {
+            if (p && p.active === false && latestByPrize.has(p.id)) {
+              p.purchase_info = latestByPrize.get(p.id);
+            }
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("Unable to fetch prize purchase info for admin view", err);
+    }
     if (!adminPrizeCache.length) {
       const empty = document.createElement("li");
       empty.className = "admin-prize-empty";
@@ -2055,10 +2258,27 @@ function applySignedOutState(reason = "unknown", { focusInput = true } = {}) {
 
 async function handleSignOut() {
   authState.manualSignOutRequested = true;
-  const { error } = await supabase.auth.signOut();
-  if (error) {
+  try {
+    const result = await supabase.auth.signOut();
+    const error = result?.error ?? null;
+    if (error) {
+      authState.manualSignOutRequested = false;
+      console.error("signOut error", error);
+      showToast("Unable to sign out", "error");
+      return;
+    }
+
+    // Immediately apply signed-out state so the UI updates even if the
+    // auth state change event is delayed or not emitted by an offline stub.
+    console.info("[RTN] signOut completed, applying signed-out state");
+    try {
+      applySignedOutState("manual-signout", { focusInput: true });
+    } catch (err) {
+      console.warn("[RTN] applySignedOutState after signOut failed", err);
+    }
+  } catch (err) {
     authState.manualSignOutRequested = false;
-    console.error(error);
+    console.error("Unexpected error during signOut", err);
     showToast("Unable to sign out", "error");
   }
 }
@@ -2477,6 +2697,8 @@ const PROFILE_SYNC_INTERVAL = 15000;
 let bankrollInitialized = false;
 let lastSyncedBankroll = null;
   let lastProfileSync = 0;
+
+  let authSubscription = null;
 
 let playAreaUpdateFrame = null;
 
@@ -4387,12 +4609,31 @@ updateStatsUI();
 
 async function bootstrapAuth(initialRoute) {
   try {
-    const { data: userResponse, error: getUserError } = await supabase.auth.getUser();
-    if (getUserError) {
-      console.error("[RTN] bootstrapAuth getUser error", getUserError);
-      return false;
+    // Prefer checking getSession (returns session + user) so we can detect
+    // an active session restored by the Supabase client across page reloads.
+    let sessionUser = null;
+    try {
+      if (supabase && typeof supabase.auth?.getSession === "function") {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.warn("[RTN] bootstrapAuth getSession error", sessionError);
+        }
+        sessionUser = sessionData?.session?.user ?? null;
+      }
+    } catch (err) {
+      console.warn("[RTN] bootstrapAuth getSession threw", err);
+      sessionUser = null;
     }
-    const sessionUser = userResponse?.user ?? null;
+
+    // Fallback to getUser if getSession wasn't available or returned null.
+    if (!sessionUser) {
+      const { data: userResponse, error: getUserError } = await supabase.auth.getUser();
+      if (getUserError) {
+        console.error("[RTN] bootstrapAuth getUser error", getUserError);
+      }
+      sessionUser = userResponse?.user ?? null;
+    }
+
     if (!sessionUser) {
       return false;
     }
@@ -4401,7 +4642,7 @@ async function bootstrapAuth(initialRoute) {
     updateAdminVisibility(currentUser);
 
     // Ensure profile is loaded and applied
-    await ensureProfileSynced({ force: true });
+  await ensureProfileSynced({ force: true });
 
     // If the initial route is an auth route, send them to home instead
     const route = AUTH_ROUTES.has(initialRoute) ? "home" : initialRoute;
@@ -4418,10 +4659,89 @@ async function bootstrapAuth(initialRoute) {
   }
 }
 
+// Register a global auth state listener so sign-in/sign-out events (including
+// those caused by refresh or token changes) update the app state automatically.
+function setupAuthListener() {
+  try {
+    // Guard so we only register the listener once.
+    if (setupAuthListener._registered) {
+      return;
+    }
+    setupAuthListener._registered = true;
+
+    const registerAuthHandler = () => {
+      try {
+        if (!supabase || typeof supabase.auth?.onAuthStateChange !== "function") {
+          return null;
+        }
+        // Avoid double-registration
+        if (authSubscription) return authSubscription;
+
+        const sub = supabase.auth.onAuthStateChange((event, session) => {
+          console.info(`[RTN] auth state changed: ${event}`);
+          if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+            const user = session?.user ?? null;
+            if (user) {
+              currentUser = user;
+              updateAdminVisibility(currentUser);
+              ensureProfileSynced({ force: true }).catch((err) => console.warn(err));
+              // If the UI is on auth screen, navigate to home
+              if (currentRoute === "auth") {
+                setRoute("home").catch(() => {});
+              }
+            }
+          } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
+            // Apply signed out state so UI falls back to auth screen.
+            applySignedOutState("auth-change", { focusInput: false });
+          }
+        });
+
+        authSubscription = sub;
+        return sub;
+      } catch (err) {
+        console.warn("[RTN] registerAuthHandler error", err);
+        return null;
+      }
+    };
+
+    // If supabase is already initialized and exposes auth, register immediately.
+    registerAuthHandler();
+
+    // Also listen for the supabase:ready event so if the client initializes
+    // after app startup we can register the auth handler and attempt to
+    // bootstrap the session (rehydrate any existing session).
+    if (typeof window !== "undefined") {
+      if (!setupAuthListener._readyListenerAttached) {
+        window.addEventListener(
+          "supabase:ready",
+          async () => {
+            try {
+              console.info("[RTN] received supabase:ready, registering auth listener and attempting bootstrapAuth");
+              registerAuthHandler();
+              // Try to rehydrate session now that the client is ready.
+              await bootstrapAuth(getRouteFromHash());
+            } catch (err) {
+              console.warn("[RTN] supabase:ready handler error", err);
+            }
+          },
+          { once: true }
+        );
+        setupAuthListener._readyListenerAttached = true;
+      }
+    }
+  } catch (error) {
+    console.warn("[RTN] setupAuthListener error", error);
+  }
+}
+
 async function initializeApp() {
   stripSupabaseRedirectHash();
   // start with a guest user until we determine session state
   currentUser = { ...GUEST_USER };
+
+  // Ensure we are listening for auth state changes early so reloads and token
+  // refreshes can rehydrate the session automatically.
+  setupAuthListener();
 
   if (appShell) {
     appShell.removeAttribute("data-hidden");
@@ -4433,6 +4753,34 @@ async function initializeApp() {
   let sessionApplied = false;
 
   try {
+    // Wait a short time for the Supabase client to become ready so
+    // bootstrapAuth can detect an existing session without the app
+    // briefly showing the auth screen. If the ready event doesn't
+    // fire within the timeout we proceed (to avoid blocking startup).
+    async function waitForSupabaseReady(timeoutMs = 800) {
+      if (supabase && typeof supabase.auth?.getSession === "function") {
+        return true;
+      }
+      if (typeof window === "undefined") return false;
+      return await new Promise((resolve) => {
+        let settled = false;
+        const onReady = () => {
+          if (settled) return;
+          settled = true;
+          resolve(true);
+        };
+        window.addEventListener("supabase:ready", onReady, { once: true });
+        setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          resolve(false);
+        }, timeoutMs);
+      });
+    }
+
+    const clientReady = await waitForSupabaseReady(800);
+    console.info(`[RTN] initializeApp waitForSupabaseReady result=${clientReady}`);
+
     sessionApplied = await bootstrapAuth(initialRoute);
     console.info(`[RTN] initializeApp bootstrapAuth sessionApplied=${sessionApplied}`);
 
