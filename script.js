@@ -1462,7 +1462,23 @@ function ensureRedeemModal() {
     redeemSubmitButton.textContent = "Purchasing...";
     try {
       await submitRedeem(redeemCurrentPrize, { address: addr, phone, email });
+      // Close the modal immediately after successful purchase and remove
+      // it from the DOM to avoid lingering UI. Show a custom success
+      // message so the user sees confirmation and next steps.
       closeRedeemModal();
+      // remove the modal element to ensure no stale event listeners or
+      // visual remnants remain; recreate later if needed
+      setTimeout(() => {
+        if (redeemModal && redeemModal.parentElement) {
+          try {
+            redeemModal.remove();
+          } catch (e) {
+            /* ignore */
+          }
+        }
+        redeemModal = null;
+      }, 180);
+      showToast("Congrats — your item is on its way! We'll reach out via email with more information.", "success");
     } catch (err) {
       console.error("Redeem submit failed", err);
       showToast(err?.message || "Unable to complete purchase", "error");

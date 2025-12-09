@@ -10,14 +10,55 @@ const SUPABASE_URL = typeof window !== "undefined" ? window.SUPABASE_URL || null
 const SUPABASE_ANON_KEY = typeof window !== "undefined" ? window.SUPABASE_ANON_KEY || null : null;
 
 async function createRealClient(url, key) {
-  try {
-    const module = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm");
-    const { createClient } = module;
-    return createClient(url, key);
-  } catch (err) {
-    console.error("[RTN] Failed to load Supabase client from CDN", err);
-    return null;
+  // Try a few strategies to load the Supabase client in a variety of
+  // browser environments. Some CDN builds expose different shapes (named
+  // exports, default export, or a UMD global), so probe a few options and
+  // fall back to injecting the UMD script if necessary.
+  const tryEsmUrls = [
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm",
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/module/index.mjs"
+  ];
+
+  for (const esmUrl of tryEsmUrls) {
+    try {
+      // dynamic import of ESM build
+      // some CDN builds return different module shapes; check common ones
+      const module = await import(esmUrl);
+      const createClient = module.createClient || module.default?.createClient || module?.supabase?.createClient;
+      if (typeof createClient === "function") {
+        return createClient(url, key);
+      }
+    } catch (err) {
+      // ignore and try next
+      console.warn(`[RTN] Supabase ESM import failed for ${esmUrl}`, err);
+    }
   }
+
+  // Fallback: inject UMD build which attaches a global we can use
+  if (typeof document !== "undefined" && typeof window !== "undefined") {
+    try {
+      await new Promise((resolve, reject) => {
+        const existing = document.querySelector('script[data-supabase-umd]');
+        if (existing) return resolve();
+        const s = document.createElement("script");
+        s.setAttribute("data-supabase-umd", "1");
+        s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js";
+        s.onload = () => resolve();
+        s.onerror = (e) => reject(e || new Error("Supabase UMD load error"));
+        document.head.appendChild(s);
+      });
+
+      const createClient = window?.supabase?.createClient || window?.createClient;
+      if (typeof createClient === "function") {
+        return createClient(url, key);
+      }
+    } catch (err) {
+      console.error("[RTN] Supabase UMD injection failed", err);
+    }
+  }
+
+  console.error("[RTN] Failed to load Supabase client from CDN (all attempts)");
+  return null;
 }
 
 if (SUPABASE_URL && SUPABASE_ANON_KEY) {
@@ -144,7 +185,25 @@ function createQuery(table) {
       } catch (e) {
         /* ignore */
       }
-      return Promise.resolve({ data: cloneRow(items), error: null });
+
+      const result = { data: cloneRow(items), error: null };
+
+      // Return a thenable object that also supports chaining like
+      // `.select(...).maybeSingle()` to mirror supabase-js behaviour in
+      // offline stub mode.
+      const thenable = {
+        select() {
+          return {
+            maybeSingle: async () => ({ data: Array.isArray(result.data) ? result.data[0] : result.data, error: null }),
+            single: async () => ({ data: Array.isArray(result.data) ? result.data[0] : result.data, error: null }),
+            then: (resolve, reject) => Promise.resolve(result).then(resolve, reject)
+          };
+        },
+        maybeSingle: async () => ({ data: Array.isArray(result.data) ? result.data[0] : result.data, error: null }),
+        then: (resolve, reject) => Promise.resolve(result).then(resolve, reject)
+      };
+
+      return thenable;
     },
     update(values) {
       return {
@@ -160,7 +219,22 @@ function createQuery(table) {
           } catch (e) {
             /* ignore */
           }
-          return Promise.resolve({ data: cloneRow(rows), error: null });
+
+          const result = { data: cloneRow(rows), error: null };
+
+          const thenable = {
+            select() {
+              return {
+                maybeSingle: async () => ({ data: Array.isArray(result.data) ? result.data[0] : result.data, error: null }),
+                single: async () => ({ data: Array.isArray(result.data) ? result.data[0] : result.data, error: null }),
+                then: (resolve, reject) => Promise.resolve(result).then(resolve, reject)
+              };
+            },
+            maybeSingle: async () => ({ data: Array.isArray(result.data) ? result.data[0] : result.data, error: null }),
+            then: (resolve, reject) => Promise.resolve(result).then(resolve, reject)
+          };
+
+          return thenable;
         }
       };
     },
