@@ -1025,6 +1025,364 @@ function closePrizeImageModal({ restoreFocus = false } = {}) {
   focusTarget?.focus();
 }
 
+function openNumberBetsModal() {
+  if (!numberBetsModal) {
+    return;
+  }
+
+  numberBetsModal.hidden = false;
+  numberBetsModal.classList.add("is-open");
+  numberBetsModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  
+  const okButton = numberBetsModal.querySelector("#number-bets-modal-ok");
+  if (okButton) {
+    okButton.focus();
+  }
+}
+
+function closeNumberBetsModal({ restoreFocus = true } = {}) {
+  if (!numberBetsModal) {
+    return;
+  }
+
+  numberBetsModal.classList.remove("is-open");
+  numberBetsModal.setAttribute("aria-hidden", "true");
+  numberBetsModal.hidden = true;
+
+  if (
+    (!resetModal || resetModal.hidden) &&
+    (!shippingModal || shippingModal.hidden) &&
+    (!paytableModal || paytableModal.hidden) &&
+    (!adminPrizeModal || adminPrizeModal.hidden) &&
+    (!prizeImageModal || prizeImageModal.hidden)
+  ) {
+    document.body.classList.remove("modal-open");
+  }
+
+  if (restoreFocus && numberBetsInfoButton) {
+    numberBetsInfoButton.focus();
+  }
+}
+
+function openBetAnalyticsModal() {
+  if (!betAnalyticsModal) {
+    return;
+  }
+
+  betAnalyticsModal.hidden = false;
+  betAnalyticsModal.classList.add("is-open");
+  betAnalyticsModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  
+  const okButton = betAnalyticsModal.querySelector("#bet-analytics-ok");
+  if (okButton) {
+    okButton.focus();
+  }
+}
+
+function closeBetAnalyticsModal() {
+  if (!betAnalyticsModal) {
+    return;
+  }
+
+  betAnalyticsModal.classList.remove("is-open");
+  betAnalyticsModal.setAttribute("aria-hidden", "true");
+  betAnalyticsModal.hidden = true;
+
+  if (
+    (!resetModal || resetModal.hidden) &&
+    (!shippingModal || shippingModal.hidden) &&
+    (!paytableModal || paytableModal.hidden) &&
+    (!adminPrizeModal || adminPrizeModal.hidden) &&
+    (!prizeImageModal || prizeImageModal.hidden) &&
+    (!numberBetsModal || numberBetsModal.hidden)
+  ) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+async function loadBetAnalytics(betKey, betLabel) {
+  if (!supabase) {
+    console.warn("[RTN] Cannot load bet analytics: Supabase client not initialized");
+    return;
+  }
+
+  console.info(`[RTN] Loading analytics for bet: ${betKey}`);
+
+  // Store bet key globally for chart filter buttons
+  window.currentAnalyticsBetKey = betKey;
+
+  // Update modal title
+  const modalTitle = document.getElementById("bet-analytics-title");
+  if (modalTitle) {
+    modalTitle.textContent = `${betLabel} Analytics`;
+  }
+
+  // Query bet_plays table for this specific bet (using correct column names)
+  const { data, error } = await supabase
+    .from("bet_plays")
+    .select("amount_wagered, amount_paid, net")
+    .eq("bet_key", betKey);
+
+  if (error) {
+    console.error("[RTN] Error loading bet analytics:", error);
+    
+    document.getElementById("analytics-total-bets").textContent = "0";
+    document.getElementById("analytics-total-wagered").textContent = "$0";
+    document.getElementById("analytics-net-return").textContent = "$0";
+    document.getElementById("analytics-house-edge").textContent = "0.00%";
+    openBetAnalyticsModal();
+    return;
+  }
+
+  console.info(`[RTN] Loaded ${data?.length ?? 0} bet plays for ${betKey}`);
+
+  // Calculate statistics using correct column names
+  const totalBets = data?.length ?? 0;
+  const totalWagered = data?.reduce((sum, play) => sum + (play.amount_wagered || 0), 0) ?? 0;
+  const totalPaidOut = data?.reduce((sum, play) => sum + (play.amount_paid || 0), 0) ?? 0;
+  const netReturn = totalPaidOut; // Net player return is total amount paid to players
+  const houseEdge = totalWagered > 0 ? (((totalWagered - totalPaidOut) / totalWagered) * 100).toFixed(2) : "0.00";
+
+  // Update modal content
+  document.getElementById("analytics-total-bets").textContent = totalBets.toLocaleString();
+  document.getElementById("analytics-total-wagered").textContent = `$${totalWagered.toLocaleString()}`;
+  document.getElementById("analytics-net-return").textContent = `$${netReturn.toLocaleString()}`;
+  document.getElementById("analytics-house-edge").textContent = `${houseEdge}%`;
+
+  // Reset filter buttons to "all" active state
+  document.querySelectorAll(".chart-filter-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.period === "all");
+  });
+
+  // Render chart with default "all" time period
+  await renderBetVolumeChart(betKey, "all");
+
+  openBetAnalyticsModal();
+}
+
+// Global variable to store chart instance
+let betVolumeChartInstance = null;
+
+async function renderBetVolumeChart(betKey, period) {
+  if (!supabase) {
+    console.warn("[RTN] Cannot render chart: Supabase client not initialized");
+    return;
+  }
+
+  console.info(`[RTN] Rendering bet volume chart for ${betKey} with period: ${period}`);
+
+  // Calculate date range based on period
+  const now = new Date();
+  let startDate = null;
+
+  switch (period) {
+    case "week":
+      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      break;
+    case "month":
+      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      break;
+    case "90days":
+      startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      break;
+    case "year":
+      startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+      break;
+    case "all":
+    default:
+      startDate = null; // No date filter
+      break;
+  }
+
+  // Build query
+  let query = supabase
+    .from("bet_plays")
+    .select("placed_at")
+    .eq("bet_key", betKey)
+    .order("placed_at", { ascending: true });
+
+  if (startDate) {
+    query = query.gte("placed_at", startDate.toISOString());
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("[RTN] Error loading chart data:", error);
+    return;
+  }
+
+  console.info(`[RTN] Loaded ${data?.length ?? 0} plays for chart`);
+
+  // Group by date
+  const countsByDate = {};
+  data?.forEach(play => {
+    const date = new Date(play.placed_at).toISOString().split("T")[0];
+    countsByDate[date] = (countsByDate[date] || 0) + 1;
+  });
+
+  // Convert to arrays for Chart.js
+  const dates = Object.keys(countsByDate).sort();
+  const counts = dates.map(date => countsByDate[date]);
+
+  // Get canvas context
+  const canvas = document.getElementById("bet-analytics-chart");
+  if (!canvas) {
+    console.warn("[RTN] Chart canvas not found");
+    return;
+  }
+
+  const ctx = canvas.getContext("2d");
+
+  // Destroy existing chart if it exists
+  if (betVolumeChartInstance) {
+    betVolumeChartInstance.destroy();
+  }
+
+  // Create new chart
+  betVolumeChartInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: dates,
+      datasets: [{
+        label: "Bet Plays",
+        data: counts,
+        borderColor: "rgba(53, 255, 234, 1)",
+        backgroundColor: "rgba(53, 255, 234, 0.2)",
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          mode: "index",
+          intersect: false,
+          backgroundColor: "rgba(9, 18, 32, 0.95)",
+          titleColor: "rgba(53, 255, 234, 1)",
+          bodyColor: "rgba(226, 248, 255, 0.9)",
+          borderColor: "rgba(53, 255, 234, 0.5)",
+          borderWidth: 1,
+          padding: 12,
+          displayColors: false
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            color: "rgba(53, 255, 234, 0.1)"
+          },
+          ticks: {
+            color: "rgba(173, 225, 247, 0.75)",
+            maxRotation: 45,
+            minRotation: 0
+          }
+        },
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: "rgba(53, 255, 234, 0.1)"
+          },
+          ticks: {
+            color: "rgba(173, 225, 247, 0.75)",
+            precision: 0
+          }
+        }
+      }
+    }
+  });
+
+  console.info("[RTN] Chart rendered successfully");
+}
+
+
+async function loadAllBetStats() {
+  if (!supabase) {
+    console.warn("[RTN] Cannot load bet stats: Supabase client not initialized");
+    return {};
+  }
+
+  console.info("[RTN] Loading all bet stats for heat map");
+
+  // Query all bet plays and group by bet_key (using correct column name)
+  const { data, error } = await supabase
+    .from("bet_plays")
+    .select("bet_key");
+
+  if (error) {
+    console.error("[RTN] Error loading all bet stats:", error);
+    
+    // If table doesn't exist, return empty stats
+    if (error.code === "42P01" || error.message?.includes("does not exist")) {
+      console.info("[RTN] bet_plays table does not exist yet - no data to display");
+    }
+    
+    return {};
+  }
+
+  console.info(`[RTN] Loaded ${data?.length ?? 0} total bet plays`);
+
+  // Group by bet_key and count
+  const stats = {};
+  data?.forEach(play => {
+    if (!stats[play.bet_key]) {
+      stats[play.bet_key] = 0;
+    }
+    stats[play.bet_key]++;
+  });
+
+  console.info(`[RTN] Grouped into ${Object.keys(stats).length} unique bets`);
+
+  return stats;
+}
+
+function applyHeatMap(stats) {
+  if (!stats || Object.keys(stats).length === 0) {
+    console.info("[RTN] No bet stats to apply heat map");
+    return;
+  }
+
+  // Find max count for normalization
+  const maxCount = Math.max(...Object.values(stats));
+  
+  if (maxCount === 0) {
+    return;
+  }
+
+  console.info(`[RTN] Applying heat map with max count: ${maxCount}`);
+
+  // Apply heat to all analytics bet spots
+  document.querySelectorAll(".analytics-bet-spot").forEach(button => {
+    const betKey = button.dataset.betKey;
+    const count = stats[betKey] || 0;
+    
+    if (count > 0) {
+      // Normalize to 0-1 range
+      const intensity = count / maxCount;
+      
+      // Create red shade based on intensity
+      // Use a gradient from transparent to bright red
+      const red = Math.round(255 * intensity);
+      const alpha = 0.2 + (intensity * 0.6); // Range from 0.2 to 0.8
+      
+      button.style.backgroundColor = `rgba(${red}, 0, 0, ${alpha})`;
+      button.style.borderColor = `rgba(${red}, 100, 100, ${alpha + 0.2})`;
+      
+      // Add a data attribute for debugging
+      button.dataset.betCount = count;
+      button.dataset.heatIntensity = intensity.toFixed(2);
+    }
+  });
+}
+
 async function notifyAdminPurchase({ purchase, prize, shipping }) {
   if (!currentUser) {
     return;
@@ -1438,11 +1796,30 @@ function ensureRedeemModal() {
   redeemEmailInput = form.querySelector('input[name="email"]');
   redeemSubmitButton = form.querySelector(".redeem-submit");
   redeemCancelButton = form.querySelector(".redeem-cancel");
+  const backdrop = modal.querySelector(".modal-backdrop");
 
   redeemCancelButton.addEventListener("click", (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    console.info("[RTN] Cancel button clicked");
     closeRedeemModal();
   });
+
+  if (backdrop) {
+    backdrop.addEventListener("click", (e) => {
+      e.stopPropagation();
+      console.info("[RTN] Backdrop clicked");
+      closeRedeemModal();
+    });
+  }
+
+  // Prevent panel clicks from closing modal
+  const panel = modal.querySelector(".modal-panel");
+  if (panel) {
+    panel.addEventListener("click", (e) => {
+      e.stopPropagation();
+    });
+  }
 
   let redeemSubmitting = false;
   form.addEventListener("submit", async (e) => {
@@ -1503,11 +1880,16 @@ function openRedeemModal(prize) {
 }
 
 function closeRedeemModal() {
-  if (!redeemModal) return;
+  console.info("[RTN] closeRedeemModal called");
+  if (!redeemModal) {
+    console.warn("[RTN] closeRedeemModal: modal not found");
+    return;
+  }
   redeemModal.classList.remove("is-open");
   redeemModal.setAttribute("aria-hidden", "true");
   document.body.classList.remove("modal-open");
   redeemCurrentPrize = null;
+  console.info("[RTN] closeRedeemModal completed");
 }
 
 async function submitRedeem(prize, contact) {
@@ -1554,10 +1936,15 @@ async function submitRedeem(prize, contact) {
 
     if (prizeUpdateError) {
       console.error("Failed to mark prize sold", prizeUpdateError);
-      throw new Error("Purchase recorded but could not mark prize sold. Contact support.");
+      // Don't throw - purchase already recorded, but warn user
+      showToast("Purchase recorded but prize may still show as available. Please refresh.", "warning");
     }
 
-    console.info("[RTN] Prize marked sold:", { prizeId: prize.id, updateData });
+    if (!updateData || updateData.length === 0) {
+      console.warn("Prize update returned no data - prize may not have been marked inactive");
+    } else {
+      console.info("[RTN] Prize marked sold:", { prizeId: prize.id, updateData });
+    }
 
     // Deduct cost locally and persist
     if (currencyKey === "carter_cash") {
@@ -1570,10 +1957,16 @@ async function submitRedeem(prize, contact) {
     await ensureProfileSynced({ force: true });
 
     showToast(`Purchased ${prize.name}!`, "success");
+    
+    // Force clear all caches to ensure fresh data
     prizesLoaded = false;
     dashboardLoaded = false;
+    adminPrizesLoaded = false;
 
-    // Refresh admin and store lists so sold tag appears and admin sees contact info
+    // Small delay to ensure database trigger has completed
+    await delay(500);
+
+    // Refresh all views
     await loadDashboard(true);
     await loadPrizeShop(true);
     await loadAdminPrizeList(true);
@@ -2241,7 +2634,7 @@ function applySignedOutState(reason = "unknown", { focusInput = true } = {}) {
   resetBets();
   lastBetLayout = [];
   currentOpeningLayout = [];
-  setAdvancedMode(false);
+  // Advanced mode is always enabled - no need to initialize toggle
   historyList.innerHTML = "";
 
   bankroll = INITIAL_BANKROLL;
@@ -2632,6 +3025,15 @@ const prizeImageModal = document.getElementById("prize-image-modal");
 const prizeImageCloseButton = document.getElementById("prize-image-close");
 const prizeImagePreview = document.getElementById("prize-image-preview");
 const prizeImageCaption = document.getElementById("prize-image-caption");
+const numberBetsModal = document.getElementById("number-bets-modal");
+const numberBetsInfoButton = document.getElementById("number-bets-info");
+const numberBetsModalClose = document.getElementById("number-bets-modal-close");
+const numberBetsModalOk = document.getElementById("number-bets-modal-ok");
+const betAnalyticsModal = document.getElementById("bet-analytics-modal");
+const betAnalyticsClose = document.getElementById("bet-analytics-close");
+const adminTabButtons = document.querySelectorAll(".admin-tab");
+const adminPrizesContent = document.getElementById("admin-prizes-content");
+const adminAnalyticsContent = document.getElementById("admin-analytics-content");
 
 const THEME_CLASS_MAP = {
   blue: "theme-blue",
@@ -2668,7 +3070,7 @@ let lastBetLayout = [];
   let carterCashDeltaTimeout = null;
   let lastSyncedCarterCash = 0;
   let lastSyncedCarterProgress = 0;
-  let advancedMode = false;
+  let advancedMode = true; // Always enabled - all bets always available
   let handPaused = false;
   let pauseResolvers = [];
   let currentHandContext = null;
@@ -3169,7 +3571,7 @@ function setClearBetsDisabled(disabled) {
 }
 
 function refreshBetControls() {
-  const chipEnabled = bettingOpen || advancedMode;
+  const chipEnabled = bettingOpen;
   chipSelectorEl.classList.toggle("selector-disabled", !chipEnabled);
   chipButtons.forEach((button) => {
     button.disabled = !chipEnabled;
@@ -3179,19 +3581,8 @@ function refreshBetControls() {
   betSpotButtons.forEach((button) => {
     const key = button.dataset.betKey || button.dataset.rank;
     const definition = key ? getBetDefinition(key) : null;
-    const requiresAdvanced = definition ? definition.type !== "number" : false;
     const lockedDuringHand = definition?.lockDuringHand ?? false;
-    let disabled = false;
-
-    if (requiresAdvanced && !advancedMode) {
-      disabled = true;
-    } else if (lockedDuringHand) {
-      disabled = !bettingOpen;
-    } else if (requiresAdvanced) {
-      disabled = false;
-    } else {
-      disabled = !bettingOpen;
-    }
+    const disabled = lockedDuringHand ? !bettingOpen : !bettingOpen;
 
     button.disabled = disabled;
     button.setAttribute("aria-disabled", String(disabled));
@@ -4203,11 +4594,6 @@ function placeBet(key) {
     return;
   }
 
-  if (definition.type !== "number" && !advancedMode) {
-    statusEl.textContent = "Enable Advanced Mode to place this wager.";
-    return;
-  }
-
   if (selectedChip > bankroll) {
     statusEl.textContent = `Insufficient bankroll for a ${formatCurrency(
       selectedChip
@@ -4524,6 +4910,234 @@ if (prizeImageModal) {
     if (event.target === prizeImageModal) {
       closePrizeImageModal({ restoreFocus: true });
     }
+  });
+}
+
+if (numberBetsInfoButton) {
+  numberBetsInfoButton.addEventListener("click", () => {
+    openNumberBetsModal();
+  });
+}
+
+if (numberBetsModalClose) {
+  numberBetsModalClose.addEventListener("click", () => {
+    closeNumberBetsModal({ restoreFocus: true });
+  });
+}
+
+if (numberBetsModalOk) {
+  numberBetsModalOk.addEventListener("click", () => {
+    closeNumberBetsModal({ restoreFocus: true });
+  });
+}
+
+if (numberBetsModal) {
+  numberBetsModal.addEventListener("click", (event) => {
+    if (event.target === numberBetsModal) {
+      closeNumberBetsModal({ restoreFocus: true });
+    }
+  });
+}
+
+if (betAnalyticsClose) {
+  betAnalyticsClose.addEventListener("click", () => {
+    closeBetAnalyticsModal();
+  });
+}
+
+if (betAnalyticsModal) {
+  betAnalyticsModal.addEventListener("click", (event) => {
+    if (event.target === betAnalyticsModal) {
+      closeBetAnalyticsModal();
+    }
+  });
+}
+
+// Chart filter buttons
+document.querySelectorAll(".chart-filter-btn").forEach(button => {
+  button.addEventListener("click", () => {
+    const period = button.dataset.period;
+    
+    // Update active state
+    document.querySelectorAll(".chart-filter-btn").forEach(btn => {
+      btn.classList.remove("active");
+    });
+    button.classList.add("active");
+    
+    // Get current bet key from modal title
+    const modalTitle = document.getElementById("bet-analytics-title");
+    if (modalTitle) {
+      const titleText = modalTitle.textContent;
+      // Extract bet key - need to store it globally when modal opens
+      if (window.currentAnalyticsBetKey) {
+        renderBetVolumeChart(window.currentAnalyticsBetKey, period);
+      }
+    }
+  });
+});
+
+
+// Admin tab switching
+adminTabButtons.forEach(button => {
+  button.addEventListener("click", () => {
+    const targetTab = button.dataset.adminTab;
+    
+    // Update active tab
+    adminTabButtons.forEach(btn => btn.classList.remove("active"));
+    button.classList.add("active");
+    
+    // Show/hide content
+    if (targetTab === "prizes") {
+      adminPrizesContent.hidden = false;
+      adminAnalyticsContent.hidden = true;
+    } else if (targetTab === "analytics") {
+      adminPrizesContent.hidden = true;
+      adminAnalyticsContent.hidden = false;
+      initializeAnalyticsBettingGrid();
+    }
+  });
+});
+
+function initializeAnalyticsBettingGrid() {
+  // Populate number bets
+  const numberBetsContainer = document.querySelector(".analytics-number-bets .analytics-playmat");
+  if (numberBetsContainer && numberBetsContainer.children.length === 0) {
+    NUMBER_RANKS.forEach(rank => {
+      const button = document.createElement("button");
+      button.className = "bet-spot analytics-bet-spot";
+      button.type = "button";
+      button.dataset.betKey = `number-${rank}`;
+      button.dataset.betLabel = `${rank === 'A' ? 'Ace' : rank}`;
+      button.innerHTML = `<span class="bet-label">${rank}</span>`;
+      button.addEventListener("click", () => {
+        loadBetAnalytics(button.dataset.betKey, button.dataset.betLabel);
+      });
+      numberBetsContainer.appendChild(button);
+    });
+  }
+
+  // Populate specific card bets
+  const specificCardsContainer = document.querySelector(".analytics-specific-card-bets .analytics-grid");
+  if (specificCardsContainer && specificCardsContainer.children.length === 0) {
+    const suits = [
+      { symbol: "♥", name: "Hearts", class: "hearts" },
+      { symbol: "♣", name: "Clubs", class: "clubs" },
+      { symbol: "♠", name: "Spades", class: "spades" },
+      { symbol: "♦", name: "Diamonds", class: "diamonds" }
+    ];
+    
+    suits.forEach(suit => {
+      NUMBER_RANKS.forEach(rank => {
+        const button = document.createElement("button");
+        button.className = "bet-spot specific-card-bet analytics-bet-spot";
+        button.type = "button";
+        button.dataset.betKey = `card-${rank}${suit.symbol}`;
+        button.dataset.betLabel = `${rank === 'A' ? 'Ace' : rank} of ${suit.name}`;
+        button.innerHTML = `
+          <span class="bet-label">
+            <span class="card-rank">${rank}</span>
+            <span class="card-suit ${suit.class}">${suit.symbol}</span>
+          </span>
+        `;
+        button.addEventListener("click", () => {
+          loadBetAnalytics(button.dataset.betKey, button.dataset.betLabel);
+        });
+        specificCardsContainer.appendChild(button);
+      });
+    });
+  }
+
+  // Populate bust bets
+  const bustBetsContainer = document.querySelector(".analytics-bust-card-bets .analytics-grid");
+  if (bustBetsContainer && bustBetsContainer.children.length === 0) {
+    const bustSuits = [
+      { key: "bust-hearts", label: "Bust Hearts", icon: "♥", text: "Hearts" },
+      { key: "bust-clubs", label: "Bust Clubs", icon: "♣", text: "Clubs" },
+      { key: "bust-spades", label: "Bust Spades", icon: "♠", text: "Spades" },
+      { key: "bust-diamonds", label: "Bust Diamonds", icon: "♦", text: "Diamonds" }
+    ];
+    const bustFaces = [
+      { key: "bust-jack", label: "Bust Jack", text: "Jack" },
+      { key: "bust-queen", label: "Bust Queen", text: "Queen" },
+      { key: "bust-king", label: "Bust King", text: "King" }
+    ];
+    
+    bustSuits.forEach(bust => {
+      const button = document.createElement("button");
+      button.className = "bet-spot bust-bet analytics-bet-spot";
+      button.type = "button";
+      button.dataset.betKey = bust.key;
+      button.dataset.betLabel = bust.label;
+      button.innerHTML = `
+        <span class="bet-label">
+          <span class="suit-icon">${bust.icon}</span>
+          <span class="bet-text">${bust.text}</span>
+        </span>
+      `;
+      button.addEventListener("click", () => {
+        loadBetAnalytics(button.dataset.betKey, button.dataset.betLabel);
+      });
+      bustBetsContainer.appendChild(button);
+    });
+    
+    bustFaces.forEach(bust => {
+      const button = document.createElement("button");
+      button.className = "bet-spot bust-bet analytics-bet-spot";
+      button.type = "button";
+      button.dataset.betKey = bust.key;
+      button.dataset.betLabel = bust.label;
+      button.innerHTML = `<span class="bet-label">${bust.text}</span>`;
+      button.addEventListener("click", () => {
+        loadBetAnalytics(button.dataset.betKey, button.dataset.betLabel);
+      });
+      bustBetsContainer.appendChild(button);
+    });
+    
+    const jokerButton = document.createElement("button");
+    jokerButton.className = "bet-spot bust-bet analytics-bet-spot";
+    jokerButton.type = "button";
+    jokerButton.dataset.betKey = "bust-joker";
+    jokerButton.dataset.betLabel = "Bust Joker";
+    jokerButton.innerHTML = `<span class="bet-label">Joker</span>`;
+    jokerButton.addEventListener("click", () => {
+      loadBetAnalytics(jokerButton.dataset.betKey, jokerButton.dataset.betLabel);
+    });
+    bustBetsContainer.appendChild(jokerButton);
+  }
+
+  // Populate card count bets
+  const countBetsContainer = document.querySelector(".analytics-card-count-bets .analytics-grid");
+  if (countBetsContainer && countBetsContainer.children.length === 0) {
+    const counts = [
+      { key: "count-1", label: "1 Card" },
+      { key: "count-2", label: "2 Cards" },
+      { key: "count-3", label: "3 Cards" },
+      { key: "count-4", label: "4 Cards" },
+      { key: "count-5", label: "5 Cards" },
+      { key: "count-6", label: "6 Cards" },
+      { key: "count-7", label: "7 Cards" },
+      { key: "count-8", label: "8+ Cards" }
+    ];
+    
+    counts.forEach(count => {
+      const button = document.createElement("button");
+      button.className = "bet-spot count-bet analytics-bet-spot";
+      button.type = "button";
+      button.dataset.betKey = count.key;
+      button.dataset.betLabel = count.label;
+      button.innerHTML = `<span class="bet-label">${count.label}</span>`;
+      button.addEventListener("click", () => {
+        loadBetAnalytics(button.dataset.betKey, button.dataset.betLabel);
+      });
+      countBetsContainer.appendChild(button);
+    });
+  }
+  
+  // Load and apply heat map
+  loadAllBetStats().then(stats => {
+    applyHeatMap(stats);
+  }).catch(err => {
+    console.error("[RTN] Error loading bet stats for heat map:", err);
   });
 }
 

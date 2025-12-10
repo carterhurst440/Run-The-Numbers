@@ -404,12 +404,12 @@
               <h2 class="draws-title">Cards Dealt</h2>
               <div class="draws" id="draws" aria-label="Cards dealt this hand"></div>
             </section>
-            <div class="status" id="status" aria-live="assertive">
-              Select a chip and place your bets in the betting panel.
-            </div>
           </section>
 
           <section class="panel betting-panel" aria-label="Betting regions">
+            <div class="status" id="status" aria-live="assertive">
+              Select a chip and place your bets in the betting panel.
+            </div>
             <div class="betting-scroll">
               <div class="active-paytable" aria-live="polite">
                 <div class="active-paytable-info">
@@ -422,6 +422,14 @@
               <section class="number-bets" aria-labelledby="number-bets-heading">
                 <div class="bets-heading-row">
                   <h2 class="bets-heading" id="number-bets-heading">Number Bets</h2>
+                  <button type="button" class="info-icon" id="number-bets-info" aria-label="Information about number bets">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+                      <path d="M8 7V11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                      <circle cx="8" cy="5" r="0.75" fill="currentColor"/>
+                    </svg>
+                  </button>
+                  <p class="bets-subheading">Lock before dealing</p>
                 </div>
                 <div class="playmat" role="group" aria-label="Number bet spots">
                   <button
@@ -778,39 +786,12 @@
                   </button>
                 </div>
               </section>
-              <p class="table-callout" id="table-callout">Select a chip and place your bets in the betting panel.</p>
-              <div class="advanced-controls">
-                <label class="advanced-toggle" for="advanced-toggle">
-                  <span class="toggle-label">Advanced Mode</span>
-                  <input
-                    type="checkbox"
-                    id="advanced-toggle"
-                    role="switch"
-                    aria-checked="false"
-                    aria-controls="advanced-bets"
-                  />
-                  <span class="toggle-visual" aria-hidden="true">
-                    <span class="toggle-thumb"></span>
-                  </span>
-                </label>
-                <button
-                  type="button"
-                  id="pause-play"
-                  class="pause-toggle secondary"
-                  hidden
-                  aria-pressed="false"
-                >
-                  Pause
-                </button>
-              </div>
-              <div class="advanced-bets" id="advanced-bets" hidden aria-hidden="true">
-                <div class="advanced-panel">
-                  <div class="advanced-group advanced-busts" aria-label="Bust card bets">
-                    <div class="advanced-group-header">
-                      <h3 class="advanced-title">Bust Card</h3>
-                      <p class="advanced-subtitle">Playable any time · pays as shown</p>
-                    </div>
-                    <div class="bust-grid" role="group" aria-label="Bust card bet spots">
+              <section class="bust-card-bets" aria-labelledby="bust-card-bets-heading">
+                <div class="bets-heading-row">
+                  <h2 class="bets-heading" id="bust-card-bets-heading">Bust Card Bets</h2>
+                  <p class="bets-subheading">Playable any time · pays as shown</p>
+                </div>
+                <div class="bust-grid" role="group" aria-label="Bust card bet spots">
                       <button
                         class="bet-spot bust-bet bust-suit bust-hearts"
                         type="button"
@@ -943,13 +924,13 @@
                         <div class="chip-stack" aria-hidden="true"></div>
                       </button>
                     </div>
-                  </div>
-                  <div class="advanced-group" aria-label="Card count bets">
-                    <div class="advanced-group-header">
-                      <h3 class="advanced-title">Card Count</h3>
-                      <p class="advanced-subtitle">Lock before dealing · counts include the bust card</p>
-                    </div>
-                    <div class="advanced-grid card-count-grid" role="group" aria-label="Card count bet spots">
+              </section>
+              <section class="card-count-bets" aria-labelledby="card-count-bets-heading">
+                <div class="bets-heading-row">
+                  <h2 class="bets-heading" id="card-count-bets-heading">Card Count Bets</h2>
+                  <p class="bets-subheading">Lock before dealing · counts include the bust card</p>
+                </div>
+                <div class="card-count-grid" role="group" aria-label="Card count bet spots">
                       <button
                         class="bet-spot count-bet"
                         type="button"
@@ -1009,12 +990,12 @@
                         data-bet-label="4 Cards"
                         data-count-min="4"
                         data-count-max="4"
-                        data-payout="7"
+                        data-payout="8"
                         data-lock="hand"
-                        aria-label="Bet the hand stops in 4 cards. Pays 7 to 1."
+                        aria-label="Bet the hand stops in 4 cards. Pays 8 to 1."
                       >
                         <span class="bet-label">4 Cards</span>
-                        <span class="bet-odds">7:1</span>
+                        <span class="bet-odds">8:1</span>
                         <span class="bet-total" aria-live="polite" aria-atomic="true">0</span>
                         <div class="chip-stack" aria-hidden="true"></div>
                       </button>
@@ -1026,12 +1007,12 @@
                         data-bet-label="5 Cards"
                         data-count-min="5"
                         data-count-max="5"
-                        data-payout="10"
+                        data-payout="11"
                         data-lock="hand"
-                        aria-label="Bet the hand stops in 5 cards. Pays 10 to 1."
+                        aria-label="Bet the hand stops in 5 cards. Pays 11 to 1."
                       >
                         <span class="bet-label">5 Cards</span>
-                        <span class="bet-odds">10:1</span>
+                        <span class="bet-odds">11:1</span>
                         <span class="bet-total" aria-live="polite" aria-atomic="true">0</span>
                         <div class="chip-stack" aria-hidden="true"></div>
                       </button>
@@ -1043,12 +1024,12 @@
                         data-bet-label="6 Cards"
                         data-count-min="6"
                         data-count-max="6"
-                        data-payout="13"
+                        data-payout="15"
                         data-lock="hand"
-                        aria-label="Bet the hand stops in 6 cards. Pays 13 to 1."
+                        aria-label="Bet the hand stops in 6 cards. Pays 15 to 1."
                       >
                         <span class="bet-label">6 Cards</span>
-                        <span class="bet-odds">13:1</span>
+                        <span class="bet-odds">15:1</span>
                         <span class="bet-total" aria-live="polite" aria-atomic="true">0</span>
                         <div class="chip-stack" aria-hidden="true"></div>
                       </button>
@@ -1060,12 +1041,12 @@
                         data-bet-label="7 Cards"
                         data-count-min="7"
                         data-count-max="7"
-                        data-payout="18"
+                        data-payout="20"
                         data-lock="hand"
-                        aria-label="Bet the hand stops in 7 cards. Pays 18 to 1."
+                        aria-label="Bet the hand stops in 7 cards. Pays 20 to 1."
                       >
                         <span class="bet-label">7 Cards</span>
-                        <span class="bet-odds">18:1</span>
+                        <span class="bet-odds">20:1</span>
                         <span class="bet-total" aria-live="polite" aria-atomic="true">0</span>
                         <div class="chip-stack" aria-hidden="true"></div>
                       </button>
@@ -1077,19 +1058,17 @@
                         data-bet-label="8+ Cards"
                         data-count-min="8"
                         data-count-max="Infinity"
-                        data-payout="10"
+                        data-payout="7"
                         data-lock="hand"
-                        aria-label="Bet the hand lasts 8 or more cards. Pays 10 to 1."
+                        aria-label="Bet the hand lasts 8 or more cards. Pays 7 to 1."
                       >
                         <span class="bet-label">8+ Cards</span>
-                        <span class="bet-odds">10:1</span>
+                        <span class="bet-odds">7:1</span>
                         <span class="bet-total" aria-live="polite" aria-atomic="true">0</span>
                         <div class="chip-stack" aria-hidden="true"></div>
                       </button>
                     </div>
-                  </div>
-                </div>
-              </div>
+              </section>
               <section
                 class="bets-panel"
                 aria-live="polite"
@@ -1204,18 +1183,64 @@
             <header class="route-header">
               <div>
                 <h1 id="admin-title">Admin</h1>
-                <p class="route-subheading">Create and manage prize listings.</p>
+                <p class="route-subheading">Manage prizes and view analytics.</p>
               </div>
               <div class="route-actions">
                 <button type="button" data-route-target="home" class="link-button">Back to home</button>
               </div>
             </header>
-            <section class="route-section admin-list-section">
-              <div class="admin-listing-header">
-                <h2>Active prize listings</h2>
-                <button type="button" class="primary" id="admin-add-button">Add new listing</button>
-              </div>
-              <ul id="admin-prize-list" class="admin-prize-list" aria-live="polite"></ul>
+            <div class="admin-tabs">
+              <button type="button" class="admin-tab active" data-admin-tab="prizes">Prizes</button>
+              <button type="button" class="admin-tab" data-admin-tab="analytics">Analytics</button>
+            </div>
+            <section class="admin-tab-content" id="admin-prizes-content">
+              <section class="route-section admin-list-section">
+                <div class="admin-listing-header">
+                  <h2>Active prize listings</h2>
+                  <button type="button" class="primary" id="admin-add-button">Add new listing</button>
+                </div>
+                <ul id="admin-prize-list" class="admin-prize-list" aria-live="polite"></ul>
+              </section>
+            </section>
+            <section class="admin-tab-content" id="admin-analytics-content" hidden>
+              <section class="route-section analytics-section">
+                <h2>Betting Analytics</h2>
+                <p class="analytics-description">Click on any bet to view detailed statistics</p>
+                <div class="analytics-betting-panel">
+                  <section class="analytics-number-bets" aria-labelledby="analytics-number-bets-heading">
+                    <div class="bets-heading-row">
+                      <h3 class="bets-heading" id="analytics-number-bets-heading">Number Bets</h3>
+                    </div>
+                    <div class="playmat analytics-playmat" role="group" aria-label="Number bet analytics">
+                      <!-- Number bets A-10 -->
+                    </div>
+                  </section>
+                  <section class="analytics-specific-card-bets" aria-labelledby="analytics-specific-card-bets-heading">
+                    <div class="bets-heading-row">
+                      <h3 class="bets-heading" id="analytics-specific-card-bets-heading">Specific Card Bets</h3>
+                    </div>
+                    <div class="specific-cards-grid analytics-grid" role="group" aria-label="Specific card bet analytics">
+                      <!-- Specific card bets -->
+                    </div>
+                  </section>
+                  <section class="analytics-bust-card-bets" aria-labelledby="analytics-bust-card-bets-heading">
+                    <div class="bets-heading-row">
+                      <h3 class="bets-heading" id="analytics-bust-card-bets-heading">Bust Card Bets</h3>
+                    </div>
+                    <div class="bust-grid analytics-grid" role="group" aria-label="Bust card bet analytics">
+                      <!-- Bust bets -->
+                    </div>
+                  </section>
+                  <section class="analytics-card-count-bets" aria-labelledby="analytics-card-count-bets-heading">
+                    <div class="bets-heading-row">
+                      <h3 class="bets-heading" id="analytics-card-count-bets-heading">Card Count Bets</h3>
+                    </div>
+                    <div class="card-count-grid analytics-grid" role="group" aria-label="Card count bet analytics">
+                      <!-- Count bets -->
+                    </div>
+                  </section>
+                </div>
+              </section>
             </section>
           </div>
         </section>
@@ -1318,6 +1343,66 @@
 
     <div
       class="modal"
+      id="bet-analytics-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bet-analytics-title"
+      hidden
+    >
+      <div class="modal-content analytics-modal">
+        <div class="modal-header">
+          <h2 id="bet-analytics-title">Bet Analytics</h2>
+          <button type="button" class="modal-close" id="bet-analytics-close" aria-label="Close analytics">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body analytics-modal-body">
+          <div class="analytics-left">
+            <div class="analytics-stats">
+              <div class="analytics-stat">
+                <span class="stat-label">Total Bets Placed</span>
+                <span class="stat-value" id="analytics-total-bets">-</span>
+              </div>
+              <div class="analytics-stat">
+                <span class="stat-label">Total Amount Wagered</span>
+                <span class="stat-value" id="analytics-total-wagered">-</span>
+              </div>
+              <div class="analytics-stat">
+                <span class="stat-label">Net Player Return</span>
+                <span class="stat-value" id="analytics-net-return">-</span>
+              </div>
+              <div class="analytics-stat">
+                <span class="stat-label">House Edge</span>
+                <span class="stat-value" id="analytics-house-edge">-</span>
+              </div>
+            </div>
+          </div>
+          <div class="analytics-right">
+            <div class="analytics-chart-section">
+              <div class="chart-header">
+                <h3 class="chart-title">Bet Volume Over Time</h3>
+                <div class="chart-filters">
+                  <button type="button" class="chart-filter-btn" data-period="week">Last Week</button>
+                  <button type="button" class="chart-filter-btn" data-period="month">Last Month</button>
+                  <button type="button" class="chart-filter-btn" data-period="90days">Last 90 Days</button>
+                  <button type="button" class="chart-filter-btn" data-period="year">Last Year</button>
+                  <button type="button" class="chart-filter-btn active" data-period="all">All Time</button>
+                </div>
+              </div>
+              <div class="chart-container">
+                <canvas id="bet-analytics-chart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal"
       id="shipping-modal"
       role="dialog"
       aria-modal="true"
@@ -1349,6 +1434,28 @@
       </div>
     </div>
 
+    <div
+      class="modal info-modal"
+      id="number-bets-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="number-bets-modal-title"
+      hidden
+    >
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="number-bets-modal-title">Number Bets</h2>
+          <button type="button" class="modal-close" id="number-bets-modal-close" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+          <p>The number bets are paid everytime the number is drawn in the hand with increasing payouts on subsequent hits as determined by the selected paytable. These bets are lost when the hand ends.</p>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="number-bets-modal-ok" class="primary">OK</button>
+        </div>
+      </div>
+    </div>
+
     <template id="card-template">
       <div class="card">
         <div class="card-rank"></div>
@@ -1356,6 +1463,7 @@
       </div>
     </template>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
     <script type="module" src="script.js"></script>
   </body>
