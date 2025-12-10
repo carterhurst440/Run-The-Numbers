@@ -1926,17 +1926,44 @@ async function handleAdminDelete(prize) {
     showToast("Unable to delete prize", "error");
     return;
   }
-  if (typeof window !== "undefined") {
-    const confirmed = window.confirm(`Delete ${prize.name || "this prize"}?`);
-    if (!confirmed) {
-      return;
-    }
-  }
+  
   try {
-    const { error } = await supabase.from("prizes").delete().eq("id", prize.id);
+    // Check if prize has any purchase records
+    const { data: purchases, error: purchaseError } = await supabase
+      .from("prize_purchases")
+      .select("id")
+      .eq("prize_id", prize.id);
+    
+    if (purchaseError) {
+      throw purchaseError;
+    }
+    
+    const hasPurchases = purchases && purchases.length > 0;
+    
+    if (typeof window !== "undefined") {
+      let confirmMessage = `Delete ${prize.name || "this prize"}?`;
+      if (hasPurchases) {
+        confirmMessage = `Delete ${prize.name || "this prize"}? This will also delete ${purchases.length} associated purchase record(s).`;
+      }
+      const confirmed = window.confirm(confirmMessage);
+      if (!confirmed) {
+        return;
+      }
+    }
+    
+    // Use RPC to cascade delete both purchase records and the prize
+    const { data: deleted, error } = await supabase.rpc("delete_prize_cascade", {
+      _prize_id: prize.id
+    });
+    
     if (error) {
       throw error;
     }
+    
+    if (!deleted) {
+      throw new Error("Prize not found or could not be deleted");
+    }
+    
     showToast("Prize deleted", "success");
     adminPrizeCache = adminPrizeCache.filter((entry) => entry.id !== prize.id);
     if (adminEditingPrizeId === prize.id) {
@@ -2405,9 +2432,6 @@ function applyTheme(theme) {
   });
   document.body.classList.add(THEME_CLASS_MAP[next]);
   currentTheme = next;
-  if (themeSelect && themeSelect.value !== next) {
-    themeSelect.value = next;
-  }
   if (typeof window !== "undefined") {
     window.requestAnimationFrame(() => drawBankrollChart());
   } else {
@@ -2416,28 +2440,8 @@ function applyTheme(theme) {
 }
 
 function initTheme() {
-  let saved = "blue";
-  try {
-    const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    if (stored && THEME_CLASS_MAP[stored]) {
-      saved = stored;
-    }
-  } catch (error) {
-    saved = "blue";
-  }
-  applyTheme(saved);
-  if (themeSelect) {
-    themeSelect.value = saved;
-    themeSelect.addEventListener("change", (event) => {
-      const selected = event.target.value;
-      applyTheme(selected);
-      try {
-        localStorage.setItem(THEME_STORAGE_KEY, selected);
-      } catch (error) {
-        /* ignore storage issues */
-      }
-    });
-  }
+  // Always use blue theme
+  applyTheme("blue");
 }
 
 const bankrollEl = document.getElementById("bankroll");
@@ -2468,6 +2472,10 @@ betSpotButtons.forEach((button) => {
 
   if (type === "number") {
     metadata.rank = button.dataset.rank;
+  } else if (type === "specific-card") {
+    metadata.rank = button.dataset.rank;
+    metadata.suit = button.dataset.suit;
+    metadata.suitName = button.dataset.suitName;
   } else if (type === "bust-suit") {
     metadata.suit = button.dataset.suit;
   } else if (type === "bust-rank") {
@@ -2485,6 +2493,9 @@ betSpotButtons.forEach((button) => {
   if (type === "number") {
     const rankLabel = metadata.rank ? describeRank(metadata.rank) : label;
     announce = `Bet on ${rankLabel}`;
+  } else if (type === "specific-card") {
+    const rankLabel = metadata.rank ? describeRank(metadata.rank) : "";
+    announce = `Bet on ${rankLabel} of ${metadata.suitName}`;
   } else if (type === "count") {
     announce = `${label} card count`;
   } else if (type === "bust-suit") {
@@ -2524,7 +2535,6 @@ const resetAccountButton = document.getElementById("reset-account");
 const menuToggle = document.getElementById("menu-toggle");
 const utilityPanel = document.getElementById("utility-panel");
 const utilityClose = document.getElementById("utility-close");
-const themeSelect = document.getElementById("theme-select");
 const graphToggle = document.getElementById("graph-toggle");
 const chartPanel = document.getElementById("chart-panel");
 const chartClose = document.getElementById("chart-close");
@@ -3822,12 +3832,19 @@ function summarizeBetResult(bet) {
 
 function addHistoryEntry(result) {
   const item = document.createElement("li");
-  const hitsDescription = result.betSummaries.length
-    ? result.betSummaries.join(" · ")
-    : "No winning hits";
+  const drawnCards = result.drawnCards || [];
+  const cardsList = drawnCards.map(card => {
+    if (card.label === "Joker") {
+      return "Joker";
+    }
+    return `${card.label}${card.suit || ""}`;
+  }).join(", ");
+  
+  const handLength = drawnCards.length;
+  
   item.innerHTML = `
-    <span class="stopper-card">Stopped on ${formatStopper(result.stopper)}</span> ·
-    ${hitsDescription}
+    <div>${cardsList}</div>
+    <div>Hand Length: ${handLength}</div>
   `;
   historyList.prepend(item);
   while (historyList.children.length > 8) {
@@ -4041,6 +4058,7 @@ async function endHand(stopperCard, context = {}) {
 
   addHistoryEntry({
     stopper: stopperCard,
+    drawnCards: context.drawnCards || [],
     betSummaries: bets.map((bet) => summarizeBetResult(bet))
   });
 
@@ -4078,6 +4096,10 @@ async function endHand(stopperCard, context = {}) {
 async function processCard(card, context) {
   if (context) {
     context.totalCards = (context.totalCards ?? 0) + 1;
+    if (!context.drawnCards) {
+      context.drawnCards = [];
+    }
+    context.drawnCards.push(card);
   }
 
   renderDraw(card);
@@ -4092,6 +4114,7 @@ async function processCard(card, context) {
   }
 
   const rank = card.rank;
+  const suit = card.suit;
   let totalHitPayout = 0;
   let hitsRecorded = 0;
   const stepPays = currentStepPays();
@@ -4102,6 +4125,22 @@ async function processCard(card, context) {
       bet.hits < stepPays.length
     ) {
       const pay = stepPays[bet.hits] * bet.units;
+      bet.paid += pay;
+      bet.hits += 1;
+      bankroll += pay;
+      handleBankrollChanged();
+      totalHitPayout += pay;
+      hitsRecorded += 1;
+    } else if (
+      bet.type === "specific-card" &&
+      bet.metadata?.rank === rank &&
+      bet.metadata?.suit === suit &&
+      bet.hits === 0
+    ) {
+      // Specific card bet pays 12 to 1 (wager + 12x payout)
+      const definition = getBetDefinition(bet.key);
+      const payout = definition?.payout || 12;
+      const pay = (payout + 1) * bet.units; // Return wager plus payout
       bet.paid += pay;
       bet.hits += 1;
       bankroll += pay;
@@ -4128,7 +4167,7 @@ async function dealHand() {
   currentOpeningLayout = snapshotLayout(bets);
   dealing = true;
   pauseResolvers = [];
-  currentHandContext = { nonStopperCount: 0, totalCards: 0 };
+  currentHandContext = { nonStopperCount: 0, totalCards: 0, drawnCards: [] };
   setHandPaused(false);
   setBettingEnabled(false);
   dealButton.disabled = true;
