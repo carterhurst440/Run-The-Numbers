@@ -1205,6 +1205,42 @@
             <section class="admin-tab-content" id="admin-analytics-content" hidden>
               <section class="route-section analytics-section">
                 <h2>Betting Analytics</h2>
+                
+                <!-- Player Filter -->
+                <div class="analytics-player-filter">
+                  <label for="player-filter-select">Filter by Players:</label>
+                  <div class="player-filter-wrapper">
+                    <select id="player-filter-select" multiple size="5">
+                      <option value="all" selected>All Players</option>
+                      <!-- Players populated dynamically -->
+                    </select>
+                    <div class="player-filter-actions">
+                      <button type="button" id="apply-player-filter" class="btn-primary">Apply Filter</button>
+                      <button type="button" id="clear-player-filter" class="btn-secondary">Clear</button>
+                    </div>
+                  </div>
+                  <p class="filter-hint">Hold Ctrl/Cmd to select multiple players</p>
+                </div>
+                
+                <div class="analytics-overview-chart">
+                  <div class="overview-chart-header">
+                    <h3>Total Bet Volume Over Time</h3>
+                    <div class="chart-filters overview-filters">
+                      <button type="button" class="chart-filter-btn" data-period="week">Last Week</button>
+                      <button type="button" class="chart-filter-btn" data-period="month">Last Month</button>
+                      <button type="button" class="chart-filter-btn" data-period="90days">Last 90 Days</button>
+                      <button type="button" class="chart-filter-btn" data-period="year">Last Year</button>
+                      <button type="button" class="chart-filter-btn active" data-period="all">All Time</button>
+                    </div>
+                  </div>
+                  <div class="overview-chart-container">
+                    <canvas id="overview-analytics-chart"></canvas>
+                    <div class="overview-chart-loading">
+                      <div class="spinner"></div>
+                      <p>Loading chart data...</p>
+                    </div>
+                  </div>
+                </div>
                 <p class="analytics-description">Click on any bet to view detailed statistics</p>
                 <div class="analytics-betting-panel">
                   <section class="analytics-number-bets" aria-labelledby="analytics-number-bets-heading">

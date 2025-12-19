@@ -1119,29 +1119,52 @@ async function loadBetAnalytics(betKey, betLabel) {
     modalTitle.textContent = `${betLabel} Analytics`;
   }
 
-  // Query bet_plays table for this specific bet (using correct column names)
-  const { data, error } = await supabase
-    .from("bet_plays")
-    .select("amount_wagered, amount_paid, net")
-    .eq("bet_key", betKey);
+  // Query bet_plays table with pagination (handle more than 1000 records)
+  const allData = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
 
-  if (error) {
-    console.error("[RTN] Error loading bet analytics:", error);
+  while (hasMore) {
+    let query = supabase
+      .from("bet_plays")
+      .select("amount_wagered, amount_paid, net")
+      .eq("bet_key", betKey)
+      .range(page * pageSize, (page + 1) * pageSize - 1);
     
-    document.getElementById("analytics-total-bets").textContent = "0";
-    document.getElementById("analytics-total-wagered").textContent = "$0";
-    document.getElementById("analytics-net-return").textContent = "$0";
-    document.getElementById("analytics-house-edge").textContent = "0.00%";
-    openBetAnalyticsModal();
-    return;
+    // Apply player filter if selected
+    if (selectedPlayerIds && selectedPlayerIds.length > 0) {
+      query = query.in("user_id", selectedPlayerIds);
+    }
+    
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("[RTN] Error loading bet analytics:", error);
+      
+      document.getElementById("analytics-total-bets").textContent = "0";
+      document.getElementById("analytics-total-wagered").textContent = "$0";
+      document.getElementById("analytics-net-return").textContent = "$0";
+      document.getElementById("analytics-house-edge").textContent = "0.00%";
+      openBetAnalyticsModal();
+      return;
+    }
+
+    if (data && data.length > 0) {
+      allData.push(...data);
+      hasMore = data.length === pageSize;
+      page++;
+    } else {
+      hasMore = false;
+    }
   }
 
-  console.info(`[RTN] Loaded ${data?.length ?? 0} bet plays for ${betKey}`);
+  console.info(`[RTN] Loaded ${allData.length} bet plays for ${betKey}`);
 
   // Calculate statistics using correct column names
-  const totalBets = data?.length ?? 0;
-  const totalWagered = data?.reduce((sum, play) => sum + (play.amount_wagered || 0), 0) ?? 0;
-  const totalPaidOut = data?.reduce((sum, play) => sum + (play.amount_paid || 0), 0) ?? 0;
+  const totalBets = allData.length;
+  const totalWagered = allData.reduce((sum, play) => sum + (play.amount_wagered || 0), 0);
+  const totalPaidOut = allData.reduce((sum, play) => sum + (play.amount_paid || 0), 0);
   const netReturn = totalPaidOut; // Net player return is total amount paid to players
   const houseEdge = totalWagered > 0 ? (((totalWagered - totalPaidOut) / totalWagered) * 100).toFixed(2) : "0.00";
 
@@ -1196,35 +1219,77 @@ async function renderBetVolumeChart(betKey, period) {
       break;
   }
 
-  // Build query
-  let query = supabase
-    .from("bet_plays")
-    .select("placed_at")
-    .eq("bet_key", betKey)
-    .order("placed_at", { ascending: true });
+  // Build query with pagination
+  const allPlays = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
 
-  if (startDate) {
-    query = query.gte("placed_at", startDate.toISOString());
+  while (hasMore) {
+    let query = supabase
+      .from("bet_plays")
+      .select("id, placed_at")
+      .eq("bet_key", betKey)
+      .order("placed_at", { ascending: true })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (startDate) {
+      query = query.gte("placed_at", startDate.toISOString());
+    }
+    
+    // Apply player filter if selected
+    if (selectedPlayerIds && selectedPlayerIds.length > 0) {
+      query = query.in("user_id", selectedPlayerIds);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("[RTN] Error loading chart data:", error);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      allPlays.push(...data);
+      hasMore = data.length === pageSize;
+      page++;
+    } else {
+      hasMore = false;
+    }
   }
 
-  const { data, error } = await query;
+  console.info(`[RTN] Loaded ${allPlays.length} plays for chart`);
 
-  if (error) {
-    console.error("[RTN] Error loading chart data:", error);
-    return;
+  // Determine the date range to fill
+  const effectiveStartDate = startDate || (allPlays.length > 0 ? new Date(allPlays[0].placed_at) : new Date());
+  const endDate = new Date();
+  
+  // Fill all dates in range
+  const allDates = [];
+  const currentDate = new Date(effectiveStartDate);
+  currentDate.setHours(0, 0, 0, 0);
+  
+  while (currentDate <= endDate) {
+    allDates.push(currentDate.toISOString().split("T")[0]);
+    currentDate.setDate(currentDate.getDate() + 1);
   }
 
-  console.info(`[RTN] Loaded ${data?.length ?? 0} plays for chart`);
-
-  // Group by date
+  // Group by date and count unique IDs
   const countsByDate = {};
-  data?.forEach(play => {
+  allDates.forEach(date => {
+    countsByDate[date] = 0;
+  });
+  
+  // Count each record (each has unique ID)
+  allPlays.forEach(play => {
     const date = new Date(play.placed_at).toISOString().split("T")[0];
-    countsByDate[date] = (countsByDate[date] || 0) + 1;
+    if (countsByDate.hasOwnProperty(date)) {
+      countsByDate[date]++;
+    }
   });
 
   // Convert to arrays for Chart.js
-  const dates = Object.keys(countsByDate).sort();
+  const dates = allDates;
   const counts = dates.map(date => countsByDate[date]);
 
   // Get canvas context
@@ -1303,84 +1368,252 @@ async function renderBetVolumeChart(betKey, period) {
   console.info("[RTN] Chart rendered successfully");
 }
 
+// Global variable for overview chart
+let overviewChartInstance = null;
 
-async function loadAllBetStats() {
+async function renderOverviewChart(period = "all") {
   if (!supabase) {
-    console.warn("[RTN] Cannot load bet stats: Supabase client not initialized");
-    return {};
+    console.warn("[RTN] Cannot render overview chart: Supabase client not initialized");
+    return;
   }
 
-  console.info("[RTN] Loading all bet stats for heat map");
-
-  // Query all bet plays and group by bet_key (using correct column name)
-  const { data, error } = await supabase
-    .from("bet_plays")
-    .select("bet_key");
-
-  if (error) {
-    console.error("[RTN] Error loading all bet stats:", error);
-    
-    // If table doesn't exist, return empty stats
-    if (error.code === "42P01" || error.message?.includes("does not exist")) {
-      console.info("[RTN] bet_plays table does not exist yet - no data to display");
-    }
-    
-    return {};
+  // Show loading state
+  const loadingOverlay = document.querySelector(".overview-chart-loading");
+  if (loadingOverlay) {
+    loadingOverlay.style.display = "flex";
   }
-
-  console.info(`[RTN] Loaded ${data?.length ?? 0} total bet plays`);
-
-  // Group by bet_key and count
-  const stats = {};
-  data?.forEach(play => {
-    if (!stats[play.bet_key]) {
-      stats[play.bet_key] = 0;
-    }
-    stats[play.bet_key]++;
+  
+  // Disable filter buttons during load
+  document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(btn => {
+    btn.disabled = true;
   });
 
-  console.info(`[RTN] Grouped into ${Object.keys(stats).length} unique bets`);
+  console.info(`[RTN] Rendering overview chart with period: ${period}`);
 
-  return stats;
+  // Calculate date range
+  const now = new Date();
+  let startDate = null;
+
+  if (period === "week") {
+    startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  } else if (period === "month") {
+    startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  } else if (period === "90days") {
+    startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+  } else if (period === "year") {
+    startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+  }
+
+  // Fetch ALL records using pagination (Supabase has 1000 row default limit)
+  const allRecords = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+
+  console.info(`[RTN] Fetching all bet plays in batches...`);
+
+  while (hasMore) {
+    let query = supabase
+      .from("bet_plays")
+      .select("bet_key, placed_at, user_id")
+      .not("bet_key", "is", null)
+      .order("placed_at", { ascending: true })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (startDate) {
+      query = query.gte("placed_at", startDate.toISOString());
+    }
+    
+    // Apply player filter if selected
+    if (selectedPlayerIds && selectedPlayerIds.length > 0) {
+      query = query.in("user_id", selectedPlayerIds);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("[RTN] Error loading overview chart data:", error);
+      if (loadingOverlay) loadingOverlay.style.display = "none";
+      document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(btn => {
+        btn.disabled = false;
+      });
+      return;
+    }
+
+    if (data && data.length > 0) {
+      allRecords.push(...data);
+      console.info(`[RTN] Fetched page ${page + 1}: ${data.length} records (total so far: ${allRecords.length})`);
+      hasMore = data.length === pageSize;
+      page++;
+    } else {
+      hasMore = false;
+    }
+  }
+
+  console.info(`[RTN] Loaded ${allRecords.length} total bet play records`);
+  
+  // Debug: Check what bet_keys we actually got
+  if (allRecords && allRecords.length > 0) {
+    const uniqueKeys = [...new Set(allRecords.map(r => r.bet_key))];
+    console.info(`[RTN] Found ${uniqueKeys.length} unique bet_keys:`, uniqueKeys.slice(0, 10));
+    
+    const todayStr = now.toISOString().split("T")[0];
+    const todayRecords = allRecords.filter(r => r.placed_at.startsWith(todayStr));
+    console.info(`[RTN] Records from today (${todayStr}): ${todayRecords.length}`);
+  }
+
+  // Determine date range for chart
+  let chartStartDate;
+  if (startDate) {
+    chartStartDate = startDate;
+  } else if (allRecords.length > 0) {
+    const sorted = allRecords.sort((a, b) => a.placed_at.localeCompare(b.placed_at));
+    chartStartDate = new Date(sorted[0].placed_at);
+  } else {
+    chartStartDate = now;
+  }
+
+  // Generate all dates from start to today
+  const dates = [];
+  const current = new Date(chartStartDate);
+  current.setHours(0, 0, 0, 0);
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+
+  while (current <= today) {
+    dates.push(current.toISOString().split("T")[0]);
+    current.setDate(current.getDate() + 1);
+  }
+
+  // Count bet plays per date
+  const countsMap = {};
+  dates.forEach(date => {
+    countsMap[date] = 0;
+  });
+
+  allRecords.forEach(record => {
+    const dateStr = record.placed_at.split("T")[0];
+    if (countsMap.hasOwnProperty(dateStr)) {
+      countsMap[dateStr]++;
+    }
+  });
+
+  const counts = dates.map(date => countsMap[date]);
+
+  const todayStr = now.toISOString().split("T")[0];
+  console.info(`[RTN] Today (${todayStr}) has ${countsMap[todayStr] ?? 0} bet plays`);
+  console.info(`[RTN] Chart date range: ${dates[0]} to ${dates[dates.length - 1]}`);
+
+  // Render chart
+  const canvas = document.getElementById("overview-analytics-chart");
+  if (!canvas) {
+    console.warn("[RTN] Overview chart canvas not found");
+    return;
+  }
+
+  const ctx = canvas.getContext("2d");
+
+  if (overviewChartInstance) {
+    overviewChartInstance.destroy();
+  }
+
+  overviewChartInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: dates,
+      datasets: [{
+        label: "Total Bet Plays",
+        data: counts,
+        borderColor: "rgba(255, 105, 180, 1)",
+        backgroundColor: "rgba(255, 105, 180, 0.2)",
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          mode: "index",
+          intersect: false,
+          backgroundColor: "rgba(9, 18, 32, 0.95)",
+          titleColor: "rgba(255, 105, 180, 1)",
+          bodyColor: "rgba(226, 248, 255, 0.9)",
+          borderColor: "rgba(255, 105, 180, 0.5)",
+          borderWidth: 1,
+          padding: 12,
+          displayColors: false
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            color: "rgba(53, 255, 234, 0.1)"
+          },
+          ticks: {
+            color: "rgba(173, 225, 247, 0.75)",
+            maxRotation: 45,
+            minRotation: 0
+          }
+        },
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: "rgba(53, 255, 234, 0.1)"
+          },
+          ticks: {
+            color: "rgba(173, 225, 247, 0.75)",
+            precision: 0
+          }
+        }
+      }
+    }
+  });
+
+  console.info("[RTN] Overview chart rendered successfully");
+  
+  // Hide loading state
+  if (loadingOverlay) {
+    loadingOverlay.style.display = "none";
+  }
+  
+  // Re-enable filter buttons
+  document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(btn => {
+    btn.disabled = false;
+  });
 }
 
-function applyHeatMap(stats) {
-  if (!stats || Object.keys(stats).length === 0) {
-    console.info("[RTN] No bet stats to apply heat map");
-    return;
-  }
-
-  // Find max count for normalization
-  const maxCount = Math.max(...Object.values(stats));
+// Load badge count for individual bet - uses EXACT same query as modal
+async function loadBetBadgeCount(betKey) {
+  if (!supabase) return 0;
   
-  if (maxCount === 0) {
-    return;
+  // EXACT same query as modal uses
+  let query = supabase
+    .from("bet_plays")
+    .select("amount_wagered, amount_paid, net")
+    .eq("bet_key", betKey);
+  
+  // Apply player filter if selected
+  if (selectedPlayerIds && selectedPlayerIds.length > 0) {
+    query = query.in("user_id", selectedPlayerIds);
+  }
+  
+  const { data, error } = await query;
+
+  if (error) {
+    console.error(`[RTN] Error loading count for ${betKey}:`, error);
+    return 0;
   }
 
-  console.info(`[RTN] Applying heat map with max count: ${maxCount}`);
-
-  // Apply heat to all analytics bet spots
-  document.querySelectorAll(".analytics-bet-spot").forEach(button => {
-    const betKey = button.dataset.betKey;
-    const count = stats[betKey] || 0;
-    
-    if (count > 0) {
-      // Normalize to 0-1 range
-      const intensity = count / maxCount;
-      
-      // Create red shade based on intensity
-      // Use a gradient from transparent to bright red
-      const red = Math.round(255 * intensity);
-      const alpha = 0.2 + (intensity * 0.6); // Range from 0.2 to 0.8
-      
-      button.style.backgroundColor = `rgba(${red}, 0, 0, ${alpha})`;
-      button.style.borderColor = `rgba(${red}, 100, 100, ${alpha + 0.2})`;
-      
-      // Add a data attribute for debugging
-      button.dataset.betCount = count;
-      button.dataset.heatIntensity = intensity.toFixed(2);
-    }
-  });
+  // EXACT same count as modal: data.length
+  const count = data?.length ?? 0;
+  console.info(`[RTN] Badge count for ${betKey}: ${count}`);
+  return count;
 }
 
 async function notifyAdminPurchase({ purchase, prize, shipping }) {
@@ -4993,27 +5226,220 @@ adminTabButtons.forEach(button => {
     } else if (targetTab === "analytics") {
       adminPrizesContent.hidden = true;
       adminAnalyticsContent.hidden = false;
+      loadPlayerFilter(); // Load player list for filter
       initializeAnalyticsBettingGrid();
+      renderOverviewChart("all");
     }
   });
 });
+
+// Overview chart filter buttons
+document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(button => {
+  button.addEventListener("click", () => {
+    const period = button.dataset.period;
+    
+    // Update active state
+    document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(btn => {
+      btn.classList.remove("active");
+    });
+    button.classList.add("active");
+    
+    // Render chart with new period
+    renderOverviewChart(period);
+  });
+});
+
+// Global variable to store selected player filter
+let selectedPlayerIds = null; // null = all players, [] = specific players
+let playerEmailMap = {}; // Map of user_id to email for display
+
+// Load all players for filter
+async function loadPlayerFilter() {
+  if (!supabase) return;
+  
+  console.info("[RTN] Loading players for filter");
+  
+  const select = document.getElementById("player-filter-select");
+  if (!select) {
+    console.warn("[RTN] Player filter select not found");
+    return;
+  }
+  
+  // Show loading state
+  select.innerHTML = '<option value="all" selected>Loading players...</option>';
+  
+  // Get all unique user_ids from bet_plays with pagination
+  const allUserIds = new Set();
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+  
+  while (hasMore) {
+    const { data: betPlayers, error: betError } = await supabase
+      .from("bet_plays")
+      .select("user_id")
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    
+    if (betError) {
+      console.error("[RTN] Error loading bet players:", betError);
+      select.innerHTML = '<option value="all" selected>All Players (Error loading)</option>';
+      return;
+    }
+    
+    if (betPlayers && betPlayers.length > 0) {
+      betPlayers.forEach(b => allUserIds.add(b.user_id));
+      hasMore = betPlayers.length === pageSize;
+      page++;
+    } else {
+      hasMore = false;
+    }
+  }
+  
+  const uniqueUserIds = Array.from(allUserIds);
+  console.info(`[RTN] Found ${uniqueUserIds.length} unique players with bets`);
+  console.info(`[RTN] Unique user IDs:`, uniqueUserIds);
+  
+  if (uniqueUserIds.length === 0) {
+    select.innerHTML = '<option value="all" selected>All Players (No data)</option>';
+    return;
+  }
+  
+  // Fetch profiles for these users in batches (in() has a limit)
+  const batchSize = 100;
+  const allProfiles = [];
+  
+  for (let i = 0; i < uniqueUserIds.length; i += batchSize) {
+    const batch = uniqueUserIds.slice(i, i + batchSize);
+    
+    console.info(`[RTN] Fetching profiles for batch of ${batch.length} user IDs`);
+    
+    const { data: profiles, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, username")
+      .in("id", batch);
+    
+    if (profileError) {
+      console.error("[RTN] Error loading profiles batch:", profileError);
+      console.info(`[RTN] Attempted to fetch profiles for IDs:`, batch);
+      continue;
+    }
+    
+    console.info(`[RTN] Received ${profiles?.length ?? 0} profiles from batch`);
+    
+    if (profiles) {
+      allProfiles.push(...profiles);
+    }
+  }
+  
+  console.info(`[RTN] Loaded ${allProfiles.length} profiles total`);
+  console.info(`[RTN] Profiles:`, allProfiles.map(p => ({ id: p.id.substring(0, 8), username: p.username })));
+  
+  // Build email map (using username)
+  playerEmailMap = {};
+  allProfiles.forEach(profile => {
+    playerEmailMap[profile.id] = profile.username || `User ${profile.id.substring(0, 8)}`;
+  });
+  
+  // Sort profiles by username
+  allProfiles.sort((a, b) => {
+    const usernameA = a.username || "";
+    const usernameB = b.username || "";
+    return usernameA.localeCompare(usernameB);
+  });
+  
+  // Clear and populate select
+  select.innerHTML = '<option value="all" selected>All Players</option>';
+  
+  // Add player options
+  allProfiles.forEach(profile => {
+    const option = document.createElement("option");
+    option.value = profile.id;
+    option.textContent = profile.username || `User ${profile.id.substring(0, 8)}`;
+    select.appendChild(option);
+  });
+  
+  console.info(`[RTN] Populated filter with ${allProfiles.length} players`);
+}
+
+// Apply player filter
+document.getElementById("apply-player-filter")?.addEventListener("click", () => {
+  const select = document.getElementById("player-filter-select");
+  const selectedOptions = Array.from(select.selectedOptions);
+  
+  if (selectedOptions.some(opt => opt.value === "all")) {
+    selectedPlayerIds = null; // All players
+    console.info("[RTN] Filter set to: All Players");
+  } else {
+    selectedPlayerIds = selectedOptions.map(opt => opt.value);
+    console.info(`[RTN] Filter set to: ${selectedPlayerIds.length} player(s)`);
+  }
+  
+  // Refresh all analytics data
+  refreshAnalytics();
+});
+
+// Clear player filter
+document.getElementById("clear-player-filter")?.addEventListener("click", () => {
+  const select = document.getElementById("player-filter-select");
+  Array.from(select.options).forEach(opt => {
+    opt.selected = opt.value === "all";
+  });
+  selectedPlayerIds = null;
+  console.info("[RTN] Filter cleared");
+  refreshAnalytics();
+});
+
+// Refresh all analytics with current filter
+function refreshAnalytics() {
+  // Reload badges for all existing bet buttons
+  document.querySelectorAll(".analytics-bet-spot").forEach(button => {
+    const betKey = button.dataset.betKey;
+    const badge = button.querySelector('.bet-count-badge');
+    
+    if (badge && betKey) {
+      badge.textContent = "...";
+      
+      // Load new count with current filter
+      loadBetBadgeCount(betKey).then(count => {
+        badge.textContent = count.toLocaleString();
+      });
+    }
+  });
+  
+  // Reload overview chart
+  const activeFilterBtn = document.querySelector(".overview-filters .chart-filter-btn.active");
+  const period = activeFilterBtn?.dataset.period || "all";
+  renderOverviewChart(period);
+}
 
 function initializeAnalyticsBettingGrid() {
   // Populate number bets
   const numberBetsContainer = document.querySelector(".analytics-number-bets .analytics-playmat");
   if (numberBetsContainer && numberBetsContainer.children.length === 0) {
-    NUMBER_RANKS.forEach(rank => {
+    for (const rank of NUMBER_RANKS) {
       const button = document.createElement("button");
       button.className = "bet-spot analytics-bet-spot";
       button.type = "button";
-      button.dataset.betKey = `number-${rank}`;
+      const betKey = `number-${rank}`;
+      button.dataset.betKey = betKey;
       button.dataset.betLabel = `${rank === 'A' ? 'Ace' : rank}`;
       button.innerHTML = `<span class="bet-label">${rank}</span>`;
       button.addEventListener("click", () => {
         loadBetAnalytics(button.dataset.betKey, button.dataset.betLabel);
       });
       numberBetsContainer.appendChild(button);
-    });
+      
+      // Add badge with loading state
+      const badge = document.createElement('span');
+      badge.className = 'bet-count-badge';
+      badge.textContent = '...';
+      button.appendChild(badge);
+      
+      // Load count asynchronously
+      loadBetBadgeCount(betKey).then(count => {
+        badge.textContent = count.toLocaleString();
+      });
+    }
   }
 
   // Populate specific card bets
@@ -5026,12 +5452,13 @@ function initializeAnalyticsBettingGrid() {
       { symbol: "♦", name: "Diamonds", class: "diamonds" }
     ];
     
-    suits.forEach(suit => {
-      NUMBER_RANKS.forEach(rank => {
+    for (const suit of suits) {
+      for (const rank of NUMBER_RANKS) {
         const button = document.createElement("button");
         button.className = "bet-spot specific-card-bet analytics-bet-spot";
         button.type = "button";
-        button.dataset.betKey = `card-${rank}${suit.symbol}`;
+        const betKey = `card-${rank}${suit.symbol}`;
+        button.dataset.betKey = betKey;
         button.dataset.betLabel = `${rank === 'A' ? 'Ace' : rank} of ${suit.name}`;
         button.innerHTML = `
           <span class="bet-label">
@@ -5043,8 +5470,19 @@ function initializeAnalyticsBettingGrid() {
           loadBetAnalytics(button.dataset.betKey, button.dataset.betLabel);
         });
         specificCardsContainer.appendChild(button);
-      });
-    });
+        
+        // Add badge with loading state
+        const badge = document.createElement('span');
+        badge.className = 'bet-count-badge';
+        badge.textContent = '...';
+        button.appendChild(badge);
+        
+        // Load count asynchronously
+        loadBetBadgeCount(betKey).then(count => {
+          badge.textContent = count.toLocaleString();
+        });
+      }
+    }
   }
 
   // Populate bust bets
@@ -5062,7 +5500,7 @@ function initializeAnalyticsBettingGrid() {
       { key: "bust-king", label: "Bust King", text: "King" }
     ];
     
-    bustSuits.forEach(bust => {
+    for (const bust of bustSuits) {
       const button = document.createElement("button");
       button.className = "bet-spot bust-bet analytics-bet-spot";
       button.type = "button";
@@ -5078,9 +5516,20 @@ function initializeAnalyticsBettingGrid() {
         loadBetAnalytics(button.dataset.betKey, button.dataset.betLabel);
       });
       bustBetsContainer.appendChild(button);
-    });
+      
+      // Add badge with loading state
+      const badge = document.createElement('span');
+      badge.className = 'bet-count-badge';
+      badge.textContent = '...';
+      button.appendChild(badge);
+      
+      // Load count asynchronously
+      loadBetBadgeCount(bust.key).then(count => {
+        badge.textContent = count.toLocaleString();
+      });
+    }
     
-    bustFaces.forEach(bust => {
+    for (const bust of bustFaces) {
       const button = document.createElement("button");
       button.className = "bet-spot bust-bet analytics-bet-spot";
       button.type = "button";
@@ -5091,7 +5540,18 @@ function initializeAnalyticsBettingGrid() {
         loadBetAnalytics(button.dataset.betKey, button.dataset.betLabel);
       });
       bustBetsContainer.appendChild(button);
-    });
+      
+      // Add badge with loading state
+      const badge = document.createElement('span');
+      badge.className = 'bet-count-badge';
+      badge.textContent = '...';
+      button.appendChild(badge);
+      
+      // Load count asynchronously
+      loadBetBadgeCount(bust.key).then(count => {
+        badge.textContent = count.toLocaleString();
+      });
+    }
     
     const jokerButton = document.createElement("button");
     jokerButton.className = "bet-spot bust-bet analytics-bet-spot";
@@ -5103,6 +5563,17 @@ function initializeAnalyticsBettingGrid() {
       loadBetAnalytics(jokerButton.dataset.betKey, jokerButton.dataset.betLabel);
     });
     bustBetsContainer.appendChild(jokerButton);
+    
+    // Add badge with loading state for joker
+    const jokerBadge = document.createElement('span');
+    jokerBadge.className = 'bet-count-badge';
+    jokerBadge.textContent = '...';
+    jokerButton.appendChild(jokerBadge);
+    
+    // Load count asynchronously
+    loadBetBadgeCount("bust-joker").then(count => {
+      jokerBadge.textContent = count.toLocaleString();
+    });
   }
 
   // Populate card count bets
@@ -5119,7 +5590,7 @@ function initializeAnalyticsBettingGrid() {
       { key: "count-8", label: "8+ Cards" }
     ];
     
-    counts.forEach(count => {
+    for (const count of counts) {
       const button = document.createElement("button");
       button.className = "bet-spot count-bet analytics-bet-spot";
       button.type = "button";
@@ -5130,15 +5601,19 @@ function initializeAnalyticsBettingGrid() {
         loadBetAnalytics(button.dataset.betKey, button.dataset.betLabel);
       });
       countBetsContainer.appendChild(button);
-    });
+      
+      // Add badge with loading state
+      const badge = document.createElement('span');
+      badge.className = 'bet-count-badge';
+      badge.textContent = '...';
+      button.appendChild(badge);
+      
+      // Load count asynchronously
+      loadBetBadgeCount(count.key).then(betCount => {
+        badge.textContent = betCount.toLocaleString();
+      });
+    }
   }
-  
-  // Load and apply heat map
-  loadAllBetStats().then(stats => {
-    applyHeatMap(stats);
-  }).catch(err => {
-    console.error("[RTN] Error loading bet stats for heat map:", err);
-  });
 }
 
 if (showSignUpButton) {
