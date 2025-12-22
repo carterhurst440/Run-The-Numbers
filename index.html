@@ -60,12 +60,57 @@
           <p id="auth-error" class="auth-error" role="alert" hidden></p>
         </form>
         <p class="auth-switch">
+          <button type="button" id="show-forgot-password" class="auth-switch-button">Forgot password?</button>
+        </p>
+        <p class="auth-switch">
           New here?
           <button type="button" id="show-signup" class="auth-switch-button">Create an account</button>
         </p>
       </div>
     </section>
-    <section id="signup-view" class="route-view auth-view auth-screen" hidden>
+    <section id="forgot-password-view" class="route-view auth-view auth-screen" hidden>
+      <div class="auth-card">
+        <h1>Reset your password</h1>
+        <p class="auth-description">Enter your email address and we'll send you a link to reset your password.</p>
+        <form id="forgot-password-form" class="auth-form">
+          <label for="forgot-email">Email</label>
+          <input type="email" id="forgot-email" name="email" autocomplete="email" required />
+          <button type="submit" id="forgot-submit">Send Reset Link</button>
+          <p id="forgot-error" class="auth-error" role="alert" hidden></p>
+          <p id="forgot-success" class="auth-success" role="status" hidden></p>
+        </form>
+        <p class="auth-switch">
+          <button type="button" id="show-login-from-forgot" class="auth-switch-button">Back to Log In</button>
+        </p>
+      </div>
+    </section>
+    <section id="reset-password-view" class="route-view auth-view auth-screen" hidden>
+      <div class="auth-card">
+        <h1>Set new password</h1>
+        <p class="auth-description">Enter your new password below.</p>
+        <form id="reset-password-form" class="auth-form">
+          <label for="reset-password">New Password</label>
+          <input
+            type="password"
+            id="reset-password"
+            name="password"
+            autocomplete="new-password"
+            required
+          />
+          <label for="reset-confirm">Confirm New Password</label>
+          <input
+            type="password"
+            id="reset-confirm"
+            name="confirmPassword"
+            autocomplete="new-password"
+            required
+          />
+          <button type="submit" id="reset-submit">Update Password</button>
+          <p id="reset-error" class="auth-error" role="alert" hidden></p>
+        </form>
+      </div>
+    </section>
+    <section id="signup-view" class="route-view auth-screen" hidden>
       <div class="auth-card">
         <h1>Create your account</h1>
         <form id="signup-form" class="auth-form">
@@ -377,6 +422,30 @@
           <div class="modal-actions">
             <button type="button" id="reset-cancel" class="secondary">Cancel</button>
             <button type="button" id="reset-confirm" class="primary danger">Confirm reset</button>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="modal"
+        id="out-of-credits-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="out-of-credits-title"
+        hidden
+      >
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 id="out-of-credits-title">Out of Credits</h2>
+            <button type="button" class="modal-close" id="out-of-credits-close" aria-label="Close">×</button>
+          </div>
+          <div class="modal-body">
+            <p>
+              You are currently out of credits. 1,000 credits are restored to all players with less than 100 credits at the start of every day. Please come back tomorrow!
+            </p>
+          </div>
+          <div class="modal-actions">
+            <button type="button" id="out-of-credits-ok" class="primary">OK</button>
           </div>
         </div>
       </div>

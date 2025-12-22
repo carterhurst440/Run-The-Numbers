@@ -294,6 +294,15 @@ function updateAdminVisibility(user = currentUser) {
   }
 }
 
+function updateResetButtonVisibility(user = currentUser) {
+  if (!resetAccountButton) return;
+  if (isAdmin(user)) {
+    resetAccountButton.removeAttribute("hidden");
+  } else {
+    resetAccountButton.setAttribute("hidden", "");
+  }
+}
+
 function showAuthView(mode = "login") {
   hideAllRoutes();
   if (appShell) {
@@ -304,6 +313,12 @@ function showAuthView(mode = "login") {
   }
   if (signupView) {
     setViewVisibility(signupView, mode === "signup");
+  }
+  if (forgotPasswordView) {
+    setViewVisibility(forgotPasswordView, mode === "forgot-password");
+  }
+  if (resetPasswordView) {
+    setViewVisibility(resetPasswordView, mode === "reset-password");
   }
   if (mode === "login") {
     if (authErrorEl) {
@@ -320,6 +335,26 @@ function showAuthView(mode = "login") {
     }
     if (signupSubmitButton) {
       signupSubmitButton.disabled = false;
+    }
+  } else if (mode === "forgot-password") {
+    if (forgotErrorEl) {
+      forgotErrorEl.hidden = true;
+      forgotErrorEl.textContent = "";
+    }
+    if (forgotSuccessEl) {
+      forgotSuccessEl.hidden = true;
+      forgotSuccessEl.textContent = "";
+    }
+    if (forgotSubmitButton) {
+      forgotSubmitButton.disabled = false;
+    }
+  } else if (mode === "reset-password") {
+    if (resetPasswordErrorEl) {
+      resetPasswordErrorEl.hidden = true;
+      resetPasswordErrorEl.textContent = "";
+    }
+    if (resetPasswordSubmitButton) {
+      resetPasswordSubmitButton.disabled = false;
     }
   }
 }
@@ -351,6 +386,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
 
   updateAdminVisibility(currentUser);
+  updateResetButtonVisibility(currentUser);
 
   await ensureProfileSynced({ force: !currentProfile });
 
@@ -365,6 +401,12 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
   if (signupView) {
     setViewVisibility(signupView, false);
+  }
+  if (forgotPasswordView) {
+    setViewVisibility(forgotPasswordView, false);
+  }
+  if (resetPasswordView) {
+    setViewVisibility(resetPasswordView, false);
   }
 
   let resolvedRoute = isAuthRoute ? "home" : nextRoute;
@@ -395,7 +437,17 @@ async function setRoute(route, { replaceHash = false } = {}) {
   currentRoute = resolvedRoute;
 
   if (isAuthRoute) {
-    updateHash(resolvedRoute, { replace: true });
+    // Show the specific auth view
+    if (nextRoute === "signup") {
+      showAuthView("signup");
+    } else if (nextRoute === "forgot-password") {
+      showAuthView("forgot-password");
+    } else if (nextRoute === "reset-password") {
+      showAuthView("reset-password");
+    } else {
+      showAuthView("login");
+    }
+    updateHash(nextRoute, { replace: true });
   } else if (!replaceHash) {
     updateHash(resolvedRoute);
   }
@@ -848,6 +900,140 @@ async function handleSignUpFormSubmit(event) {
     }
   } finally {
     signupSubmitButton.disabled = false;
+  }
+}
+
+async function handleForgotPasswordSubmit(event) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  const form = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : forgotPasswordForm;
+  if (!form || !forgotSubmitButton) {
+    return;
+  }
+
+  const formData = new FormData(form);
+  const email = String(formData.get("email") ?? "").trim();
+
+  if (!email) {
+    if (forgotErrorEl) {
+      forgotErrorEl.hidden = false;
+      forgotErrorEl.textContent = "Please enter your email address.";
+    }
+    return;
+  }
+
+  forgotSubmitButton.disabled = true;
+  if (forgotErrorEl) {
+    forgotErrorEl.hidden = true;
+    forgotErrorEl.textContent = "";
+  }
+  if (forgotSuccessEl) {
+    forgotSuccessEl.hidden = true;
+    forgotSuccessEl.textContent = "";
+  }
+
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}${window.location.pathname}#/reset-password`
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (forgotSuccessEl) {
+      forgotSuccessEl.hidden = false;
+      forgotSuccessEl.textContent = "Password reset link sent! Check your email.";
+    }
+    showToast("Password reset link sent to your email", "success");
+    
+    if (forgotPasswordForm) {
+      forgotPasswordForm.reset();
+    }
+  } catch (error) {
+    console.error(error);
+    const message = error?.message || "Unable to send reset link";
+    showToast(message, "error");
+    if (forgotErrorEl) {
+      forgotErrorEl.hidden = false;
+      forgotErrorEl.textContent = message;
+    }
+  } finally {
+    forgotSubmitButton.disabled = false;
+  }
+}
+
+async function handleResetPasswordSubmit(event) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  const form = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : resetPasswordForm;
+  if (!form || !resetPasswordSubmitButton) {
+    return;
+  }
+
+  const formData = new FormData(form);
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
+  if (!password || !confirmPassword) {
+    if (resetPasswordErrorEl) {
+      resetPasswordErrorEl.hidden = false;
+      resetPasswordErrorEl.textContent = "Please enter and confirm your new password.";
+    }
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    if (resetPasswordErrorEl) {
+      resetPasswordErrorEl.hidden = false;
+      resetPasswordErrorEl.textContent = "Passwords do not match.";
+    }
+    return;
+  }
+
+  if (password.length < 6) {
+    if (resetPasswordErrorEl) {
+      resetPasswordErrorEl.hidden = false;
+      resetPasswordErrorEl.textContent = "Password must be at least 6 characters.";
+    }
+    return;
+  }
+
+  resetPasswordSubmitButton.disabled = true;
+  if (resetPasswordErrorEl) {
+    resetPasswordErrorEl.hidden = true;
+    resetPasswordErrorEl.textContent = "";
+  }
+
+  try {
+    const { error } = await supabase.auth.updateUser({
+      password: password
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    showToast("Password updated successfully", "success");
+    
+    if (resetPasswordForm) {
+      resetPasswordForm.reset();
+    }
+
+    // Redirect to home after successful password reset
+    await setRoute("home");
+  } catch (error) {
+    console.error(error);
+    const message = error?.message || "Unable to update password";
+    showToast(message, "error");
+    if (resetPasswordErrorEl) {
+      resetPasswordErrorEl.hidden = false;
+      resetPasswordErrorEl.textContent = message;
+    }
+  } finally {
+    resetPasswordSubmitButton.disabled = false;
   }
 }
 
@@ -2820,6 +3006,7 @@ function displayAuthScreen({ focus = true, replaceHash = false } = {}) {
   currentRoute = "auth";
   showAuthView("login");
   updateAdminVisibility(null);
+  updateResetButtonVisibility(null);
 
   if (typeof document !== "undefined" && document.body) {
     document.body.dataset.appState = "auth";
@@ -3209,6 +3396,20 @@ const signupSubmitButton = document.getElementById("signup-submit");
 const signupFirstInput = document.getElementById("signup-first");
 const showSignUpButton = document.getElementById("show-signup");
 const showLoginButton = document.getElementById("show-login");
+const forgotPasswordView = document.getElementById("forgot-password-view");
+const forgotPasswordForm = document.getElementById("forgot-password-form");
+const forgotEmailInput = document.getElementById("forgot-email");
+const forgotErrorEl = document.getElementById("forgot-error");
+const forgotSuccessEl = document.getElementById("forgot-success");
+const forgotSubmitButton = document.getElementById("forgot-submit");
+const showForgotPasswordButton = document.getElementById("show-forgot-password");
+const showLoginFromForgotButton = document.getElementById("show-login-from-forgot");
+const resetPasswordView = document.getElementById("reset-password-view");
+const resetPasswordForm = document.getElementById("reset-password-form");
+const resetPasswordInput = document.getElementById("reset-password");
+const resetConfirmInput = document.getElementById("reset-confirm");
+const resetPasswordErrorEl = document.getElementById("reset-error");
+const resetPasswordSubmitButton = document.getElementById("reset-submit");
 const appShell = document.getElementById("app-shell");
 const homeView = document.getElementById("home-view");
 const playView = document.getElementById("play-view");
@@ -3225,7 +3426,7 @@ const routeViews = {
 const headerEl = document.querySelector(".header");
 const chipBarEl = document.querySelector(".chip-bar");
 const playLayout = playView ? playView.querySelector(".layout") : null;
-const AUTH_ROUTES = new Set(["auth", "signup"]);
+const AUTH_ROUTES = new Set(["auth", "signup", "forgot-password", "reset-password"]);
 const TABLE_ROUTES = new Set(["home", "play", "store", "admin"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
@@ -4558,6 +4759,47 @@ function closeResetModal({ restoreFocus = false } = {}) {
   resetModalTrigger = null;
 }
 
+let outOfCreditsModalTrigger = null;
+
+function openOutOfCreditsModal() {
+  const modal = document.getElementById("out-of-credits-modal");
+  if (!modal) return;
+  if (!modal.hidden) return;
+  
+  outOfCreditsModalTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  modal.hidden = false;
+  modal.classList.add("is-open");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  
+  const okButton = document.getElementById("out-of-credits-ok");
+  okButton?.focus();
+}
+
+function closeOutOfCreditsModal({ restoreFocus = false } = {}) {
+  const modal = document.getElementById("out-of-credits-modal");
+  if (!modal) return;
+  
+  modal.classList.remove("is-open");
+  modal.setAttribute("aria-hidden", "true");
+  modal.hidden = true;
+  
+  if (
+    (!paytableModal || paytableModal.hidden) &&
+    (!shippingModal || shippingModal.hidden) &&
+    (!resetModal || resetModal.hidden) &&
+    (!adminPrizeModal || adminPrizeModal.hidden) &&
+    (!prizeImageModal || prizeImageModal.hidden)
+  ) {
+    document.body.classList.remove("modal-open");
+  }
+  
+  if (restoreFocus && outOfCreditsModalTrigger instanceof HTMLElement) {
+    outOfCreditsModalTrigger.focus();
+  }
+  outOfCreditsModalTrigger = null;
+}
+
 function renderDraw(card) {
   const cardEl = makeCardElement(card);
   const fragment = document.createDocumentFragment();
@@ -4821,6 +5063,12 @@ async function dealHand() {
 function placeBet(key) {
   const definition = getBetDefinition(key);
   if (!definition) return;
+
+  // Check if player has zero credits
+  if (bankroll === 0) {
+    openOutOfCreditsModal();
+    return;
+  }
 
   if (!bettingOpen && definition.lockDuringHand) {
     statusEl.textContent = `${definition.label} bets are locked while a hand is in progress.`;
@@ -5086,6 +5334,14 @@ if (authForm) {
 
 if (signupForm) {
   signupForm.addEventListener("submit", handleSignUpFormSubmit);
+}
+
+if (forgotPasswordForm) {
+  forgotPasswordForm.addEventListener("submit", handleForgotPasswordSubmit);
+}
+
+if (resetPasswordForm) {
+  resetPasswordForm.addEventListener("submit", handleResetPasswordSubmit);
 }
 
 if (adminPrizeForm) {
@@ -5640,6 +5896,31 @@ if (showLoginButton) {
   });
 }
 
+if (showForgotPasswordButton) {
+  showForgotPasswordButton.addEventListener("click", async () => {
+    if (forgotPasswordForm) {
+      forgotPasswordForm.reset();
+    }
+    if (forgotErrorEl) {
+      forgotErrorEl.hidden = true;
+      forgotErrorEl.textContent = "";
+    }
+    if (forgotSuccessEl) {
+      forgotSuccessEl.hidden = true;
+      forgotSuccessEl.textContent = "";
+    }
+    showAuthView("forgot-password");
+    updateHash("forgot-password", { replace: true });
+    forgotEmailInput?.focus();
+  });
+}
+
+if (showLoginFromForgotButton) {
+  showLoginFromForgotButton.addEventListener("click", () => {
+    displayAuthScreen();
+  });
+}
+
 routeButtons.forEach((button) => {
   button.addEventListener("click", async () => {
     const target = button.dataset.routeTarget;
@@ -5711,8 +5992,29 @@ if (resetCloseButton) {
   });
 }
 
+const outOfCreditsOkButton = document.getElementById("out-of-credits-ok");
+const outOfCreditsCloseButton = document.getElementById("out-of-credits-close");
+
+if (outOfCreditsOkButton) {
+  outOfCreditsOkButton.addEventListener("click", () => {
+    closeOutOfCreditsModal({ restoreFocus: true });
+  });
+}
+
+if (outOfCreditsCloseButton) {
+  outOfCreditsCloseButton.addEventListener("click", () => {
+    closeOutOfCreditsModal({ restoreFocus: true });
+  });
+}
+
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
+    const outOfCreditsModal = document.getElementById("out-of-credits-modal");
+    if (outOfCreditsModal && !outOfCreditsModal.hidden) {
+      closeOutOfCreditsModal({ restoreFocus: true });
+      event.preventDefault();
+      return;
+    }
     if (prizeImageModal && !prizeImageModal.hidden) {
       closePrizeImageModal({ restoreFocus: true });
       event.preventDefault();
@@ -5737,6 +6039,7 @@ document.addEventListener("keydown", (event) => {
 });
 
   updateAdminVisibility(currentUser);
+  updateResetButtonVisibility(currentUser);
 
 initTheme();
 setActivePaytable(activePaytable.id, { announce: false });
@@ -5784,6 +6087,7 @@ async function bootstrapAuth(initialRoute) {
 
     currentUser = sessionUser;
     updateAdminVisibility(currentUser);
+    updateResetButtonVisibility(currentUser);
 
     // Ensure profile is loaded and applied
   await ensureProfileSynced({ force: true });
@@ -5823,14 +6127,18 @@ function setupAuthListener() {
 
         const sub = supabase.auth.onAuthStateChange((event, session) => {
           console.info(`[RTN] auth state changed: ${event}`);
-          if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+          if (event === "PASSWORD_RECOVERY") {
+            // User clicked the reset password link in their email
+            setRoute("reset-password").catch(() => {});
+          } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
             const user = session?.user ?? null;
             if (user) {
               currentUser = user;
               updateAdminVisibility(currentUser);
+              updateResetButtonVisibility(currentUser);
               ensureProfileSynced({ force: true }).catch((err) => console.warn(err));
               // If the UI is on auth screen, navigate to home
-              if (currentRoute === "auth") {
+              if (currentRoute === "auth" || currentRoute === "signup" || currentRoute === "forgot-password") {
                 setRoute("home").catch(() => {});
               }
             }

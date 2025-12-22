@@ -3972,6 +3972,21 @@ body.modal-open {
   text-align: center;
 }
 
+.auth-success {
+  margin: 0;
+  color: var(--success);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.auth-description {
+  margin: 0 0 1.5rem;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  text-align: center;
+  line-height: 1.5;
+}
+
 .route-shell {
   width: min(960px, 100%);
   margin: 0 auto;
