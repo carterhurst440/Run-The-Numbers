@@ -3112,7 +3112,13 @@ function applySignedOutState(reason = "unknown", { focusInput = true } = {}) {
   authState.lastUserId = null;
   authState.manualSignOutRequested = false;
 
-  displayAuthScreen({ focus: focusInput });
+  // Don't redirect to auth screen if we're on reset-password route (user is resetting password from email)
+  const currentHash = typeof window !== "undefined" ? window.location.hash : "";
+  const isResettingPassword = currentHash.includes("reset-password") || currentHash.includes("type=recovery");
+  
+  if (!isResettingPassword) {
+    displayAuthScreen({ focus: focusInput });
+  }
 }
 
 async function handleSignOut() {
