@@ -42,8 +42,11 @@ function stripSupabaseRedirectHash() {
   const search = window.location.search || "";
   const hashContainsTokens = rawHash.startsWith("#access_token=");
   const searchContainsTokens = search.includes("access_token=");
-
-  if (hashContainsTokens || searchContainsTokens) {
+  
+  // Don't strip if this is a password recovery redirect - Supabase needs to process it
+  const isPasswordRecovery = rawHash.includes("type=recovery") || search.includes("type=recovery");
+  
+  if ((hashContainsTokens || searchContainsTokens) && !isPasswordRecovery) {
     const cleanedHash = hashContainsTokens ? "" : rawHash;
     window.history.replaceState(
       {},
