@@ -468,6 +468,12 @@ async function setRoute(route, { replaceHash = false } = {}) {
 function getRouteFromHash() {
   if (typeof window === "undefined") return "home";
   const hash = window.location.hash || "";
+  
+  // Check if this is a password recovery redirect from Supabase
+  if (hash.includes("type=recovery") || hash.includes("type%3Drecovery")) {
+    return "reset-password";
+  }
+  
   const match = hash.match(/#\/([\w-]+)/);
   return match ? match[1] : "home";
 }
