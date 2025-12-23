@@ -6303,7 +6303,7 @@ async function initializeApp() {
       currentSearch.includes("access_token=");
 
     if (isPasswordRecovery) {
-      console.info("[RTN] Password recovery detected - waiting for Supabase to process tokens");
+      console.info("[RTN] Password recovery detected - extracting tokens from URL");
       
       const urlParts = window.location.href.split('#');
       const lastHashPart = urlParts[urlParts.length - 1];
@@ -6323,38 +6323,40 @@ async function initializeApp() {
           resetPasswordErrorEl.hidden = false;
           resetPasswordErrorEl.textContent = "Invalid reset link. Please request a new password reset link.";
         }
+        showAuthView("reset-password");
+        markAppReady();
+        return;
       }
       
-      // Show the form first
-      showAuthView("reset-password");
-      
-      // Wait for Supabase to process the tokens automatically
-      // Poll for session establishment
-      let sessionEstablished = false;
-      for (let i = 0; i < 30; i++) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-        try {
-          const { data } = await supabase.auth.getSession();
-          if (data?.session) {
-            console.info("[RTN] Recovery session detected after", i * 200, "ms");
-            sessionEstablished = true;
-            break;
+      // Manually set the session with the recovery tokens
+      console.info("[RTN] Setting session with recovery tokens");
+      try {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken
+        });
+        
+        if (error) {
+          console.error("[RTN] Error setting session:", error);
+          if (resetPasswordErrorEl) {
+            resetPasswordErrorEl.hidden = false;
+            resetPasswordErrorEl.textContent = "Failed to verify reset link. Please request a new one.";
           }
-        } catch (err) {
-          console.warn("[RTN] Error checking session:", err);
+        } else if (data?.session) {
+          console.info("[RTN] Recovery session established successfully");
+        } else {
+          console.warn("[RTN] setSession returned no error but no session");
         }
-      }
-      
-      if (!sessionEstablished) {
-        console.warn("[RTN] Session not established after waiting");
+      } catch (err) {
+        console.error("[RTN] Exception setting session:", err);
         if (resetPasswordErrorEl) {
           resetPasswordErrorEl.hidden = false;
-          resetPasswordErrorEl.textContent = "Unable to verify reset link. Please request a new password reset link.";
+          resetPasswordErrorEl.textContent = "An error occurred. Please try again.";
         }
-      } else {
-        console.info("[RTN] Recovery session ready for password update");
       }
       
+      // Show the form
+      showAuthView("reset-password");
       markAppReady();
       return;
     }
