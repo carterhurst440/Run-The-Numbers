@@ -700,6 +700,11 @@ async function provisionProfileForUser(user) {
 }
 
 async function ensureProfileSynced({ force = false } = {}) {
+  // Skip profile sync on public auth pages
+  if (currentRoute === "reset-password" || currentRoute === "forgot-password" || currentRoute === "auth" || currentRoute === "signup") {
+    return currentProfile || { ...GUEST_PROFILE };
+  }
+  
   if (!currentUser) {
     currentUser = { ...GUEST_USER };
   }
@@ -1031,6 +1036,12 @@ async function handleResetPasswordSubmit(event) {
   }
 
   try {
+    // Check if we have a recovery session
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !sessionData?.session) {
+      throw new Error("Recovery session not found. Please click the reset link from your email again.");
+    }
+
     const { error } = await supabase.auth.updateUser({
       password: password
     });
