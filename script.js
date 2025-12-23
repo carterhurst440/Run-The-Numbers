@@ -6220,6 +6220,23 @@ async function initializeApp() {
   let sessionApplied = false;
 
   try {
+    // Check if this is a password recovery flow
+    const currentHash = typeof window !== "undefined" ? window.location.hash : "";
+    const currentSearch = typeof window !== "undefined" ? window.location.search : "";
+    const isPasswordRecovery = initialRoute === "reset-password" || 
+      currentHash.includes("type=recovery") || 
+      currentSearch.includes("type=recovery") ||
+      currentHash.includes("access_token=") ||
+      currentSearch.includes("access_token=");
+
+    if (isPasswordRecovery) {
+      console.info("[RTN] Password recovery detected, skipping bootstrapAuth and showing reset form");
+      // Show reset password form immediately, let Supabase process tokens in background
+      showAuthView("reset-password");
+      markAppReady();
+      return;
+    }
+
     // Wait a short time for the Supabase client to become ready so
     // bootstrapAuth can detect an existing session without the app
     // briefly showing the auth screen. If the ready event doesn't
