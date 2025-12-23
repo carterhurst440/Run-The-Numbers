@@ -393,7 +393,11 @@ async function setRoute(route, { replaceHash = false } = {}) {
   updateAdminVisibility(currentUser);
   updateResetButtonVisibility(currentUser);
 
-  await ensureProfileSynced({ force: !currentProfile });
+  // Skip profile sync for password reset routes (no session required)
+  const isPasswordResetFlow = nextRoute === "forgot-password" || nextRoute === "reset-password";
+  if (!isPasswordResetFlow) {
+    await ensureProfileSynced({ force: !currentProfile });
+  }
 
   if (!isAuthRoute && nextRoute === "admin" && !isAdmin()) {
     showToast("Admin access only", "error");
@@ -6096,8 +6100,10 @@ async function bootstrapAuth(initialRoute) {
     // Ensure profile is loaded and applied
   await ensureProfileSynced({ force: true });
 
-    // If the initial route is an auth route, send them to home instead
-    const route = AUTH_ROUTES.has(initialRoute) ? "home" : initialRoute;
+    // If the initial route is an auth route (except reset-password for recovery flow),
+    // send them to home instead
+    const isPasswordResetRoute = initialRoute === "reset-password";
+    const route = (AUTH_ROUTES.has(initialRoute) && !isPasswordResetRoute) ? "home" : initialRoute;
     try {
       await setRoute(route, { replaceHash: true });
     } catch (err) {
@@ -6247,9 +6253,20 @@ async function initializeApp() {
     console.info(`[RTN] initializeApp bootstrapAuth sessionApplied=${sessionApplied}`);
 
     if (!sessionApplied) {
-      console.info("[RTN] initializeApp showing auth view (no session available; Supabase auth enabled)");
-      showAuthView("login");
-      updateHash("auth", { replace: true });
+      // Allow access to password reset routes without session
+      if (initialRoute === "forgot-password") {
+        console.info("[RTN] initializeApp showing forgot password view (no session required)");
+        showAuthView("forgot-password");
+        updateHash("forgot-password", { replace: true });
+      } else if (initialRoute === "reset-password") {
+        console.info("[RTN] initializeApp showing reset password view (no session required)");
+        showAuthView("reset-password");
+        updateHash("reset-password", { replace: true });
+      } else {
+        console.info("[RTN] initializeApp showing auth view (no session available; Supabase auth enabled)");
+        showAuthView("login");
+        updateHash("auth", { replace: true });
+      }
     }
   } catch (error) {
     console.error("[RTN] Error initializing app:", error);
