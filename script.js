@@ -304,6 +304,7 @@ function updateResetButtonVisibility(user = currentUser) {
 }
 
 function showAuthView(mode = "login") {
+  console.info(`[RTN] showAuthView called with mode: ${mode}`);
   hideAllRoutes();
   if (appShell) {
     appShell.setAttribute("data-hidden", "true");
@@ -318,7 +319,10 @@ function showAuthView(mode = "login") {
     setViewVisibility(forgotPasswordView, mode === "forgot-password");
   }
   if (resetPasswordView) {
+    console.info(`[RTN] setting resetPasswordView visibility to ${mode === "reset-password"}`);
     setViewVisibility(resetPasswordView, mode === "reset-password");
+  } else {
+    console.warn("[RTN] resetPasswordView element not found!");
   }
   if (mode === "login") {
     if (authErrorEl) {
@@ -6272,6 +6276,7 @@ async function initializeApp() {
     
     if (isPublicAuthPage) {
       console.info(`[RTN] initializeApp showing public auth page: ${initialRoute}`);
+      currentRoute = initialRoute; // Set currentRoute so auth handlers know where we are
       if (initialRoute === "signup") {
         showAuthView("signup");
         updateHash("signup", { replace: true });
