@@ -376,12 +376,6 @@ async function setRoute(route, { replaceHash = false } = {}) {
   if (signupView) {
     setViewVisibility(signupView, false);
   }
-  if (forgotPasswordView) {
-    setViewVisibility(forgotPasswordView, false);
-  }
-  if (resetPasswordView) {
-    setViewVisibility(resetPasswordView, false);
-  }
 
   let resolvedRoute = isAuthRoute ? "home" : nextRoute;
   if (!routeViews[resolvedRoute]) {
