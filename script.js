@@ -381,9 +381,9 @@ function updateHash(route, { replace = false } = {}) {
 async function setRoute(route, { replaceHash = false } = {}) {
   let nextRoute = route ?? "home";
   const isAuthRoute = AUTH_ROUTES.has(nextRoute);
-  const isForgotPasswordRoute = nextRoute === "forgot-password";
+  const isPublicPasswordRoute = nextRoute === "forgot-password" || nextRoute === "reset-password";
 
-  if (!routeViews[nextRoute] && !isAuthRoute && !isForgotPasswordRoute) {
+  if (!routeViews[nextRoute] && !isAuthRoute && !isPublicPasswordRoute) {
     nextRoute = "home";
   }
 
@@ -392,10 +392,9 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
 
   // Skip all auth-related updates for public auth pages
-  const isPublicAuthPage = nextRoute === "forgot-password" || nextRoute === "auth" || nextRoute === "signup";
-  const isPasswordResetFlow = nextRoute === "reset-password";
+  const isPublicAuthPage = nextRoute === "forgot-password" || nextRoute === "auth" || nextRoute === "signup" || nextRoute === "reset-password";
   
-  if (!isPublicAuthPage && !isPasswordResetFlow) {
+  if (!isPublicAuthPage) {
     updateAdminVisibility(currentUser);
     updateResetButtonVisibility(currentUser);
     await ensureProfileSynced({ force: !currentProfile });
@@ -420,8 +419,8 @@ async function setRoute(route, { replaceHash = false } = {}) {
     setViewVisibility(resetPasswordView, false);
   }
 
-  let resolvedRoute = (isAuthRoute && !isForgotPasswordRoute) ? "home" : nextRoute;
-  if (!routeViews[resolvedRoute] && resolvedRoute !== "forgot-password") {
+  let resolvedRoute = (isAuthRoute && !isPublicPasswordRoute) ? "home" : nextRoute;
+  if (!routeViews[resolvedRoute] && !isPublicPasswordRoute) {
     resolvedRoute = "home";
   }
 
@@ -447,7 +446,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
 
   currentRoute = resolvedRoute;
 
-  if (isAuthRoute || isForgotPasswordRoute) {
+  if (isAuthRoute || isPublicPasswordRoute) {
     // Show the specific auth view
     if (nextRoute === "signup") {
       showAuthView("signup");
@@ -3433,7 +3432,7 @@ const routeViews = {
 const headerEl = document.querySelector(".header");
 const chipBarEl = document.querySelector(".chip-bar");
 const playLayout = playView ? playView.querySelector(".layout") : null;
-const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
+const AUTH_ROUTES = new Set(["auth", "signup"]);
 const TABLE_ROUTES = new Set(["home", "play", "store", "admin"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
@@ -6251,20 +6250,30 @@ async function initializeApp() {
     const clientReady = await waitForSupabaseReady(800);
     console.info(`[RTN] initializeApp waitForSupabaseReady result=${clientReady}`);
 
-    sessionApplied = await bootstrapAuth(initialRoute);
-    console.info(`[RTN] initializeApp bootstrapAuth sessionApplied=${sessionApplied}`);
-
-    if (!sessionApplied) {
-      // Allow access to password reset routes without session
-      if (initialRoute === "forgot-password") {
-        console.info("[RTN] initializeApp showing forgot password view (no session required)");
+    // Skip bootstrapAuth for public auth pages - they don't need session checks
+    const isPublicAuthPage = initialRoute === "auth" || initialRoute === "signup" || 
+                            initialRoute === "forgot-password" || initialRoute === "reset-password";
+    
+    if (isPublicAuthPage) {
+      console.info(`[RTN] initializeApp showing public auth page: ${initialRoute}`);
+      if (initialRoute === "signup") {
+        showAuthView("signup");
+        updateHash("signup", { replace: true });
+      } else if (initialRoute === "forgot-password") {
         showAuthView("forgot-password");
         updateHash("forgot-password", { replace: true });
       } else if (initialRoute === "reset-password") {
-        console.info("[RTN] initializeApp showing reset password view (no session required)");
         showAuthView("reset-password");
         updateHash("reset-password", { replace: true });
       } else {
+        showAuthView("login");
+        updateHash("auth", { replace: true });
+      }
+    } else {
+      sessionApplied = await bootstrapAuth(initialRoute);
+      console.info(`[RTN] initializeApp bootstrapAuth sessionApplied=${sessionApplied}`);
+
+      if (!sessionApplied) {
         console.info("[RTN] initializeApp showing auth view (no session available; Supabase auth enabled)");
         showAuthView("login");
         updateHash("auth", { replace: true });
