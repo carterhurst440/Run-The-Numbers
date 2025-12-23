@@ -381,8 +381,9 @@ function updateHash(route, { replace = false } = {}) {
 async function setRoute(route, { replaceHash = false } = {}) {
   let nextRoute = route ?? "home";
   const isAuthRoute = AUTH_ROUTES.has(nextRoute);
+  const isForgotPasswordRoute = nextRoute === "forgot-password";
 
-  if (!routeViews[nextRoute] && !isAuthRoute) {
+  if (!routeViews[nextRoute] && !isAuthRoute && !isForgotPasswordRoute) {
     nextRoute = "home";
   }
 
@@ -390,12 +391,13 @@ async function setRoute(route, { replaceHash = false } = {}) {
     currentUser = { ...GUEST_USER };
   }
 
-  updateAdminVisibility(currentUser);
-  updateResetButtonVisibility(currentUser);
-
-  // Skip profile sync for password reset routes (no session required)
-  const isPasswordResetFlow = nextRoute === "forgot-password" || nextRoute === "reset-password";
-  if (!isPasswordResetFlow) {
+  // Skip all auth-related updates for public auth pages
+  const isPublicAuthPage = nextRoute === "forgot-password" || nextRoute === "auth" || nextRoute === "signup";
+  const isPasswordResetFlow = nextRoute === "reset-password";
+  
+  if (!isPublicAuthPage && !isPasswordResetFlow) {
+    updateAdminVisibility(currentUser);
+    updateResetButtonVisibility(currentUser);
     await ensureProfileSynced({ force: !currentProfile });
   }
 
@@ -418,8 +420,8 @@ async function setRoute(route, { replaceHash = false } = {}) {
     setViewVisibility(resetPasswordView, false);
   }
 
-  let resolvedRoute = isAuthRoute ? "home" : nextRoute;
-  if (!routeViews[resolvedRoute]) {
+  let resolvedRoute = (isAuthRoute && !isForgotPasswordRoute) ? "home" : nextRoute;
+  if (!routeViews[resolvedRoute] && resolvedRoute !== "forgot-password") {
     resolvedRoute = "home";
   }
 
@@ -445,7 +447,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
 
   currentRoute = resolvedRoute;
 
-  if (isAuthRoute) {
+  if (isAuthRoute || isForgotPasswordRoute) {
     // Show the specific auth view
     if (nextRoute === "signup") {
       showAuthView("signup");
@@ -3431,7 +3433,7 @@ const routeViews = {
 const headerEl = document.querySelector(".header");
 const chipBarEl = document.querySelector(".chip-bar");
 const playLayout = playView ? playView.querySelector(".layout") : null;
-const AUTH_ROUTES = new Set(["auth", "signup", "forgot-password", "reset-password"]);
+const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
 const TABLE_ROUTES = new Set(["home", "play", "store", "admin"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
