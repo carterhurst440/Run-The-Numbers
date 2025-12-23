@@ -944,7 +944,7 @@ async function handleForgotPasswordSubmit(event) {
 
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}${window.location.pathname}#/reset-password`
+      redirectTo: 'https://carterscasino.app/#/reset-password'
     });
 
     if (error) {
