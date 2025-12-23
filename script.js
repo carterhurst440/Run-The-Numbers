@@ -6164,6 +6164,11 @@ function setupAuthListener() {
               }
             }
           } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
+            // Don't redirect if we're on the reset-password page (user needs to stay there to reset)
+            if (currentRoute === "reset-password") {
+              console.info("[RTN] SIGNED_OUT on reset-password page, staying put");
+              return;
+            }
             // Apply signed out state so UI falls back to auth screen.
             applySignedOutState("auth-change", { focusInput: false });
           }
