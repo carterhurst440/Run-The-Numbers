@@ -6187,8 +6187,13 @@ function setupAuthListener() {
               registerAuthHandler();
               
               const currentRoute = getRouteFromHash();
-              console.info("[RTN] attempting bootstrapAuth");
-              await bootstrapAuth(currentRoute);
+              // Skip bootstrapAuth for public auth pages
+              const isPublicAuthPage = currentRoute === "auth" || currentRoute === "signup" || 
+                                      currentRoute === "forgot-password" || currentRoute === "reset-password";
+              if (!isPublicAuthPage) {
+                console.info("[RTN] attempting bootstrapAuth");
+                await bootstrapAuth(currentRoute);
+              }
             } catch (err) {
               console.warn("[RTN] supabase:ready handler error", err);
             }
