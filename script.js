@@ -6297,28 +6297,25 @@ async function initializeApp() {
     const currentHash = typeof window !== "undefined" ? window.location.hash : "";
     const currentSearch = typeof window !== "undefined" ? window.location.search : "";
     const isPasswordRecovery = initialRoute === "reset-password" || 
-      currentHash.includes("type=recovery") || 
-      currentSearch.includes("type=recovery") ||
-      currentHash.includes("access_token=") ||
-      currentSearch.includes("access_token=");
+      currentHash.includes("code=") ||
+      currentSearch.includes("code=");
 
     if (isPasswordRecovery) {
-      console.info("[RTN] Password recovery detected - extracting tokens from URL");
+      console.info("[RTN] Password recovery detected - extracting code from URL");
       
-      const urlParts = window.location.href.split('#');
-      const lastHashPart = urlParts[urlParts.length - 1];
-      const params = new URLSearchParams(lastHashPart);
+      // Parse code from both search params and hash query (hash routing)
+      const searchParams = new URLSearchParams(window.location.search);
+      const hashQuery = window.location.hash.includes("?")
+        ? window.location.hash.split("?")[1]
+        : "";
+      const hashParams = new URLSearchParams(hashQuery);
       
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
+      const code = searchParams.get("code") || hashParams.get("code");
       
-      console.info("[RTN] Recovery tokens:", { 
-        hasAccessToken: !!accessToken, 
-        hasRefreshToken: !!refreshToken 
-      });
+      console.info("[RTN] Recovery code:", { hasCode: !!code });
       
-      if (!accessToken || !refreshToken) {
-        console.warn("[RTN] Missing tokens in URL");
+      if (!code) {
+        console.warn("[RTN] Missing recovery code in URL");
         if (resetPasswordErrorEl) {
           resetPasswordErrorEl.hidden = false;
           resetPasswordErrorEl.textContent = "Invalid reset link. Please request a new password reset link.";
@@ -6328,16 +6325,13 @@ async function initializeApp() {
         return;
       }
       
-      // Manually set the session with the recovery tokens
-      console.info("[RTN] Setting session with recovery tokens");
+      // Exchange code for session (modern PKCE flow)
+      console.info("[RTN] Exchanging code for session");
       try {
-        const { data, error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken
-        });
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         
         if (error) {
-          console.error("[RTN] Error setting session:", error);
+          console.error("[RTN] Error exchanging code:", error);
           if (resetPasswordErrorEl) {
             resetPasswordErrorEl.hidden = false;
             resetPasswordErrorEl.textContent = "Failed to verify reset link. Please request a new one.";
@@ -6345,10 +6339,10 @@ async function initializeApp() {
         } else if (data?.session) {
           console.info("[RTN] Recovery session established successfully");
         } else {
-          console.warn("[RTN] setSession returned no error but no session");
+          console.warn("[RTN] exchangeCodeForSession returned no error but no session");
         }
       } catch (err) {
-        console.error("[RTN] Exception setting session:", err);
+        console.error("[RTN] Exception exchanging code:", err);
         if (resetPasswordErrorEl) {
           resetPasswordErrorEl.hidden = false;
           resetPasswordErrorEl.textContent = "An error occurred. Please try again.";
