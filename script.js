@@ -6160,6 +6160,12 @@ function setupAuthListener() {
 
         const sub = supabase.auth.onAuthStateChange((event, session) => {
           console.info(`[RTN] auth state changed: ${event}`);
+          
+          // Check if we're on password recovery route
+          const isOnResetPassword = window.location.hash.startsWith("#/reset-password") ||
+            window.location.hash.includes("type=recovery") ||
+            window.location.hash.includes("access_token=");
+          
           if (event === "PASSWORD_RECOVERY") {
             // User clicked the reset password link in their email
             setRoute("reset-password").catch(() => {});
@@ -6169,7 +6175,14 @@ function setupAuthListener() {
               currentUser = user;
               updateAdminVisibility(currentUser);
               updateResetButtonVisibility(currentUser);
-              ensureProfileSynced({ force: true }).catch((err) => console.warn(err));
+              
+              // Skip profile sync if we're on password recovery page
+              if (!isOnResetPassword) {
+                ensureProfileSynced({ force: true }).catch((err) => console.warn(err));
+              } else {
+                console.info("[RTN] Skipping profile sync during password recovery");
+              }
+              
               // If the UI is on auth screen, navigate to home
               if (currentRoute === "auth" || currentRoute === "signup" || currentRoute === "forgot-password") {
                 setRoute("home").catch(() => {});
