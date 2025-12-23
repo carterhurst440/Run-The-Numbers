@@ -6201,10 +6201,22 @@ function setupAuthListener() {
           "supabase:ready",
           async () => {
             try {
-              console.info("[RTN] received supabase:ready, registering auth listener and attempting bootstrapAuth");
+              console.info("[RTN] received supabase:ready, registering auth listener");
               registerAuthHandler();
-              // Try to rehydrate session now that the client is ready.
-              await bootstrapAuth(getRouteFromHash());
+              
+              // Skip bootstrapAuth during password recovery
+              const currentRoute = getRouteFromHash();
+              const currentHash = window.location.hash || "";
+              const isPasswordRecovery = currentRoute === "reset-password" || 
+                currentHash.includes("type=recovery") || 
+                currentHash.includes("access_token=");
+              
+              if (!isPasswordRecovery) {
+                console.info("[RTN] attempting bootstrapAuth");
+                await bootstrapAuth(currentRoute);
+              } else {
+                console.info("[RTN] skipping bootstrapAuth during password recovery");
+              }
             } catch (err) {
               console.warn("[RTN] supabase:ready handler error", err);
             }
