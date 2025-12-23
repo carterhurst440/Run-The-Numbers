@@ -689,6 +689,16 @@ async function provisionProfileForUser(user) {
 }
 
 async function ensureProfileSynced({ force = false } = {}) {
+  // Skip profile sync during password recovery
+  const isOnResetPassword = window.location.hash.startsWith("#/reset-password") ||
+    window.location.hash.includes("type=recovery") ||
+    window.location.hash.includes("access_token=");
+  
+  if (isOnResetPassword) {
+    console.info("[RTN] ensureProfileSynced skipped - on password recovery page");
+    return null;
+  }
+  
   if (!currentUser) {
     currentUser = { ...GUEST_USER };
   }
