@@ -391,7 +391,16 @@ async function setRoute(route, { replaceHash = false } = {}) {
   updateAdminVisibility(currentUser);
   updateResetButtonVisibility(currentUser);
 
-  await ensureProfileSynced({ force: !currentProfile });
+  // Skip profile sync during password recovery
+  const isOnResetPassword = nextRoute === "reset-password" ||
+    window.location.hash.includes("type=recovery") ||
+    window.location.hash.includes("access_token=");
+  
+  if (!isOnResetPassword) {
+    await ensureProfileSynced({ force: !currentProfile });
+  } else {
+    console.info("[RTN] setRoute skipping profile sync - on password recovery");
+  }
 
   if (!isAuthRoute && nextRoute === "admin" && !isAdmin()) {
     showToast("Admin access only", "error");
@@ -3833,6 +3842,16 @@ function updateDashboardCreditsDisplay(value = bankroll) {
 }
 
 async function persistBankroll() {
+  // Skip during password recovery
+  const isOnResetPassword = window.location.hash.startsWith("#/reset-password") ||
+    window.location.hash.includes("type=recovery") ||
+    window.location.hash.includes("access_token=");
+  
+  if (isOnResetPassword) {
+    console.info("[RTN] persistBankroll skipped - on password recovery page");
+    return;
+  }
+  
   if (!currentUser) return;
 
   const updates = {};
