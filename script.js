@@ -1036,20 +1036,10 @@ async function handleResetPasswordSubmit(event) {
   }
 
   try {
-    // Get recovery access_token from URL (Supabase v1)
-    const urlParts = window.location.href.split('#');
-    const lastHashPart = urlParts[urlParts.length - 1];
-    const params = new URLSearchParams(lastHashPart);
-    const accessToken = params.get('access_token');
+    console.info("[RTN] Updating password using v2 API");
     
-    if (!accessToken) {
-      throw new Error("Missing access token in recovery link. Please request a new password reset link.");
-    }
-    
-    console.info("[RTN] Updating password using v1 API with recovery token");
-    
-    // Use v1 API to update password with access_token directly
-    const { user, error } = await supabase.auth.api.updateUser(accessToken, {
+    // Use v2 updateUser - session already established
+    const { error } = await supabase.auth.updateUser({
       password: password
     });
 
@@ -1067,7 +1057,10 @@ async function handleResetPasswordSubmit(event) {
     // Sign out to force clean login with new password
     await supabase.auth.signOut();
     
-    // Redirect to login
+    // Clean up URL and redirect to login
+    if (typeof history !== "undefined" && history.replaceState) {
+      history.replaceState(null, "", "/#/auth");
+    }
     showAuthView("login");
     updateHash("auth", { replace: true });
   } catch (error) {
@@ -6302,24 +6295,55 @@ async function initializeApp() {
       currentSearch.includes("access_token=");
 
     if (isPasswordRecovery) {
-      console.info("[RTN] Password recovery detected (v1 flow)");
+      console.info("[RTN] Password recovery detected (v2 flow)");
       
-      // For v1, we don't call setSession - just show the form
-      // The access_token in the URL will be used directly when updating password
-      
+      // Extract tokens from URL and establish session
       const urlParts = window.location.href.split('#');
       const lastHashPart = urlParts[urlParts.length - 1];
       const params = new URLSearchParams(lastHashPart);
       
       const accessToken = params.get('access_token');
-      const type = params.get('type');
+      const refreshToken = params.get('refresh_token');
       
-      console.info("[RTN] Recovery URL params:", { 
+      console.info("[RTN] Recovery tokens:", { 
         hasAccessToken: !!accessToken, 
-        type: type 
+        hasRefreshToken: !!refreshToken 
       });
       
-      // Show reset password form - NO session setup, NO profile loading, NO bootstrapAuth
+      // Establish recovery session using v2 setSession
+      if (accessToken && refreshToken) {
+        try {
+          console.info("[RTN] Setting recovery session with v2 API");
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
+          
+          if (error) {
+            console.error("[RTN] Error setting recovery session:", error);
+            if (resetPasswordErrorEl) {
+              resetPasswordErrorEl.hidden = false;
+              resetPasswordErrorEl.textContent = "Unable to verify reset link. Please request a new password reset link.";
+            }
+          } else {
+            console.info("[RTN] Recovery session established successfully");
+          }
+        } catch (err) {
+          console.error("[RTN] Exception setting recovery session:", err);
+          if (resetPasswordErrorEl) {
+            resetPasswordErrorEl.hidden = false;
+            resetPasswordErrorEl.textContent = "An error occurred. Please request a new password reset link.";
+          }
+        }
+      } else {
+        console.warn("[RTN] Missing access_token or refresh_token in URL");
+        if (resetPasswordErrorEl) {
+          resetPasswordErrorEl.hidden = false;
+          resetPasswordErrorEl.textContent = "Invalid reset link. Please request a new password reset link.";
+        }
+      }
+      
+      // Show reset password form - NO profile loading, NO bootstrapAuth
       showAuthView("reset-password");
       markAppReady();
       return;
