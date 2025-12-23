@@ -60,6 +60,9 @@
           <p id="auth-error" class="auth-error" role="alert" hidden></p>
         </form>
         <p class="auth-switch">
+          <button type="button" id="show-forgot-password" class="auth-switch-button">Forgot password?</button>
+        </p>
+        <p class="auth-switch">
           New here?
           <button type="button" id="show-signup" class="auth-switch-button">Create an account</button>
         </p>
@@ -98,6 +101,49 @@
           Already have an account?
           <button type="button" id="show-login" class="auth-switch-button">Log in</button>
         </p>
+      </div>
+    </section>
+    <section id="forgot-password-view" class="route-view auth-screen" hidden>
+      <div class="auth-card">
+        <h1>Reset your password</h1>
+        <p class="auth-description">Enter your email address and we'll send you a link to reset your password.</p>
+        <form id="forgot-password-form" class="auth-form">
+          <label for="forgot-email">Email</label>
+          <input type="email" id="forgot-email" name="email" autocomplete="email" required />
+          <button type="submit" id="forgot-submit">Send reset link</button>
+          <p id="forgot-error" class="auth-error" role="alert" hidden></p>
+          <p id="forgot-success" class="auth-success" role="status" hidden></p>
+        </form>
+        <p class="auth-switch">
+          Remember your password?
+          <button type="button" id="back-to-login" class="auth-switch-button">Back to login</button>
+        </p>
+      </div>
+    </section>
+    <section id="reset-password-view" class="route-view auth-screen" hidden>
+      <div class="auth-card">
+        <h1>Set new password</h1>
+        <p class="auth-description">Enter your new password below.</p>
+        <form id="reset-password-form" class="auth-form">
+          <label for="reset-password">New password</label>
+          <input
+            type="password"
+            id="reset-password"
+            name="password"
+            autocomplete="new-password"
+            required
+          />
+          <label for="reset-confirm">Confirm new password</label>
+          <input
+            type="password"
+            id="reset-confirm"
+            name="confirmPassword"
+            autocomplete="new-password"
+            required
+          />
+          <button type="submit" id="reset-submit">Save new password</button>
+          <p id="reset-error" class="auth-error" role="alert" hidden></p>
+        </form>
       </div>
     </section>
     <section id="auth-callback-view" class="route-view auth-screen auth-callback-view" hidden>

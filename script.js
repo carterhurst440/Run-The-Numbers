@@ -314,6 +314,12 @@ function showAuthView(mode = "login") {
   if (signupView) {
     setViewVisibility(signupView, mode === "signup");
   }
+  if (forgotPasswordView) {
+    setViewVisibility(forgotPasswordView, mode === "forgot-password");
+  }
+  if (resetPasswordView) {
+    setViewVisibility(resetPasswordView, mode === "reset-password");
+  }
   if (mode === "login") {
     if (authErrorEl) {
       authErrorEl.hidden = true;
@@ -329,6 +335,31 @@ function showAuthView(mode = "login") {
     }
     if (signupSubmitButton) {
       signupSubmitButton.disabled = false;
+    }
+  } else if (mode === "forgot-password") {
+    const forgotErrorEl = document.getElementById("forgot-error");
+    const forgotSuccessEl = document.getElementById("forgot-success");
+    const forgotSubmitButton = document.getElementById("forgot-submit");
+    if (forgotErrorEl) {
+      forgotErrorEl.hidden = true;
+      forgotErrorEl.textContent = "";
+    }
+    if (forgotSuccessEl) {
+      forgotSuccessEl.hidden = true;
+      forgotSuccessEl.textContent = "";
+    }
+    if (forgotSubmitButton) {
+      forgotSubmitButton.disabled = false;
+    }
+  } else if (mode === "reset-password") {
+    const resetErrorEl = document.getElementById("reset-error");
+    const resetSubmitButton = document.getElementById("reset-submit");
+    if (resetErrorEl) {
+      resetErrorEl.hidden = true;
+      resetErrorEl.textContent = "";
+    }
+    if (resetSubmitButton) {
+      resetSubmitButton.disabled = false;
     }
   }
 }
@@ -376,6 +407,12 @@ async function setRoute(route, { replaceHash = false } = {}) {
   if (signupView) {
     setViewVisibility(signupView, false);
   }
+  if (forgotPasswordView) {
+    setViewVisibility(forgotPasswordView, false);
+  }
+  if (resetPasswordView) {
+    setViewVisibility(resetPasswordView, false);
+  }
 
   let resolvedRoute = isAuthRoute ? "home" : nextRoute;
   if (!routeViews[resolvedRoute]) {
@@ -408,6 +445,10 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // Show the specific auth view
     if (nextRoute === "signup") {
       showAuthView("signup");
+    } else if (nextRoute === "forgot-password") {
+      showAuthView("forgot-password");
+    } else if (nextRoute === "reset-password") {
+      showAuthView("reset-password");
     } else {
       showAuthView("login");
     }
@@ -864,6 +905,144 @@ async function handleSignUpFormSubmit(event) {
     }
   } finally {
     signupSubmitButton.disabled = false;
+  }
+}
+
+async function handleForgotPasswordSubmit(event) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  const form = event.currentTarget;
+  if (!form) return;
+
+  const formData = new FormData(form);
+  const email = String(formData.get("email") ?? "").trim();
+
+  const forgotErrorEl = document.getElementById("forgot-error");
+  const forgotSuccessEl = document.getElementById("forgot-success");
+  const forgotSubmitButton = document.getElementById("forgot-submit");
+
+  if (!email) {
+    if (forgotErrorEl) {
+      forgotErrorEl.hidden = false;
+      forgotErrorEl.textContent = "Please enter your email address.";
+    }
+    if (forgotSuccessEl) {
+      forgotSuccessEl.hidden = true;
+    }
+    return;
+  }
+
+  if (forgotSubmitButton) {
+    forgotSubmitButton.disabled = true;
+  }
+  if (forgotErrorEl) {
+    forgotErrorEl.hidden = true;
+    forgotErrorEl.textContent = "";
+  }
+  if (forgotSuccessEl) {
+    forgotSuccessEl.hidden = true;
+    forgotSuccessEl.textContent = "";
+  }
+
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/#/reset-password`
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (forgotSuccessEl) {
+      forgotSuccessEl.hidden = false;
+      forgotSuccessEl.textContent = "Check your email for a password reset link.";
+    }
+    showToast("Password reset email sent", "success");
+    
+    // Clear form
+    form.reset();
+  } catch (error) {
+    console.error(error);
+    const message = error?.message || "Unable to send reset email";
+    showToast(message, "error");
+    if (forgotErrorEl) {
+      forgotErrorEl.hidden = false;
+      forgotErrorEl.textContent = message;
+    }
+  } finally {
+    if (forgotSubmitButton) {
+      forgotSubmitButton.disabled = false;
+    }
+  }
+}
+
+async function handleResetPasswordSubmit(event) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  const form = event.currentTarget;
+  if (!form) return;
+
+  const formData = new FormData(form);
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
+  const resetErrorEl = document.getElementById("reset-error");
+  const resetSubmitButton = document.getElementById("reset-submit");
+
+  if (!password || !confirmPassword) {
+    if (resetErrorEl) {
+      resetErrorEl.hidden = false;
+      resetErrorEl.textContent = "Please enter and confirm your new password.";
+    }
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    if (resetErrorEl) {
+      resetErrorEl.hidden = false;
+      resetErrorEl.textContent = "Passwords do not match.";
+    }
+    return;
+  }
+
+  if (resetSubmitButton) {
+    resetSubmitButton.disabled = true;
+  }
+  if (resetErrorEl) {
+    resetErrorEl.hidden = true;
+    resetErrorEl.textContent = "";
+  }
+
+  try {
+    const { error } = await supabase.auth.updateUser({
+      password: password
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    showToast("Password updated successfully. Please log in.", "success");
+    
+    // Sign out to clear recovery session
+    await supabase.auth.signOut();
+    
+    // Redirect to login
+    await setRoute("auth");
+  } catch (error) {
+    console.error(error);
+    const message = error?.message || "Unable to update password";
+    showToast(message, "error");
+    if (resetErrorEl) {
+      resetErrorEl.hidden = false;
+      resetErrorEl.textContent = message;
+    }
+  } finally {
+    if (resetSubmitButton) {
+      resetSubmitButton.disabled = false;
+    }
   }
 }
 
@@ -3226,6 +3405,12 @@ const signupSubmitButton = document.getElementById("signup-submit");
 const signupFirstInput = document.getElementById("signup-first");
 const showSignUpButton = document.getElementById("show-signup");
 const showLoginButton = document.getElementById("show-login");
+const showForgotPasswordButton = document.getElementById("show-forgot-password");
+const backToLoginButton = document.getElementById("back-to-login");
+const forgotPasswordView = document.getElementById("forgot-password-view");
+const forgotPasswordForm = document.getElementById("forgot-password-form");
+const resetPasswordView = document.getElementById("reset-password-view");
+const resetPasswordForm = document.getElementById("reset-password-form");
 const appShell = document.getElementById("app-shell");
 const homeView = document.getElementById("home-view");
 const playView = document.getElementById("play-view");
@@ -3242,7 +3427,7 @@ const routeViews = {
 const headerEl = document.querySelector(".header");
 const chipBarEl = document.querySelector(".chip-bar");
 const playLayout = playView ? playView.querySelector(".layout") : null;
-const AUTH_ROUTES = new Set(["auth", "signup"]);
+const AUTH_ROUTES = new Set(["auth", "signup", "forgot-password", "reset-password"]);
 const TABLE_ROUTES = new Set(["home", "play", "store", "admin"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
@@ -5152,6 +5337,14 @@ if (signupForm) {
   signupForm.addEventListener("submit", handleSignUpFormSubmit);
 }
 
+if (forgotPasswordForm) {
+  forgotPasswordForm.addEventListener("submit", handleForgotPasswordSubmit);
+}
+
+if (resetPasswordForm) {
+  resetPasswordForm.addEventListener("submit", handleResetPasswordSubmit);
+}
+
 if (adminPrizeForm) {
   adminPrizeForm.addEventListener("submit", handleAdminPrizeSubmit);
 }
@@ -5704,6 +5897,34 @@ if (showLoginButton) {
   });
 }
 
+if (showForgotPasswordButton) {
+  showForgotPasswordButton.addEventListener("click", async () => {
+    const forgotPasswordForm = document.getElementById("forgot-password-form");
+    if (forgotPasswordForm) {
+      forgotPasswordForm.reset();
+    }
+    const forgotErrorEl = document.getElementById("forgot-error");
+    const forgotSuccessEl = document.getElementById("forgot-success");
+    if (forgotErrorEl) {
+      forgotErrorEl.hidden = true;
+      forgotErrorEl.textContent = "";
+    }
+    if (forgotSuccessEl) {
+      forgotSuccessEl.hidden = true;
+      forgotSuccessEl.textContent = "";
+    }
+    await setRoute("forgot-password");
+    const forgotEmailInput = document.getElementById("forgot-email");
+    forgotEmailInput?.focus();
+  });
+}
+
+if (backToLoginButton) {
+  backToLoginButton.addEventListener("click", () => {
+    displayAuthScreen();
+  });
+}
+
 routeButtons.forEach((button) => {
   button.addEventListener("click", async () => {
     const target = button.dataset.routeTarget;
@@ -5911,7 +6132,11 @@ function setupAuthListener() {
         const sub = supabase.auth.onAuthStateChange((event, session) => {
           console.info(`[RTN] auth state changed: ${event}`);
           
-          if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+          if (event === "PASSWORD_RECOVERY") {
+            // User clicked reset link - show reset password form
+            console.info("[RTN] PASSWORD_RECOVERY event detected");
+            setRoute("reset-password").catch((err) => console.error(err));
+          } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
             const user = session?.user ?? null;
             if (user) {
               currentUser = user;
