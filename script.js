@@ -6193,8 +6193,8 @@ function setupAuthListener() {
           
           // Check if we're on password recovery route
           const isOnResetPassword = window.location.hash.startsWith("#/reset-password") ||
-            window.location.hash.includes("type=recovery") ||
-            window.location.hash.includes("access_token=");
+            window.location.hash.includes("code=") ||
+            window.location.search.includes("code=");
           
           if (event === "PASSWORD_RECOVERY") {
             // User clicked the reset password link in their email
@@ -6214,7 +6214,8 @@ function setupAuthListener() {
               }
               
               // If the UI is on auth screen, navigate to home
-              if (currentRoute === "auth" || currentRoute === "signup" || currentRoute === "forgot-password") {
+              // BUT stay on reset-password page if we're in password recovery flow
+              if (!isOnResetPassword && (currentRoute === "auth" || currentRoute === "signup" || currentRoute === "forgot-password")) {
                 setRoute("home").catch(() => {});
               }
             }
