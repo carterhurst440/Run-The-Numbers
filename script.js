@@ -1017,6 +1017,7 @@ async function handleResetPasswordSubmit(event) {
   }
 
   try {
+    console.info("[RTN] Updating password");
     const { error } = await supabase.auth.updateUser({
       password: password
     });
@@ -1025,16 +1026,21 @@ async function handleResetPasswordSubmit(event) {
       throw error;
     }
 
-    showToast("Password updated successfully", "success");
+    console.info("[RTN] Password updated successfully, signing out");
+    showToast("Password updated successfully! Please log in with your new password.", "success");
     
     if (resetPasswordForm) {
       resetPasswordForm.reset();
     }
 
-    // Redirect to home after successful password reset
-    await setRoute("home");
+    // Sign out to force clean login with new password
+    await supabase.auth.signOut();
+    
+    // Redirect to login
+    showAuthView("login");
+    updateHash("auth", { replace: true });
   } catch (error) {
-    console.error(error);
+    console.error("[RTN] Error updating password:", error);
     const message = error?.message || "Unable to update password";
     showToast(message, "error");
     if (resetPasswordErrorEl) {
@@ -6230,8 +6236,51 @@ async function initializeApp() {
       currentSearch.includes("access_token=");
 
     if (isPasswordRecovery) {
-      console.info("[RTN] Password recovery detected, skipping bootstrapAuth and showing reset form");
-      // Show reset password form immediately, let Supabase process tokens in background
+      console.info("[RTN] Password recovery detected, parsing tokens and establishing session");
+      
+      // Parse tokens from URL - handle both hash formats
+      const urlParts = window.location.href.split('#');
+      const lastHashPart = urlParts[urlParts.length - 1];
+      const params = new URLSearchParams(lastHashPart);
+      
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      
+      console.info("[RTN] Recovery tokens:", { 
+        hasAccessToken: !!accessToken, 
+        hasRefreshToken: !!refreshToken 
+      });
+      
+      // Establish recovery session immediately
+      if (accessToken && refreshToken) {
+        try {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
+          
+          if (error) {
+            console.error("[RTN] Error setting recovery session:", error);
+          } else {
+            console.info("[RTN] Recovery session established successfully");
+          }
+        } catch (err) {
+          console.error("[RTN] Exception setting recovery session:", err);
+        }
+      } else {
+        // Fallback: try to get existing session (implicit flow)
+        try {
+          const { data } = await supabase.auth.getSession();
+          if (!data.session) {
+            console.info("[RTN] No session found, attempting refresh");
+            await supabase.auth.refreshSession();
+          }
+        } catch (err) {
+          console.error("[RTN] Error getting/refreshing session:", err);
+        }
+      }
+      
+      // Show reset password form - NO profile loading, NO bootstrapAuth
       showAuthView("reset-password");
       markAppReady();
       return;
