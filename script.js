@@ -1017,8 +1017,20 @@ async function handleResetPasswordSubmit(event) {
   }
 
   try {
-    console.info("[RTN] Updating password");
-    const { error } = await supabase.auth.updateUser({
+    // Get recovery access_token from URL (Supabase v1)
+    const urlParts = window.location.href.split('#');
+    const lastHashPart = urlParts[urlParts.length - 1];
+    const params = new URLSearchParams(lastHashPart);
+    const accessToken = params.get('access_token');
+    
+    if (!accessToken) {
+      throw new Error("Missing access token in recovery link. Please request a new password reset link.");
+    }
+    
+    console.info("[RTN] Updating password using v1 API with recovery token");
+    
+    // Use v1 API to update password with access_token directly
+    const { user, error } = await supabase.auth.api.updateUser(accessToken, {
       password: password
     });
 
@@ -6236,51 +6248,24 @@ async function initializeApp() {
       currentSearch.includes("access_token=");
 
     if (isPasswordRecovery) {
-      console.info("[RTN] Password recovery detected, parsing tokens and establishing session");
+      console.info("[RTN] Password recovery detected (v1 flow)");
       
-      // Parse tokens from URL - handle both hash formats
+      // For v1, we don't call setSession - just show the form
+      // The access_token in the URL will be used directly when updating password
+      
       const urlParts = window.location.href.split('#');
       const lastHashPart = urlParts[urlParts.length - 1];
       const params = new URLSearchParams(lastHashPart);
       
       const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
+      const type = params.get('type');
       
-      console.info("[RTN] Recovery tokens:", { 
+      console.info("[RTN] Recovery URL params:", { 
         hasAccessToken: !!accessToken, 
-        hasRefreshToken: !!refreshToken 
+        type: type 
       });
       
-      // Establish recovery session immediately
-      if (accessToken && refreshToken) {
-        try {
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken
-          });
-          
-          if (error) {
-            console.error("[RTN] Error setting recovery session:", error);
-          } else {
-            console.info("[RTN] Recovery session established successfully");
-          }
-        } catch (err) {
-          console.error("[RTN] Exception setting recovery session:", err);
-        }
-      } else {
-        // Fallback: try to get existing session (implicit flow)
-        try {
-          const { data } = await supabase.auth.getSession();
-          if (!data.session) {
-            console.info("[RTN] No session found, attempting refresh");
-            await supabase.auth.refreshSession();
-          }
-        } catch (err) {
-          console.error("[RTN] Error getting/refreshing session:", err);
-        }
-      }
-      
-      // Show reset password form - NO profile loading, NO bootstrapAuth
+      // Show reset password form - NO session setup, NO profile loading, NO bootstrapAuth
       showAuthView("reset-password");
       markAppReady();
       return;
