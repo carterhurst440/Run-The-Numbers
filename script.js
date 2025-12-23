@@ -1036,9 +1036,17 @@ async function handleResetPasswordSubmit(event) {
   }
 
   try {
-    console.info("[RTN] Updating password using v2 API");
+    console.info("[RTN] Checking for active session before updating password");
     
-    // Use v2 updateUser - session already established
+    // Verify we have a session
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      throw new Error("Auth session missing! The reset link may have expired. Please request a new password reset link.");
+    }
+    
+    console.info("[RTN] Session found, updating password");
+    
+    // Update password using the active session
     const { error } = await supabase.auth.updateUser({
       password: password
     });
@@ -6295,9 +6303,8 @@ async function initializeApp() {
       currentSearch.includes("access_token=");
 
     if (isPasswordRecovery) {
-      console.info("[RTN] Password recovery detected (v2 flow)");
+      console.info("[RTN] Password recovery detected - letting Supabase handle tokens automatically");
       
-      // Extract tokens from URL and establish session
       const urlParts = window.location.href.split('#');
       const lastHashPart = urlParts[urlParts.length - 1];
       const params = new URLSearchParams(lastHashPart);
@@ -6310,40 +6317,16 @@ async function initializeApp() {
         hasRefreshToken: !!refreshToken 
       });
       
-      // Establish recovery session using v2 setSession
-      if (accessToken && refreshToken) {
-        try {
-          console.info("[RTN] Setting recovery session with v2 API");
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken
-          });
-          
-          if (error) {
-            console.error("[RTN] Error setting recovery session:", error);
-            if (resetPasswordErrorEl) {
-              resetPasswordErrorEl.hidden = false;
-              resetPasswordErrorEl.textContent = "Unable to verify reset link. Please request a new password reset link.";
-            }
-          } else {
-            console.info("[RTN] Recovery session established successfully");
-          }
-        } catch (err) {
-          console.error("[RTN] Exception setting recovery session:", err);
-          if (resetPasswordErrorEl) {
-            resetPasswordErrorEl.hidden = false;
-            resetPasswordErrorEl.textContent = "An error occurred. Please request a new password reset link.";
-          }
-        }
-      } else {
-        console.warn("[RTN] Missing access_token or refresh_token in URL");
+      if (!accessToken || !refreshToken) {
+        console.warn("[RTN] Missing tokens in URL");
         if (resetPasswordErrorEl) {
           resetPasswordErrorEl.hidden = false;
           resetPasswordErrorEl.textContent = "Invalid reset link. Please request a new password reset link.";
         }
       }
       
-      // Show reset password form - NO profile loading, NO bootstrapAuth
+      // Show reset password form - Supabase will automatically process tokens
+      // NO profile loading, NO bootstrapAuth
       showAuthView("reset-password");
       markAppReady();
       return;
