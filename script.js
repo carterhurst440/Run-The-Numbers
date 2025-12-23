@@ -6303,7 +6303,7 @@ async function initializeApp() {
       currentSearch.includes("access_token=");
 
     if (isPasswordRecovery) {
-      console.info("[RTN] Password recovery detected - letting Supabase handle tokens automatically");
+      console.info("[RTN] Password recovery detected - waiting for Supabase to process tokens");
       
       const urlParts = window.location.href.split('#');
       const lastHashPart = urlParts[urlParts.length - 1];
@@ -6325,9 +6325,36 @@ async function initializeApp() {
         }
       }
       
-      // Show reset password form - Supabase will automatically process tokens
-      // NO profile loading, NO bootstrapAuth
+      // Show the form first
       showAuthView("reset-password");
+      
+      // Wait for Supabase to process the tokens automatically
+      // Poll for session establishment
+      let sessionEstablished = false;
+      for (let i = 0; i < 30; i++) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        try {
+          const { data } = await supabase.auth.getSession();
+          if (data?.session) {
+            console.info("[RTN] Recovery session detected after", i * 200, "ms");
+            sessionEstablished = true;
+            break;
+          }
+        } catch (err) {
+          console.warn("[RTN] Error checking session:", err);
+        }
+      }
+      
+      if (!sessionEstablished) {
+        console.warn("[RTN] Session not established after waiting");
+        if (resetPasswordErrorEl) {
+          resetPasswordErrorEl.hidden = false;
+          resetPasswordErrorEl.textContent = "Unable to verify reset link. Please request a new password reset link.";
+        }
+      } else {
+        console.info("[RTN] Recovery session ready for password update");
+      }
+      
       markAppReady();
       return;
     }
