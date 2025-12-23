@@ -43,10 +43,7 @@ function stripSupabaseRedirectHash() {
   const hashContainsTokens = rawHash.startsWith("#access_token=");
   const searchContainsTokens = search.includes("access_token=");
   
-  // Don't strip if this is a password recovery redirect - Supabase needs to process it
-  const isPasswordRecovery = rawHash.includes("type=recovery") || search.includes("type=recovery");
-  
-  if ((hashContainsTokens || searchContainsTokens) && !isPasswordRecovery) {
+  if (hashContainsTokens || searchContainsTokens) {
     const cleanedHash = hashContainsTokens ? "" : rawHash;
     window.history.replaceState(
       {},
@@ -317,12 +314,6 @@ function showAuthView(mode = "login") {
   if (signupView) {
     setViewVisibility(signupView, mode === "signup");
   }
-  if (forgotPasswordView) {
-    setViewVisibility(forgotPasswordView, mode === "forgot-password");
-  }
-  if (resetPasswordView) {
-    setViewVisibility(resetPasswordView, mode === "reset-password");
-  }
   if (mode === "login") {
     if (authErrorEl) {
       authErrorEl.hidden = true;
@@ -338,26 +329,6 @@ function showAuthView(mode = "login") {
     }
     if (signupSubmitButton) {
       signupSubmitButton.disabled = false;
-    }
-  } else if (mode === "forgot-password") {
-    if (forgotErrorEl) {
-      forgotErrorEl.hidden = true;
-      forgotErrorEl.textContent = "";
-    }
-    if (forgotSuccessEl) {
-      forgotSuccessEl.hidden = true;
-      forgotSuccessEl.textContent = "";
-    }
-    if (forgotSubmitButton) {
-      forgotSubmitButton.disabled = false;
-    }
-  } else if (mode === "reset-password") {
-    if (resetPasswordErrorEl) {
-      resetPasswordErrorEl.hidden = true;
-      resetPasswordErrorEl.textContent = "";
-    }
-    if (resetPasswordSubmitButton) {
-      resetPasswordSubmitButton.disabled = false;
     }
   }
 }
@@ -391,16 +362,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
   updateAdminVisibility(currentUser);
   updateResetButtonVisibility(currentUser);
 
-  // Skip profile sync during password recovery
-  const isOnResetPassword = nextRoute === "reset-password" ||
-    window.location.hash.includes("type=recovery") ||
-    window.location.hash.includes("access_token=");
-  
-  if (!isOnResetPassword) {
-    await ensureProfileSynced({ force: !currentProfile });
-  } else {
-    console.info("[RTN] setRoute skipping profile sync - on password recovery");
-  }
+  await ensureProfileSynced({ force: !currentProfile });
 
   if (!isAuthRoute && nextRoute === "admin" && !isAdmin()) {
     showToast("Admin access only", "error");
@@ -452,10 +414,6 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // Show the specific auth view
     if (nextRoute === "signup") {
       showAuthView("signup");
-    } else if (nextRoute === "forgot-password") {
-      showAuthView("forgot-password");
-    } else if (nextRoute === "reset-password") {
-      showAuthView("reset-password");
     } else {
       showAuthView("login");
     }
@@ -477,12 +435,6 @@ async function setRoute(route, { replaceHash = false } = {}) {
 function getRouteFromHash() {
   if (typeof window === "undefined") return "home";
   const hash = window.location.hash || "";
-  
-  // Check if this is a password recovery redirect from Supabase
-  if (hash.includes("type=recovery") || hash.includes("type%3Drecovery")) {
-    return "reset-password";
-  }
-  
   const match = hash.match(/#\/([\w-]+)/);
   return match ? match[1] : "home";
 }
@@ -698,16 +650,6 @@ async function provisionProfileForUser(user) {
 }
 
 async function ensureProfileSynced({ force = false } = {}) {
-  // Skip profile sync during password recovery
-  const isOnResetPassword = window.location.hash.startsWith("#/reset-password") ||
-    window.location.hash.includes("type=recovery") ||
-    window.location.hash.includes("access_token=");
-  
-  if (isOnResetPassword) {
-    console.info("[RTN] ensureProfileSynced skipped - on password recovery page");
-    return null;
-  }
-  
   if (!currentUser) {
     currentUser = { ...GUEST_USER };
   }
@@ -928,159 +870,6 @@ async function handleSignUpFormSubmit(event) {
     }
   } finally {
     signupSubmitButton.disabled = false;
-  }
-}
-
-async function handleForgotPasswordSubmit(event) {
-  event.preventDefault();
-  event.stopPropagation();
-
-  const form = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : forgotPasswordForm;
-  if (!form || !forgotSubmitButton) {
-    return;
-  }
-
-  const formData = new FormData(form);
-  const email = String(formData.get("email") ?? "").trim();
-
-  if (!email) {
-    if (forgotErrorEl) {
-      forgotErrorEl.hidden = false;
-      forgotErrorEl.textContent = "Please enter your email address.";
-    }
-    return;
-  }
-
-  forgotSubmitButton.disabled = true;
-  if (forgotErrorEl) {
-    forgotErrorEl.hidden = true;
-    forgotErrorEl.textContent = "";
-  }
-  if (forgotSuccessEl) {
-    forgotSuccessEl.hidden = true;
-    forgotSuccessEl.textContent = "";
-  }
-
-  try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://carterscasino.app/#/reset-password'
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    if (forgotSuccessEl) {
-      forgotSuccessEl.hidden = false;
-      forgotSuccessEl.textContent = "Password reset link sent! Check your email.";
-    }
-    showToast("Password reset link sent to your email", "success");
-    
-    if (forgotPasswordForm) {
-      forgotPasswordForm.reset();
-    }
-  } catch (error) {
-    console.error(error);
-    const message = error?.message || "Unable to send reset link";
-    showToast(message, "error");
-    if (forgotErrorEl) {
-      forgotErrorEl.hidden = false;
-      forgotErrorEl.textContent = message;
-    }
-  } finally {
-    forgotSubmitButton.disabled = false;
-  }
-}
-
-async function handleResetPasswordSubmit(event) {
-  event.preventDefault();
-  event.stopPropagation();
-
-  const form = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : resetPasswordForm;
-  if (!form || !resetPasswordSubmitButton) {
-    return;
-  }
-
-  const formData = new FormData(form);
-  const password = String(formData.get("password") ?? "");
-  const confirmPassword = String(formData.get("confirmPassword") ?? "");
-
-  if (!password || !confirmPassword) {
-    if (resetPasswordErrorEl) {
-      resetPasswordErrorEl.hidden = false;
-      resetPasswordErrorEl.textContent = "Please enter and confirm your new password.";
-    }
-    return;
-  }
-
-  if (password !== confirmPassword) {
-    if (resetPasswordErrorEl) {
-      resetPasswordErrorEl.hidden = false;
-      resetPasswordErrorEl.textContent = "Passwords do not match.";
-    }
-    return;
-  }
-
-  if (password.length < 6) {
-    if (resetPasswordErrorEl) {
-      resetPasswordErrorEl.hidden = false;
-      resetPasswordErrorEl.textContent = "Password must be at least 6 characters.";
-    }
-    return;
-  }
-
-  resetPasswordSubmitButton.disabled = true;
-  if (resetPasswordErrorEl) {
-    resetPasswordErrorEl.hidden = true;
-    resetPasswordErrorEl.textContent = "";
-  }
-
-  try {
-    console.info("[RTN] Checking for active session before updating password");
-    
-    // Verify we have a session
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData?.session) {
-      throw new Error("Auth session missing! The reset link may have expired. Please request a new password reset link.");
-    }
-    
-    console.info("[RTN] Session found, updating password");
-    
-    // Update password using the active session
-    const { error } = await supabase.auth.updateUser({
-      password: password
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    console.info("[RTN] Password updated successfully, signing out");
-    showToast("Password updated successfully! Please log in with your new password.", "success");
-    
-    if (resetPasswordForm) {
-      resetPasswordForm.reset();
-    }
-
-    // Sign out to force clean login with new password
-    await supabase.auth.signOut();
-    
-    // Clean up URL and redirect to login
-    if (typeof history !== "undefined" && history.replaceState) {
-      history.replaceState(null, "", "/#/auth");
-    }
-    showAuthView("login");
-    updateHash("auth", { replace: true });
-  } catch (error) {
-    console.error("[RTN] Error updating password:", error);
-    const message = error?.message || "Unable to update password";
-    showToast(message, "error");
-    if (resetPasswordErrorEl) {
-      resetPasswordErrorEl.hidden = false;
-      resetPasswordErrorEl.textContent = message;
-    }
-  } finally {
-    resetPasswordSubmitButton.disabled = false;
   }
 }
 
@@ -3156,13 +2945,7 @@ function applySignedOutState(reason = "unknown", { focusInput = true } = {}) {
   authState.lastUserId = null;
   authState.manualSignOutRequested = false;
 
-  // Don't redirect to auth screen if we're on reset-password route (user is resetting password from email)
-  const currentHash = typeof window !== "undefined" ? window.location.hash : "";
-  const isResettingPassword = currentHash.includes("reset-password") || currentHash.includes("type=recovery");
-  
-  if (!isResettingPassword) {
-    displayAuthScreen({ focus: focusInput });
-  }
+  displayAuthScreen({ focus: focusInput });
 }
 
 async function handleSignOut() {
@@ -3449,20 +3232,6 @@ const signupSubmitButton = document.getElementById("signup-submit");
 const signupFirstInput = document.getElementById("signup-first");
 const showSignUpButton = document.getElementById("show-signup");
 const showLoginButton = document.getElementById("show-login");
-const forgotPasswordView = document.getElementById("forgot-password-view");
-const forgotPasswordForm = document.getElementById("forgot-password-form");
-const forgotEmailInput = document.getElementById("forgot-email");
-const forgotErrorEl = document.getElementById("forgot-error");
-const forgotSuccessEl = document.getElementById("forgot-success");
-const forgotSubmitButton = document.getElementById("forgot-submit");
-const showForgotPasswordButton = document.getElementById("show-forgot-password");
-const showLoginFromForgotButton = document.getElementById("show-login-from-forgot");
-const resetPasswordView = document.getElementById("reset-password-view");
-const resetPasswordForm = document.getElementById("reset-password-form");
-const resetPasswordInput = document.getElementById("reset-password");
-const resetConfirmInput = document.getElementById("reset-confirm");
-const resetPasswordErrorEl = document.getElementById("reset-error");
-const resetPasswordSubmitButton = document.getElementById("reset-submit");
 const appShell = document.getElementById("app-shell");
 const homeView = document.getElementById("home-view");
 const playView = document.getElementById("play-view");
@@ -3479,7 +3248,7 @@ const routeViews = {
 const headerEl = document.querySelector(".header");
 const chipBarEl = document.querySelector(".chip-bar");
 const playLayout = playView ? playView.querySelector(".layout") : null;
-const AUTH_ROUTES = new Set(["auth", "signup", "forgot-password", "reset-password"]);
+const AUTH_ROUTES = new Set(["auth", "signup"]);
 const TABLE_ROUTES = new Set(["home", "play", "store", "admin"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
@@ -3843,16 +3612,6 @@ function updateDashboardCreditsDisplay(value = bankroll) {
 }
 
 async function persistBankroll() {
-  // Skip during password recovery
-  const isOnResetPassword = window.location.hash.startsWith("#/reset-password") ||
-    window.location.hash.includes("type=recovery") ||
-    window.location.hash.includes("access_token=");
-  
-  if (isOnResetPassword) {
-    console.info("[RTN] persistBankroll skipped - on password recovery page");
-    return;
-  }
-  
   if (!currentUser) return;
 
   const updates = {};
@@ -5399,14 +5158,6 @@ if (signupForm) {
   signupForm.addEventListener("submit", handleSignUpFormSubmit);
 }
 
-if (forgotPasswordForm) {
-  forgotPasswordForm.addEventListener("submit", handleForgotPasswordSubmit);
-}
-
-if (resetPasswordForm) {
-  resetPasswordForm.addEventListener("submit", handleResetPasswordSubmit);
-}
-
 if (adminPrizeForm) {
   adminPrizeForm.addEventListener("submit", handleAdminPrizeSubmit);
 }
@@ -5959,31 +5710,6 @@ if (showLoginButton) {
   });
 }
 
-if (showForgotPasswordButton) {
-  showForgotPasswordButton.addEventListener("click", async () => {
-    if (forgotPasswordForm) {
-      forgotPasswordForm.reset();
-    }
-    if (forgotErrorEl) {
-      forgotErrorEl.hidden = true;
-      forgotErrorEl.textContent = "";
-    }
-    if (forgotSuccessEl) {
-      forgotSuccessEl.hidden = true;
-      forgotSuccessEl.textContent = "";
-    }
-    showAuthView("forgot-password");
-    updateHash("forgot-password", { replace: true });
-    forgotEmailInput?.focus();
-  });
-}
-
-if (showLoginFromForgotButton) {
-  showLoginFromForgotButton.addEventListener("click", () => {
-    displayAuthScreen();
-  });
-}
-
 routeButtons.forEach((button) => {
   button.addEventListener("click", async () => {
     const target = button.dataset.routeTarget;
@@ -6191,31 +5917,17 @@ function setupAuthListener() {
         const sub = supabase.auth.onAuthStateChange((event, session) => {
           console.info(`[RTN] auth state changed: ${event}`);
           
-          // Check if we're on password recovery route
-          const isOnResetPassword = window.location.hash.startsWith("#/reset-password") ||
-            window.location.hash.includes("code=") ||
-            window.location.search.includes("code=");
-          
-          if (event === "PASSWORD_RECOVERY") {
-            // User clicked the reset password link in their email
-            setRoute("reset-password").catch(() => {});
-          } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+          if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
             const user = session?.user ?? null;
             if (user) {
               currentUser = user;
               updateAdminVisibility(currentUser);
               updateResetButtonVisibility(currentUser);
               
-              // Skip profile sync if we're on password recovery page
-              if (!isOnResetPassword) {
-                ensureProfileSynced({ force: true }).catch((err) => console.warn(err));
-              } else {
-                console.info("[RTN] Skipping profile sync during password recovery");
-              }
+              ensureProfileSynced({ force: true }).catch((err) => console.warn(err));
               
               // If the UI is on auth screen, navigate to home
-              // BUT stay on reset-password page if we're in password recovery flow
-              if (!isOnResetPassword && (currentRoute === "auth" || currentRoute === "signup" || currentRoute === "forgot-password")) {
+              if (currentRoute === "auth" || currentRoute === "signup") {
                 setRoute("home").catch(() => {});
               }
             }
@@ -6248,19 +5960,9 @@ function setupAuthListener() {
               console.info("[RTN] received supabase:ready, registering auth listener");
               registerAuthHandler();
               
-              // Skip bootstrapAuth during password recovery
               const currentRoute = getRouteFromHash();
-              const currentHash = window.location.hash || "";
-              const isPasswordRecovery = currentRoute === "reset-password" || 
-                currentHash.includes("type=recovery") || 
-                currentHash.includes("access_token=");
-              
-              if (!isPasswordRecovery) {
-                console.info("[RTN] attempting bootstrapAuth");
-                await bootstrapAuth(currentRoute);
-              } else {
-                console.info("[RTN] skipping bootstrapAuth during password recovery");
-              }
+              console.info("[RTN] attempting bootstrapAuth");
+              await bootstrapAuth(currentRoute);
             } catch (err) {
               console.warn("[RTN] supabase:ready handler error", err);
             }
@@ -6294,68 +5996,6 @@ async function initializeApp() {
   let sessionApplied = false;
 
   try {
-    // Check if this is a password recovery flow
-    const currentHash = typeof window !== "undefined" ? window.location.hash : "";
-    const currentSearch = typeof window !== "undefined" ? window.location.search : "";
-    const isPasswordRecovery = initialRoute === "reset-password" || 
-      currentHash.includes("code=") ||
-      currentSearch.includes("code=");
-
-    if (isPasswordRecovery) {
-      console.info("[RTN] Password recovery detected - extracting code from URL");
-      
-      // Parse code from both search params and hash query (hash routing)
-      const searchParams = new URLSearchParams(window.location.search);
-      const hashQuery = window.location.hash.includes("?")
-        ? window.location.hash.split("?")[1]
-        : "";
-      const hashParams = new URLSearchParams(hashQuery);
-      
-      const code = searchParams.get("code") || hashParams.get("code");
-      
-      console.info("[RTN] Recovery code:", { hasCode: !!code });
-      
-      if (!code) {
-        console.warn("[RTN] Missing recovery code in URL");
-        if (resetPasswordErrorEl) {
-          resetPasswordErrorEl.hidden = false;
-          resetPasswordErrorEl.textContent = "Invalid reset link. Please request a new password reset link.";
-        }
-        showAuthView("reset-password");
-        markAppReady();
-        return;
-      }
-      
-      // Exchange code for session (modern PKCE flow)
-      console.info("[RTN] Exchanging code for session");
-      try {
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-        
-        if (error) {
-          console.error("[RTN] Error exchanging code:", error);
-          if (resetPasswordErrorEl) {
-            resetPasswordErrorEl.hidden = false;
-            resetPasswordErrorEl.textContent = "Failed to verify reset link. Please request a new one.";
-          }
-        } else if (data?.session) {
-          console.info("[RTN] Recovery session established successfully");
-        } else {
-          console.warn("[RTN] exchangeCodeForSession returned no error but no session");
-        }
-      } catch (err) {
-        console.error("[RTN] Exception exchanging code:", err);
-        if (resetPasswordErrorEl) {
-          resetPasswordErrorEl.hidden = false;
-          resetPasswordErrorEl.textContent = "An error occurred. Please try again.";
-        }
-      }
-      
-      // Show the form
-      showAuthView("reset-password");
-      markAppReady();
-      return;
-    }
-
     // Wait a short time for the Supabase client to become ready so
     // bootstrapAuth can detect an existing session without the app
     // briefly showing the auth screen. If the ready event doesn't
