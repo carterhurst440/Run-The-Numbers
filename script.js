@@ -318,12 +318,6 @@ function showAuthView(mode = "login") {
   if (forgotPasswordView) {
     setViewVisibility(forgotPasswordView, mode === "forgot-password");
   }
-  if (resetPasswordView) {
-    console.info(`[RTN] setting resetPasswordView visibility to ${mode === "reset-password"}`);
-    setViewVisibility(resetPasswordView, mode === "reset-password");
-  } else {
-    console.warn("[RTN] resetPasswordView element not found!");
-  }
   if (mode === "login") {
     if (authErrorEl) {
       authErrorEl.hidden = true;
@@ -355,16 +349,6 @@ function showAuthView(mode = "login") {
     if (forgotSubmitButton) {
       forgotSubmitButton.disabled = false;
     }
-  } else if (mode === "reset-password") {
-    const resetErrorEl = document.getElementById("reset-error");
-    const resetSubmitButton = document.getElementById("reset-submit");
-    if (resetErrorEl) {
-      resetErrorEl.hidden = true;
-      resetErrorEl.textContent = "";
-    }
-    if (resetSubmitButton) {
-      resetSubmitButton.disabled = false;
-    }
   }
 }
 
@@ -385,7 +369,7 @@ function updateHash(route, { replace = false } = {}) {
 async function setRoute(route, { replaceHash = false } = {}) {
   let nextRoute = route ?? "home";
   const isAuthRoute = AUTH_ROUTES.has(nextRoute);
-  const isPublicPasswordRoute = nextRoute === "forgot-password" || nextRoute === "reset-password";
+  const isPublicPasswordRoute = nextRoute === "forgot-password";
 
   if (!routeViews[nextRoute] && !isAuthRoute && !isPublicPasswordRoute) {
     nextRoute = "home";
@@ -418,9 +402,6 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
   if (forgotPasswordView) {
     setViewVisibility(forgotPasswordView, false);
-  }
-  if (resetPasswordView) {
-    setViewVisibility(resetPasswordView, false);
   }
 
   let resolvedRoute = (isAuthRoute && !isPublicPasswordRoute) ? "home" : nextRoute;
@@ -456,8 +437,6 @@ async function setRoute(route, { replaceHash = false } = {}) {
       showAuthView("signup");
     } else if (nextRoute === "forgot-password") {
       showAuthView("forgot-password");
-    } else if (nextRoute === "reset-password") {
-      showAuthView("reset-password");
     } else {
       showAuthView("login");
     }
@@ -479,12 +458,6 @@ async function setRoute(route, { replaceHash = false } = {}) {
 function getRouteFromHash() {
   if (typeof window === "undefined") return "home";
   const hash = window.location.hash || "";
-  
-  // Check if hash contains Supabase recovery token
-  if (hash.includes("access_token=") && hash.includes("type=recovery")) {
-    return "reset-password";
-  }
-  
   const match = hash.match(/#\/([\w-]+)/);
   return match ? match[1] : "home";
 }
@@ -701,7 +674,7 @@ async function provisionProfileForUser(user) {
 
 async function ensureProfileSynced({ force = false } = {}) {
   // Skip profile sync on public auth pages
-  if (currentRoute === "reset-password" || currentRoute === "forgot-password" || currentRoute === "auth" || currentRoute === "signup") {
+  if (currentRoute === "forgot-password" || currentRoute === "auth" || currentRoute === "signup") {
     return currentProfile || { ...GUEST_PROFILE };
   }
   
@@ -966,8 +939,11 @@ async function handleForgotPasswordSubmit(event) {
   }
 
   try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/#/reset-password`
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/#/home`
+      }
     });
 
     if (error) {
@@ -976,15 +952,15 @@ async function handleForgotPasswordSubmit(event) {
 
     if (forgotSuccessEl) {
       forgotSuccessEl.hidden = false;
-      forgotSuccessEl.textContent = "Check your email for a password reset link.";
+      forgotSuccessEl.textContent = "Check your email for a magic link to sign in.";
     }
-    showToast("Password reset email sent", "success");
+    showToast("Magic link sent to your email", "success");
     
     // Clear form
     form.reset();
   } catch (error) {
     console.error(error);
-    const message = error?.message || "Unable to send reset email";
+    const message = error?.message || "Unable to send magic link";
     showToast(message, "error");
     if (forgotErrorEl) {
       forgotErrorEl.hidden = false;
@@ -993,81 +969,6 @@ async function handleForgotPasswordSubmit(event) {
   } finally {
     if (forgotSubmitButton) {
       forgotSubmitButton.disabled = false;
-    }
-  }
-}
-
-async function handleResetPasswordSubmit(event) {
-  event.preventDefault();
-  event.stopPropagation();
-
-  const form = event.currentTarget;
-  if (!form) return;
-
-  const formData = new FormData(form);
-  const password = String(formData.get("password") ?? "");
-  const confirmPassword = String(formData.get("confirmPassword") ?? "");
-
-  const resetErrorEl = document.getElementById("reset-error");
-  const resetSubmitButton = document.getElementById("reset-submit");
-
-  if (!password || !confirmPassword) {
-    if (resetErrorEl) {
-      resetErrorEl.hidden = false;
-      resetErrorEl.textContent = "Please enter and confirm your new password.";
-    }
-    return;
-  }
-
-  if (password !== confirmPassword) {
-    if (resetErrorEl) {
-      resetErrorEl.hidden = false;
-      resetErrorEl.textContent = "Passwords do not match.";
-    }
-    return;
-  }
-
-  if (resetSubmitButton) {
-    resetSubmitButton.disabled = true;
-  }
-  if (resetErrorEl) {
-    resetErrorEl.hidden = true;
-    resetErrorEl.textContent = "";
-  }
-
-  try {
-    // Check if we have a recovery session
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !sessionData?.session) {
-      throw new Error("Recovery session not found. Please click the reset link from your email again.");
-    }
-
-    const { error } = await supabase.auth.updateUser({
-      password: password
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    showToast("Password updated successfully. Please log in.", "success");
-    
-    // Sign out to clear recovery session
-    await supabase.auth.signOut();
-    
-    // Redirect to login
-    await setRoute("auth");
-  } catch (error) {
-    console.error(error);
-    const message = error?.message || "Unable to update password";
-    showToast(message, "error");
-    if (resetErrorEl) {
-      resetErrorEl.hidden = false;
-      resetErrorEl.textContent = message;
-    }
-  } finally {
-    if (resetSubmitButton) {
-      resetSubmitButton.disabled = false;
     }
   }
 }
@@ -3435,8 +3336,6 @@ const showForgotPasswordButton = document.getElementById("show-forgot-password")
 const backToLoginButton = document.getElementById("back-to-login");
 const forgotPasswordView = document.getElementById("forgot-password-view");
 const forgotPasswordForm = document.getElementById("forgot-password-form");
-const resetPasswordView = document.getElementById("reset-password-view");
-const resetPasswordForm = document.getElementById("reset-password-form");
 const appShell = document.getElementById("app-shell");
 const homeView = document.getElementById("home-view");
 const playView = document.getElementById("play-view");
@@ -5367,10 +5266,6 @@ if (forgotPasswordForm) {
   forgotPasswordForm.addEventListener("submit", handleForgotPasswordSubmit);
 }
 
-if (resetPasswordForm) {
-  resetPasswordForm.addEventListener("submit", handleResetPasswordSubmit);
-}
-
 if (adminPrizeForm) {
   adminPrizeForm.addEventListener("submit", handleAdminPrizeSubmit);
 }
@@ -6160,11 +6055,7 @@ function setupAuthListener() {
         const sub = supabase.auth.onAuthStateChange((event, session) => {
           console.info(`[RTN] auth state changed: ${event}`);
           
-          if (event === "PASSWORD_RECOVERY") {
-            // User clicked reset link - show reset password form
-            console.info("[RTN] PASSWORD_RECOVERY event detected");
-            setRoute("reset-password").catch((err) => console.error(err));
-          } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+          if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
             const user = session?.user ?? null;
             if (user) {
               currentUser = user;
@@ -6179,11 +6070,6 @@ function setupAuthListener() {
               }
             }
           } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
-            // Don't redirect if we're on the reset-password page (user needs to stay there to reset)
-            if (currentRoute === "reset-password") {
-              console.info("[RTN] SIGNED_OUT on reset-password page, staying put");
-              return;
-            }
             // Apply signed out state so UI falls back to auth screen.
             applySignedOutState("auth-change", { focusInput: false });
           }
@@ -6215,7 +6101,7 @@ function setupAuthListener() {
               const currentRoute = getRouteFromHash();
               // Skip bootstrapAuth for public auth pages
               const isPublicAuthPage = currentRoute === "auth" || currentRoute === "signup" || 
-                                      currentRoute === "forgot-password" || currentRoute === "reset-password";
+                                      currentRoute === "forgot-password";
               if (!isPublicAuthPage) {
                 console.info("[RTN] attempting bootstrapAuth");
                 await bootstrapAuth(currentRoute);
@@ -6283,7 +6169,7 @@ async function initializeApp() {
 
     // Skip bootstrapAuth for public auth pages - they don't need session checks
     const isPublicAuthPage = initialRoute === "auth" || initialRoute === "signup" || 
-                            initialRoute === "forgot-password" || initialRoute === "reset-password";
+                            initialRoute === "forgot-password";
     
     if (isPublicAuthPage) {
       console.info(`[RTN] initializeApp showing public auth page: ${initialRoute}`);
@@ -6294,9 +6180,6 @@ async function initializeApp() {
       } else if (initialRoute === "forgot-password") {
         showAuthView("forgot-password");
         updateHash("forgot-password", { replace: true });
-      } else if (initialRoute === "reset-password") {
-        showAuthView("reset-password");
-        updateHash("reset-password", { replace: true });
       } else {
         showAuthView("login");
         updateHash("auth", { replace: true });
