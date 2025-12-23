@@ -475,6 +475,12 @@ async function setRoute(route, { replaceHash = false } = {}) {
 function getRouteFromHash() {
   if (typeof window === "undefined") return "home";
   const hash = window.location.hash || "";
+  
+  // Check if hash contains Supabase recovery token
+  if (hash.includes("access_token=") && hash.includes("type=recovery")) {
+    return "reset-password";
+  }
+  
   const match = hash.match(/#\/([\w-]+)/);
   return match ? match[1] : "home";
 }
