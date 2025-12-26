@@ -303,6 +303,18 @@ function updateResetButtonVisibility(user = currentUser) {
   }
 }
 
+function showAuthCallbackView() {
+  console.info("[RTN] showAuthCallbackView called");
+  hideAllRoutes();
+  if (appShell) {
+    appShell.setAttribute("data-hidden", "true");
+  }
+  const authCallbackView = document.getElementById("auth-callback-view");
+  if (authCallbackView) {
+    setViewVisibility(authCallbackView, true);
+  }
+}
+
 function showAuthView(mode = "login") {
   console.info(`[RTN] showAuthView called with mode: ${mode}`);
   hideAllRoutes();
@@ -369,9 +381,9 @@ function updateHash(route, { replace = false } = {}) {
 async function setRoute(route, { replaceHash = false } = {}) {
   let nextRoute = route ?? "home";
   const isAuthRoute = AUTH_ROUTES.has(nextRoute);
-  const isPublicPasswordRoute = nextRoute === "forgot-password";
+  const isPublicAuthRoute = nextRoute === "forgot-password" || nextRoute === "auth/callback";
 
-  if (!routeViews[nextRoute] && !isAuthRoute && !isPublicPasswordRoute) {
+  if (!routeViews[nextRoute] && !isAuthRoute && !isPublicAuthRoute) {
     nextRoute = "home";
   }
 
@@ -380,7 +392,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
 
   // Skip all auth-related updates for public auth pages
-  const isPublicAuthPage = nextRoute === "forgot-password" || nextRoute === "auth" || nextRoute === "signup" || nextRoute === "reset-password";
+  const isPublicAuthPage = nextRoute === "forgot-password" || nextRoute === "auth" || nextRoute === "signup" || nextRoute === "auth/callback";
   
   if (!isPublicAuthPage) {
     updateAdminVisibility(currentUser);
@@ -431,12 +443,14 @@ async function setRoute(route, { replaceHash = false } = {}) {
 
   currentRoute = resolvedRoute;
 
-  if (isAuthRoute || isPublicPasswordRoute) {
+  if (isAuthRoute || isPublicAuthRoute) {
     // Show the specific auth view
     if (nextRoute === "signup") {
       showAuthView("signup");
     } else if (nextRoute === "forgot-password") {
       showAuthView("forgot-password");
+    } else if (nextRoute === "auth/callback") {
+      showAuthCallbackView();
     } else {
       showAuthView("login");
     }
@@ -458,7 +472,18 @@ async function setRoute(route, { replaceHash = false } = {}) {
 function getRouteFromHash() {
   if (typeof window === "undefined") return "home";
   const hash = window.location.hash || "";
-  const match = hash.match(/#\/([\w-]+)/);
+  
+  // Check if hash contains Supabase auth tokens (magic link, etc)
+  if (hash.includes("access_token=") || hash.includes("refresh_token=")) {
+    return "auth/callback";
+  }
+  
+  // Handle auth/callback route explicitly
+  if (hash.includes("#/auth/callback")) {
+    return "auth/callback";
+  }
+  
+  const match = hash.match(/#\/([\w-/]+)/);
   return match ? match[1] : "home";
 }
 
@@ -674,7 +699,7 @@ async function provisionProfileForUser(user) {
 
 async function ensureProfileSynced({ force = false } = {}) {
   // Skip profile sync on public auth pages
-  if (currentRoute === "forgot-password" || currentRoute === "auth" || currentRoute === "signup") {
+  if (currentRoute === "auth/callback" || currentRoute === "forgot-password" || currentRoute === "auth" || currentRoute === "signup") {
     return currentProfile || { ...GUEST_PROFILE };
   }
   
@@ -942,7 +967,7 @@ async function handleForgotPasswordSubmit(event) {
     const { error } = await supabase.auth.signInWithOtp({
       email: email,
       options: {
-        emailRedirectTo: `${window.location.origin}/#/home`
+        emailRedirectTo: `${window.location.origin}/#/auth/callback`
       }
     });
 
@@ -6070,6 +6095,11 @@ function setupAuthListener() {
               }
             }
           } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
+            // Don't redirect if we're on the auth/callback page (processing auth)
+            if (currentRoute === "auth/callback") {
+              console.info("[RTN] SIGNED_OUT on auth/callback page, staying put");
+              return;
+            }
             // Apply signed out state so UI falls back to auth screen.
             applySignedOutState("auth-change", { focusInput: false });
           }
@@ -6101,7 +6131,7 @@ function setupAuthListener() {
               const currentRoute = getRouteFromHash();
               // Skip bootstrapAuth for public auth pages
               const isPublicAuthPage = currentRoute === "auth" || currentRoute === "signup" || 
-                                      currentRoute === "forgot-password";
+                                      currentRoute === "forgot-password" || currentRoute === "auth/callback";
               if (!isPublicAuthPage) {
                 console.info("[RTN] attempting bootstrapAuth");
                 await bootstrapAuth(currentRoute);
@@ -6169,7 +6199,7 @@ async function initializeApp() {
 
     // Skip bootstrapAuth for public auth pages - they don't need session checks
     const isPublicAuthPage = initialRoute === "auth" || initialRoute === "signup" || 
-                            initialRoute === "forgot-password";
+                            initialRoute === "forgot-password" || initialRoute === "auth/callback";
     
     if (isPublicAuthPage) {
       console.info(`[RTN] initializeApp showing public auth page: ${initialRoute}`);
@@ -6180,6 +6210,10 @@ async function initializeApp() {
       } else if (initialRoute === "forgot-password") {
         showAuthView("forgot-password");
         updateHash("forgot-password", { replace: true });
+      } else if (initialRoute === "auth/callback") {
+        // Show callback processing view
+        showAuthCallbackView();
+        // Supabase will automatically process the tokens and fire auth events
       } else {
         showAuthView("login");
         updateHash("auth", { replace: true });
