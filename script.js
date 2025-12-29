@@ -416,8 +416,8 @@ async function setRoute(route, { replaceHash = false } = {}) {
     setViewVisibility(forgotPasswordView, false);
   }
 
-  let resolvedRoute = (isAuthRoute && !isPublicPasswordRoute) ? "home" : nextRoute;
-  if (!routeViews[resolvedRoute] && !isPublicPasswordRoute) {
+  let resolvedRoute = (isAuthRoute && !isPublicAuthRoute) ? "home" : nextRoute;
+  if (!routeViews[resolvedRoute] && !isPublicAuthRoute) {
     resolvedRoute = "home";
   }
 
