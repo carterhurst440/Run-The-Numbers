@@ -477,19 +477,27 @@ function getRouteFromHash() {
   const hash = window.location.hash || "";
   const search = window.location.search || "";
   
+  console.info(`[RTN] getRouteFromHash - full URL: ${window.location.href}`);
+  console.info(`[RTN] getRouteFromHash - hash: "${hash}"`);
+  console.info(`[RTN] getRouteFromHash - search: "${search}"`);
+  
   // Check if hash OR search params contain Supabase auth tokens (magic link, etc)
   if (hash.includes("access_token=") || hash.includes("refresh_token=") ||
       search.includes("access_token=") || search.includes("refresh_token=")) {
+    console.info(`[RTN] getRouteFromHash - detected auth tokens, returning auth/callback`);
     return "auth/callback";
   }
   
   // Handle auth/callback route explicitly
   if (hash.includes("#/auth/callback")) {
+    console.info(`[RTN] getRouteFromHash - detected #/auth/callback in hash`);
     return "auth/callback";
   }
   
   const match = hash.match(/#\/([\w-/]+)/);
-  return match ? match[1] : "home";
+  const route = match ? match[1] : "home";
+  console.info(`[RTN] getRouteFromHash - returning route: "${route}"`);
+  return route;
 }
 
 function handleHashChange() {
