@@ -6226,24 +6226,44 @@ async function initializeApp() {
     if (hasAuthTokensInUrl) {
       console.info("[RTN] initializeApp detected auth tokens/code in URL, waiting for Supabase to process...");
       showAuthCallbackView();
-      // Wait for Supabase to process the tokens/code from URL
-      // PKCE flow: code gets exchanged for session
-      // Implicit flow: tokens get converted to session
-      // The onAuthStateChange listener will handle navigation once SIGNED_IN fires
-      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Check if we now have a session
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          console.info("[RTN] initializeApp session established from URL tokens/code");
-          // The SIGNED_IN event will handle navigation to home
-          return;
-        } else {
-          console.warn("[RTN] initializeApp no session after processing URL tokens/code");
+      // Give Supabase time to process the code/tokens
+      // During this time, Supabase will automatically exchange code for session
+      let attempts = 0;
+      const maxAttempts = 10;
+      let session = null;
+      
+      while (attempts < maxAttempts && !session) {
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        try {
+          const { data, error } = await supabase.auth.getSession();
+          console.info(`[RTN] initializeApp session check attempt ${attempts}:`, { 
+            hasSession: !!data?.session, 
+            error: error?.message 
+          });
+          
+          if (data?.session) {
+            session = data.session;
+            console.info("[RTN] initializeApp session established from URL tokens/code");
+            console.info("[RTN] User:", session.user.email);
+            // The SIGNED_IN event should have fired, but wait a moment for event handlers
+            await new Promise(resolve => setTimeout(resolve, 500));
+            return;
+          }
+          
+          if (error) {
+            console.error("[RTN] initializeApp session check error:", error);
+          }
+        } catch (err) {
+          console.error("[RTN] initializeApp error checking session:", err);
         }
-      } catch (err) {
-        console.error("[RTN] initializeApp error checking session after URL tokens/code:", err);
+      }
+      
+      if (!session) {
+        console.error("[RTN] initializeApp failed to establish session after processing URL tokens/code");
+        console.error("[RTN] This may indicate an expired or invalid code, or Supabase config issue");
       }
     }
 

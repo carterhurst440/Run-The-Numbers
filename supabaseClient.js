@@ -20,8 +20,8 @@ async function createRealClient(url, key) {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: true,  // CRITICAL: detects tokens from URL hash
-      flowType: 'pkce'  // Use PKCE flow for better security
+      detectSessionInUrl: true,  // CRITICAL: detects tokens from URL hash/params
+      // flowType removed - let Supabase auto-detect based on the URL params
     }
   };
   
