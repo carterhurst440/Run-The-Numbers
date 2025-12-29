@@ -1874,7 +1874,11 @@ async function loadDashboard(force = false) {
     return;
   }
   currentUser = sessionUser;
-  if (dashboardLoaded && !force) {
+  
+  // Check if we have a real profile (not guest)
+  const hasRealProfile = currentProfile && currentProfile.id && currentProfile.id !== GUEST_USER.id;
+  
+  if (dashboardLoaded && !force && hasRealProfile) {
     if (dashboardEmailEl) {
       dashboardEmailEl.textContent = currentUser.email || "";
     }
@@ -1888,11 +1892,13 @@ async function loadDashboard(force = false) {
   if (dashboardEmailEl) {
     dashboardEmailEl.textContent = currentUser.email || "";
   }
-  let resolvedProfile = currentProfile;
-  if (!resolvedProfile || force) {
-    resolvedProfile = await fetchProfileWithRetries(currentUser.id, {
-      attempts: 5,
-      delayMs: 1000,
+  
+  // Always fetch profile to ensure we have the latest data
+  let resolvedProfile = await fetchProfileWithRetries(currentUser.id, {
+    attempts: 5,
+    delayMs: 1000,
+    timeoutMs: 5000
+  });
       timeoutMs: 5000
     });
   }
