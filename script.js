@@ -481,10 +481,12 @@ function getRouteFromHash() {
   console.info(`[RTN] getRouteFromHash - hash: "${hash}"`);
   console.info(`[RTN] getRouteFromHash - search: "${search}"`);
   
-  // Check if hash OR search params contain Supabase auth tokens (magic link, etc)
+  // Check if hash OR search params contain Supabase auth tokens (magic link, OAuth, PKCE code)
+  // PKCE flow uses ?code= parameter, implicit flow uses #access_token=
   if (hash.includes("access_token=") || hash.includes("refresh_token=") ||
-      search.includes("access_token=") || search.includes("refresh_token=")) {
-    console.info(`[RTN] getRouteFromHash - detected auth tokens, returning auth/callback`);
+      search.includes("access_token=") || search.includes("refresh_token=") ||
+      search.includes("code=")) {  // PKCE flow detection
+    console.info(`[RTN] getRouteFromHash - detected auth tokens/code, returning auth/callback`);
     return "auth/callback";
   }
   
@@ -6214,31 +6216,34 @@ async function initializeApp() {
     const clientReady = await waitForSupabaseReady(800);
     console.info(`[RTN] initializeApp waitForSupabaseReady result=${clientReady}`);
 
-    // Check if URL contains auth tokens (magic link callback)
+    // Check if URL contains auth tokens (magic link callback) - supports both implicit and PKCE flows
     const hasAuthTokensInUrl = window.location.hash.includes("access_token=") || 
                                window.location.hash.includes("refresh_token=") ||
                                window.location.search.includes("access_token=") ||
-                               window.location.search.includes("refresh_token=");
+                               window.location.search.includes("refresh_token=") ||
+                               window.location.search.includes("code=");  // PKCE flow
     
     if (hasAuthTokensInUrl) {
-      console.info("[RTN] initializeApp detected auth tokens in URL, waiting for Supabase to process...");
+      console.info("[RTN] initializeApp detected auth tokens/code in URL, waiting for Supabase to process...");
       showAuthCallbackView();
-      // Wait a moment for Supabase to process the tokens from URL
+      // Wait for Supabase to process the tokens/code from URL
+      // PKCE flow: code gets exchanged for session
+      // Implicit flow: tokens get converted to session
       // The onAuthStateChange listener will handle navigation once SIGNED_IN fires
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Check if we now have a session
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          console.info("[RTN] initializeApp session established from URL tokens");
+          console.info("[RTN] initializeApp session established from URL tokens/code");
           // The SIGNED_IN event will handle navigation to home
           return;
         } else {
-          console.warn("[RTN] initializeApp no session after processing URL tokens");
+          console.warn("[RTN] initializeApp no session after processing URL tokens/code");
         }
       } catch (err) {
-        console.error("[RTN] initializeApp error checking session after URL tokens:", err);
+        console.error("[RTN] initializeApp error checking session after URL tokens/code:", err);
       }
     }
 
