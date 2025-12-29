@@ -6214,6 +6214,34 @@ async function initializeApp() {
     const clientReady = await waitForSupabaseReady(800);
     console.info(`[RTN] initializeApp waitForSupabaseReady result=${clientReady}`);
 
+    // Check if URL contains auth tokens (magic link callback)
+    const hasAuthTokensInUrl = window.location.hash.includes("access_token=") || 
+                               window.location.hash.includes("refresh_token=") ||
+                               window.location.search.includes("access_token=") ||
+                               window.location.search.includes("refresh_token=");
+    
+    if (hasAuthTokensInUrl) {
+      console.info("[RTN] initializeApp detected auth tokens in URL, waiting for Supabase to process...");
+      showAuthCallbackView();
+      // Wait a moment for Supabase to process the tokens from URL
+      // The onAuthStateChange listener will handle navigation once SIGNED_IN fires
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Check if we now have a session
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          console.info("[RTN] initializeApp session established from URL tokens");
+          // The SIGNED_IN event will handle navigation to home
+          return;
+        } else {
+          console.warn("[RTN] initializeApp no session after processing URL tokens");
+        }
+      } catch (err) {
+        console.error("[RTN] initializeApp error checking session after URL tokens:", err);
+      }
+    }
+
     // Skip bootstrapAuth for public auth pages - they don't need session checks
     const isPublicAuthPage = initialRoute === "auth" || initialRoute === "signup" || 
                             initialRoute === "forgot-password" || initialRoute === "auth/callback";

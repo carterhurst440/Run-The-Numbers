@@ -14,6 +14,17 @@ async function createRealClient(url, key) {
   // browser environments. Some CDN builds expose different shapes (named
   // exports, default export, or a UMD global), so probe a few options and
   // fall back to injecting the UMD script if necessary.
+  
+  // Auth configuration - critical for magic links and OAuth to work
+  const authOptions = {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,  // CRITICAL: detects tokens from URL hash
+      flowType: 'pkce'  // Use PKCE flow for better security
+    }
+  };
+  
   const tryEsmUrls = [
     "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm",
     "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/module/index.mjs"
@@ -26,7 +37,7 @@ async function createRealClient(url, key) {
       const module = await import(esmUrl);
       const createClient = module.createClient || module.default?.createClient || module?.supabase?.createClient;
       if (typeof createClient === "function") {
-        return createClient(url, key);
+        return createClient(url, key, authOptions);
       }
     } catch (err) {
       // ignore and try next
@@ -50,7 +61,7 @@ async function createRealClient(url, key) {
 
       const createClient = window?.supabase?.createClient || window?.createClient;
       if (typeof createClient === "function") {
-        return createClient(url, key);
+        return createClient(url, key, authOptions);
       }
     } catch (err) {
       console.error("[RTN] Supabase UMD injection failed", err);
