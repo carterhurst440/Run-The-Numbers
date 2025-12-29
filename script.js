@@ -1899,9 +1899,6 @@ async function loadDashboard(force = false) {
     delayMs: 1000,
     timeoutMs: 5000
   });
-      timeoutMs: 5000
-    });
-  }
 
   if (resolvedProfile) {
     console.info(
