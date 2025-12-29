@@ -305,6 +305,9 @@ function updateResetButtonVisibility(user = currentUser) {
 
 function showAuthCallbackView() {
   console.info("[RTN] showAuthCallbackView called");
+  console.info(`[RTN] Current URL: ${window.location.href}`);
+  console.info(`[RTN] Hash: ${window.location.hash}`);
+  console.info(`[RTN] Search: ${window.location.search}`);
   hideAllRoutes();
   if (appShell) {
     appShell.setAttribute("data-hidden", "true");
@@ -472,9 +475,11 @@ async function setRoute(route, { replaceHash = false } = {}) {
 function getRouteFromHash() {
   if (typeof window === "undefined") return "home";
   const hash = window.location.hash || "";
+  const search = window.location.search || "";
   
-  // Check if hash contains Supabase auth tokens (magic link, etc)
-  if (hash.includes("access_token=") || hash.includes("refresh_token=")) {
+  // Check if hash OR search params contain Supabase auth tokens (magic link, etc)
+  if (hash.includes("access_token=") || hash.includes("refresh_token=") ||
+      search.includes("access_token=") || search.includes("refresh_token=")) {
     return "auth/callback";
   }
   
