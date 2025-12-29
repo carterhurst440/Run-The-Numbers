@@ -6077,7 +6077,7 @@ function setupAuthListener() {
         // Avoid double-registration
         if (authSubscription) return authSubscription;
 
-        const sub = supabase.auth.onAuthStateChange((event, session) => {
+        const sub = supabase.auth.onAuthStateChange(async (event, session) => {
           console.info(`[RTN] auth state changed: ${event}`);
           
           if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
@@ -6087,10 +6087,11 @@ function setupAuthListener() {
               updateAdminVisibility(currentUser);
               updateResetButtonVisibility(currentUser);
               
-              ensureProfileSynced({ force: true }).catch((err) => console.warn(err));
+              // Wait for profile to sync before navigating
+              await ensureProfileSynced({ force: true }).catch((err) => console.warn(err));
               
               // If the UI is on auth screen, navigate to home
-              if (currentRoute === "auth" || currentRoute === "signup") {
+              if (currentRoute === "auth" || currentRoute === "signup" || currentRoute === "auth/callback") {
                 setRoute("home").catch(() => {});
               }
             }
