@@ -967,7 +967,7 @@ async function handleForgotPasswordSubmit(event) {
     const { error } = await supabase.auth.signInWithOtp({
       email: email,
       options: {
-        emailRedirectTo: `${window.location.origin}/#/auth/callback`
+        emailRedirectTo: `${window.location.origin}`
       }
     });
 
