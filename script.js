@@ -949,31 +949,6 @@ async function handleSignUpFormSubmit(event) {
       throw error;
     }
 
-    // Wait for the profile to be created by the trigger, then update it with names
-    if (data?.user?.id) {
-      console.info("[RTN] Waiting for profile creation, then updating with first_name and last_name");
-      
-      // Wait a bit for the trigger to create the profile
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Use upsert to ensure the profile exists and update it
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .upsert({
-          id: data.user.id,
-          first_name: firstName,
-          last_name: lastName
-        }, {
-          onConflict: 'id'
-        });
-      
-      if (profileError) {
-        console.error("[RTN] Failed to update profile with names:", profileError);
-      } else {
-        console.info("[RTN] Successfully updated profile with names");
-      }
-    }
-
     showToast("Account created. Check your email to confirm, then sign in.", "info");
     if (signupForm) {
       signupForm.reset();
