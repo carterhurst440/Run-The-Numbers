@@ -6151,9 +6151,11 @@ function setupAuthListener() {
               }
             }
           } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
-            // Don't redirect if we're on the auth/callback page (processing auth)
-            if (currentRoute === "auth/callback") {
-              console.info("[RTN] SIGNED_OUT on auth/callback page, staying put");
+            // Don't redirect if we're on a public auth page (auth, signup, forgot-password, callback)
+            const isPublicAuthPage = currentRoute === "auth" || currentRoute === "signup" || 
+                                    currentRoute === "forgot-password" || currentRoute === "auth/callback";
+            if (isPublicAuthPage) {
+              console.info(`[RTN] SIGNED_OUT on ${currentRoute} page, staying put`);
               return;
             }
             // Apply signed out state so UI falls back to auth screen.
