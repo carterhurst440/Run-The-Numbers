@@ -1,26 +1,20 @@
--- Function to automatically populate first_name and last_name in profiles
--- from auth.users metadata when a profile is created
-CREATE OR REPLACE FUNCTION public.populate_profile_names()
+-- Function to handle new user signup and populate profile with names
+CREATE OR REPLACE FUNCTION public.handle_new_user_with_names()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
-  user_metadata JSONB;
   full_name_val TEXT;
   first_name_val TEXT;
   last_name_val TEXT;
   name_parts TEXT[];
 BEGIN
-  -- Get the user metadata from auth.users
-  SELECT raw_user_meta_data INTO user_metadata
-  FROM auth.users
-  WHERE id = NEW.id;
-  
-  -- Extract first_name and last_name from metadata
-  first_name_val := user_metadata->>'first_name';
-  last_name_val := user_metadata->>'last_name';
-  full_name_val := user_metadata->>'full_name';
+  -- Extract first_name and last_name from NEW user's metadata
+  first_name_val := NEW.raw_user_meta_data->>'first_name';
+  last_name_val := NEW.raw_user_meta_data->>'last_name';
+  full_name_val := NEW.raw_user_meta_data->>'full_name';
   
   -- If first_name or last_name is empty, try to parse from full_name
   IF (first_name_val IS NULL OR first_name_val = '') AND full_name_val IS NOT NULL THEN
@@ -35,23 +29,35 @@ BEGIN
     END IF;
   END IF;
   
-  -- Set the first_name and last_name on the NEW row
-  NEW.first_name := first_name_val;
-  NEW.last_name := last_name_val;
+  -- Insert the profile with names
+  INSERT INTO public.profiles (id, first_name, last_name, username, credits, carter_cash, carter_cash_progress)
+  VALUES (
+    NEW.id,
+    first_name_val,
+    last_name_val,
+    COALESCE(
+      NEW.raw_user_meta_data->>'username',
+      split_part(NEW.email, '@', 1)
+    ),
+    1000, -- INITIAL_BANKROLL
+    0,
+    0
+  );
   
   RETURN NEW;
 END;
 $$;
 
 -- Drop existing trigger if it exists
-DROP TRIGGER IF EXISTS populate_profile_names_on_insert ON public.profiles;
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 
--- Create trigger to run BEFORE INSERT on profiles table
-CREATE TRIGGER populate_profile_names_on_insert
-  BEFORE INSERT ON public.profiles
+-- Create trigger to run AFTER INSERT on auth.users
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
   FOR EACH ROW
-  EXECUTE FUNCTION public.populate_profile_names();
+  EXECUTE FUNCTION public.handle_new_user_with_names();
 
 -- Add a comment
-COMMENT ON FUNCTION public.populate_profile_names() IS 
-  'Automatically populates first_name and last_name fields in profiles table from auth.users metadata';
+COMMENT ON FUNCTION public.handle_new_user_with_names() IS 
+  'Creates a profile with first_name and last_name populated from auth.users metadata when a new user signs up';
+
