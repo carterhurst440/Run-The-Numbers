@@ -6130,12 +6130,24 @@ function setupAuthListener() {
               updateAdminVisibility(currentUser);
               updateResetButtonVisibility(currentUser);
               
-              // Wait for profile to sync before navigating
-              await ensureProfileSynced({ force: true }).catch((err) => console.warn(err));
-              
-              // If the UI is on auth screen, navigate to home
-              if (currentRoute === "auth" || currentRoute === "signup" || currentRoute === "auth/callback") {
+              // If we're on auth callback, we need to:
+              // 1. First sync the profile (before changing route)
+              // 2. Then navigate to home
+              if (currentRoute === "auth/callback") {
+                console.info("[RTN] SIGNED_IN on auth/callback, syncing profile then navigating to home");
+                // Temporarily clear currentRoute so ensureProfileSynced doesn't skip
+                const savedRoute = currentRoute;
+                currentRoute = ""; // Clear so profile sync happens
+                await ensureProfileSynced({ force: true }).catch((err) => console.warn("[RTN] Profile sync error:", err));
+                currentRoute = savedRoute; // Restore so setRoute knows we're coming from callback
                 setRoute("home").catch(() => {});
+              } else if (currentRoute === "auth" || currentRoute === "signup") {
+                // For normal auth flows, sync profile and navigate
+                await ensureProfileSynced({ force: true }).catch((err) => console.warn("[RTN] Profile sync error:", err));
+                setRoute("home").catch(() => {});
+              } else {
+                // For token refresh or other updates, just sync profile
+                await ensureProfileSynced({ force: true }).catch((err) => console.warn("[RTN] Profile sync error:", err));
               }
             }
           } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
