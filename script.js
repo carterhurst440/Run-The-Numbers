@@ -398,7 +398,8 @@ function updateHash(route, { replace = false, preserveQuery = false } = {}) {
 async function setRoute(route, { replaceHash = false } = {}) {
   let nextRoute = route ?? "home";
   const isAuthRoute = AUTH_ROUTES.has(nextRoute);
-  const isPublicAuthRoute = nextRoute === "forgot-password" || nextRoute === "auth/callback";
+  const isPublicAuthRoute = nextRoute === "auth" || nextRoute === "signup" || 
+                           nextRoute === "forgot-password" || nextRoute === "auth/callback";
 
   if (!routeViews[nextRoute] && !isAuthRoute && !isPublicAuthRoute) {
     nextRoute = "home";
