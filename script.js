@@ -484,6 +484,8 @@ async function setRoute(route, { replaceHash = false } = {}) {
   } else if (resolvedRoute === "admin") {
     closeAdminForm({ resetFields: true, restoreFocus: false });
     await loadAdminPrizeList(true);
+  } else if (resolvedRoute === "profile") {
+    await loadProfile();
   }
 }
 
@@ -3007,6 +3009,221 @@ async function loadAdminPrizeList(force = false) {
   }
 }
 
+// ===========================
+// Profile Management
+// ===========================
+
+let profileEditMode = false;
+let profileOriginalData = {};
+
+async function loadProfile() {
+  if (!currentUser || currentUser.id === GUEST_USER.id) {
+    forceAuth("profile-no-user", {
+      message: "Session required. Please sign in again.",
+      tone: "warning"
+    });
+    return;
+  }
+
+  try {
+    // Get user metadata from auth
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    if (error || !user) {
+      console.error("[RTN] loadProfile getUser error", error);
+      showToast("Unable to load profile", "error");
+      return;
+    }
+
+    // Get profile data from profiles table
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("first_name, last_name")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError) {
+      console.error("[RTN] loadProfile error", profileError);
+    }
+
+    // Populate form fields
+    if (profileFirstNameInput) {
+      profileFirstNameInput.value = profile?.first_name || "";
+    }
+    if (profileLastNameInput) {
+      profileLastNameInput.value = profile?.last_name || "";
+    }
+    if (profileEmailInput) {
+      profileEmailInput.value = user.email || "";
+    }
+    if (profilePasswordInput) {
+      profilePasswordInput.value = "";
+      profilePasswordInput.placeholder = "••••••••";
+    }
+
+    // Reset to view mode
+    setProfileEditMode(false);
+    
+  } catch (error) {
+    console.error("[RTN] loadProfile error", error);
+    showToast("Unable to load profile", "error");
+  }
+}
+
+function setProfileEditMode(editing) {
+  profileEditMode = editing;
+
+  if (editing) {
+    // Save original values
+    profileOriginalData = {
+      firstName: profileFirstNameInput?.value || "",
+      lastName: profileLastNameInput?.value || "",
+      password: ""
+    };
+
+    // Enable fields (except email)
+    if (profileFirstNameInput) profileFirstNameInput.disabled = false;
+    if (profileLastNameInput) profileLastNameInput.disabled = false;
+    if (profilePasswordInput) {
+      profilePasswordInput.disabled = false;
+      profilePasswordInput.value = "";
+      profilePasswordInput.placeholder = "Leave blank to keep current password";
+    }
+    if (profilePasswordToggle) profilePasswordToggle.disabled = false;
+
+    // Update buttons
+    if (profileEditButton) profileEditButton.hidden = true;
+    if (profileCancelButton) profileCancelButton.hidden = false;
+    if (profileSaveButton) profileSaveButton.hidden = false;
+    
+    // Clear message
+    if (profileMessage) {
+      profileMessage.textContent = "";
+      profileMessage.className = "profile-message";
+    }
+  } else {
+    // Disable fields
+    if (profileFirstNameInput) profileFirstNameInput.disabled = true;
+    if (profileLastNameInput) profileLastNameInput.disabled = true;
+    if (profilePasswordInput) {
+      profilePasswordInput.disabled = true;
+      profilePasswordInput.value = "";
+      profilePasswordInput.type = "password";
+      profilePasswordInput.placeholder = "••••••••";
+    }
+    if (profilePasswordToggle) {
+      profilePasswordToggle.disabled = true;
+      updatePasswordToggleIcon(false);
+    }
+
+    // Update buttons
+    if (profileEditButton) profileEditButton.hidden = false;
+    if (profileCancelButton) profileCancelButton.hidden = true;
+    if (profileSaveButton) profileSaveButton.hidden = true;
+  }
+}
+
+function updatePasswordToggleIcon(isVisible) {
+  if (!profilePasswordToggle) return;
+  
+  const eyeOpen = profilePasswordToggle.querySelectorAll(".eye-open");
+  const eyeClosed = profilePasswordToggle.querySelectorAll(".eye-closed");
+  
+  eyeOpen.forEach(el => el.style.display = isVisible ? "none" : "");
+  eyeClosed.forEach(el => el.style.display = isVisible ? "" : "none");
+}
+
+function cancelProfileEdit() {
+  // Restore original values
+  if (profileFirstNameInput) {
+    profileFirstNameInput.value = profileOriginalData.firstName || "";
+  }
+  if (profileLastNameInput) {
+    profileLastNameInput.value = profileOriginalData.lastName || "";
+  }
+  if (profilePasswordInput) {
+    profilePasswordInput.value = "";
+  }
+  
+  setProfileEditMode(false);
+}
+
+async function saveProfile(event) {
+  event.preventDefault();
+  
+  if (!currentUser || currentUser.id === GUEST_USER.id) {
+    showToast("Session expired. Please sign in again.", "error");
+    return;
+  }
+
+  const firstName = profileFirstNameInput?.value.trim() || "";
+  const lastName = profileLastNameInput?.value.trim() || "";
+  const newPassword = profilePasswordInput?.value || "";
+
+  if (!firstName || !lastName) {
+    if (profileMessage) {
+      profileMessage.textContent = "First name and last name are required.";
+      profileMessage.className = "profile-message error";
+    }
+    return;
+  }
+
+  try {
+    if (profileSaveButton) profileSaveButton.disabled = true;
+    if (profileMessage) {
+      profileMessage.textContent = "Saving...";
+      profileMessage.className = "profile-message";
+    }
+
+    // Update profile in database
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({
+        first_name: firstName,
+        last_name: lastName
+      })
+      .eq("id", currentUser.id);
+
+    if (profileError) throw profileError;
+
+    // Update password if provided
+    if (newPassword) {
+      const { error: passwordError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (passwordError) throw passwordError;
+    }
+
+    // Success
+    if (profileMessage) {
+      profileMessage.textContent = "Profile updated successfully!";
+      profileMessage.className = "profile-message success";
+    }
+    showToast("Profile updated successfully", "success");
+    
+    setProfileEditMode(false);
+    
+    // Clear message after 3 seconds
+    setTimeout(() => {
+      if (profileMessage) {
+        profileMessage.textContent = "";
+        profileMessage.className = "profile-message";
+      }
+    }, 3000);
+    
+  } catch (error) {
+    console.error("[RTN] saveProfile error", error);
+    if (profileMessage) {
+      profileMessage.textContent = "Failed to update profile. Please try again.";
+      profileMessage.className = "profile-message error";
+    }
+    showToast("Failed to update profile", "error");
+  } finally {
+    if (profileSaveButton) profileSaveButton.disabled = false;
+  }
+}
+
 function displayAuthScreen({ focus = true, replaceHash = false } = {}) {
   currentRoute = "auth";
   showAuthView("login");
@@ -3411,18 +3628,20 @@ const playView = document.getElementById("play-view");
 const storeView = document.getElementById("store-view");
 const dashboardView = document.getElementById("dashboard-view");
 const adminView = document.getElementById("admin-view");
+const profileView = document.getElementById("profile-view");
 const routeViews = {
   home: homeView,
   play: playView,
   store: storeView,
   dashboard: dashboardView,
-  admin: adminView
+  admin: adminView,
+  profile: profileView
 };
 const headerEl = document.querySelector(".header");
 const chipBarEl = document.querySelector(".chip-bar");
 const playLayout = playView ? playView.querySelector(".layout") : null;
 const AUTH_ROUTES = new Set(["auth", "signup"]);
-const TABLE_ROUTES = new Set(["home", "play", "store", "admin"]);
+const TABLE_ROUTES = new Set(["home", "play", "store", "admin", "profile"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
@@ -3450,6 +3669,16 @@ const shippingAddressInput = document.getElementById("shipping-address");
 const shippingCloseButton = document.getElementById("shipping-close");
 const shippingCancelButton = document.getElementById("shipping-cancel");
 const shippingSubmitButton = document.getElementById("shipping-submit");
+const profileForm = document.getElementById("profile-form");
+const profileFirstNameInput = document.getElementById("profile-first-name");
+const profileLastNameInput = document.getElementById("profile-last-name");
+const profileEmailInput = document.getElementById("profile-email");
+const profilePasswordInput = document.getElementById("profile-password");
+const profilePasswordToggle = document.getElementById("profile-password-toggle");
+const profileEditButton = document.getElementById("profile-edit-button");
+const profileCancelButton = document.getElementById("profile-cancel-button");
+const profileSaveButton = document.getElementById("profile-save-button");
+const profileMessage = document.getElementById("profile-message");
 const prizeImageModal = document.getElementById("prize-image-modal");
 const prizeImageCloseButton = document.getElementById("prize-image-close");
 const prizeImagePreview = document.getElementById("prize-image-preview");
@@ -5376,6 +5605,32 @@ if (shippingCancelButton) {
 if (shippingCloseButton) {
   shippingCloseButton.addEventListener("click", () => {
     closeShippingModal({ restoreFocus: true });
+  });
+}
+
+// Profile form handlers
+if (profileForm) {
+  profileForm.addEventListener("submit", saveProfile);
+}
+
+if (profileEditButton) {
+  profileEditButton.addEventListener("click", () => {
+    setProfileEditMode(true);
+    profileFirstNameInput?.focus();
+  });
+}
+
+if (profileCancelButton) {
+  profileCancelButton.addEventListener("click", cancelProfileEdit);
+}
+
+if (profilePasswordToggle) {
+  profilePasswordToggle.addEventListener("click", () => {
+    if (!profilePasswordInput || profilePasswordInput.disabled) return;
+    
+    const isPassword = profilePasswordInput.type === "password";
+    profilePasswordInput.type = isPassword ? "text" : "password";
+    updatePasswordToggleIcon(!isPassword);
   });
 }
 

@@ -4665,3 +4665,190 @@ body.modal-open {
     bottom: 1.25rem;
   }
 }
+
+/* ===========================
+   Profile View
+   =========================== */
+
+.profile-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  background: var(--card-bg);
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.profile-field label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+}
+
+.profile-field input {
+  padding: 0.75rem;
+  font-size: 1rem;
+  font-family: 'Play', sans-serif;
+  background: var(--input-bg);
+  color: var(--text);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.profile-field input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.2);
+}
+
+.profile-field input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--disabled-bg, rgba(255, 255, 255, 0.05));
+}
+
+.profile-field input[readonly] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--disabled-bg, rgba(255, 255, 255, 0.05));
+}
+
+.profile-password-field {
+  position: relative;
+}
+
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  flex: 1;
+  padding-right: 3rem;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease;
+}
+
+.password-toggle:hover:not(:disabled) {
+  opacity: 0.8;
+}
+
+.password-toggle:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.password-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.profile-message {
+  padding: 0.75rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  text-align: center;
+  min-height: 1.5rem;
+}
+
+.profile-message.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.profile-message.success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.profile-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.profile-actions button {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: 'Play', sans-serif;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  letter-spacing: 0.05em;
+}
+
+.profile-actions button.primary {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.profile-actions button.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.profile-actions button.secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border-color);
+}
+
+.profile-actions button.secondary:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.profile-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .profile-container {
+    padding: 1rem;
+  }
+
+  .profile-form {
+    padding: 1.5rem;
+  }
+
+  .profile-actions {
+    flex-direction: column;
+  }
+
+  .profile-actions button {
+    width: 100%;
+  }
+}

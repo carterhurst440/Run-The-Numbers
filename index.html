@@ -229,6 +229,7 @@
             <button type="button" data-route-target="home" class="drawer-link">Home</button>
             <button type="button" data-route-target="play" class="drawer-link">Play</button>
             <button type="button" data-route-target="store" class="drawer-link">Store</button>
+            <button type="button" data-route-target="profile" class="drawer-link">Profile</button>
             <button type="button" data-route-target="admin" class="drawer-link" id="admin-nav" hidden>
               Admin
             </button>
@@ -1326,6 +1327,93 @@
         </section>
       </main>
     </div>
+    </section>
+
+    <section id="profile-view" class="route-view app-page profile-view" hidden aria-labelledby="profile-title">
+      <div class="route-shell">
+        <header class="route-header">
+          <div>
+            <h1 id="profile-title">Profile</h1>
+            <p class="route-subheading">Manage your account information.</p>
+          </div>
+        </header>
+        <main class="route-main">
+          <div class="profile-container">
+            <form id="profile-form" class="profile-form">
+              <div class="profile-field">
+                <label for="profile-first-name">First Name</label>
+                <input 
+                  type="text" 
+                  id="profile-first-name" 
+                  name="firstName" 
+                  autocomplete="given-name" 
+                  disabled 
+                  required 
+                />
+              </div>
+              
+              <div class="profile-field">
+                <label for="profile-last-name">Last Name</label>
+                <input 
+                  type="text" 
+                  id="profile-last-name" 
+                  name="lastName" 
+                  autocomplete="family-name" 
+                  disabled 
+                  required 
+                />
+              </div>
+              
+              <div class="profile-field">
+                <label for="profile-email">Email</label>
+                <input 
+                  type="email" 
+                  id="profile-email" 
+                  name="email" 
+                  autocomplete="email" 
+                  disabled 
+                  readonly 
+                />
+              </div>
+              
+              <div class="profile-field profile-password-field">
+                <label for="profile-password">Password</label>
+                <div class="password-input-wrapper">
+                  <input 
+                    type="password" 
+                    id="profile-password" 
+                    name="password" 
+                    autocomplete="new-password" 
+                    placeholder="••••••••" 
+                    disabled 
+                  />
+                  <button 
+                    type="button" 
+                    id="profile-password-toggle" 
+                    class="password-toggle" 
+                    aria-label="Toggle password visibility"
+                    disabled
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path class="eye-open" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle class="eye-open" cx="12" cy="12" r="3"></circle>
+                      <line class="eye-closed" x1="2" y1="2" x2="22" y2="22" display="none"></line>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              
+              <p id="profile-message" class="profile-message" role="status" aria-live="polite"></p>
+              
+              <div class="profile-actions">
+                <button type="button" id="profile-edit-button" class="primary">Edit</button>
+                <button type="button" id="profile-cancel-button" class="secondary" hidden>Cancel</button>
+                <button type="submit" id="profile-save-button" class="primary" hidden>Save</button>
+              </div>
+            </form>
+          </div>
+        </main>
+      </div>
     </section>
 
     <div
