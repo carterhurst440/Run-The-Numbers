@@ -6305,6 +6305,12 @@ async function initializeApp() {
           await ensureProfileSynced({ force: true }).catch((err) => console.warn("[RTN] Profile sync error:", err));
           currentRoute = "auth/callback";
           
+          // Hide the callback view explicitly
+          const authCallbackView = document.getElementById("auth-callback-view");
+          if (authCallbackView) {
+            setViewVisibility(authCallbackView, false);
+          }
+          
           await setRoute("home");
           markAppReady(); // Make sure UI is visible after navigation
         } else {
