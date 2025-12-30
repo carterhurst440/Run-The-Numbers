@@ -34,6 +34,12 @@ if (typeof window !== "undefined") {
 }
 
 function stripSupabaseRedirectHash() {
+  // DISABLED: This was stripping auth tokens from URL before Supabase could process them
+  // Supabase's detectSessionInUrl will handle cleaning up tokens after processing
+  // DO NOT strip tokens manually - let Supabase do it
+  return;
+  
+  /* OLD CODE - KEPT FOR REFERENCE BUT DISABLED
   if (typeof window === "undefined") {
     return;
   }
@@ -51,6 +57,7 @@ function stripSupabaseRedirectHash() {
       `${window.location.pathname}${cleanedHash}`
     );
   }
+  */
 }
 
 function markAppReady() {
