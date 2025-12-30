@@ -6306,6 +6306,7 @@ async function initializeApp() {
           currentRoute = "auth/callback";
           
           await setRoute("home");
+          markAppReady(); // Make sure UI is visible after navigation
         } else {
           console.warn("[RTN] Callback fallback: no session found after processing");
           showToast("Authentication incomplete. Please try again.", "error");
