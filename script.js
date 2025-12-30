@@ -367,12 +367,19 @@ function showAuthView(mode = "login") {
   }
 }
 
-function updateHash(route, { replace = false } = {}) {
+function updateHash(route, { replace = false, preserveQuery = false } = {}) {
   if (typeof window === "undefined") return;
-  const hash = `#/${route}`;
+  let hash = `#/${route}`;
+  
+  // Preserve query parameters if requested (important for auth callbacks)
+  if (preserveQuery && window.location.search) {
+    // Query params stay in the URL, we just update the hash
+    console.info(`[RTN] updateHash preserving query params: ${window.location.search}`);
+  }
+  
   suppressHash = true;
   if (replace && typeof history !== "undefined" && history.replaceState) {
-    history.replaceState(null, "", hash);
+    history.replaceState(null, "", hash + (preserveQuery ? window.location.search : ""));
   } else {
     window.location.hash = hash;
   }
@@ -6264,6 +6271,9 @@ async function initializeApp() {
       if (!session) {
         console.error("[RTN] initializeApp failed to establish session after processing URL tokens/code");
         console.error("[RTN] This may indicate an expired or invalid code, or Supabase config issue");
+        // Even if session failed, stay on callback view to avoid breaking the URL
+        // User will need to try again with a fresh magic link
+        return;
       }
     }
 
