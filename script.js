@@ -933,19 +933,36 @@ async function handleSignUpFormSubmit(event) {
   }
 
   try {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           first_name: firstName,
-          last_name: lastName
+          last_name: lastName,
+          full_name: `${firstName} ${lastName}`
         }
       }
     });
 
     if (error) {
       throw error;
+    }
+
+    // Also update the profile table directly with first_name and last_name
+    if (data?.user?.id) {
+      console.info("[RTN] Updating profile with first_name and last_name");
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          first_name: firstName,
+          last_name: lastName
+        })
+        .eq("id", data.user.id);
+      
+      if (profileError) {
+        console.error("[RTN] Failed to update profile with names:", profileError);
+      }
     }
 
     showToast("Account created. Check your email to confirm, then sign in.", "info");
