@@ -3039,6 +3039,8 @@ async function loadProfile() {
       return;
     }
 
+    console.info("[RTN] loadProfile: user email =", user.email);
+
     // Get profile data from profiles table
     console.info("[RTN] loadProfile: fetching profile from database");
     const { data: profile, error: profileError } = await supabase
@@ -3048,29 +3050,38 @@ async function loadProfile() {
       .single();
 
     if (profileError) {
-      console.error("[RTN] loadProfile error", profileError);
+      console.error("[RTN] loadProfile profile fetch error", profileError);
+      // If profile doesn't exist, create a placeholder
+      if (profileError.code === 'PGRST116') {
+        console.warn("[RTN] loadProfile: profile not found, using empty values");
+      }
     }
     
     console.info("[RTN] loadProfile: profile data", profile);
 
     // Populate form fields
+    const firstName = profile?.first_name || "";
+    const lastName = profile?.last_name || "";
+    
+    console.info("[RTN] loadProfile: setting firstName=", firstName, "lastName=", lastName);
+    
     if (profileFirstNameInput) {
-      profileFirstNameInput.value = profile?.first_name || "";
-      console.info("[RTN] loadProfile: set first name", profile?.first_name);
+      profileFirstNameInput.value = firstName;
+      console.info("[RTN] loadProfile: first name input value is now", profileFirstNameInput.value);
     } else {
-      console.warn("[RTN] loadProfile: profileFirstNameInput not found");
+      console.error("[RTN] loadProfile: profileFirstNameInput element is NULL!");
     }
     if (profileLastNameInput) {
-      profileLastNameInput.value = profile?.last_name || "";
-      console.info("[RTN] loadProfile: set last name", profile?.last_name);
+      profileLastNameInput.value = lastName;
+      console.info("[RTN] loadProfile: last name input value is now", profileLastNameInput.value);
     } else {
-      console.warn("[RTN] loadProfile: profileLastNameInput not found");
+      console.error("[RTN] loadProfile: profileLastNameInput element is NULL!");
     }
     if (profileEmailInput) {
       profileEmailInput.value = user.email || "";
-      console.info("[RTN] loadProfile: set email", user.email);
+      console.info("[RTN] loadProfile: email input value is now", profileEmailInput.value);
     } else {
-      console.warn("[RTN] loadProfile: profileEmailInput not found");
+      console.error("[RTN] loadProfile: profileEmailInput element is NULL!");
     }
     if (profilePasswordInput) {
       profilePasswordInput.value = "";

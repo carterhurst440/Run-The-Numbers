@@ -4670,6 +4670,11 @@ body.modal-open {
    Profile View
    =========================== */
 
+.profile-view .route-header {
+  padding-top: 1rem;
+  margin-bottom: 1rem;
+}
+
 .profile-view .route-main {
   padding-top: 0;
 }
