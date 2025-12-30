@@ -4673,14 +4673,14 @@ body.modal-open {
 .profile-container {
   max-width: 600px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 0;
 }
 
 .profile-form {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  background: var(--card-bg);
+  background: rgba(0, 0, 0, 0.3);
   padding: 2rem;
   border-radius: 8px;
   border: 1px solid var(--border-color);
