@@ -511,6 +511,17 @@ function getRouteFromHash() {
 
 function handleHashChange() {
   if (suppressHash) return;
+  
+  // CRITICAL: Don't process hash changes if we have auth tokens in URL
+  // The tokens need to stay in the URL for Supabase to process them
+  const hasAuthTokens = window.location.search.includes("code=") || 
+                        window.location.search.includes("access_token=") ||
+                        window.location.hash.includes("access_token=");
+  if (hasAuthTokens) {
+    console.info("[RTN] handleHashChange: ignoring hash change due to auth tokens in URL");
+    return;
+  }
+  
   const route = getRouteFromHash();
   setRoute(route, { replaceHash: true });
 }
