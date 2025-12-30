@@ -6275,10 +6275,52 @@ async function initializeApp() {
       // 4. Fire SIGNED_IN event via onAuthStateChange
       // 5. Clean up the URL (remove tokens/code)
       
-      // Just wait for the SIGNED_IN event to fire and handle navigation
-      // The onAuthStateChange handler will navigate to home once session is ready
+      // Wait for the SIGNED_IN event to fire, but also poll for session as fallback
       console.info("[RTN] Waiting for Supabase to fire SIGNED_IN event...");
-      return; // Don't do anything else - let the auth event handler take over
+      
+      // Fallback: Check for session after a delay in case event doesn't fire
+      const checkSessionAndNavigate = async () => {
+        // Wait for Supabase to process the tokens (2 seconds should be plenty)
+        await delay(2000);
+        
+        console.info("[RTN] Callback fallback: checking if session was established...");
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("[RTN] Callback fallback: error getting session", error);
+          showToast("Authentication failed. Please try again.", "error");
+          showAuthView("login");
+          updateHash("auth", { replace: true });
+          return;
+        }
+        
+        if (session?.user) {
+          console.info("[RTN] Callback fallback: session found, navigating to home");
+          currentUser = session.user;
+          updateAdminVisibility(currentUser);
+          updateResetButtonVisibility(currentUser);
+          
+          // Temporarily clear currentRoute so ensureProfileSynced doesn't skip
+          currentRoute = "";
+          await ensureProfileSynced({ force: true }).catch((err) => console.warn("[RTN] Profile sync error:", err));
+          currentRoute = "auth/callback";
+          
+          await setRoute("home");
+        } else {
+          console.warn("[RTN] Callback fallback: no session found after processing");
+          showToast("Authentication incomplete. Please try again.", "error");
+          showAuthView("login");
+          updateHash("auth", { replace: true });
+        }
+      };
+      
+      checkSessionAndNavigate().catch((err) => {
+        console.error("[RTN] Callback fallback error:", err);
+        showAuthView("login");
+        updateHash("auth", { replace: true });
+      });
+      
+      return; // Don't do anything else - let the auth event handler or fallback take over
     }
 
     // Skip bootstrapAuth for public auth pages - they don't need session checks
