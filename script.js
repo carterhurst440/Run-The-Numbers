@@ -6223,7 +6223,7 @@ async function initializeApp() {
     const clientReady = await waitForSupabaseReady(800);
     console.info(`[RTN] initializeApp waitForSupabaseReady result=${clientReady}`);
 
-    // Check if URL contains auth tokens (magic link callback) - supports both implicit and PKCE flows
+    // Check if URL contains auth tokens/code (magic link callback)
     const hasAuthTokensInUrl = window.location.hash.includes("access_token=") || 
                                window.location.hash.includes("refresh_token=") ||
                                window.location.search.includes("access_token=") ||
@@ -6231,55 +6231,29 @@ async function initializeApp() {
                                window.location.search.includes("code=");  // PKCE flow
     
     if (hasAuthTokensInUrl) {
-      console.info("[RTN] initializeApp detected auth tokens/code in URL, waiting for Supabase to process...");
+      console.info("[RTN] initializeApp detected auth tokens/code in URL");
+      console.info("[RTN] Showing callback view and waiting for Supabase to process...");
+      
+      // Show callback spinner immediately
       showAuthCallbackView();
+      currentRoute = "auth/callback";
       
-      // Give Supabase time to process the code/tokens
-      // During this time, Supabase will automatically exchange code for session
-      let attempts = 0;
-      const maxAttempts = 10;
-      let session = null;
+      // Supabase client with detectSessionInUrl:true will automatically:
+      // 1. Extract tokens/code from URL
+      // 2. Exchange PKCE code for session (if needed)
+      // 3. Store session in localStorage
+      // 4. Fire SIGNED_IN event via onAuthStateChange
+      // 5. Clean up the URL (remove tokens/code)
       
-      while (attempts < maxAttempts && !session) {
-        attempts++;
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        try {
-          const { data, error } = await supabase.auth.getSession();
-          console.info(`[RTN] initializeApp session check attempt ${attempts}:`, { 
-            hasSession: !!data?.session, 
-            error: error?.message 
-          });
-          
-          if (data?.session) {
-            session = data.session;
-            console.info("[RTN] initializeApp session established from URL tokens/code");
-            console.info("[RTN] User:", session.user.email);
-            // The SIGNED_IN event should have fired, but wait a moment for event handlers
-            await new Promise(resolve => setTimeout(resolve, 500));
-            return;
-          }
-          
-          if (error) {
-            console.error("[RTN] initializeApp session check error:", error);
-          }
-        } catch (err) {
-          console.error("[RTN] initializeApp error checking session:", err);
-        }
-      }
-      
-      if (!session) {
-        console.error("[RTN] initializeApp failed to establish session after processing URL tokens/code");
-        console.error("[RTN] This may indicate an expired or invalid code, or Supabase config issue");
-        // Even if session failed, stay on callback view to avoid breaking the URL
-        // User will need to try again with a fresh magic link
-        return;
-      }
+      // Just wait for the SIGNED_IN event to fire and handle navigation
+      // The onAuthStateChange handler will navigate to home once session is ready
+      console.info("[RTN] Waiting for Supabase to fire SIGNED_IN event...");
+      return; // Don't do anything else - let the auth event handler take over
     }
 
     // Skip bootstrapAuth for public auth pages - they don't need session checks
     const isPublicAuthPage = initialRoute === "auth" || initialRoute === "signup" || 
-                            initialRoute === "forgot-password" || initialRoute === "auth/callback";
+                            initialRoute === "forgot-password";
     
     if (isPublicAuthPage) {
       console.info(`[RTN] initializeApp showing public auth page: ${initialRoute}`);
@@ -6290,10 +6264,6 @@ async function initializeApp() {
       } else if (initialRoute === "forgot-password") {
         showAuthView("forgot-password");
         updateHash("forgot-password", { replace: true });
-      } else if (initialRoute === "auth/callback") {
-        // Show callback processing view
-        showAuthCallbackView();
-        // Supabase will automatically process the tokens and fire auth events
       } else {
         showAuthView("login");
         updateHash("auth", { replace: true });
