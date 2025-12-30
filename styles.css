@@ -4670,6 +4670,10 @@ body.modal-open {
    Profile View
    =========================== */
 
+.profile-view .route-main {
+  padding-top: 0;
+}
+
 .profile-container {
   max-width: 600px;
   margin: 0 auto;

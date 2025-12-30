@@ -3017,7 +3017,10 @@ let profileEditMode = false;
 let profileOriginalData = {};
 
 async function loadProfile() {
+  console.info("[RTN] loadProfile called");
+  
   if (!currentUser || currentUser.id === GUEST_USER.id) {
+    console.warn("[RTN] loadProfile: no user");
     forceAuth("profile-no-user", {
       message: "Session required. Please sign in again.",
       tone: "warning"
@@ -3027,6 +3030,7 @@ async function loadProfile() {
 
   try {
     // Get user metadata from auth
+    console.info("[RTN] loadProfile: getting user from auth");
     const { data: { user }, error } = await supabase.auth.getUser();
     
     if (error || !user) {
@@ -3036,6 +3040,7 @@ async function loadProfile() {
     }
 
     // Get profile data from profiles table
+    console.info("[RTN] loadProfile: fetching profile from database");
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("first_name, last_name")
@@ -3045,16 +3050,27 @@ async function loadProfile() {
     if (profileError) {
       console.error("[RTN] loadProfile error", profileError);
     }
+    
+    console.info("[RTN] loadProfile: profile data", profile);
 
     // Populate form fields
     if (profileFirstNameInput) {
       profileFirstNameInput.value = profile?.first_name || "";
+      console.info("[RTN] loadProfile: set first name", profile?.first_name);
+    } else {
+      console.warn("[RTN] loadProfile: profileFirstNameInput not found");
     }
     if (profileLastNameInput) {
       profileLastNameInput.value = profile?.last_name || "";
+      console.info("[RTN] loadProfile: set last name", profile?.last_name);
+    } else {
+      console.warn("[RTN] loadProfile: profileLastNameInput not found");
     }
     if (profileEmailInput) {
       profileEmailInput.value = user.email || "";
+      console.info("[RTN] loadProfile: set email", user.email);
+    } else {
+      console.warn("[RTN] loadProfile: profileEmailInput not found");
     }
     if (profilePasswordInput) {
       profilePasswordInput.value = "";
@@ -3071,9 +3087,11 @@ async function loadProfile() {
 }
 
 function setProfileEditMode(editing) {
+  console.info(`[RTN] setProfileEditMode called with editing=${editing}`);
   profileEditMode = editing;
 
   if (editing) {
+    console.info("[RTN] setProfileEditMode: entering edit mode");
     // Save original values
     profileOriginalData = {
       firstName: profileFirstNameInput?.value || "",
@@ -5615,9 +5633,12 @@ if (profileForm) {
 
 if (profileEditButton) {
   profileEditButton.addEventListener("click", () => {
+    console.info("[RTN] Profile edit button clicked");
     setProfileEditMode(true);
     profileFirstNameInput?.focus();
   });
+} else {
+  console.warn("[RTN] profileEditButton not found during event listener setup");
 }
 
 if (profileCancelButton) {
