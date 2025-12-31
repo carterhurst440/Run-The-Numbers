@@ -3112,19 +3112,41 @@ function setProfileEditMode(editing) {
     };
 
     // Enable fields (except email)
-    if (profileFirstNameInput) profileFirstNameInput.disabled = false;
-    if (profileLastNameInput) profileLastNameInput.disabled = false;
+    if (profileFirstNameInput) {
+      profileFirstNameInput.disabled = false;
+      console.info("[RTN] setProfileEditMode: first name input enabled, disabled=", profileFirstNameInput.disabled);
+    } else {
+      console.error("[RTN] setProfileEditMode: profileFirstNameInput is NULL!");
+    }
+    if (profileLastNameInput) {
+      profileLastNameInput.disabled = false;
+      console.info("[RTN] setProfileEditMode: last name input enabled, disabled=", profileLastNameInput.disabled);
+    } else {
+      console.error("[RTN] setProfileEditMode: profileLastNameInput is NULL!");
+    }
     if (profilePasswordInput) {
       profilePasswordInput.disabled = false;
       profilePasswordInput.value = "";
       profilePasswordInput.placeholder = "Leave blank to keep current password";
+      console.info("[RTN] setProfileEditMode: password input enabled");
     }
-    if (profilePasswordToggle) profilePasswordToggle.disabled = false;
+    if (profilePasswordToggle) {
+      profilePasswordToggle.disabled = false;
+    }
 
     // Update buttons
-    if (profileEditButton) profileEditButton.hidden = true;
-    if (profileCancelButton) profileCancelButton.hidden = false;
-    if (profileSaveButton) profileSaveButton.hidden = false;
+    if (profileEditButton) {
+      profileEditButton.hidden = true;
+      console.info("[RTN] setProfileEditMode: Edit button hidden");
+    }
+    if (profileCancelButton) {
+      profileCancelButton.hidden = false;
+      console.info("[RTN] setProfileEditMode: Cancel button shown");
+    }
+    if (profileSaveButton) {
+      profileSaveButton.hidden = false;
+      console.info("[RTN] setProfileEditMode: Save button shown");
+    }
     
     // Clear message
     if (profileMessage) {
