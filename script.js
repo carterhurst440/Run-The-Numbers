@@ -5665,9 +5665,28 @@ if (profileForm) {
   profileForm.addEventListener("submit", saveProfile);
 }
 
+// Debug: Log button state at initialization
+console.info("[RTN] Profile Edit Button Check:", {
+  exists: !!profileEditButton,
+  element: profileEditButton,
+  hidden: profileEditButton?.hidden,
+  disabled: profileEditButton?.disabled,
+  style: profileEditButton?.style.cssText,
+  computedDisplay: profileEditButton ? window.getComputedStyle(profileEditButton).display : null,
+  computedPointerEvents: profileEditButton ? window.getComputedStyle(profileEditButton).pointerEvents : null
+});
+
+// Global test function for debugging
+window.testEditClick = function() {
+  console.info("[RTN] testEditClick called from inline onclick!");
+  setProfileEditMode(true);
+};
+
 if (profileEditButton) {
-  profileEditButton.addEventListener("click", () => {
-    console.info("[RTN] Profile edit button clicked");
+  profileEditButton.addEventListener("click", (e) => {
+    console.info("[RTN] Profile edit button CLICKED!", e);
+    console.info("[RTN] Event target:", e.target);
+    console.info("[RTN] Current target:", e.currentTarget);
     setProfileEditMode(true);
     profileFirstNameInput?.focus();
   });

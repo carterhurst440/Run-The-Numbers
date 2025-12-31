@@ -4670,6 +4670,30 @@ body.modal-open {
    Profile View
    =========================== */
 
+.profile-view {
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.profile-view h1 {
+  margin: 0;
+  font-family: "Audiowide", system-ui;
+  font-size: clamp(1.8rem, 5vw, 2.4rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.profile-subheading {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  text-align: center;
+}
+
 .profile-view .route-header {
   padding-top: 1rem;
   margin-bottom: 1rem;
@@ -4681,6 +4705,7 @@ body.modal-open {
 
 .profile-container {
   max-width: 600px;
+  width: 100%;
   margin: 0 auto;
   padding: 0;
 }
