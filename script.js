@@ -3151,7 +3151,7 @@ function setProfileEditMode(editing) {
     // Clear message
     if (profileMessage) {
       profileMessage.textContent = "";
-      profileMessage.className = "profile-message";
+      profileMessage.className = "profile-status-message";
     }
   } else {
     // Disable fields
@@ -3215,7 +3215,7 @@ async function saveProfile(event) {
   if (!firstName || !lastName) {
     if (profileMessage) {
       profileMessage.textContent = "First name and last name are required.";
-      profileMessage.className = "profile-message error";
+      profileMessage.className = "profile-status-message error";
     }
     return;
   }
@@ -3224,7 +3224,7 @@ async function saveProfile(event) {
     if (profileSaveButton) profileSaveButton.disabled = true;
     if (profileMessage) {
       profileMessage.textContent = "Saving...";
-      profileMessage.className = "profile-message";
+      profileMessage.className = "profile-status-message";
     }
 
     // Update profile in database
@@ -3250,7 +3250,7 @@ async function saveProfile(event) {
     // Success
     if (profileMessage) {
       profileMessage.textContent = "Profile updated successfully!";
-      profileMessage.className = "profile-message success";
+      profileMessage.className = "profile-status-message success";
     }
     showToast("Profile updated successfully", "success");
     
@@ -3260,7 +3260,7 @@ async function saveProfile(event) {
     setTimeout(() => {
       if (profileMessage) {
         profileMessage.textContent = "";
-        profileMessage.className = "profile-message";
+        profileMessage.className = "profile-status-message";
       }
     }, 3000);
     
@@ -3268,7 +3268,7 @@ async function saveProfile(event) {
     console.error("[RTN] saveProfile error", error);
     if (profileMessage) {
       profileMessage.textContent = "Failed to update profile. Please try again.";
-      profileMessage.className = "profile-message error";
+      profileMessage.className = "profile-status-message error";
     }
     showToast("Failed to update profile", "error");
   } finally {

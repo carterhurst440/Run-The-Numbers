@@ -1330,49 +1330,49 @@
     </section>
 
     <section id="profile-view" class="route-view profile-view" hidden>
-      <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem;">
-        <div style="max-width: 500px; width: 100%;">
-          <h1 style="text-align: center; margin-bottom: 2rem; font-family: 'Audiowide', sans-serif; font-size: 2rem; color: var(--accent);">Profile</h1>
-          <p style="text-align: center; color: var(--muted); margin-bottom: 2rem;">Manage your account information</p>
-          
-          <form id="profile-form" style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); border-radius: 12px; padding: 2rem;">
-            <div style="margin-bottom: 1.25rem;">
-              <label for="profile-first-name" style="display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent); text-transform: uppercase;">First Name</label>
-              <input type="text" id="profile-first-name" name="firstName" autocomplete="given-name" disabled required style="width: 100%; padding: 0.75rem 1rem; font-size: 1rem; font-family: 'Play', sans-serif; background: rgba(255, 255, 255, 0.05); color: var(--text); border: 1px solid var(--border-color); border-radius: 6px;" />
-            </div>
-            
-            <div style="margin-bottom: 1.25rem;">
-              <label for="profile-last-name" style="display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent); text-transform: uppercase;">Last Name</label>
-              <input type="text" id="profile-last-name" name="lastName" autocomplete="family-name" disabled required style="width: 100%; padding: 0.75rem 1rem; font-size: 1rem; font-family: 'Play', sans-serif; background: rgba(255, 255, 255, 0.05); color: var(--text); border: 1px solid var(--border-color); border-radius: 6px;" />
-            </div>
-            
-            <div style="margin-bottom: 1.25rem;">
-              <label for="profile-email" style="display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent); text-transform: uppercase;">Email</label>
-              <input type="email" id="profile-email" name="email" autocomplete="email" disabled readonly style="width: 100%; padding: 0.75rem 1rem; font-size: 1rem; font-family: 'Play', sans-serif; background: rgba(255, 255, 255, 0.05); color: var(--text); border: 1px solid var(--border-color); border-radius: 6px; opacity: 0.5;" />
-            </div>
-            
-            <div style="margin-bottom: 1.25rem;">
-              <label for="profile-password" style="display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent); text-transform: uppercase;">Password</label>
-              <div style="position: relative;">
-                <input type="password" id="profile-password" name="password" autocomplete="new-password" placeholder="••••••••" disabled style="width: 100%; padding: 0.75rem 3rem 0.75rem 1rem; font-size: 1rem; font-family: 'Play', sans-serif; background: rgba(255, 255, 255, 0.05); color: var(--text); border: 1px solid var(--border-color); border-radius: 6px;" />
-                <button type="button" id="profile-password-toggle" disabled style="position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--accent); cursor: pointer; padding: 0.5rem;">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                </button>
-              </div>
-            </div>
-            
-            <div id="profile-message" style="min-height: 1.5rem; padding: 0.75rem; border-radius: 6px; font-size: 0.9rem; text-align: center; margin-bottom: 1.25rem;"></div>
-            
-            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
-              <button type="button" id="profile-edit-button" style="padding: 0.75rem 1.75rem; font-size: 1rem; font-weight: 600; font-family: 'Play', sans-serif; border-radius: 6px; border: none; cursor: pointer; background: var(--accent); color: var(--bg); text-transform: uppercase;">Edit</button>
-              <button type="button" id="profile-cancel-button" hidden style="padding: 0.75rem 1.75rem; font-size: 1rem; font-weight: 600; font-family: 'Play', sans-serif; border-radius: 6px; cursor: pointer; background: transparent; color: var(--text); border: 1px solid var(--border-color); text-transform: uppercase;">Cancel</button>
-              <button type="submit" id="profile-save-button" hidden style="padding: 0.75rem 1.75rem; font-size: 1rem; font-weight: 600; font-family: 'Play', sans-serif; border-radius: 6px; border: none; cursor: pointer; background: var(--accent); color: var(--bg); text-transform: uppercase;">Save</button>
-            </div>
-          </form>
+      <div class="profile-page-wrapper">
+        <div class="profile-header">
+          <h1>Profile</h1>
+          <p class="profile-subtitle">Manage your account information</p>
         </div>
+        
+        <form id="profile-form" class="profile-form-card">
+          <div class="profile-input-group">
+            <label for="profile-first-name">First Name</label>
+            <input type="text" id="profile-first-name" name="firstName" autocomplete="given-name" disabled required />
+          </div>
+          
+          <div class="profile-input-group">
+            <label for="profile-last-name">Last Name</label>
+            <input type="text" id="profile-last-name" name="lastName" autocomplete="family-name" disabled required />
+          </div>
+          
+          <div class="profile-input-group">
+            <label for="profile-email">Email</label>
+            <input type="email" id="profile-email" name="email" autocomplete="email" disabled readonly />
+          </div>
+          
+          <div class="profile-input-group">
+            <label for="profile-password">Password</label>
+            <div class="profile-password-wrapper">
+              <input type="password" id="profile-password" name="password" autocomplete="new-password" placeholder="••••••••" disabled />
+              <button type="button" id="profile-password-toggle" class="profile-password-toggle" disabled aria-label="Toggle password visibility">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <div id="profile-message" class="profile-status-message"></div>
+          
+          <div class="profile-actions">
+            <button type="button" id="profile-edit-button" class="profile-btn profile-btn-primary">Edit</button>
+            <button type="button" id="profile-cancel-button" class="profile-btn profile-btn-secondary" hidden>Cancel</button>
+            <button type="submit" id="profile-save-button" class="profile-btn profile-btn-primary" hidden>Save</button>
+          </div>
+        </form>
       </div>
     </section>
 
