@@ -1329,88 +1329,85 @@
     </div>
     </section>
 
-    <section id="profile-view" class="route-view app-page profile-view" hidden aria-labelledby="profile-title">
-      <div class="profile-container">
-        <h1 id="profile-title">Profile</h1>
-        <p class="profile-subheading">Manage your account information</p>
-        <form id="profile-form" class="profile-form">
-              <div class="profile-field">
-                <label for="profile-first-name">First Name</label>
-                <input 
-                  type="text" 
-                  id="profile-first-name" 
-                  name="firstName" 
-                  autocomplete="given-name" 
-                  disabled 
-                  required 
-                />
-              </div>
-              
-              <div class="profile-field">
-                <label for="profile-last-name">Last Name</label>
-                <input 
-                  type="text" 
-                  id="profile-last-name" 
-                  name="lastName" 
-                  autocomplete="family-name" 
-                  disabled 
-                  required 
-                />
-              </div>
-              
-              <div class="profile-field">
-                <label for="profile-email">Email</label>
-                <input 
-                  type="email" 
-                  id="profile-email" 
-                  name="email" 
-                  autocomplete="email" 
-                  disabled 
-                  readonly 
-                />
-              </div>
-              
-              <div class="profile-field profile-password-field">
-                <label for="profile-password">Password</label>
-                <div class="password-input-wrapper">
-                  <input 
-                    type="password" 
-                    id="profile-password" 
-                    name="password" 
-                    autocomplete="new-password" 
-                    placeholder="••••••••" 
-                    disabled 
-                  />
-                  <button 
-                    type="button" 
-                    id="profile-password-toggle" 
-                    class="password-toggle" 
-                    aria-label="Toggle password visibility"
-                    disabled
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path class="eye-open" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                      <circle class="eye-open" cx="12" cy="12" r="3"></circle>
-                      <line class="eye-closed" x1="2" y1="2" x2="22" y2="22" display="none"></line>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              
-              <p id="profile-message" class="profile-message" role="status" aria-live="polite"></p>
-              
-              <div class="profile-actions">
-                <button 
-                  type="button" 
-                  id="profile-edit-button" 
-                  class="primary"
-                  onclick="console.log('INLINE ONCLICK FIRED!'); window.testEditClick && window.testEditClick();"
-                  style="cursor: pointer; position: relative; z-index: 10;"
-                >Edit</button>
-                <button type="button" id="profile-cancel-button" class="secondary" hidden>Cancel</button>
-                <button type="submit" id="profile-save-button" class="primary" hidden>Save</button>
-              </div>
-            </form>
+    <section id="profile-view" class="route-view profile-view" hidden>
+      <div class="profile-page-wrapper">
+        <div class="profile-header">
+          <h1 id="profile-title">Profile</h1>
+          <p class="profile-subtitle">Manage your account information</p>
+        </div>
+
+        <form id="profile-form" class="profile-form-card">
+          <div class="profile-input-group">
+            <label for="profile-first-name">First Name</label>
+            <input 
+              type="text" 
+              id="profile-first-name" 
+              name="firstName" 
+              autocomplete="given-name" 
+              disabled 
+              required 
+            />
+          </div>
+          
+          <div class="profile-input-group">
+            <label for="profile-last-name">Last Name</label>
+            <input 
+              type="text" 
+              id="profile-last-name" 
+              name="lastName" 
+              autocomplete="family-name" 
+              disabled 
+              required 
+            />
+          </div>
+          
+          <div class="profile-input-group">
+            <label for="profile-email">Email</label>
+            <input 
+              type="email" 
+              id="profile-email" 
+              name="email" 
+              autocomplete="email" 
+              disabled 
+              readonly 
+            />
+          </div>
+          
+          <div class="profile-input-group">
+            <label for="profile-password">Password</label>
+            <div class="profile-password-wrapper">
+              <input 
+                type="password" 
+                id="profile-password" 
+                name="password" 
+                autocomplete="new-password" 
+                placeholder="••••••••" 
+                disabled 
+              />
+              <button 
+                type="button" 
+                id="profile-password-toggle" 
+                class="profile-password-toggle" 
+                aria-label="Toggle password visibility"
+                disabled
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path class="eye-open" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle class="eye-open" cx="12" cy="12" r="3"></circle>
+                  <line class="eye-closed" x1="2" y1="2" x2="22" y2="22" display="none"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <div id="profile-message" class="profile-status-message" role="status" aria-live="polite"></div>
+          
+          <div class="profile-button-group">
+            <button type="button" id="profile-edit-button" class="profile-btn profile-btn-edit">Edit</button>
+            <button type="button" id="profile-cancel-button" class="profile-btn profile-btn-cancel" hidden>Cancel</button>
+            <button type="submit" id="profile-save-button" class="profile-btn profile-btn-save" hidden>Save</button>
+          </div>
+        </form>
       </div>
     </section>
 
