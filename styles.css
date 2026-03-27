@@ -3031,22 +3031,27 @@ button:disabled {
 
   .contest-chip {
     min-width: 0;
-    max-width: 108px;
-    padding: 0.36rem 0.58rem;
-    gap: 0.05rem;
-    align-items: center;
-    text-align: center;
+    max-width: 92px;
+    padding: 0.1rem 0;
+    gap: 0;
+    align-items: flex-start;
+    text-align: left;
     flex: 0 1 auto;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   .contest-chip-label {
-    font-size: 0.56rem;
-    letter-spacing: 0.06em;
+    font-size: 0.5rem;
+    letter-spacing: 0.08em;
   }
 
   .contest-chip-timer {
-    font-size: 0.64rem;
+    font-size: 0.56rem;
     line-height: 1.1;
+    letter-spacing: 0.03em;
   }
 
   .bets-header {
@@ -3120,16 +3125,16 @@ button:disabled {
   }
 
   .contest-chip {
-    max-width: 96px;
-    padding: 0.32rem 0.5rem;
+    max-width: 82px;
+    padding: 0;
   }
 
   .contest-chip-label {
-    font-size: 0.52rem;
+    font-size: 0.46rem;
   }
 
   .contest-chip-timer {
-    font-size: 0.58rem;
+    font-size: 0.5rem;
   }
 
   .reset-button {
