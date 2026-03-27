@@ -1617,6 +1617,17 @@ body[data-app-state="loading"] #app-shell {
   outline: none;
 }
 
+.menu-contest-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ffd84d;
+  box-shadow: 0 0 0 2px rgba(8, 20, 56, 0.9), 0 0 12px rgba(255, 216, 77, 0.8);
+}
+
 .menu-icon,
 .menu-icon::before,
 .menu-icon::after {
@@ -3029,31 +3040,6 @@ button:disabled {
     letter-spacing: 0.06em;
   }
 
-  .contest-chip {
-    min-width: 0;
-    max-width: 92px;
-    padding: 0.1rem 0;
-    gap: 0;
-    align-items: flex-start;
-    text-align: left;
-    flex: 0 1 auto;
-    border: none;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-  }
-
-  .contest-chip-label {
-    font-size: 0.5rem;
-    letter-spacing: 0.08em;
-  }
-
-  .contest-chip-timer {
-    font-size: 0.56rem;
-    line-height: 1.1;
-    letter-spacing: 0.03em;
-  }
-
   .bets-header {
     flex-direction: column;
     align-items: stretch;
@@ -3122,19 +3108,6 @@ button:disabled {
 
   .header-actions {
     gap: 0.25rem;
-  }
-
-  .contest-chip {
-    max-width: 82px;
-    padding: 0;
-  }
-
-  .contest-chip-label {
-    font-size: 0.46rem;
-  }
-
-  .contest-chip-timer {
-    font-size: 0.5rem;
   }
 
   .reset-button {
@@ -4797,6 +4770,20 @@ body.modal-open {
   transform: translateY(-1px);
 }
 
+.drawer-contest-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.drawer-contest-timer {
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 214, 102, 0.92);
+}
+
 @media (max-width: 720px) {
   .route-header {
     flex-direction: column;
@@ -5067,34 +5054,6 @@ body.modal-open {
   border: 1px dashed rgba(173, 225, 247, 0.22);
   color: rgba(226, 248, 255, 0.7);
   text-align: center;
-}
-
-.contest-chip {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 0.1rem;
-  min-width: 132px;
-  padding: 0.55rem 0.85rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 196, 61, 0.45);
-  background: linear-gradient(135deg, rgba(255, 196, 61, 0.18), rgba(255, 111, 0, 0.16));
-  color: var(--text);
-  box-shadow: 0 10px 28px rgba(255, 140, 0, 0.18);
-}
-
-.contest-chip-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255, 214, 102, 0.92);
-}
-
-.contest-chip-timer {
-  font-size: 0.9rem;
-  font-weight: 700;
 }
 
 .contest-modal {

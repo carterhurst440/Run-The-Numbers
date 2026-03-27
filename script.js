@@ -3570,15 +3570,27 @@ function formatContestRemaining(contest) {
 }
 
 function renderContestChip() {
-  if (!contestChip) return;
   const contest = currentContest;
-  if (!contest) {
-    contestChip.hidden = true;
+  const contestStatus = getContestStatus(contest);
+  if (!drawerContestLink) {
+    if (menuContestBadge) {
+      menuContestBadge.hidden = contestStatus !== "live";
+    }
     return;
   }
-  contestChip.hidden = false;
-  if (contestChipTimer) {
-    contestChipTimer.textContent = formatContestRemaining(contest);
+  if (!contest) {
+    drawerContestLink.hidden = true;
+    if (menuContestBadge) {
+      menuContestBadge.hidden = true;
+    }
+    return;
+  }
+  drawerContestLink.hidden = false;
+  if (drawerContestTimer) {
+    drawerContestTimer.textContent = formatContestRemaining(contest);
+  }
+  if (menuContestBadge) {
+    menuContestBadge.hidden = contestStatus !== "live";
   }
 }
 
@@ -4941,8 +4953,9 @@ const carterCashTooltip = document.getElementById("carter-cash-tooltip");
 const dashboardRunsEl = document.getElementById("dashboard-runs");
 const prizeListEl = document.getElementById("prize-list");
 const adminNavButton = document.getElementById("admin-nav");
-const contestChip = document.getElementById("contest-chip");
-const contestChipTimer = document.getElementById("contest-chip-timer");
+const drawerContestLink = document.getElementById("drawer-contest-link");
+const drawerContestTimer = document.getElementById("drawer-contest-timer");
+const menuContestBadge = document.getElementById("menu-contest-badge");
 const adminAddButton = document.getElementById("admin-add-button");
 const adminSaveButton = document.getElementById("admin-save-button");
 const adminPrizeListEl = document.getElementById("admin-prize-list");
@@ -6918,9 +6931,10 @@ if (graphToggle && chartPanel && chartClose) {
   });
 }
 
-if (contestChip) {
-  contestChip.addEventListener("click", async () => {
+if (drawerContestLink) {
+  drawerContestLink.addEventListener("click", async () => {
     await syncContestState({ force: true });
+    closeUtilityPanel();
     openContestModal();
   });
 }

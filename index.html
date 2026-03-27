@@ -242,16 +242,6 @@
             >
               <span aria-hidden="true" class="icon icon-graph"></span>
             </button>
-            <button
-              type="button"
-              id="contest-chip"
-              class="contest-chip"
-              aria-label="View contest details"
-              hidden
-            >
-              <span class="contest-chip-label">Contest</span>
-              <span id="contest-chip-timer" class="contest-chip-timer">Details</span>
-            </button>
             <button type="button" id="reset-account" class="reset-button" aria-label="Reset account">
               Reset
             </button>
@@ -264,6 +254,7 @@
             >
               <span class="sr-only">Open menu</span>
               <span class="menu-icon" aria-hidden="true"></span>
+              <span id="menu-contest-badge" class="menu-contest-badge" hidden></span>
             </button>
           </div>
         </div>
@@ -288,6 +279,10 @@
             <button type="button" data-route-target="play" class="drawer-link">Play</button>
             <button type="button" data-route-target="store" class="drawer-link">Store</button>
             <button type="button" data-route-target="profile" class="drawer-link">Profile</button>
+            <button type="button" id="drawer-contest-link" class="drawer-link drawer-contest-link" hidden>
+              <span>Contest</span>
+              <span id="drawer-contest-timer" class="drawer-contest-timer">Details</span>
+            </button>
             <button type="button" data-route-target="admin" class="drawer-link" id="admin-nav" hidden>
               Admin
             </button>
