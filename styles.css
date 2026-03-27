@@ -2987,23 +2987,23 @@ button:disabled {
 
   .header-bar {
     gap: 0.45rem;
-    flex-wrap: wrap;
-    align-items: flex-start;
+    flex-wrap: nowrap;
+    align-items: center;
   }
 
   .header-metrics {
     gap: 0.4rem;
-    width: 100%;
+    width: auto;
     justify-content: flex-start;
-    flex: 1 1 100%;
-    margin-right: 0;
+    flex: 1 1 auto;
+    margin-right: auto;
     min-width: 0;
   }
 
   .header-actions {
-    width: 100%;
+    width: auto;
     justify-content: flex-end;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0.3rem;
     min-width: 0;
   }
@@ -3088,10 +3088,15 @@ button:disabled {
 
   .header-bar {
     gap: 0.35rem;
+    flex-wrap: wrap;
+    align-items: flex-start;
   }
 
   .header-metrics {
     gap: 0.3rem;
+    width: 100%;
+    flex: 1 1 100%;
+    margin-right: 0;
   }
 
   .bankroll,
@@ -3107,6 +3112,9 @@ button:disabled {
   }
 
   .header-actions {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 0.25rem;
   }
 
