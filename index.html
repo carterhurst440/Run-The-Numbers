@@ -199,6 +199,27 @@
             <div class="carter-cash" aria-live="polite">
               <span class="carter-label">Carter Cash:</span>
               <span id="carter-cash" class="carter-value">0</span>
+              <button
+                type="button"
+                id="carter-cash-info-button"
+                class="info-icon carter-cash-info-button"
+                aria-label="How Carter Cash is earned"
+                aria-expanded="false"
+                aria-controls="carter-cash-tooltip"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"></circle>
+                  <path d="M12 10.2v5.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path>
+                  <circle cx="12" cy="7.2" r="1.1" fill="currentColor"></circle>
+                </svg>
+              </button>
+              <div
+                id="carter-cash-tooltip"
+                class="carter-cash-tooltip"
+                role="tooltip"
+              >
+                1 dollar Carter Cash is earned with each 1000 of bets placed through the game.
+              </div>
               <span id="carter-cash-delta" class="carter-delta" aria-hidden="true"></span>
             </div>
           </div>
@@ -220,6 +241,16 @@
               aria-controls="chart-panel"
             >
               <span aria-hidden="true" class="icon icon-graph"></span>
+            </button>
+            <button
+              type="button"
+              id="contest-chip"
+              class="contest-chip"
+              aria-label="View contest details"
+              hidden
+            >
+              <span class="contest-chip-label">Contest</span>
+              <span id="contest-chip-timer" class="contest-chip-timer">Details</span>
             </button>
             <button type="button" id="reset-account" class="reset-button" aria-label="Reset account">
               Reset
@@ -1264,6 +1295,7 @@
             <div class="admin-tabs">
               <button type="button" class="admin-tab active" data-admin-tab="prizes">Prizes</button>
               <button type="button" class="admin-tab" data-admin-tab="analytics">Analytics</button>
+              <button type="button" class="admin-tab" data-admin-tab="contests">Contests</button>
             </div>
             <section class="admin-tab-content" id="admin-prizes-content">
               <section class="route-section admin-list-section">
@@ -1350,6 +1382,15 @@
                 </div>
               </section>
             </section>
+            <section class="admin-tab-content" id="admin-contests-content" hidden>
+              <section class="route-section admin-list-section">
+                <div class="admin-listing-header">
+                  <h2>Contests</h2>
+                  <button type="button" class="primary" id="admin-add-contest-button">Create contest</button>
+                </div>
+                <ul id="admin-contest-list" class="admin-prize-list admin-contest-list" aria-live="polite"></ul>
+              </section>
+            </section>
           </div>
         </section>
       </main>
@@ -1398,6 +1439,14 @@
             <button type="submit" id="profile-save-button" class="profile-btn profile-btn-primary" hidden>Save</button>
           </div>
         </form>
+
+        <section class="profile-medals-card" aria-labelledby="profile-medals-title">
+          <div class="profile-medals-header">
+            <h2 id="profile-medals-title">Contest Medals</h2>
+            <p>Winner medals earned from finished contests.</p>
+          </div>
+          <ul id="profile-contest-medals" class="profile-contest-medals"></ul>
+        </section>
       </div>
     </section>
 
@@ -1606,6 +1655,172 @@
         <div class="modal-actions">
           <button type="button" id="number-bets-modal-ok" class="primary">OK</button>
         </div>
+      </div>
+    </div>
+
+    <div
+      class="modal"
+      id="contest-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="contest-modal-title"
+      hidden
+    >
+      <div class="modal-content contest-modal">
+        <div class="modal-header">
+          <h2 id="contest-modal-title">Contest</h2>
+          <button type="button" class="modal-close" id="contest-modal-close" aria-label="Close contest modal">×</button>
+        </div>
+        <div class="modal-body contest-modal-body">
+          <div class="contest-detail-grid">
+            <div class="contest-detail-card">
+              <p id="contest-status-text" class="contest-status-text">No active contest.</p>
+              <h3 id="contest-title" class="contest-title">Contest details</h3>
+              <p id="contest-window" class="contest-window"></p>
+              <dl class="contest-detail-list">
+                <div>
+                  <dt>Starting Bankroll</dt>
+                  <dd id="contest-starting-bankroll">0</dd>
+                </div>
+                <div>
+                  <dt>Starting Carter Cash</dt>
+                  <dd id="contest-starting-carter-cash">0</dd>
+                </div>
+                <div>
+                  <dt>Qualification Requirement</dt>
+                  <dd id="contest-winning-criteria">0 Carter Cash</dd>
+                </div>
+                <div>
+                  <dt>Reward</dt>
+                  <dd id="contest-reward">-</dd>
+                </div>
+              </dl>
+              <p id="contest-opt-in-copy" class="contest-opt-in-copy"></p>
+              <div class="contest-actions">
+                <button type="button" id="contest-opt-in-button" class="primary">Opt in</button>
+              </div>
+            </div>
+            <div class="contest-detail-card">
+              <div class="section-heading">
+                <h3>Contest Leaderboard</h3>
+                <p class="section-sub">Only players who opt in are included.</p>
+              </div>
+              <ul id="contest-leaderboard-list" class="contest-leaderboard-list"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal"
+      id="contest-results-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="contest-results-title"
+      hidden
+    >
+      <div class="modal-content contest-results-modal">
+        <div class="modal-header">
+          <h2 id="contest-results-title">Contest Results</h2>
+          <button type="button" class="modal-close" id="contest-results-close" aria-label="Close contest results">×</button>
+        </div>
+        <div class="modal-body">
+          <p id="contest-results-summary" class="contest-results-summary"></p>
+          <div class="contest-results-group">
+            <h3>Qualifying Participants</h3>
+            <ul id="contest-results-list" class="contest-results-list"></ul>
+          </div>
+          <div class="contest-results-group">
+            <h3>Non-Qualifying Participants</h3>
+            <ul id="contest-results-nonqualifying-list" class="contest-results-list"></ul>
+          </div>
+          <p class="contest-results-note">Our contest team will be reaching out via email to award your prize.</p>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="contest-results-ok" class="primary">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal"
+      id="admin-contest-results-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="admin-contest-results-title"
+      hidden
+    >
+      <div class="modal-content contest-modal">
+        <div class="modal-header">
+          <h2 id="admin-contest-results-title">Contest Results</h2>
+          <button type="button" class="modal-close" id="admin-contest-results-close" aria-label="Close admin contest results">×</button>
+        </div>
+        <div class="modal-body contest-modal-body">
+          <p id="admin-contest-results-summary" class="contest-results-summary"></p>
+          <div class="contest-results-group">
+            <h3>Qualifying Participants</h3>
+            <ul id="admin-contest-results-list" class="contest-results-list"></ul>
+          </div>
+          <div class="contest-results-group">
+            <h3>Non-Qualifying Participants</h3>
+            <ul id="admin-contest-results-nonqualifying-list" class="contest-results-list"></ul>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="admin-contest-results-ok" class="primary">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal"
+      id="admin-contest-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="admin-contest-modal-title"
+      hidden
+    >
+      <div class="modal-content admin-modal">
+        <div class="modal-header">
+          <h2 id="admin-contest-modal-title">Create contest</h2>
+          <button type="button" class="modal-close" id="admin-contest-close" aria-label="Close contest form">×</button>
+        </div>
+        <form id="admin-contest-form" class="admin-form">
+          <label class="admin-field">
+            <span>Contest name</span>
+            <input type="text" name="title" required />
+          </label>
+          <label class="admin-field">
+            <span>Start date</span>
+            <input type="datetime-local" name="startsAt" required />
+          </label>
+          <label class="admin-field">
+            <span>End date</span>
+            <input type="datetime-local" name="endsAt" required />
+          </label>
+          <label class="admin-field">
+            <span>Starting bankroll</span>
+            <input type="number" name="startingBankroll" min="0" step="1" required />
+          </label>
+          <label class="admin-field">
+            <span>Starting Carter Cash</span>
+            <input type="number" name="startingCarterCash" min="0" step="1" required />
+          </label>
+          <label class="admin-field">
+            <span>Qualification requirement (Carter Cash)</span>
+            <input type="number" name="qualificationCarterCash" min="0" step="1" value="0" required />
+          </label>
+          <label class="admin-field">
+            <span>Reward</span>
+            <textarea name="reward" rows="3" placeholder="Describe the prize or payout for the winner(s)." required></textarea>
+          </label>
+          <div class="modal-actions admin-form-actions">
+            <button type="button" class="secondary" id="admin-contest-cancel">Cancel</button>
+            <button type="submit" class="primary" id="admin-contest-save">Create contest</button>
+          </div>
+          <p id="admin-contest-message" class="admin-message" role="status" aria-live="polite"></p>
+        </form>
       </div>
     </div>
 

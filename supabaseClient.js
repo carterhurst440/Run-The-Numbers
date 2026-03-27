@@ -117,7 +117,9 @@ const mockDatabase = {
   runs: [],
   prizes: [],
   game_runs: [],
-  bet_plays: []
+  bet_plays: [],
+  contests: [],
+  contest_entries: []
 };
 
 // Persist mock database to localStorage so offline changes survive reloads
