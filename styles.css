@@ -2998,6 +2998,7 @@ button:disabled {
     flex: 1 1 auto;
     margin-right: auto;
     min-width: 0;
+    flex-wrap: nowrap;
   }
 
   .header-actions {
@@ -3027,10 +3028,20 @@ button:disabled {
   .carter-cash {
     gap: 0.22rem;
     font-size: 0.82rem;
+    flex-shrink: 1;
   }
 
   .carter-label,
   .carter-units {
+    font-size: 0.68rem;
+  }
+
+  .carter-label {
+    font-size: 0;
+  }
+
+  .carter-label::after {
+    content: "CC:";
     font-size: 0.68rem;
   }
 
@@ -3083,44 +3094,52 @@ button:disabled {
 
 @media (max-width: 420px) {
   .header {
-    padding: 0.55rem 0.75rem;
+    padding: 0.5rem 0.68rem;
   }
 
   .header-bar {
-    gap: 0.35rem;
-    flex-wrap: wrap;
-    align-items: flex-start;
+    gap: 0.25rem;
+    flex-wrap: nowrap;
+    align-items: center;
   }
 
   .header-metrics {
-    gap: 0.3rem;
-    width: 100%;
-    flex: 1 1 100%;
-    margin-right: 0;
+    gap: 0.22rem;
+    width: auto;
+    flex: 1 1 auto;
+    margin-right: auto;
+    flex-wrap: nowrap;
   }
 
   .bankroll,
   .carter-cash {
-    font-size: 0.76rem;
+    font-size: 0.72rem;
   }
 
   .bankroll-label,
   .bankroll-units,
   .carter-label,
   .carter-units {
-    font-size: 0.62rem;
+    font-size: 0.56rem;
   }
 
   .header-actions {
-    width: 100%;
+    width: auto;
     justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 0.25rem;
+    flex-wrap: nowrap;
+    gap: 0.18rem;
+  }
+
+  .icon-button,
+  .menu-toggle {
+    width: 30px;
+    height: 30px;
   }
 
   .reset-button {
-    padding: 0.18rem 0.38rem;
-    font-size: 0.6rem;
+    padding: 0.16rem 0.32rem;
+    font-size: 0.56rem;
+    letter-spacing: 0.04em;
   }
 }
 
