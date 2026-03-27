@@ -60,6 +60,13 @@ function stripSupabaseRedirectHash() {
   */
 }
 
+function isRecoveryRedirectUrl() {
+  if (typeof window === "undefined") return false;
+  const hash = window.location.hash || "";
+  const search = window.location.search || "";
+  return hash.includes("type=recovery") || search.includes("type=recovery");
+}
+
 function markAppReady() {
   if (typeof document === "undefined") {
     return;
@@ -331,6 +338,10 @@ function showAuthView(mode = "login") {
   if (appShell) {
     appShell.setAttribute("data-hidden", "true");
   }
+  const authCallbackView = document.getElementById("auth-callback-view");
+  if (authCallbackView) {
+    setViewVisibility(authCallbackView, false);
+  }
   if (authView) {
     setViewVisibility(authView, mode === "login");
   }
@@ -339,6 +350,10 @@ function showAuthView(mode = "login") {
   }
   if (forgotPasswordView) {
     setViewVisibility(forgotPasswordView, mode === "forgot-password");
+  }
+  const resetPasswordView = document.getElementById("reset-password-view");
+  if (resetPasswordView) {
+    setViewVisibility(resetPasswordView, mode === "reset-password");
   }
   if (mode === "login") {
     if (authErrorEl) {
@@ -371,6 +386,25 @@ function showAuthView(mode = "login") {
     if (forgotSubmitButton) {
       forgotSubmitButton.disabled = false;
     }
+  } else if (mode === "reset-password") {
+    const resetPasswordForm = document.getElementById("reset-password-form");
+    const resetPasswordErrorEl = document.getElementById("reset-password-error");
+    const resetPasswordSuccessEl = document.getElementById("reset-password-success");
+    const resetPasswordSubmitButton = document.getElementById("reset-password-submit");
+    if (resetPasswordForm) {
+      resetPasswordForm.reset();
+    }
+    if (resetPasswordErrorEl) {
+      resetPasswordErrorEl.hidden = true;
+      resetPasswordErrorEl.textContent = "";
+    }
+    if (resetPasswordSuccessEl) {
+      resetPasswordSuccessEl.hidden = true;
+      resetPasswordSuccessEl.textContent = "";
+    }
+    if (resetPasswordSubmitButton) {
+      resetPasswordSubmitButton.disabled = false;
+    }
   }
 }
 
@@ -399,7 +433,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
   let nextRoute = route ?? "home";
   const isAuthRoute = AUTH_ROUTES.has(nextRoute);
   const isPublicAuthRoute = nextRoute === "auth" || nextRoute === "signup" || 
-                           nextRoute === "forgot-password" || nextRoute === "auth/callback";
+                           nextRoute === "forgot-password" || nextRoute === "reset-password" || nextRoute === "auth/callback";
 
   if (!routeViews[nextRoute] && !isAuthRoute && !isPublicAuthRoute) {
     nextRoute = "home";
@@ -410,7 +444,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
 
   // Skip all auth-related updates for public auth pages
-  const isPublicAuthPage = nextRoute === "forgot-password" || nextRoute === "auth" || nextRoute === "signup" || nextRoute === "auth/callback";
+  const isPublicAuthPage = nextRoute === "forgot-password" || nextRoute === "reset-password" || nextRoute === "auth" || nextRoute === "signup" || nextRoute === "auth/callback";
   
   if (!isPublicAuthPage) {
     updateAdminVisibility(currentUser);
@@ -432,6 +466,13 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
   if (forgotPasswordView) {
     setViewVisibility(forgotPasswordView, false);
+  }
+  if (resetPasswordView) {
+    setViewVisibility(resetPasswordView, false);
+  }
+  const authCallbackView = document.getElementById("auth-callback-view");
+  if (authCallbackView) {
+    setViewVisibility(authCallbackView, false);
   }
 
   let resolvedRoute = (isAuthRoute && !isPublicAuthRoute) ? "home" : nextRoute;
@@ -467,6 +508,8 @@ async function setRoute(route, { replaceHash = false } = {}) {
       showAuthView("signup");
     } else if (nextRoute === "forgot-password") {
       showAuthView("forgot-password");
+    } else if (nextRoute === "reset-password") {
+      showAuthView("reset-password");
     } else if (nextRoute === "auth/callback") {
       showAuthCallbackView();
     } else {
@@ -742,7 +785,7 @@ async function provisionProfileForUser(user) {
 
 async function ensureProfileSynced({ force = false } = {}) {
   // Skip profile sync on public auth pages
-  if (currentRoute === "auth/callback" || currentRoute === "forgot-password" || currentRoute === "auth" || currentRoute === "signup") {
+  if (currentRoute === "auth/callback" || currentRoute === "forgot-password" || currentRoute === "reset-password" || currentRoute === "auth" || currentRoute === "signup") {
     return currentProfile || { ...GUEST_PROFILE };
   }
   
@@ -1008,11 +1051,9 @@ async function handleForgotPasswordSubmit(event) {
   }
 
   try {
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email,
-      options: {
-        emailRedirectTo: `${window.location.origin}`
-      }
+    const redirectTo = `${window.location.origin}${window.location.pathname}#/reset-password`;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo
     });
 
     if (error) {
@@ -1021,15 +1062,15 @@ async function handleForgotPasswordSubmit(event) {
 
     if (forgotSuccessEl) {
       forgotSuccessEl.hidden = false;
-      forgotSuccessEl.textContent = "Check your email for a magic link to sign in.";
+      forgotSuccessEl.textContent = "Check your email for a password reset link.";
     }
-    showToast("Magic link sent to your email", "success");
+    showToast("Password reset link sent", "success");
     
     // Clear form
     form.reset();
   } catch (error) {
     console.error(error);
-    const message = error?.message || "Unable to send magic link";
+    const message = error?.message || "Unable to send reset link";
     showToast(message, "error");
     if (forgotErrorEl) {
       forgotErrorEl.hidden = false;
@@ -1038,6 +1079,127 @@ async function handleForgotPasswordSubmit(event) {
   } finally {
     if (forgotSubmitButton) {
       forgotSubmitButton.disabled = false;
+    }
+  }
+}
+
+async function handleProfilePasswordResetRequest() {
+  if (!currentUser?.email) {
+    if (profileMessage) {
+      profileMessage.textContent = "We couldn't find an email address for this account.";
+      profileMessage.className = "profile-status-message error";
+    }
+    showToast("Unable to send reset email", "error");
+    return;
+  }
+
+  const triggerButton = document.getElementById("profile-reset-password-button");
+  try {
+    if (triggerButton) {
+      triggerButton.disabled = true;
+    }
+    if (profileMessage) {
+      profileMessage.textContent = "Sending password reset email...";
+      profileMessage.className = "profile-status-message";
+    }
+
+    const redirectTo = `${window.location.origin}${window.location.pathname}#/reset-password`;
+    const { error } = await supabase.auth.resetPasswordForEmail(currentUser.email, {
+      redirectTo
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (profileMessage) {
+      profileMessage.textContent = `Password reset email sent to ${currentUser.email}.`;
+      profileMessage.className = "profile-status-message success";
+    }
+    showToast("Password reset email sent", "success");
+  } catch (error) {
+    console.error("[RTN] handleProfilePasswordResetRequest error", error);
+    if (profileMessage) {
+      profileMessage.textContent = error?.message || "Unable to send password reset email.";
+      profileMessage.className = "profile-status-message error";
+    }
+    showToast("Unable to send password reset email", "error");
+  } finally {
+    if (triggerButton) {
+      triggerButton.disabled = false;
+    }
+  }
+}
+
+async function handleResetPasswordSubmit(event) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  const form = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
+  const resetPasswordErrorEl = document.getElementById("reset-password-error");
+  const resetPasswordSuccessEl = document.getElementById("reset-password-success");
+  const resetPasswordSubmitButton = document.getElementById("reset-password-submit");
+  if (!form) return;
+
+  const formData = new FormData(form);
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
+  if (resetPasswordErrorEl) {
+    resetPasswordErrorEl.hidden = true;
+    resetPasswordErrorEl.textContent = "";
+  }
+  if (resetPasswordSuccessEl) {
+    resetPasswordSuccessEl.hidden = true;
+    resetPasswordSuccessEl.textContent = "";
+  }
+
+  if (password.length < 6) {
+    if (resetPasswordErrorEl) {
+      resetPasswordErrorEl.hidden = false;
+      resetPasswordErrorEl.textContent = "Password must be at least 6 characters.";
+    }
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    if (resetPasswordErrorEl) {
+      resetPasswordErrorEl.hidden = false;
+      resetPasswordErrorEl.textContent = "Passwords do not match.";
+    }
+    return;
+  }
+
+  try {
+    if (resetPasswordSubmitButton) {
+      resetPasswordSubmitButton.disabled = true;
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (resetPasswordSuccessEl) {
+      resetPasswordSuccessEl.hidden = false;
+      resetPasswordSuccessEl.textContent = "Password updated successfully.";
+    }
+    showToast("Password updated", "success");
+    form.reset();
+    await setRoute("home");
+  } catch (error) {
+    console.error("[RTN] handleResetPasswordSubmit error", error);
+    if (resetPasswordErrorEl) {
+      resetPasswordErrorEl.hidden = false;
+      resetPasswordErrorEl.textContent = error?.message || "Unable to update password.";
+    }
+    showToast("Unable to update password", "error");
+  } finally {
+    if (resetPasswordSubmitButton) {
+      resetPasswordSubmitButton.disabled = false;
     }
   }
 }
@@ -3046,7 +3208,7 @@ async function loadProfile() {
     console.info("[RTN] loadProfile: fetching profile from database");
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("first_name, last_name")
+      .select("username, first_name, last_name")
       .eq("id", user.id)
       .single();
 
@@ -3079,14 +3241,14 @@ async function loadProfile() {
       console.error("[RTN] loadProfile: profileLastNameInput element is NULL!");
     }
     if (profileEmailInput) {
-      profileEmailInput.value = user.email || "";
+      profileEmailInput.value = profile?.username || user.email || "";
       console.info("[RTN] loadProfile: email input value is now", profileEmailInput.value);
     } else {
       console.error("[RTN] loadProfile: profileEmailInput element is NULL!");
     }
-    if (profilePasswordInput) {
-      profilePasswordInput.value = "";
-      profilePasswordInput.placeholder = "••••••••";
+    if (profileMessage) {
+      profileMessage.textContent = "";
+      profileMessage.className = "profile-status-message";
     }
 
     // Reset to view mode
@@ -3674,6 +3836,8 @@ const showForgotPasswordButton = document.getElementById("show-forgot-password")
 const backToLoginButton = document.getElementById("back-to-login");
 const forgotPasswordView = document.getElementById("forgot-password-view");
 const forgotPasswordForm = document.getElementById("forgot-password-form");
+const resetPasswordView = document.getElementById("reset-password-view");
+const resetPasswordForm = document.getElementById("reset-password-form");
 const appShell = document.getElementById("app-shell");
 const homeView = document.getElementById("home-view");
 const playView = document.getElementById("play-view");
@@ -3692,8 +3856,8 @@ const routeViews = {
 const headerEl = document.querySelector(".header");
 const chipBarEl = document.querySelector(".chip-bar");
 const playLayout = playView ? playView.querySelector(".layout") : null;
-const AUTH_ROUTES = new Set(["auth", "signup"]);
-const TABLE_ROUTES = new Set(["home", "play", "store", "admin", "profile"]);
+const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
+const TABLE_ROUTES = new Set(["home", "play", "store", "admin"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
@@ -3727,6 +3891,7 @@ const profileLastNameInput = document.getElementById("profile-last-name");
 const profileEmailInput = document.getElementById("profile-email");
 const profilePasswordInput = document.getElementById("profile-password");
 const profilePasswordToggle = document.getElementById("profile-password-toggle");
+const profileResetPasswordButton = document.getElementById("profile-reset-password-button");
 const profileEditButton = document.getElementById("profile-edit-button");
 const profileCancelButton = document.getElementById("profile-cancel-button");
 const profileSaveButton = document.getElementById("profile-save-button");
@@ -5616,6 +5781,10 @@ if (forgotPasswordForm) {
   forgotPasswordForm.addEventListener("submit", handleForgotPasswordSubmit);
 }
 
+if (resetPasswordForm) {
+  resetPasswordForm.addEventListener("submit", handleResetPasswordSubmit);
+}
+
 if (adminPrizeForm) {
   adminPrizeForm.addEventListener("submit", handleAdminPrizeSubmit);
 }
@@ -5696,6 +5865,10 @@ if (profileEditButton) {
 
 if (profileCancelButton) {
   profileCancelButton.addEventListener("click", cancelProfileEdit);
+}
+
+if (profileResetPasswordButton) {
+  profileResetPasswordButton.addEventListener("click", handleProfilePasswordResetRequest);
 }
 
 if (profilePasswordToggle) {
@@ -6453,7 +6626,16 @@ function setupAuthListener() {
         const sub = supabase.auth.onAuthStateChange(async (event, session) => {
           console.info(`[RTN] auth state changed: ${event}`);
           
-          if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+          if (event === "PASSWORD_RECOVERY") {
+            const user = session?.user ?? currentUser ?? null;
+            if (user) {
+              currentUser = user;
+              updateAdminVisibility(currentUser);
+              updateResetButtonVisibility(currentUser);
+            }
+            showToast("Choose your new password.", "info");
+            setRoute("reset-password").catch(() => {});
+          } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
             const user = session?.user ?? null;
             if (user) {
               currentUser = user;
@@ -6464,13 +6646,14 @@ function setupAuthListener() {
               // 1. First sync the profile (before changing route)
               // 2. Then navigate to home
               if (currentRoute === "auth/callback") {
-                console.info("[RTN] SIGNED_IN on auth/callback, syncing profile then navigating to home");
+                const isRecoveryFlow = isRecoveryRedirectUrl();
+                console.info(`[RTN] SIGNED_IN on auth/callback, syncing profile then navigating to ${isRecoveryFlow ? "reset-password" : "home"}`);
                 // Temporarily clear currentRoute so ensureProfileSynced doesn't skip
                 const savedRoute = currentRoute;
                 currentRoute = ""; // Clear so profile sync happens
                 await ensureProfileSynced({ force: true }).catch((err) => console.warn("[RTN] Profile sync error:", err));
                 currentRoute = savedRoute; // Restore so setRoute knows we're coming from callback
-                setRoute("home").catch(() => {});
+                setRoute(isRecoveryFlow ? "reset-password" : "home").catch(() => {});
               } else if (currentRoute === "auth" || currentRoute === "signup") {
                 // For normal auth flows, sync profile and navigate
                 await ensureProfileSynced({ force: true }).catch((err) => console.warn("[RTN] Profile sync error:", err));
@@ -6483,7 +6666,7 @@ function setupAuthListener() {
           } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
             // Don't redirect if we're on a public auth page (auth, signup, forgot-password, callback)
             const isPublicAuthPage = currentRoute === "auth" || currentRoute === "signup" || 
-                                    currentRoute === "forgot-password" || currentRoute === "auth/callback";
+                                    currentRoute === "forgot-password" || currentRoute === "reset-password" || currentRoute === "auth/callback";
             if (isPublicAuthPage) {
               console.info(`[RTN] SIGNED_OUT on ${currentRoute} page, staying put`);
               return;
@@ -6519,7 +6702,7 @@ function setupAuthListener() {
               const currentRoute = getRouteFromHash();
               // Skip bootstrapAuth for public auth pages
               const isPublicAuthPage = currentRoute === "auth" || currentRoute === "signup" || 
-                                      currentRoute === "forgot-password" || currentRoute === "auth/callback";
+                                      currentRoute === "forgot-password" || currentRoute === "reset-password" || currentRoute === "auth/callback";
               if (!isPublicAuthPage) {
                 console.info("[RTN] attempting bootstrapAuth");
                 await bootstrapAuth(currentRoute);
@@ -6595,6 +6778,7 @@ async function initializeApp() {
     if (hasAuthTokensInUrl) {
       console.info("[RTN] initializeApp detected auth tokens/code in URL");
       console.info("[RTN] Showing callback view and waiting for Supabase to process...");
+      const isRecoveryCallback = isRecoveryRedirectUrl();
       
       // Show callback spinner immediately
       showAuthCallbackView();
@@ -6627,7 +6811,7 @@ async function initializeApp() {
         }
         
         if (session?.user) {
-          console.info("[RTN] Callback fallback: session found, navigating to home");
+          console.info(`[RTN] Callback fallback: session found, navigating to ${isRecoveryCallback ? "reset-password" : "home"}`);
           currentUser = session.user;
           updateAdminVisibility(currentUser);
           updateResetButtonVisibility(currentUser);
@@ -6643,7 +6827,7 @@ async function initializeApp() {
             setViewVisibility(authCallbackView, false);
           }
           
-          await setRoute("home");
+          await setRoute(isRecoveryCallback ? "reset-password" : "home");
           markAppReady(); // Make sure UI is visible after navigation
         } else {
           console.warn("[RTN] Callback fallback: no session found after processing");
@@ -6664,7 +6848,7 @@ async function initializeApp() {
 
     // Skip bootstrapAuth for public auth pages - they don't need session checks
     const isPublicAuthPage = initialRoute === "auth" || initialRoute === "signup" || 
-                            initialRoute === "forgot-password";
+                            initialRoute === "forgot-password" || initialRoute === "reset-password";
     
     if (isPublicAuthPage) {
       console.info(`[RTN] initializeApp showing public auth page: ${initialRoute}`);
@@ -6675,6 +6859,9 @@ async function initializeApp() {
       } else if (initialRoute === "forgot-password") {
         showAuthView("forgot-password");
         updateHash("forgot-password", { replace: true });
+      } else if (initialRoute === "reset-password") {
+        showAuthView("reset-password");
+        updateHash("reset-password", { replace: true });
       } else {
         showAuthView("login");
         updateHash("auth", { replace: true });
