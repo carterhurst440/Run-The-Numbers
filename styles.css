@@ -3036,13 +3036,17 @@ button:disabled {
     font-size: 0.68rem;
   }
 
-  .carter-label {
-    font-size: 0;
-  }
-
-  .carter-label::after {
+  .carter-cash::before {
     content: "CC:";
     font-size: 0.68rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.75);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .carter-label {
+    display: none;
   }
 
   .reset-button {
@@ -3121,6 +3125,14 @@ button:disabled {
   .carter-label,
   .carter-units {
     font-size: 0.56rem;
+  }
+
+  .carter-cash::before {
+    font-size: 0.56rem;
+  }
+
+  .carter-label {
+    display: none;
   }
 
   .header-actions {
