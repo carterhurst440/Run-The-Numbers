@@ -8,6 +8,7 @@ if (typeof document !== "undefined" && document.body) {
 }
 
 let appReady = false;
+let authBootstrapFallbackShown = false;
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -503,6 +504,10 @@ async function setRoute(route, { replaceHash = false } = {}) {
 
   currentRoute = resolvedRoute;
 
+  if (resolvedRoute === "contests") {
+    await loadPlayerContestList(true);
+  }
+
   if (isAuthRoute || isPublicAuthRoute) {
     // Show the specific auth view
     if (nextRoute === "signup") {
@@ -815,6 +820,7 @@ async function ensureProfileSynced({ force = false } = {}) {
   if (resolvedProfile && resolvedProfile.credits !== undefined) {
     currentProfile = resolvedProfile;
     const applied = applyProfileCredits(resolvedProfile, { resetHistory: !bankrollInitialized });
+    void loadPersistentBankrollHistory({ force });
     lastProfileSync = Date.now();
     return applied;
   }
@@ -822,6 +828,9 @@ async function ensureProfileSynced({ force = false } = {}) {
   // fallback to guest profile only if not logged in or fetch fails
   currentProfile = { ...GUEST_PROFILE, id: currentUser.id || GUEST_USER.id };
   const appliedFallback = applyProfileCredits(currentProfile, { resetHistory: !bankrollInitialized });
+  persistentBankrollHistory = [];
+  persistentBankrollUserId = null;
+  updateBankrollChartFilterUI();
   lastProfileSync = Date.now();
   return appliedFallback;
 }
@@ -1529,7 +1538,7 @@ async function loadBetAnalytics(betKey, betLabel) {
   document.getElementById("analytics-house-edge").textContent = `${houseEdge}%`;
 
   // Reset filter buttons to "all" active state
-  document.querySelectorAll(".chart-filter-btn").forEach(btn => {
+  document.querySelectorAll(".analytics-modal .chart-filter-btn[data-period]").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.period === "all");
   });
 
@@ -1945,29 +1954,32 @@ async function renderOverviewChart(period = "all") {
 // Load badge count for individual bet - uses EXACT same query as modal
 async function loadBetBadgeCount(betKey) {
   if (!supabase) return 0;
-  
-  // EXACT same query as modal uses
+
   let query = supabase
     .from("bet_plays")
-    .select("amount_wagered, amount_paid, net")
+    .select("id", { count: "exact", head: true })
     .eq("bet_key", betKey);
+
+  const startDate = getAnalyticsPeriodStart(analyticsBetBadgePeriod);
+  if (startDate) {
+    query = query.gte("placed_at", startDate.toISOString());
+  }
   
   // Apply player filter if selected
   if (selectedPlayerIds && selectedPlayerIds.length > 0) {
     query = query.in("user_id", selectedPlayerIds);
   }
   
-  const { data, error } = await query;
+  const { count, error } = await query;
 
   if (error) {
     console.error(`[RTN] Error loading count for ${betKey}:`, error);
     return 0;
   }
 
-  // EXACT same count as modal: data.length
-  const count = data?.length ?? 0;
-  console.info(`[RTN] Badge count for ${betKey}: ${count}`);
-  return count;
+  const exactCount = count ?? 0;
+  console.info(`[RTN] Badge count for ${betKey} (${analyticsBetBadgePeriod}): ${exactCount}`);
+  return exactCount;
 }
 
 async function notifyAdminPurchase({ purchase, prize, shipping }) {
@@ -3191,6 +3203,249 @@ const CONTEST_CRITERIA = {
   }
 };
 
+const ACCOUNT_MODE_NORMAL = "normal";
+
+function createNormalAccountMode() {
+  return {
+    type: ACCOUNT_MODE_NORMAL,
+    contestId: null
+  };
+}
+
+function isContestAccountMode(mode = currentAccountMode) {
+  return Boolean(mode && mode.type === "contest" && mode.contestId);
+}
+
+function getAccountModeValue(mode = currentAccountMode) {
+  return isContestAccountMode(mode) ? `contest:${mode.contestId}` : ACCOUNT_MODE_NORMAL;
+}
+
+function parseAccountModeValue(value) {
+  if (typeof value !== "string" || !value.startsWith("contest:")) {
+    return createNormalAccountMode();
+  }
+  const contestId = value.slice("contest:".length).trim();
+  return contestId
+    ? { type: "contest", contestId }
+    : createNormalAccountMode();
+}
+
+function getAccountModeStorageKey() {
+  return `rtn:account-mode:${currentUser?.id || "guest"}`;
+}
+
+function saveAccountModeSelection(mode = currentAccountMode) {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  window.localStorage.setItem(getAccountModeStorageKey(), getAccountModeValue(mode));
+}
+
+function loadSavedAccountModeSelection() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return createNormalAccountMode();
+  }
+  return parseAccountModeValue(window.localStorage.getItem(getAccountModeStorageKey()) || "");
+}
+
+function getContestById(contestId) {
+  return (contestCache || []).find((contest) => contest.id === contestId) || null;
+}
+
+function getContestEntryById(contestId) {
+  return contestEntryMap.get(contestId) || null;
+}
+
+function getModeContestEntry(mode = currentAccountMode) {
+  return isContestAccountMode(mode) ? getContestEntryById(mode.contestId) : null;
+}
+
+function getModeContest(mode = currentAccountMode) {
+  return isContestAccountMode(mode) ? getContestById(mode.contestId) : null;
+}
+
+function getContestAccountSnapshot(entry) {
+  if (!entry) return null;
+  return {
+    id: entry.user_id,
+    credits: Number(entry.current_credits ?? entry.starting_credits ?? 0),
+    carter_cash: Number(entry.current_carter_cash ?? entry.starting_carter_cash ?? 0),
+    carter_cash_progress: Number(entry.current_carter_cash_progress ?? 0)
+  };
+}
+
+function getCurrentAccountSnapshot(mode = currentAccountMode) {
+  if (isContestAccountMode(mode)) {
+    return getContestAccountSnapshot(getModeContestEntry(mode));
+  }
+  return currentProfile || GUEST_PROFILE;
+}
+
+function isContestModeAvailable(mode) {
+  if (!isContestAccountMode(mode)) return true;
+  const contest = getModeContest(mode);
+  return Boolean(contest && getContestStatus(contest) === "live" && getModeContestEntry(mode));
+}
+
+function getAvailableContestModes() {
+  return userContestEntries
+    .map((entry) => ({
+      mode: {
+        type: "contest",
+        contestId: entry.contest_id
+      },
+      contest: getContestById(entry.contest_id),
+      entry
+    }))
+    .filter(({ contest }) => contest && getContestStatus(contest) === "live")
+    .sort((a, b) => new Date(a.contest.ends_at) - new Date(b.contest.ends_at));
+}
+
+function getAccountModeLabel(mode = currentAccountMode) {
+  if (!isContestAccountMode(mode)) return "Normal Mode";
+  const contest = getModeContest(mode);
+  return contest?.title ? `${contest.title} Mode` : "Contest Mode";
+}
+
+function updateModeSpecificModalCopy() {
+  if (resetModalCopyEl) {
+    if (isContestAccountMode()) {
+      const contest = getModeContest();
+      const entry = getModeContestEntry();
+      resetModalCopyEl.textContent = contest && entry
+        ? `Resetting this contest mode will restore the ${contest.title} balance back to its starting values of ${formatCurrency(entry.starting_credits ?? contest.starting_credits ?? 0)} credits and ${formatCurrency(entry.starting_carter_cash ?? contest.starting_carter_cash ?? 0)} CC. Your normal account will stay untouched.`
+        : "Resetting this contest mode will restore its contest starting balance. Your normal account will stay untouched.";
+    } else {
+      resetModalCopyEl.textContent = "Resetting will restore 1,000 units to your account but will forfeit all Carter Cash you have earned and start your balance again at 0. Do you confirm?";
+    }
+  }
+
+  if (outOfCreditsCopyEl) {
+    outOfCreditsCopyEl.textContent = isContestAccountMode()
+      ? "You are out of credits in this contest mode. Switch back to Normal Mode or reset this contest mode to its contest starting balance to keep playing."
+      : "You are currently out of credits. 1,000 credits are restored to all players with less than 100 credits at the start of every day. Please come back tomorrow!";
+  }
+}
+
+function syncCurrentModeShadowState() {
+  if (isContestAccountMode()) {
+    const entry = getModeContestEntry();
+    if (!entry) return;
+    const updatedEntry = {
+      ...entry,
+      current_credits: bankroll,
+      current_carter_cash: carterCash,
+      current_carter_cash_progress: carterCashProgress,
+      display_name: getContestDisplayName(currentProfile, currentUser?.id),
+      participant_email: currentUser?.email || ""
+    };
+    contestEntryMap.set(updatedEntry.contest_id, updatedEntry);
+    userContestEntries = userContestEntries.map((candidate) =>
+      candidate.contest_id === updatedEntry.contest_id ? updatedEntry : candidate
+    );
+    if (currentContest?.id === updatedEntry.contest_id) {
+      currentContestEntry = updatedEntry;
+    }
+    return;
+  }
+
+  if (currentProfile) {
+    currentProfile.credits = bankroll;
+    currentProfile.carter_cash = carterCash;
+    currentProfile.carter_cash_progress = carterCashProgress;
+  }
+}
+
+function applyAccountSnapshot(snapshot, { resetHistory = false } = {}) {
+  if (!snapshot) return;
+
+  const numericCredits = Number(snapshot.credits);
+  const nextBankroll = Number.isFinite(numericCredits) ? Math.round(numericCredits) : INITIAL_BANKROLL;
+  const numericCarter = Number(snapshot.carter_cash);
+  const nextCarterCash = Number.isFinite(numericCarter) ? Math.round(numericCarter) : 0;
+  const numericProgress = Number(snapshot.carter_cash_progress);
+  const nextProgress =
+    Number.isFinite(numericProgress) && numericProgress >= 0 ? Number(numericProgress) : 0;
+
+  bankroll = nextBankroll;
+  lastSyncedBankroll = bankroll;
+  stopBankrollAnimation();
+  updateBankroll();
+  updateDashboardCreditsDisplay(nextBankroll);
+
+  carterCash = nextCarterCash;
+  carterCashProgress = nextProgress;
+  lastSyncedCarterCash = carterCash;
+  lastSyncedCarterProgress = carterCashProgress;
+  stopCarterCashAnimation();
+  updateCarterCashDisplay();
+
+  const shouldResetHistory = resetHistory || !bankrollInitialized;
+  if (shouldResetHistory) {
+    bankrollHistory = [bankroll];
+  } else if (bankrollHistory.length > 0) {
+    bankrollHistory[bankrollHistory.length - 1] = bankroll;
+  } else {
+    bankrollHistory = [bankroll];
+  }
+  drawBankrollChart();
+  bankrollInitialized = true;
+  updateModeSpecificModalCopy();
+}
+
+function renderAccountModeSelector() {
+  if (!accountModeSelect) return;
+
+  const options = [
+    {
+      value: ACCOUNT_MODE_NORMAL,
+      label: "Normal Mode"
+    },
+    ...getAvailableContestModes().map(({ contest }) => ({
+      value: `contest:${contest.id}`,
+      label: contest.title || "Contest Mode"
+    }))
+  ];
+
+  const selectedValue = getAccountModeValue();
+  accountModeSelect.innerHTML = "";
+  options.forEach((option) => {
+    const optionEl = document.createElement("option");
+    optionEl.value = option.value;
+    optionEl.textContent = option.label;
+    optionEl.selected = option.value === selectedValue;
+    accountModeSelect.appendChild(optionEl);
+  });
+
+  if (accountModeSummaryEl) {
+    accountModeSummaryEl.textContent = `${getAccountModeLabel()} is active.`;
+  }
+}
+
+function syncActiveAccountMode({ forceApply = false, resetHistory = false } = {}) {
+  const savedMode = loadSavedAccountModeSelection();
+  const currentModeValid = isContestModeAvailable(currentAccountMode);
+  const savedModeValid = isContestModeAvailable(savedMode);
+  const nextMode = isContestAccountMode(currentAccountMode) && currentModeValid
+    ? currentAccountMode
+    : isContestAccountMode(savedMode) && savedModeValid
+      ? savedMode
+      : currentModeValid
+        ? currentAccountMode
+        : createNormalAccountMode();
+
+  const modeChanged = getAccountModeValue(nextMode) !== getAccountModeValue(currentAccountMode);
+  currentAccountMode = nextMode;
+  renderAccountModeSelector();
+  saveAccountModeSelection(currentAccountMode);
+
+  if (modeChanged || forceApply) {
+    applyAccountSnapshot(getCurrentAccountSnapshot(currentAccountMode), {
+      resetHistory: resetHistory || modeChanged
+    });
+  } else {
+    updateModeSpecificModalCopy();
+  }
+}
+
 function formatContestDateTime(value) {
   if (!value) return "TBD";
   const date = new Date(value);
@@ -3237,9 +3492,156 @@ function hasSeenContestResults(contestId) {
   return window.localStorage.getItem(getContestStorageKey(contestId)) === "1";
 }
 
-function markContestResultsSeen(contestId) {
+async function markContestResultsSeen(contestId) {
   if (typeof window === "undefined" || !window.localStorage || !contestId) return;
   window.localStorage.setItem(getContestStorageKey(contestId), "1");
+
+  const entry = getContestEntryById(contestId);
+  if (!entry?.user_id || entry.user_id !== currentUser?.id || entry.results_seen_at) {
+    return;
+  }
+
+  const seenAt = new Date().toISOString();
+  try {
+    const { error } = await supabase
+      .from("contest_entries")
+      .update({ results_seen_at: seenAt })
+      .eq("contest_id", contestId)
+      .eq("user_id", entry.user_id);
+    if (error) throw error;
+
+    const updatedEntry = {
+      ...entry,
+      results_seen_at: seenAt
+    };
+    contestEntryMap.set(updatedEntry.contest_id, updatedEntry);
+    userContestEntries = userContestEntries.map((candidate) =>
+      candidate.contest_id === updatedEntry.contest_id ? updatedEntry : candidate
+    );
+    if (currentContestEntry?.contest_id === updatedEntry.contest_id) {
+      currentContestEntry = updatedEntry;
+    }
+  } catch (error) {
+    console.error("[RTN] markContestResultsSeen error", error);
+  } finally {
+    refreshContestNotifications(contestCache);
+  }
+}
+
+function hasSeenContestResultsForEntry(entry) {
+  if (!entry?.contest_id) return true;
+  return Boolean(entry.results_seen_at) || hasSeenContestResults(entry.contest_id);
+}
+
+function formatContestNotificationTime(value) {
+  if (!value) return "Recently finished";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Recently finished";
+  return `Ended ${date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  })}`;
+}
+
+function updateNotificationBadge() {
+  if (!notificationBadge || !notificationToggle) return;
+  const unreadCount = contestNotifications.filter((item) => item.unread).length;
+  notificationBadge.hidden = unreadCount <= 0;
+  notificationBadge.textContent = unreadCount > 9 ? "9+" : String(unreadCount);
+  notificationToggle.setAttribute(
+    "aria-label",
+    unreadCount > 0 ? `Open notifications, ${unreadCount} unread` : "Open notifications"
+  );
+}
+
+function renderContestNotifications() {
+  if (!notificationsListEl) return;
+  notificationsListEl.innerHTML = "";
+
+  if (!contestNotifications.length) {
+    const empty = document.createElement("li");
+    empty.className = "notification-item notification-item-empty";
+    empty.textContent = "No contest result notifications yet.";
+    notificationsListEl.appendChild(empty);
+    updateNotificationBadge();
+    return;
+  }
+
+  contestNotifications.forEach((notification) => {
+    const item = document.createElement("li");
+    item.className = `notification-item${notification.unread ? " is-unread" : ""}`;
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "notification-card";
+    button.dataset.contestId = notification.contestId;
+
+    const topRow = document.createElement("div");
+    topRow.className = "notification-card-top";
+
+    const title = document.createElement("span");
+    title.className = "notification-card-title";
+    title.textContent = notification.title;
+
+    const status = document.createElement("span");
+    status.className = "notification-card-status";
+    status.textContent = notification.unread ? "New" : "Viewed";
+
+    topRow.append(title, status);
+
+    const detail = document.createElement("p");
+    detail.className = "notification-card-detail";
+    detail.textContent = notification.message;
+
+    const meta = document.createElement("div");
+    meta.className = "notification-card-meta";
+    meta.textContent = formatContestNotificationTime(notification.endedAt);
+
+    button.append(topRow, detail, meta);
+    item.appendChild(button);
+    notificationsListEl.appendChild(item);
+  });
+
+  updateNotificationBadge();
+}
+
+function refreshContestNotifications(contests = contestCache) {
+  const endedContests = (contests || [])
+    .filter((contest) => getContestStatus(contest) === "ended")
+    .sort((a, b) => new Date(b.ends_at) - new Date(a.ends_at));
+
+  contestNotifications = endedContests
+    .map((contest) => {
+      const entry = getContestEntryById(contest.id);
+      if (!entry || entry.user_id !== currentUser?.id) return null;
+      const qualificationRequirement = getContestQualificationRequirement(contest);
+      return {
+        contestId: contest.id,
+        title: contest.title || "Contest results",
+        endedAt: contest.ends_at,
+        unread: !hasSeenContestResultsForEntry(entry),
+        message: `Results are ready. Qualification required ${formatCurrency(qualificationRequirement)} CC.`,
+        entry
+      };
+    })
+    .filter(Boolean);
+
+  renderContestNotifications();
+}
+
+async function loadContestParticipantCounts() {
+  const { data: entries, error } = await supabase
+    .from("contest_entries")
+    .select("contest_id");
+  if (error) throw error;
+
+  const counts = {};
+  (entries || []).forEach((entry) => {
+    counts[entry.contest_id] = (counts[entry.contest_id] || 0) + 1;
+  });
+  return counts;
 }
 
 function getContestDisplayName(profile, fallbackId = "") {
@@ -3359,14 +3761,22 @@ function renderContestLeaderboard(list = contestLeaderboard, contest = currentCo
   });
 }
 
-function renderContestResultsModal(contest, leaderboard) {
+function renderContestResultsModal(contest, leaderboard, { variant = "results" } = {}) {
   if (!contestResultsSummaryEl || !contestResultsListEl || !contestResultsNonQualifyingListEl) return;
   const { qualifying, nonQualifying } = splitContestParticipants(leaderboard);
   const winners = qualifying.filter((entry) => entry.score === qualifying[0]?.score);
   const qualificationRequirement = getContestQualificationRequirement(contest);
-  contestResultsSummaryEl.textContent = winners.length
-    ? `${contest.title} has ended. Congratulations to ${winners.map((winner) => winner.displayName).join(", ")} for posting the highest credits total among players with at least ${formatCurrency(qualificationRequirement)} Carter Cash.`
-    : `${contest.title} has ended. No participant reached the ${formatCurrency(qualificationRequirement)} Carter Cash qualification requirement.`;
+  const isLeaderboardVariant = variant === "leaderboard";
+
+  if (contestResultsTitleEl) {
+    contestResultsTitleEl.textContent = isLeaderboardVariant ? "Contest Leaderboard" : "Contest Results";
+  }
+
+  contestResultsSummaryEl.textContent = isLeaderboardVariant
+    ? `${contest.title} leaderboard. Qualifying players are ranked first, and each participant needs at least ${formatCurrency(qualificationRequirement)} Carter Cash to qualify for the prize.`
+    : winners.length
+      ? `${contest.title} has ended. Congratulations to ${winners.map((winner) => winner.displayName).join(", ")} for posting the highest credits total among players with at least ${formatCurrency(qualificationRequirement)} Carter Cash.`
+      : `${contest.title} has ended. No participant reached the ${formatCurrency(qualificationRequirement)} Carter Cash qualification requirement.`;
   contestResultsListEl.innerHTML = "";
   contestResultsNonQualifyingListEl.innerHTML = "";
 
@@ -3397,17 +3807,23 @@ function renderContestResultsModal(contest, leaderboard) {
     empty.innerHTML = `<span>Everyone qualified</span><strong>${formatCurrency(qualificationRequirement)} Carter Cash required</strong>`;
     contestResultsNonQualifyingListEl.appendChild(empty);
   }
+
+  if (contestResultsNoteEl) {
+    contestResultsNoteEl.hidden = isLeaderboardVariant;
+  }
 }
 
-function openContestResultsModal(contest, leaderboard) {
+function openContestResultsModal(contest, leaderboard, options = {}) {
   if (!contestResultsModal) return;
-  renderContestResultsModal(contest, leaderboard);
+  renderContestResultsModal(contest, leaderboard, options);
   contestResultsModal.hidden = false;
   contestResultsModal.classList.add("is-open");
   contestResultsModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
   contestResultsModalOpen = true;
-  markContestResultsSeen(contest.id);
+  if (options.variant !== "leaderboard") {
+    void markContestResultsSeen(contest.id);
+  }
 }
 
 function closeContestResultsModal() {
@@ -3535,16 +3951,16 @@ function renderContestModal() {
     if (!contest) {
       contestOptInCopyEl.textContent = "Check back soon for the next contest.";
     } else if (currentContestEntry) {
-      contestOptInCopyEl.textContent = `You're opted in. The winner is the qualifying player with the highest credits total. You need at least ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash to qualify.`;
+      contestOptInCopyEl.textContent = `You're opted in. Switch into ${contest.title} from the Mode selector in the menu whenever you want to play this contest account. You need at least ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash to qualify.`;
     } else {
-      contestOptInCopyEl.textContent = `Opt in to join this contest. Your bankroll and Carter Cash will reset to the contest starting values. You need at least ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash by the end to qualify to win.`;
+      contestOptInCopyEl.textContent = `Opt in to add this contest to your Mode selector. Your normal account stays untouched, and this contest gets its own starting balance of ${formatCurrency(contest.starting_credits ?? 0)} credits and ${formatCurrency(contest.starting_carter_cash ?? 0)} CC. You need at least ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash by the end to qualify to win.`;
     }
   }
   if (contestOptInButton) {
     const canOptIn = Boolean(contest) && status !== "ended" && !currentContestEntry;
     contestOptInButton.hidden = !contest;
     contestOptInButton.disabled = !canOptIn;
-    contestOptInButton.textContent = currentContestEntry ? "Joined" : status === "ended" ? "Contest ended" : "Opt in";
+    contestOptInButton.textContent = currentContestEntry ? "Joined" : status === "ended" ? "Contest ended" : "Add Contest Mode";
   }
   renderContestLeaderboard();
 }
@@ -3578,7 +3994,7 @@ function renderContestChip() {
     }
     return;
   }
-  if (!contest) {
+  if (!contest && !contestCache.length) {
     drawerContestLink.hidden = true;
     if (menuContestBadge) {
       menuContestBadge.hidden = true;
@@ -3587,10 +4003,10 @@ function renderContestChip() {
   }
   drawerContestLink.hidden = false;
   if (drawerContestTimer) {
-    drawerContestTimer.textContent = formatContestRemaining(contest);
+    drawerContestTimer.textContent = contest ? formatContestRemaining(contest) : "View";
   }
   if (menuContestBadge) {
-    menuContestBadge.hidden = contestStatus !== "live";
+    menuContestBadge.hidden = !(contestCache || []).some((entry) => getContestStatus(entry) === "live");
   }
 }
 
@@ -3600,7 +4016,11 @@ function startContestTimer() {
   }
   contestTimerInterval = setInterval(() => {
     renderContestChip();
-    if (currentContest && getContestStatus(currentContest) === "ended") {
+    const activeModeContest = getModeContest();
+    if (
+      (currentContest && getContestStatus(currentContest) === "ended") ||
+      (activeModeContest && getContestStatus(activeModeContest) === "ended")
+    ) {
       void syncContestState({ force: true });
     }
   }, 1000);
@@ -3635,10 +4055,6 @@ function closeContestModal() {
 
 function openAdminContestModal() {
   if (!adminContestModal) return;
-  if (hasLiveContest()) {
-    showToast("Only one live contest can exist at a time.", "info");
-    return;
-  }
   adminContestModalTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : adminContestAddButton;
   adminContestModal.hidden = false;
   adminContestModal.classList.add("is-open");
@@ -3686,59 +4102,40 @@ function chooseCurrentContest(contests) {
   return null;
 }
 
-function hasLiveContest(contests = contestCache) {
-  return (contests || []).some((contest) => getContestStatus(contest) === "live");
-}
-
 function updateAdminContestCreateState(contests = contestCache) {
   if (!adminContestAddButton) return;
-  const liveExists = hasLiveContest(contests);
-  adminContestAddButton.disabled = liveExists;
-  adminContestAddButton.textContent = liveExists ? "Live contest active" : "Create contest";
-  adminContestAddButton.title = liveExists
-    ? "Delete or wait for the current live contest to end before creating another."
-    : "";
+  adminContestAddButton.disabled = false;
+  adminContestAddButton.textContent = "Create contest";
+  adminContestAddButton.title = "";
 }
 
-async function maybeShowContestResults(contests) {
-  if (!currentUser?.id || contestResultsModalOpen) return;
-  const endedContests = (contests || [])
-    .filter((contest) => getContestStatus(contest) === "ended" && !hasSeenContestResults(contest.id))
-    .sort((a, b) => new Date(b.ends_at) - new Date(a.ends_at));
-  if (!endedContests.length) return;
-
-  const { data: entries, error } = await supabase
-    .from("contest_entries")
-    .select("*")
-    .eq("user_id", currentUser.id);
-  if (error) throw error;
-
-  const contestIds = new Set((entries || []).map((entry) => entry.contest_id));
-  const contest = endedContests.find((item) => contestIds.has(item.id));
+async function openContestResultNotification(contestId) {
+  const contest = getContestById(contestId);
   if (!contest) return;
 
-  const userEntry = (entries || []).find((entry) => entry.contest_id === contest.id) || null;
-  if (userEntry && !userEntry.restored_at) {
+  const userEntry = getContestEntryById(contest.id);
+  if (userEntry && isContestAccountMode() && currentAccountMode.contestId === contest.id) {
     await finalizeContestEntryFromLocalState(contest, userEntry);
   }
 
   await ensureContestMedalsAwarded(contest);
   const leaderboard = await buildContestLeaderboard(contest);
-  if (userEntry && !userEntry.restored_at) {
-    await restoreContestParticipantBalances(contest, userEntry);
-  }
   if (!leaderboard.length) return;
+
   openContestResultsModal(contest, leaderboard);
+  await markContestResultsSeen(contest.id);
+  refreshContestNotifications(contestCache);
 }
 
 async function finalizeContestEntryFromLocalState(contest, entry) {
-  if (!contest?.id || !entry?.user_id || entry.user_id !== currentUser?.id || entry.restored_at) {
+  if (!contest?.id || !entry?.user_id || entry.user_id !== currentUser?.id) {
     return entry;
   }
 
   const finalSnapshot = {
     current_credits: Number.isFinite(Number(bankroll)) ? Math.max(0, Math.round(Number(bankroll))) : 0,
     current_carter_cash: Number.isFinite(Number(carterCash)) ? Math.max(0, Math.round(Number(carterCash))) : 0,
+    current_carter_cash_progress: Number.isFinite(Number(carterCashProgress)) ? Math.max(0, Number(carterCashProgress)) : 0,
     display_name: getContestDisplayName(currentProfile, currentUser.id),
     participant_email: currentUser.email || ""
   };
@@ -3750,6 +4147,15 @@ async function finalizeContestEntryFromLocalState(contest, entry) {
     .eq("user_id", entry.user_id);
   if (error) throw error;
 
+  const updatedEntry = {
+    ...entry,
+    ...finalSnapshot
+  };
+  contestEntryMap.set(updatedEntry.contest_id, updatedEntry);
+  userContestEntries = userContestEntries.map((candidate) =>
+    candidate.contest_id === updatedEntry.contest_id ? updatedEntry : candidate
+  );
+
   if (currentContestEntry?.contest_id === contest.id && currentContestEntry?.user_id === entry.user_id) {
     currentContestEntry = {
       ...currentContestEntry,
@@ -3757,10 +4163,7 @@ async function finalizeContestEntryFromLocalState(contest, entry) {
     };
   }
 
-  return {
-    ...entry,
-    ...finalSnapshot
-  };
+  return updatedEntry;
 }
 
 async function ensureContestMedalsAwarded(contest) {
@@ -3775,56 +4178,27 @@ async function ensureContestMedalsAwarded(contest) {
   }
 }
 
-async function restoreContestParticipantBalances(contest, entry) {
-  if (!entry?.user_id) return;
-
-  const restoredCredits = Math.max(0, Math.round(Number(entry.pre_contest_credits ?? 1000)));
-  const restoredCarterCash = Math.max(0, Math.round(Number(entry.pre_contest_carter_cash ?? 0)));
-  const restoredProgress = Number.isFinite(Number(entry.pre_contest_carter_cash_progress))
-    ? Number(entry.pre_contest_carter_cash_progress)
-    : 0;
-
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .update({
-      credits: restoredCredits,
-      carter_cash: restoredCarterCash,
-      carter_cash_progress: restoredProgress
-    })
-    .eq("id", entry.user_id);
-  if (profileError) throw profileError;
-
-  const { error: restoreMarkError } = await supabase
-    .from("contest_entries")
-    .update({
-      restored_at: new Date().toISOString()
-    })
-    .eq("contest_id", contest.id)
-    .eq("user_id", entry.user_id);
-  if (restoreMarkError) throw restoreMarkError;
-
-  if (entry.user_id === currentUser?.id) {
-    applyProfileCredits({
-      ...(currentProfile || {}),
-      id: currentUser.id,
-      credits: restoredCredits,
-      carter_cash: restoredCarterCash,
-      carter_cash_progress: restoredProgress
-    }, { resetHistory: true });
-  }
-}
-
 async function syncContestState({ force = false } = {}) {
   if (!currentUser?.id || currentUser.id === GUEST_USER.id) {
     currentContest = null;
     currentContestEntry = null;
     contestLeaderboard = [];
+    userContestEntries = [];
+    contestEntryMap = new Map();
+    contestNotifications = [];
+    currentAccountMode = createNormalAccountMode();
     renderContestChip();
+    renderAccountModeSelector();
+    renderContestNotifications();
+    renderHomeContestPromos();
+    updateModeSpecificModalCopy();
     return;
   }
 
-  if (!force && contestCache.length && currentContest) {
+  if (!force && contestCache.length) {
     renderContestChip();
+    renderAccountModeSelector();
+    renderHomeContestPromos();
     return;
   }
 
@@ -3839,22 +4213,24 @@ async function syncContestState({ force = false } = {}) {
 
   contestCache = Array.isArray(contests) ? contests : [];
   currentContest = chooseCurrentContest(contestCache);
-  currentContestEntry = null;
   contestLeaderboard = [];
+  userContestEntries = [];
+  contestEntryMap = new Map();
+
+  const { data: entries, error: entryError } = await supabase
+    .from("contest_entries")
+    .select("*")
+    .eq("user_id", currentUser.id);
+  if (entryError) {
+    console.error("[RTN] syncContestState contest entry error", entryError);
+  } else {
+    userContestEntries = Array.isArray(entries) ? entries : [];
+    contestEntryMap = new Map(userContestEntries.map((entry) => [entry.contest_id, entry]));
+  }
+
+  currentContestEntry = currentContest ? getContestEntryById(currentContest.id) : null;
 
   if (currentContest) {
-    const { data: entry, error: entryError } = await supabase
-      .from("contest_entries")
-      .select("*")
-      .eq("contest_id", currentContest.id)
-      .eq("user_id", currentUser.id)
-      .maybeSingle();
-    if (entryError) {
-      console.error("[RTN] syncContestState contest entry error", entryError);
-    } else {
-      currentContestEntry = entry;
-    }
-
     contestLeaderboard = await buildContestLeaderboard(currentContest);
   }
 
@@ -3865,15 +4241,19 @@ async function syncContestState({ force = false } = {}) {
     adminContestsLoaded = false;
     await loadAdminContestList(true);
   }
-  await maybeShowContestResults(contestCache);
+  await loadPlayerContestList(currentRoute === "contests");
+  refreshContestNotifications(contestCache);
+  await renderHomeContestPromos();
+  syncActiveAccountMode({ forceApply: true, resetHistory: !bankrollInitialized });
 }
 
-async function optIntoCurrentContest() {
-  if (!currentContest || !currentUser?.id) {
+async function optIntoContest(contest = currentContest) {
+  if (!contest || !currentUser?.id) {
     showToast("No contest is available right now.", "error");
     return;
   }
-  if (currentContestEntry) {
+  const existingEntry = getContestEntryById(contest.id);
+  if (existingEntry) {
     showToast("You are already entered in this contest.", "info");
     return;
   }
@@ -3883,24 +4263,22 @@ async function optIntoCurrentContest() {
   }
 
   try {
-    const startingCredits = Math.max(0, Math.round(Number(currentContest.starting_credits || 0)));
-    const startingCarterCash = Math.max(0, Math.round(Number(currentContest.starting_carter_cash || 0)));
+    const startingCredits = Math.max(0, Math.round(Number(contest.starting_credits || 0)));
+    const startingCarterCash = Math.max(0, Math.round(Number(contest.starting_carter_cash || 0)));
     const displayName = getContestDisplayName(currentProfile, currentUser.id);
-    const preContestCredits = Number.isFinite(Number(currentProfile?.credits)) ? Math.round(Number(currentProfile.credits)) : bankroll;
-    const preContestCarterCash = Number.isFinite(Number(currentProfile?.carter_cash)) ? Math.round(Number(currentProfile.carter_cash)) : carterCash;
-    const preContestProgress = Number.isFinite(Number(currentProfile?.carter_cash_progress))
-      ? Number(currentProfile.carter_cash_progress)
-      : carterCashProgress;
     const entryPayload = {
-      contest_id: currentContest.id,
+      contest_id: contest.id,
       user_id: currentUser.id,
-      pre_contest_credits: preContestCredits,
-      pre_contest_carter_cash: preContestCarterCash,
-      pre_contest_carter_cash_progress: preContestProgress,
+      pre_contest_credits: Number.isFinite(Number(currentProfile?.credits)) ? Math.round(Number(currentProfile.credits)) : INITIAL_BANKROLL,
+      pre_contest_carter_cash: Number.isFinite(Number(currentProfile?.carter_cash)) ? Math.round(Number(currentProfile.carter_cash)) : 0,
+      pre_contest_carter_cash_progress: Number.isFinite(Number(currentProfile?.carter_cash_progress))
+        ? Number(currentProfile.carter_cash_progress)
+        : 0,
       starting_credits: startingCredits,
       starting_carter_cash: startingCarterCash,
       current_credits: startingCredits,
       current_carter_cash: startingCarterCash,
+      current_carter_cash_progress: 0,
       display_name: displayName,
       participant_email: currentUser.email || ""
     };
@@ -3908,33 +4286,24 @@ async function optIntoCurrentContest() {
     const { error: entryError } = await supabase.from("contest_entries").insert(entryPayload);
     if (entryError) throw entryError;
 
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update({
-        credits: startingCredits,
-        carter_cash: startingCarterCash,
-        carter_cash_progress: 0
-      })
-      .eq("id", currentUser.id);
-    if (profileError) throw profileError;
-
-    applyProfileCredits({
-      ...(currentProfile || {}),
-      id: currentUser.id,
-      credits: startingCredits,
-      carter_cash: startingCarterCash,
-      carter_cash_progress: 0
-    }, { resetHistory: true });
-
-    bankrollHistory = [startingCredits];
-    currentContestEntry = {
+    const insertedEntry = {
       ...entryPayload,
       opted_in_at: new Date().toISOString()
     };
-    showToast("Contest entry confirmed", "success");
+    userContestEntries = [...userContestEntries, insertedEntry];
+    contestEntryMap.set(insertedEntry.contest_id, insertedEntry);
+    if (currentContest?.id === insertedEntry.contest_id) {
+      currentContestEntry = insertedEntry;
+    }
+    currentAccountMode = {
+      type: "contest",
+      contestId: insertedEntry.contest_id
+    };
+    saveAccountModeSelection(currentAccountMode);
+    showToast("Contest mode added", "success");
     await syncContestState({ force: true });
   } catch (error) {
-    console.error("[RTN] optIntoCurrentContest error", error);
+    console.error("[RTN] optIntoContest error", error);
     showToast(error?.message || "Unable to join contest", "error");
   } finally {
     if (contestOptInButton) {
@@ -3970,14 +4339,6 @@ async function handleAdminContestSubmit(event) {
     if (adminContestMessage) {
       adminContestMessage.textContent = "End date must be after the start date.";
     }
-    return;
-  }
-
-  if (hasLiveContest()) {
-    if (adminContestMessage) {
-      adminContestMessage.textContent = "A live contest already exists. Delete it or wait for it to end before creating another.";
-    }
-    showToast("Only one live contest can exist at a time.", "error");
     return;
   }
 
@@ -4026,26 +4387,16 @@ async function handleAdminContestDelete(contest) {
   const confirmed = typeof window === "undefined"
     ? true
     : window.confirm(
-        `Delete "${contest.title}"? All contest entries will be removed and all participants will be reset to 1000 credits and 0 Carter Cash.`
+        `Delete "${contest.title}"? This will remove the contest and all contest-mode balances tied to it, but leave normal accounts untouched.`
       );
   if (!confirmed) return;
 
   try {
-    const { data: entries, error: entryError } = await supabase
-      .from("contest_entries")
-      .select("user_id")
-      .eq("contest_id", contest.id);
-    if (entryError) throw entryError;
-
-    const participantIds = Array.from(new Set((entries || []).map((entry) => entry.user_id).filter(Boolean)));
-
-    const { data: deleted, error } = await supabase.rpc("delete_contest_and_restore_balances", {
-      _contest_id: contest.id
-    });
+    const { error } = await supabase
+      .from("contests")
+      .delete()
+      .eq("id", contest.id);
     if (error) throw error;
-    if (!deleted) {
-      throw new Error("Contest not found or could not be deleted");
-    }
 
     if (currentContest?.id === contest.id) {
       currentContest = null;
@@ -4055,15 +4406,11 @@ async function handleAdminContestDelete(contest) {
       closeContestModal();
     }
 
-    if (participantIds.includes(currentUser?.id)) {
-      await ensureProfileSynced({ force: true });
-    }
-
     adminContestsLoaded = false;
     contestCache = contestCache.filter((entry) => entry.id !== contest.id);
     await loadAdminContestList(true);
     await syncContestState({ force: true });
-    showToast("Contest deleted and participants reset", "success");
+    showToast("Contest deleted", "success");
   } catch (error) {
     console.error("[RTN] handleAdminContestDelete error", error);
     showToast(error?.message || "Unable to delete contest", "error");
@@ -4078,6 +4425,287 @@ async function handleAdminContestViewResults(contest) {
   } catch (error) {
     console.error("[RTN] handleAdminContestViewResults error", error);
     showToast(error?.message || "Unable to load contest results", "error");
+  }
+}
+
+async function switchToContestMode(contestId, { navigateToPlay = false } = {}) {
+  const targetMode = parseAccountModeValue(`contest:${contestId}`);
+  currentAccountMode = targetMode;
+  saveAccountModeSelection(currentAccountMode);
+  syncActiveAccountMode({ forceApply: true, resetHistory: true });
+  if (navigateToPlay) {
+    await setRoute("play");
+  }
+}
+
+function renderPlayerContestRow(contest, participantCount = 0) {
+  const item = document.createElement("li");
+  item.className = "admin-contest-card";
+
+  const header = document.createElement("div");
+  header.className = "admin-contest-header";
+  const title = document.createElement("h3");
+  title.textContent = contest.title || "Contest";
+  const badge = document.createElement("span");
+  const status = getContestStatus(contest);
+  badge.className = "contest-status-badge";
+  badge.dataset.status = status;
+  badge.textContent = getContestStatusLabel(status);
+  header.append(title, badge);
+
+  const details = document.createElement("p");
+  details.className = "contest-window";
+  details.textContent = `${formatContestDateTime(contest.starts_at)} - ${formatContestDateTime(contest.ends_at)}`;
+
+  const meta = document.createElement("p");
+  meta.className = "contest-opt-in-copy";
+  meta.textContent = `Highest credits wins • Requires ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash • Reward: ${contest.reward} • Participants: ${participantCount}`;
+
+  const actions = document.createElement("div");
+  actions.className = "contest-actions";
+  const playerEntry = getContestEntryById(contest.id);
+
+  const leaderboardButton = document.createElement("button");
+  leaderboardButton.type = "button";
+  leaderboardButton.className = "secondary";
+  leaderboardButton.textContent = "Show Leaderboard";
+  leaderboardButton.addEventListener("click", async () => {
+    try {
+      const leaderboard = await buildContestLeaderboard(contest);
+      openContestResultsModal(contest, leaderboard, { variant: "leaderboard" });
+    } catch (error) {
+      console.error("[RTN] player contest leaderboard error", error);
+      showToast(error?.message || "Unable to load leaderboard", "error");
+    }
+  });
+  actions.append(leaderboardButton);
+
+  if (status === "live") {
+    if (playerEntry) {
+      const switchButton = document.createElement("button");
+      switchButton.type = "button";
+      switchButton.className = "primary";
+      switchButton.textContent = currentAccountMode.contestId === contest.id && isContestAccountMode()
+        ? "Using This Mode"
+        : "Switch to Mode";
+      switchButton.disabled = currentAccountMode.contestId === contest.id && isContestAccountMode();
+      switchButton.addEventListener("click", () => {
+        void switchToContestMode(contest.id, { navigateToPlay: true });
+      });
+      actions.append(switchButton);
+    } else {
+      const joinButton = document.createElement("button");
+      joinButton.type = "button";
+      joinButton.className = "primary";
+      joinButton.textContent = "Join Contest";
+      joinButton.addEventListener("click", () => {
+        void optIntoContest(contest);
+      });
+      actions.append(joinButton);
+    }
+  }
+
+  if (status === "ended") {
+    const resultsButton = document.createElement("button");
+    resultsButton.type = "button";
+    resultsButton.className = "secondary";
+    resultsButton.textContent = "View Results";
+    resultsButton.addEventListener("click", async () => {
+      try {
+        await ensureContestMedalsAwarded(contest);
+        const leaderboard = await buildContestLeaderboard(contest);
+        openContestResultsModal(contest, leaderboard);
+      } catch (error) {
+        console.error("[RTN] player contest results error", error);
+        showToast(error?.message || "Unable to load contest results", "error");
+      }
+    });
+    actions.append(resultsButton);
+  }
+
+  item.append(header, details, meta, actions);
+  return item;
+}
+
+function renderHomeContestPromoCard(contest, participantCount = 0) {
+  const item = document.createElement("li");
+  item.className = "home-contest-card";
+
+  const top = document.createElement("div");
+  top.className = "home-contest-card-top";
+
+  const titleWrap = document.createElement("div");
+  const title = document.createElement("h3");
+  title.className = "home-contest-card-title";
+  title.textContent = contest.title || "Contest";
+
+  const details = document.createElement("p");
+  details.className = "home-contest-card-window";
+  details.textContent = `${formatContestDateTime(contest.starts_at)} - ${formatContestDateTime(contest.ends_at)}`;
+  titleWrap.append(title, details);
+
+  const badge = document.createElement("span");
+  const status = getContestStatus(contest);
+  badge.className = "contest-status-badge";
+  badge.dataset.status = status;
+  badge.textContent = getContestStatusLabel(status);
+  top.append(titleWrap, badge);
+
+  const meta = document.createElement("p");
+  meta.className = "home-contest-card-meta";
+  meta.textContent = `Highest credits wins • Requires ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash • Reward: ${contest.reward} • Participants: ${participantCount}`;
+
+  const actions = document.createElement("div");
+  actions.className = "home-contest-card-actions";
+
+  const leaderboardButton = document.createElement("button");
+  leaderboardButton.type = "button";
+  leaderboardButton.className = "home-button home-secondary home-contest-action";
+  leaderboardButton.textContent = "Show Leaderboard";
+  leaderboardButton.addEventListener("click", async () => {
+    try {
+      const leaderboard = await buildContestLeaderboard(contest);
+      openContestResultsModal(contest, leaderboard, { variant: "leaderboard" });
+    } catch (error) {
+      console.error("[RTN] home contest leaderboard error", error);
+      showToast(error?.message || "Unable to load leaderboard", "error");
+    }
+  });
+  actions.append(leaderboardButton);
+
+  const playerEntry = getContestEntryById(contest.id);
+  const modeButton = document.createElement("button");
+  modeButton.type = "button";
+  modeButton.className = "home-button home-primary home-contest-action";
+
+  if (playerEntry) {
+    const usingMode = isContestAccountMode() && currentAccountMode.contestId === contest.id;
+    modeButton.textContent = usingMode ? "Using This Mode" : "Use This Contest Mode";
+    modeButton.disabled = usingMode;
+    if (!usingMode) {
+      modeButton.addEventListener("click", () => {
+        void switchToContestMode(contest.id, { navigateToPlay: false });
+      });
+    }
+  } else {
+    modeButton.textContent = "Join Contest";
+    modeButton.addEventListener("click", () => {
+      void optIntoContest(contest);
+    });
+  }
+
+  actions.append(modeButton);
+  item.append(top, meta, actions);
+  return item;
+}
+
+async function renderHomeContestPromos() {
+  if (!homeLiveContestsSectionEl || !homeLiveContestListEl) return;
+
+  if (!currentUser?.id || currentUser.id === GUEST_USER.id) {
+    homeLiveContestsSectionEl.hidden = true;
+    homeLiveContestListEl.innerHTML = "";
+    return;
+  }
+
+  const liveContests = contestCache
+    .filter((contest) => getContestStatus(contest) === "live")
+    .sort((a, b) => new Date(a.ends_at) - new Date(b.ends_at));
+
+  if (!liveContests.length) {
+    homeLiveContestsSectionEl.hidden = true;
+    homeLiveContestListEl.innerHTML = "";
+    return;
+  }
+
+  homeLiveContestsSectionEl.hidden = false;
+  homeLiveContestListEl.innerHTML = "";
+
+  try {
+    const counts = await loadContestParticipantCounts();
+    liveContests.forEach((contest) => {
+      homeLiveContestListEl.appendChild(renderHomeContestPromoCard(contest, counts[contest.id] || 0));
+    });
+  } catch (error) {
+    console.error("[RTN] renderHomeContestPromos error", error);
+    const item = document.createElement("li");
+    item.className = "admin-prize-empty";
+    item.textContent = "Unable to load live contests right now.";
+    homeLiveContestListEl.appendChild(item);
+  }
+}
+
+async function loadPlayerContestList(force = false) {
+  if (!playerLiveContestListEl || !playerEndedContestListEl || !currentUser?.id || currentUser.id === GUEST_USER.id) {
+    return;
+  }
+  if (!force && currentRoute !== "contests") return;
+
+  playerLiveContestListEl.innerHTML = "";
+  playerEndedContestListEl.innerHTML = "";
+
+  const loadingLive = document.createElement("li");
+  loadingLive.className = "admin-prize-empty";
+  loadingLive.textContent = "Loading contests...";
+  const loadingEnded = loadingLive.cloneNode(true);
+  playerLiveContestListEl.appendChild(loadingLive);
+  playerEndedContestListEl.appendChild(loadingEnded);
+
+  try {
+    let contests = contestCache;
+    if (!contests.length) {
+      const { data, error } = await supabase
+        .from("contests")
+        .select("*")
+        .order("starts_at", { ascending: false });
+      if (error) throw error;
+      contests = Array.isArray(data) ? data : [];
+    }
+    contestCache = Array.isArray(contests) ? contests : [];
+
+    const counts = await loadContestParticipantCounts();
+
+    const liveContests = contestCache
+      .filter((contest) => getContestStatus(contest) === "live")
+      .sort((a, b) => new Date(a.ends_at) - new Date(b.ends_at));
+    const endedContests = contestCache
+      .filter((contest) => getContestStatus(contest) === "ended")
+      .sort((a, b) => new Date(b.ends_at) - new Date(a.ends_at));
+
+    playerLiveContestListEl.innerHTML = "";
+    playerEndedContestListEl.innerHTML = "";
+
+    if (!liveContests.length) {
+      const empty = document.createElement("li");
+      empty.className = "admin-prize-empty";
+      empty.textContent = "No live contests right now.";
+      playerLiveContestListEl.appendChild(empty);
+    } else {
+      liveContests.forEach((contest) => {
+        playerLiveContestListEl.appendChild(renderPlayerContestRow(contest, counts[contest.id] || 0));
+      });
+    }
+
+    if (!endedContests.length) {
+      const empty = document.createElement("li");
+      empty.className = "admin-prize-empty";
+      empty.textContent = "No ended contests yet.";
+      playerEndedContestListEl.appendChild(empty);
+    } else {
+      endedContests.forEach((contest) => {
+        playerEndedContestListEl.appendChild(renderPlayerContestRow(contest, counts[contest.id] || 0));
+      });
+    }
+  } catch (error) {
+    console.error("[RTN] loadPlayerContestList error", error);
+    playerLiveContestListEl.innerHTML = "";
+    playerEndedContestListEl.innerHTML = "";
+    const liveError = document.createElement("li");
+    liveError.className = "admin-prize-empty";
+    liveError.textContent = "Unable to load contests.";
+    const endedError = liveError.cloneNode(true);
+    playerLiveContestListEl.appendChild(liveError);
+    playerEndedContestListEl.appendChild(endedError);
   }
 }
 
@@ -4561,6 +5189,12 @@ function applySignedOutState(reason = "unknown", { focusInput = true } = {}) {
     currentContest = null;
     currentContestEntry = null;
     contestLeaderboard = [];
+    userContestEntries = [];
+    contestEntryMap = new Map();
+    contestNotifications = [];
+    currentAccountMode = createNormalAccountMode();
+    persistentBankrollHistory = [];
+    persistentBankrollUserId = null;
     lastProfileSync = Date.now();
 
   if (dashboardProfileRetryTimer) {
@@ -4581,6 +5215,7 @@ function applySignedOutState(reason = "unknown", { focusInput = true } = {}) {
   handleBankrollChanged();
   updateDashboardCreditsDisplay(0);
   renderContestChip();
+  renderContestNotifications();
   carterCash = 0;
   carterCashProgress = 0;
   lastSyncedCarterCash = 0;
@@ -4669,11 +5304,28 @@ export async function logGameRun(score, metadata = {}) {
   if (!sessionUser) {
     throw new Error("User not logged in");
   }
+  const enrichedMetadata = {
+    ...metadata,
+    ending_bankroll: bankroll,
+    ending_carter_cash: carterCash,
+    account_mode: getAccountModeValue(),
+    contest_id: isContestAccountMode() ? currentAccountMode.contestId : null
+  };
   await supabase.from("game_runs").insert({
     user_id: sessionUser.id,
     score,
-    metadata
+    metadata: enrichedMetadata
   });
+
+  if (sessionUser.id === currentUser?.id) {
+    persistentBankrollUserId = sessionUser.id;
+    persistentBankrollHistory.push({
+      value: bankroll,
+      created_at: new Date().toISOString(),
+      fallbackIndex: persistentBankrollHistory.length
+    });
+    drawBankrollChart();
+  }
 }
 
 async function logHandAndBets(stopperCard, context, betSnapshots, netThisHand) {
@@ -4872,6 +5524,9 @@ const utilityClose = document.getElementById("utility-close");
 const graphToggle = document.getElementById("graph-toggle");
 const chartPanel = document.getElementById("chart-panel");
 const chartClose = document.getElementById("chart-close");
+const bankrollChartFilterButtons = Array.from(document.querySelectorAll("[data-bankroll-period]"));
+const bankrollChartSubhead = document.getElementById("bankroll-chart-subhead");
+const activityFilterButtons = Array.from(document.querySelectorAll("[data-activity-period]"));
 const panelScrim = document.getElementById("panel-scrim");
 const bankrollChartCanvas = document.getElementById("bankroll-chart");
 const bankrollChartWrapper = document.getElementById("bankroll-chart-wrapper");
@@ -4887,6 +5542,7 @@ const advancedBetsSection = document.getElementById("advanced-bets");
 const pausePlayButton = document.getElementById("pause-play");
 const paytableRadios = Array.from(document.querySelectorAll('input[name="paytable"]'));
 const changePaytableButton = document.getElementById("change-paytable");
+const paytableInfoButton = document.getElementById("paytable-info");
 const paytableModal = document.getElementById("paytable-modal");
 const paytableForm = document.getElementById("paytable-form");
 const paytableApplyButton = document.getElementById("paytable-apply");
@@ -4896,6 +5552,7 @@ const resetModal = document.getElementById("reset-modal");
 const resetConfirmButton = document.getElementById("reset-confirm");
 const resetCancelButton = document.getElementById("reset-cancel");
 const resetCloseButton = document.getElementById("reset-close");
+const resetModalCopyEl = document.getElementById("reset-modal-copy");
 const activePaytableNameEl = document.getElementById("active-paytable-name");
 const activePaytableStepsEl = document.getElementById("active-paytable-steps");
 const profileRetryBanner = document.getElementById("profile-retry-banner");
@@ -4926,6 +5583,7 @@ const resetPasswordForm = document.getElementById("reset-password-form");
 const appShell = document.getElementById("app-shell");
 const homeView = document.getElementById("home-view");
 const playView = document.getElementById("play-view");
+const contestsView = document.getElementById("contests-view");
 const storeView = document.getElementById("store-view");
 const dashboardView = document.getElementById("dashboard-view");
 const adminView = document.getElementById("admin-view");
@@ -4933,6 +5591,7 @@ const profileView = document.getElementById("profile-view");
 const routeViews = {
   home: homeView,
   play: playView,
+  contests: contestsView,
   store: storeView,
   dashboard: dashboardView,
   admin: adminView,
@@ -4942,7 +5601,7 @@ const headerEl = document.querySelector(".header");
 const chipBarEl = document.querySelector(".chip-bar");
 const playLayout = playView ? playView.querySelector(".layout") : null;
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
-const TABLE_ROUTES = new Set(["home", "play", "store", "admin"]);
+const TABLE_ROUTES = new Set(["home", "play", "contests", "store", "admin"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
@@ -4955,7 +5614,17 @@ const prizeListEl = document.getElementById("prize-list");
 const adminNavButton = document.getElementById("admin-nav");
 const drawerContestLink = document.getElementById("drawer-contest-link");
 const drawerContestTimer = document.getElementById("drawer-contest-timer");
+const drawerGraphLink = document.getElementById("drawer-graph-link");
 const menuContestBadge = document.getElementById("menu-contest-badge");
+const accountModeSelect = document.getElementById("account-mode-select");
+const accountModeSummaryEl = document.getElementById("account-mode-summary");
+const notificationToggle = document.getElementById("notification-toggle");
+const notificationBadge = document.getElementById("notification-badge");
+const notificationsPanel = document.getElementById("notifications-panel");
+const notificationsClose = document.getElementById("notifications-close");
+const notificationsListEl = document.getElementById("notifications-list");
+const homeLiveContestsSectionEl = document.getElementById("home-live-contests");
+const homeLiveContestListEl = document.getElementById("home-live-contest-list");
 const adminAddButton = document.getElementById("admin-add-button");
 const adminSaveButton = document.getElementById("admin-save-button");
 const adminPrizeListEl = document.getElementById("admin-prize-list");
@@ -5011,12 +5680,16 @@ const contestWinningCriteriaEl = document.getElementById("contest-winning-criter
 const contestRewardEl = document.getElementById("contest-reward");
 const contestOptInCopyEl = document.getElementById("contest-opt-in-copy");
 const contestLeaderboardListEl = document.getElementById("contest-leaderboard-list");
+const playerLiveContestListEl = document.getElementById("player-live-contest-list");
+const playerEndedContestListEl = document.getElementById("player-ended-contest-list");
 const contestResultsModal = document.getElementById("contest-results-modal");
+const contestResultsTitleEl = document.getElementById("contest-results-title");
 const contestResultsCloseButton = document.getElementById("contest-results-close");
 const contestResultsOkButton = document.getElementById("contest-results-ok");
 const contestResultsSummaryEl = document.getElementById("contest-results-summary");
 const contestResultsListEl = document.getElementById("contest-results-list");
 const contestResultsNonQualifyingListEl = document.getElementById("contest-results-nonqualifying-list");
+const contestResultsNoteEl = document.getElementById("contest-results-note");
 const adminContestResultsModal = document.getElementById("admin-contest-results-modal");
 const adminContestResultsCloseButton = document.getElementById("admin-contest-results-close");
 const adminContestResultsOkButton = document.getElementById("admin-contest-results-ok");
@@ -5027,12 +5700,15 @@ const numberBetsModal = document.getElementById("number-bets-modal");
 const numberBetsInfoButton = document.getElementById("number-bets-info");
 const numberBetsModalClose = document.getElementById("number-bets-modal-close");
 const numberBetsModalOk = document.getElementById("number-bets-modal-ok");
+const outOfCreditsCopyEl = document.getElementById("out-of-credits-copy");
 const betAnalyticsModal = document.getElementById("bet-analytics-modal");
 const betAnalyticsClose = document.getElementById("bet-analytics-close");
 const adminTabButtons = document.querySelectorAll(".admin-tab");
 const adminPrizesContent = document.getElementById("admin-prizes-content");
 const adminAnalyticsContent = document.getElementById("admin-analytics-content");
 const adminContestsContent = document.getElementById("admin-contests-content");
+const mostActiveWeekListEl = document.getElementById("most-active-week-list");
+const mostActiveSubheadEl = document.getElementById("most-active-subhead");
 
 const THEME_CLASS_MAP = {
   blue: "theme-blue",
@@ -5060,10 +5736,14 @@ let stats = {
 let lastBetLayout = [];
   let currentOpeningLayout = [];
   let bankrollAnimating = false;
-  let bankrollAnimationFrame = null;
-  let bankrollDeltaTimeout = null;
-  let bankrollHistory = [];
-  let carterCash = 0;
+let bankrollAnimationFrame = null;
+let bankrollDeltaTimeout = null;
+let bankrollHistory = [];
+let persistentBankrollHistory = [];
+let persistentBankrollUserId = null;
+let bankrollChartPeriod = "all";
+let activityLeaderboardPeriod = "week";
+let carterCash = 0;
   let carterCashProgress = 0;
   let carterCashAnimating = false;
   let carterCashDeltaTimeout = null;
@@ -5113,6 +5793,12 @@ let contestCache = [];
 let currentContest = null;
 let currentContestEntry = null;
 let contestLeaderboard = [];
+let userContestEntries = [];
+let contestEntryMap = new Map();
+let currentAccountMode = {
+  type: "normal",
+  contestId: null
+};
 let currentProfile = null;
 let suppressHash = false;
 let dashboardProfileRetryTimer = null;
@@ -5125,6 +5811,7 @@ let adminContestModalTrigger = null;
 let prizeImageTrigger = null;
 let contestTimerInterval = null;
 let contestResultsModalOpen = false;
+let contestNotifications = [];
 
 const MAX_HISTORY_POINTS = 500;
 const PROFILE_SYNC_INTERVAL = 15000;
@@ -5338,9 +6025,7 @@ function updateCarterCashDisplay() {
 
 function handleCarterCashChanged() {
   updateCarterCashDisplay();
-  if (currentProfile) {
-    currentProfile.carter_cash = carterCash;
-  }
+  syncCurrentModeShadowState();
 }
 
 function deductCarterCash(amount) {
@@ -5384,89 +6069,107 @@ async function persistBankroll() {
   }
 
   try {
-    const { data, error } = await supabase
-      .from("profiles")
-      .update(updates)
-      .eq("id", currentUser.id)
-      .select("credits, carter_cash, carter_cash_progress")
-      .maybeSingle();
-
-    if (error) {
-      throw error;
-    }
-
-    if (data) {
-      const nextCredits = Number.isFinite(Number(data.credits))
-        ? Math.round(Number(data.credits))
-        : bankroll;
-      const nextCarterCash = Number.isFinite(Number(data.carter_cash))
-        ? Math.round(Number(data.carter_cash))
-        : carterCash;
-      const nextProgress = Number.isFinite(Number(data.carter_cash_progress))
-        ? Number(data.carter_cash_progress)
-        : carterCashProgress;
-
-      lastSyncedBankroll = nextCredits;
-      lastSyncedCarterCash = nextCarterCash;
-      lastSyncedCarterProgress = nextProgress;
-
-      if (bankroll !== nextCredits) {
-        bankroll = nextCredits;
-        handleBankrollChanged();
+    if (isContestAccountMode()) {
+      const activeContest = getModeContest();
+      const activeEntry = getModeContestEntry();
+      if (!activeContest || !activeEntry) {
+        throw new Error("Contest mode is unavailable.");
       }
 
-      if (carterCash !== nextCarterCash) {
-        carterCash = nextCarterCash;
-        handleCarterCashChanged();
-      }
-
-      carterCashProgress = nextProgress;
-
-      if (currentProfile) {
-        currentProfile.credits = nextCredits;
-        currentProfile.carter_cash = nextCarterCash;
-        currentProfile.carter_cash_progress = nextProgress;
-      }
-    } else {
-      if (Object.prototype.hasOwnProperty.call(updates, "credits")) {
-        lastSyncedBankroll = bankroll;
-        if (currentProfile) {
-          currentProfile.credits = bankroll;
-        }
-      }
-      if (Object.prototype.hasOwnProperty.call(updates, "carter_cash")) {
-        lastSyncedCarterCash = carterCash;
-        if (currentProfile) {
-          currentProfile.carter_cash = carterCash;
-        }
-      }
-      if (Object.prototype.hasOwnProperty.call(updates, "carter_cash_progress")) {
-        lastSyncedCarterProgress = carterCashProgress;
-        if (currentProfile) {
-          currentProfile.carter_cash_progress = carterCashProgress;
-        }
-      }
-    }
-
-    if (currentContest?.id && currentContestEntry && getContestStatus(currentContest) !== "ended") {
       const contestSnapshot = {
         current_credits: Number.isFinite(bankroll) ? bankroll : 0,
         current_carter_cash: Number.isFinite(carterCash) ? carterCash : 0,
+        current_carter_cash_progress: Number.isFinite(carterCashProgress) ? carterCashProgress : 0,
         display_name: getContestDisplayName(currentProfile, currentUser.id),
         participant_email: currentUser.email || ""
       };
       const { error: contestEntryError } = await supabase
         .from("contest_entries")
         .update(contestSnapshot)
-        .eq("contest_id", currentContest.id)
+        .eq("contest_id", activeContest.id)
         .eq("user_id", currentUser.id);
       if (contestEntryError) {
-        console.error("[RTN] Unable to sync contest entry snapshot", contestEntryError);
+        throw contestEntryError;
+      }
+
+      lastSyncedBankroll = contestSnapshot.current_credits;
+      lastSyncedCarterCash = contestSnapshot.current_carter_cash;
+      lastSyncedCarterProgress = contestSnapshot.current_carter_cash_progress;
+
+      const updatedEntry = {
+        ...activeEntry,
+        ...contestSnapshot
+      };
+      contestEntryMap.set(updatedEntry.contest_id, updatedEntry);
+      userContestEntries = userContestEntries.map((entry) =>
+        entry.contest_id === updatedEntry.contest_id ? updatedEntry : entry
+      );
+      if (currentContest?.id === updatedEntry.contest_id) {
+        currentContestEntry = updatedEntry;
+      }
+    } else {
+      const { data, error } = await supabase
+        .from("profiles")
+        .update(updates)
+        .eq("id", currentUser.id)
+        .select("credits, carter_cash, carter_cash_progress")
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        const nextCredits = Number.isFinite(Number(data.credits))
+          ? Math.round(Number(data.credits))
+          : bankroll;
+        const nextCarterCash = Number.isFinite(Number(data.carter_cash))
+          ? Math.round(Number(data.carter_cash))
+          : carterCash;
+        const nextProgress = Number.isFinite(Number(data.carter_cash_progress))
+          ? Number(data.carter_cash_progress)
+          : carterCashProgress;
+
+        lastSyncedBankroll = nextCredits;
+        lastSyncedCarterCash = nextCarterCash;
+        lastSyncedCarterProgress = nextProgress;
+
+        if (bankroll !== nextCredits) {
+          bankroll = nextCredits;
+          handleBankrollChanged();
+        }
+
+        if (carterCash !== nextCarterCash) {
+          carterCash = nextCarterCash;
+          handleCarterCashChanged();
+        }
+
+        carterCashProgress = nextProgress;
+
+        if (currentProfile) {
+          currentProfile.credits = nextCredits;
+          currentProfile.carter_cash = nextCarterCash;
+          currentProfile.carter_cash_progress = nextProgress;
+        }
       } else {
-        currentContestEntry = {
-          ...currentContestEntry,
-          ...contestSnapshot
-        };
+        if (Object.prototype.hasOwnProperty.call(updates, "credits")) {
+          lastSyncedBankroll = bankroll;
+          if (currentProfile) {
+            currentProfile.credits = bankroll;
+          }
+        }
+        if (Object.prototype.hasOwnProperty.call(updates, "carter_cash")) {
+          lastSyncedCarterCash = carterCash;
+          if (currentProfile) {
+            currentProfile.carter_cash = carterCash;
+          }
+        }
+        if (Object.prototype.hasOwnProperty.call(updates, "carter_cash_progress")) {
+          lastSyncedCarterProgress = carterCashProgress;
+          if (currentProfile) {
+            currentProfile.carter_cash_progress = carterCashProgress;
+          }
+        }
       }
     }
 
@@ -5479,9 +6182,7 @@ async function persistBankroll() {
 function handleBankrollChanged() {
   updateBankroll();
   updateDashboardCreditsDisplay(bankroll);
-  if (currentProfile) {
-    currentProfile.credits = bankroll;
-  }
+  syncCurrentModeShadowState();
 }
 
 function renderHeaderFromProfile(profile) {
@@ -5490,30 +6191,10 @@ function renderHeaderFromProfile(profile) {
     return;
   }
 
-  const numericCredits = Number(profile.credits);
-  const nextBankroll = Number.isFinite(numericCredits) ? Math.round(numericCredits) : INITIAL_BANKROLL;
-  const numericCarter = Number(profile.carter_cash);
-  const nextCarterCash = Number.isFinite(numericCarter) ? Math.round(numericCarter) : 0;
-  const numericProgress = Number(profile.carter_cash_progress);
-  const nextProgress =
-    Number.isFinite(numericProgress) && numericProgress >= 0 ? Number(numericProgress) : 0;
-
   console.info(
-    `[RTN] renderHeaderFromProfile updating header (bankroll=${nextBankroll}, carterCash=${nextCarterCash}, progress=${nextProgress})`
+    `[RTN] renderHeaderFromProfile updating header (bankroll=${profile.credits}, carterCash=${profile.carter_cash}, progress=${profile.carter_cash_progress})`
   );
-
-  bankroll = nextBankroll;
-  lastSyncedBankroll = bankroll;
-  stopBankrollAnimation();
-  updateBankroll();
-  updateDashboardCreditsDisplay(nextBankroll);
-
-  carterCash = nextCarterCash;
-  carterCashProgress = nextProgress;
-  lastSyncedCarterCash = carterCash;
-  lastSyncedCarterProgress = carterCashProgress;
-  stopCarterCashAnimation();
-  updateCarterCashDisplay();
+  applyAccountSnapshot(profile);
 }
 
 function applyProfileCredits(profile, { resetHistory = false } = {}) {
@@ -5523,18 +6204,16 @@ function applyProfileCredits(profile, { resetHistory = false } = {}) {
   );
   currentProfile = profile;
   lastProfileSync = Date.now();
-  renderHeaderFromProfile(profile);
-
-  const shouldResetHistory = resetHistory || !bankrollInitialized;
-  if (shouldResetHistory) {
-    bankrollHistory = [bankroll];
-  } else if (bankrollHistory.length > 0) {
-    bankrollHistory[bankrollHistory.length - 1] = bankroll;
+  if (isContestAccountMode()) {
+    updateModeSpecificModalCopy();
   } else {
-    bankrollHistory = [bankroll];
+    renderHeaderFromProfile(profile);
+    if (resetHistory) {
+      bankrollHistory = [bankroll];
+      drawBankrollChart();
+      bankrollInitialized = true;
+    }
   }
-  drawBankrollChart();
-  bankrollInitialized = true;
   return currentProfile;
 }
 
@@ -5757,6 +6436,97 @@ function formatCurrency(value) {
   return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
 
+function getAnalyticsPeriodStart(period) {
+  const now = Date.now();
+  if (period === "day") return new Date(now - 24 * 60 * 60 * 1000);
+  if (period === "week") return new Date(now - 7 * 24 * 60 * 60 * 1000);
+  if (period === "month") return new Date(now - 30 * 24 * 60 * 60 * 1000);
+  if (period === "90days") return new Date(now - 90 * 24 * 60 * 60 * 1000);
+  if (period === "year") return new Date(now - 365 * 24 * 60 * 60 * 1000);
+  return null;
+}
+
+function formatBankrollTickLabel(point, fallbackIndex) {
+  if (point?.created_at) {
+    const date = new Date(point.created_at);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleDateString([], {
+        month: "short",
+        day: "numeric"
+      });
+    }
+  }
+  return String(fallbackIndex + 1);
+}
+
+function getFilteredBankrollHistoryPoints() {
+  let source = persistentBankrollHistory.length
+    ? persistentBankrollHistory
+    : bankrollHistory.map((value, index) => ({
+        value,
+        created_at: null,
+        fallbackIndex: index
+      }));
+
+  if (!isContestAccountMode() && currentProfile && currentUser?.id && currentUser.id !== GUEST_USER.id) {
+    const liveNormalBalance = Number(currentProfile.credits);
+    const latestTracked = source.length ? Number(source[source.length - 1]?.value) : NaN;
+    if (Number.isFinite(liveNormalBalance) && Number.isFinite(latestTracked) && latestTracked !== liveNormalBalance) {
+      const delta = Math.round(liveNormalBalance - latestTracked);
+      source = source.map((point, index) => ({
+        ...point,
+        value: Math.round(Number(point?.value ?? 0) + delta),
+        fallbackIndex: point?.fallbackIndex ?? index
+      }));
+    }
+  }
+
+  const startDate = getAnalyticsPeriodStart(bankrollChartPeriod);
+  const filtered = startDate
+    ? source.filter((point) => {
+        if (!point?.created_at) return true;
+        const createdAt = new Date(point.created_at);
+        return !Number.isNaN(createdAt.getTime()) && createdAt >= startDate;
+      })
+    : source;
+
+  return filtered.length ? filtered : source.slice(-1);
+}
+
+function updateBankrollChartFilterUI() {
+  bankrollChartFilterButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.bankrollPeriod === bankrollChartPeriod);
+  });
+
+  if (!bankrollChartSubhead) return;
+
+  const labels = {
+    week: "Showing bankroll history for the last week.",
+    month: "Showing bankroll history for the last month.",
+    "90days": "Showing bankroll history for the last 3 months.",
+    year: "Showing bankroll history for the last year.",
+    all: "Showing bankroll history across the player's lifetime."
+  };
+
+  bankrollChartSubhead.textContent = labels[bankrollChartPeriod] || labels.all;
+}
+
+function updateActivityFilterUI() {
+  activityFilterButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.activityPeriod === activityLeaderboardPeriod);
+  });
+
+  if (!mostActiveSubheadEl) return;
+
+  const labels = {
+    day: "Ranked by bets placed in the last 24 hours, with hands played shown alongside.",
+    week: "Ranked by bets placed in the last 7 days, with hands played shown alongside.",
+    month: "Ranked by bets placed in the last 30 days, with hands played shown alongside."
+  };
+
+  mostActiveSubheadEl.textContent = labels[activityLeaderboardPeriod] || labels.week;
+}
+
 function easeOutCubic(x) {
   return 1 - Math.pow(1 - x, 3);
 }
@@ -5785,7 +6555,10 @@ async function waitForDealDelay() {
 function drawBankrollChart() {
   if (!bankrollChartCanvas || !bankrollChartCtx) return;
 
-  const values = bankrollHistory.length ? bankrollHistory : [bankroll];
+  const historyPoints = getFilteredBankrollHistoryPoints();
+  const values = historyPoints.length
+    ? historyPoints.map((point) => Number(point?.value ?? bankroll))
+    : [bankroll];
   const padding = {
     top: 28,
     right: 48,
@@ -5962,13 +6735,13 @@ function drawBankrollChart() {
 
     tickIndices.forEach((index) => {
       const point = points[index];
-      ctx.fillText(String(index + 1), point.x, baseY + 8);
+      ctx.fillText(formatBankrollTickLabel(historyPoints[index], index), point.x, baseY + 8);
     });
   }
 
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  ctx.fillText(`Hands played: ${Math.max(0, values.length - 1)}`, padding.left, padding.top + 6);
+  ctx.fillText(`Hands tracked: ${Math.max(0, values.length)}`, padding.left, padding.top + 6);
 }
 
 function recordBankrollHistoryPoint() {
@@ -5981,6 +6754,73 @@ function recordBankrollHistoryPoint() {
 
 function resetBankrollHistory() {
   bankrollHistory = [bankroll];
+  drawBankrollChart();
+}
+
+async function loadPersistentBankrollHistory({ force = false } = {}) {
+  if (!currentUser?.id || currentUser.id === GUEST_USER.id || !supabase) {
+    persistentBankrollHistory = [];
+    persistentBankrollUserId = null;
+    updateBankrollChartFilterUI();
+    drawBankrollChart();
+    return;
+  }
+
+  if (!force && persistentBankrollUserId === currentUser.id && persistentBankrollHistory.length) {
+    updateBankrollChartFilterUI();
+    drawBankrollChart();
+    return;
+  }
+
+  const allRuns = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from("game_runs")
+      .select("score, created_at, metadata")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: true })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (error) {
+      console.error("[RTN] loadPersistentBankrollHistory error", error);
+      return;
+    }
+
+    if (Array.isArray(data) && data.length) {
+      allRuns.push(...data);
+      hasMore = data.length === pageSize;
+      page += 1;
+    } else {
+      hasMore = false;
+    }
+  }
+
+  let runningBalance = INITIAL_BANKROLL;
+  persistentBankrollHistory = allRuns.map((run, index) => {
+    const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
+    const endingBankroll = Number(metadata?.ending_bankroll);
+    if (Number.isFinite(endingBankroll)) {
+      runningBalance = Math.round(endingBankroll);
+    } else {
+      const scoreDelta = Number(run?.score ?? 0);
+      if (Number.isFinite(scoreDelta)) {
+        runningBalance += Math.round(scoreDelta);
+      }
+    }
+
+    return {
+      value: runningBalance,
+      created_at: run?.created_at || null,
+      fallbackIndex: index
+    };
+  });
+
+  persistentBankrollUserId = currentUser.id;
+  updateBankrollChartFilterUI();
   drawBankrollChart();
 }
 
@@ -6292,7 +7132,17 @@ function resetTable(
 }
 
 async function performAccountReset() {
-  bankroll = INITIAL_BANKROLL;
+  const contestMode = isContestAccountMode();
+  const modeContest = getModeContest();
+  const modeEntry = getModeContestEntry();
+  const resetCredits = contestMode
+    ? Math.max(0, Math.round(Number(modeEntry?.starting_credits ?? modeContest?.starting_credits ?? 0)))
+    : INITIAL_BANKROLL;
+  const resetCarterCash = contestMode
+    ? Math.max(0, Math.round(Number(modeEntry?.starting_carter_cash ?? modeContest?.starting_carter_cash ?? 0)))
+    : 0;
+
+  bankroll = resetCredits;
   handleBankrollChanged();
   stats = { hands: 0, wagered: 0, paid: 0 };
   updateStatsUI();
@@ -6301,22 +7151,25 @@ async function performAccountReset() {
   historyList.innerHTML = "";
   resetBets();
   stopCarterCashAnimation();
-  carterCash = 0;
+  carterCash = resetCarterCash;
   carterCashProgress = 0;
   updateCarterCashDisplay();
-  if (currentProfile) {
-    currentProfile.carter_cash = carterCash;
-    currentProfile.carter_cash_progress = carterCashProgress;
-    currentProfile.credits = bankroll;
-  }
+  syncCurrentModeShadowState();
   await persistBankroll();
-  await ensureProfileSynced({ force: true });
+  if (!contestMode) {
+    await ensureProfileSynced({ force: true });
+  }
   resetTable("Account reset. Select a chip and place your bets in the betting panel.", {
     clearDraws: true
   });
   resetBankrollHistory();
   closeUtilityPanel();
-  showToast("Account reset. Bankroll restored to 1,000 units and Carter Cash cleared.", "info");
+  showToast(
+    contestMode
+      ? "Contest mode reset to its starting balance."
+      : "Account reset. Bankroll restored to 1,000 units and Carter Cash cleared.",
+    "info"
+  );
 }
 
 function openResetModal() {
@@ -6327,6 +7180,7 @@ function openResetModal() {
   if (!resetModal.hidden) {
     return;
   }
+  updateModeSpecificModalCopy();
   resetModalTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : resetAccountButton;
   resetModal.hidden = false;
   resetModal.classList.add("is-open");
@@ -6364,7 +7218,7 @@ function openOutOfCreditsModal() {
   const modal = document.getElementById("out-of-credits-modal");
   if (!modal) return;
   if (!modal.hidden) return;
-  
+  updateModeSpecificModalCopy();
   outOfCreditsModalTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   modal.hidden = false;
   modal.classList.add("is-open");
@@ -6491,10 +7345,7 @@ function applyPlaythrough(amount) {
     handleCarterCashChanged();
   }
 
-  if (currentProfile) {
-    currentProfile.carter_cash = carterCash;
-    currentProfile.carter_cash_progress = carterCashProgress;
-  }
+  syncCurrentModeShadowState();
 }
 
 async function endHand(stopperCard, context = {}) {
@@ -6816,6 +7667,7 @@ function openDrawer(panel, toggle) {
   openDrawerPanel = panel;
   openDrawerToggle = toggle || null;
   if (panel === chartPanel) {
+    void loadPersistentBankrollHistory();
     requestAnimationFrame(() => {
       drawBankrollChart();
     });
@@ -6916,6 +7768,21 @@ if (menuToggle && utilityPanel && utilityClose && panelScrim) {
   });
 }
 
+if (notificationToggle && notificationsPanel && notificationsClose) {
+  notificationToggle.addEventListener("click", () => {
+    const isOpen = notificationsPanel.classList.contains("is-open");
+    if (isOpen) {
+      closeDrawer(notificationsPanel, notificationToggle);
+    } else {
+      openDrawer(notificationsPanel, notificationToggle);
+    }
+  });
+
+  notificationsClose.addEventListener("click", () => {
+    closeDrawer(notificationsPanel, notificationToggle);
+  });
+}
+
 if (graphToggle && chartPanel && chartClose) {
   graphToggle.addEventListener("click", () => {
     const isOpen = chartPanel.classList.contains("is-open");
@@ -6931,11 +7798,52 @@ if (graphToggle && chartPanel && chartClose) {
   });
 }
 
-if (drawerContestLink) {
-  drawerContestLink.addEventListener("click", async () => {
-    await syncContestState({ force: true });
-    closeUtilityPanel();
-    openContestModal();
+if (!graphToggle && chartPanel && chartClose) {
+  chartClose.addEventListener("click", () => {
+    closeDrawer(chartPanel, drawerGraphLink || chartClose);
+  });
+}
+
+if (accountModeSelect) {
+  accountModeSelect.addEventListener("change", async (event) => {
+    const nextMode = parseAccountModeValue(event.target?.value || ACCOUNT_MODE_NORMAL);
+    currentAccountMode = nextMode;
+    saveAccountModeSelection(currentAccountMode);
+    syncActiveAccountMode({ forceApply: true, resetHistory: true });
+  });
+}
+
+if (drawerGraphLink && chartPanel && chartClose) {
+  drawerGraphLink.addEventListener("click", () => {
+    closeDrawer(utilityPanel, menuToggle);
+    openDrawer(chartPanel, drawerGraphLink);
+  });
+}
+
+bankrollChartFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    bankrollChartPeriod = button.dataset.bankrollPeriod || "all";
+    updateBankrollChartFilterUI();
+    drawBankrollChart();
+  });
+});
+
+activityFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    activityLeaderboardPeriod = button.dataset.activityPeriod || "week";
+    updateActivityFilterUI();
+    loadMostActiveThisWeek();
+  });
+});
+
+if (notificationsListEl) {
+  notificationsListEl.addEventListener("click", (event) => {
+    const button = event.target.closest(".notification-card");
+    if (!button) return;
+    const contestId = button.dataset.contestId;
+    if (!contestId) return;
+    closeDrawer(notificationsPanel, notificationToggle);
+    void openContestResultNotification(contestId);
   });
 }
 
@@ -7039,7 +7947,7 @@ if (contestModal) {
 
 if (contestOptInButton) {
   contestOptInButton.addEventListener("click", () => {
-    void optIntoCurrentContest();
+    void optIntoContest();
   });
 }
 
@@ -7167,6 +8075,12 @@ if (numberBetsInfoButton) {
   });
 }
 
+if (paytableInfoButton) {
+  paytableInfoButton.addEventListener("click", () => {
+    openNumberBetsModal();
+  });
+}
+
 if (numberBetsModalClose) {
   numberBetsModalClose.addEventListener("click", () => {
     closeNumberBetsModal({ restoreFocus: true });
@@ -7202,12 +8116,12 @@ if (betAnalyticsModal) {
 }
 
 // Chart filter buttons
-document.querySelectorAll(".chart-filter-btn").forEach(button => {
+document.querySelectorAll(".analytics-modal .chart-filter-btn[data-period]").forEach(button => {
   button.addEventListener("click", () => {
     const period = button.dataset.period;
     
     // Update active state
-    document.querySelectorAll(".chart-filter-btn").forEach(btn => {
+    document.querySelectorAll(".analytics-modal .chart-filter-btn[data-period]").forEach(btn => {
       btn.classList.remove("active");
     });
     button.classList.add("active");
@@ -7246,6 +8160,7 @@ adminTabButtons.forEach(button => {
       loadPlayerFilter(); // Load player list for filter
       initializeAnalyticsBettingGrid();
       renderOverviewChart("all");
+      loadMostActiveThisWeek();
     } else if (targetTab === "contests") {
       adminPrizesContent.hidden = true;
       adminAnalyticsContent.hidden = true;
@@ -7274,6 +8189,49 @@ document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(button 
 // Global variable to store selected player filter
 let selectedPlayerIds = null; // null = all players, [] = specific players
 let playerEmailMap = {}; // Map of user_id to email for display
+let analyticsBetBadgePeriod = "all";
+
+function updateAnalyticsBetFilterUI() {
+  const subhead = document.getElementById("analytics-bet-filter-subhead");
+  const labels = {
+    day: "Showing bet counts from the last 24 hours. Click on any bet to view detailed statistics.",
+    week: "Showing bet counts from the last 7 days. Click on any bet to view detailed statistics.",
+    month: "Showing bet counts from the last 30 days. Click on any bet to view detailed statistics.",
+    all: "Showing all-time bet counts. Click on any bet to view detailed statistics."
+  };
+
+  document.querySelectorAll("[data-bet-period]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.betPeriod === analyticsBetBadgePeriod);
+  });
+
+  if (subhead) {
+    subhead.textContent = labels[analyticsBetBadgePeriod] || labels.all;
+  }
+}
+
+function refreshBetBadgeCounts() {
+  document.querySelectorAll(".analytics-bet-spot").forEach((button) => {
+    const betKey = button.dataset.betKey;
+    const badge = button.querySelector(".bet-count-badge");
+
+    if (!badge || !betKey) return;
+    badge.textContent = "...";
+
+    loadBetBadgeCount(betKey).then((count) => {
+      badge.textContent = count.toLocaleString();
+    });
+  });
+}
+
+document.querySelectorAll("[data-bet-period]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const nextPeriod = button.dataset.betPeriod || "all";
+    if (analyticsBetBadgePeriod === nextPeriod) return;
+    analyticsBetBadgePeriod = nextPeriod;
+    updateAnalyticsBetFilterUI();
+    refreshBetBadgeCounts();
+  });
+});
 
 // Load all players for filter
 async function loadPlayerFilter() {
@@ -7383,6 +8341,138 @@ async function loadPlayerFilter() {
   console.info(`[RTN] Populated filter with ${allProfiles.length} players`);
 }
 
+async function loadMostActiveThisWeek() {
+  if (!supabase || !mostActiveWeekListEl) return;
+
+  updateActivityFilterUI();
+
+  mostActiveWeekListEl.innerHTML = "";
+  const loadingItem = document.createElement("li");
+  loadingItem.className = "analytics-activity-item analytics-activity-empty";
+  loadingItem.textContent = "Loading activity rankings...";
+  mostActiveWeekListEl.appendChild(loadingItem);
+
+  const since = (getAnalyticsPeriodStart(activityLeaderboardPeriod) || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).toISOString();
+  const allRecords = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = supabase
+      .from("bet_plays")
+      .select("user_id, hand_id, amount_wagered, placed_at")
+      .gte("placed_at", since)
+      .order("placed_at", { ascending: false })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (selectedPlayerIds && selectedPlayerIds.length > 0) {
+      query = query.in("user_id", selectedPlayerIds);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error("[RTN] loadMostActiveThisWeek error", error);
+      mostActiveWeekListEl.innerHTML = "";
+      const errorItem = document.createElement("li");
+      errorItem.className = "analytics-activity-item analytics-activity-empty";
+      errorItem.textContent = "Unable to load weekly activity.";
+      mostActiveWeekListEl.appendChild(errorItem);
+      return;
+    }
+
+    if (Array.isArray(data) && data.length) {
+      allRecords.push(...data);
+      hasMore = data.length === pageSize;
+      page += 1;
+    } else {
+      hasMore = false;
+    }
+  }
+
+  const rankedMap = new Map();
+  allRecords.forEach((record) => {
+    const userId = record?.user_id;
+    if (!userId) return;
+    const current = rankedMap.get(userId) || {
+      userId,
+      betCount: 0,
+      handsPlayed: 0,
+      wagered: 0,
+      handIds: new Set()
+    };
+    current.betCount += 1;
+    current.wagered += Number(record?.amount_wagered ?? 0) || 0;
+    if (record?.hand_id) {
+      current.handIds.add(record.hand_id);
+      current.handsPlayed = current.handIds.size;
+    }
+    rankedMap.set(userId, current);
+  });
+
+  const rankedUsers = Array.from(rankedMap.values()).sort((a, b) => {
+    if (b.betCount !== a.betCount) return b.betCount - a.betCount;
+    if ((b.handsPlayed || 0) !== (a.handsPlayed || 0)) return (b.handsPlayed || 0) - (a.handsPlayed || 0);
+    return b.wagered - a.wagered;
+  });
+
+  mostActiveWeekListEl.innerHTML = "";
+
+  if (!rankedUsers.length) {
+    const emptyItem = document.createElement("li");
+    emptyItem.className = "analytics-activity-item analytics-activity-empty";
+    emptyItem.textContent = "No bets were placed in this time range.";
+    mostActiveWeekListEl.appendChild(emptyItem);
+    return;
+  }
+
+  const ids = rankedUsers.map((entry) => entry.userId);
+  const profilesById = new Map();
+  const batchSize = 100;
+
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const batch = ids.slice(i, i + batchSize);
+    const { data: profiles, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, username, first_name, last_name")
+      .in("id", batch);
+
+    if (profileError) {
+      console.error("[RTN] loadMostActiveThisWeek profiles error", profileError);
+      continue;
+    }
+
+    (profiles || []).forEach((profile) => {
+      profilesById.set(profile.id, profile);
+    });
+  }
+
+  rankedUsers.slice(0, 10).forEach((entry, index) => {
+    const profile = profilesById.get(entry.userId) || null;
+    const item = document.createElement("li");
+    item.className = "analytics-activity-item";
+
+    const rank = document.createElement("span");
+    rank.className = "analytics-activity-rank";
+    rank.textContent = `#${index + 1}`;
+
+    const body = document.createElement("div");
+    body.className = "analytics-activity-body";
+
+    const name = document.createElement("span");
+    name.className = "analytics-activity-name";
+    name.textContent = getContestDisplayName(profile, entry.userId);
+
+    const meta = document.createElement("span");
+    meta.className = "analytics-activity-meta";
+    meta.textContent = `${entry.betCount.toLocaleString()} bets placed • ${(entry.handsPlayed || 0).toLocaleString()} hands played • ${formatCurrency(Math.round(entry.wagered))} units wagered`;
+
+    body.append(name, meta);
+    item.append(rank, body);
+    mostActiveWeekListEl.appendChild(item);
+  });
+}
+
 // Apply player filter
 document.getElementById("apply-player-filter")?.addEventListener("click", () => {
   const select = document.getElementById("player-filter-select");
@@ -7413,25 +8503,13 @@ document.getElementById("clear-player-filter")?.addEventListener("click", () => 
 
 // Refresh all analytics with current filter
 function refreshAnalytics() {
-  // Reload badges for all existing bet buttons
-  document.querySelectorAll(".analytics-bet-spot").forEach(button => {
-    const betKey = button.dataset.betKey;
-    const badge = button.querySelector('.bet-count-badge');
-    
-    if (badge && betKey) {
-      badge.textContent = "...";
-      
-      // Load new count with current filter
-      loadBetBadgeCount(betKey).then(count => {
-        badge.textContent = count.toLocaleString();
-      });
-    }
-  });
+  refreshBetBadgeCounts();
   
   // Reload overview chart
   const activeFilterBtn = document.querySelector(".overview-filters .chart-filter-btn.active");
   const period = activeFilterBtn?.dataset.period || "all";
   renderOverviewChart(period);
+  loadMostActiveThisWeek();
 }
 
 function initializeAnalyticsBettingGrid() {
@@ -7457,10 +8535,6 @@ function initializeAnalyticsBettingGrid() {
       badge.textContent = '...';
       button.appendChild(badge);
       
-      // Load count asynchronously
-      loadBetBadgeCount(betKey).then(count => {
-        badge.textContent = count.toLocaleString();
-      });
     }
   }
 
@@ -7499,10 +8573,6 @@ function initializeAnalyticsBettingGrid() {
         badge.textContent = '...';
         button.appendChild(badge);
         
-        // Load count asynchronously
-        loadBetBadgeCount(betKey).then(count => {
-          badge.textContent = count.toLocaleString();
-        });
       }
     }
   }
@@ -7545,10 +8615,6 @@ function initializeAnalyticsBettingGrid() {
       badge.textContent = '...';
       button.appendChild(badge);
       
-      // Load count asynchronously
-      loadBetBadgeCount(bust.key).then(count => {
-        badge.textContent = count.toLocaleString();
-      });
     }
     
     for (const bust of bustFaces) {
@@ -7569,10 +8635,6 @@ function initializeAnalyticsBettingGrid() {
       badge.textContent = '...';
       button.appendChild(badge);
       
-      // Load count asynchronously
-      loadBetBadgeCount(bust.key).then(count => {
-        badge.textContent = count.toLocaleString();
-      });
     }
     
     const jokerButton = document.createElement("button");
@@ -7592,10 +8654,6 @@ function initializeAnalyticsBettingGrid() {
     jokerBadge.textContent = '...';
     jokerButton.appendChild(jokerBadge);
     
-    // Load count asynchronously
-    loadBetBadgeCount("bust-joker").then(count => {
-      jokerBadge.textContent = count.toLocaleString();
-    });
   }
 
   // Populate card count bets
@@ -7630,12 +8688,11 @@ function initializeAnalyticsBettingGrid() {
       badge.textContent = '...';
       button.appendChild(badge);
       
-      // Load count asynchronously
-      loadBetBadgeCount(count.key).then(betCount => {
-        badge.textContent = betCount.toLocaleString();
-      });
     }
   }
+
+  updateAnalyticsBetFilterUI();
+  refreshBetBadgeCounts();
 }
 
 if (showSignUpButton) {
@@ -8002,13 +9059,24 @@ function setupAuthListener() {
               console.info("[RTN] received supabase:ready, registering auth listener");
               registerAuthHandler();
               
-              const currentRoute = getRouteFromHash();
-              // Skip bootstrapAuth for public auth pages
-              const isPublicAuthPage = currentRoute === "auth" || currentRoute === "signup" || 
-                                      currentRoute === "forgot-password" || currentRoute === "reset-password" || currentRoute === "auth/callback";
-              if (!isPublicAuthPage) {
-                console.info("[RTN] attempting bootstrapAuth");
-                await bootstrapAuth(currentRoute);
+              const routeFromHash = getRouteFromHash();
+              const isRecoveryPage =
+                routeFromHash === "forgot-password" ||
+                routeFromHash === "reset-password" ||
+                routeFromHash === "auth/callback";
+              const shouldAttemptLateBootstrap =
+                !isRecoveryPage &&
+                (!currentUser?.id ||
+                  currentUser.id === GUEST_USER.id ||
+                  authBootstrapFallbackShown ||
+                  routeFromHash === "auth" ||
+                  routeFromHash === "signup");
+              if (shouldAttemptLateBootstrap) {
+                console.info(`[RTN] attempting late bootstrapAuth from route "${routeFromHash}"`);
+                const restored = await bootstrapAuth(routeFromHash);
+                if (restored) {
+                  authBootstrapFallbackShown = false;
+                }
               }
             } catch (err) {
               console.warn("[RTN] supabase:ready handler error", err);
@@ -8047,7 +9115,7 @@ async function initializeApp() {
     // bootstrapAuth can detect an existing session without the app
     // briefly showing the auth screen. If the ready event doesn't
     // fire within the timeout we proceed (to avoid blocking startup).
-    async function waitForSupabaseReady(timeoutMs = 800) {
+    async function waitForSupabaseReady(timeoutMs = 2500) {
       if (supabase && typeof supabase.auth?.getSession === "function") {
         return true;
       }
@@ -8068,7 +9136,7 @@ async function initializeApp() {
       });
     }
 
-    const clientReady = await waitForSupabaseReady(800);
+    const clientReady = await waitForSupabaseReady();
     console.info(`[RTN] initializeApp waitForSupabaseReady result=${clientReady}`);
 
     // Check if URL contains auth tokens/code (magic link callback)
@@ -8175,6 +9243,7 @@ async function initializeApp() {
 
       if (!sessionApplied) {
         console.info("[RTN] initializeApp showing auth view (no session available; Supabase auth enabled)");
+        authBootstrapFallbackShown = true;
         showAuthView("login");
         updateHash("auth", { replace: true });
       }

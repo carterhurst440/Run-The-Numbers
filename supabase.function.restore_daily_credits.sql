@@ -1,5 +1,7 @@
--- Function to restore credits to users with less than 100 credits
--- This should be run daily at midnight via pg_cron or a scheduled edge function
+-- Function to restore credits to users with less than 100 credits.
+-- Important: this only restores Normal Mode balances stored in public.profiles.
+-- Contest balances live in public.contest_entries and must never be touched here.
+-- This should be run daily at midnight via pg_cron or a scheduled edge function.
 
 CREATE OR REPLACE FUNCTION restore_daily_credits()
 RETURNS TABLE(restored_count INTEGER, user_ids TEXT[])
@@ -10,9 +12,10 @@ DECLARE
   affected_users TEXT[];
   update_count INTEGER;
 BEGIN
-  -- Update all profiles with credits < 100 to have 1000 credits
+  -- Only update Normal Mode balances in public.profiles.
+  -- Contest Mode balances are stored separately in public.contest_entries.
   WITH updated AS (
-    UPDATE profiles
+    UPDATE public.profiles
     SET credits = 1000
     WHERE credits < 100
     RETURNING id

@@ -27,8 +27,10 @@ create table if not exists public.contest_entries (
   starting_carter_cash integer not null default 0,
   current_credits integer not null default 1000,
   current_carter_cash integer not null default 0,
+  current_carter_cash_progress numeric not null default 0,
   display_name text,
   participant_email text,
+  results_seen_at timestamptz,
   restored_at timestamptz,
   primary key (contest_id, user_id)
 );
@@ -47,8 +49,10 @@ alter table public.contest_entries add column if not exists pre_contest_carter_c
 alter table public.contest_entries add column if not exists pre_contest_carter_cash_progress numeric not null default 0;
 alter table public.contest_entries add column if not exists current_credits integer not null default 1000;
 alter table public.contest_entries add column if not exists current_carter_cash integer not null default 0;
+alter table public.contest_entries add column if not exists current_carter_cash_progress numeric not null default 0;
 alter table public.contest_entries add column if not exists display_name text;
 alter table public.contest_entries add column if not exists participant_email text;
+alter table public.contest_entries add column if not exists results_seen_at timestamptz;
 alter table public.contest_entries add column if not exists restored_at timestamptz;
 alter table public.contest_medals add column if not exists contest_title text;
 alter table public.contest_medals add column if not exists awarded_at timestamptz not null default timezone('utc', now());

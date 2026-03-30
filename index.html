@@ -197,7 +197,7 @@
               </div>
             </div>
             <div class="carter-cash" aria-live="polite">
-              <span class="carter-label">Carter Cash:</span>
+              <span class="carter-label">CC:</span>
               <span id="carter-cash" class="carter-value">0</span>
               <button
                 type="button"
@@ -224,23 +224,25 @@
             </div>
           </div>
           <div class="header-actions">
+            <div class="header-mode-select-wrap">
+              <label for="account-mode-select" class="sr-only">Choose active account mode</label>
+              <select id="account-mode-select" class="header-mode-select" aria-label="Choose active account mode">
+                <option value="normal">Normal Mode</option>
+              </select>
+            </div>
             <button
               type="button"
-              class="icon-button"
-              aria-label="Go to home"
-              data-route-target="home"
-            >
-              <span aria-hidden="true" class="icon icon-home"></span>
-            </button>
-            <button
-              type="button"
-              id="graph-toggle"
-              class="icon-button"
-              aria-label="Open bankroll history and analytics"
+              class="icon-button notification-toggle"
+              id="notification-toggle"
               aria-expanded="false"
-              aria-controls="chart-panel"
+              aria-controls="notifications-panel"
+              aria-label="Open notifications"
             >
-              <span aria-hidden="true" class="icon icon-graph"></span>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 4.25a4 4 0 0 0-4 4v2.15c0 .86-.27 1.7-.78 2.39L5.8 14.7c-.56.76-.02 1.85.92 1.85h10.56c.94 0 1.48-1.09.92-1.85l-1.42-1.91a4.03 4.03 0 0 1-.78-2.39V8.25a4 4 0 0 0-4-4Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.8"></path>
+                <path d="M9.8 18.2a2.4 2.4 0 0 0 4.4 0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path>
+              </svg>
+              <span id="notification-badge" class="notification-badge" hidden></span>
             </button>
             <button type="button" id="reset-account" class="reset-button" aria-label="Reset account">
               Reset
@@ -279,9 +281,18 @@
             <button type="button" data-route-target="play" class="drawer-link">Play</button>
             <button type="button" data-route-target="store" class="drawer-link">Store</button>
             <button type="button" data-route-target="profile" class="drawer-link">Profile</button>
-            <button type="button" id="drawer-contest-link" class="drawer-link drawer-contest-link" hidden>
-              <span>Contest</span>
+            <button type="button" data-route-target="contests" id="drawer-contest-link" class="drawer-link drawer-contest-link" hidden>
+              <span>Contests</span>
               <span id="drawer-contest-timer" class="drawer-contest-timer">Details</span>
+            </button>
+            <button
+              type="button"
+              id="drawer-graph-link"
+              class="drawer-link"
+              aria-expanded="false"
+              aria-controls="chart-panel"
+            >
+              Bankroll Analytics
             </button>
             <button type="button" data-route-target="admin" class="drawer-link" id="admin-nav" hidden>
               Admin
@@ -318,6 +329,28 @@
       </aside>
 
       <aside
+        class="drawer notifications-panel"
+        id="notifications-panel"
+        aria-hidden="true"
+        aria-labelledby="notifications-title"
+      >
+        <div class="drawer-header">
+          <h2 id="notifications-title">Notifications</h2>
+          <button type="button" class="drawer-close" id="notifications-close">
+            <span class="sr-only">Close notifications</span>
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
+        <section class="drawer-section">
+          <div class="section-heading">
+            <h3>Contest Results</h3>
+            <p class="section-sub">Open a notification to review standings and winners.</p>
+          </div>
+          <ul id="notifications-list" class="notifications-list" aria-live="polite"></ul>
+        </section>
+      </aside>
+
+      <aside
         class="drawer chart-panel"
         id="chart-panel"
         aria-hidden="true"
@@ -331,7 +364,17 @@
           </button>
         </div>
         <div class="drawer-section">
-          <p class="drawer-subhead">Line chart showing bankroll after each completed hand.</p>
+          <div class="overview-chart-header">
+            <h3 class="chart-title">Lifetime Bankroll History</h3>
+            <div class="chart-filters bankroll-history-filters">
+              <button type="button" class="chart-filter-btn" data-bankroll-period="week">Last Week</button>
+              <button type="button" class="chart-filter-btn" data-bankroll-period="month">Last Month</button>
+              <button type="button" class="chart-filter-btn" data-bankroll-period="90days">Last 3 Months</button>
+              <button type="button" class="chart-filter-btn" data-bankroll-period="year">Last Year</button>
+              <button type="button" class="chart-filter-btn active" data-bankroll-period="all">All Time</button>
+            </div>
+          </div>
+          <p class="drawer-subhead" id="bankroll-chart-subhead">Line chart showing bankroll after each completed hand.</p>
           <div class="bankroll-chart-wrapper" id="bankroll-chart-wrapper" role="presentation">
             <canvas
               id="bankroll-chart"
@@ -443,7 +486,7 @@
             <button type="button" class="modal-close" id="reset-close" aria-label="Cancel reset">×</button>
           </div>
           <div class="modal-body">
-            <p>
+            <p id="reset-modal-copy">
               Resetting will restore 1,000 units to your account but will forfeit all Carter Cash you have earned and start your
               balance again at 0. Do you confirm?
             </p>
@@ -469,7 +512,7 @@
             <button type="button" class="modal-close" id="out-of-credits-close" aria-label="Close">×</button>
           </div>
           <div class="modal-body">
-            <p>
+            <p id="out-of-credits-copy">
               You are currently out of credits. 1,000 credits are restored to all players with less than 100 credits at the start of every day. Please come back tomorrow!
             </p>
           </div>
@@ -491,6 +534,17 @@
                 View Store
               </button>
             </div>
+            <section id="home-live-contests" class="home-contests-panel" hidden aria-labelledby="home-live-contests-title">
+              <div class="home-contests-header">
+                <div>
+                  <p class="home-contests-eyebrow">Live Now</p>
+                  <h2 id="home-live-contests-title" class="home-contests-title">Contest Spotlight</h2>
+                </div>
+                <button type="button" class="store-back home-contests-link" data-route-target="contests">See All Contests</button>
+              </div>
+              <p class="home-contests-copy">Join a live contest, review the leaderboard, and switch into contest mode without leaving the home screen.</p>
+              <ul id="home-live-contest-list" class="home-live-contest-list" aria-live="polite"></ul>
+            </section>
           </div>
         </section>
 
@@ -511,7 +565,16 @@
             <div class="betting-scroll">
               <div class="active-paytable" aria-live="polite">
                 <div class="active-paytable-info">
-                  <span class="active-paytable-label">Active Paytable</span>
+                  <span class="active-paytable-label">
+                    Active Paytable
+                    <button type="button" class="info-icon" id="paytable-info" aria-label="Information about the paytable">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M8 7V11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        <circle cx="8" cy="5" r="0.75" fill="currentColor"/>
+                      </svg>
+                    </button>
+                  </span>
                   <span id="active-paytable-name" class="active-paytable-name"></span>
                   <span id="active-paytable-steps" class="active-paytable-steps"></span>
                 </div>
@@ -1256,6 +1319,34 @@
         </div>
         </section>
 
+        <section id="contests-view" class="route-view app-page contests-view" hidden aria-labelledby="contests-title">
+          <div class="route-shell contests-shell">
+            <header class="route-header">
+              <div>
+                <h1 id="contests-title">Contests</h1>
+                <p id="account-mode-summary" class="route-subheading">Normal Mode is active.</p>
+              </div>
+              <div class="route-actions">
+                <button type="button" data-route-target="home" class="link-button">Back to home</button>
+              </div>
+            </header>
+            <section class="route-section">
+              <div class="section-heading">
+                <h2>Live Contests</h2>
+                <p class="section-sub">Join any live contest to add it as its own playable mode.</p>
+              </div>
+              <ul id="player-live-contest-list" class="admin-prize-list" aria-live="polite"></ul>
+            </section>
+            <section class="route-section">
+              <div class="section-heading">
+                <h2>Ended Contests</h2>
+                <p class="section-sub">Review completed contest standings and winners.</p>
+              </div>
+              <ul id="player-ended-contest-list" class="admin-prize-list" aria-live="polite"></ul>
+            </section>
+          </div>
+        </section>
+
         <section id="store-view" class="route-view app-page store-view" hidden aria-labelledby="store-title">
           <div class="store-content">
             <header class="store-header">
@@ -1340,7 +1431,27 @@
                     </div>
                   </div>
                 </div>
-                <p class="analytics-description">Click on any bet to view detailed statistics</p>
+                <div class="analytics-activity-card">
+                  <div class="overview-chart-header">
+                    <h3>Most Active This Week</h3>
+                    <div class="chart-filters activity-filters">
+                      <button type="button" class="chart-filter-btn" data-activity-period="day">Last 24 Hours</button>
+                      <button type="button" class="chart-filter-btn active" data-activity-period="week">Last 7 Days</button>
+                      <button type="button" class="chart-filter-btn" data-activity-period="month">Last 30 Days</button>
+                    </div>
+                  </div>
+                  <p id="most-active-subhead" class="analytics-card-subhead">Ranked by bets placed in the last 7 days, with hands played shown alongside.</p>
+                  <ul id="most-active-week-list" class="analytics-activity-list" aria-live="polite"></ul>
+                </div>
+                <div class="analytics-bet-filters-row">
+                  <p id="analytics-bet-filter-subhead" class="analytics-description">Showing all-time bet counts. Click on any bet to view detailed statistics.</p>
+                  <div class="chart-filters bet-grid-filters">
+                    <button type="button" class="chart-filter-btn" data-bet-period="day">Last 24 Hours</button>
+                    <button type="button" class="chart-filter-btn" data-bet-period="week">Last 7 Days</button>
+                    <button type="button" class="chart-filter-btn" data-bet-period="month">Last 30 Days</button>
+                    <button type="button" class="chart-filter-btn active" data-bet-period="all">All Time</button>
+                  </div>
+                </div>
                 <div class="analytics-betting-panel">
                   <section class="analytics-number-bets" aria-labelledby="analytics-number-bets-heading">
                     <div class="bets-heading-row">
@@ -1645,6 +1756,7 @@
           <button type="button" class="modal-close" id="number-bets-modal-close" aria-label="Close">×</button>
         </div>
         <div class="modal-body">
+          <p>This paytable determines the subsequent payouts for winning number bets.</p>
           <p>The number bets are paid everytime the number is drawn in the hand with increasing payouts on subsequent hits as determined by the selected paytable. These bets are lost when the hand ends.</p>
         </div>
         <div class="modal-actions">
@@ -1730,7 +1842,7 @@
             <h3>Non-Qualifying Participants</h3>
             <ul id="contest-results-nonqualifying-list" class="contest-results-list"></ul>
           </div>
-          <p class="contest-results-note">Our contest team will be reaching out via email to award your prize.</p>
+          <p id="contest-results-note" class="contest-results-note">Our contest team will be reaching out via email to award your prize.</p>
         </div>
         <div class="modal-actions">
           <button type="button" id="contest-results-ok" class="primary">OK</button>
@@ -1828,6 +1940,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js"></script>
+    <script type="module" src="script.js?v=20260329b"></script>
   </body>
 </html>
