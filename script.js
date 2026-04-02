@@ -613,6 +613,11 @@ function isUsingContestMode(contestId) {
   return Boolean(activeContest?.id) && String(activeContest.id) === String(contestId || "");
 }
 
+function isContestVisibleToCurrentUser(contest) {
+  if (!contest) return false;
+  return !contest.is_test || isAdmin();
+}
+
 function handleHashChange() {
   if (suppressHash) return;
   
@@ -4890,26 +4895,27 @@ function formatContestRemaining(contest) {
 
 function renderContestChip() {
   const contest = currentContest;
+  const visibleContests = (contestCache || []).filter((entry) => isContestVisibleToCurrentUser(entry));
   const contestStatus = getContestStatus(contest);
   if (!drawerContestLink) {
     if (menuContestBadge) {
-      menuContestBadge.hidden = contestStatus !== "live";
+      menuContestBadge.hidden = !visibleContests.some((entry) => getContestStatus(entry) === "live");
     }
     return;
   }
-  if (!contest && !contestCache.length) {
+  if (!contest && !visibleContests.length) {
     drawerContestLink.hidden = true;
     if (menuContestBadge) {
       menuContestBadge.hidden = true;
     }
     return;
   }
-  drawerContestLink.hidden = false;
+  drawerContestLink.hidden = !contest || !isContestVisibleToCurrentUser(contest);
   if (drawerContestTimer) {
-    drawerContestTimer.textContent = contest ? formatContestRemaining(contest) : "View";
+    drawerContestTimer.textContent = contest && isContestVisibleToCurrentUser(contest) ? formatContestRemaining(contest) : "View";
   }
   if (menuContestBadge) {
-    menuContestBadge.hidden = !(contestCache || []).some((entry) => getContestStatus(entry) === "live");
+    menuContestBadge.hidden = !visibleContests.some((entry) => getContestStatus(entry) === "live");
   }
 }
 
@@ -5013,11 +5019,12 @@ function closeAdminContestModal({ resetFields = true, restoreFocus = false } = {
 
 function chooseCurrentContest(contests) {
   const now = Date.now();
-  const live = contests.filter((contest) => getContestStatus(contest, now) === "live");
+  const visibleContests = (contests || []).filter((contest) => isContestVisibleToCurrentUser(contest));
+  const live = visibleContests.filter((contest) => getContestStatus(contest, now) === "live");
   if (live.length) {
     return live.sort((a, b) => new Date(a.ends_at) - new Date(b.ends_at))[0];
   }
-  const upcoming = contests.filter((contest) => getContestStatus(contest, now) === "upcoming");
+  const upcoming = visibleContests.filter((contest) => getContestStatus(contest, now) === "upcoming");
   if (upcoming.length) {
     return upcoming.sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))[0];
   }
@@ -5649,6 +5656,7 @@ async function renderHomeContestPromos() {
   }
 
   const liveContests = contestCache
+    .filter((contest) => isContestVisibleToCurrentUser(contest))
     .filter((contest) => getContestStatus(contest) === "live")
     .sort((a, b) => new Date(a.ends_at) - new Date(b.ends_at));
 
@@ -5702,13 +5710,14 @@ async function loadPlayerContestList(force = false) {
       contests = Array.isArray(data) ? data : [];
     }
     contestCache = Array.isArray(contests) ? contests : [];
+    const visibleContests = contestCache.filter((contest) => isContestVisibleToCurrentUser(contest));
 
-    const counts = await loadContestParticipantCounts(contestCache);
+    const counts = await loadContestParticipantCounts(visibleContests);
 
-    const liveContests = contestCache
+    const liveContests = visibleContests
       .filter((contest) => getContestStatus(contest) === "live")
       .sort((a, b) => new Date(a.ends_at) - new Date(b.ends_at));
-    const endedContests = contestCache
+    const endedContests = visibleContests
       .filter((contest) => getContestStatus(contest) === "ended")
       .sort((a, b) => new Date(b.ends_at) - new Date(a.ends_at));
 
