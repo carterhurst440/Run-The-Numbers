@@ -3557,6 +3557,10 @@ function getContestEntryFee(contest) {
   return Math.max(0, Math.round(Number(contest?.entry_fee_carter_cash ?? 0)));
 }
 
+function formatContestEntryFeeText(contest) {
+  return `${formatCurrency(getContestEntryFee(contest))} CC`;
+}
+
 function formatPrizeMoney(value) {
   const amount = Number(value);
   return new Intl.NumberFormat("en-US", {
@@ -5530,12 +5534,18 @@ function renderPlayerContestRow(contest, participantStats = 0) {
   header.className = "admin-contest-header";
   const title = document.createElement("h3");
   title.textContent = contest.is_test ? `${contest.title || "Contest"} (Test)` : contest.title || "Contest";
+  const titleRow = document.createElement("div");
+  titleRow.className = "contest-card-title-row";
+  const entryFee = document.createElement("span");
+  entryFee.className = "contest-entry-fee-badge";
+  entryFee.textContent = formatContestEntryFeeText(contest);
+  titleRow.append(title, entryFee);
   const badge = document.createElement("span");
   const status = getContestStatus(contest);
   badge.className = "contest-status-badge";
   badge.dataset.status = status;
   badge.textContent = getContestStatusLabel(status);
-  header.append(title, badge);
+  header.append(titleRow, badge);
 
   const details = document.createElement("p");
   details.className = "contest-window";
@@ -5613,7 +5623,7 @@ function renderPlayerContestRow(contest, participantStats = 0) {
       const joinButton = document.createElement("button");
       joinButton.type = "button";
       joinButton.className = "primary";
-      joinButton.textContent = contestIsFull ? "Contest Full" : "Join Contest";
+      joinButton.textContent = contestIsFull ? "Contest Full" : `Join Now for ${formatContestEntryFeeText(contest)}`;
       joinButton.disabled = contestIsFull;
       if (!contestIsFull) {
         joinButton.addEventListener("click", () => {
@@ -5659,14 +5669,21 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
   top.className = "home-contest-card-top";
 
   const titleWrap = document.createElement("div");
+  titleWrap.className = "home-contest-title-wrap";
+  const titleRow = document.createElement("div");
+  titleRow.className = "home-contest-title-row";
   const title = document.createElement("h3");
   title.className = "home-contest-card-title";
   title.textContent = contest.title || "Contest";
+  const entryFee = document.createElement("span");
+  entryFee.className = "contest-entry-fee-badge";
+  entryFee.textContent = formatContestEntryFeeText(contest);
 
   const details = document.createElement("p");
   details.className = "home-contest-card-window";
-  details.textContent = `${formatContestRemaining(contest)} • Entry fee ${formatCurrency(getContestEntryFee(contest))} CC • Contestants ${formatContestFill(contest, stats)}`;
-  titleWrap.append(title, details);
+  details.textContent = `${formatContestRemaining(contest)} • Contestants ${formatContestFill(contest, stats)}`;
+  titleRow.append(title, entryFee);
+  titleWrap.append(titleRow, details);
 
   const badge = document.createElement("span");
   const status = getContestStatus(contest);
@@ -5708,7 +5725,7 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
       });
     }
   } else {
-    joinButton.textContent = contestIsFull ? "Contest Full" : "Join Now";
+    joinButton.textContent = contestIsFull ? "Contest Full" : `Join Now for ${formatContestEntryFeeText(contest)}`;
     joinButton.disabled = contestIsFull;
     if (!contestIsFull) {
       joinButton.addEventListener("click", () => {

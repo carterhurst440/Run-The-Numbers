@@ -824,6 +824,29 @@ body[data-app-state="loading"] #app-shell {
   color: var(--text-light);
 }
 
+.home-contest-title-row,
+.contest-card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.home-contest-title-wrap,
+.contest-card-title-row {
+  min-width: 0;
+}
+
+.contest-entry-fee-badge {
+  flex-shrink: 0;
+  color: #ffd977;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .home-contest-card-window {
   margin: 0.15rem 0 0;
   color: rgba(173, 225, 247, 0.88);
@@ -1093,10 +1116,21 @@ body[data-app-state="loading"] #app-shell {
 
 @media (max-width: 768px) {
   .app {
+    background: linear-gradient(180deg, rgba(3, 11, 35, 0.92) 0%, rgba(7, 18, 58, 0.92) 100%);
+  }
+
+  body {
     background:
-      radial-gradient(circle at 18% 10%, rgba(63, 240, 255, 0.14), transparent 48%),
-      radial-gradient(circle at 50% 120%, rgba(37, 89, 255, 0.14), transparent 64%),
-      linear-gradient(180deg, rgba(3, 11, 35, 0.96) 0%, rgba(7, 18, 58, 0.94) 100%);
+      linear-gradient(rgba(63, 240, 255, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(63, 240, 255, 0.08) 1px, transparent 1px),
+      linear-gradient(180deg, #020616 0%, #041a4b 52%, #020313 100%);
+    background-size: 72px 72px, 72px 72px, 100% 100%;
+    background-position: 0 0, 0 0, center;
+    background-attachment: scroll;
+  }
+
+  .app::before {
+    display: none;
   }
 
   .home-view {
@@ -1164,6 +1198,11 @@ body[data-app-state="loading"] #app-shell {
     line-height: 1.15;
   }
 
+  .contest-entry-fee-badge {
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+  }
+
   .home-contest-card-window,
   .home-contest-card-growth {
     font-size: 0.76rem;
@@ -1200,8 +1239,11 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .contest-share-button {
+    appearance: none;
+    -webkit-appearance: none;
     min-width: auto;
     flex: 0 0 auto;
+    margin-left: 0.2rem;
     padding: 0.2rem 0;
     border: 0;
     border-radius: 0;
@@ -1220,6 +1262,7 @@ body[data-app-state="loading"] #app-shell {
     border-color: transparent;
     box-shadow: none;
     transform: none;
+    outline: none;
   }
 
   .home-actions {
