@@ -3553,6 +3553,10 @@ function getContestQualificationRequirement(contest) {
   return Math.max(0, Math.round(Number(contest?.qualification_carter_cash ?? 0)));
 }
 
+function getContestEntryFee(contest) {
+  return Math.max(0, Math.round(Number(contest?.entry_fee_carter_cash ?? 0)));
+}
+
 function formatPrizeMoney(value) {
   const amount = Number(value);
   return new Intl.NumberFormat("en-US", {
@@ -4856,12 +4860,14 @@ function renderContestModal() {
     contestPrizeGrowthEl.textContent = contest ? getContestPrizeGrowthCopy(contest) : "";
   }
   if (contestOptInCopyEl) {
+    const entryFee = getContestEntryFee(contest);
+    const entryFeeCopy = entryFee > 0 ? ` Entry fee: ${formatCurrency(entryFee)} CC from your Normal Mode balance.` : "";
     if (!contest) {
       contestOptInCopyEl.textContent = "Check back soon for the next contest.";
     } else if (currentContestEntry) {
-      contestOptInCopyEl.textContent = `You're opted in. Switch into ${contest.title} from the Mode selector in the menu whenever you want to play this contest account. You need at least ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash to qualify.`;
+      contestOptInCopyEl.textContent = `You're opted in. Switch into ${contest.title} from the Mode selector in the menu whenever you want to play this contest account. You need at least ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash to qualify.${entryFeeCopy}`;
     } else {
-      contestOptInCopyEl.textContent = `Opt in to add this contest to your Mode selector. Your normal account stays untouched, and this contest gets its own starting balance of ${formatCurrency(contest.starting_credits ?? 0)} credits and ${formatCurrency(contest.starting_carter_cash ?? 0)} CC. You need at least ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash by the end to qualify to win.`;
+      contestOptInCopyEl.textContent = `Opt in to add this contest to your Mode selector. Your normal account stays untouched, and this contest gets its own starting balance of ${formatCurrency(contest.starting_credits ?? 0)} credits and ${formatCurrency(contest.starting_carter_cash ?? 0)} CC. You need at least ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash by the end to qualify to win.${entryFeeCopy}`;
     }
   }
   if (contestOptInButton) {
@@ -5220,9 +5226,62 @@ async function optIntoContest(contest = currentContest) {
       return;
     }
 
+    const entryFee = getContestEntryFee(contest);
+    const normalModeCarterCash = Math.max(0, Math.round(Number(currentProfile?.carter_cash ?? 0)));
+    if (entryFee > normalModeCarterCash) {
+      showToast(`You need ${formatCurrency(entryFee)} CC in Normal Mode to join this contest.`, "error");
+      return;
+    }
+    if (
+      entryFee > 0 &&
+      !window.confirm(`Use ${formatCurrency(entryFee)} Carter Cash to join this contest?`)
+    ) {
+      return;
+    }
+
     const startingCredits = Math.max(0, Math.round(Number(contest.starting_credits || 0)));
     const startingCarterCash = Math.max(0, Math.round(Number(contest.starting_carter_cash || 0)));
     const displayName = getContestDisplayName(currentProfile, currentUser.id);
+    let chargedProfile = null;
+
+    if (entryFee > 0) {
+      const nextNormalModeCarterCash = normalModeCarterCash - entryFee;
+      const profileVersion = currentProfile?.updated_at ?? null;
+      let deductQuery = supabase
+        .from("profiles")
+        .update({ carter_cash: nextNormalModeCarterCash })
+        .eq("id", currentUser.id)
+        .gte("carter_cash", entryFee);
+
+      if (profileVersion) {
+        deductQuery = deductQuery.eq("updated_at", profileVersion);
+      }
+
+      const { data: deductedProfile, error: deductError } = await deductQuery
+        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, receive_contest_start_emails, updated_at")
+        .maybeSingle();
+
+      if (deductError) throw deductError;
+      if (!deductedProfile) {
+        throw new Error("Your Normal Mode Carter Cash changed in another tab. Refresh and try joining again.");
+      }
+
+      chargedProfile = deductedProfile;
+      currentProfile = {
+        ...currentProfile,
+        ...deductedProfile
+      };
+      if (!isContestAccountMode()) {
+        carterCash = Math.max(0, Math.round(Number(deductedProfile.carter_cash ?? 0)));
+        carterCashProgress = Number.isFinite(Number(deductedProfile.carter_cash_progress))
+          ? Number(deductedProfile.carter_cash_progress)
+          : carterCashProgress;
+        lastSyncedCarterCash = carterCash;
+        lastSyncedCarterProgress = carterCashProgress;
+        handleCarterCashChanged();
+      }
+    }
+
     const entryPayload = {
       contest_id: contest.id,
       user_id: currentUser.id,
@@ -5242,7 +5301,34 @@ async function optIntoContest(contest = currentContest) {
     };
 
     const { error: entryError } = await supabase.from("contest_entries").insert(entryPayload);
-    if (entryError) throw entryError;
+    if (entryError) {
+      if (entryFee > 0 && chargedProfile) {
+        const refundedAmount = Math.max(0, Math.round(Number(chargedProfile.carter_cash ?? 0))) + entryFee;
+        const { data: refundedProfile } = await supabase
+          .from("profiles")
+          .update({ carter_cash: refundedAmount })
+          .eq("id", currentUser.id)
+          .eq("updated_at", chargedProfile.updated_at ?? null)
+          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, receive_contest_start_emails, updated_at")
+          .maybeSingle();
+        if (refundedProfile) {
+          currentProfile = {
+            ...currentProfile,
+            ...refundedProfile
+          };
+          if (!isContestAccountMode()) {
+            carterCash = Math.max(0, Math.round(Number(refundedProfile.carter_cash ?? 0)));
+            carterCashProgress = Number.isFinite(Number(refundedProfile.carter_cash_progress))
+              ? Number(refundedProfile.carter_cash_progress)
+              : carterCashProgress;
+            lastSyncedCarterCash = carterCash;
+            lastSyncedCarterProgress = carterCashProgress;
+            handleCarterCashChanged();
+          }
+        }
+      }
+      throw entryError;
+    }
 
     const insertedEntry = {
       ...entryPayload,
@@ -5258,7 +5344,7 @@ async function optIntoContest(contest = currentContest) {
       contestId: insertedEntry.contest_id
     };
     saveAccountModeSelection(currentAccountMode);
-    showToast("Contest mode added", "success");
+    showToast(entryFee > 0 ? `Contest mode added for ${formatCurrency(entryFee)} CC` : "Contest mode added", "success");
     await syncContestState({ force: true });
   } catch (error) {
     console.error("[RTN] optIntoContest error", error);
@@ -5284,6 +5370,7 @@ async function handleAdminContestSubmit(event) {
   const endsAt = String(formData.get("endsAt") ?? "");
   const startingBankroll = Math.max(0, Math.round(Number(formData.get("startingBankroll") ?? 0)));
   const startingCarterCash = Math.max(0, Math.round(Number(formData.get("startingCarterCash") ?? 0)));
+  const entryFeeCarterCash = Math.max(0, Math.round(Number(formData.get("entryFeeCarterCash") ?? 0)));
   const contestantLimit = Math.max(1, Math.round(Number(formData.get("contestantLimit") ?? 100)));
   const qualificationCarterCash = Math.max(0, Math.round(Number(formData.get("qualificationCarterCash") ?? 0)));
   const prizeStaticAmount = Math.max(0, Number(formData.get("prizeStaticAmount") ?? 0));
@@ -5329,6 +5416,7 @@ async function handleAdminContestSubmit(event) {
     ends_at: new Date(endsAt).toISOString(),
     starting_credits: startingBankroll,
     starting_carter_cash: startingCarterCash,
+    entry_fee_carter_cash: entryFeeCarterCash,
     contestant_limit: contestantLimit,
     winning_criteria: "highest_bankroll",
     qualification_carter_cash: qualificationCarterCash,
@@ -5455,7 +5543,8 @@ function renderPlayerContestRow(contest, participantStats = 0) {
 
   const meta = document.createElement("p");
   meta.className = "contest-opt-in-copy";
-  meta.textContent = `Highest credits wins • Requires ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash • Contestants: ${formatContestFill(contest, stats)}`;
+  const entryFee = getContestEntryFee(contest);
+  meta.textContent = `Highest credits wins • Requires ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash • Entry fee: ${formatCurrency(entryFee)} CC • Contestants: ${formatContestFill(contest, stats)}`;
 
   const prize = document.createElement("p");
   prize.className = "contest-prize-pill";
@@ -5576,7 +5665,7 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
 
   const details = document.createElement("p");
   details.className = "home-contest-card-window";
-  details.textContent = `${formatContestRemaining(contest)} • Contestants ${formatContestFill(contest, stats)}`;
+  details.textContent = `${formatContestRemaining(contest)} • Entry fee ${formatCurrency(getContestEntryFee(contest))} CC • Contestants ${formatContestFill(contest, stats)}`;
   titleWrap.append(title, details);
 
   const badge = document.createElement("span");
@@ -5630,7 +5719,7 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
 
   const shareButton = document.createElement("button");
   shareButton.type = "button";
-  shareButton.className = "home-button home-secondary home-contest-action contest-share-button";
+  shareButton.className = "contest-share-button";
   shareButton.textContent = "Share";
   shareButton.setAttribute("aria-label", `Share ${contest.title || "contest"}`);
   shareButton.title = "Share contest";

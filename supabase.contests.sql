@@ -6,6 +6,7 @@ create table if not exists public.contests (
   ends_at timestamptz not null,
   starting_credits integer not null default 1000,
   starting_carter_cash integer not null default 0,
+  entry_fee_carter_cash integer not null default 0,
   contestant_limit integer not null default 100,
   qualification_carter_cash integer not null default 0,
   winning_criteria text not null check (winning_criteria in ('highest_bankroll', 'highest_carter_cash', 'highest_combined')),
@@ -26,6 +27,7 @@ create table if not exists public.contests (
 alter table public.contests add column if not exists contest_details text;
 alter table public.contests add column if not exists qualification_carter_cash integer not null default 0;
 alter table public.contests add column if not exists contestant_limit integer not null default 100;
+alter table public.contests add column if not exists entry_fee_carter_cash integer not null default 0;
 alter table public.contests alter column reward set default '';
 alter table public.contests add column if not exists prize_mode text not null default 'static';
 alter table public.contests add column if not exists prize_static_amount numeric(12,2) not null default 0;
