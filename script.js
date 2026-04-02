@@ -5536,10 +5536,10 @@ function renderPlayerContestRow(contest, participantStats = 0) {
   title.textContent = contest.is_test ? `${contest.title || "Contest"} (Test)` : contest.title || "Contest";
   const titleRow = document.createElement("div");
   titleRow.className = "contest-card-title-row";
-  const entryFee = document.createElement("span");
-  entryFee.className = "contest-entry-fee-badge";
-  entryFee.textContent = formatContestEntryFeeText(contest);
-  titleRow.append(title, entryFee);
+  const entryFeeBadge = document.createElement("span");
+  entryFeeBadge.className = "contest-entry-fee-badge";
+  entryFeeBadge.textContent = formatContestEntryFeeText(contest);
+  titleRow.append(title, entryFeeBadge);
   const badge = document.createElement("span");
   const status = getContestStatus(contest);
   badge.className = "contest-status-badge";
@@ -5553,8 +5553,8 @@ function renderPlayerContestRow(contest, participantStats = 0) {
 
   const meta = document.createElement("p");
   meta.className = "contest-opt-in-copy";
-  const entryFee = getContestEntryFee(contest);
-  meta.textContent = `Highest credits wins • Requires ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash • Entry fee: ${formatCurrency(entryFee)} CC • Contestants: ${formatContestFill(contest, stats)}`;
+  const entryFeeAmount = getContestEntryFee(contest);
+  meta.textContent = `Highest credits wins • Requires ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash • Entry fee: ${formatCurrency(entryFeeAmount)} CC • Contestants: ${formatContestFill(contest, stats)}`;
 
   const prize = document.createElement("p");
   prize.className = "contest-prize-pill";
@@ -5675,14 +5675,14 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
   const title = document.createElement("h3");
   title.className = "home-contest-card-title";
   title.textContent = contest.title || "Contest";
-  const entryFee = document.createElement("span");
-  entryFee.className = "contest-entry-fee-badge";
-  entryFee.textContent = formatContestEntryFeeText(contest);
+  const entryFeeBadge = document.createElement("span");
+  entryFeeBadge.className = "contest-entry-fee-badge";
+  entryFeeBadge.textContent = formatContestEntryFeeText(contest);
 
   const details = document.createElement("p");
   details.className = "home-contest-card-window";
   details.textContent = `${formatContestRemaining(contest)} • Contestants ${formatContestFill(contest, stats)}`;
-  titleRow.append(title, entryFee);
+  titleRow.append(title, entryFeeBadge);
   titleWrap.append(titleRow, details);
 
   const badge = document.createElement("span");
