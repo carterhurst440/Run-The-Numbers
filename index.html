@@ -572,34 +572,38 @@
               Select a chip and place your bets in the betting panel.
             </div>
             <div class="betting-scroll">
-              <div class="active-paytable" aria-live="polite">
-                <div class="active-paytable-info">
-                  <span class="active-paytable-label">
-                    Active Paytable
-                    <button type="button" class="info-icon" id="paytable-info" aria-label="Information about the paytable">
+              <section class="number-bets" aria-labelledby="number-bets-heading">
+                <div class="bets-heading-row">
+                  <div class="bets-heading-main">
+                    <h2 class="bets-heading" id="number-bets-heading">Number Bets</h2>
+                    <button type="button" class="info-icon" id="number-bets-info" aria-label="Information about number bets">
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
                         <path d="M8 7V11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                         <circle cx="8" cy="5" r="0.75" fill="currentColor"/>
                       </svg>
                     </button>
-                  </span>
-                  <span id="active-paytable-name" class="active-paytable-name"></span>
-                  <span id="active-paytable-steps" class="active-paytable-steps"></span>
-                </div>
-                <button type="button" id="change-paytable" class="change-paytable">Change Paytable</button>
-              </div>
-              <section class="number-bets" aria-labelledby="number-bets-heading">
-                <div class="bets-heading-row">
-                  <h2 class="bets-heading" id="number-bets-heading">Number Bets</h2>
-                  <button type="button" class="info-icon" id="number-bets-info" aria-label="Information about number bets">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
-                      <path d="M8 7V11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                      <circle cx="8" cy="5" r="0.75" fill="currentColor"/>
-                    </svg>
-                  </button>
+                  </div>
                   <p class="bets-subheading">Lock before dealing</p>
+                </div>
+                <div class="active-paytable active-paytable-inline" aria-live="polite">
+                  <div class="active-paytable-info">
+                    <span class="active-paytable-label">
+                      Active Paytable
+                      <button type="button" class="info-icon" id="paytable-info" aria-label="Information about the paytable">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+                          <path d="M8 7V11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                          <circle cx="8" cy="5" r="0.75" fill="currentColor"/>
+                        </svg>
+                      </button>
+                    </span>
+                    <div class="active-paytable-inline-row">
+                      <span id="active-paytable-name" class="active-paytable-name"></span>
+                      <button type="button" id="change-paytable" class="change-paytable">Change</button>
+                    </div>
+                    <span id="active-paytable-steps" class="active-paytable-steps"></span>
+                  </div>
                 </div>
                 <div class="playmat" role="group" aria-label="Number bet spots">
                   <button

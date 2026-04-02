@@ -451,7 +451,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     updateAdminVisibility(currentUser);
     updateResetButtonVisibility(currentUser);
     await ensureProfileSynced({ force: !currentProfile });
-    await syncContestState({ force: true });
+    await syncContestState({ force: !contestCache.length });
   }
 
   if (!isAuthRoute && nextRoute === "admin" && !isAdmin()) {
@@ -3561,6 +3561,10 @@ function formatContestEntryFeeText(contest) {
   return `${formatCurrency(getContestEntryFee(contest))} CC`;
 }
 
+function formatContestEntryFeeLabelText(contest) {
+  return `Entry Fee: ${formatContestEntryFeeText(contest)}`;
+}
+
 function formatPrizeMoney(value) {
   const amount = Number(value);
   return new Intl.NumberFormat("en-US", {
@@ -4118,13 +4122,27 @@ function refreshContestNotifications(contests = contestCache) {
 }
 
 async function loadContestParticipantCounts(contests = contestCache) {
+  const contestIds = Array.isArray(contests)
+    ? contests.map((contest) => contest?.id).filter(Boolean)
+    : [];
+  if (!contestIds.length) {
+    return {};
+  }
+
   const { data: entries, error } = await supabase
     .from("contest_entries")
-    .select("contest_id,current_carter_cash");
+    .select("contest_id,current_carter_cash")
+    .in("contest_id", contestIds);
   if (error) throw error;
 
   const contestMap = new Map((contests || []).map((contest) => [contest.id, contest]));
   const counts = {};
+  contestIds.forEach((contestId) => {
+    counts[contestId] = {
+      participants: 0,
+      qualifying: 0
+    };
+  });
   (entries || []).forEach((entry) => {
     if (!counts[entry.contest_id]) {
       counts[entry.contest_id] = {
@@ -4144,6 +4162,18 @@ async function loadContestParticipantCounts(contests = contestCache) {
     ...counts
   };
   return counts;
+}
+
+function incrementContestParticipantCount(contest, entry) {
+  if (!contest?.id || !entry) return;
+  const qualificationRequirement = getContestQualificationRequirement(contest);
+  const currentStats = normalizeContestPrizeStats(contestParticipantCounts[contest.id] || 0);
+  contestParticipantCounts[contest.id] = {
+    participants: currentStats.participants + 1,
+    qualifying:
+      currentStats.qualifying +
+      (Number(entry.current_carter_cash ?? entry.starting_carter_cash ?? 0) >= qualificationRequirement ? 1 : 0)
+  };
 }
 
 function getContestDisplayName(profile, fallbackId = "") {
@@ -5349,7 +5379,15 @@ async function optIntoContest(contest = currentContest) {
     };
     saveAccountModeSelection(currentAccountMode);
     showToast(entryFee > 0 ? `Contest mode added for ${formatCurrency(entryFee)} CC` : "Contest mode added", "success");
-    await syncContestState({ force: true });
+    incrementContestParticipantCount(contest, insertedEntry);
+    renderContestChip();
+    renderContestModal();
+    renderAccountModeSelector();
+    updateModeSpecificModalCopy();
+    refreshContestNotifications(contestCache);
+    await loadPlayerContestList(currentRoute === "contests");
+    await renderHomeContestPromos();
+    syncActiveAccountMode({ forceApply: true, resetHistory: true });
   } catch (error) {
     console.error("[RTN] optIntoContest error", error);
     showToast(error?.message || "Unable to join contest", "error");
@@ -5538,7 +5576,7 @@ function renderPlayerContestRow(contest, participantStats = 0) {
   titleRow.className = "contest-card-title-row";
   const entryFeeBadge = document.createElement("span");
   entryFeeBadge.className = "contest-entry-fee-badge";
-  entryFeeBadge.textContent = formatContestEntryFeeText(contest);
+  entryFeeBadge.textContent = formatContestEntryFeeLabelText(contest);
   titleRow.append(title, entryFeeBadge);
   const badge = document.createElement("span");
   const status = getContestStatus(contest);
@@ -5596,14 +5634,13 @@ function renderPlayerContestRow(contest, participantStats = 0) {
 
   const shareButton = document.createElement("button");
   shareButton.type = "button";
-  shareButton.className = "secondary contest-share-button";
+  shareButton.className = "contest-share-button";
   shareButton.textContent = "Share";
   shareButton.setAttribute("aria-label", `Share ${contest.title || "contest"}`);
   shareButton.title = "Share contest";
   shareButton.addEventListener("click", () => {
     void shareContestLink(contest);
   });
-  actions.append(shareButton);
 
   if (status === "live") {
     if (playerEntry) {
@@ -5652,6 +5689,8 @@ function renderPlayerContestRow(contest, participantStats = 0) {
     actions.append(resultsButton);
   }
 
+  actions.append(shareButton);
+
   if (caption.textContent) {
     item.append(header, details, prize, growth, caption, payoutTable, meta, distribution, actions);
   } else {
@@ -5677,7 +5716,7 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
   title.textContent = contest.title || "Contest";
   const entryFeeBadge = document.createElement("span");
   entryFeeBadge.className = "contest-entry-fee-badge";
-  entryFeeBadge.textContent = formatContestEntryFeeText(contest);
+  entryFeeBadge.textContent = formatContestEntryFeeLabelText(contest);
 
   const details = document.createElement("p");
   details.className = "home-contest-card-window";

@@ -639,7 +639,7 @@ body[data-app-state="ready"] .loading-screen {
   display: flex;
   flex-direction: column;
   position: relative;
-  background: var(--app-overlay);
+  background: transparent;
 }
 
 .app > * {
@@ -648,28 +648,7 @@ body[data-app-state="ready"] .loading-screen {
 }
 
 .app::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    repeating-linear-gradient(
-      0deg,
-      rgba(255, 255, 255, 0.04) 0,
-      rgba(255, 255, 255, 0.04) 1px,
-      transparent 1px,
-      transparent 90px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.04) 0,
-      rgba(255, 255, 255, 0.04) 1px,
-      transparent 1px,
-      transparent 90px
-    );
-  mix-blend-mode: screen;
-  opacity: 0.5;
-  z-index: 0;
+  display: none;
 }
 
 #app-shell {
@@ -964,25 +943,29 @@ body[data-app-state="loading"] #app-shell {
 .contest-share-button {
   appearance: none;
   -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: auto;
-  padding: 0;
-  border: 0;
+  padding: 0.12rem 0;
+  border: none;
   border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+  background: none !important;
+  box-shadow: none !important;
   color: rgba(173, 225, 247, 0.82);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .contest-share-button:hover:not(:disabled),
 .contest-share-button:focus-visible {
   color: var(--text-light);
-  background: transparent;
+  background: none !important;
   border-color: transparent;
-  box-shadow: none;
+  box-shadow: none !important;
   transform: none;
   outline: none;
 }
@@ -1258,26 +1241,30 @@ body[data-app-state="loading"] #app-shell {
   .contest-share-button {
     appearance: none;
     -webkit-appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     min-width: auto;
     flex: 0 0 auto;
     margin-left: 0.2rem;
-    padding: 0.2rem 0;
-    border: 0;
+    padding: 0.18rem 0;
+    border: none;
     border-radius: 0;
-    background: transparent;
-    box-shadow: none;
+    background: none !important;
+    box-shadow: none !important;
     color: rgba(173, 225, 247, 0.82);
     font-size: 0.72rem;
     letter-spacing: 0.16em;
     text-transform: uppercase;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .contest-share-button:hover:not(:disabled),
   .contest-share-button:focus-visible {
     color: var(--text-light);
-    background: transparent;
+    background: none !important;
     border-color: transparent;
-    box-shadow: none;
+    box-shadow: none !important;
     transform: none;
     outline: none;
   }
@@ -2296,10 +2283,27 @@ body[data-app-state="loading"] #app-shell {
   box-shadow: var(--active-paytable-shadow);
 }
 
+.active-paytable-inline {
+  display: block;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  margin: -0.15rem 0 0.2rem;
+}
+
 .active-paytable-info {
   display: grid;
   gap: 0.25rem;
   min-width: 0;
+}
+
+.active-paytable-inline-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .active-paytable-label {
@@ -2332,24 +2336,24 @@ body[data-app-state="loading"] #app-shell {
 
 .change-paytable {
   align-self: center;
-  padding: 0.35rem 0.85rem;
+  padding: 0.18rem 0;
   border-radius: 999px;
-  border: 1px solid var(--change-paytable-border);
-  background: var(--change-paytable-bg);
+  border: 0;
+  background: transparent;
   color: var(--text-light);
   font-family: inherit;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
+  font-weight: 700;
   letter-spacing: 0.12rem;
   text-transform: uppercase;
   cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  transition: color 0.18s ease, transform 0.18s ease;
 }
 
 .change-paytable:hover,
 .change-paytable:focus-visible {
   transform: translateY(-1px);
-  border-color: var(--change-paytable-border-hover);
-  box-shadow: var(--change-paytable-shadow);
+  color: rgba(160, 248, 255, 0.92);
   outline: none;
 }
 
@@ -2625,6 +2629,13 @@ body[data-app-state="loading"] #app-shell {
   margin-bottom: clamp(0.4rem, 1.3vw, 0.6rem);
 }
 
+.bets-heading-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
 .bets-tools {
   display: flex;
   align-items: center;
@@ -2740,7 +2751,7 @@ body[data-app-state="loading"] #app-shell {
 
 .number-bets .bets-heading-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: clamp(0.4rem, 1.2vw, 0.7rem);
   margin-bottom: clamp(0.4rem, 1.3vw, 0.6rem);
 }
@@ -3911,6 +3922,7 @@ button:disabled {
   width: 38px;
   height: 38px;
   font-size: 1.5rem;
+  line-height: 1;
   border: 1px solid rgba(31, 241, 255, 0.35);
   color: var(--text-light);
   display: inline-flex;
@@ -3918,6 +3930,12 @@ button:disabled {
   justify-content: center;
   padding: 0;
   box-shadow: 0 14px 26px rgba(31, 241, 255, 0.18);
+}
+
+.drawer-close > span[aria-hidden="true"] {
+  display: block;
+  line-height: 1;
+  transform: translateY(-1px);
 }
 
 .drawer-close:hover,
@@ -6208,7 +6226,7 @@ body.modal-open {
 }
 
 .contest-actions .contest-share-button {
-  min-width: 11.5rem;
+  margin-left: auto;
 }
 
 @media (max-width: 900px) {
