@@ -4894,9 +4894,10 @@ function formatContestRemaining(contest) {
 }
 
 function renderContestChip() {
-  const contest = currentContest;
   const visibleContests = (contestCache || []).filter((entry) => isContestVisibleToCurrentUser(entry));
-  const contestStatus = getContestStatus(contest);
+  const contest = isContestVisibleToCurrentUser(currentContest)
+    ? currentContest
+    : chooseCurrentContest(visibleContests);
   if (!drawerContestLink) {
     if (menuContestBadge) {
       menuContestBadge.hidden = !visibleContests.some((entry) => getContestStatus(entry) === "live");
@@ -5652,6 +5653,7 @@ async function renderHomeContestPromos() {
   if (!currentUser?.id || currentUser.id === GUEST_USER.id) {
     homeLiveContestsSectionEl.hidden = true;
     homeLiveContestListEl.innerHTML = "";
+    homeView?.classList.remove("has-contest-spotlight");
     return;
   }
 
@@ -5663,11 +5665,13 @@ async function renderHomeContestPromos() {
   if (!liveContests.length) {
     homeLiveContestsSectionEl.hidden = true;
     homeLiveContestListEl.innerHTML = "";
+    homeView?.classList.remove("has-contest-spotlight");
     return;
   }
 
   homeLiveContestsSectionEl.hidden = false;
   homeLiveContestListEl.innerHTML = "";
+  homeView?.classList.add("has-contest-spotlight");
 
   try {
     const counts = await loadContestParticipantCounts(liveContests);
