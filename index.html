@@ -305,7 +305,7 @@
           <ol class="how-to-list">
             <li>Choose a chip value from the rack.</li>
             <li>Stack chips on Ace or any number 2–10 before dealing.</li>
-            <li>Press <strong>Deal Hand</strong> to reveal cards until a face card (J, Q, K) or the Joker appears.</li>
+            <li>Press <strong>Deal Hand</strong> to reveal cards. With Auto Deal on, the hand runs to the end automatically; with it off, each press reveals the next card.</li>
             <li>Each time your number hits before the bust card, you earn the next step on the active paytable.</li>
             <li>Use <strong>Rebet</strong> to restore your previous layout or <strong>Clear</strong> to start fresh.</li>
           </ol>
@@ -314,7 +314,7 @@
               Each hand uses a fresh 53-card deck. Jacks, Queens, Kings, and the Joker stop play immediately; Ace and numbers 2–10 keep the hand alive.
             </p>
             <p>
-              Number bets lock before the hand starts. Advanced bust bets can be added while a hand is paused; card count bets must be in before dealing.
+              Number bets and card count bets lock before the hand starts. With Auto Deal off, specific card bets and advanced bust bets can be added between revealed cards.
             </p>
           </div>
         </section>
@@ -340,6 +340,9 @@
             <span class="sr-only">Close notifications</span>
             <span aria-hidden="true">×</span>
           </button>
+        </div>
+        <div class="drawer-toolbar">
+          <button type="button" class="drawer-action-button" id="notifications-clear-all">Clear All</button>
         </div>
         <section class="drawer-section">
           <div class="section-heading">
@@ -526,14 +529,6 @@
         <section id="home-view" class="route-view app-page home-view" hidden aria-labelledby="home-title">
           <div class="home-hero">
             <h1 id="home-title" class="home-title">RUN THE NUMBERS</h1>
-            <div class="home-actions">
-              <button type="button" class="home-button home-primary" data-route-target="play">
-                Play Game
-              </button>
-              <button type="button" class="home-button home-secondary" data-route-target="store">
-                View Store
-              </button>
-            </div>
             <section id="home-live-contests" class="home-contests-panel" hidden aria-labelledby="home-live-contests-title">
               <div class="home-contests-header">
                 <div>
@@ -542,9 +537,17 @@
                 </div>
                 <button type="button" class="store-back home-contests-link" data-route-target="contests">See All Contests</button>
               </div>
-              <p class="home-contests-copy">Join a live contest, review the leaderboard, and switch into contest mode without leaving the home screen.</p>
+              <p class="home-contests-copy">Track the live prize pot and jump into the contest mode whenever you're ready.</p>
               <ul id="home-live-contest-list" class="home-live-contest-list" aria-live="polite"></ul>
             </section>
+            <div class="home-actions">
+              <button type="button" class="home-button home-primary" data-route-target="play">
+                Play Game
+              </button>
+              <button type="button" class="home-button home-secondary" data-route-target="contests">
+                View Contests
+              </button>
+            </div>
           </div>
         </section>
 
@@ -553,7 +556,16 @@
         <div class="panels">
           <section class="panel table-panel" aria-label="Table play area">
             <section class="dealer-zone" aria-live="polite">
-              <h2 class="draws-title">Cards Dealt</h2>
+              <div class="dealer-header">
+                <h2 class="draws-title">Cards Dealt</h2>
+                <label class="advanced-toggle deal-mode-toggle is-active" id="auto-deal-toggle-wrap">
+                  <input type="checkbox" id="auto-deal-toggle" checked aria-checked="true" />
+                  <span class="toggle-label">Auto Deal</span>
+                  <span class="toggle-visual" aria-hidden="true">
+                    <span class="toggle-thumb"></span>
+                  </span>
+                </label>
+              </div>
               <div class="draws" id="draws" aria-label="Cards dealt this hand"></div>
             </section>
           </section>
@@ -1330,6 +1342,17 @@
                 <button type="button" data-route-target="home" class="link-button">Back to home</button>
               </div>
             </header>
+            <section class="route-section contest-settings-section" aria-labelledby="contest-settings-title">
+              <div class="section-heading">
+                <h2 id="contest-settings-title">Contest Notifications</h2>
+                <p class="section-sub">Choose whether we should email you whenever a new contest goes live.</p>
+              </div>
+              <label class="contest-email-setting">
+                <input type="checkbox" id="contest-email-opt-in" />
+                <span>Receive email notifications each time a new contest begins.</span>
+              </label>
+              <p id="contest-email-setting-message" class="contest-email-setting-message" role="status" aria-live="polite"></p>
+            </section>
             <section class="route-section">
               <div class="section-heading">
                 <h2>Live Contests</h2>
@@ -1784,6 +1807,7 @@
               <p id="contest-status-text" class="contest-status-text">No active contest.</p>
               <h3 id="contest-title" class="contest-title">Contest details</h3>
               <p id="contest-window" class="contest-window"></p>
+              <p id="contest-caption-details" class="contest-opt-in-copy" hidden></p>
               <dl class="contest-detail-list">
                 <div>
                   <dt>Starting Bankroll</dt>
@@ -1798,10 +1822,11 @@
                   <dd id="contest-winning-criteria">0 Carter Cash</dd>
                 </div>
                 <div>
-                  <dt>Reward</dt>
+                  <dt>Prize Pot</dt>
                   <dd id="contest-reward">-</dd>
                 </div>
               </dl>
+              <p id="contest-prize-growth" class="contest-prize-growth"></p>
               <p id="contest-opt-in-copy" class="contest-opt-in-copy"></p>
               <div class="contest-actions">
                 <button type="button" id="contest-opt-in-button" class="primary">Opt in</button>
@@ -1882,6 +1907,31 @@
 
     <div
       class="modal"
+      id="contest-journey-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="contest-journey-title"
+      hidden
+    >
+      <div class="modal-content contest-modal contest-journey-modal">
+        <div class="modal-header">
+          <h2 id="contest-journey-title">Contest Journey</h2>
+          <button type="button" class="modal-close" id="contest-journey-close" aria-label="Close contest journey">×</button>
+        </div>
+        <div class="modal-body contest-modal-body">
+          <p id="contest-journey-summary" class="contest-results-summary"></p>
+          <div class="contest-journey-chart-wrap">
+            <canvas id="contest-journey-chart" aria-label="Contest bankroll journey chart"></canvas>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="contest-journey-ok" class="primary">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal"
       id="admin-contest-modal"
       role="dialog"
       aria-modal="true"
@@ -1897,6 +1947,10 @@
           <label class="admin-field">
             <span>Contest name</span>
             <input type="text" name="title" required />
+          </label>
+          <label class="admin-field">
+            <span>Caption / Details</span>
+            <textarea name="contestDetails" rows="3" placeholder="Add any custom details you want shown on the contest listing and start email."></textarea>
           </label>
           <label class="admin-field">
             <span>Start date</span>
@@ -1915,13 +1969,51 @@
             <input type="number" name="startingCarterCash" min="0" step="1" required />
           </label>
           <label class="admin-field">
+            <span>Contestant Limit</span>
+            <input type="number" name="contestantLimit" min="1" step="1" value="100" required />
+          </label>
+          <label class="admin-field">
             <span>Qualification requirement (Carter Cash)</span>
             <input type="number" name="qualificationCarterCash" min="0" step="1" value="0" required />
           </label>
           <label class="admin-field">
-            <span>Reward</span>
-            <textarea name="reward" rows="3" placeholder="Describe the prize or payout for the winner(s)." required></textarea>
+            <span>Contest Prize Pot</span>
+            <input type="number" name="prizeStaticAmount" min="0" step="0.01" value="0" required />
           </label>
+          <label class="admin-field">
+            <span>Variable growth rule</span>
+            <select name="prizeVariableBasis">
+              <option value="none">None</option>
+              <option value="contestant">Per each contestant</option>
+              <option value="qualifying_contestant">Per each qualifying contestant</option>
+            </select>
+          </label>
+          <label class="admin-field">
+            <span>Amount added for each unit</span>
+            <input type="number" name="prizeVariableUnitAmount" min="0" step="0.01" value="1" />
+          </label>
+          <label class="admin-field admin-toggle-field">
+            <span>Send email notification</span>
+            <span class="admin-toggle-control">
+              <input type="checkbox" name="sendStartEmailNotification" />
+              <span>Send email notification when this contest goes live.</span>
+            </span>
+          </label>
+          <label class="admin-field admin-toggle-field">
+            <span>Test Contest</span>
+            <span class="admin-toggle-control">
+              <input type="checkbox" name="isTestContest" />
+              <span>Only the admin can see this contest and only the admin receives its emails.</span>
+            </span>
+          </label>
+          <fieldset class="admin-field admin-fieldset">
+            <legend>Prize Pot Allocations</legend>
+            <div id="contest-prize-allocations" class="contest-prize-allocations"></div>
+            <div class="contest-prize-allocation-actions">
+              <button type="button" class="secondary" id="add-prize-allocation-button">Add Place</button>
+              <p id="contest-prize-allocation-summary" class="contest-prize-allocation-summary">Total allocation: 100%</p>
+            </div>
+          </fieldset>
           <div class="modal-actions admin-form-actions">
             <button type="button" class="secondary" id="admin-contest-cancel">Cancel</button>
             <button type="submit" class="primary" id="admin-contest-save">Create contest</button>
@@ -1940,6 +2032,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260329b"></script>
+    <script type="module" src="script.js?v=20260401b"></script>
   </body>
 </html>

@@ -568,6 +568,51 @@ function getRouteFromHash() {
   return route;
 }
 
+function getContestIdFromHash() {
+  if (typeof window === "undefined") return null;
+  const hash = window.location.hash || "";
+  const queryIndex = hash.indexOf("?");
+  if (queryIndex === -1) return null;
+  const query = hash.slice(queryIndex + 1);
+  const params = new URLSearchParams(query);
+  const contestId = params.get("contest");
+  return contestId ? contestId.trim() : null;
+}
+
+function buildContestShareUrl(contestId) {
+  if (!contestId || typeof window === "undefined") return "";
+  return `${window.location.origin}${window.location.pathname}#/contests?contest=${encodeURIComponent(contestId)}`;
+}
+
+async function shareContestLink(contest) {
+  if (!contest?.id) return;
+  const url = buildContestShareUrl(contest.id);
+  const shareTitle = contest.title || "Run The Numbers Contest";
+  try {
+    if (navigator.share) {
+      await navigator.share({
+        title: shareTitle,
+        text: `Join me in ${shareTitle} on Run The Numbers.`,
+        url
+      });
+    } else if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url);
+      showToast("Contest link copied", "success");
+    } else {
+      throw new Error("Clipboard unavailable");
+    }
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    console.error("[RTN] shareContestLink error", error);
+    showToast("Unable to share contest link", "error");
+  }
+}
+
+function isUsingContestMode(contestId) {
+  const activeContest = getModeContest();
+  return Boolean(activeContest?.id) && String(activeContest.id) === String(contestId || "");
+}
+
 function handleHashChange() {
   if (suppressHash) return;
   
@@ -636,7 +681,7 @@ async function fetchProfileWithRetries(
     try {
       const fetchPromise = supabase
         .from("profiles")
-        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name")
+        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, receive_contest_start_emails, updated_at")
         .eq("id", userId)
         .maybeSingle();
 
@@ -733,6 +778,19 @@ function deriveProfileSeedFromUser(user) {
   };
 }
 
+function getProfileUpdatedAtMs(profile) {
+  if (!profile?.updated_at) return null;
+  const parsed = new Date(profile.updated_at).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function isIncomingProfileStale(profile) {
+  if (!profile || !currentProfile || profile.id !== currentProfile.id) return false;
+  const incomingMs = getProfileUpdatedAtMs(profile);
+  const currentMs = getProfileUpdatedAtMs(currentProfile);
+  return incomingMs !== null && currentMs !== null && incomingMs < currentMs;
+}
+
 async function provisionProfileForUser(user) {
   if (!user?.id) {
     console.warn("[RTN] provisionProfileForUser called without valid user");
@@ -759,7 +817,7 @@ async function provisionProfileForUser(user) {
       .from("profiles")
       .insert([profileInsert])
       .select(
-        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name"
+        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, receive_contest_start_emails, updated_at"
       )
       .maybeSingle();
 
@@ -818,6 +876,10 @@ async function ensureProfileSynced({ force = false } = {}) {
   }
 
   if (resolvedProfile && resolvedProfile.credits !== undefined) {
+    if (isIncomingProfileStale(resolvedProfile)) {
+      lastProfileSync = Date.now();
+      return currentProfile;
+    }
     currentProfile = resolvedProfile;
     const applied = applyProfileCredits(resolvedProfile, { resetHistory: !bankrollInitialized });
     void loadPersistentBankrollHistory({ force });
@@ -2120,6 +2182,9 @@ async function loadDashboard(force = false) {
   });
 
   if (resolvedProfile) {
+    if (isIncomingProfileStale(resolvedProfile)) {
+      return;
+    }
     console.info(
       `[RTN] loadDashboard applying profile ${resolvedProfile.id} (credits=${resolvedProfile.credits}, carterCash=${resolvedProfile.carter_cash})`
     );
@@ -3483,6 +3548,146 @@ function getContestQualificationRequirement(contest) {
   return Math.max(0, Math.round(Number(contest?.qualification_carter_cash ?? 0)));
 }
 
+function formatPrizeMoney(value) {
+  const amount = Number(value);
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+    maximumFractionDigits: 2
+  }).format(Number.isFinite(amount) ? amount : 0);
+}
+
+function normalizeContestPrizeStats(statsOrCount = 0) {
+  if (typeof statsOrCount === "number") {
+    return {
+      participants: Math.max(0, Math.round(statsOrCount)),
+      qualifying: 0
+    };
+  }
+  return {
+    participants: Math.max(0, Math.round(Number(statsOrCount?.participants ?? 0))),
+    qualifying: Math.max(0, Math.round(Number(statsOrCount?.qualifying ?? 0)))
+  };
+}
+
+function getContestPrizePotValue(contest, statsOrCount = 0) {
+  const stats = normalizeContestPrizeStats(statsOrCount);
+  const baseAmount = Math.max(0, Number(contest?.prize_static_amount ?? 0));
+  const unitAmount = Math.max(0, Number(contest?.prize_variable_unit_amount ?? 0));
+  if (contest?.prize_variable_basis === "none" || contest?.prize_mode !== "variable") {
+    return baseAmount;
+  }
+  const multiplier = contest?.prize_variable_basis === "qualifying_contestant"
+    ? stats.qualifying
+    : stats.participants;
+  return baseAmount + multiplier * unitAmount;
+}
+
+function getContestPrizeGrowthCopy(contest) {
+  if (!contest) return "Prize amount not available.";
+  const baseAmount = Math.max(0, Number(contest.prize_static_amount ?? 0));
+  const unitAmount = Math.max(0, Number(contest.prize_variable_unit_amount ?? 0));
+  if (contest.prize_variable_basis === "none" || contest.prize_mode !== "variable") {
+    return `Static prize pot of ${formatPrizeMoney(baseAmount)}.`;
+  }
+  const basisLabel = contest.prize_variable_basis === "qualifying_contestant"
+    ? "qualifying contestant"
+    : "contestant";
+  if (baseAmount > 0) {
+    return `Starts at ${formatPrizeMoney(baseAmount)} and grows by ${formatPrizeMoney(unitAmount)} per ${basisLabel}.`;
+  }
+  return `Grows by ${formatPrizeMoney(unitAmount)} per ${basisLabel}.`;
+}
+
+function getContestPrizeHeadline(contest, statsOrCount = 0) {
+  return formatPrizeMoney(getContestPrizePotValue(contest, statsOrCount));
+}
+
+function getContestLimit(contest) {
+  return Math.max(1, Math.round(Number(contest?.contestant_limit ?? 100)));
+}
+
+function formatContestFill(contest, statsOrCount = 0) {
+  const stats = normalizeContestPrizeStats(statsOrCount);
+  return `${stats.participants}/${getContestLimit(contest)}`;
+}
+
+function normalizePrizeAllocations(allocations) {
+  const source = Array.isArray(allocations) && allocations.length
+    ? allocations
+    : [{ place: 1, percentage: 100 }];
+  return source
+    .map((allocation, index) => ({
+      place: Math.max(1, Math.round(Number(allocation?.place ?? index + 1))),
+      percentage: Math.max(0, Number(allocation?.percentage ?? 0))
+    }))
+    .sort((a, b) => a.place - b.place)
+    .map((allocation, index) => ({
+      place: index + 1,
+      percentage: allocation.percentage
+    }));
+}
+
+function getOrdinalLabel(value) {
+  const mod10 = value % 10;
+  const mod100 = value % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${value}st`;
+  if (mod10 === 2 && mod100 !== 12) return `${value}nd`;
+  if (mod10 === 3 && mod100 !== 13) return `${value}rd`;
+  return `${value}th`;
+}
+
+function getContestPrizeDistributionCopy(contest, statsOrCount = 0) {
+  const allocations = normalizePrizeAllocations(contest?.prize_allocations);
+  const totalPot = getContestPrizePotValue(contest, statsOrCount);
+  return allocations
+    .map((allocation) => {
+      const awardValue = totalPot * (allocation.percentage / 100);
+      return `${getOrdinalLabel(allocation.place)} ${allocation.percentage}% (${formatPrizeMoney(awardValue)})`;
+    })
+    .join(" • ");
+}
+
+function getContestPrizeAward(entry, contest, statsOrCount = 0) {
+  if (!entry?.qualifies) return 0;
+  const allocations = normalizePrizeAllocations(contest?.prize_allocations);
+  const allocation = allocations.find((candidate) => candidate.place === entry.qualifiedRank);
+  if (!allocation) return 0;
+  return getContestPrizePotValue(contest, statsOrCount) * (allocation.percentage / 100);
+}
+
+function buildContestPayoutTable(contest, statsOrCount = 0, className = "contest-payout-table") {
+  const stats = normalizeContestPrizeStats(statsOrCount);
+  const allocations = normalizePrizeAllocations(contest?.prize_allocations);
+  const totalPot = getContestPrizePotValue(contest, stats);
+
+  const table = document.createElement("div");
+  table.className = className;
+
+  allocations.forEach((allocation) => {
+    const row = document.createElement("div");
+    row.className = `${className}-row`;
+
+    const place = document.createElement("span");
+    place.className = `${className}-place`;
+    place.textContent = getOrdinalLabel(allocation.place);
+
+    const pct = document.createElement("span");
+    pct.className = `${className}-percent`;
+    pct.textContent = `${allocation.percentage}%`;
+
+    const amount = document.createElement("span");
+    amount.className = `${className}-amount`;
+    amount.textContent = formatPrizeMoney(totalPot * (allocation.percentage / 100));
+
+    row.append(place, pct, amount);
+    table.appendChild(row);
+  });
+
+  return table;
+}
+
 function getContestStorageKey(contestId) {
   return `rtn:contest-results-seen:${contestId}:${currentUser?.id || "guest"}`;
 }
@@ -3533,6 +3738,177 @@ function hasSeenContestResultsForEntry(entry) {
   return Boolean(entry.results_seen_at) || hasSeenContestResults(entry.contest_id);
 }
 
+function renderContestEmailPreference() {
+  if (!contestEmailOptInInput) return;
+  const enabled = currentProfile?.receive_contest_start_emails ?? true;
+  contestEmailOptInInput.checked = Boolean(enabled);
+}
+
+function setContestEmailPreferenceMessage(message = "", tone = "") {
+  if (!contestEmailSettingMessageEl) return;
+  contestEmailSettingMessageEl.textContent = message;
+  contestEmailSettingMessageEl.className = "contest-email-setting-message";
+  if (tone === "success") {
+    contestEmailSettingMessageEl.classList.add("is-success");
+  } else if (tone === "error") {
+    contestEmailSettingMessageEl.classList.add("is-error");
+  }
+}
+
+async function handleContestEmailPreferenceChange(event) {
+  const checked = Boolean(event?.target?.checked);
+  if (!currentUser?.id || currentUser.id === GUEST_USER.id) {
+    if (contestEmailOptInInput) {
+      contestEmailOptInInput.checked = !checked;
+    }
+    showToast("Please sign in again.", "error");
+    return;
+  }
+
+  if (contestEmailOptInInput) {
+    contestEmailOptInInput.disabled = true;
+  }
+  setContestEmailPreferenceMessage("Saving your notification preference...");
+
+  try {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ receive_contest_start_emails: checked })
+      .eq("id", currentUser.id);
+    if (error) throw error;
+
+    if (currentProfile && currentProfile.id === currentUser.id) {
+      currentProfile.receive_contest_start_emails = checked;
+    }
+    setContestEmailPreferenceMessage("Contest email preference updated.", "success");
+  } catch (error) {
+    console.error("[RTN] handleContestEmailPreferenceChange error", error);
+    if (contestEmailOptInInput) {
+      contestEmailOptInInput.checked = !checked;
+    }
+    setContestEmailPreferenceMessage("Unable to update your contest email preference.", "error");
+    showToast("Unable to update contest email preference", "error");
+  } finally {
+    if (contestEmailOptInInput) {
+      contestEmailOptInInput.disabled = false;
+    }
+  }
+}
+
+async function markContestStartNotificationSeen(contestId) {
+  if (!contestId || !currentUser?.id) return;
+  const existing = contestStartNotifications.find(
+    (notification) => String(notification.contest_id || "") === String(contestId)
+  );
+  if (!existing || existing.seen_at) return;
+
+  const seenAt = new Date().toISOString();
+  try {
+    const { error } = await supabase
+      .from("contest_start_notifications")
+      .update({ seen_at: seenAt })
+      .eq("contest_id", contestId)
+      .eq("user_id", currentUser.id);
+    if (error) throw error;
+    contestStartNotifications = contestStartNotifications.map((notification) =>
+      String(notification.contest_id || "") === String(contestId)
+        ? { ...notification, seen_at: seenAt }
+        : notification
+    );
+  } catch (error) {
+    console.error("[RTN] markContestStartNotificationSeen error", error);
+  }
+}
+
+async function markAllContestNotificationsSeen() {
+  if (!currentUser?.id || currentUser.id === GUEST_USER.id) {
+    return;
+  }
+
+  const unreadResultEntries = userContestEntries.filter((entry) => !hasSeenContestResultsForEntry(entry));
+  const unreadStartNotifications = contestStartNotifications.filter((notification) => !notification.seen_at);
+
+  if (!unreadResultEntries.length && !unreadStartNotifications.length) {
+    refreshContestNotifications(contestCache);
+    return;
+  }
+
+  const seenAt = new Date().toISOString();
+  if (notificationsClearAllButton) {
+    notificationsClearAllButton.disabled = true;
+    notificationsClearAllButton.textContent = "Clearing...";
+  }
+
+  try {
+    if (unreadResultEntries.length) {
+      const unreadResultContestIds = unreadResultEntries
+        .map((entry) => entry.contest_id)
+        .filter(Boolean);
+
+      unreadResultContestIds.forEach((contestId) => {
+        if (typeof window !== "undefined" && window.localStorage) {
+          window.localStorage.setItem(getContestStorageKey(contestId), "1");
+        }
+      });
+
+      const { error: resultError } = await supabase
+        .from("contest_entries")
+        .update({ results_seen_at: seenAt })
+        .eq("user_id", currentUser.id)
+        .in("contest_id", unreadResultContestIds);
+      if (resultError) throw resultError;
+
+      const unreadResultIdSet = new Set(unreadResultContestIds.map((contestId) => String(contestId)));
+      userContestEntries = userContestEntries.map((entry) =>
+        unreadResultIdSet.has(String(entry.contest_id))
+          ? { ...entry, results_seen_at: seenAt }
+          : entry
+      );
+      userContestEntries.forEach((entry) => {
+        contestEntryMap.set(entry.contest_id, entry);
+      });
+      if (currentContestEntry && unreadResultIdSet.has(String(currentContestEntry.contest_id))) {
+        currentContestEntry = {
+          ...currentContestEntry,
+          results_seen_at: seenAt
+        };
+      }
+    }
+
+    if (unreadStartNotifications.length) {
+      const unreadStartContestIds = unreadStartNotifications
+        .map((notification) => notification.contest_id)
+        .filter(Boolean);
+
+      const { error: startError } = await supabase
+        .from("contest_start_notifications")
+        .update({ seen_at: seenAt })
+        .eq("user_id", currentUser.id)
+        .in("contest_id", unreadStartContestIds);
+      if (startError) throw startError;
+
+      const unreadStartIdSet = new Set(unreadStartContestIds.map((contestId) => String(contestId)));
+      contestStartNotifications = contestStartNotifications.map((notification) =>
+        unreadStartIdSet.has(String(notification.contest_id))
+          ? { ...notification, seen_at: seenAt }
+          : notification
+      );
+    }
+
+    refreshContestNotifications(contestCache);
+    showToast("Notifications cleared", "success");
+  } catch (error) {
+    console.error("[RTN] markAllContestNotificationsSeen error", error);
+    showToast("Unable to clear notifications", "error");
+  } finally {
+    if (notificationsClearAllButton) {
+      notificationsClearAllButton.disabled = false;
+      notificationsClearAllButton.textContent = "Clear All";
+    }
+    refreshContestNotifications(contestCache);
+  }
+}
+
 function formatContestNotificationTime(value) {
   if (!value) return "Recently finished";
   const date = new Date(value);
@@ -3545,6 +3921,72 @@ function formatContestNotificationTime(value) {
   })}`;
 }
 
+function formatContestStartNotificationTime(value) {
+  if (!value) return "Live now";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Live now";
+  return `Started ${date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  })}`;
+}
+
+async function loadContestStartNotifications() {
+  if (!currentUser?.id || currentUser.id === GUEST_USER.id) {
+    contestStartNotifications = [];
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("contest_start_notifications")
+    .select("*")
+    .eq("user_id", currentUser.id)
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("[RTN] loadContestStartNotifications error", error);
+    contestStartNotifications = [];
+    return;
+  }
+
+  contestStartNotifications = Array.isArray(data) ? data : [];
+}
+
+async function seedLiveContestNotifications() {
+  if (!supabase || !currentUser?.id || currentUser.id === GUEST_USER.id) return [];
+
+  try {
+    const { data, error } = await supabase.rpc("seed_live_contest_notifications");
+    if (error) throw error;
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error("[RTN] seedLiveContestNotifications error", error);
+    return [];
+  }
+}
+
+async function dispatchContestStartEmails(seedResults = []) {
+  if (!Array.isArray(seedResults) || !seedResults.length || !supabase?.functions?.invoke) {
+    return;
+  }
+
+  await Promise.all(
+    seedResults
+      .filter((item) => Number(item?.email_requested || 0) > 0)
+      .map(async (item) => {
+        try {
+          const { error } = await supabase.functions.invoke("send-contest-start-emails", {
+            body: { contestId: item.contest_id }
+          });
+          if (error) throw error;
+        } catch (error) {
+          console.warn("[RTN] dispatchContestStartEmails warning", error);
+        }
+      })
+  );
+}
+
 function updateNotificationBadge() {
   if (!notificationBadge || !notificationToggle) return;
   const unreadCount = contestNotifications.filter((item) => item.unread).length;
@@ -3554,6 +3996,9 @@ function updateNotificationBadge() {
     "aria-label",
     unreadCount > 0 ? `Open notifications, ${unreadCount} unread` : "Open notifications"
   );
+  if (notificationsClearAllButton) {
+    notificationsClearAllButton.disabled = unreadCount <= 0;
+  }
 }
 
 function renderContestNotifications() {
@@ -3563,7 +4008,7 @@ function renderContestNotifications() {
   if (!contestNotifications.length) {
     const empty = document.createElement("li");
     empty.className = "notification-item notification-item-empty";
-    empty.textContent = "No contest result notifications yet.";
+    empty.textContent = "No contest notifications yet.";
     notificationsListEl.appendChild(empty);
     updateNotificationBadge();
     return;
@@ -3577,6 +4022,7 @@ function renderContestNotifications() {
     button.type = "button";
     button.className = "notification-card";
     button.dataset.contestId = notification.contestId;
+    button.dataset.notificationType = notification.type || "result";
 
     const topRow = document.createElement("div");
     topRow.className = "notification-card-top";
@@ -3597,7 +4043,9 @@ function renderContestNotifications() {
 
     const meta = document.createElement("div");
     meta.className = "notification-card-meta";
-    meta.textContent = formatContestNotificationTime(notification.endedAt);
+    meta.textContent = notification.type === "start"
+      ? formatContestStartNotificationTime(notification.createdAt)
+      : formatContestNotificationTime(notification.endedAt);
 
     button.append(topRow, detail, meta);
     item.appendChild(button);
@@ -3608,39 +4056,80 @@ function renderContestNotifications() {
 }
 
 function refreshContestNotifications(contests = contestCache) {
+  const startItems = contestStartNotifications
+    .map((notification) => {
+      const contest = getContestById(notification.contest_id);
+      if (!contest) return null;
+      const countStats = normalizeContestPrizeStats(contestParticipantCounts[contest.id] || 0);
+      return {
+        type: "start",
+        contestId: contest.id,
+        title: contest.title || "Contest is live",
+        createdAt: notification.created_at,
+        unread: !notification.seen_at,
+        message: `A new contest is live. ${getContestPrizeHeadline(contest, countStats)} Tap to view the details.`,
+        sortAt: notification.created_at || contest.starts_at || contest.created_at || null
+      };
+    })
+    .filter(Boolean);
+
   const endedContests = (contests || [])
     .filter((contest) => getContestStatus(contest) === "ended")
     .sort((a, b) => new Date(b.ends_at) - new Date(a.ends_at));
 
-  contestNotifications = endedContests
+  const resultItems = endedContests
     .map((contest) => {
       const entry = getContestEntryById(contest.id);
       if (!entry || entry.user_id !== currentUser?.id) return null;
       const qualificationRequirement = getContestQualificationRequirement(contest);
       return {
+        type: "result",
         contestId: contest.id,
         title: contest.title || "Contest results",
         endedAt: contest.ends_at,
         unread: !hasSeenContestResultsForEntry(entry),
         message: `Results are ready. Qualification required ${formatCurrency(qualificationRequirement)} CC.`,
-        entry
+        entry,
+        sortAt: contest.ends_at || null
       };
     })
     .filter(Boolean);
 
+  contestNotifications = [...startItems, ...resultItems].sort((a, b) => {
+    const aTime = a?.sortAt ? new Date(a.sortAt).getTime() : 0;
+    const bTime = b?.sortAt ? new Date(b.sortAt).getTime() : 0;
+    return bTime - aTime;
+  });
+
   renderContestNotifications();
 }
 
-async function loadContestParticipantCounts() {
+async function loadContestParticipantCounts(contests = contestCache) {
   const { data: entries, error } = await supabase
     .from("contest_entries")
-    .select("contest_id");
+    .select("contest_id,current_carter_cash");
   if (error) throw error;
 
+  const contestMap = new Map((contests || []).map((contest) => [contest.id, contest]));
   const counts = {};
   (entries || []).forEach((entry) => {
-    counts[entry.contest_id] = (counts[entry.contest_id] || 0) + 1;
+    if (!counts[entry.contest_id]) {
+      counts[entry.contest_id] = {
+        participants: 0,
+        qualifying: 0
+      };
+    }
+    counts[entry.contest_id].participants += 1;
+    const contest = contestMap.get(entry.contest_id);
+    const qualificationRequirement = getContestQualificationRequirement(contest);
+    if (Number(entry.current_carter_cash ?? 0) >= qualificationRequirement) {
+      counts[entry.contest_id].qualifying += 1;
+    }
   });
+  contestParticipantCounts = {
+    ...contestParticipantCounts,
+    ...counts
+  };
   return counts;
 }
 
@@ -3719,6 +4208,401 @@ function splitContestParticipants(leaderboard = []) {
   };
 }
 
+function buildContestHistory(baseHistory = [], creditsValue, label = "Checkpoint", createdAt = new Date().toISOString()) {
+  const safeCredits = Number.isFinite(Number(creditsValue)) ? Math.max(0, Math.round(Number(creditsValue))) : 0;
+  const history = Array.isArray(baseHistory) ? [...baseHistory] : [];
+  const nextPoint = {
+    label,
+    value: safeCredits,
+    created_at: createdAt
+  };
+  const lastPoint = history[history.length - 1];
+  if (!lastPoint) {
+    return [nextPoint];
+  }
+  const lastValue = Number(lastPoint.value);
+  if (Number.isFinite(lastValue) && lastValue === safeCredits) {
+    history[history.length - 1] = {
+      ...lastPoint,
+      created_at: createdAt,
+      label: lastPoint.label || label
+    };
+    return history;
+  }
+  history.push(nextPoint);
+  return history;
+}
+
+async function loadContestJourneyPoints(contest, entry) {
+  if (!contest?.id || !entry?.user_id) return [];
+
+  const startingValue = Number(entry.starting_credits ?? contest.starting_bankroll ?? 0);
+  const points = [{
+    label: "Start",
+    value: Number.isFinite(startingValue) ? startingValue : 0,
+    created_at: contest.starts_at || entry.opted_in_at || null
+  }];
+
+  if (entry.user_id === currentUser?.id) {
+    const allRuns = [];
+    const pageSize = 1000;
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("game_runs")
+        .select("created_at, metadata")
+        .eq("user_id", entry.user_id)
+        .contains("metadata", { contest_id: contest.id })
+        .order("created_at", { ascending: true })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      if (error) throw error;
+
+      if (Array.isArray(data) && data.length) {
+        allRuns.push(...data);
+        hasMore = data.length === pageSize;
+        page += 1;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    allRuns.forEach((run, index) => {
+      const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
+      const endingBankroll = Number(metadata?.ending_bankroll);
+      if (!Number.isFinite(endingBankroll)) return;
+      points.push({
+        label: `Hand ${index + 1}`,
+        value: Math.round(endingBankroll),
+        created_at: run?.created_at || null
+      });
+    });
+  } else {
+    const sharedHistory = Array.isArray(entry.contest_history) ? entry.contest_history : [];
+    const filteredHistory = sharedHistory.filter((point) => {
+      const label = String(point?.label || "").trim();
+      return /^Hand \d+$/.test(label);
+    });
+
+    filteredHistory.forEach((point, index) => {
+      const endingBankroll = Number(point?.value);
+      if (!Number.isFinite(endingBankroll)) return;
+      points.push({
+        label: point?.label || `Hand ${index + 1}`,
+        value: Math.round(endingBankroll),
+        created_at: point?.created_at || null
+      });
+    });
+  }
+
+  const endingValue = Number(entry.current_credits ?? entry.score ?? points[points.length - 1]?.value ?? 0);
+  if (Number.isFinite(endingValue) && points[points.length - 1]?.value !== Math.round(endingValue)) {
+    points.push({
+      label: "Finish",
+      value: Math.round(endingValue),
+      created_at: contest.ends_at || null
+    });
+  }
+
+  return points;
+}
+
+function drawContestJourneyChart(points = []) {
+  if (!contestJourneyChartEl) return;
+  const ctx = contestJourneyChartEl.getContext("2d");
+  if (!ctx) return;
+
+  const width = contestJourneyChartEl.clientWidth || 720;
+  const height = contestJourneyChartEl.clientHeight || 320;
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  contestJourneyChartEl.width = Math.round(width * dpr);
+  contestJourneyChartEl.height = Math.round(height * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+
+  if (!points.length) {
+    ctx.fillStyle = "rgba(173, 225, 247, 0.78)";
+    ctx.font = "600 16px Play, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("No contest bankroll history available yet.", width / 2, height / 2);
+    return;
+  }
+
+  const padding = { top: 22, right: 18, bottom: 42, left: 72 };
+  const chartWidth = Math.max(10, width - padding.left - padding.right);
+  const chartHeight = Math.max(10, height - padding.top - padding.bottom);
+  const values = points.map((point) => Number(point.value) || 0);
+  let minValue = Math.min(...values);
+  let maxValue = Math.max(...values);
+  if (minValue === maxValue) {
+    minValue -= 10;
+    maxValue += 10;
+  }
+  const range = Math.max(1, maxValue - minValue);
+
+  ctx.strokeStyle = "rgba(53, 255, 234, 0.14)";
+  ctx.lineWidth = 1;
+  for (let step = 0; step <= 4; step += 1) {
+    const y = padding.top + (chartHeight / 4) * step;
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(width - padding.right, y);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = "rgba(173, 225, 247, 0.74)";
+  ctx.font = "600 12px Play, sans-serif";
+  ctx.textAlign = "right";
+  for (let step = 0; step <= 4; step += 1) {
+    const value = Math.round(maxValue - (range / 4) * step);
+    const y = padding.top + (chartHeight / 4) * step + 4;
+    ctx.fillText(formatCurrency(value), padding.left - 10, y);
+  }
+
+  const coords = points.map((point, index) => {
+    const x = padding.left + (points.length === 1 ? chartWidth / 2 : (chartWidth * index) / (points.length - 1));
+    const y = padding.top + chartHeight - (((Number(point.value) || 0) - minValue) / range) * chartHeight;
+    return { x, y, point };
+  });
+
+  const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartHeight);
+  gradient.addColorStop(0, "rgba(53, 255, 234, 0.34)");
+  gradient.addColorStop(1, "rgba(53, 255, 234, 0)");
+
+  ctx.beginPath();
+  coords.forEach(({ x, y }, index) => {
+    if (index === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.lineTo(coords[coords.length - 1].x, padding.top + chartHeight);
+  ctx.lineTo(coords[0].x, padding.top + chartHeight);
+  ctx.closePath();
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  ctx.beginPath();
+  coords.forEach(({ x, y }, index) => {
+    if (index === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = "#35ffe2";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  coords.forEach(({ x, y, point }) => {
+    ctx.beginPath();
+    ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = "#35ffe2";
+    ctx.fill();
+
+    if (points.length <= 10) {
+      ctx.fillStyle = "rgba(173, 225, 247, 0.82)";
+      ctx.font = "600 11px Play, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(point.label, x, height - 14);
+    }
+  });
+}
+
+function updateContestPrizeModeFields() {
+  const selectedBasis = adminContestForm?.querySelector('select[name="prizeVariableBasis"]')?.value || "none";
+  const staticInput = adminContestForm?.querySelector('input[name="prizeStaticAmount"]');
+  const variableBasisInput = adminContestForm?.querySelector('select[name="prizeVariableBasis"]');
+  const variableUnitInput = adminContestForm?.querySelector('input[name="prizeVariableUnitAmount"]');
+  const usesVariableGrowth = selectedBasis !== "none";
+
+  if (staticInput) staticInput.required = true;
+  if (variableBasisInput) variableBasisInput.required = true;
+  if (variableUnitInput) {
+    variableUnitInput.required = usesVariableGrowth;
+    variableUnitInput.disabled = !usesVariableGrowth;
+  }
+}
+
+function getDefaultPrizeAllocations() {
+  return [{ place: 1, percentage: 100 }];
+}
+
+function getPrizeAllocationFields() {
+  if (!adminContestForm) return [];
+  return Array.from(adminContestForm.querySelectorAll("[data-prize-allocation-row]"));
+}
+
+function updatePrizeAllocationSummary() {
+  const summaryEl = document.getElementById("contest-prize-allocation-summary");
+  const total = getPrizeAllocationFields().reduce((sum, row) => {
+    const input = row.querySelector('input[name="allocationPercentage"]');
+    return sum + Number(input?.value || 0);
+  }, 0);
+  if (!summaryEl) return total;
+  summaryEl.textContent = `Total allocation: ${total}%`;
+  summaryEl.classList.toggle("is-invalid", Math.abs(total - 100) > 0.001);
+  return total;
+}
+
+function renderPrizeAllocationRows(allocations = getDefaultPrizeAllocations()) {
+  const list = document.getElementById("contest-prize-allocations");
+  if (!list) return;
+  list.innerHTML = "";
+  normalizePrizeAllocations(allocations).forEach((allocation, index, normalized) => {
+    const row = document.createElement("div");
+    row.className = "contest-prize-allocation-row";
+    row.dataset.prizeAllocationRow = "true";
+
+    const label = document.createElement("span");
+    label.className = "contest-prize-allocation-label";
+    label.textContent = `${getOrdinalLabel(index + 1)} place`;
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.name = "allocationPercentage";
+    input.min = "0";
+    input.max = "100";
+    input.step = "1";
+    input.value = String(Math.round(Number(allocation.percentage)));
+    input.addEventListener("input", () => {
+      updatePrizeAllocationSummary();
+    });
+
+    const suffix = document.createElement("span");
+    suffix.className = "contest-prize-allocation-suffix";
+    suffix.textContent = "%";
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "secondary contest-prize-allocation-remove";
+    removeButton.textContent = "Remove";
+    removeButton.disabled = normalized.length === 1;
+    removeButton.addEventListener("click", () => {
+      if (getPrizeAllocationFields().length <= 1) return;
+      row.remove();
+      renderPrizeAllocationRows(getPrizeAllocationValues());
+    });
+
+    row.append(label, input, suffix, removeButton);
+    list.appendChild(row);
+  });
+  updatePrizeAllocationSummary();
+}
+
+function getPrizeAllocationValues() {
+  return getPrizeAllocationFields().map((row, index) => {
+    const input = row.querySelector('input[name="allocationPercentage"]');
+    return {
+      place: index + 1,
+      percentage: Math.max(0, Number(input?.value || 0))
+    };
+  });
+}
+
+function buildContestResultRow(entry, contest, { showEmail = false, rankLabel = "", prizeStats = 0 } = {}) {
+  const item = document.createElement("li");
+  item.className = "contest-result-row";
+
+  const main = document.createElement("div");
+  main.className = "contest-result-main";
+
+  const title = document.createElement("strong");
+  title.textContent = `${rankLabel}${entry.displayName}`;
+
+  const detail = document.createElement("span");
+  detail.className = "contest-result-detail";
+  const award = getContestPrizeAward(entry, contest, prizeStats);
+  const detailParts = [];
+  if (showEmail) {
+    const email = document.createElement("span");
+    email.textContent = `${entry.participantEmail || "No email saved"} • `;
+    detailParts.push(email);
+  }
+  const score = document.createElement("span");
+  score.textContent = `${formatCurrency(entry.score)} credits • ${formatCurrency(entry.carter_cash)} Carter Cash`;
+  detailParts.push(score);
+  if (award > 0) {
+    const awardEl = document.createElement("span");
+    awardEl.className = "contest-result-award";
+    awardEl.textContent = `Award ${formatPrizeMoney(award)}`;
+    detailParts.push(awardEl);
+  }
+  detailParts.forEach((part, index) => {
+    if (index > 0) {
+      detail.append(document.createTextNode(" • "));
+    }
+    detail.append(part);
+  });
+
+  main.append(title, detail);
+
+  const graphButton = document.createElement("button");
+  graphButton.type = "button";
+  graphButton.className = "secondary contest-graph-button";
+  graphButton.textContent = "View Graph";
+  graphButton.addEventListener("click", () => {
+    void openContestJourneyModal(contest, entry);
+  });
+
+  item.append(main, graphButton);
+  return item;
+}
+
+async function openContestJourneyModal(contest, entry) {
+  if (!contestJourneyModal || !contestJourneySummaryEl || !contestJourneyChartEl) return;
+  if (contestJourneyTitleEl) {
+    contestJourneyTitleEl.textContent = `${entry.displayName} Journey`;
+  }
+  contestJourneySummaryEl.textContent = `Loading ${entry.displayName}'s bankroll path through ${contest.title}...`;
+  contestJourneyModal.hidden = false;
+  contestJourneyModal.classList.add("is-open");
+  contestJourneyModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  contestJourneyModalOpen = true;
+  drawContestJourneyChart([]);
+
+  try {
+    const points = await loadContestJourneyPoints(contest, entry);
+    contestJourneySummaryEl.textContent = `${entry.displayName} finished with ${formatCurrency(entry.score)} credits and ${formatCurrency(entry.carter_cash)} Carter Cash in ${contest.title}.`;
+    drawContestJourneyChart(points);
+    if (contestJourneyResizeHandler) {
+      window.removeEventListener("resize", contestJourneyResizeHandler);
+    }
+    contestJourneyResizeHandler = () => drawContestJourneyChart(points);
+    window.addEventListener("resize", contestJourneyResizeHandler);
+  } catch (error) {
+    console.error("[RTN] openContestJourneyModal error", error);
+    contestJourneySummaryEl.textContent = `Unable to load ${entry.displayName}'s contest journey right now.`;
+    drawContestJourneyChart([]);
+  }
+}
+
+function closeContestJourneyModal() {
+  if (!contestJourneyModal) return;
+  contestJourneyModal.hidden = true;
+  contestJourneyModal.classList.remove("is-open");
+  contestJourneyModal.setAttribute("aria-hidden", "true");
+  contestJourneyModalOpen = false;
+  if (contestJourneyResizeHandler) {
+    window.removeEventListener("resize", contestJourneyResizeHandler);
+    contestJourneyResizeHandler = null;
+  }
+  if (
+    (!shippingModal || shippingModal.hidden) &&
+    (!resetModal || resetModal.hidden) &&
+    (!paytableModal || paytableModal.hidden) &&
+    (!prizeImageModal || prizeImageModal.hidden) &&
+    (!contestModal || contestModal.hidden) &&
+    (!contestResultsModal || contestResultsModal.hidden) &&
+    (!adminContestResultsModal || adminContestResultsModal.hidden) &&
+    (!adminContestModal || adminContestModal.hidden)
+  ) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
 function renderContestLeaderboard(list = contestLeaderboard, contest = currentContest) {
   if (!contestLeaderboardListEl) return;
   contestLeaderboardListEl.innerHTML = "";
@@ -3767,24 +4651,29 @@ function renderContestResultsModal(contest, leaderboard, { variant = "results" }
   const winners = qualifying.filter((entry) => entry.score === qualifying[0]?.score);
   const qualificationRequirement = getContestQualificationRequirement(contest);
   const isLeaderboardVariant = variant === "leaderboard";
+  const prizeStats = {
+    participants: leaderboard.length,
+    qualifying: qualifying.length
+  };
+  const prizeHeadline = getContestPrizeHeadline(contest, prizeStats);
 
   if (contestResultsTitleEl) {
     contestResultsTitleEl.textContent = isLeaderboardVariant ? "Contest Leaderboard" : "Contest Results";
   }
 
   contestResultsSummaryEl.textContent = isLeaderboardVariant
-    ? `${contest.title} leaderboard. Qualifying players are ranked first, and each participant needs at least ${formatCurrency(qualificationRequirement)} Carter Cash to qualify for the prize.`
+    ? `${contest.title} leaderboard. Prize pot is ${prizeHeadline}. ${getContestPrizeDistributionCopy(contest, prizeStats)}. Each participant needs at least ${formatCurrency(qualificationRequirement)} Carter Cash to qualify for the prize.`
     : winners.length
-      ? `${contest.title} has ended. Congratulations to ${winners.map((winner) => winner.displayName).join(", ")} for posting the highest credits total among players with at least ${formatCurrency(qualificationRequirement)} Carter Cash.`
-      : `${contest.title} has ended. No participant reached the ${formatCurrency(qualificationRequirement)} Carter Cash qualification requirement.`;
+      ? `${contest.title} has ended. Congratulations to ${winners.map((winner) => winner.displayName).join(", ")} for posting the highest credits total among players with at least ${formatCurrency(qualificationRequirement)} Carter Cash. Prize pot: ${prizeHeadline}. ${getContestPrizeDistributionCopy(contest, prizeStats)}.`
+      : `${contest.title} has ended. No participant reached the ${formatCurrency(qualificationRequirement)} Carter Cash qualification requirement. Prize pot: ${prizeHeadline}. ${getContestPrizeDistributionCopy(contest, prizeStats)}.`;
   contestResultsListEl.innerHTML = "";
   contestResultsNonQualifyingListEl.innerHTML = "";
 
   qualifying.forEach((entry) => {
-    const item = document.createElement("li");
-    item.className = "contest-result-row";
-    item.innerHTML = `<span>#${entry.qualifiedRank} ${entry.displayName}</span><strong>${formatCurrency(entry.score)} credits • ${formatCurrency(entry.carter_cash)} Carter Cash</strong>`;
-    contestResultsListEl.appendChild(item);
+    contestResultsListEl.appendChild(buildContestResultRow(entry, contest, {
+      rankLabel: `#${entry.qualifiedRank} `,
+      prizeStats
+    }));
   });
 
   if (!qualifying.length) {
@@ -3795,10 +4684,9 @@ function renderContestResultsModal(contest, leaderboard, { variant = "results" }
   }
 
   nonQualifying.forEach((entry) => {
-    const item = document.createElement("li");
-    item.className = "contest-result-row";
-    item.innerHTML = `<span>${entry.displayName}</span><strong>${formatCurrency(entry.score)} credits • ${formatCurrency(entry.carter_cash)} Carter Cash</strong>`;
-    contestResultsNonQualifyingListEl.appendChild(item);
+    contestResultsNonQualifyingListEl.appendChild(buildContestResultRow(entry, contest, {
+      prizeStats
+    }));
   });
 
   if (!nonQualifying.length) {
@@ -3838,6 +4726,7 @@ function closeContestResultsModal() {
     (!paytableModal || paytableModal.hidden) &&
     (!prizeImageModal || prizeImageModal.hidden) &&
     (!contestModal || contestModal.hidden) &&
+    (!contestJourneyModal || contestJourneyModal.hidden) &&
     (!adminContestResultsModal || adminContestResultsModal.hidden) &&
     (!adminContestModal || adminContestModal.hidden)
   ) {
@@ -3850,20 +4739,22 @@ function renderAdminContestResultsModal(contest, leaderboard) {
   const { qualifying, nonQualifying } = splitContestParticipants(leaderboard);
   const winners = qualifying.filter((entry) => entry.score === qualifying[0]?.score);
   const qualificationRequirement = getContestQualificationRequirement(contest);
+  const prizeStats = {
+    participants: leaderboard.length,
+    qualifying: qualifying.length
+  };
   adminContestResultsSummaryEl.textContent = winners.length
-    ? `${contest.title} winner${winners.length > 1 ? "s" : ""}: ${winners.map((winner) => winner.displayName).join(", ")}. Qualification requirement: ${formatCurrency(qualificationRequirement)} Carter Cash.`
-    : `${contest.title} ended with no qualifying participants. Requirement: ${formatCurrency(qualificationRequirement)} Carter Cash.`;
+    ? `${contest.title} winner${winners.length > 1 ? "s" : ""}: ${winners.map((winner) => winner.displayName).join(", ")}. Prize pot: ${getContestPrizeHeadline(contest, prizeStats)}. ${getContestPrizeDistributionCopy(contest, prizeStats)}. Qualification requirement: ${formatCurrency(qualificationRequirement)} Carter Cash.`
+    : `${contest.title} ended with no qualifying participants. Prize pot: ${getContestPrizeHeadline(contest, prizeStats)}. ${getContestPrizeDistributionCopy(contest, prizeStats)}. Requirement: ${formatCurrency(qualificationRequirement)} Carter Cash.`;
   adminContestResultsListEl.innerHTML = "";
   adminContestResultsNonQualifyingListEl.innerHTML = "";
 
   qualifying.forEach((entry) => {
-    const item = document.createElement("li");
-    item.className = "contest-result-row";
-    item.innerHTML = `
-      <span>#${entry.qualifiedRank} ${entry.displayName}</span>
-      <span>${entry.participantEmail || "No email saved"} • ${formatCurrency(entry.score)} credits • ${formatCurrency(entry.carter_cash)} Carter Cash</span>
-    `;
-    adminContestResultsListEl.appendChild(item);
+    adminContestResultsListEl.appendChild(buildContestResultRow(entry, contest, {
+      showEmail: true,
+      rankLabel: `#${entry.qualifiedRank} `,
+      prizeStats
+    }));
   });
 
   if (!qualifying.length) {
@@ -3874,13 +4765,10 @@ function renderAdminContestResultsModal(contest, leaderboard) {
   }
 
   nonQualifying.forEach((entry) => {
-    const item = document.createElement("li");
-    item.className = "contest-result-row";
-    item.innerHTML = `
-      <span>${entry.displayName}</span>
-      <span>${entry.participantEmail || "No email saved"} • ${formatCurrency(entry.score)} credits • ${formatCurrency(entry.carter_cash)} Carter Cash</span>
-    `;
-    adminContestResultsNonQualifyingListEl.appendChild(item);
+    adminContestResultsNonQualifyingListEl.appendChild(buildContestResultRow(entry, contest, {
+      showEmail: true,
+      prizeStats
+    }));
   });
 
   if (!nonQualifying.length) {
@@ -3912,6 +4800,7 @@ function closeAdminContestResultsModal() {
     (!prizeImageModal || prizeImageModal.hidden) &&
     (!contestModal || contestModal.hidden) &&
     (!contestResultsModal || contestResultsModal.hidden) &&
+    (!contestJourneyModal || contestJourneyModal.hidden) &&
     (!adminContestResultsModal || adminContestResultsModal.hidden) &&
     (!adminContestModal || adminContestModal.hidden)
   ) {
@@ -3933,6 +4822,12 @@ function renderContestModal() {
       ? `${formatContestDateTime(contest.starts_at)} - ${formatContestDateTime(contest.ends_at)}`
       : "";
   }
+  const contestCaptionDetailsEl = document.getElementById("contest-caption-details");
+  if (contestCaptionDetailsEl) {
+    const detailsCopy = String(contest?.contest_details || "").trim();
+    contestCaptionDetailsEl.textContent = detailsCopy;
+    contestCaptionDetailsEl.hidden = !detailsCopy;
+  }
   if (contestStartingBankrollEl) {
     contestStartingBankrollEl.textContent = formatCurrency(contest?.starting_credits ?? 0);
   }
@@ -3944,8 +4839,16 @@ function renderContestModal() {
       ? `${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash`
       : "-";
   }
+  const leaderboardStats = {
+    participants: contestLeaderboard.length,
+    qualifying: contestLeaderboard.filter((entry) => entry.qualifies).length
+  };
   if (contestRewardEl) {
-    contestRewardEl.textContent = contest?.reward || "-";
+    contestRewardEl.textContent = contest ? getContestPrizeHeadline(contest, leaderboardStats) : "-";
+  }
+  const contestPrizeGrowthEl = document.getElementById("contest-prize-growth");
+  if (contestPrizeGrowthEl) {
+    contestPrizeGrowthEl.textContent = contest ? getContestPrizeGrowthCopy(contest) : "";
   }
   if (contestOptInCopyEl) {
     if (!contest) {
@@ -4035,6 +4938,22 @@ function openContestModal() {
   document.body.classList.add("modal-open");
 }
 
+async function showContestDetails(contestId) {
+  const contest = getContestById(contestId);
+  if (!contest) {
+    throw new Error("Contest not found");
+  }
+  currentContest = contest;
+  currentContestEntry = getContestEntryById(contest.id);
+  try {
+    contestLeaderboard = await buildContestLeaderboard(contest);
+  } catch (error) {
+    console.error("[RTN] showContestDetails leaderboard error", error);
+    contestLeaderboard = [];
+  }
+  openContestModal();
+}
+
 function closeContestModal() {
   if (!contestModal) return;
   contestModal.hidden = true;
@@ -4060,6 +4979,7 @@ function openAdminContestModal() {
   adminContestModal.classList.add("is-open");
   adminContestModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
+  updateContestPrizeModeFields();
   adminContestForm?.querySelector('input[name="title"]')?.focus();
 }
 
@@ -4067,6 +4987,8 @@ function closeAdminContestModal({ resetFields = true, restoreFocus = false } = {
   if (!adminContestModal) return;
   if (resetFields && adminContestForm) {
     adminContestForm.reset();
+    updateContestPrizeModeFields();
+    renderPrizeAllocationRows();
   }
   if (adminContestMessage) {
     adminContestMessage.textContent = "";
@@ -4127,6 +5049,14 @@ async function openContestResultNotification(contestId) {
   refreshContestNotifications(contestCache);
 }
 
+async function openContestStartNotification(contestId) {
+  const contest = getContestById(contestId);
+  if (!contest) return;
+  await showContestDetails(contest.id);
+  await markContestStartNotificationSeen(contest.id);
+  refreshContestNotifications(contestCache);
+}
+
 async function finalizeContestEntryFromLocalState(contest, entry) {
   if (!contest?.id || !entry?.user_id || entry.user_id !== currentUser?.id) {
     return entry;
@@ -4136,6 +5066,7 @@ async function finalizeContestEntryFromLocalState(contest, entry) {
     current_credits: Number.isFinite(Number(bankroll)) ? Math.max(0, Math.round(Number(bankroll))) : 0,
     current_carter_cash: Number.isFinite(Number(carterCash)) ? Math.max(0, Math.round(Number(carterCash))) : 0,
     current_carter_cash_progress: Number.isFinite(Number(carterCashProgress)) ? Math.max(0, Number(carterCashProgress)) : 0,
+    contest_history: buildContestHistory(entry.contest_history, bankroll, "Finish"),
     display_name: getContestDisplayName(currentProfile, currentUser.id),
     participant_email: currentUser.email || ""
   };
@@ -4185,10 +5116,13 @@ async function syncContestState({ force = false } = {}) {
     contestLeaderboard = [];
     userContestEntries = [];
     contestEntryMap = new Map();
+    contestParticipantCounts = {};
     contestNotifications = [];
+    contestStartNotifications = [];
     currentAccountMode = createNormalAccountMode();
     renderContestChip();
     renderAccountModeSelector();
+    renderContestEmailPreference();
     renderContestNotifications();
     renderHomeContestPromos();
     updateModeSpecificModalCopy();
@@ -4198,6 +5132,7 @@ async function syncContestState({ force = false } = {}) {
   if (!force && contestCache.length) {
     renderContestChip();
     renderAccountModeSelector();
+    renderContestEmailPreference();
     renderHomeContestPromos();
     return;
   }
@@ -4212,10 +5147,13 @@ async function syncContestState({ force = false } = {}) {
   }
 
   contestCache = Array.isArray(contests) ? contests : [];
+  const seededLiveNotifications = await seedLiveContestNotifications();
+  await dispatchContestStartEmails(seededLiveNotifications);
   currentContest = chooseCurrentContest(contestCache);
   contestLeaderboard = [];
   userContestEntries = [];
   contestEntryMap = new Map();
+  contestParticipantCounts = {};
 
   const { data: entries, error: entryError } = await supabase
     .from("contest_entries")
@@ -4227,6 +5165,9 @@ async function syncContestState({ force = false } = {}) {
     userContestEntries = Array.isArray(entries) ? entries : [];
     contestEntryMap = new Map(userContestEntries.map((entry) => [entry.contest_id, entry]));
   }
+
+  await loadContestStartNotifications();
+  await loadContestParticipantCounts(contestCache);
 
   currentContestEntry = currentContest ? getContestEntryById(currentContest.id) : null;
 
@@ -4242,6 +5183,7 @@ async function syncContestState({ force = false } = {}) {
     await loadAdminContestList(true);
   }
   await loadPlayerContestList(currentRoute === "contests");
+  renderContestEmailPreference();
   refreshContestNotifications(contestCache);
   await renderHomeContestPromos();
   syncActiveAccountMode({ forceApply: true, resetHistory: !bankrollInitialized });
@@ -4263,6 +5205,13 @@ async function optIntoContest(contest = currentContest) {
   }
 
   try {
+    const participantCounts = await loadContestParticipantCounts([contest]);
+    const contestStats = normalizeContestPrizeStats(participantCounts[contest.id] || 0);
+    if (contestStats.participants >= getContestLimit(contest)) {
+      showToast("This contest is already full.", "error");
+      return;
+    }
+
     const startingCredits = Math.max(0, Math.round(Number(contest.starting_credits || 0)));
     const startingCarterCash = Math.max(0, Math.round(Number(contest.starting_carter_cash || 0)));
     const displayName = getContestDisplayName(currentProfile, currentUser.id);
@@ -4279,6 +5228,7 @@ async function optIntoContest(contest = currentContest) {
       current_credits: startingCredits,
       current_carter_cash: startingCarterCash,
       current_carter_cash_progress: 0,
+      contest_history: buildContestHistory([], startingCredits, "Start", contest.starts_at || new Date().toISOString()),
       display_name: displayName,
       participant_email: currentUser.email || ""
     };
@@ -4321,14 +5271,21 @@ async function handleAdminContestSubmit(event) {
 
   const formData = new FormData(adminContestForm);
   const title = String(formData.get("title") ?? "").trim();
+  const contestDetails = String(formData.get("contestDetails") ?? "").trim();
   const startsAt = String(formData.get("startsAt") ?? "");
   const endsAt = String(formData.get("endsAt") ?? "");
   const startingBankroll = Math.max(0, Math.round(Number(formData.get("startingBankroll") ?? 0)));
   const startingCarterCash = Math.max(0, Math.round(Number(formData.get("startingCarterCash") ?? 0)));
+  const contestantLimit = Math.max(1, Math.round(Number(formData.get("contestantLimit") ?? 100)));
   const qualificationCarterCash = Math.max(0, Math.round(Number(formData.get("qualificationCarterCash") ?? 0)));
-  const reward = String(formData.get("reward") ?? "").trim();
+  const prizeStaticAmount = Math.max(0, Number(formData.get("prizeStaticAmount") ?? 0));
+  const prizeVariableBasis = String(formData.get("prizeVariableBasis") ?? "none");
+  const prizeVariableUnitAmount = Math.max(0, Number(formData.get("prizeVariableUnitAmount") ?? 0));
+  const sendStartEmailNotification = String(formData.get("sendStartEmailNotification") ?? "") === "on";
+  const isTestContest = String(formData.get("isTestContest") ?? "") === "on";
+  const prizeAllocations = normalizePrizeAllocations(getPrizeAllocationValues());
 
-  if (!title || !startsAt || !endsAt || !reward) {
+  if (!title || !startsAt || !endsAt) {
     if (adminContestMessage) {
       adminContestMessage.textContent = "Please fill out all contest fields.";
     }
@@ -4342,15 +5299,46 @@ async function handleAdminContestSubmit(event) {
     return;
   }
 
+  const usesVariablePrize = prizeVariableBasis !== "none";
+  if (!["none", "contestant", "qualifying_contestant"].includes(prizeVariableBasis)) {
+    if (adminContestMessage) {
+      adminContestMessage.textContent = "Choose how the variable prize pot should grow.";
+    }
+    return;
+  }
+  const allocationTotal = prizeAllocations.reduce((sum, allocation) => sum + Number(allocation.percentage || 0), 0);
+  if (Math.abs(allocationTotal - 100) > 0.001) {
+    if (adminContestMessage) {
+      adminContestMessage.textContent = "Prize pot allocations must total 100%.";
+    }
+    return;
+  }
+
   const payload = {
     title,
+    contest_details: contestDetails || null,
     starts_at: new Date(startsAt).toISOString(),
     ends_at: new Date(endsAt).toISOString(),
     starting_credits: startingBankroll,
     starting_carter_cash: startingCarterCash,
+    contestant_limit: contestantLimit,
     winning_criteria: "highest_bankroll",
     qualification_carter_cash: qualificationCarterCash,
-    reward,
+    reward: usesVariablePrize
+      ? getContestPrizeGrowthCopy({
+          prize_mode: "variable",
+          prize_static_amount: prizeStaticAmount,
+          prize_variable_basis: prizeVariableBasis,
+          prize_variable_unit_amount: prizeVariableUnitAmount
+        })
+      : `Static prize pot of ${formatPrizeMoney(prizeStaticAmount)}.`,
+    prize_mode: usesVariablePrize ? "variable" : "static",
+    prize_static_amount: prizeStaticAmount,
+    prize_variable_basis: usesVariablePrize ? prizeVariableBasis : "none",
+    prize_variable_unit_amount: usesVariablePrize ? prizeVariableUnitAmount : 0,
+    prize_allocations: prizeAllocations,
+    send_start_email_notification: sendStartEmailNotification,
+    is_test: isTestContest,
     created_by: currentUser.id
   };
 
@@ -4360,9 +5348,8 @@ async function handleAdminContestSubmit(event) {
     if (error) throw error;
     showToast("Contest created", "success");
     adminContestsLoaded = false;
-    await loadAdminContestList(true);
-    await syncContestState({ force: true });
     closeAdminContestModal({ resetFields: true, restoreFocus: true });
+    await syncContestState({ force: true });
   } catch (error) {
     console.error("[RTN] handleAdminContestSubmit error", error);
     if (adminContestMessage) {
@@ -4438,14 +5425,15 @@ async function switchToContestMode(contestId, { navigateToPlay = false } = {}) {
   }
 }
 
-function renderPlayerContestRow(contest, participantCount = 0) {
+function renderPlayerContestRow(contest, participantStats = 0) {
   const item = document.createElement("li");
   item.className = "admin-contest-card";
+  const stats = normalizeContestPrizeStats(participantStats);
 
   const header = document.createElement("div");
   header.className = "admin-contest-header";
   const title = document.createElement("h3");
-  title.textContent = contest.title || "Contest";
+  title.textContent = contest.is_test ? `${contest.title || "Contest"} (Test)` : contest.title || "Contest";
   const badge = document.createElement("span");
   const status = getContestStatus(contest);
   badge.className = "contest-status-badge";
@@ -4459,11 +5447,30 @@ function renderPlayerContestRow(contest, participantCount = 0) {
 
   const meta = document.createElement("p");
   meta.className = "contest-opt-in-copy";
-  meta.textContent = `Highest credits wins • Requires ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash • Reward: ${contest.reward} • Participants: ${participantCount}`;
+  meta.textContent = `Highest credits wins • Requires ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash • Contestants: ${formatContestFill(contest, stats)}`;
+
+  const prize = document.createElement("p");
+  prize.className = "contest-prize-pill";
+  prize.textContent = `Prize Pot ${getContestPrizeHeadline(contest, stats)}`;
+
+  const growth = document.createElement("p");
+  growth.className = "contest-prize-growth";
+  growth.textContent = getContestPrizeGrowthCopy(contest);
+
+  const caption = document.createElement("p");
+  caption.className = "contest-prize-growth";
+  caption.textContent = String(contest.contest_details || "").trim();
+
+  const distribution = document.createElement("p");
+  distribution.className = "contest-prize-growth";
+  distribution.textContent = `Payouts: ${getContestPrizeDistributionCopy(contest, stats)}`;
+
+  const payoutTable = buildContestPayoutTable(contest, stats, "contest-card-payouts");
 
   const actions = document.createElement("div");
   actions.className = "contest-actions";
   const playerEntry = getContestEntryById(contest.id);
+  const contestIsFull = stats.participants >= getContestLimit(contest);
 
   const leaderboardButton = document.createElement("button");
   leaderboardButton.type = "button";
@@ -4480,15 +5487,27 @@ function renderPlayerContestRow(contest, participantCount = 0) {
   });
   actions.append(leaderboardButton);
 
+  const shareButton = document.createElement("button");
+  shareButton.type = "button";
+  shareButton.className = "secondary contest-share-button";
+  shareButton.textContent = "Share";
+  shareButton.setAttribute("aria-label", `Share ${contest.title || "contest"}`);
+  shareButton.title = "Share contest";
+  shareButton.addEventListener("click", () => {
+    void shareContestLink(contest);
+  });
+  actions.append(shareButton);
+
   if (status === "live") {
     if (playerEntry) {
       const switchButton = document.createElement("button");
       switchButton.type = "button";
       switchButton.className = "primary";
-      switchButton.textContent = currentAccountMode.contestId === contest.id && isContestAccountMode()
+      const usingMode = isUsingContestMode(contest.id);
+      switchButton.textContent = usingMode
         ? "Using This Mode"
         : "Switch to Mode";
-      switchButton.disabled = currentAccountMode.contestId === contest.id && isContestAccountMode();
+      switchButton.disabled = usingMode;
       switchButton.addEventListener("click", () => {
         void switchToContestMode(contest.id, { navigateToPlay: true });
       });
@@ -4497,10 +5516,13 @@ function renderPlayerContestRow(contest, participantCount = 0) {
       const joinButton = document.createElement("button");
       joinButton.type = "button";
       joinButton.className = "primary";
-      joinButton.textContent = "Join Contest";
-      joinButton.addEventListener("click", () => {
-        void optIntoContest(contest);
-      });
+      joinButton.textContent = contestIsFull ? "Contest Full" : "Join Contest";
+      joinButton.disabled = contestIsFull;
+      if (!contestIsFull) {
+        joinButton.addEventListener("click", () => {
+          void optIntoContest(contest);
+        });
+      }
       actions.append(joinButton);
     }
   }
@@ -4523,13 +5545,18 @@ function renderPlayerContestRow(contest, participantCount = 0) {
     actions.append(resultsButton);
   }
 
-  item.append(header, details, meta, actions);
+  if (caption.textContent) {
+    item.append(header, details, prize, growth, caption, payoutTable, meta, distribution, actions);
+  } else {
+    item.append(header, details, prize, growth, payoutTable, meta, distribution, actions);
+  }
   return item;
 }
 
-function renderHomeContestPromoCard(contest, participantCount = 0) {
+function renderHomeContestPromoCard(contest, participantStats = 0) {
   const item = document.createElement("li");
   item.className = "home-contest-card";
+  const stats = normalizeContestPrizeStats(participantStats);
 
   const top = document.createElement("div");
   top.className = "home-contest-card-top";
@@ -4541,7 +5568,7 @@ function renderHomeContestPromoCard(contest, participantCount = 0) {
 
   const details = document.createElement("p");
   details.className = "home-contest-card-window";
-  details.textContent = `${formatContestDateTime(contest.starts_at)} - ${formatContestDateTime(contest.ends_at)}`;
+  details.textContent = `${formatContestRemaining(contest)} • Contestants ${formatContestFill(contest, stats)}`;
   titleWrap.append(title, details);
 
   const badge = document.createElement("span");
@@ -4551,51 +5578,64 @@ function renderHomeContestPromoCard(contest, participantCount = 0) {
   badge.textContent = getContestStatusLabel(status);
   top.append(titleWrap, badge);
 
-  const meta = document.createElement("p");
-  meta.className = "home-contest-card-meta";
-  meta.textContent = `Highest credits wins • Requires ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash • Reward: ${contest.reward} • Participants: ${participantCount}`;
+  const prize = document.createElement("p");
+  prize.className = "home-contest-card-prize";
+  prize.textContent = `Prize Pot ${getContestPrizeHeadline(contest, stats)}`;
+
+  const growth = document.createElement("p");
+  growth.className = "home-contest-card-growth";
+  growth.textContent = getContestPrizeGrowthCopy(contest);
+
+  const caption = document.createElement("p");
+  caption.className = "home-contest-card-growth";
+  caption.textContent = String(contest.contest_details || "").trim();
+
+  const payouts = buildContestPayoutTable(contest, stats, "home-contest-payouts");
 
   const actions = document.createElement("div");
   actions.className = "home-contest-card-actions";
 
-  const leaderboardButton = document.createElement("button");
-  leaderboardButton.type = "button";
-  leaderboardButton.className = "home-button home-secondary home-contest-action";
-  leaderboardButton.textContent = "Show Leaderboard";
-  leaderboardButton.addEventListener("click", async () => {
-    try {
-      const leaderboard = await buildContestLeaderboard(contest);
-      openContestResultsModal(contest, leaderboard, { variant: "leaderboard" });
-    } catch (error) {
-      console.error("[RTN] home contest leaderboard error", error);
-      showToast(error?.message || "Unable to load leaderboard", "error");
-    }
-  });
-  actions.append(leaderboardButton);
-
   const playerEntry = getContestEntryById(contest.id);
-  const modeButton = document.createElement("button");
-  modeButton.type = "button";
-  modeButton.className = "home-button home-primary home-contest-action";
+  const contestIsFull = stats.participants >= getContestLimit(contest);
+  const joinButton = document.createElement("button");
+  joinButton.type = "button";
+  joinButton.className = "home-button home-primary home-contest-action is-spotlight";
 
   if (playerEntry) {
-    const usingMode = isContestAccountMode() && currentAccountMode.contestId === contest.id;
-    modeButton.textContent = usingMode ? "Using This Mode" : "Use This Contest Mode";
-    modeButton.disabled = usingMode;
+    const usingMode = isUsingContestMode(contest.id);
+    joinButton.textContent = usingMode ? "Using This Mode" : "Switch to Mode";
+    joinButton.disabled = usingMode;
     if (!usingMode) {
-      modeButton.addEventListener("click", () => {
+      joinButton.addEventListener("click", () => {
         void switchToContestMode(contest.id, { navigateToPlay: false });
       });
     }
   } else {
-    modeButton.textContent = "Join Contest";
-    modeButton.addEventListener("click", () => {
-      void optIntoContest(contest);
-    });
+    joinButton.textContent = contestIsFull ? "Contest Full" : "Join Now";
+    joinButton.disabled = contestIsFull;
+    if (!contestIsFull) {
+      joinButton.addEventListener("click", () => {
+        void optIntoContest(contest);
+      });
+    }
   }
 
-  actions.append(modeButton);
-  item.append(top, meta, actions);
+  const shareButton = document.createElement("button");
+  shareButton.type = "button";
+  shareButton.className = "home-button home-secondary home-contest-action contest-share-button";
+  shareButton.textContent = "Share";
+  shareButton.setAttribute("aria-label", `Share ${contest.title || "contest"}`);
+  shareButton.title = "Share contest";
+  shareButton.addEventListener("click", () => {
+    void shareContestLink(contest);
+  });
+
+  actions.append(joinButton, shareButton);
+  if (caption.textContent) {
+    item.append(top, prize, growth, caption, payouts, actions);
+  } else {
+    item.append(top, prize, growth, payouts, actions);
+  }
   return item;
 }
 
@@ -4622,7 +5662,7 @@ async function renderHomeContestPromos() {
   homeLiveContestListEl.innerHTML = "";
 
   try {
-    const counts = await loadContestParticipantCounts();
+    const counts = await loadContestParticipantCounts(liveContests);
     liveContests.forEach((contest) => {
       homeLiveContestListEl.appendChild(renderHomeContestPromoCard(contest, counts[contest.id] || 0));
     });
@@ -4663,7 +5703,7 @@ async function loadPlayerContestList(force = false) {
     }
     contestCache = Array.isArray(contests) ? contests : [];
 
-    const counts = await loadContestParticipantCounts();
+    const counts = await loadContestParticipantCounts(contestCache);
 
     const liveContests = contestCache
       .filter((contest) => getContestStatus(contest) === "live")
@@ -4709,7 +5749,7 @@ async function loadPlayerContestList(force = false) {
   }
 }
 
-function renderAdminContestRow(contest, participantCount = 0) {
+function renderAdminContestRow(contest, participantStats = 0) {
   const item = document.createElement("li");
   item.className = "admin-contest-card";
 
@@ -4730,7 +5770,20 @@ function renderAdminContestRow(contest, participantCount = 0) {
 
   const meta = document.createElement("p");
   meta.className = "contest-opt-in-copy";
-  meta.textContent = `Highest credits wins • Requires ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash • Reward: ${contest.reward} • Participants: ${participantCount}`;
+  const stats = normalizeContestPrizeStats(participantStats);
+  meta.textContent = `Highest credits wins • Requires ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash • Contestants: ${formatContestFill(contest, stats)}`;
+
+  const prize = document.createElement("p");
+  prize.className = "contest-prize-pill";
+  prize.textContent = `Prize Pot ${getContestPrizeHeadline(contest, stats)}`;
+
+  const growth = document.createElement("p");
+  growth.className = "contest-prize-growth";
+  growth.textContent = getContestPrizeGrowthCopy(contest);
+
+  const distribution = document.createElement("p");
+  distribution.className = "contest-prize-growth";
+  distribution.textContent = `Payouts: ${getContestPrizeDistributionCopy(contest, stats)}`;
 
   const actions = document.createElement("div");
   actions.className = "contest-actions";
@@ -4755,7 +5808,7 @@ function renderAdminContestRow(contest, participantCount = 0) {
   });
 
   actions.append(deleteButton);
-  item.append(header, details, meta, actions);
+  item.append(header, details, prize, meta, growth, distribution, actions);
   return item;
 }
 
@@ -4898,7 +5951,7 @@ async function loadProfile() {
     console.info("[RTN] loadProfile: fetching profile from database");
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("username, first_name, last_name")
+      .select("username, first_name, last_name, receive_contest_start_emails")
       .eq("id", user.id)
       .single();
 
@@ -4949,6 +6002,10 @@ async function loadProfile() {
       profileMessage.textContent = "";
       profileMessage.className = "profile-status-message";
     }
+    if (currentProfile && currentProfile.id === user.id) {
+      currentProfile.receive_contest_start_emails = profile?.receive_contest_start_emails ?? true;
+    }
+    renderContestEmailPreference();
     renderProfileMedals(Array.isArray(medals) ? medals : []);
 
     // Reset to view mode
@@ -5192,6 +6249,8 @@ function applySignedOutState(reason = "unknown", { focusInput = true } = {}) {
     userContestEntries = [];
     contestEntryMap = new Map();
     contestNotifications = [];
+    contestStartNotifications = [];
+    contestParticipantCounts = {};
     currentAccountMode = createNormalAccountMode();
     persistentBankrollHistory = [];
     persistentBankrollUserId = null;
@@ -5437,6 +6496,8 @@ const handToastContainer = document.getElementById("hand-toast-container");
 const betsBody = document.getElementById("bets-body");
 const dealButton = document.getElementById("deal-button");
 const rebetButton = document.getElementById("rebet-button");
+const autoDealToggleInput = document.getElementById("auto-deal-toggle");
+const autoDealToggleWrap = document.getElementById("auto-deal-toggle-wrap");
 const clearBetsButtons = Array.from(
   document.querySelectorAll('[data-action="clear-bets"]')
 );
@@ -5618,10 +6679,13 @@ const drawerGraphLink = document.getElementById("drawer-graph-link");
 const menuContestBadge = document.getElementById("menu-contest-badge");
 const accountModeSelect = document.getElementById("account-mode-select");
 const accountModeSummaryEl = document.getElementById("account-mode-summary");
+const contestEmailOptInInput = document.getElementById("contest-email-opt-in");
+const contestEmailSettingMessageEl = document.getElementById("contest-email-setting-message");
 const notificationToggle = document.getElementById("notification-toggle");
 const notificationBadge = document.getElementById("notification-badge");
 const notificationsPanel = document.getElementById("notifications-panel");
 const notificationsClose = document.getElementById("notifications-close");
+const notificationsClearAllButton = document.getElementById("notifications-clear-all");
 const notificationsListEl = document.getElementById("notifications-list");
 const homeLiveContestsSectionEl = document.getElementById("home-live-contests");
 const homeLiveContestListEl = document.getElementById("home-live-contest-list");
@@ -5696,6 +6760,12 @@ const adminContestResultsOkButton = document.getElementById("admin-contest-resul
 const adminContestResultsSummaryEl = document.getElementById("admin-contest-results-summary");
 const adminContestResultsListEl = document.getElementById("admin-contest-results-list");
 const adminContestResultsNonQualifyingListEl = document.getElementById("admin-contest-results-nonqualifying-list");
+const contestJourneyModal = document.getElementById("contest-journey-modal");
+const contestJourneyTitleEl = document.getElementById("contest-journey-title");
+const contestJourneySummaryEl = document.getElementById("contest-journey-summary");
+const contestJourneyChartEl = document.getElementById("contest-journey-chart");
+const contestJourneyCloseButton = document.getElementById("contest-journey-close");
+const contestJourneyOkButton = document.getElementById("contest-journey-ok");
 const numberBetsModal = document.getElementById("number-bets-modal");
 const numberBetsInfoButton = document.getElementById("number-bets-info");
 const numberBetsModalClose = document.getElementById("number-bets-modal-close");
@@ -5743,6 +6813,7 @@ let persistentBankrollHistory = [];
 let persistentBankrollUserId = null;
 let bankrollChartPeriod = "all";
 let activityLeaderboardPeriod = "week";
+let autoDealEnabled = true;
 let carterCash = 0;
   let carterCashProgress = 0;
   let carterCashAnimating = false;
@@ -5751,6 +6822,7 @@ let carterCash = 0;
   let lastSyncedCarterProgress = 0;
   let advancedMode = true; // Always enabled - all bets always available
   let handPaused = false;
+  let awaitingManualDeal = false;
   let pauseResolvers = [];
   let currentHandContext = null;
   let activePaytable = PAYTABLES[0];
@@ -5795,6 +6867,7 @@ let currentContestEntry = null;
 let contestLeaderboard = [];
 let userContestEntries = [];
 let contestEntryMap = new Map();
+let contestParticipantCounts = {};
 let currentAccountMode = {
   type: "normal",
   contestId: null
@@ -5811,7 +6884,10 @@ let adminContestModalTrigger = null;
 let prizeImageTrigger = null;
 let contestTimerInterval = null;
 let contestResultsModalOpen = false;
+let contestJourneyModalOpen = false;
+let contestJourneyResizeHandler = null;
 let contestNotifications = [];
+let contestStartNotifications = [];
 
 const MAX_HISTORY_POINTS = 500;
 const PROFILE_SYNC_INTERVAL = 15000;
@@ -6047,7 +7123,7 @@ function updateDashboardCreditsDisplay(value = bankroll) {
   }
 }
 
-async function persistBankroll() {
+async function persistBankroll({ recordContestHistory = false, contestHistoryLabel = "Hand" } = {}) {
   if (!currentUser) return;
 
   const updates = {};
@@ -6080,6 +7156,9 @@ async function persistBankroll() {
         current_credits: Number.isFinite(bankroll) ? bankroll : 0,
         current_carter_cash: Number.isFinite(carterCash) ? carterCash : 0,
         current_carter_cash_progress: Number.isFinite(carterCashProgress) ? carterCashProgress : 0,
+        contest_history: recordContestHistory
+          ? buildContestHistory(activeEntry.contest_history, bankroll, contestHistoryLabel)
+          : activeEntry.contest_history,
         display_name: getContestDisplayName(currentProfile, currentUser.id),
         participant_email: currentUser.email || ""
       };
@@ -6108,11 +7187,18 @@ async function persistBankroll() {
         currentContestEntry = updatedEntry;
       }
     } else {
-      const { data, error } = await supabase
+      const profileVersion = currentProfile?.updated_at ?? null;
+      let profileUpdateQuery = supabase
         .from("profiles")
         .update(updates)
-        .eq("id", currentUser.id)
-        .select("credits, carter_cash, carter_cash_progress")
+        .eq("id", currentUser.id);
+
+      if (profileVersion) {
+        profileUpdateQuery = profileUpdateQuery.eq("updated_at", profileVersion);
+      }
+
+      const { data, error } = await profileUpdateQuery
+        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, updated_at")
         .maybeSingle();
 
       if (error) {
@@ -6150,25 +7236,18 @@ async function persistBankroll() {
           currentProfile.credits = nextCredits;
           currentProfile.carter_cash = nextCarterCash;
           currentProfile.carter_cash_progress = nextProgress;
+          currentProfile.updated_at = data.updated_at ?? currentProfile.updated_at;
         }
       } else {
-        if (Object.prototype.hasOwnProperty.call(updates, "credits")) {
-          lastSyncedBankroll = bankroll;
-          if (currentProfile) {
-            currentProfile.credits = bankroll;
-          }
-        }
-        if (Object.prototype.hasOwnProperty.call(updates, "carter_cash")) {
-          lastSyncedCarterCash = carterCash;
-          if (currentProfile) {
-            currentProfile.carter_cash = carterCash;
-          }
-        }
-        if (Object.prototype.hasOwnProperty.call(updates, "carter_cash_progress")) {
-          lastSyncedCarterProgress = carterCashProgress;
-          if (currentProfile) {
-            currentProfile.carter_cash_progress = carterCashProgress;
-          }
+        const latestProfile = await fetchProfileWithRetries(currentUser.id, {
+          attempts: PROFILE_ATTEMPT_MAX,
+          delayMs: PROFILE_RETRY_DELAY_MS,
+          timeoutMs: PROFILE_FETCH_TIMEOUT_MS
+        });
+        if (latestProfile) {
+          applyProfileCredits(latestProfile);
+          void loadPersistentBankrollHistory({ force: true });
+          return;
         }
       }
     }
@@ -6278,8 +7357,28 @@ function setClearBetsDisabled(disabled) {
   });
 }
 
+function updateDealButtonState() {
+  if (!dealButton) return;
+  const canAdvanceManualHand = dealing && awaitingManualDeal;
+  dealButton.textContent = canAdvanceManualHand ? "Deal Next Card" : "Deal Hand";
+  dealButton.disabled = canAdvanceManualHand ? false : dealing || !bettingOpen || bets.length === 0;
+}
+
+function updateAutoDealToggleUI() {
+  if (autoDealToggleInput) {
+    autoDealToggleInput.checked = autoDealEnabled;
+    autoDealToggleInput.setAttribute("aria-checked", String(autoDealEnabled));
+    autoDealToggleInput.disabled = dealing;
+  }
+  if (autoDealToggleWrap) {
+    autoDealToggleWrap.classList.toggle("is-active", autoDealEnabled);
+    autoDealToggleWrap.classList.toggle("is-disabled", dealing);
+  }
+}
+
 function refreshBetControls() {
-  const chipEnabled = bettingOpen;
+  const intermission = dealing && awaitingManualDeal;
+  const chipEnabled = bettingOpen || intermission;
   chipSelectorEl.classList.toggle("selector-disabled", !chipEnabled);
   chipButtons.forEach((button) => {
     button.disabled = !chipEnabled;
@@ -6289,14 +7388,18 @@ function refreshBetControls() {
   betSpotButtons.forEach((button) => {
     const key = button.dataset.betKey || button.dataset.rank;
     const definition = key ? getBetDefinition(key) : null;
-    const lockedDuringHand = definition?.lockDuringHand ?? false;
-    const disabled = lockedDuringHand ? !bettingOpen : !bettingOpen;
+    const canUseDuringIntermission = Boolean(
+      intermission &&
+      definition &&
+      ["specific-card", "bust-suit", "bust-rank", "bust-joker"].includes(definition.type)
+    );
+    const disabled = bettingOpen ? false : !canUseDuringIntermission;
 
     button.disabled = disabled;
     button.setAttribute("aria-disabled", String(disabled));
   });
 
-  setClearBetsDisabled(!bettingOpen || bets.length === 0);
+  setClearBetsDisabled(!bettingOpen || dealing || bets.length === 0);
 }
 
 function setBettingEnabled(enabled) {
@@ -6341,7 +7444,7 @@ function renderBets() {
     cell.textContent = "No bets placed.";
     row.appendChild(cell);
     betsBody.appendChild(row);
-    dealButton.disabled = true;
+    updateDealButtonState();
     setClearBetsDisabled(true);
     updateBetSpotTotals();
     refreshBetControls();
@@ -6358,7 +7461,7 @@ function renderBets() {
     `;
     betsBody.appendChild(row);
   });
-  dealButton.disabled = dealing || !bettingOpen;
+  updateDealButtonState();
   setClearBetsDisabled(!bettingOpen);
   updateBetSpotTotals();
   refreshBetControls();
@@ -6538,6 +7641,15 @@ function waitWhilePaused() {
   return new Promise((resolve) => {
     pauseResolvers.push(resolve);
   });
+}
+
+async function waitForManualDealAdvance() {
+  awaitingManualDeal = true;
+  setHandPaused(true);
+  updateDealButtonState();
+  await waitWhilePaused();
+  awaitingManualDeal = false;
+  updateDealButtonState();
 }
 
 async function waitForDealDelay() {
@@ -6826,7 +7938,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
 
 function updatePauseButton() {
   if (!pausePlayButton) return;
-  const shouldShow = advancedMode && dealing;
+  const shouldShow = advancedMode && dealing && autoDealEnabled;
   pausePlayButton.hidden = !shouldShow;
   if (!shouldShow) {
     pausePlayButton.setAttribute("aria-pressed", "false");
@@ -6852,10 +7964,25 @@ function setHandPaused(paused) {
   }
   updatePauseButton();
   refreshBetControls();
+  updateDealButtonState();
   if (handPaused) {
-    statusEl.textContent = "Dealing paused. Place bust bets or resume play.";
+    statusEl.textContent = awaitingManualDeal
+      ? "Manual deal mode: place specific card or bust bets, then press Deal Next Card."
+      : "Dealing paused. Place bust bets or resume play.";
   } else if (dealing) {
     statusEl.textContent = "Dealing...";
+  }
+}
+
+function setAutoDealEnabled(enabled) {
+  autoDealEnabled = enabled;
+  updateAutoDealToggleUI();
+  updatePauseButton();
+  updateDealButtonState();
+  if (!dealing) {
+    statusEl.textContent = enabled
+      ? "Auto Deal is on. Press Deal Hand to run the hand to completion."
+      : "Auto Deal is off. Press Deal Hand to reveal one card at a time.";
   }
 }
 
@@ -6890,6 +8017,7 @@ function setAdvancedMode(enabled) {
   }
   refreshBetControls();
   updatePauseButton();
+  updateDealButtonState();
 }
 
 function stopBankrollAnimation(restoreDisplay = true) {
@@ -7123,10 +8251,12 @@ function resetTable(
     statusEl.textContent = message;
   }
   dealing = false;
+  awaitingManualDeal = false;
   currentHandContext = null;
   setHandPaused(false);
   setBettingEnabled(true);
-  dealButton.disabled = bets.length === 0;
+  updateAutoDealToggleUI();
+  updateDealButtonState();
   updatePauseButton();
   updateRebetButtonState();
 }
@@ -7386,9 +8516,13 @@ async function endHand(stopperCard, context = {}) {
   currentOpeningLayout = [];
 
   dealing = false;
+  awaitingManualDeal = false;
   animateBankrollOutcome(netThisHand);
   recordBankrollHistoryPoint();
-  await persistBankroll();
+  await persistBankroll({
+    recordContestHistory: isContestAccountMode(),
+    contestHistoryLabel: `Hand ${stats.hands}`
+  });
   await ensureProfileSynced({ force: true });
   await logHandAndBets(stopperCard, context, betSnapshots, netThisHand);
   const metadata = {
@@ -7409,6 +8543,8 @@ async function endHand(stopperCard, context = {}) {
   });
   resetBets();
   setBettingEnabled(true);
+  updateAutoDealToggleUI();
+  updateDealButtonState();
   updateRebetButtonState();
   updatePauseButton();
 }
@@ -7486,15 +8622,17 @@ async function dealHand() {
   if (bets.length === 0 || dealing) return;
   currentOpeningLayout = snapshotLayout(bets);
   dealing = true;
+  awaitingManualDeal = false;
   pauseResolvers = [];
   currentHandContext = { nonStopperCount: 0, totalCards: 0, drawnCards: [] };
   setHandPaused(false);
   setBettingEnabled(false);
-  dealButton.disabled = true;
+  updateDealButtonState();
   updateRebetButtonState();
   resetBetCounters();
   drawsContainer.innerHTML = "";
   statusEl.textContent = "Dealing...";
+  updateAutoDealToggleUI();
   updatePauseButton();
 
   const deck = createDeck();
@@ -7506,11 +8644,18 @@ async function dealHand() {
     if (shouldStop) {
       break;
     }
-    await waitForDealDelay();
+    if (autoDealEnabled) {
+      await waitForDealDelay();
+    } else {
+      await waitForManualDealAdvance();
+    }
   }
 
   currentHandContext = null;
+  awaitingManualDeal = false;
   setHandPaused(false);
+  updateAutoDealToggleUI();
+  updateDealButtonState();
   updatePauseButton();
 }
 
@@ -7524,8 +8669,15 @@ function placeBet(key) {
     return;
   }
 
-  if (!bettingOpen && definition.lockDuringHand) {
-    statusEl.textContent = `${definition.label} bets are locked while a hand is in progress.`;
+  const canUseDuringIntermission =
+    dealing &&
+    awaitingManualDeal &&
+    ["specific-card", "bust-suit", "bust-rank", "bust-joker"].includes(definition.type);
+
+  if (!bettingOpen && !canUseDuringIntermission) {
+    statusEl.textContent = awaitingManualDeal
+      ? `${definition.label} bets cannot be changed once the hand has started. Only specific card and bust bets can be added between cards.`
+      : `${definition.label} bets are locked while a hand is in progress.`;
     return;
   }
 
@@ -7607,9 +8759,24 @@ clearBetsButtons.forEach((button) => {
 });
 
 dealButton.addEventListener("click", () => {
-  if (bets.length === 0 || dealing) return;
+  if (dealing) {
+    if (awaitingManualDeal) {
+      setHandPaused(false);
+    }
+    return;
+  }
+  if (bets.length === 0) return;
   dealHand();
 });
+
+if (autoDealToggleInput) {
+  autoDealToggleInput.addEventListener("change", (event) => {
+    setAutoDealEnabled(Boolean(event.target.checked));
+  });
+}
+
+updateAutoDealToggleUI();
+updateDealButtonState();
 
 rebetButton.addEventListener("click", () => {
   if (dealing || lastBetLayout.length === 0) return;
@@ -7781,6 +8948,12 @@ if (notificationToggle && notificationsPanel && notificationsClose) {
   notificationsClose.addEventListener("click", () => {
     closeDrawer(notificationsPanel, notificationToggle);
   });
+
+  if (notificationsClearAllButton) {
+    notificationsClearAllButton.addEventListener("click", () => {
+      void markAllContestNotificationsSeen();
+    });
+  }
 }
 
 if (graphToggle && chartPanel && chartClose) {
@@ -7842,8 +9015,13 @@ if (notificationsListEl) {
     if (!button) return;
     const contestId = button.dataset.contestId;
     if (!contestId) return;
+    const notificationType = button.dataset.notificationType || "result";
     closeDrawer(notificationsPanel, notificationToggle);
-    void openContestResultNotification(contestId);
+    if (notificationType === "start") {
+      void openContestStartNotification(contestId);
+    } else {
+      void openContestResultNotification(contestId);
+    }
   });
 }
 
@@ -7917,6 +9095,26 @@ if (shippingForm) {
 
 if (adminContestForm) {
   adminContestForm.addEventListener("submit", handleAdminContestSubmit);
+  adminContestForm.addEventListener("change", (event) => {
+    const target = event.target;
+    if (target instanceof HTMLSelectElement && target.name === "prizeVariableBasis") {
+      updateContestPrizeModeFields();
+    }
+  });
+  updateContestPrizeModeFields();
+  renderPrizeAllocationRows();
+}
+
+const addPrizeAllocationButton = document.getElementById("add-prize-allocation-button");
+if (addPrizeAllocationButton) {
+  addPrizeAllocationButton.addEventListener("click", () => {
+    const next = getPrizeAllocationValues();
+    next.push({
+      place: next.length + 1,
+      percentage: 0
+    });
+    renderPrizeAllocationRows(next);
+  });
 }
 
 if (adminContestCancelButton) {
@@ -7991,6 +9189,26 @@ if (adminContestResultsModal) {
   });
 }
 
+if (contestJourneyCloseButton) {
+  contestJourneyCloseButton.addEventListener("click", () => {
+    closeContestJourneyModal();
+  });
+}
+
+if (contestJourneyOkButton) {
+  contestJourneyOkButton.addEventListener("click", () => {
+    closeContestJourneyModal();
+  });
+}
+
+if (contestJourneyModal) {
+  contestJourneyModal.addEventListener("click", (event) => {
+    if (event.target === contestJourneyModal) {
+      closeContestJourneyModal();
+    }
+  });
+}
+
 if (shippingCancelButton) {
   shippingCancelButton.addEventListener("click", () => {
     closeShippingModal({ restoreFocus: true });
@@ -8006,6 +9224,12 @@ if (shippingCloseButton) {
 // Profile form handlers
 if (profileForm) {
   profileForm.addEventListener("submit", saveProfile);
+}
+
+if (contestEmailOptInInput) {
+  contestEmailOptInInput.addEventListener("change", (event) => {
+    void handleContestEmailPreferenceChange(event);
+  });
 }
 
 // Debug: Log button state at initialization
