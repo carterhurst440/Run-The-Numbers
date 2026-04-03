@@ -275,6 +275,16 @@
             <span aria-hidden="true">×</span>
           </button>
         </div>
+        <div id="drawer-rank-summary" class="drawer-rank-summary" hidden>
+          <div class="drawer-rank-icon-wrap">
+            <img id="drawer-rank-icon" class="drawer-rank-icon" alt="" hidden />
+            <span id="drawer-rank-icon-fallback" class="drawer-rank-icon-fallback" aria-hidden="true">1</span>
+          </div>
+          <div class="drawer-rank-copy">
+            <p class="drawer-rank-label">Current Rank</p>
+            <p id="drawer-rank-name" class="drawer-rank-name">Accountant</p>
+          </div>
+        </div>
         <section class="drawer-section" aria-label="Navigation">
           <div class="drawer-nav">
             <button type="button" data-route-target="home" class="drawer-link">Home</button>
@@ -529,6 +539,42 @@
         <section id="home-view" class="route-view app-page home-view" hidden aria-labelledby="home-title">
           <div class="home-hero">
             <h1 id="home-title" class="home-title">RUN THE NUMBERS</h1>
+            <p id="home-rank-typing" class="home-rank-typing" hidden></p>
+            <section id="home-rank-panel" class="home-rank-panel" hidden aria-labelledby="home-rank-title">
+              <div class="home-rank-header">
+                <div>
+                  <p class="home-rank-eyebrow">Current Rank</p>
+                  <div class="home-rank-title-row">
+                    <div class="home-rank-icon-wrap home-rank-icon-inline">
+                      <img id="home-rank-icon" class="home-rank-icon" alt="" hidden />
+                      <div id="home-rank-icon-fallback" class="home-rank-icon-fallback" aria-hidden="true">1</div>
+                    </div>
+                    <h2 id="home-rank-title" class="home-rank-title">Accountant</h2>
+                  </div>
+                </div>
+                <button type="button" id="home-rank-ladder-button" class="link-button">Rank Ladder</button>
+              </div>
+              <div class="home-rank-progress-grid">
+                <div class="rank-progress-card">
+                  <div class="rank-progress-label-row">
+                    <span>Hands Played</span>
+                    <span id="home-rank-hands-progress-text">0 / 0</span>
+                  </div>
+                  <div class="rank-progress-track" aria-hidden="true">
+                    <div id="home-rank-hands-progress-bar" class="rank-progress-fill"></div>
+                  </div>
+                </div>
+                <div class="rank-progress-card">
+                  <div class="rank-progress-label-row">
+                    <span>Contest Victories</span>
+                    <span id="home-rank-wins-progress-text">0 / 0</span>
+                  </div>
+                  <div class="rank-progress-track" aria-hidden="true">
+                    <div id="home-rank-wins-progress-bar" class="rank-progress-fill"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
             <section id="home-live-contests" class="home-contests-panel" hidden aria-labelledby="home-live-contests-title">
               <div class="home-contests-header">
                 <div>
@@ -1406,6 +1452,7 @@
               <button type="button" class="admin-tab active" data-admin-tab="prizes">Prizes</button>
               <button type="button" class="admin-tab" data-admin-tab="analytics">Analytics</button>
               <button type="button" class="admin-tab" data-admin-tab="contests">Contests</button>
+              <button type="button" class="admin-tab" data-admin-tab="ranks">Ranks</button>
             </div>
             <section class="admin-tab-content" id="admin-prizes-content">
               <section class="route-section admin-list-section">
@@ -1439,12 +1486,19 @@
                 <div class="analytics-overview-chart">
                   <div class="overview-chart-header">
                     <h3>Total Bet Volume Over Time</h3>
-                    <div class="chart-filters overview-filters">
-                      <button type="button" class="chart-filter-btn" data-period="week">Last Week</button>
-                      <button type="button" class="chart-filter-btn" data-period="month">Last Month</button>
-                      <button type="button" class="chart-filter-btn" data-period="90days">Last 90 Days</button>
-                      <button type="button" class="chart-filter-btn" data-period="year">Last Year</button>
-                      <button type="button" class="chart-filter-btn active" data-period="all">All Time</button>
+                    <div class="overview-chart-controls">
+                      <div class="chart-filters overview-series-filters">
+                        <button type="button" class="chart-filter-btn" data-overview-series="bets">Bet Plays</button>
+                        <button type="button" class="chart-filter-btn" data-overview-series="hands">Hands Dealt</button>
+                        <button type="button" class="chart-filter-btn active" data-overview-series="both">Both</button>
+                      </div>
+                      <div class="chart-filters overview-filters">
+                        <button type="button" class="chart-filter-btn" data-period="week">Last Week</button>
+                        <button type="button" class="chart-filter-btn" data-period="month">Last Month</button>
+                        <button type="button" class="chart-filter-btn" data-period="90days">Last 90 Days</button>
+                        <button type="button" class="chart-filter-btn" data-period="year">Last Year</button>
+                        <button type="button" class="chart-filter-btn active" data-period="all">All Time</button>
+                      </div>
                     </div>
                   </div>
                   <div class="overview-chart-container">
@@ -1519,6 +1573,15 @@
                   <button type="button" class="primary" id="admin-add-contest-button">Create contest</button>
                 </div>
                 <ul id="admin-contest-list" class="admin-prize-list admin-contest-list" aria-live="polite"></ul>
+              </section>
+            </section>
+            <section class="admin-tab-content" id="admin-ranks-content" hidden>
+              <section class="route-section admin-list-section">
+                <div class="admin-listing-header">
+                  <h2>Ranks</h2>
+                  <button type="button" class="primary" id="admin-add-rank-button">Add rank</button>
+                </div>
+                <ul id="admin-rank-list" class="admin-prize-list admin-rank-list" aria-live="polite"></ul>
               </section>
             </section>
           </div>
@@ -1982,6 +2045,18 @@
             <input type="number" name="qualificationCarterCash" min="0" step="1" value="0" required />
           </label>
           <label class="admin-field">
+            <span>Minimum Rank Requirement</span>
+            <select name="requiredRankTier" id="contest-required-rank-tier" required>
+              <option value="1">Accountant or higher</option>
+              <option value="2">Analyst or higher</option>
+              <option value="3">Senior Analyst or higher</option>
+              <option value="4">Auditor or higher</option>
+              <option value="5">Controller or higher</option>
+              <option value="6">Auditor General or higher</option>
+              <option value="7">The Ledger only</option>
+            </select>
+          </label>
+          <label class="admin-field">
             <span>Contest Prize Pot</span>
             <input type="number" name="prizeStaticAmount" min="0" step="0.01" value="0" required />
           </label>
@@ -2028,6 +2103,99 @@
       </div>
     </div>
 
+    <div
+      class="modal"
+      id="rank-ladder-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rank-ladder-modal-title"
+      hidden
+    >
+      <div class="modal-content rank-ladder-modal">
+        <div class="modal-header">
+          <h2 id="rank-ladder-modal-title">Rank Ladder</h2>
+          <button type="button" class="modal-close" id="rank-ladder-close" aria-label="Close rank ladder">×</button>
+        </div>
+        <div class="modal-body rank-ladder-body">
+          <p class="rank-ladder-copy">Advance by playing hands and collecting contest victories.</p>
+          <ul id="rank-ladder-list" class="rank-ladder-list"></ul>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="rank-ladder-ok" class="primary">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal"
+      id="admin-rank-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="admin-rank-modal-title"
+      hidden
+    >
+      <div class="modal-content admin-modal">
+        <div class="modal-header">
+          <h2 id="admin-rank-modal-title">Add rank</h2>
+          <button type="button" class="modal-close" id="admin-rank-close" aria-label="Close rank form">×</button>
+        </div>
+        <form id="admin-rank-form" class="admin-form">
+          <label class="admin-field">
+            <span>Rank Name</span>
+            <input type="text" name="name" required />
+          </label>
+          <label class="admin-field">
+            <span>Tier</span>
+            <input type="number" name="tier" min="1" step="1" required />
+          </label>
+          <label class="admin-field">
+            <span>Rank Welcome Phrase</span>
+            <textarea name="welcomePhrase" rows="3" required></textarea>
+          </label>
+          <label class="admin-field">
+            <span>Hands Played Requirement</span>
+            <input type="number" name="requiredHandsPlayed" min="0" step="1" value="0" required />
+          </label>
+          <label class="admin-field">
+            <span>Contest Wins Requirement</span>
+            <input type="number" name="requiredContestWins" min="0" step="1" value="0" required />
+          </label>
+          <label class="admin-field">
+            <span>Rank Theme</span>
+            <select name="themeKey" required>
+              <option value="blue">Blue</option>
+              <option value="pink">Pink</option>
+              <option value="orange">Orange</option>
+              <option value="steel-black">Steel Black</option>
+              <option value="angelic">Angelic</option>
+              <option value="retro">Retro</option>
+              <option value="cotton-candy">Cotton Candy</option>
+              <option value="pastel">Pastel</option>
+            </select>
+          </label>
+          <label class="admin-field">
+            <span>Rank Icon URL</span>
+            <input type="url" name="iconUrl" placeholder="https://..." />
+          </label>
+          <label class="admin-field">
+            <span>Upload Rank Icon</span>
+            <input type="file" name="iconFile" id="rank-icon-file" accept="image/*" />
+          </label>
+          <div class="admin-rank-preview">
+            <div class="admin-rank-preview-thumb">
+              <img id="admin-rank-icon-preview" alt="Rank icon preview" hidden />
+              <span id="admin-rank-icon-placeholder">Preview</span>
+            </div>
+          </div>
+          <div class="modal-actions admin-form-actions">
+            <button type="button" class="secondary" id="admin-rank-cancel">Cancel</button>
+            <button type="submit" class="primary" id="admin-rank-save">Save rank</button>
+          </div>
+          <p id="admin-rank-message" class="admin-message" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+
     <template id="card-template">
       <div class="card">
         <div class="card-rank"></div>
@@ -2035,8 +2203,37 @@
       </div>
     </template>
 
+    <div
+      class="modal"
+      id="rank-up-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rank-up-title"
+      hidden
+    >
+      <div class="modal-content rank-up-modal">
+        <div class="rank-up-burst" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div class="modal-header">
+          <h2 id="rank-up-title">Congratulations</h2>
+          <button type="button" class="modal-close" id="rank-up-close" aria-label="Close rank celebration">×</button>
+        </div>
+        <div class="modal-body rank-up-body">
+          <div class="rank-up-icon-wrap">
+            <img id="rank-up-icon" class="rank-up-icon" alt="" hidden />
+            <span id="rank-up-icon-fallback" class="rank-up-icon-fallback" aria-hidden="true">1</span>
+          </div>
+          <p id="rank-up-copy" class="rank-up-copy">You have advanced.</p>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="rank-up-ok" class="primary">Keep Climbing</button>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260401b"></script>
+    <script type="module" src="script.js?v=20260402-ranks1"></script>
   </body>
 </html>

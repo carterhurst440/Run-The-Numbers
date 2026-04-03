@@ -107,6 +107,71 @@ const NUMBER_RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 const DENOMINATIONS = [5, 10, 25, 100];
 const INITIAL_BANKROLL = 1000;
 const ADMIN_EMAIL = "carterwarrenhurst@gmail.com";
+const DEFAULT_RANK_LADDER = [
+  {
+    tier: 1,
+    name: "Accountant",
+    welcome_phrase: "Welcome, Accountant {name}. We have work to do, these numbers won't run themselves.",
+    required_hands_played: 0,
+    required_contest_wins: 0,
+    icon_url: "",
+    theme_key: "blue"
+  },
+  {
+    tier: 2,
+    name: "Analyst",
+    welcome_phrase: "Analyst {name}, you're on. Review the numbers and report your position.",
+    required_hands_played: 1000,
+    required_contest_wins: 0,
+    icon_url: "",
+    theme_key: "blue"
+  },
+  {
+    tier: 3,
+    name: "Senior Analyst",
+    welcome_phrase: "Senior Analyst {name}, expectations are higher now. Don't fall behind the numbers.",
+    required_hands_played: 2000,
+    required_contest_wins: 1,
+    icon_url: "",
+    theme_key: "pink"
+  },
+  {
+    tier: 4,
+    name: "Auditor",
+    welcome_phrase: "Auditor {name}, let's review the numbers together. Something feels... off.",
+    required_hands_played: 10000,
+    required_contest_wins: 1,
+    icon_url: "",
+    theme_key: "orange"
+  },
+  {
+    tier: 5,
+    name: "Controller",
+    welcome_phrase: "Controller {name}, we're seeing movement. Let's keep this operation in balance.",
+    required_hands_played: 20000,
+    required_contest_wins: 2,
+    icon_url: "",
+    theme_key: "steel-black"
+  },
+  {
+    tier: 6,
+    name: "Auditor General",
+    welcome_phrase: "Auditor General... the system is ready. Run the numbers, {name}.",
+    required_hands_played: 100000,
+    required_contest_wins: 5,
+    icon_url: "",
+    theme_key: "angelic"
+  },
+  {
+    tier: 7,
+    name: "The Ledger",
+    welcome_phrase: "You are The Ledger. All numbers resolve through you. What is the next move, {name}?",
+    required_hands_played: 200000,
+    required_contest_wins: 10,
+    icon_url: "",
+    theme_key: "pastel"
+  }
+];
 const PRIZE_CURRENCIES = {
   units: {
     key: "units",
@@ -255,6 +320,669 @@ async function uploadPrizeImage(file) {
   }
 
   return publicUrl;
+}
+
+async function uploadRankIcon(file) {
+  return uploadPrizeImage(file);
+}
+
+function normalizeRankRecord(rank = {}) {
+  return {
+    id: rank.id || null,
+    tier: Math.max(1, Number(rank.tier || 1)),
+    name: String(rank.name || "Rank").trim(),
+    welcome_phrase: String(rank.welcome_phrase || "").trim(),
+    required_hands_played: Math.max(0, Math.round(Number(rank.required_hands_played || 0))),
+    required_contest_wins: Math.max(0, Math.round(Number(rank.required_contest_wins || 0))),
+    icon_url: typeof rank.icon_url === "string" ? rank.icon_url.trim() : "",
+    theme_key: THEME_CLASS_MAP[rank.theme_key] ? rank.theme_key : "blue"
+  };
+}
+
+function getFallbackRankLadder() {
+  return DEFAULT_RANK_LADDER.map((rank) => normalizeRankRecord(rank));
+}
+
+function getRankLadder() {
+  return rankLadderCache.length ? rankLadderCache : getFallbackRankLadder();
+}
+
+function getRankProgressPercent(currentValue, requiredValue) {
+  const current = Math.max(0, Number(currentValue || 0));
+  const required = Math.max(0, Number(requiredValue || 0));
+  if (required <= 0) return 100;
+  return Math.max(0, Math.min(100, (current / required) * 100));
+}
+
+function formatRankRequirementValue(value) {
+  return Math.max(0, Math.round(Number(value || 0))).toLocaleString();
+}
+
+function getRankDisplayName(profile = currentProfile) {
+  const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim();
+  return fullName || profile?.first_name || profile?.username || "Player";
+}
+
+function interpolateRankWelcome(rank, profile = currentProfile) {
+  const playerName = getRankDisplayName(profile);
+  return String(rank?.welcome_phrase || "").replace(/\{name\}/g, playerName);
+}
+
+function resolveRankState(handsPlayed = 0, contestWins = 0, ladder = getRankLadder()) {
+  const sorted = [...ladder].sort((a, b) => a.tier - b.tier);
+  const progressHands = Math.max(0, Math.round(Number(handsPlayed || 0)));
+  const progressWins = Math.max(0, Math.round(Number(contestWins || 0)));
+  let currentRank = sorted[0] || normalizeRankRecord(DEFAULT_RANK_LADDER[0]);
+
+  sorted.forEach((rank) => {
+    if (
+      progressHands >= rank.required_hands_played &&
+      progressWins >= rank.required_contest_wins
+    ) {
+      currentRank = rank;
+    }
+  });
+
+  const nextRank = sorted.find((rank) => rank.tier > currentRank.tier) || null;
+  return {
+    ladder: sorted,
+    currentRank,
+    nextRank,
+    handsPlayed: progressHands,
+    contestWins: progressWins
+  };
+}
+
+async function loadRankLadder(force = false) {
+  if (!force && rankLadderCache.length) {
+    return rankLadderCache;
+  }
+
+  if (!supabase) {
+    rankLadderCache = getFallbackRankLadder();
+    return rankLadderCache;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("ranks")
+      .select("*")
+      .order("tier", { ascending: true });
+    if (error) throw error;
+    rankLadderCache = Array.isArray(data) && data.length
+      ? data.map((rank) => normalizeRankRecord(rank))
+      : getFallbackRankLadder();
+  } catch (error) {
+    console.error("[RTN] loadRankLadder error", error);
+    rankLadderCache = getFallbackRankLadder();
+  }
+
+  return rankLadderCache;
+}
+
+async function fetchHandsPlayedCount(userId) {
+  if (!userId || !supabase) return 0;
+  try {
+    const { count, error } = await supabase
+      .from("game_hands")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId);
+    if (error) throw error;
+    return Math.max(0, Number(count || 0));
+  } catch (error) {
+    console.error("[RTN] fetchHandsPlayedCount error", error);
+    return 0;
+  }
+}
+
+async function incrementProfileHandProgress(handIncrement = 1) {
+  if (!currentUser?.id || currentUser.id === GUEST_USER.id || !supabase) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("increment_profile_hands_played", {
+      target_user_id: currentUser.id,
+      hand_increment: handIncrement
+    });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row && currentProfile) {
+      currentProfile.hands_played_all_time = Math.max(
+        0,
+        Math.round(Number(row.hands_played_all_time || currentProfile.hands_played_all_time || 0))
+      );
+      currentProfile.current_rank_tier = Math.max(
+        1,
+        Math.round(Number(row.current_rank_tier || currentProfile.current_rank_tier || 1))
+      );
+      currentProfile.current_rank_id = row.current_rank_id || currentProfile.current_rank_id || null;
+      currentProfile.updated_at = row.updated_at || currentProfile.updated_at || null;
+    }
+    return row || null;
+  } catch (error) {
+    console.error("[RTN] incrementProfileHandProgress error", error);
+    return null;
+  }
+}
+
+async function reconcileProfileHandProgress({ force = false } = {}) {
+  if (!currentUser?.id || currentUser.id === GUEST_USER.id || !supabase) {
+    return null;
+  }
+  if (!force && reconciledHandsPlayedUserId === currentUser.id) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("reconcile_profile_hands_played", {
+      target_user_id: currentUser.id
+    });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row && currentProfile) {
+      currentProfile.hands_played_all_time = Math.max(
+        0,
+        Math.round(Number(row.hands_played_all_time || currentProfile.hands_played_all_time || 0))
+      );
+      currentProfile.current_rank_tier = Math.max(
+        1,
+        Math.round(Number(row.current_rank_tier || currentProfile.current_rank_tier || 1))
+      );
+      currentProfile.current_rank_id = row.current_rank_id || currentProfile.current_rank_id || null;
+      currentProfile.updated_at = row.updated_at || currentProfile.updated_at || null;
+    }
+    reconciledHandsPlayedUserId = currentUser.id;
+    return row || null;
+  } catch (error) {
+    console.error("[RTN] reconcileProfileHandProgress error", error);
+    return null;
+  }
+}
+
+async function refreshCurrentRankState({ force = false } = {}) {
+  const previousTier = currentRankState?.currentRank?.tier || null;
+  if (!currentUser?.id || currentUser.id === GUEST_USER.id) {
+    currentRankState = null;
+    reconciledHandsPlayedUserId = null;
+    applyTheme("blue");
+    renderDrawerRankSummary(null);
+    typeHomeRankWelcome("");
+    renderHomeRankPanel();
+    return null;
+  }
+
+  const ladder = await loadRankLadder(force);
+  await reconcileProfileHandProgress({ force });
+  const storedHandsPlayed = Number(currentProfile?.hands_played_all_time);
+  const handsPlayed = Number.isFinite(storedHandsPlayed)
+    ? Math.max(0, Math.round(storedHandsPlayed))
+    : await fetchHandsPlayedCount(currentUser.id);
+  const contestWins = Math.max(0, Math.round(Number(currentProfile?.contest_wins || 0)));
+  currentRankState = resolveRankState(handsPlayed, contestWins, ladder);
+  applyTheme(currentRankState.currentRank?.theme_key || "blue");
+  renderDrawerRankSummary(currentRankState.currentRank);
+  typeHomeRankWelcome(interpolateRankWelcome(currentRankState.currentRank));
+  renderHomeRankPanel();
+  renderRankLadderModal();
+  await renderHomeContestPromos();
+  if (playerLiveContestListEl && playerEndedContestListEl) {
+    await loadPlayerContestList(false);
+  }
+
+  const nextTier = currentRankState.currentRank?.tier || 1;
+  const announcedTier = getStoredAnnouncedRankTier(currentUser.id);
+  if (previousTier && nextTier > previousTier) {
+    openRankUpModal(currentRankState.currentRank);
+  }
+  if (announcedTier == null || nextTier > announcedTier) {
+    setStoredAnnouncedRankTier(nextTier, currentUser.id);
+  }
+  return currentRankState;
+}
+
+function renderHomeRankPanel() {
+  if (!homeRankPanelEl) return;
+
+  if (!currentRankState?.currentRank || !currentUser?.id || currentUser.id === GUEST_USER.id) {
+    homeRankPanelEl.hidden = true;
+    return;
+  }
+
+  const { currentRank, nextRank, handsPlayed, contestWins } = currentRankState;
+  const handsRequirement = nextRank ? nextRank.required_hands_played : currentRank.required_hands_played;
+  const winsRequirement = nextRank ? nextRank.required_contest_wins : currentRank.required_contest_wins;
+
+  homeRankPanelEl.hidden = false;
+  if (homeRankTitleEl) {
+    homeRankTitleEl.textContent = `${currentRank.name} · Tier ${currentRank.tier}`;
+  }
+  if (homeRankHandsProgressTextEl) {
+    homeRankHandsProgressTextEl.textContent = nextRank
+      ? `${formatRankRequirementValue(handsPlayed)} / ${formatRankRequirementValue(handsRequirement)}`
+      : `${formatRankRequirementValue(handsPlayed)} all time`;
+  }
+  if (homeRankWinsProgressTextEl) {
+    homeRankWinsProgressTextEl.textContent = nextRank
+      ? `${formatRankRequirementValue(contestWins)} / ${formatRankRequirementValue(winsRequirement)}`
+      : `${formatRankRequirementValue(contestWins)} all time`;
+  }
+  if (homeRankHandsProgressBarEl) {
+    homeRankHandsProgressBarEl.style.width = `${getRankProgressPercent(handsPlayed, nextRank ? handsRequirement : Math.max(handsPlayed, 1))}%`;
+  }
+  if (homeRankWinsProgressBarEl) {
+    homeRankWinsProgressBarEl.style.width = `${getRankProgressPercent(contestWins, nextRank ? winsRequirement : Math.max(contestWins, 1))}%`;
+  }
+
+  if (homeRankIconEl && homeRankIconFallbackEl) {
+    if (currentRank.icon_url) {
+      homeRankIconEl.src = currentRank.icon_url;
+      homeRankIconEl.alt = `${currentRank.name} icon`;
+      homeRankIconEl.hidden = false;
+      homeRankIconFallbackEl.hidden = true;
+    } else {
+      homeRankIconEl.hidden = true;
+      homeRankIconFallbackEl.hidden = false;
+      homeRankIconFallbackEl.textContent = String(currentRank.tier);
+    }
+  }
+}
+
+function buildRankRequirementsCopy(rank) {
+  const requirements = [];
+  if (rank.required_hands_played > 0) {
+    requirements.push(`${formatRankRequirementValue(rank.required_hands_played)} hands played`);
+  }
+  if (rank.required_contest_wins > 0) {
+    requirements.push(`${formatRankRequirementValue(rank.required_contest_wins)} contest victories`);
+  }
+  return requirements.length ? requirements.join(" • ") : "No thresholds";
+}
+
+function getRankByTier(tier, ladder = getRankLadder()) {
+  const targetTier = Math.max(1, Math.round(Number(tier || 1)));
+  return ladder.find((rank) => rank.tier === targetTier) || null;
+}
+
+function getRankThemeLabel(themeKey) {
+  return String(themeKey || "blue")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function stopHomeRankTyping() {
+  rankWelcomeTypingToken += 1;
+  if (rankWelcomeTypingTimer) {
+    clearTimeout(rankWelcomeTypingTimer);
+    rankWelcomeTypingTimer = null;
+  }
+}
+
+function typeHomeRankWelcome(copy = "") {
+  if (!homeRankTypingEl) return;
+  stopHomeRankTyping();
+  const nextCopy = String(copy || "").trim();
+  if (!nextCopy) {
+    homeRankTypingEl.hidden = true;
+    homeRankTypingEl.textContent = "";
+    return;
+  }
+
+  const token = rankWelcomeTypingToken;
+  homeRankTypingEl.hidden = false;
+  homeRankTypingEl.textContent = "";
+  let index = 0;
+
+  const tick = () => {
+    if (token !== rankWelcomeTypingToken) return;
+    index += 1;
+    homeRankTypingEl.textContent = nextCopy.slice(0, index);
+    if (index < nextCopy.length) {
+      rankWelcomeTypingTimer = setTimeout(tick, index < 8 ? 18 : 24);
+    } else {
+      rankWelcomeTypingTimer = null;
+    }
+  };
+
+  tick();
+}
+
+function renderDrawerRankSummary(rank) {
+  if (!drawerRankSummaryEl || !drawerRankNameEl || !drawerRankIconEl || !drawerRankIconFallbackEl) return;
+  if (!rank || !currentUser?.id || currentUser.id === GUEST_USER.id) {
+    drawerRankSummaryEl.hidden = true;
+    return;
+  }
+
+  drawerRankSummaryEl.hidden = false;
+  drawerRankNameEl.textContent = `${rank.name} · Tier ${rank.tier}`;
+  if (rank.icon_url) {
+    drawerRankIconEl.src = rank.icon_url;
+    drawerRankIconEl.alt = `${rank.name} icon`;
+    drawerRankIconEl.hidden = false;
+    drawerRankIconFallbackEl.hidden = true;
+  } else {
+    drawerRankIconEl.hidden = true;
+    drawerRankIconFallbackEl.hidden = false;
+    drawerRankIconFallbackEl.textContent = String(rank.tier);
+  }
+}
+
+function getStoredAnnouncedRankTier(userId = currentUser?.id) {
+  if (!userId) return null;
+  try {
+    const stored = window.localStorage.getItem(`rtn-announced-rank:${userId}`);
+    const parsed = Number(stored);
+    return Number.isFinite(parsed) ? parsed : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function setStoredAnnouncedRankTier(tier, userId = currentUser?.id) {
+  if (!userId) return;
+  try {
+    window.localStorage.setItem(`rtn-announced-rank:${userId}`, String(Math.max(1, Math.round(Number(tier || 1)))));
+  } catch (_error) {
+    // ignore storage failures
+  }
+}
+
+function openRankUpModal(rank) {
+  if (!rankUpModal || !rank) return;
+  if (rankUpTitleEl) {
+    rankUpTitleEl.textContent = "CONGRADULATIONS";
+  }
+  if (rankUpCopyEl) {
+    rankUpCopyEl.textContent = `You have advanced to become ${rank.name}. Continue to Run the Numbers and advance up the rank ladder!`;
+  }
+  if (rankUpIconEl && rankUpIconFallbackEl) {
+    if (rank.icon_url) {
+      rankUpIconEl.src = rank.icon_url;
+      rankUpIconEl.alt = `${rank.name} icon`;
+      rankUpIconEl.hidden = false;
+      rankUpIconFallbackEl.hidden = true;
+    } else {
+      rankUpIconEl.hidden = true;
+      rankUpIconFallbackEl.hidden = false;
+      rankUpIconFallbackEl.textContent = String(rank.tier);
+    }
+  }
+  rankUpModal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closeRankUpModal() {
+  if (!rankUpModal) return;
+  rankUpModal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+function renderRankLadderModal() {
+  if (!rankLadderListEl) return;
+  rankLadderListEl.innerHTML = "";
+  getRankLadder().forEach((rank) => {
+    const item = document.createElement("li");
+    item.className = "rank-ladder-item";
+    item.dataset.theme = rank.theme_key || "blue";
+    item.innerHTML = `
+      <div class="rank-ladder-tier">Tier ${rank.tier}</div>
+      <div class="rank-ladder-body">
+        <div class="rank-ladder-title-row">
+          <h3>${rank.name}</h3>
+          <span class="rank-theme-pill">${getRankThemeLabel(rank.theme_key)}</span>
+        </div>
+        <p class="rank-ladder-requirements">${buildRankRequirementsCopy(rank)}</p>
+      </div>
+    `;
+    rankLadderListEl.appendChild(item);
+  });
+}
+
+function openRankLadderModal() {
+  if (!rankLadderModal) return;
+  renderRankLadderModal();
+  rankLadderModal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closeRankLadderModal() {
+  if (!rankLadderModal) return;
+  rankLadderModal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+function updateAdminRankIconPreview(url) {
+  if (!adminRankIconPreview || !adminRankIconPlaceholder) return;
+  const nextUrl = typeof url === "string" ? url.trim() : "";
+  if (nextUrl) {
+    adminRankIconPreview.src = nextUrl;
+    adminRankIconPreview.hidden = false;
+    adminRankIconPlaceholder.hidden = true;
+  } else {
+    adminRankIconPreview.hidden = true;
+    adminRankIconPlaceholder.hidden = false;
+  }
+}
+
+function closeAdminRankModal({ restoreFocus = true, resetFields = false } = {}) {
+  if (!adminRankModal) return;
+  adminRankModal.hidden = true;
+  document.body.classList.remove("modal-open");
+  if (resetFields && adminRankForm) {
+    adminRankForm.reset();
+    updateAdminRankIconPreview("");
+    adminEditingRankId = null;
+  }
+  if (adminRankMessage) {
+    adminRankMessage.textContent = "";
+  }
+  if (restoreFocus && adminAddRankButton) {
+    adminAddRankButton.focus();
+  }
+}
+
+function openAdminRankModal(rank = null) {
+  if (!adminRankModal || !adminRankForm) return;
+  adminEditingRankId = rank?.id || null;
+  adminRankForm.reset();
+  updateAdminRankIconPreview(rank?.icon_url || "");
+  if (adminRankMessage) {
+    adminRankMessage.textContent = "";
+  }
+  if (adminRankModal.querySelector("#admin-rank-modal-title")) {
+    adminRankModal.querySelector("#admin-rank-modal-title").textContent = rank ? "Edit rank" : "Add rank";
+  }
+  if (adminRankSaveButton) {
+    adminRankSaveButton.textContent = rank ? "Save rank" : "Create rank";
+  }
+
+  const setValue = (name, value) => {
+    const field = adminRankForm.elements.namedItem(name);
+    if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement) {
+      field.value = value ?? "";
+    }
+  };
+
+  setValue("name", rank?.name || "");
+  setValue("tier", String(rank?.tier || getRankLadder().length + 1));
+  setValue("welcomePhrase", rank?.welcome_phrase || "");
+  setValue("requiredHandsPlayed", String(rank?.required_hands_played || 0));
+  setValue("requiredContestWins", String(rank?.required_contest_wins || 0));
+  setValue("themeKey", rank?.theme_key || "blue");
+  setValue("iconUrl", rank?.icon_url || "");
+
+  adminRankModal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+async function loadAdminRankPlayerSummaries() {
+  if (!supabase) return [];
+  const { data: profiles, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, username, first_name, last_name, contest_wins, hands_played_all_time, current_rank_tier");
+  if (profileError) throw profileError;
+
+  const profileList = Array.isArray(profiles) ? profiles : [];
+  return profileList.map((profile) => ({
+    ...profile,
+    displayName: getContestDisplayName(profile, profile.id),
+    handsPlayed: Math.max(0, Math.round(Number(profile.hands_played_all_time || 0))),
+    contestWins: Math.max(0, Math.round(Number(profile.contest_wins || 0)))
+  }));
+}
+
+function renderAdminRankRow(rank, players = []) {
+  const item = document.createElement("li");
+  item.className = "admin-rank-card";
+
+  const playersMarkup = players.length
+    ? players
+        .map(
+          (player) =>
+            `<li><span>${player.displayName}</span><span>${formatRankRequirementValue(player.handsPlayed)} hands • ${formatRankRequirementValue(player.contestWins)} wins</span></li>`
+        )
+        .join("")
+    : '<li class="admin-rank-player-empty">No players currently in this rank.</li>';
+
+  item.innerHTML = `
+    <div class="admin-rank-header">
+      <div class="admin-rank-heading">
+        <div class="admin-rank-thumb">
+          ${
+            rank.icon_url
+              ? `<img src="${rank.icon_url}" alt="${rank.name} icon" />`
+              : `<span>${rank.tier}</span>`
+          }
+        </div>
+        <div>
+          <p class="admin-rank-tier">Tier ${rank.tier}</p>
+          <h3>${rank.name}</h3>
+        </div>
+      </div>
+      <span class="rank-theme-pill">${rank.theme_key}</span>
+    </div>
+    <p class="admin-rank-welcome">${interpolateRankWelcome(rank, currentProfile)}</p>
+    <p class="admin-rank-requirements">${buildRankRequirementsCopy(rank)}</p>
+    <div class="admin-rank-player-block">
+      <p class="admin-rank-player-heading">Players in this rank</p>
+      <ul class="admin-rank-player-list">${playersMarkup}</ul>
+    </div>
+    <div class="contest-actions">
+      <button type="button" class="primary">Edit Rank</button>
+      <button type="button" class="secondary">Delete Rank</button>
+    </div>
+  `;
+
+  const [editButton, deleteButton] = item.querySelectorAll("button");
+  editButton?.addEventListener("click", () => openAdminRankModal(rank));
+  deleteButton?.addEventListener("click", () => {
+    void handleAdminRankDelete(rank);
+  });
+  return item;
+}
+
+async function loadAdminRanks(force = false) {
+  if (!isAdmin()) {
+    if (adminRankListEl) adminRankListEl.innerHTML = "";
+    return;
+  }
+  if (adminRanksLoaded && !force) return;
+  if (!adminRankListEl) return;
+
+  adminRanksLoaded = true;
+  adminRankListEl.innerHTML = '<li class="admin-prize-empty">Loading ranks...</li>';
+
+  try {
+    const ladder = await loadRankLadder(force);
+    const players = await loadAdminRankPlayerSummaries();
+    const groupedPlayers = new Map();
+
+    players.forEach((player) => {
+      const playerRankState = resolveRankState(player.handsPlayed, player.contestWins, ladder);
+      const rankId = playerRankState.currentRank?.id || `tier-${playerRankState.currentRank?.tier || 1}`;
+      const existing = groupedPlayers.get(rankId) || [];
+      existing.push(player);
+      groupedPlayers.set(rankId, existing);
+    });
+
+    adminRankListEl.innerHTML = "";
+    ladder.forEach((rank) => {
+      const rankKey = rank.id || `tier-${rank.tier}`;
+      adminRankListEl.appendChild(renderAdminRankRow(rank, groupedPlayers.get(rankKey) || []));
+    });
+  } catch (error) {
+    console.error("[RTN] loadAdminRanks error", error);
+    adminRanksLoaded = false;
+    adminRankListEl.innerHTML = '<li class="admin-prize-empty">Unable to load ranks.</li>';
+  }
+}
+
+async function handleAdminRankDelete(rank) {
+  if (!rank?.id || !isAdmin()) return;
+  if (!window.confirm(`Delete ${rank.name}?`)) return;
+
+  try {
+    const { error } = await supabase.from("ranks").delete().eq("id", rank.id);
+    if (error) throw error;
+    showToast("Rank deleted", "success");
+    rankLadderCache = [];
+    adminRanksLoaded = false;
+    await supabase.rpc("recompute_all_profile_ranks");
+    await loadRankLadder(true);
+    await loadAdminRanks(true);
+    await refreshCurrentRankState({ force: true });
+  } catch (error) {
+    console.error("[RTN] handleAdminRankDelete error", error);
+    showToast(error?.message || "Unable to delete rank", "error");
+  }
+}
+
+async function handleAdminRankSubmit(event) {
+  event.preventDefault();
+  if (!adminRankForm || !isAdmin()) return;
+
+  const formData = new FormData(adminRankForm);
+  const payload = {
+    name: String(formData.get("name") || "").trim(),
+    tier: Math.max(1, Math.round(Number(formData.get("tier") || 1))),
+    welcome_phrase: String(formData.get("welcomePhrase") || "").trim(),
+    required_hands_played: Math.max(0, Math.round(Number(formData.get("requiredHandsPlayed") || 0))),
+    required_contest_wins: Math.max(0, Math.round(Number(formData.get("requiredContestWins") || 0))),
+    theme_key: String(formData.get("themeKey") || "blue").trim(),
+    icon_url: String(formData.get("iconUrl") || "").trim()
+  };
+
+  if (!payload.name || !payload.welcome_phrase) {
+    if (adminRankMessage) adminRankMessage.textContent = "Please complete the rank name and welcome phrase.";
+    return;
+  }
+
+  const iconFile = adminRankIconFileInput?.files?.[0] || null;
+  if (iconFile) {
+    payload.icon_url = await uploadRankIcon(iconFile);
+  }
+
+  try {
+    const query = adminEditingRankId
+      ? supabase.from("ranks").update(payload).eq("id", adminEditingRankId)
+      : supabase.from("ranks").insert(payload);
+    const { error } = await query;
+    if (error) throw error;
+    showToast(adminEditingRankId ? "Rank updated" : "Rank created", "success");
+    rankLadderCache = [];
+    adminRanksLoaded = false;
+    await supabase.rpc("recompute_all_profile_ranks");
+    await loadRankLadder(true);
+    await loadAdminRanks(true);
+    await refreshCurrentRankState({ force: true });
+    closeAdminRankModal({ resetFields: true });
+  } catch (error) {
+    console.error("[RTN] handleAdminRankSubmit error", error);
+    if (adminRankMessage) {
+      adminRankMessage.textContent = error?.message || "Unable to save rank.";
+    }
+  }
 }
 
 function showHandOutcomeToast(delta) {
@@ -686,7 +1414,7 @@ async function fetchProfileWithRetries(
     try {
       const fetchPromise = supabase
         .from("profiles")
-        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, receive_contest_start_emails, updated_at")
+        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
         .eq("id", userId)
         .maybeSingle();
 
@@ -822,7 +1550,7 @@ async function provisionProfileForUser(user) {
       .from("profiles")
       .insert([profileInsert])
       .select(
-        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, receive_contest_start_emails, updated_at"
+        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at"
       )
       .maybeSingle();
 
@@ -889,6 +1617,7 @@ async function ensureProfileSynced({ force = false } = {}) {
     const applied = applyProfileCredits(resolvedProfile, { resetHistory: !bankrollInitialized });
     void loadPersistentBankrollHistory({ force });
     lastProfileSync = Date.now();
+    await refreshCurrentRankState({ force });
     return applied;
   }
 
@@ -899,6 +1628,8 @@ async function ensureProfileSynced({ force = false } = {}) {
   persistentBankrollUserId = null;
   updateBankrollChartFilterUI();
   lastProfileSync = Date.now();
+  currentRankState = null;
+  renderHomeRankPanel();
   return appliedFallback;
 }
 
@@ -1814,7 +2545,7 @@ async function renderOverviewChart(period = "all") {
   }
   
   // Disable filter buttons during load
-  document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(btn => {
+  document.querySelectorAll(".overview-filters .chart-filter-btn, .overview-series-filters .chart-filter-btn").forEach(btn => {
     btn.disabled = true;
   });
 
@@ -1845,7 +2576,7 @@ async function renderOverviewChart(period = "all") {
   while (hasMore) {
     let query = supabase
       .from("bet_plays")
-      .select("bet_key, placed_at, user_id")
+      .select("bet_key, hand_id, placed_at, user_id")
       .not("bet_key", "is", null)
       .order("placed_at", { ascending: true })
       .range(page * pageSize, (page + 1) * pageSize - 1);
@@ -1864,7 +2595,7 @@ async function renderOverviewChart(period = "all") {
     if (error) {
       console.error("[RTN] Error loading overview chart data:", error);
       if (loadingOverlay) loadingOverlay.style.display = "none";
-      document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(btn => {
+      document.querySelectorAll(".overview-filters .chart-filter-btn, .overview-series-filters .chart-filter-btn").forEach(btn => {
         btn.disabled = false;
       });
       return;
@@ -1915,23 +2646,30 @@ async function renderOverviewChart(period = "all") {
     current.setDate(current.getDate() + 1);
   }
 
-  // Count bet plays per date
+  // Count bet plays and unique hands per date
   const countsMap = {};
+  const handsMap = {};
   dates.forEach(date => {
     countsMap[date] = 0;
+    handsMap[date] = new Set();
   });
 
   allRecords.forEach(record => {
     const dateStr = record.placed_at.split("T")[0];
     if (countsMap.hasOwnProperty(dateStr)) {
       countsMap[dateStr]++;
+      if (record.hand_id) {
+        handsMap[dateStr].add(record.hand_id);
+      }
     }
   });
 
   const counts = dates.map(date => countsMap[date]);
+  const handCounts = dates.map(date => handsMap[date].size);
 
   const todayStr = now.toISOString().split("T")[0];
   console.info(`[RTN] Today (${todayStr}) has ${countsMap[todayStr] ?? 0} bet plays`);
+  console.info(`[RTN] Today (${todayStr}) has ${handsMap[todayStr]?.size ?? 0} hands dealt`);
   console.info(`[RTN] Chart date range: ${dates[0]} to ${dates[dates.length - 1]}`);
 
   // Render chart
@@ -1947,26 +2685,49 @@ async function renderOverviewChart(period = "all") {
     overviewChartInstance.destroy();
   }
 
+  const datasets = [];
+  if (overviewChartSeriesMode === "bets" || overviewChartSeriesMode === "both") {
+    datasets.push({
+      label: "Bet Plays",
+      data: counts,
+      yAxisID: "yBets",
+      borderColor: "rgba(255, 105, 180, 1)",
+      backgroundColor: "rgba(255, 105, 180, 0.18)",
+      borderWidth: 2,
+      fill: true,
+      tension: 0.3
+    });
+  }
+  if (overviewChartSeriesMode === "hands" || overviewChartSeriesMode === "both") {
+    datasets.push({
+      label: "Hands Dealt",
+      data: handCounts,
+      yAxisID: overviewChartSeriesMode === "both" ? "yHands" : "yBets",
+      borderColor: "rgba(53, 255, 234, 1)",
+      backgroundColor: "rgba(53, 255, 234, 0.12)",
+      borderWidth: 2,
+      fill: overviewChartSeriesMode !== "both",
+      tension: 0.3
+    });
+  }
+
   overviewChartInstance = new Chart(ctx, {
     type: "line",
     data: {
       labels: dates,
-      datasets: [{
-        label: "Total Bet Plays",
-        data: counts,
-        borderColor: "rgba(255, 105, 180, 1)",
-        backgroundColor: "rgba(255, 105, 180, 0.2)",
-        borderWidth: 2,
-        fill: true,
-        tension: 0.3
-      }]
+      datasets
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          display: false
+          display: datasets.length > 1,
+          labels: {
+            color: "rgba(226, 248, 255, 0.85)",
+            boxWidth: 14,
+            boxHeight: 14
+          }
         },
         tooltip: {
           mode: "index",
@@ -1977,7 +2738,7 @@ async function renderOverviewChart(period = "all") {
           borderColor: "rgba(255, 105, 180, 0.5)",
           borderWidth: 1,
           padding: 12,
-          displayColors: false
+          displayColors: datasets.length > 1
         }
       },
       scales: {
@@ -1991,16 +2752,40 @@ async function renderOverviewChart(period = "all") {
             minRotation: 0
           }
         },
-        y: {
+        yBets: {
           beginAtZero: true,
+          position: "left",
           grid: {
             color: "rgba(53, 255, 234, 0.1)"
           },
           ticks: {
             color: "rgba(173, 225, 247, 0.75)",
             precision: 0
+          },
+          title: {
+            display: true,
+            text: overviewChartSeriesMode === "hands" ? "Hands Dealt" : "Bet Plays",
+            color: "rgba(173, 225, 247, 0.75)"
           }
-        }
+        },
+        ...(overviewChartSeriesMode === "both" ? {
+          yHands: {
+            beginAtZero: true,
+            position: "right",
+            grid: {
+              drawOnChartArea: false
+            },
+            ticks: {
+              color: "rgba(173, 225, 247, 0.75)",
+              precision: 0
+            },
+            title: {
+              display: true,
+              text: "Hands Dealt",
+              color: "rgba(173, 225, 247, 0.75)"
+            }
+          }
+        } : {})
       }
     }
   });
@@ -2013,7 +2798,7 @@ async function renderOverviewChart(period = "all") {
   }
   
   // Re-enable filter buttons
-  document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(btn => {
+  document.querySelectorAll(".overview-filters .chart-filter-btn, .overview-series-filters .chart-filter-btn").forEach(btn => {
     btn.disabled = false;
   });
 }
@@ -2199,6 +2984,7 @@ async function loadDashboard(force = false) {
     const profileForDashboard = appliedProfile ?? resolvedProfile;
     currentProfile = profileForDashboard;
     lastProfileSync = Date.now();
+    await refreshCurrentRankState({ force });
     if (dashboardProfileRetryTimer) {
       clearTimeout(dashboardProfileRetryTimer);
       dashboardProfileRetryTimer = null;
@@ -3565,6 +4351,43 @@ function formatContestEntryFeeLabelText(contest) {
   return `Entry Fee: ${formatContestEntryFeeText(contest)}`;
 }
 
+function getContestRequiredRankTier(contest) {
+  return Math.max(1, Math.round(Number(contest?.required_rank_tier ?? 1)));
+}
+
+function getCurrentPlayerRankTier() {
+  const rankTier = Number(currentRankState?.currentRank?.tier ?? currentProfile?.current_rank_tier ?? 1);
+  return Number.isFinite(rankTier) ? Math.max(1, Math.round(rankTier)) : 1;
+}
+
+function createContestRequiredRankTag(contest) {
+  const requiredTier = getContestRequiredRankTier(contest);
+  if (requiredTier <= 1) return null;
+  const requiredRank = getRankByTier(requiredTier);
+  if (!requiredRank) return null;
+
+  const tag = document.createElement("span");
+  tag.className = "contest-rank-tag";
+  tag.title = `${requiredRank.name} or higher required`;
+
+  const iconWrap = document.createElement("span");
+  iconWrap.className = "contest-rank-tag-icon";
+  if (requiredRank.icon_url) {
+    const icon = document.createElement("img");
+    icon.src = requiredRank.icon_url;
+    icon.alt = "";
+    iconWrap.append(icon);
+  } else {
+    iconWrap.textContent = String(requiredRank.tier);
+  }
+
+  const label = document.createElement("span");
+  label.className = "contest-rank-tag-label";
+  label.textContent = requiredRank.name;
+  tag.append(iconWrap, label);
+  return tag;
+}
+
 function formatPrizeMoney(value) {
   const amount = Number(value);
   return new Intl.NumberFormat("en-US", {
@@ -4896,19 +5719,34 @@ function renderContestModal() {
   if (contestOptInCopyEl) {
     const entryFee = getContestEntryFee(contest);
     const entryFeeCopy = entryFee > 0 ? ` Entry fee: ${formatCurrency(entryFee)} CC from your Normal Mode balance.` : "";
+    const requiredRank = contest ? getRankByTier(getContestRequiredRankTier(contest)) : null;
+    const rankCopy = requiredRank && requiredRank.tier > 1
+      ? ` Rank requirement: ${requiredRank.name} or higher.`
+      : "";
     if (!contest) {
       contestOptInCopyEl.textContent = "Check back soon for the next contest.";
     } else if (currentContestEntry) {
-      contestOptInCopyEl.textContent = `You're opted in. Switch into ${contest.title} from the Mode selector in the menu whenever you want to play this contest account. You need at least ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash to qualify.${entryFeeCopy}`;
+      contestOptInCopyEl.textContent = `You're opted in. Switch into ${contest.title} from the Mode selector in the menu whenever you want to play this contest account. You need at least ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash to qualify.${rankCopy}${entryFeeCopy}`;
     } else {
-      contestOptInCopyEl.textContent = `Opt in to add this contest to your Mode selector. Your normal account stays untouched, and this contest gets its own starting balance of ${formatCurrency(contest.starting_credits ?? 0)} credits and ${formatCurrency(contest.starting_carter_cash ?? 0)} CC. You need at least ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash by the end to qualify to win.${entryFeeCopy}`;
+      contestOptInCopyEl.textContent = `Opt in to add this contest to your Mode selector. Your normal account stays untouched, and this contest gets its own starting balance of ${formatCurrency(contest.starting_credits ?? 0)} credits and ${formatCurrency(contest.starting_carter_cash ?? 0)} CC. You need at least ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash by the end to qualify to win.${rankCopy}${entryFeeCopy}`;
     }
   }
   if (contestOptInButton) {
-    const canOptIn = Boolean(contest) && status !== "ended" && !currentContestEntry;
+    const requiredRankTier = contest ? getContestRequiredRankTier(contest) : 1;
+    const meetsRankRequirement = getCurrentPlayerRankTier() >= requiredRankTier;
+    const canOptIn = Boolean(contest) && status !== "ended" && !currentContestEntry && meetsRankRequirement;
     contestOptInButton.hidden = !contest;
     contestOptInButton.disabled = !canOptIn;
-    contestOptInButton.textContent = currentContestEntry ? "Joined" : status === "ended" ? "Contest ended" : "Add Contest Mode";
+    if (currentContestEntry) {
+      contestOptInButton.textContent = "Joined";
+    } else if (status === "ended") {
+      contestOptInButton.textContent = "Contest ended";
+    } else if (!meetsRankRequirement) {
+      const requiredRank = getRankByTier(requiredRankTier);
+      contestOptInButton.textContent = requiredRank ? `${requiredRank.name} Required` : "Rank Required";
+    } else {
+      contestOptInButton.textContent = "Add Contest Mode";
+    }
   }
   renderContestLeaderboard();
 }
@@ -5152,6 +5990,20 @@ async function ensureContestMedalsAwarded(contest) {
       _contest_id: contest.id
     });
     if (error) throw error;
+    if (currentUser?.id && currentUser.id !== GUEST_USER.id) {
+      const refreshedProfile = await fetchProfileWithRetries(currentUser.id, {
+        attempts: PROFILE_ATTEMPT_MAX,
+        delayMs: PROFILE_RETRY_DELAY_MS,
+        timeoutMs: PROFILE_FETCH_TIMEOUT_MS
+      });
+      if (refreshedProfile) {
+        currentProfile = {
+          ...(currentProfile || {}),
+          ...refreshedProfile
+        };
+        await refreshCurrentRankState({ force: true });
+      }
+    }
   } catch (error) {
     console.error("[RTN] ensureContestMedalsAwarded error", error);
   }
@@ -5260,6 +6112,13 @@ async function optIntoContest(contest = currentContest) {
       return;
     }
 
+    const requiredRankTier = getContestRequiredRankTier(contest);
+    const currentPlayerRankTier = getCurrentPlayerRankTier();
+    if (currentPlayerRankTier < requiredRankTier) {
+      const requiredRank = getRankByTier(requiredRankTier);
+      throw new Error(`You need to be ${requiredRank?.name || `Tier ${requiredRankTier}`} or higher to enter this contest.`);
+    }
+
     const entryFee = getContestEntryFee(contest);
     const normalModeCarterCash = Math.max(0, Math.round(Number(currentProfile?.carter_cash ?? 0)));
     if (entryFee > normalModeCarterCash) {
@@ -5292,7 +6151,7 @@ async function optIntoContest(contest = currentContest) {
       }
 
       const { data: deductedProfile, error: deductError } = await deductQuery
-        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, receive_contest_start_emails, updated_at")
+        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
         .maybeSingle();
 
       if (deductError) throw deductError;
@@ -5343,7 +6202,7 @@ async function optIntoContest(contest = currentContest) {
           .update({ carter_cash: refundedAmount })
           .eq("id", currentUser.id)
           .eq("updated_at", chargedProfile.updated_at ?? null)
-          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, receive_contest_start_emails, updated_at")
+          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
           .maybeSingle();
         if (refundedProfile) {
           currentProfile = {
@@ -5415,6 +6274,7 @@ async function handleAdminContestSubmit(event) {
   const entryFeeCarterCash = Math.max(0, Math.round(Number(formData.get("entryFeeCarterCash") ?? 0)));
   const contestantLimit = Math.max(1, Math.round(Number(formData.get("contestantLimit") ?? 100)));
   const qualificationCarterCash = Math.max(0, Math.round(Number(formData.get("qualificationCarterCash") ?? 0)));
+  const requiredRankTier = Math.max(1, Math.round(Number(formData.get("requiredRankTier") ?? 1)));
   const prizeStaticAmount = Math.max(0, Number(formData.get("prizeStaticAmount") ?? 0));
   const prizeVariableBasis = String(formData.get("prizeVariableBasis") ?? "none");
   const prizeVariableUnitAmount = Math.max(0, Number(formData.get("prizeVariableUnitAmount") ?? 0));
@@ -5462,6 +6322,7 @@ async function handleAdminContestSubmit(event) {
     contestant_limit: contestantLimit,
     winning_criteria: "highest_bankroll",
     qualification_carter_cash: qualificationCarterCash,
+    required_rank_tier: requiredRankTier,
     reward: usesVariablePrize
       ? getContestPrizeGrowthCopy({
           prize_mode: "variable",
@@ -5583,7 +6444,14 @@ function renderPlayerContestRow(contest, participantStats = 0) {
   badge.className = "contest-status-badge";
   badge.dataset.status = status;
   badge.textContent = getContestStatusLabel(status);
-  header.append(titleRow, badge);
+  const badgeGroup = document.createElement("div");
+  badgeGroup.className = "contest-status-meta";
+  badgeGroup.append(badge);
+  const requiredRankTag = createContestRequiredRankTag(contest);
+  if (requiredRankTag) {
+    badgeGroup.append(requiredRankTag);
+  }
+  header.append(titleRow, badgeGroup);
 
   const details = document.createElement("p");
   details.className = "contest-window";
@@ -5616,6 +6484,9 @@ function renderPlayerContestRow(contest, participantStats = 0) {
   actions.className = "contest-actions";
   const playerEntry = getContestEntryById(contest.id);
   const contestIsFull = stats.participants >= getContestLimit(contest);
+  const requiredRankTier = getContestRequiredRankTier(contest);
+  const requiredRank = getRankByTier(requiredRankTier);
+  const meetsRankRequirement = getCurrentPlayerRankTier() >= requiredRankTier;
 
   const leaderboardButton = document.createElement("button");
   leaderboardButton.type = "button";
@@ -5660,9 +6531,13 @@ function renderPlayerContestRow(contest, participantStats = 0) {
       const joinButton = document.createElement("button");
       joinButton.type = "button";
       joinButton.className = "primary";
-      joinButton.textContent = contestIsFull ? "Contest Full" : `Join Now for ${formatContestEntryFeeText(contest)}`;
-      joinButton.disabled = contestIsFull;
-      if (!contestIsFull) {
+      joinButton.textContent = contestIsFull
+        ? "Contest Full"
+        : !meetsRankRequirement
+          ? `${requiredRank?.name || "Rank"} Required`
+          : `Join Now for ${formatContestEntryFeeText(contest)}`;
+      joinButton.disabled = contestIsFull || !meetsRankRequirement;
+      if (!contestIsFull && meetsRankRequirement) {
         joinButton.addEventListener("click", () => {
           void optIntoContest(contest);
         });
@@ -5729,7 +6604,14 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
   badge.className = "contest-status-badge";
   badge.dataset.status = status;
   badge.textContent = getContestStatusLabel(status);
-  top.append(titleWrap, badge);
+  const badgeGroup = document.createElement("div");
+  badgeGroup.className = "contest-status-meta";
+  badgeGroup.append(badge);
+  const requiredRankTag = createContestRequiredRankTag(contest);
+  if (requiredRankTag) {
+    badgeGroup.append(requiredRankTag);
+  }
+  top.append(titleWrap, badgeGroup);
 
   const prize = document.createElement("p");
   prize.className = "home-contest-card-prize";
@@ -5750,23 +6632,24 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
 
   const playerEntry = getContestEntryById(contest.id);
   const contestIsFull = stats.participants >= getContestLimit(contest);
+  const requiredRankTier = getContestRequiredRankTier(contest);
+  const requiredRank = getRankByTier(requiredRankTier);
+  const meetsRankRequirement = getCurrentPlayerRankTier() >= requiredRankTier;
   const joinButton = document.createElement("button");
   joinButton.type = "button";
   joinButton.className = "home-button home-primary home-contest-action is-spotlight";
 
   if (playerEntry) {
-    const usingMode = isUsingContestMode(contest.id);
-    joinButton.textContent = usingMode ? "Using This Mode" : "Switch to Mode";
-    joinButton.disabled = usingMode;
-    if (!usingMode) {
-      joinButton.addEventListener("click", () => {
-        void switchToContestMode(contest.id, { navigateToPlay: false });
-      });
-    }
+    joinButton.textContent = "Joined";
+    joinButton.disabled = true;
   } else {
-    joinButton.textContent = contestIsFull ? "Contest Full" : `Join Now for ${formatContestEntryFeeText(contest)}`;
-    joinButton.disabled = contestIsFull;
-    if (!contestIsFull) {
+    joinButton.textContent = contestIsFull
+      ? "Contest Full"
+      : !meetsRankRequirement
+        ? `${requiredRank?.name || "Rank"} Required`
+        : `Join Now for ${formatContestEntryFeeText(contest)}`;
+    joinButton.disabled = contestIsFull || !meetsRankRequirement;
+    if (!contestIsFull && meetsRankRequirement) {
       joinButton.addEventListener("click", () => {
         void optIntoContest(contest);
       });
@@ -6109,7 +6992,7 @@ async function loadProfile() {
     console.info("[RTN] loadProfile: fetching profile from database");
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("username, first_name, last_name, receive_contest_start_emails")
+      .select("username, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, receive_contest_start_emails")
       .eq("id", user.id)
       .single();
 
@@ -6161,10 +7044,21 @@ async function loadProfile() {
       profileMessage.className = "profile-status-message";
     }
     if (currentProfile && currentProfile.id === user.id) {
+      currentProfile.hands_played_all_time = Math.max(
+        0,
+        Math.round(Number(profile?.hands_played_all_time ?? currentProfile.hands_played_all_time ?? 0))
+      );
+      currentProfile.contest_wins = profile?.contest_wins ?? 0;
+      currentProfile.current_rank_tier = Math.max(
+        1,
+        Math.round(Number(profile?.current_rank_tier ?? currentProfile.current_rank_tier ?? 1))
+      );
+      currentProfile.current_rank_id = profile?.current_rank_id ?? currentProfile.current_rank_id ?? null;
       currentProfile.receive_contest_start_emails = profile?.receive_contest_start_emails ?? true;
     }
     renderContestEmailPreference();
     renderProfileMedals(Array.isArray(medals) ? medals : []);
+    await refreshCurrentRankState();
 
     // Reset to view mode
     setProfileEditMode(false);
@@ -6643,8 +7537,7 @@ function applyTheme(theme) {
 }
 
 function initTheme() {
-  // Always use blue theme
-  applyTheme("blue");
+  applyTheme(currentRankState?.currentRank?.theme_key || currentTheme || "blue");
 }
 
 const bankrollEl = document.getElementById("bankroll");
@@ -6829,6 +7722,20 @@ const dashboardCarterEl = document.getElementById("dashboard-carter-cash");
 const carterCashInfoButton = document.getElementById("carter-cash-info-button");
 const carterCashTooltip = document.getElementById("carter-cash-tooltip");
 const dashboardRunsEl = document.getElementById("dashboard-runs");
+const homeRankPanelEl = document.getElementById("home-rank-panel");
+const homeRankTitleEl = document.getElementById("home-rank-title");
+const homeRankTypingEl = document.getElementById("home-rank-typing");
+const homeRankHandsProgressTextEl = document.getElementById("home-rank-hands-progress-text");
+const homeRankHandsProgressBarEl = document.getElementById("home-rank-hands-progress-bar");
+const homeRankWinsProgressTextEl = document.getElementById("home-rank-wins-progress-text");
+const homeRankWinsProgressBarEl = document.getElementById("home-rank-wins-progress-bar");
+const homeRankLadderButton = document.getElementById("home-rank-ladder-button");
+const homeRankIconEl = document.getElementById("home-rank-icon");
+const homeRankIconFallbackEl = document.getElementById("home-rank-icon-fallback");
+const drawerRankSummaryEl = document.getElementById("drawer-rank-summary");
+const drawerRankIconEl = document.getElementById("drawer-rank-icon");
+const drawerRankIconFallbackEl = document.getElementById("drawer-rank-icon-fallback");
+const drawerRankNameEl = document.getElementById("drawer-rank-name");
 const prizeListEl = document.getElementById("prize-list");
 const adminNavButton = document.getElementById("admin-nav");
 const drawerContestLink = document.getElementById("drawer-contest-link");
@@ -6866,6 +7773,24 @@ const adminContestAddButton = document.getElementById("admin-add-contest-button"
 const adminContestCloseButton = document.getElementById("admin-contest-close");
 const adminContestCancelButton = document.getElementById("admin-contest-cancel");
 const adminContestSaveButton = document.getElementById("admin-contest-save");
+const adminRankListEl = document.getElementById("admin-rank-list");
+const adminAddRankButton = document.getElementById("admin-add-rank-button");
+const adminRankModal = document.getElementById("admin-rank-modal");
+const adminRankForm = document.getElementById("admin-rank-form");
+const adminRankMessage = document.getElementById("admin-rank-message");
+const adminRankCloseButton = document.getElementById("admin-rank-close");
+const adminRankCancelButton = document.getElementById("admin-rank-cancel");
+const adminRankSaveButton = document.getElementById("admin-rank-save");
+const adminRankIconFileInput = document.getElementById("rank-icon-file");
+const adminRankIconPreview = document.getElementById("admin-rank-icon-preview");
+const adminRankIconPlaceholder = document.getElementById("admin-rank-icon-placeholder");
+const rankUpModal = document.getElementById("rank-up-modal");
+const rankUpTitleEl = document.getElementById("rank-up-title");
+const rankUpCloseButton = document.getElementById("rank-up-close");
+const rankUpOkButton = document.getElementById("rank-up-ok");
+const rankUpCopyEl = document.getElementById("rank-up-copy");
+const rankUpIconEl = document.getElementById("rank-up-icon");
+const rankUpIconFallbackEl = document.getElementById("rank-up-icon-fallback");
 const shippingModal = document.getElementById("shipping-modal");
 const shippingForm = document.getElementById("shipping-form");
 const shippingSummaryEl = document.getElementById("shipping-summary");
@@ -6935,20 +7860,25 @@ const adminTabButtons = document.querySelectorAll(".admin-tab");
 const adminPrizesContent = document.getElementById("admin-prizes-content");
 const adminAnalyticsContent = document.getElementById("admin-analytics-content");
 const adminContestsContent = document.getElementById("admin-contests-content");
+const adminRanksContent = document.getElementById("admin-ranks-content");
 const mostActiveWeekListEl = document.getElementById("most-active-week-list");
 const mostActiveSubheadEl = document.getElementById("most-active-subhead");
+const rankLadderModal = document.getElementById("rank-ladder-modal");
+const rankLadderListEl = document.getElementById("rank-ladder-list");
+const rankLadderCloseButton = document.getElementById("rank-ladder-close");
+const rankLadderOkButton = document.getElementById("rank-ladder-ok");
 
 const THEME_CLASS_MAP = {
   blue: "theme-blue",
   pink: "theme-pink",
-  orange: "theme-orange"
+  orange: "theme-orange",
+  "steel-black": "theme-steel-black",
+  angelic: "theme-angelic",
+  retro: "theme-retro",
+  "cotton-candy": "theme-cotton-candy",
+  pastel: "theme-pastel"
 };
-const ALL_THEME_CLASSES = [
-  ...Object.values(THEME_CLASS_MAP),
-  "theme-retro",
-  "theme-cotton-candy",
-  "theme-pastel"
-];
+const ALL_THEME_CLASSES = [...new Set(Object.values(THEME_CLASS_MAP))];
 const THEME_STORAGE_KEY = "run-the-numbers-theme";
 
 let bankroll = INITIAL_BANKROLL;
@@ -6987,7 +7917,7 @@ let carterCash = 0;
   let pendingPaytableId = activePaytable.id;
   let openDrawerPanel = null;
   let openDrawerToggle = null;
-  let currentTheme = "blue";
+let currentTheme = "blue";
   const GUEST_USER = {
     id: "guest-user",
     email: "guest@example.com",
@@ -7004,6 +7934,10 @@ let carterCash = 0;
     credits: INITIAL_BANKROLL,
     carter_cash: 0,
     carter_cash_progress: 0,
+    hands_played_all_time: 0,
+    contest_wins: 0,
+    current_rank_tier: 1,
+    current_rank_id: null,
     first_name: "Guest",
     last_name: "Player"
   };
@@ -7013,12 +7947,19 @@ let carterCash = 0;
     lastUserId: null,
     manualSignOutRequested: false
   };
-  let dashboardLoaded = false;
-  let prizesLoaded = false;
+let dashboardLoaded = false;
+let prizesLoaded = false;
 let adminPrizesLoaded = false;
 let adminContestsLoaded = false;
+let adminRanksLoaded = false;
 let adminEditingPrizeId = null;
+let adminEditingRankId = null;
 let adminPrizeCache = [];
+let rankLadderCache = [];
+let currentRankState = null;
+let reconciledHandsPlayedUserId = null;
+let rankWelcomeTypingTimer = null;
+let rankWelcomeTypingToken = 0;
 let contestCache = [];
 let currentContest = null;
 let currentContestEntry = null;
@@ -7356,7 +8297,7 @@ async function persistBankroll({ recordContestHistory = false, contestHistoryLab
       }
 
       const { data, error } = await profileUpdateQuery
-        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, updated_at")
+        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, updated_at")
         .maybeSingle();
 
       if (error) {
@@ -8681,6 +9622,7 @@ async function endHand(stopperCard, context = {}) {
     recordContestHistory: isContestAccountMode(),
     contestHistoryLabel: `Hand ${stats.hands}`
   });
+  await incrementProfileHandProgress(1);
   await ensureProfileSynced({ force: true });
   await logHandAndBets(stopperCard, context, betSnapshots, netThisHand);
   const metadata = {
@@ -9390,6 +10332,105 @@ if (contestEmailOptInInput) {
   });
 }
 
+if (homeRankLadderButton) {
+  homeRankLadderButton.addEventListener("click", () => {
+    openRankLadderModal();
+  });
+}
+
+if (rankLadderCloseButton) {
+  rankLadderCloseButton.addEventListener("click", () => {
+    closeRankLadderModal();
+  });
+}
+
+if (rankLadderOkButton) {
+  rankLadderOkButton.addEventListener("click", () => {
+    closeRankLadderModal();
+  });
+}
+
+if (rankLadderModal) {
+  rankLadderModal.addEventListener("click", (event) => {
+    if (event.target === rankLadderModal) {
+      closeRankLadderModal();
+    }
+  });
+}
+
+if (rankUpCloseButton) {
+  rankUpCloseButton.addEventListener("click", () => {
+    closeRankUpModal();
+  });
+}
+
+if (rankUpOkButton) {
+  rankUpOkButton.addEventListener("click", () => {
+    closeRankUpModal();
+  });
+}
+
+if (rankUpModal) {
+  rankUpModal.addEventListener("click", (event) => {
+    if (event.target === rankUpModal) {
+      closeRankUpModal();
+    }
+  });
+}
+
+if (adminAddRankButton) {
+  adminAddRankButton.addEventListener("click", () => {
+    openAdminRankModal();
+  });
+}
+
+if (adminRankCloseButton) {
+  adminRankCloseButton.addEventListener("click", () => {
+    closeAdminRankModal({ restoreFocus: true, resetFields: true });
+  });
+}
+
+if (adminRankCancelButton) {
+  adminRankCancelButton.addEventListener("click", () => {
+    closeAdminRankModal({ restoreFocus: true, resetFields: true });
+  });
+}
+
+if (adminRankModal) {
+  adminRankModal.addEventListener("click", (event) => {
+    if (event.target === adminRankModal) {
+      closeAdminRankModal({ restoreFocus: true, resetFields: true });
+    }
+  });
+}
+
+if (adminRankForm) {
+  adminRankForm.addEventListener("submit", (event) => {
+    void handleAdminRankSubmit(event);
+  });
+
+  const iconUrlField = adminRankForm.elements.namedItem("iconUrl");
+  if (iconUrlField instanceof HTMLInputElement) {
+    iconUrlField.addEventListener("input", () => {
+      updateAdminRankIconPreview(iconUrlField.value);
+    });
+  }
+}
+
+if (adminRankIconFileInput) {
+  adminRankIconFileInput.addEventListener("change", () => {
+    const file = adminRankIconFileInput.files?.[0];
+    if (!file) {
+      const iconUrlField = adminRankForm?.elements.namedItem("iconUrl");
+      updateAdminRankIconPreview(
+        iconUrlField instanceof HTMLInputElement ? iconUrlField.value : ""
+      );
+      return;
+    }
+    updateAdminRankIconPreview(URL.createObjectURL(file));
+  });
+}
+
 // Debug: Log button state at initialization
 console.info("[RTN] Profile Edit Button Check:", {
   exists: !!profileEditButton,
@@ -9535,10 +10576,12 @@ adminTabButtons.forEach(button => {
       adminPrizesContent.hidden = false;
       adminAnalyticsContent.hidden = true;
       if (adminContestsContent) adminContestsContent.hidden = true;
+      if (adminRanksContent) adminRanksContent.hidden = true;
     } else if (targetTab === "analytics") {
       adminPrizesContent.hidden = true;
       adminAnalyticsContent.hidden = false;
       if (adminContestsContent) adminContestsContent.hidden = true;
+      if (adminRanksContent) adminRanksContent.hidden = true;
       loadPlayerFilter(); // Load player list for filter
       initializeAnalyticsBettingGrid();
       renderOverviewChart("all");
@@ -9547,7 +10590,14 @@ adminTabButtons.forEach(button => {
       adminPrizesContent.hidden = true;
       adminAnalyticsContent.hidden = true;
       if (adminContestsContent) adminContestsContent.hidden = false;
+      if (adminRanksContent) adminRanksContent.hidden = true;
       loadAdminContestList(true);
+    } else if (targetTab === "ranks") {
+      adminPrizesContent.hidden = true;
+      adminAnalyticsContent.hidden = true;
+      if (adminContestsContent) adminContestsContent.hidden = true;
+      if (adminRanksContent) adminRanksContent.hidden = false;
+      void loadAdminRanks(true);
     }
   });
 });
@@ -9565,6 +10615,21 @@ document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(button 
     
     // Render chart with new period
     renderOverviewChart(period);
+  });
+});
+
+let overviewChartSeriesMode = "both";
+
+document.querySelectorAll("[data-overview-series]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const nextMode = button.dataset.overviewSeries || "both";
+    if (overviewChartSeriesMode === nextMode) return;
+    overviewChartSeriesMode = nextMode;
+    document.querySelectorAll("[data-overview-series]").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.overviewSeries === overviewChartSeriesMode);
+    });
+    const activePeriodBtn = document.querySelector(".overview-filters .chart-filter-btn.active");
+    renderOverviewChart(activePeriodBtn?.dataset.period || "all");
   });
 });
 
