@@ -1254,6 +1254,8 @@ function getAuthRedirectErrorDetails() {
 async function handleTokenHashAuthCallback() {
   const tokenHash = getUrlAuthParam("token_hash");
   const verificationType = getUrlAuthParam("type");
+  const normalizedVerificationType =
+    verificationType === "signup" ? "email" : verificationType;
 
   if (!tokenHash || !verificationType) {
     return false;
@@ -1265,13 +1267,13 @@ async function handleTokenHashAuthCallback() {
 
   showAuthCallbackView();
   setAuthCallbackStatus(
-    verificationType === "recovery" ? "Verifying your reset link…" : "Confirming your email…"
+    normalizedVerificationType === "recovery" ? "Verifying your reset link…" : "Confirming your email…"
   );
   currentRoute = "auth/callback";
 
   const { data, error } = await supabase.auth.verifyOtp({
     token_hash: tokenHash,
-    type: verificationType
+    type: normalizedVerificationType
   });
 
   if (error) {
@@ -1285,11 +1287,16 @@ async function handleTokenHashAuthCallback() {
     updateResetButtonVisibility(currentUser);
   }
 
-  if (verificationType === "recovery") {
+  if (normalizedVerificationType === "recovery") {
     setAuthCallbackStatus("Reset link verified. Choose your new password…");
     await setRoute("reset-password", { replaceHash: true });
     markAppReady();
     return true;
+  }
+
+  const establishedSession = data?.session ?? null;
+  if (!establishedSession?.user) {
+    throw new Error("Email confirmation did not create a session. Please request a fresh confirmation email and try again.");
   }
 
   setAuthCallbackStatus("Email confirmed. Finishing setup…");
