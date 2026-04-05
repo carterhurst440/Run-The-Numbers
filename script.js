@@ -1648,6 +1648,7 @@ async function handleAuthFormSubmit(event) {
       authErrorEl.hidden = false;
       authErrorEl.textContent = "Please enter your email and password.";
     }
+    hideAuthResendAction();
     return;
   }
 
@@ -1658,6 +1659,7 @@ async function handleAuthFormSubmit(event) {
     authErrorEl.hidden = true;
     authErrorEl.textContent = "";
   }
+  hideAuthResendAction();
 
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -1674,6 +1676,9 @@ async function handleAuthFormSubmit(event) {
         if (authErrorEl) {
           authErrorEl.hidden = false;
           authErrorEl.textContent = message;
+        }
+        if (authResendWrapEl) {
+          authResendWrapEl.hidden = false;
         }
         return;
       }
@@ -7196,6 +7201,69 @@ function displayAuthScreen({ focus = true, replaceHash = false } = {}) {
   }
 }
 
+function hideAuthResendAction() {
+  if (authResendWrapEl) {
+    authResendWrapEl.hidden = true;
+  }
+  if (authResendConfirmationButton) {
+    authResendConfirmationButton.disabled = false;
+  }
+}
+
+async function handleAuthResendConfirmationRequest() {
+  const email = String(authEmailInput?.value || "").trim();
+  if (!email) {
+    if (authErrorEl) {
+      authErrorEl.hidden = false;
+      authErrorEl.textContent = "Enter your email address first.";
+    }
+    hideAuthResendAction();
+    authEmailInput?.focus();
+    return;
+  }
+
+  if (!supabase?.auth || typeof supabase.auth.resend !== "function") {
+    showToast("Unable to resend confirmation email", "error");
+    return;
+  }
+
+  if (authResendConfirmationButton) {
+    authResendConfirmationButton.disabled = true;
+  }
+
+  try {
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    hideAuthResendAction();
+    if (authErrorEl) {
+      authErrorEl.hidden = false;
+      authErrorEl.textContent = "Confirmation email sent. Please check your inbox.";
+    }
+    showToast("Confirmation email sent", "success");
+  } catch (error) {
+    console.error("[RTN] handleAuthResendConfirmationRequest error", error);
+    if (authErrorEl) {
+      authErrorEl.hidden = false;
+      authErrorEl.textContent = error?.message || "Unable to resend confirmation email.";
+    }
+    if (authResendWrapEl) {
+      authResendWrapEl.hidden = false;
+    }
+    showToast("Unable to resend confirmation email", "error");
+  } finally {
+    if (authResendConfirmationButton) {
+      authResendConfirmationButton.disabled = false;
+    }
+  }
+}
+
 function forceAuth(reason, { message, tone = "warning", focus = true } = {}) {
   if (message) {
     showToast(message, tone);
@@ -7600,6 +7668,8 @@ const authView = document.getElementById("auth-view");
 const authForm = document.getElementById("auth-form");
 const authEmailInput = document.getElementById("auth-email");
 const authErrorEl = document.getElementById("auth-error");
+const authResendWrapEl = document.getElementById("auth-resend-wrap");
+const authResendConfirmationButton = document.getElementById("auth-resend-confirmation");
 const authSubmitButton = document.getElementById("auth-submit");
 const signupView = document.getElementById("signup-view");
 const signupForm = document.getElementById("signup-form");
@@ -10059,6 +10129,12 @@ if (carterCashInfoButton) {
 
 if (authForm) {
   authForm.addEventListener("submit", handleAuthFormSubmit);
+}
+
+if (authResendConfirmationButton) {
+  authResendConfirmationButton.addEventListener("click", () => {
+    void handleAuthResendConfirmationRequest();
+  });
 }
 
 if (signupForm) {

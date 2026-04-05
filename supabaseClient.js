@@ -307,6 +307,9 @@ const offlineStub = {
       this._stubCurrentUser = { ...mockUser, email: email || mockUser.email };
       return { data: { user: this._stubCurrentUser }, error: null };
     },
+    async resend() {
+      return { data: {}, error: null };
+    },
     async resetPasswordForEmail() {
       return { data: {}, error: null };
     },
