@@ -2545,7 +2545,7 @@ async function renderOverviewChart(period = "all") {
   }
   
   // Disable filter buttons during load
-  document.querySelectorAll(".overview-filters .chart-filter-btn, .overview-series-filters .chart-filter-btn").forEach(btn => {
+  document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(btn => {
     btn.disabled = true;
   });
 
@@ -2565,76 +2565,24 @@ async function renderOverviewChart(period = "all") {
     startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
   }
 
-  // Fetch ALL records using pagination (Supabase has 1000 row default limit)
-  const allRecords = [];
-  const pageSize = 1000;
-  let page = 0;
-  let hasMore = true;
-
-  console.info(`[RTN] Fetching all bet plays in batches...`);
-
-  while (hasMore) {
-    let query = supabase
-      .from("bet_plays")
-      .select("bet_key, hand_id, placed_at, user_id")
-      .not("bet_key", "is", null)
-      .order("placed_at", { ascending: true })
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-
-    if (startDate) {
-      query = query.gte("placed_at", startDate.toISOString());
-    }
-    
-    // Apply player filter if selected
-    if (selectedPlayerIds && selectedPlayerIds.length > 0) {
-      query = query.in("user_id", selectedPlayerIds);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("[RTN] Error loading overview chart data:", error);
-      if (loadingOverlay) loadingOverlay.style.display = "none";
-      document.querySelectorAll(".overview-filters .chart-filter-btn, .overview-series-filters .chart-filter-btn").forEach(btn => {
-        btn.disabled = false;
-      });
-      return;
-    }
-
-    if (data && data.length > 0) {
-      allRecords.push(...data);
-      console.info(`[RTN] Fetched page ${page + 1}: ${data.length} records (total so far: ${allRecords.length})`);
-      hasMore = data.length === pageSize;
-      page++;
-    } else {
-      hasMore = false;
-    }
-  }
-
-  console.info(`[RTN] Loaded ${allRecords.length} total bet play records`);
-  
-  // Debug: Check what bet_keys we actually got
-  if (allRecords && allRecords.length > 0) {
-    const uniqueKeys = [...new Set(allRecords.map(r => r.bet_key))];
-    console.info(`[RTN] Found ${uniqueKeys.length} unique bet_keys:`, uniqueKeys.slice(0, 10));
-    
-    const todayStr = now.toISOString().split("T")[0];
-    const todayRecords = allRecords.filter(r => r.placed_at.startsWith(todayStr));
-    console.info(`[RTN] Records from today (${todayStr}): ${todayRecords.length}`);
-  }
-
   // Determine date range for chart
   let chartStartDate;
   if (startDate) {
     chartStartDate = startDate;
-  } else if (allRecords.length > 0) {
-    const sorted = allRecords.sort((a, b) => a.placed_at.localeCompare(b.placed_at));
-    chartStartDate = new Date(sorted[0].placed_at);
   } else {
-    chartStartDate = now;
+    chartStartDate = new Date(now);
+    chartStartDate.setDate(chartStartDate.getDate() - 29);
   }
 
   // Generate all dates from start to today
+  const toLocalDateKey = (value) => {
+    const date = value instanceof Date ? new Date(value) : new Date(value);
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, "0");
+    const day = `${date.getDate()}`.padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const dates = [];
   const current = new Date(chartStartDate);
   current.setHours(0, 0, 0, 0);
@@ -2642,34 +2590,43 @@ async function renderOverviewChart(period = "all") {
   today.setHours(0, 0, 0, 0);
 
   while (current <= today) {
-    dates.push(current.toISOString().split("T")[0]);
+    dates.push(toLocalDateKey(current));
     current.setDate(current.getDate() + 1);
   }
 
-  // Count bet plays and unique hands per date
-  const countsMap = {};
-  const handsMap = {};
+  const handsPerDateMap = {};
   dates.forEach(date => {
-    countsMap[date] = 0;
-    handsMap[date] = new Set();
+    handsPerDateMap[date] = 0;
   });
 
-  allRecords.forEach(record => {
-    const dateStr = record.placed_at.split("T")[0];
-    if (countsMap.hasOwnProperty(dateStr)) {
-      countsMap[dateStr]++;
-      if (record.hand_id) {
-        handsMap[dateStr].add(record.hand_id);
-      }
+  const timezoneName = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const { data: aggregatedHands, error } = await supabase.rpc("get_admin_hands_played_timeseries", {
+    start_at: startDate ? startDate.toISOString() : null,
+    end_at: now.toISOString(),
+    target_user_ids: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null,
+    local_tz: timezoneName
+  });
+
+  if (error) {
+    console.error("[RTN] Error loading overview hands data:", error);
+    if (loadingOverlay) loadingOverlay.style.display = "none";
+    document.querySelectorAll(".overview-filters .chart-filter-btn").forEach((btn) => {
+      btn.disabled = false;
+    });
+    return;
+  }
+
+  (aggregatedHands || []).forEach((row) => {
+    const dateStr = typeof row.day === "string" ? row.day : toLocalDateKey(row.day);
+    if (Object.prototype.hasOwnProperty.call(handsPerDateMap, dateStr)) {
+      handsPerDateMap[dateStr] = Number(row.hands_played || 0);
     }
   });
 
-  const counts = dates.map(date => countsMap[date]);
-  const handCounts = dates.map(date => handsMap[date].size);
+  const handsPerDay = dates.map((date) => handsPerDateMap[date]);
 
-  const todayStr = now.toISOString().split("T")[0];
-  console.info(`[RTN] Today (${todayStr}) has ${countsMap[todayStr] ?? 0} bet plays`);
-  console.info(`[RTN] Today (${todayStr}) has ${handsMap[todayStr]?.size ?? 0} hands dealt`);
+  const todayStr = toLocalDateKey(now);
+  console.info(`[RTN] Today (${todayStr}) has ${handsPerDateMap[todayStr] ?? 0} hands dealt`);
   console.info(`[RTN] Chart date range: ${dates[0]} to ${dates[dates.length - 1]}`);
 
   // Render chart
@@ -2685,44 +2642,28 @@ async function renderOverviewChart(period = "all") {
     overviewChartInstance.destroy();
   }
 
-  const datasets = [];
-  if (overviewChartSeriesMode === "bets" || overviewChartSeriesMode === "both") {
-    datasets.push({
-      label: "Bet Plays",
-      data: counts,
-      yAxisID: "yBets",
-      borderColor: "rgba(255, 105, 180, 1)",
-      backgroundColor: "rgba(255, 105, 180, 0.18)",
-      borderWidth: 2,
-      fill: true,
-      tension: 0.3
-    });
-  }
-  if (overviewChartSeriesMode === "hands" || overviewChartSeriesMode === "both") {
-    datasets.push({
-      label: "Hands Dealt",
-      data: handCounts,
-      yAxisID: overviewChartSeriesMode === "both" ? "yHands" : "yBets",
-      borderColor: "rgba(53, 255, 234, 1)",
-      backgroundColor: "rgba(53, 255, 234, 0.12)",
-      borderWidth: 2,
-      fill: overviewChartSeriesMode !== "both",
-      tension: 0.3
-    });
-  }
-
   overviewChartInstance = new Chart(ctx, {
     type: "line",
     data: {
       labels: dates,
-      datasets
+      datasets: [
+        {
+          label: "Hands Played",
+          data: handsPerDay,
+          borderColor: "rgba(53, 255, 234, 1)",
+          backgroundColor: "rgba(53, 255, 234, 0.14)",
+          borderWidth: 2,
+          fill: true,
+          tension: 0.3
+        }
+      ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          display: datasets.length > 1,
+          display: false,
           labels: {
             color: "rgba(226, 248, 255, 0.85)",
             boxWidth: 14,
@@ -2738,7 +2679,7 @@ async function renderOverviewChart(period = "all") {
           borderColor: "rgba(255, 105, 180, 0.5)",
           borderWidth: 1,
           padding: 12,
-          displayColors: datasets.length > 1
+          displayColors: false
         }
       },
       scales: {
@@ -2752,9 +2693,8 @@ async function renderOverviewChart(period = "all") {
             minRotation: 0
           }
         },
-        yBets: {
+        y: {
           beginAtZero: true,
-          position: "left",
           grid: {
             color: "rgba(53, 255, 234, 0.1)"
           },
@@ -2764,28 +2704,10 @@ async function renderOverviewChart(period = "all") {
           },
           title: {
             display: true,
-            text: overviewChartSeriesMode === "hands" ? "Hands Dealt" : "Bet Plays",
+            text: "Hands Played",
             color: "rgba(173, 225, 247, 0.75)"
           }
-        },
-        ...(overviewChartSeriesMode === "both" ? {
-          yHands: {
-            beginAtZero: true,
-            position: "right",
-            grid: {
-              drawOnChartArea: false
-            },
-            ticks: {
-              color: "rgba(173, 225, 247, 0.75)",
-              precision: 0
-            },
-            title: {
-              display: true,
-              text: "Hands Dealt",
-              color: "rgba(173, 225, 247, 0.75)"
-            }
-          }
-        } : {})
+        }
       }
     }
   });
@@ -2798,7 +2720,7 @@ async function renderOverviewChart(period = "all") {
   }
   
   // Re-enable filter buttons
-  document.querySelectorAll(".overview-filters .chart-filter-btn, .overview-series-filters .chart-filter-btn").forEach(btn => {
+  document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(btn => {
     btn.disabled = false;
   });
 }
@@ -10615,21 +10537,6 @@ document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(button 
     
     // Render chart with new period
     renderOverviewChart(period);
-  });
-});
-
-let overviewChartSeriesMode = "both";
-
-document.querySelectorAll("[data-overview-series]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const nextMode = button.dataset.overviewSeries || "both";
-    if (overviewChartSeriesMode === nextMode) return;
-    overviewChartSeriesMode = nextMode;
-    document.querySelectorAll("[data-overview-series]").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.overviewSeries === overviewChartSeriesMode);
-    });
-    const activePeriodBtn = document.querySelector(".overview-filters .chart-filter-btn.active");
-    renderOverviewChart(activePeriodBtn?.dataset.period || "all");
   });
 });
 

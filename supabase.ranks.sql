@@ -103,13 +103,7 @@ values
   (5, 'Controller', 'Controller {name}, we''re seeing movement. Let''s keep this operation in balance.', 20000, 2, 'steel-black'),
   (6, 'Auditor General', 'Auditor General... the system is ready. Run the numbers, {name}.', 100000, 5, 'angelic'),
   (7, 'The Ledger', 'You are The Ledger. All numbers resolve through you. What is the next move, {name}?', 200000, 10, 'pastel')
-on conflict (tier) do update
-set
-  name = excluded.name,
-  welcome_phrase = excluded.welcome_phrase,
-  required_hands_played = excluded.required_hands_played,
-  required_contest_wins = excluded.required_contest_wins,
-  theme_key = excluded.theme_key;
+on conflict (tier) do nothing;
 
 create or replace function public.recompute_all_profile_ranks(target_user_id uuid default null)
 returns void
@@ -213,9 +207,38 @@ begin
 end;
 $$;
 
+create or replace function public.get_admin_hands_played_timeseries(
+  start_at timestamptz default null,
+  end_at timestamptz default null,
+  target_user_ids uuid[] default null,
+  local_tz text default 'UTC'
+)
+returns table(day date, hands_played integer)
+language plpgsql
+security definer
+as $$
+begin
+  if (auth.jwt() ->> 'email') is distinct from 'carterwarrenhurst@gmail.com' then
+    raise exception 'Not authorized to view admin hands chart';
+  end if;
+
+  return query
+  select
+    timezone(local_tz, gh.created_at)::date as day,
+    count(*)::integer as hands_played
+  from public.game_hands gh
+  where (start_at is null or gh.created_at >= start_at)
+    and (end_at is null or gh.created_at <= end_at)
+    and (target_user_ids is null or gh.user_id = any(target_user_ids))
+  group by timezone(local_tz, gh.created_at)::date
+  order by timezone(local_tz, gh.created_at)::date asc;
+end;
+$$;
+
 select public.recompute_all_profile_ranks();
 
 grant select, insert, update, delete on public.ranks to authenticated;
 grant execute on function public.recompute_all_profile_ranks(uuid) to authenticated;
 grant execute on function public.increment_profile_hands_played(uuid, integer) to authenticated;
 grant execute on function public.reconcile_profile_hands_played(uuid) to authenticated;
+grant execute on function public.get_admin_hands_played_timeseries(timestamptz, timestamptz, uuid[], text) to authenticated;
