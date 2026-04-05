@@ -1507,17 +1507,41 @@
                     </div>
                   </div>
                 </div>
+                <div class="analytics-overview-chart">
+                  <div class="overview-chart-header">
+                    <h3>Active Users</h3>
+                    <div class="overview-chart-controls">
+                      <div class="chart-filters active-users-filters">
+                        <button type="button" class="chart-filter-btn" data-active-users-period="week">Last Week</button>
+                        <button type="button" class="chart-filter-btn" data-active-users-period="month">Last Month</button>
+                        <button type="button" class="chart-filter-btn" data-active-users-period="90days">Last 90 Days</button>
+                        <button type="button" class="chart-filter-btn" data-active-users-period="year">Last Year</button>
+                        <button type="button" class="chart-filter-btn active" data-active-users-period="all">All Time</button>
+                      </div>
+                    </div>
+                  </div>
+                  <p id="active-users-subhead" class="analytics-card-subhead">Daily snapshots of DAU, WAU, and MAU based on users who played at least one hand. This chart reflects overall app usage.</p>
+                  <div class="overview-chart-container">
+                    <canvas id="active-users-analytics-chart"></canvas>
+                    <div class="overview-chart-loading active-users-chart-loading">
+                      <div class="spinner"></div>
+                      <p>Loading active user snapshots...</p>
+                    </div>
+                  </div>
+                </div>
                 <div class="analytics-activity-card">
                   <div class="overview-chart-header">
-                    <h3>Most Active This Week</h3>
+                    <h3>Most Active</h3>
                     <div class="chart-filters activity-filters">
                       <button type="button" class="chart-filter-btn" data-activity-period="day">Last 24 Hours</button>
                       <button type="button" class="chart-filter-btn active" data-activity-period="week">Last 7 Days</button>
                       <button type="button" class="chart-filter-btn" data-activity-period="month">Last 30 Days</button>
+                      <button type="button" class="chart-filter-btn" data-activity-period="all">All Time</button>
                     </div>
                   </div>
-                  <p id="most-active-subhead" class="analytics-card-subhead">Ranked by bets placed in the last 7 days, with hands played shown alongside.</p>
+                  <p id="most-active-subhead" class="analytics-card-subhead">Ranked by hands played in the last 7 days.</p>
                   <ul id="most-active-week-list" class="analytics-activity-list" aria-live="polite"></ul>
+                  <button type="button" id="most-active-load-more" class="btn-secondary analytics-load-more" hidden>Load More</button>
                 </div>
                 <div class="analytics-bet-filters-row">
                   <p id="analytics-bet-filter-subhead" class="analytics-description">Showing all-time bet counts. Click on any bet to view detailed statistics.</p>

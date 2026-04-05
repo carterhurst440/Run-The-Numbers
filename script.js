@@ -2536,6 +2536,7 @@ async function renderBetVolumeChart(betKey, period) {
 
 // Global variable for overview chart
 let overviewChartInstance = null;
+let activeUsersChartInstance = null;
 
 async function renderOverviewChart(period = "all") {
   if (!supabase) {
@@ -2726,6 +2727,217 @@ async function renderOverviewChart(period = "all") {
   
   // Re-enable filter buttons
   document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(btn => {
+    btn.disabled = false;
+  });
+}
+
+function updateActiveUsersChartFilterUI() {
+  activeUsersFilterButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.activeUsersPeriod === activeUsersChartPeriod);
+  });
+
+  if (!activeUsersSubheadEl) return;
+
+  const labels = {
+    week: "Daily snapshots of DAU, WAU, and MAU for the last week based on users who played at least one hand. This chart reflects overall app usage.",
+    month: "Daily snapshots of DAU, WAU, and MAU for the last month based on users who played at least one hand. This chart reflects overall app usage.",
+    "90days": "Daily snapshots of DAU, WAU, and MAU for the last 90 days based on users who played at least one hand. This chart reflects overall app usage.",
+    year: "Daily snapshots of DAU, WAU, and MAU for the last year based on users who played at least one hand. This chart reflects overall app usage.",
+    all: "Daily snapshots of DAU, WAU, and MAU across all time based on users who played at least one hand. This chart reflects overall app usage."
+  };
+
+  activeUsersSubheadEl.textContent = labels[activeUsersChartPeriod] || labels.all;
+}
+
+async function renderActiveUsersChart(period = "all") {
+  if (!supabase) {
+    console.warn("[RTN] Cannot render active users chart: Supabase client not initialized");
+    return;
+  }
+
+  activeUsersChartPeriod = period;
+  updateActiveUsersChartFilterUI();
+
+  const loadingOverlay = document.querySelector(".active-users-chart-loading");
+  if (loadingOverlay) {
+    loadingOverlay.style.display = "flex";
+  }
+
+  activeUsersFilterButtons.forEach((btn) => {
+    btn.disabled = true;
+  });
+
+  const now = new Date();
+  const startDate = getAnalyticsPeriodStart(period);
+
+  const toLocalDateKey = (value) => {
+    const date = value instanceof Date ? new Date(value) : new Date(value);
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, "0");
+    const day = `${date.getDate()}`.padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const { data, error } = await supabase.rpc("get_admin_app_activity_snapshot_timeseries", {
+    start_at: startDate ? startDate.toISOString() : null,
+    end_at: now.toISOString()
+  });
+
+  if (error) {
+    console.error("[RTN] Error loading active users snapshots:", error);
+    if (loadingOverlay) loadingOverlay.style.display = "none";
+    activeUsersFilterButtons.forEach((btn) => {
+      btn.disabled = false;
+    });
+    return;
+  }
+
+  let chartStartDate = startDate;
+  if (!chartStartDate) {
+    const firstSnapshotDate = Array.isArray(data) && data.length ? new Date(data[0].snapshot_date) : null;
+    if (firstSnapshotDate && !Number.isNaN(firstSnapshotDate.getTime())) {
+      chartStartDate = firstSnapshotDate;
+    } else {
+      chartStartDate = new Date(now);
+      chartStartDate.setDate(chartStartDate.getDate() - 29);
+    }
+  }
+
+  const dates = [];
+  const current = new Date(chartStartDate);
+  current.setHours(0, 0, 0, 0);
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+
+  while (current <= today) {
+    dates.push(toLocalDateKey(current));
+    current.setDate(current.getDate() + 1);
+  }
+
+  const snapshotMap = {};
+  dates.forEach((date) => {
+    snapshotMap[date] = {
+      dau: 0,
+      wau: 0,
+      mau: 0
+    };
+  });
+
+  (data || []).forEach((row) => {
+    const dateStr = typeof row.snapshot_date === "string" ? row.snapshot_date : toLocalDateKey(row.snapshot_date);
+    if (Object.prototype.hasOwnProperty.call(snapshotMap, dateStr)) {
+      snapshotMap[dateStr] = {
+        dau: Number(row.daily_active_users || 0),
+        wau: Number(row.weekly_active_users || 0),
+        mau: Number(row.monthly_active_users || 0)
+      };
+    }
+  });
+
+  const canvas = document.getElementById("active-users-analytics-chart");
+  if (!canvas) {
+    console.warn("[RTN] Active users chart canvas not found");
+    return;
+  }
+
+  const ctx = canvas.getContext("2d");
+
+  if (activeUsersChartInstance) {
+    activeUsersChartInstance.destroy();
+  }
+
+  activeUsersChartInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: dates,
+      datasets: [
+        {
+          label: "DAU",
+          data: dates.map((date) => snapshotMap[date].dau),
+          borderColor: "rgba(53, 255, 234, 1)",
+          backgroundColor: "rgba(53, 255, 234, 0.12)",
+          borderWidth: 2,
+          fill: false,
+          tension: 0.3
+        },
+        {
+          label: "WAU",
+          data: dates.map((date) => snapshotMap[date].wau),
+          borderColor: "rgba(255, 105, 180, 1)",
+          backgroundColor: "rgba(255, 105, 180, 0.12)",
+          borderWidth: 2,
+          fill: false,
+          tension: 0.3
+        },
+        {
+          label: "MAU",
+          data: dates.map((date) => snapshotMap[date].mau),
+          borderColor: "rgba(255, 190, 92, 1)",
+          backgroundColor: "rgba(255, 190, 92, 0.12)",
+          borderWidth: 2,
+          fill: false,
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            color: "rgba(226, 248, 255, 0.85)",
+            boxWidth: 14,
+            boxHeight: 14
+          }
+        },
+        tooltip: {
+          mode: "index",
+          intersect: false,
+          backgroundColor: "rgba(9, 18, 32, 0.95)",
+          titleColor: "rgba(255, 105, 180, 1)",
+          bodyColor: "rgba(226, 248, 255, 0.9)",
+          borderColor: "rgba(255, 105, 180, 0.5)",
+          borderWidth: 1,
+          padding: 12
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            color: "rgba(53, 255, 234, 0.1)"
+          },
+          ticks: {
+            color: "rgba(173, 225, 247, 0.75)",
+            maxRotation: 45,
+            minRotation: 0
+          }
+        },
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: "rgba(53, 255, 234, 0.1)"
+          },
+          ticks: {
+            color: "rgba(173, 225, 247, 0.75)",
+            precision: 0
+          },
+          title: {
+            display: true,
+            text: "Active Users",
+            color: "rgba(173, 225, 247, 0.75)"
+          }
+        }
+      }
+    }
+  });
+
+  if (loadingOverlay) {
+    loadingOverlay.style.display = "none";
+  }
+
+  activeUsersFilterButtons.forEach((btn) => {
     btn.disabled = false;
   });
 }
@@ -7629,6 +7841,8 @@ const chartClose = document.getElementById("chart-close");
 const bankrollChartFilterButtons = Array.from(document.querySelectorAll("[data-bankroll-period]"));
 const bankrollChartSubhead = document.getElementById("bankroll-chart-subhead");
 const activityFilterButtons = Array.from(document.querySelectorAll("[data-activity-period]"));
+const activeUsersFilterButtons = Array.from(document.querySelectorAll("[data-active-users-period]"));
+const activeUsersSubheadEl = document.getElementById("active-users-subhead");
 const panelScrim = document.getElementById("panel-scrim");
 const bankrollChartCanvas = document.getElementById("bankroll-chart");
 const bankrollChartWrapper = document.getElementById("bankroll-chart-wrapper");
@@ -7855,6 +8069,7 @@ const adminContestsContent = document.getElementById("admin-contests-content");
 const adminRanksContent = document.getElementById("admin-ranks-content");
 const mostActiveWeekListEl = document.getElementById("most-active-week-list");
 const mostActiveSubheadEl = document.getElementById("most-active-subhead");
+const mostActiveLoadMoreButton = document.getElementById("most-active-load-more");
 const rankLadderModal = document.getElementById("rank-ladder-modal");
 const rankLadderListEl = document.getElementById("rank-ladder-list");
 const rankLadderCloseButton = document.getElementById("rank-ladder-close");
@@ -7893,6 +8108,7 @@ let persistentBankrollHistory = [];
 let persistentBankrollUserId = null;
 let bankrollChartPeriod = "all";
 let activityLeaderboardPeriod = "week";
+let activeUsersChartPeriod = "all";
 let autoDealEnabled = true;
 let carterCash = 0;
   let carterCashProgress = 0;
@@ -8713,9 +8929,10 @@ function updateActivityFilterUI() {
   if (!mostActiveSubheadEl) return;
 
   const labels = {
-    day: "Ranked by bets placed in the last 24 hours, with hands played shown alongside.",
-    week: "Ranked by bets placed in the last 7 days, with hands played shown alongside.",
-    month: "Ranked by bets placed in the last 30 days, with hands played shown alongside."
+    day: "Ranked by hands played in the last 24 hours.",
+    week: "Ranked by hands played in the last 7 days.",
+    month: "Ranked by hands played in the last 30 days.",
+    all: "Ranked by hands played across all time."
   };
 
   mostActiveSubheadEl.textContent = labels[activityLeaderboardPeriod] || labels.week;
@@ -10101,6 +10318,13 @@ activityFilterButtons.forEach((button) => {
   });
 });
 
+if (mostActiveLoadMoreButton) {
+  mostActiveLoadMoreButton.addEventListener("click", () => {
+    analyticsMostActiveVisibleCount += ANALYTICS_ACTIVITY_PAGE_SIZE;
+    renderMostActiveEntries();
+  });
+}
+
 if (notificationsListEl) {
   notificationsListEl.addEventListener("click", (event) => {
     const button = event.target.closest(".notification-card");
@@ -10583,6 +10807,7 @@ adminTabButtons.forEach(button => {
       loadPlayerFilter(); // Load player list for filter
       initializeAnalyticsBettingGrid();
       renderOverviewChart("all");
+      renderActiveUsersChart("all");
       loadMostActiveThisWeek();
     } else if (targetTab === "contests") {
       adminPrizesContent.hidden = true;
@@ -10616,10 +10841,158 @@ document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(button 
   });
 });
 
+activeUsersFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const period = button.dataset.activeUsersPeriod || "all";
+    renderActiveUsersChart(period);
+  });
+});
+
 // Global variable to store selected player filter
 let selectedPlayerIds = null; // null = all players, [] = specific players
 let playerEmailMap = {}; // Map of user_id to email for display
 let analyticsBetBadgePeriod = "all";
+let analyticsPlayerFilterPromise = null;
+let analyticsPlayerFilterLoaded = false;
+let analyticsMostActiveRequestId = 0;
+let analyticsMostActiveEntries = [];
+let analyticsMostActiveVisibleCount = 10;
+const analyticsProfileCache = new Map();
+const ANALYTICS_ACTIVITY_PAGE_SIZE = 10;
+
+function cacheAnalyticsProfiles(profiles) {
+  (profiles || []).forEach((profile) => {
+    if (!profile?.id) return;
+    analyticsProfileCache.set(profile.id, profile);
+    playerEmailMap[profile.id] =
+      profile.username ||
+      [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() ||
+      `User ${profile.id.substring(0, 8)}`;
+  });
+}
+
+async function loadAnalyticsProfilesByIds(userIds) {
+  const uniqueIds = Array.from(new Set((userIds || []).filter(Boolean)));
+  const missingIds = uniqueIds.filter((id) => !analyticsProfileCache.has(id));
+  const batchSize = 100;
+
+  for (let i = 0; i < missingIds.length; i += batchSize) {
+    const batch = missingIds.slice(i, i + batchSize);
+    const { data: profiles, error } = await supabase
+      .from("profiles")
+      .select("id, username, first_name, last_name, hands_played_all_time")
+      .in("id", batch);
+
+    if (error) {
+      console.error("[RTN] Error loading analytics profiles batch:", error);
+      continue;
+    }
+
+    cacheAnalyticsProfiles(profiles);
+  }
+
+  return new Map(uniqueIds.map((id) => [id, analyticsProfileCache.get(id) || null]));
+}
+
+function populatePlayerFilterOptions(profiles) {
+  const select = document.getElementById("player-filter-select");
+  if (!select) {
+    console.warn("[RTN] Player filter select not found");
+    return;
+  }
+
+  const sortedProfiles = [...(profiles || [])].sort((a, b) => {
+    const nameA = getContestDisplayName(a, a?.id).toLowerCase();
+    const nameB = getContestDisplayName(b, b?.id).toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+
+  select.innerHTML = '<option value="all" selected>All Players</option>';
+  const selectedIdSet = selectedPlayerIds && selectedPlayerIds.length > 0 ? new Set(selectedPlayerIds) : null;
+
+  const fragment = document.createDocumentFragment();
+  sortedProfiles.forEach((profile) => {
+    if (!profile?.id) return;
+    const option = document.createElement("option");
+    option.value = profile.id;
+    option.textContent = getContestDisplayName(profile, profile.id);
+    option.selected = selectedIdSet ? selectedIdSet.has(profile.id) : false;
+    fragment.appendChild(option);
+  });
+
+  select.appendChild(fragment);
+}
+
+async function loadPlayerFilterFromProfilesFallback() {
+  const { data: profiles, error } = await supabase
+    .from("profiles")
+    .select("id, username, first_name, last_name, hands_played_all_time")
+    .gt("hands_played_all_time", 0)
+    .order("username", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return Array.isArray(profiles) ? profiles : [];
+}
+
+function isMissingRpcError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  const details = String(error?.details || "").toLowerCase();
+  return message.includes("could not find the function") || details.includes("could not find the function");
+}
+
+function renderMostActiveEntries() {
+  if (!mostActiveWeekListEl) return;
+
+  mostActiveWeekListEl.innerHTML = "";
+
+  if (!analyticsMostActiveEntries.length) {
+    const emptyItem = document.createElement("li");
+    emptyItem.className = "analytics-activity-item analytics-activity-empty";
+    emptyItem.textContent = "No hands were played in this time range.";
+    mostActiveWeekListEl.appendChild(emptyItem);
+    if (mostActiveLoadMoreButton) mostActiveLoadMoreButton.hidden = true;
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  analyticsMostActiveEntries.slice(0, analyticsMostActiveVisibleCount).forEach((entry, index) => {
+    const profile = entry.profile || analyticsProfileCache.get(entry.userId) || null;
+    const item = document.createElement("li");
+    item.className = "analytics-activity-item";
+
+    const rank = document.createElement("span");
+    rank.className = "analytics-activity-rank";
+    rank.textContent = `#${index + 1}`;
+
+    const body = document.createElement("div");
+    body.className = "analytics-activity-body";
+
+    const name = document.createElement("span");
+    name.className = "analytics-activity-name";
+    name.textContent = getContestDisplayName(profile, entry.userId);
+
+    const meta = document.createElement("span");
+    meta.className = "analytics-activity-meta";
+    meta.textContent = `${(entry.handsPlayed || 0).toLocaleString()} hands played`;
+
+    body.append(name, meta);
+    item.append(rank, body);
+    fragment.appendChild(item);
+  });
+
+  mostActiveWeekListEl.appendChild(fragment);
+
+  if (mostActiveLoadMoreButton) {
+    const remainingCount = analyticsMostActiveEntries.length - analyticsMostActiveVisibleCount;
+    mostActiveLoadMoreButton.hidden = remainingCount <= 0;
+    if (remainingCount > 0) {
+      mostActiveLoadMoreButton.textContent = `Load More (${remainingCount.toLocaleString()} left)`;
+    }
+  }
+}
 
 function updateAnalyticsBetFilterUI() {
   const subhead = document.getElementById("analytics-bet-filter-subhead");
@@ -10666,123 +11039,119 @@ document.querySelectorAll("[data-bet-period]").forEach((button) => {
 // Load all players for filter
 async function loadPlayerFilter() {
   if (!supabase) return;
-  
-  console.info("[RTN] Loading players for filter");
-  
+
   const select = document.getElementById("player-filter-select");
   if (!select) {
     console.warn("[RTN] Player filter select not found");
     return;
   }
-  
-  // Show loading state
-  select.innerHTML = '<option value="all" selected>Loading players...</option>';
-  
-  // Get all unique user_ids from bet_plays with pagination
-  const allUserIds = new Set();
-  const pageSize = 1000;
-  let page = 0;
-  let hasMore = true;
-  
-  while (hasMore) {
-    const { data: betPlayers, error: betError } = await supabase
-      .from("bet_plays")
-      .select("user_id")
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-    
-    if (betError) {
-      console.error("[RTN] Error loading bet players:", betError);
-      select.innerHTML = '<option value="all" selected>All Players (Error loading)</option>';
-      return;
-    }
-    
-    if (betPlayers && betPlayers.length > 0) {
-      betPlayers.forEach(b => allUserIds.add(b.user_id));
-      hasMore = betPlayers.length === pageSize;
-      page++;
-    } else {
-      hasMore = false;
-    }
-  }
-  
-  const uniqueUserIds = Array.from(allUserIds);
-  console.info(`[RTN] Found ${uniqueUserIds.length} unique players with bets`);
-  console.info(`[RTN] Unique user IDs:`, uniqueUserIds);
-  
-  if (uniqueUserIds.length === 0) {
-    select.innerHTML = '<option value="all" selected>All Players (No data)</option>';
+
+  if (analyticsPlayerFilterLoaded) {
+    populatePlayerFilterOptions(Array.from(analyticsProfileCache.values()));
     return;
   }
-  
-  // Fetch profiles for these users in batches (in() has a limit)
-  const batchSize = 100;
-  const allProfiles = [];
-  
-  for (let i = 0; i < uniqueUserIds.length; i += batchSize) {
-    const batch = uniqueUserIds.slice(i, i + batchSize);
-    
-    console.info(`[RTN] Fetching profiles for batch of ${batch.length} user IDs`);
-    
-    const { data: profiles, error: profileError } = await supabase
-      .from("profiles")
-      .select("id, username")
-      .in("id", batch);
-    
-    if (profileError) {
-      console.error("[RTN] Error loading profiles batch:", profileError);
-      console.info(`[RTN] Attempted to fetch profiles for IDs:`, batch);
-      continue;
-    }
-    
-    console.info(`[RTN] Received ${profiles?.length ?? 0} profiles from batch`);
-    
-    if (profiles) {
-      allProfiles.push(...profiles);
-    }
+
+  if (analyticsPlayerFilterPromise) {
+    return analyticsPlayerFilterPromise;
   }
-  
-  console.info(`[RTN] Loaded ${allProfiles.length} profiles total`);
-  console.info(`[RTN] Profiles:`, allProfiles.map(p => ({ id: p.id.substring(0, 8), username: p.username })));
-  
-  // Build email map (using username)
-  playerEmailMap = {};
-  allProfiles.forEach(profile => {
-    playerEmailMap[profile.id] = profile.username || `User ${profile.id.substring(0, 8)}`;
-  });
-  
-  // Sort profiles by username
-  allProfiles.sort((a, b) => {
-    const usernameA = a.username || "";
-    const usernameB = b.username || "";
-    return usernameA.localeCompare(usernameB);
-  });
-  
-  // Clear and populate select
-  select.innerHTML = '<option value="all" selected>All Players</option>';
-  
-  // Add player options
-  allProfiles.forEach(profile => {
-    const option = document.createElement("option");
-    option.value = profile.id;
-    option.textContent = profile.username || `User ${profile.id.substring(0, 8)}`;
-    select.appendChild(option);
-  });
-  
-  console.info(`[RTN] Populated filter with ${allProfiles.length} players`);
+
+  console.info("[RTN] Loading players for filter");
+  select.innerHTML = '<option value="all" selected>Loading players...</option>';
+
+  analyticsPlayerFilterPromise = (async () => {
+    try {
+      let profiles = [];
+      const { data, error } = await supabase.rpc("get_admin_analytics_players");
+
+      if (error) {
+        if (!isMissingRpcError(error)) {
+          console.warn("[RTN] get_admin_analytics_players failed, using fallback:", error);
+        }
+        profiles = await loadPlayerFilterFromProfilesFallback();
+      } else {
+        profiles = Array.isArray(data) ? data : [];
+      }
+
+      playerEmailMap = {};
+      cacheAnalyticsProfiles(profiles);
+      populatePlayerFilterOptions(profiles);
+      analyticsPlayerFilterLoaded = true;
+      console.info(`[RTN] Populated filter with ${profiles.length} players`);
+    } catch (error) {
+      console.error("[RTN] Error loading player filter:", error);
+      select.innerHTML = '<option value="all" selected>All Players (Error loading)</option>';
+    } finally {
+      analyticsPlayerFilterPromise = null;
+    }
+  })();
+
+  return analyticsPlayerFilterPromise;
 }
 
 async function loadMostActiveThisWeek() {
   if (!supabase || !mostActiveWeekListEl) return;
+  const requestId = ++analyticsMostActiveRequestId;
+  analyticsMostActiveEntries = [];
+  analyticsMostActiveVisibleCount = ANALYTICS_ACTIVITY_PAGE_SIZE;
 
   updateActivityFilterUI();
 
   mostActiveWeekListEl.innerHTML = "";
+  if (mostActiveLoadMoreButton) {
+    mostActiveLoadMoreButton.hidden = true;
+    mostActiveLoadMoreButton.textContent = "Load More";
+  }
   const loadingItem = document.createElement("li");
   loadingItem.className = "analytics-activity-item analytics-activity-empty";
   loadingItem.textContent = "Loading activity rankings...";
   mostActiveWeekListEl.appendChild(loadingItem);
 
-  const since = (getAnalyticsPeriodStart(activityLeaderboardPeriod) || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).toISOString();
+  const startDate = getAnalyticsPeriodStart(activityLeaderboardPeriod);
+  try {
+    let rankedUsers = [];
+    const { data, error } = await supabase.rpc("get_admin_most_active_hands", {
+      start_at: startDate ? startDate.toISOString() : null,
+      end_at: new Date().toISOString(),
+      target_user_ids: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null,
+      limit_count: null
+    });
+
+    if (error) {
+      if (!isMissingRpcError(error)) {
+        console.warn("[RTN] get_admin_most_active_hands failed, using fallback:", error);
+      }
+      rankedUsers = await loadMostActiveHandsFallback(startDate);
+    } else {
+      rankedUsers = Array.isArray(data)
+        ? data.map((entry) => ({
+            userId: entry.user_id,
+            handsPlayed: Number(entry.hands_played || 0),
+            profile: {
+              id: entry.user_id,
+              username: entry.username || null,
+              first_name: entry.first_name || null,
+              last_name: entry.last_name || null
+            }
+          }))
+        : [];
+      cacheAnalyticsProfiles(rankedUsers.map((entry) => entry.profile).filter(Boolean));
+    }
+
+    if (requestId !== analyticsMostActiveRequestId) return;
+    analyticsMostActiveEntries = rankedUsers;
+    renderMostActiveEntries();
+  } catch (error) {
+    if (requestId !== analyticsMostActiveRequestId) return;
+    console.error("[RTN] loadMostActiveThisWeek error", error);
+    mostActiveWeekListEl.innerHTML = "";
+    const errorItem = document.createElement("li");
+    errorItem.className = "analytics-activity-item analytics-activity-empty";
+    errorItem.textContent = "Unable to load weekly activity.";
+    mostActiveWeekListEl.appendChild(errorItem);
+  }
+}
+
+async function loadMostActiveHandsFallback(startDate) {
   const allRecords = [];
   const pageSize = 1000;
   let page = 0;
@@ -10790,11 +11159,14 @@ async function loadMostActiveThisWeek() {
 
   while (hasMore) {
     let query = supabase
-      .from("bet_plays")
-      .select("user_id, hand_id, amount_wagered, placed_at")
-      .gte("placed_at", since)
-      .order("placed_at", { ascending: false })
+      .from("game_hands")
+      .select("user_id, created_at")
+      .order("created_at", { ascending: false })
       .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (startDate) {
+      query = query.gte("created_at", startDate.toISOString());
+    }
 
     if (selectedPlayerIds && selectedPlayerIds.length > 0) {
       query = query.in("user_id", selectedPlayerIds);
@@ -10802,13 +11174,7 @@ async function loadMostActiveThisWeek() {
 
     const { data, error } = await query;
     if (error) {
-      console.error("[RTN] loadMostActiveThisWeek error", error);
-      mostActiveWeekListEl.innerHTML = "";
-      const errorItem = document.createElement("li");
-      errorItem.className = "analytics-activity-item analytics-activity-empty";
-      errorItem.textContent = "Unable to load weekly activity.";
-      mostActiveWeekListEl.appendChild(errorItem);
-      return;
+      throw error;
     }
 
     if (Array.isArray(data) && data.length) {
@@ -10826,81 +11192,23 @@ async function loadMostActiveThisWeek() {
     if (!userId) return;
     const current = rankedMap.get(userId) || {
       userId,
-      betCount: 0,
-      handsPlayed: 0,
-      wagered: 0,
-      handIds: new Set()
+      handsPlayed: 0
     };
-    current.betCount += 1;
-    current.wagered += Number(record?.amount_wagered ?? 0) || 0;
-    if (record?.hand_id) {
-      current.handIds.add(record.hand_id);
-      current.handsPlayed = current.handIds.size;
-    }
+    current.handsPlayed += 1;
     rankedMap.set(userId, current);
   });
 
   const rankedUsers = Array.from(rankedMap.values()).sort((a, b) => {
-    if (b.betCount !== a.betCount) return b.betCount - a.betCount;
     if ((b.handsPlayed || 0) !== (a.handsPlayed || 0)) return (b.handsPlayed || 0) - (a.handsPlayed || 0);
-    return b.wagered - a.wagered;
+    return String(a.userId).localeCompare(String(b.userId));
   });
+  const topUsers = rankedUsers.slice(0, 10);
+  const profilesById = await loadAnalyticsProfilesByIds(topUsers.map((entry) => entry.userId));
 
-  mostActiveWeekListEl.innerHTML = "";
-
-  if (!rankedUsers.length) {
-    const emptyItem = document.createElement("li");
-    emptyItem.className = "analytics-activity-item analytics-activity-empty";
-    emptyItem.textContent = "No bets were placed in this time range.";
-    mostActiveWeekListEl.appendChild(emptyItem);
-    return;
-  }
-
-  const ids = rankedUsers.map((entry) => entry.userId);
-  const profilesById = new Map();
-  const batchSize = 100;
-
-  for (let i = 0; i < ids.length; i += batchSize) {
-    const batch = ids.slice(i, i + batchSize);
-    const { data: profiles, error: profileError } = await supabase
-      .from("profiles")
-      .select("id, username, first_name, last_name")
-      .in("id", batch);
-
-    if (profileError) {
-      console.error("[RTN] loadMostActiveThisWeek profiles error", profileError);
-      continue;
-    }
-
-    (profiles || []).forEach((profile) => {
-      profilesById.set(profile.id, profile);
-    });
-  }
-
-  rankedUsers.slice(0, 10).forEach((entry, index) => {
-    const profile = profilesById.get(entry.userId) || null;
-    const item = document.createElement("li");
-    item.className = "analytics-activity-item";
-
-    const rank = document.createElement("span");
-    rank.className = "analytics-activity-rank";
-    rank.textContent = `#${index + 1}`;
-
-    const body = document.createElement("div");
-    body.className = "analytics-activity-body";
-
-    const name = document.createElement("span");
-    name.className = "analytics-activity-name";
-    name.textContent = getContestDisplayName(profile, entry.userId);
-
-    const meta = document.createElement("span");
-    meta.className = "analytics-activity-meta";
-    meta.textContent = `${entry.betCount.toLocaleString()} bets placed • ${(entry.handsPlayed || 0).toLocaleString()} hands played • ${formatCurrency(Math.round(entry.wagered))} units wagered`;
-
-    body.append(name, meta);
-    item.append(rank, body);
-    mostActiveWeekListEl.appendChild(item);
-  });
+  return topUsers.map((entry) => ({
+    ...entry,
+    profile: profilesById.get(entry.userId) || null
+  }));
 }
 
 // Apply player filter
@@ -10939,6 +11247,9 @@ function refreshAnalytics() {
   const activeFilterBtn = document.querySelector(".overview-filters .chart-filter-btn.active");
   const period = activeFilterBtn?.dataset.period || "all";
   renderOverviewChart(period);
+  const activeUsersFilterBtn = document.querySelector(".active-users-filters .chart-filter-btn.active");
+  const activeUsersPeriod = activeUsersFilterBtn?.dataset.activeUsersPeriod || "all";
+  renderActiveUsersChart(activeUsersPeriod);
   loadMostActiveThisWeek();
 }
 

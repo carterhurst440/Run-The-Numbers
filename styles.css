@@ -5383,6 +5383,11 @@ button:disabled {
   color: rgba(173, 225, 247, 0.8);
 }
 
+.analytics-load-more {
+  margin-top: 1rem;
+  width: 100%;
+}
+
 .overview-chart-header {
   display: flex;
   align-items: center;
