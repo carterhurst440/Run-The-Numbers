@@ -307,21 +307,6 @@ const offlineStub = {
       this._stubCurrentUser = { ...mockUser, email: email || mockUser.email };
       return { data: { user: this._stubCurrentUser }, error: null };
     },
-    async resend() {
-      return { data: {}, error: null };
-    },
-    async verifyOtp({ type } = {}) {
-      if (!this._stubCurrentUser) {
-        this._stubCurrentUser = { ...mockUser };
-      }
-      return {
-        data: {
-          user: this._stubCurrentUser,
-          session: type === "recovery" ? { user: this._stubCurrentUser } : { user: this._stubCurrentUser }
-        },
-        error: null
-      };
-    },
     async resetPasswordForEmail() {
       return { data: {}, error: null };
     },

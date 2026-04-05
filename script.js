@@ -1059,13 +1059,6 @@ function showAuthCallbackView() {
   if (authCallbackView) {
     setViewVisibility(authCallbackView, true);
   }
-  setAuthCallbackStatus();
-}
-
-function setAuthCallbackStatus(message = "Completing sign in…") {
-  if (authCallbackStatusEl) {
-    authCallbackStatusEl.textContent = message;
-  }
 }
 
 function showAuthView(mode = "login") {
@@ -1096,15 +1089,8 @@ function showAuthView(mode = "login") {
       authErrorEl.hidden = true;
       authErrorEl.textContent = "";
     }
-    if (authSuccessEl) {
-      authSuccessEl.hidden = true;
-      authSuccessEl.textContent = "";
-    }
     if (authSubmitButton) {
       authSubmitButton.disabled = false;
-    }
-    if (resendConfirmationButton) {
-      resendConfirmationButton.disabled = false;
     }
   } else if (mode === "signup") {
     if (signupErrorEl) {
@@ -1147,208 +1133,6 @@ function showAuthView(mode = "login") {
     }
     if (resetPasswordSubmitButton) {
       resetPasswordSubmitButton.disabled = false;
-    }
-  }
-}
-
-function getEmailConfirmationRedirectUrl() {
-  if (typeof window === "undefined") return "";
-  return `${window.location.origin}${window.location.pathname}#/auth/callback`;
-}
-
-function getUrlAuthParams() {
-  if (typeof window === "undefined") {
-    return {
-      searchParams: new URLSearchParams(),
-      hashParams: new URLSearchParams()
-    };
-  }
-
-  const hash = window.location.hash || "";
-  const hashQueryIndex = hash.indexOf("?");
-  return {
-    searchParams: new URLSearchParams(window.location.search || ""),
-    hashParams: new URLSearchParams(hashQueryIndex >= 0 ? hash.slice(hashQueryIndex + 1) : "")
-  };
-}
-
-function getUrlAuthParam(name) {
-  const { searchParams, hashParams } = getUrlAuthParams();
-  return (
-    hashParams.get(name) ||
-    searchParams.get(name) ||
-    ""
-  ).trim();
-}
-
-function setAuthFormMessage(message = "", tone = "error") {
-  if (authErrorEl) {
-    authErrorEl.hidden = true;
-    authErrorEl.textContent = "";
-  }
-  if (authSuccessEl) {
-    authSuccessEl.hidden = true;
-    authSuccessEl.textContent = "";
-  }
-  if (!message) return;
-
-  const target = tone === "success" || tone === "info" ? authSuccessEl : authErrorEl;
-  if (target) {
-    target.hidden = false;
-    target.textContent = message;
-  }
-}
-
-function rememberPendingConfirmationEmail(email = "") {
-  pendingConfirmationEmail = String(email || "").trim().toLowerCase();
-}
-
-function getPendingConfirmationEmail() {
-  const formEmail = String(authEmailInput?.value || "").trim().toLowerCase();
-  return formEmail || pendingConfirmationEmail;
-}
-
-function getAuthRedirectErrorDetails() {
-  if (typeof window === "undefined") return null;
-
-  const { searchParams, hashParams } = getUrlAuthParams();
-  const params = [searchParams, hashParams];
-
-  let errorCode = "";
-  let errorDescription = "";
-
-  for (const source of params) {
-    if (!errorCode) {
-      errorCode = String(source.get("error_code") || "").trim();
-    }
-    if (!errorDescription) {
-      errorDescription = String(source.get("error_description") || source.get("error") || "").trim();
-    }
-  }
-
-  if (!errorCode && !errorDescription) {
-    return null;
-  }
-
-  const normalizedCode = errorCode.toLowerCase();
-  const normalizedDescription = decodeURIComponent(errorDescription.replace(/\+/g, " ")).toLowerCase();
-  const looksExpired =
-    normalizedCode.includes("otp_expired") ||
-    normalizedDescription.includes("expired") ||
-    normalizedDescription.includes("invalid") ||
-    normalizedDescription.includes("access denied");
-
-  if (!looksExpired) {
-    return {
-      message: errorDescription || "We couldn't complete that email confirmation. Please try again.",
-      canResend: false
-    };
-  }
-
-  return {
-    message: "That confirmation link is invalid or expired. Enter your email below and request a fresh confirmation email.",
-    canResend: true
-  };
-}
-
-async function handleTokenHashAuthCallback() {
-  const tokenHash = getUrlAuthParam("token_hash");
-  const verificationType = getUrlAuthParam("type");
-
-  if (!tokenHash || !verificationType) {
-    return false;
-  }
-
-  if (!supabase?.auth || typeof supabase.auth.verifyOtp !== "function") {
-    throw new Error("Email confirmation is unavailable right now. Please try again shortly.");
-  }
-
-  showAuthCallbackView();
-  setAuthCallbackStatus(
-    verificationType === "recovery" ? "Verifying your reset link…" : "Confirming your email…"
-  );
-  currentRoute = "auth/callback";
-
-  const { data, error } = await supabase.auth.verifyOtp({
-    token_hash: tokenHash,
-    type: verificationType
-  });
-
-  if (error) {
-    throw error;
-  }
-
-  const sessionUser = data?.user ?? data?.session?.user ?? null;
-  if (sessionUser) {
-    currentUser = sessionUser;
-    updateAdminVisibility(currentUser);
-    updateResetButtonVisibility(currentUser);
-  }
-
-  if (verificationType === "recovery") {
-    setAuthCallbackStatus("Reset link verified. Choose your new password…");
-    await setRoute("reset-password", { replaceHash: true });
-    markAppReady();
-    return true;
-  }
-
-  setAuthCallbackStatus("Email confirmed. Finishing setup…");
-  const savedRoute = currentRoute;
-  currentRoute = "";
-  await ensureProfileSynced({ force: true }).catch((err) => console.warn("[RTN] Profile sync error:", err));
-  currentRoute = savedRoute;
-  await setRoute("home", { replaceHash: true });
-  showToast("Email confirmed. You're all set.", "success");
-  markAppReady();
-  return true;
-}
-
-async function handleResendConfirmationEmail() {
-  const email = getPendingConfirmationEmail();
-
-  if (!email) {
-    setAuthFormMessage("Enter your email address first so we know where to send the confirmation link.");
-    authEmailInput?.focus();
-    return;
-  }
-
-  if (!supabase?.auth || typeof supabase.auth.resend !== "function") {
-    setAuthFormMessage("Email confirmation resend is unavailable right now. Please try again shortly.");
-    return;
-  }
-
-  if (resendConfirmationButton) {
-    resendConfirmationButton.disabled = true;
-  }
-  setAuthFormMessage("");
-
-  try {
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email,
-      options: {
-        emailRedirectTo: getEmailConfirmationRedirectUrl()
-      }
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    rememberPendingConfirmationEmail(email);
-    if (authEmailInput) {
-      authEmailInput.value = email;
-    }
-    setAuthFormMessage(`We sent a fresh confirmation email to ${email}.`, "success");
-    showToast("Confirmation email sent", "success");
-  } catch (error) {
-    console.error("[RTN] handleResendConfirmationEmail error", error);
-    const message = error?.message || "Unable to resend confirmation email.";
-    setAuthFormMessage(message);
-    showToast(message, "error");
-  } finally {
-    if (resendConfirmationButton) {
-      resendConfirmationButton.disabled = false;
     }
   }
 }
@@ -1874,10 +1658,6 @@ async function handleAuthFormSubmit(event) {
     authErrorEl.hidden = true;
     authErrorEl.textContent = "";
   }
-  if (authSuccessEl) {
-    authSuccessEl.hidden = true;
-    authSuccessEl.textContent = "";
-  }
 
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -1889,10 +1669,12 @@ async function handleAuthFormSubmit(event) {
       const normalizedMessage = String(error.message || "").toLowerCase();
 
       if (normalizedMessage.includes("email not confirmed")) {
-        rememberPendingConfirmationEmail(email);
-        const message = "Email not confirmed. Check your inbox, or resend the confirmation email below.";
+        const message = "Email not confirmed. Please check your inbox, then sign in again.";
         showToast(message, "info");
-        setAuthFormMessage(message);
+        if (authErrorEl) {
+          authErrorEl.hidden = false;
+          authErrorEl.textContent = message;
+        }
         return;
       }
 
@@ -2006,7 +1788,6 @@ async function handleSignUpFormSubmit(event) {
       email,
       password,
       options: {
-        emailRedirectTo: getEmailConfirmationRedirectUrl(),
         data: {
           first_name: firstName,
           last_name: lastName,
@@ -2019,7 +1800,6 @@ async function handleSignUpFormSubmit(event) {
       throw error;
     }
 
-    rememberPendingConfirmationEmail(email);
     showToast("Account created. Check your email to confirm, then sign in.", "info");
     if (signupForm) {
       signupForm.reset();
@@ -2028,7 +1808,6 @@ async function handleSignUpFormSubmit(event) {
       authEmailInput.value = email;
     }
     displayAuthScreen({ replaceHash: true });
-    setAuthFormMessage("Account created. Check your email to confirm it. If the link expires, you can resend it here.", "success");
   } catch (error) {
     console.error(error);
     const message = error?.message || "Unable to create account";
@@ -7821,10 +7600,7 @@ const authView = document.getElementById("auth-view");
 const authForm = document.getElementById("auth-form");
 const authEmailInput = document.getElementById("auth-email");
 const authErrorEl = document.getElementById("auth-error");
-const authSuccessEl = document.getElementById("auth-success");
 const authSubmitButton = document.getElementById("auth-submit");
-const resendConfirmationButton = document.getElementById("resend-confirmation");
-const authCallbackStatusEl = document.getElementById("auth-callback-status");
 const signupView = document.getElementById("signup-view");
 const signupForm = document.getElementById("signup-form");
 const signupErrorEl = document.getElementById("signup-error");
@@ -8089,7 +7865,6 @@ let currentTheme = "blue";
   };
   let currentUser = null;
   let currentRoute = "home";
-  let pendingConfirmationEmail = "";
   const authState = {
     lastUserId: null,
     manualSignOutRequested: false
@@ -10286,12 +10061,6 @@ if (authForm) {
   authForm.addEventListener("submit", handleAuthFormSubmit);
 }
 
-if (resendConfirmationButton) {
-  resendConfirmationButton.addEventListener("click", () => {
-    void handleResendConfirmationEmail();
-  });
-}
-
 if (signupForm) {
   signupForm.addEventListener("submit", handleSignUpFormSubmit);
 }
@@ -11724,46 +11493,9 @@ async function initializeApp() {
     const clientReady = await waitForSupabaseReady();
     console.info(`[RTN] initializeApp waitForSupabaseReady result=${clientReady}`);
 
-    const tokenHash = getUrlAuthParam("token_hash");
-    const callbackType = getUrlAuthParam("type");
-    if (tokenHash && callbackType) {
-      try {
-        const handled = await handleTokenHashAuthCallback();
-        if (handled) {
-          return;
-        }
-      } catch (error) {
-        console.error("[RTN] token_hash auth callback failed", error);
-        showAuthView("login");
-        currentRoute = "auth";
-        updateHash("auth", { replace: true });
-        setAuthFormMessage(
-          callbackType === "recovery"
-            ? "That reset link is invalid or expired. Request a new reset email and try again."
-            : "That confirmation link is invalid or expired. Enter your email below and request a fresh confirmation email.",
-          "error"
-        );
-        authEmailInput?.focus();
-        return;
-      }
-    }
-
-    const authRedirectError = getAuthRedirectErrorDetails();
-    if (authRedirectError) {
-      console.warn("[RTN] initializeApp detected auth redirect error", authRedirectError.message);
-      showAuthView("login");
-      currentRoute = "auth";
-      updateHash("auth", { replace: true });
-      setAuthFormMessage(authRedirectError.message, authRedirectError.canResend ? "info" : "error");
-      authEmailInput?.focus();
-      return;
-    }
-
     // Check if URL contains auth tokens/code (magic link callback)
     const hasAuthTokensInUrl = window.location.hash.includes("access_token=") || 
                                window.location.hash.includes("refresh_token=") ||
-                               window.location.search.includes("token_hash=") ||
-                               window.location.hash.includes("token_hash=") ||
                                window.location.search.includes("access_token=") ||
                                window.location.search.includes("refresh_token=") ||
                                window.location.search.includes("code=");  // PKCE flow
