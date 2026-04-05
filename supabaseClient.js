@@ -9,6 +9,11 @@ let liveClient = null;
 const SUPABASE_URL = typeof window !== "undefined" ? window.SUPABASE_URL || null : null;
 const SUPABASE_ANON_KEY = typeof window !== "undefined" ? window.SUPABASE_ANON_KEY || null : null;
 
+if (typeof window !== "undefined") {
+  window.__RTN_EXPECTS_LIVE_SUPABASE__ = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+  window.__RTN_SUPABASE_LIVE_READY__ = false;
+}
+
 async function createRealClient(url, key) {
   // Try a few strategies to load the Supabase client in a variety of
   // browser environments. Some CDN builds expose different shapes (named
@@ -80,6 +85,9 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY) {
       liveClient = client;
       console.info("[RTN] Supabase client initialized (live mode)");
       try {
+        if (typeof window !== 'undefined') {
+          window.__RTN_SUPABASE_LIVE_READY__ = true;
+        }
         if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
           window.dispatchEvent(new CustomEvent('supabase:ready'));
         }
