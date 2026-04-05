@@ -11708,15 +11708,7 @@ async function initializeApp() {
     // briefly showing the auth screen. If the ready event doesn't
     // fire within the timeout we proceed (to avoid blocking startup).
     async function waitForSupabaseReady(timeoutMs = 2500) {
-      const expectsLiveClient =
-        typeof window !== "undefined" && Boolean(window.__RTN_EXPECTS_LIVE_SUPABASE__);
-      const liveReady =
-        typeof window !== "undefined" && Boolean(window.__RTN_SUPABASE_LIVE_READY__);
-
-      if (!expectsLiveClient && supabase && typeof supabase.auth?.getSession === "function") {
-        return true;
-      }
-      if (expectsLiveClient && liveReady) {
+      if (supabase && typeof supabase.auth?.getSession === "function") {
         return true;
       }
       if (typeof window === "undefined") return false;
