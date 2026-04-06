@@ -1231,6 +1231,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
 
   currentRoute = resolvedRoute;
+  updatePlayAssistantVisibility();
 
   if (resolvedRoute === "contests") {
     await loadPlayerContestList(true);
@@ -4384,6 +4385,7 @@ function applyAccountSnapshot(snapshot, { resetHistory = false } = {}) {
   drawBankrollChart();
   bankrollInitialized = true;
   updateModeSpecificModalCopy();
+  updatePlayAssistantContext();
 }
 
 function renderAccountModeSelector() {
@@ -4413,6 +4415,7 @@ function renderAccountModeSelector() {
   if (accountModeSummaryEl) {
     accountModeSummaryEl.textContent = `${getAccountModeLabel()} is active.`;
   }
+  updatePlayAssistantContext();
 }
 
 function syncActiveAccountMode({ forceApply = false, resetHistory = false } = {}) {
@@ -7522,7 +7525,7 @@ function applySignedOutState(reason = "unknown", { focusInput = true } = {}) {
   lastBetLayout = [];
   currentOpeningLayout = [];
   // Advanced mode is always enabled - no need to initialize toggle
-  historyList.innerHTML = "";
+  clearRecentHandHistory();
 
   bankroll = INITIAL_BANKROLL;
   handleBankrollChanged();
@@ -8059,9 +8062,28 @@ const numberBetsModal = document.getElementById("number-bets-modal");
 const numberBetsInfoButton = document.getElementById("number-bets-info");
 const numberBetsModalClose = document.getElementById("number-bets-modal-close");
 const numberBetsModalOk = document.getElementById("number-bets-modal-ok");
+const handReviewModal = document.getElementById("hand-review-modal");
+const handReviewSummaryEl = document.getElementById("hand-review-summary");
+const handReviewBodyEl = document.getElementById("hand-review-body");
+const handReviewTotalWagerEl = document.getElementById("hand-review-total-wager");
+const handReviewTotalReturnEl = document.getElementById("hand-review-total-return");
+const handReviewTotalNetEl = document.getElementById("hand-review-total-net");
+const handReviewCloseButton = document.getElementById("hand-review-close");
+const handReviewOkButton = document.getElementById("hand-review-ok");
 const outOfCreditsCopyEl = document.getElementById("out-of-credits-copy");
 const betAnalyticsModal = document.getElementById("bet-analytics-modal");
 const betAnalyticsClose = document.getElementById("bet-analytics-close");
+const playerBankrollModal = document.getElementById("player-bankroll-modal");
+const playerBankrollClose = document.getElementById("player-bankroll-close");
+const playerBankrollTitleEl = document.getElementById("player-bankroll-title");
+const playerBankrollSubheadEl = document.getElementById("player-bankroll-subhead");
+const playerModeBreakdownModal = document.getElementById("player-mode-breakdown-modal");
+const playerModeBreakdownClose = document.getElementById("player-mode-breakdown-close");
+const playerModeBreakdownTitleEl = document.getElementById("player-mode-breakdown-title");
+const playerModeBreakdownSummaryEl = document.getElementById("player-mode-breakdown-summary");
+const playerModeBreakdownBodyEl = document.getElementById("player-mode-breakdown-body");
+const playerModeBreakdownTotalEl = document.getElementById("player-mode-breakdown-total");
+const playerModeBreakdownOk = document.getElementById("player-mode-breakdown-ok");
 const adminTabButtons = document.querySelectorAll(".admin-tab");
 const adminPrizesContent = document.getElementById("admin-prizes-content");
 const adminAnalyticsContent = document.getElementById("admin-analytics-content");
@@ -8074,6 +8096,18 @@ const rankLadderModal = document.getElementById("rank-ladder-modal");
 const rankLadderListEl = document.getElementById("rank-ladder-list");
 const rankLadderCloseButton = document.getElementById("rank-ladder-close");
 const rankLadderOkButton = document.getElementById("rank-ladder-ok");
+const playAssistantToggle = document.getElementById("play-assistant-toggle");
+const playAssistantPanel = document.getElementById("play-assistant-panel");
+const playAssistantCloseButton = document.getElementById("play-assistant-close");
+const playAssistantContextEl = document.getElementById("play-assistant-context");
+const playAssistantThreadEl = document.getElementById("play-assistant-thread");
+const playAssistantQuickActionButtons = Array.from(
+  document.querySelectorAll("[data-play-assistant-prompt]")
+);
+const playAssistantForm = document.getElementById("play-assistant-form");
+const playAssistantInput = document.getElementById("play-assistant-input");
+const playAssistantSendButton = document.getElementById("play-assistant-send");
+const playAssistantRiskSelect = document.getElementById("play-assistant-risk-select");
 
 const THEME_CLASS_MAP = {
   blue: "theme-blue",
@@ -8116,7 +8150,7 @@ let carterCash = 0;
   let carterCashDeltaTimeout = null;
   let lastSyncedCarterCash = 0;
   let lastSyncedCarterProgress = 0;
-  let advancedMode = true; // Always enabled - all bets always available
+let advancedMode = true; // Always enabled - all bets always available
   let handPaused = false;
   let awaitingManualDeal = false;
   let pauseResolvers = [];
@@ -8183,6 +8217,13 @@ let currentProfile = null;
 let suppressHash = false;
 let dashboardProfileRetryTimer = null;
 let resetModalTrigger = null;
+let playAssistantOpen = false;
+let playAssistantThread = [];
+let playAssistantRiskTolerance = "balanced";
+let playAssistantPendingPlan = null;
+let playAssistantRequestInFlight = false;
+let recentHandReviews = [];
+let handReviewModalTrigger = null;
 
 let shippingModalTrigger = null;
 let activeShippingPurchase = null;
@@ -8198,6 +8239,21 @@ let contestStartNotifications = [];
 
 const MAX_HISTORY_POINTS = 500;
 const PROFILE_SYNC_INTERVAL = 15000;
+const PLAY_ASSISTANT_MAX_HISTORY = 12;
+const PLAY_ASSISTANT_RULES_SUMMARY = [
+  "Run the Numbers uses a fresh 53-card deck every hand.",
+  "Ace and number cards 2 through 10 keep the hand alive.",
+  "Any Jack, Queen, King, or the Joker stops the hand immediately.",
+  "Number bets on Ace through 10 must be placed before the hand starts and can hit multiple times until a stopper appears.",
+  "Specific-card bets pay when the exact rank and suit appears.",
+  "Card-count bets are based on the total cards dealt, including the final bust card.",
+  "The assistant may suggest bets and, with consent, place chips on the felt, but it must never start the hand."
+].join(" ");
+const PLAY_ASSISTANT_RISK_LABELS = {
+  cautious: "Cautious",
+  balanced: "Balanced",
+  aggressive: "Aggressive"
+};
 
 let bankrollInitialized = false;
 let lastSyncedBankroll = null;
@@ -8214,6 +8270,11 @@ function clearPlayAreaHeight() {
   }
   if (playLayout) {
     playLayout.style.removeProperty("--play-area-height");
+  }
+  if (typeof document !== "undefined") {
+    document.documentElement.style.removeProperty("--play-assistant-top");
+    document.documentElement.style.removeProperty("--play-assistant-bottom");
+    document.documentElement.style.removeProperty("--play-assistant-max-height");
   }
 }
 
@@ -8236,6 +8297,7 @@ function updatePlayAreaHeight() {
   const chipBarHeight = chipBarEl ? chipBarEl.offsetHeight : 0;
   const available = Math.max(viewportHeight - headerHeight - chipBarHeight, 0);
   playLayout.style.setProperty("--play-area-height", `${available}px`);
+  updatePlayAssistantBounds();
 }
 
 function schedulePlayAreaHeightUpdate() {
@@ -8249,6 +8311,25 @@ function schedulePlayAreaHeightUpdate() {
     playAreaUpdateFrame = null;
     updatePlayAreaHeight();
   });
+}
+
+function updatePlayAssistantBounds() {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 0;
+  const headerHeight = headerEl ? headerEl.offsetHeight : 0;
+  const chipBarHeight = chipBarEl ? chipBarEl.offsetHeight : 0;
+  const topInset = Math.max(headerHeight + 12, 76);
+  const closedBottomInset = Math.max(chipBarHeight + 22, 130);
+  const openBottomInset = Math.max(chipBarHeight + 8, 24);
+  const bottomInset = playAssistantOpen ? openBottomInset : closedBottomInset;
+  const maxAvailable = Math.max(viewportHeight - topInset - bottomInset, 220);
+
+  document.documentElement.style.setProperty("--play-assistant-top", `${topInset}px`);
+  document.documentElement.style.setProperty("--play-assistant-bottom", `${bottomInset}px`);
+  document.documentElement.style.setProperty("--play-assistant-max-height", `${maxAvailable}px`);
 }
 
 const layoutResizeObserver =
@@ -8408,6 +8489,7 @@ function updateCarterCashDisplay() {
 
 function handleCarterCashChanged() {
   updateCarterCashDisplay();
+  updatePlayAssistantContext();
   syncCurrentModeShadowState();
 }
 
@@ -8568,6 +8650,7 @@ async function persistBankroll({ recordContestHistory = false, contestHistoryLab
 function handleBankrollChanged() {
   updateBankroll();
   updateDashboardCreditsDisplay(bankroll);
+  updatePlayAssistantContext();
   syncCurrentModeShadowState();
 }
 
@@ -8846,6 +8929,17 @@ function formatCurrency(value) {
   return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
 
+function formatSignedCurrency(value) {
+  const amount = Math.round(Number(value || 0));
+  if (amount > 0) {
+    return `+${formatCurrency(amount)}`;
+  }
+  if (amount < 0) {
+    return `-${formatCurrency(Math.abs(amount))}`;
+  }
+  return "0";
+}
+
 function getAnalyticsPeriodStart(period) {
   const now = Date.now();
   if (period === "day") return new Date(now - 24 * 60 * 60 * 1000);
@@ -8911,11 +9005,11 @@ function updateBankrollChartFilterUI() {
   if (!bankrollChartSubhead) return;
 
   const labels = {
-    week: "Showing bankroll history for the last week.",
-    month: "Showing bankroll history for the last month.",
-    "90days": "Showing bankroll history for the last 3 months.",
-    year: "Showing bankroll history for the last year.",
-    all: "Showing bankroll history across the player's lifetime."
+    week: "Showing normal-mode bankroll history for the last week.",
+    month: "Showing normal-mode bankroll history for the last month.",
+    "90days": "Showing normal-mode bankroll history for the last 3 months.",
+    year: "Showing normal-mode bankroll history for the last year.",
+    all: "Showing normal-mode bankroll history across the player's lifetime."
   };
 
   bankrollChartSubhead.textContent = labels[bankrollChartPeriod] || labels.all;
@@ -9220,7 +9314,17 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
   }
 
   let runningBalance = INITIAL_BANKROLL;
-  persistentBankrollHistory = allRuns.map((run, index) => {
+  const normalModeRuns = allRuns.filter((run) => {
+    const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
+    const accountMode = String(metadata?.account_mode || "").trim().toLowerCase();
+    const contestId = metadata?.contest_id;
+    const hasExplicitContestMode = accountMode === "contest";
+    const isContestLinked = Boolean(contestId);
+    const isNormalOrLegacyRun = !accountMode || accountMode === "normal";
+    return isNormalOrLegacyRun && !isContestLinked && !hasExplicitContestMode;
+  });
+
+  persistentBankrollHistory = normalModeRuns.map((run, index) => {
     const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
     const endingBankroll = Number(metadata?.ending_bankroll);
     if (Number.isFinite(endingBankroll)) {
@@ -9508,6 +9612,729 @@ function applyBetLayout(layout) {
   });
 }
 
+function inferPlayAssistantRiskTolerance(text = "") {
+  const normalized = String(text).toLowerCase();
+  if (!normalized) return null;
+  if (/(cautious|conservative|safe|small|low risk)/.test(normalized)) {
+    return "cautious";
+  }
+  if (/(aggressive|high risk|press|bigger|swing|volatile)/.test(normalized)) {
+    return "aggressive";
+  }
+  if (/(balanced|medium risk|moderate|middle)/.test(normalized)) {
+    return "balanced";
+  }
+  return null;
+}
+
+function setPlayAssistantRiskTolerance(risk, { announce = false } = {}) {
+  if (!PLAY_ASSISTANT_RISK_LABELS[risk]) {
+    return;
+  }
+  playAssistantRiskTolerance = risk;
+  if (playAssistantRiskSelect) {
+    playAssistantRiskSelect.value = risk;
+  }
+  updatePlayAssistantContext();
+  if (announce) {
+    pushPlayAssistantMessage({
+      role: "system",
+      text: `${PLAY_ASSISTANT_RISK_LABELS[risk]} risk mode saved. Future bet sizing will lean ${risk}.`
+    });
+  }
+}
+
+function getPlayAssistantBetCatalog() {
+  return Array.from(betDefinitions.values()).map((definition) => ({
+    key: definition.key,
+    type: definition.type,
+    label: definition.label,
+    payout: definition.payout ?? null,
+    metadata: definition.metadata ?? {}
+  }));
+}
+
+function getPlayAssistantState() {
+  const outstanding = bets.reduce((sum, bet) => sum + Math.max(0, Number(bet.units ?? 0)), 0);
+  return {
+    bankroll,
+    carterCash,
+    riskTolerance: playAssistantRiskTolerance,
+    selectedChip,
+    activePaytable: {
+      id: activePaytable.id,
+      name: activePaytable.name,
+      steps: [...activePaytable.steps]
+    },
+    accountMode: {
+      key: getAccountModeValue(),
+      label: getAccountModeLabel(),
+      contest: isContestAccountMode()
+        ? {
+            id: currentAccountMode.contestId,
+            title: getModeContest()?.title ?? "Contest Mode"
+          }
+        : null
+    },
+    betting: {
+      canPlaceBets: !dealing,
+      dealing,
+      outstandingUnits: outstanding,
+      availableUnits: bankroll,
+      totalExposureUnits: bankroll + outstanding,
+      currentBets: bets.map((bet) => ({
+        key: bet.key,
+        label: bet.label,
+        units: bet.units,
+        type: bet.type
+      }))
+    },
+    stats: {
+      hands: stats.hands,
+      wagered: stats.wagered,
+      paid: stats.paid
+    },
+    rulesSummary: PLAY_ASSISTANT_RULES_SUMMARY,
+    betCatalog: getPlayAssistantBetCatalog()
+  };
+}
+
+function updatePlayAssistantContext() {
+  if (!playAssistantContextEl) return;
+  playAssistantContextEl.textContent = "";
+}
+
+function escapeAssistantHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatAssistantMessageHtml(text) {
+  const safeText = String(text ?? "").trim();
+  if (!safeText) {
+    return "<p></p>";
+  }
+
+  const blocks = safeText.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
+  return blocks
+    .map((block) => {
+      const lines = block.split("\n").map((line) => line.trim()).filter(Boolean);
+      const bulletLines = lines.filter((line) => /^[-*]\s+/.test(line));
+      if (bulletLines.length === lines.length && bulletLines.length > 0) {
+        const items = bulletLines
+          .map((line) => `<li>${escapeAssistantHtml(line.replace(/^[-*]\s+/, ""))}</li>`)
+          .join("");
+        return `<ul>${items}</ul>`;
+      }
+      return `<p>${escapeAssistantHtml(block).replace(/\n/g, "<br>")}</p>`;
+    })
+    .join("");
+}
+
+function createPlayAssistantMessageId() {
+  return `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function pushPlayAssistantMessage(message) {
+  playAssistantThread.push({
+    id: message.id || createPlayAssistantMessageId(),
+    role: message.role || "assistant",
+    text: message.text || "",
+    plan: message.plan ? { ...message.plan } : null,
+    loading: Boolean(message.loading),
+    timestamp: Date.now()
+  });
+  if (playAssistantThread.length > PLAY_ASSISTANT_MAX_HISTORY) {
+    playAssistantThread = playAssistantThread.slice(-PLAY_ASSISTANT_MAX_HISTORY);
+  }
+  renderPlayAssistantThread();
+}
+
+function setPlayAssistantLoading(loading) {
+  playAssistantRequestInFlight = loading;
+  if (playAssistantSendButton) {
+    playAssistantSendButton.disabled = loading;
+    playAssistantSendButton.classList.toggle("is-loading", loading);
+    playAssistantSendButton.setAttribute(
+      "aria-label",
+      loading ? "Sending message" : "Send message"
+    );
+  }
+  if (playAssistantInput) {
+    playAssistantInput.disabled = loading;
+  }
+  if (playAssistantRiskSelect) {
+    playAssistantRiskSelect.disabled = loading;
+  }
+
+  const lastMessage = playAssistantThread[playAssistantThread.length - 1];
+  if (loading) {
+    if (!lastMessage || !lastMessage.loading) {
+      pushPlayAssistantMessage({
+        role: "assistant",
+        text: "Thinking through your table state...",
+        loading: true
+      });
+    }
+    return;
+  }
+
+  if (lastMessage?.loading) {
+    playAssistantThread.pop();
+    renderPlayAssistantThread();
+  }
+}
+
+function renderPlayAssistantThread() {
+  if (!playAssistantThreadEl) return;
+  playAssistantThreadEl.innerHTML = "";
+
+  playAssistantThread.forEach((message) => {
+    const article = document.createElement("article");
+    article.className = `play-assistant-message${message.loading ? " is-loading" : ""}`;
+    article.dataset.role = message.role;
+
+    const roleLabel =
+      message.role === "user" ? "You" : message.role === "system" ? "Table Note" : "Assistant";
+
+    article.innerHTML = `
+      <div class="play-assistant-message-meta">
+        <span>${roleLabel}</span>
+        <span>${new Date(message.timestamp).toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit"
+        })}</span>
+      </div>
+      <div class="play-assistant-message-body">${formatAssistantMessageHtml(message.text)}</div>
+    `;
+
+    if (message.plan?.bets?.length) {
+      const planWrap = document.createElement("div");
+      planWrap.className = "play-assistant-plan";
+      const listItems = message.plan.bets
+        .map(
+          (bet) =>
+            `<li><strong>${escapeAssistantHtml(bet.label || bet.key)}</strong><span>${formatCurrency(
+              Number(bet.units || 0)
+            )} units</span></li>`
+        )
+        .join("");
+      planWrap.innerHTML = `
+        <p class="play-assistant-plan-summary">${escapeAssistantHtml(
+          message.plan.summary || "Suggested betting layout"
+        )}</p>
+        <ul class="play-assistant-plan-list">${listItems}</ul>
+        <div class="play-assistant-plan-actions">
+          <span class="play-assistant-plan-total">Total ${formatCurrency(
+            Number(message.plan.totalUnits || 0)
+          )} units</span>
+          <button type="button" class="primary play-assistant-apply" data-plan-id="${escapeAssistantHtml(
+            message.id
+          )}" ${message.plan.applied ? "disabled" : ""}>
+            ${message.plan.applied ? "Placed" : "Place these bets"}
+          </button>
+        </div>
+      `;
+      article.appendChild(planWrap);
+    }
+
+    playAssistantThreadEl.appendChild(article);
+  });
+
+  playAssistantThreadEl.scrollTop = playAssistantThreadEl.scrollHeight;
+}
+
+function togglePlayAssistant(open = !playAssistantOpen) {
+  playAssistantOpen = Boolean(open);
+  if (typeof document !== "undefined") {
+    document.body.classList.toggle("play-assistant-open", playAssistantOpen);
+  }
+  if (playAssistantPanel) {
+    updatePlayAssistantBounds();
+    playAssistantPanel.hidden = !playAssistantOpen;
+    playAssistantPanel.setAttribute("aria-hidden", String(!playAssistantOpen));
+  }
+  if (playAssistantToggle) {
+    playAssistantToggle.hidden = currentRoute !== "play" || playAssistantOpen;
+    playAssistantToggle.setAttribute("aria-expanded", String(playAssistantOpen));
+  }
+  if (playAssistantOpen && playAssistantInput) {
+    playAssistantInput.focus();
+  }
+}
+
+function updatePlayAssistantVisibility() {
+  const shouldShow = currentRoute === "play";
+  if (playAssistantToggle) {
+    playAssistantToggle.hidden = !shouldShow || playAssistantOpen;
+  }
+  if (!shouldShow) {
+    togglePlayAssistant(false);
+  }
+}
+
+function resetPlayAssistantDraft() {
+  if (!playAssistantInput) return;
+  playAssistantInput.value = "";
+}
+
+function serializePlayAssistantMessages() {
+  return playAssistantThread
+    .filter((message) => !message.loading)
+    .slice(-8)
+    .map((message) => ({
+      role: message.role === "system" ? "assistant" : message.role,
+      content: message.text
+    }));
+}
+
+function buildAssistantChipBreakdown(units) {
+  let remaining = Math.round(Number(units));
+  if (!Number.isFinite(remaining) || remaining <= 0 || remaining % 5 !== 0) {
+    return null;
+  }
+  const chips = [];
+  const ordered = [...DENOMINATIONS].sort((a, b) => b - a);
+  ordered.forEach((value) => {
+    while (remaining >= value) {
+      chips.push(value);
+      remaining -= value;
+    }
+  });
+  return remaining === 0 ? chips : null;
+}
+
+function normalizeAssistantPlan(plan) {
+  if (!plan || !Array.isArray(plan.bets) || !plan.bets.length) {
+    return null;
+  }
+
+  const normalizedBets = [];
+  for (const candidate of plan.bets) {
+    const key = String(candidate?.key || "").trim();
+    const definition = getBetDefinition(key);
+    const units = Math.round(Number(candidate?.units ?? 0));
+    if (!definition || !Number.isFinite(units) || units <= 0) {
+      continue;
+    }
+    const chips = buildAssistantChipBreakdown(units);
+    if (!chips) {
+      continue;
+    }
+    normalizedBets.push({
+      key,
+      label: definition.label,
+      units,
+      chips
+    });
+  }
+
+  if (!normalizedBets.length) {
+    return null;
+  }
+
+  return {
+    summary: String(plan.summary || "").trim(),
+    replaceExisting: plan.replaceExisting !== false,
+    bets: normalizedBets,
+    totalUnits: normalizedBets.reduce((sum, bet) => sum + bet.units, 0)
+  };
+}
+
+function buildLocalAssistantBetPlan(state, risk = playAssistantRiskTolerance) {
+  const effectiveBankroll = Math.max(0, Math.round(Number(state?.betting?.totalExposureUnits ?? bankroll)));
+  const normalizedRisk = PLAY_ASSISTANT_RISK_LABELS[risk] ? risk : "balanced";
+  const targets = {
+    cautious: { percent: 0.02, focus: ["number-A", "number-7"] },
+    balanced: { percent: 0.04, focus: ["number-A", "number-7", "number-8"] },
+    aggressive: { percent: 0.07, focus: ["number-A", "number-7", "count-4"] }
+  };
+  const config = targets[normalizedRisk];
+  const rawBudget = Math.max(10, Math.round(effectiveBankroll * config.percent));
+  const budget = Math.max(5, Math.floor(rawBudget / 5) * 5);
+  const unitsPerBet = Math.max(5, Math.floor((budget / config.focus.length) / 5) * 5);
+  const betsForPlan = config.focus
+    .map((key) => {
+      const definition = getBetDefinition(key);
+      return definition
+        ? {
+            key,
+            label: definition.label,
+            units: unitsPerBet
+          }
+        : null;
+    })
+    .filter(Boolean);
+
+  if (!betsForPlan.length) {
+    return null;
+  }
+
+  return normalizeAssistantPlan({
+    summary: `${PLAY_ASSISTANT_RISK_LABELS[normalizedRisk]} starter plan sized around ${Math.round(
+      config.percent * 100
+    )}% of bankroll.`,
+    replaceExisting: true,
+    bets: betsForPlan
+  });
+}
+
+function normalizeAssistantBetPhrase(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/\+/g, " plus ")
+    .replace(/[^\w\s]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseAssistantUnits(value) {
+  const raw = String(value || "").trim().toLowerCase().replace(/[$,\s]/g, "");
+  if (!raw) return NaN;
+  const match = raw.match(/^(\d+(?:\.\d+)?)([km])?$/);
+  if (!match) return NaN;
+  const base = Number(match[1]);
+  if (!Number.isFinite(base)) return NaN;
+  const multiplier = match[2] === "m" ? 1000000 : match[2] === "k" ? 1000 : 1;
+  return Math.round(base * multiplier);
+}
+
+function resolveAssistantBetTarget(targetText) {
+  const normalized = normalizeAssistantBetPhrase(targetText);
+  if (!normalized) {
+    return null;
+  }
+
+  for (const definition of betDefinitions.values()) {
+    if (normalizeAssistantBetPhrase(definition.label) === normalized) {
+      return definition;
+    }
+  }
+
+  const countPatterns = [
+    { pattern: /\b(?:1|one)\s+card\b/, key: "count-1" },
+    { pattern: /\b(?:2|two)\s+cards?\b/, key: "count-2" },
+    { pattern: /\b(?:3|three)\s+cards?\b/, key: "count-3" },
+    { pattern: /\b(?:4|four)\s+cards?\b/, key: "count-4" },
+    { pattern: /\b(?:5|five)\s+cards?\b/, key: "count-5" },
+    { pattern: /\b(?:6|six)\s+cards?\b/, key: "count-6" },
+    { pattern: /\b(?:7|seven)\s+cards?\b/, key: "count-7" },
+    {
+      pattern:
+        /\b(?:8|eight)\s*(?:plus|\+|or more)\s*cards?\b|\b(?:8|eight)\s+cards?\s+(?:or more|plus)\b|\bat least\s+(?:8|eight)\s+cards?\b|\bover\s+7\s+cards?\b/,
+      key: "count-8"
+    }
+  ];
+  for (const { pattern, key } of countPatterns) {
+    if (pattern.test(normalized)) {
+      return getBetDefinition(key) || null;
+    }
+  }
+
+  const numberMatch = normalized.match(/\b(?:number\s+)?(ace|a|[2-9]|10)\b/);
+  if (numberMatch) {
+    const rank = numberMatch[1] === "ace" || numberMatch[1] === "a" ? "A" : numberMatch[1];
+    return getBetDefinition(`number-${rank}`) || null;
+  }
+
+  const specificCardMatch = normalized.match(
+    /\b(ace|a|[2-9]|10|jack|queen|king)\s+of\s+(hearts|diamonds|clubs|spades)\b/
+  );
+  if (specificCardMatch) {
+    const rawRank = specificCardMatch[1];
+    const suitName = specificCardMatch[2];
+    const rank =
+      rawRank === "ace" || rawRank === "a"
+        ? "A"
+        : rawRank === "jack"
+          ? "J"
+          : rawRank === "queen"
+            ? "Q"
+            : rawRank === "king"
+              ? "K"
+              : rawRank;
+    const suitMap = {
+      hearts: "♥",
+      diamonds: "♦",
+      clubs: "♣",
+      spades: "♠"
+    };
+    return getBetDefinition(`card-${rank}${suitMap[suitName]}`) || null;
+  }
+
+  const bustSuitMatch = normalized.match(/\b(?:bust|stop(?:per)?|end)\s+(?:on\s+)?(hearts|diamonds|clubs|spades)\b/);
+  if (bustSuitMatch) {
+    return getBetDefinition(`bust-${bustSuitMatch[1]}`) || null;
+  }
+
+  const bustRankMatch = normalized.match(/\b(?:bust|stop(?:per)?|end)\s+(jack|queen|king|joker)\b/);
+  if (bustRankMatch) {
+    const face = bustRankMatch[1];
+    return getBetDefinition(face === "joker" ? "bust-joker" : `bust-${face}`) || null;
+  }
+
+  const aliasChecks = [
+    { test: /\b(?:8plus|8 plus|8\+)\s*cards?\b/, key: "count-8" },
+    { test: /\bjoker\b/, key: "bust-joker" }
+  ];
+  for (const alias of aliasChecks) {
+    if (alias.test.test(normalized)) {
+      return getBetDefinition(alias.key) || null;
+    }
+  }
+
+  return null;
+}
+
+function parseAssistantDirective(message, state) {
+  const normalized = String(message || "").trim();
+  const commandMatch = normalized.match(
+    /(?:^|\b)(?:play|place|bet|put|set|drop|stage)\s+\$?([\d,.]+(?:\.\d+)?\s*[km]?)\s*(?:units?)?\s+(?:on\s+)?(.+)$/i
+  );
+  if (!commandMatch) {
+    return null;
+  }
+
+  const requestedUnits = parseAssistantUnits(commandMatch[1]);
+  const targetText = String(commandMatch[2] || "")
+    .replace(/\s+(?:please|pls|for me|thanks?)\s*$/i, "")
+    .trim();
+  const definition = resolveAssistantBetTarget(targetText);
+  const availableUnits = Math.max(0, Math.round(Number(state?.betting?.availableUnits ?? bankroll)));
+
+  return {
+    requestedUnits,
+    targetText,
+    definition,
+    availableUnits
+  };
+}
+
+function buildLocalAssistantFallback(userMessage, state) {
+  const normalized = String(userMessage || "").toLowerCase();
+  const risk = inferPlayAssistantRiskTolerance(normalized) || state.riskTolerance || "balanced";
+  const wantsRules = /(rule|how do i play|how to play|explain|what is this|what are the bets)/.test(
+    normalized
+  );
+  const wantsSizing = /(size|bankroll|bet size|risk|strategy|starter|recommend|plan)/.test(normalized);
+  const wantsPlacement = /(place|set|apply|put.*bet)/.test(normalized);
+  const explicitDirective = parseAssistantDirective(userMessage, state);
+
+  let plan = wantsSizing || wantsPlacement ? buildLocalAssistantBetPlan(state, risk) : null;
+  if (explicitDirective) {
+    const { requestedUnits, targetText, definition, availableUnits } = explicitDirective;
+
+    if (definition && requestedUnits > 0 && requestedUnits % 5 === 0 && requestedUnits <= availableUnits) {
+      plan = normalizeAssistantPlan({
+        summary: "Direct instruction captured. Confirm and I will stage this exact layout on the felt.",
+        replaceExisting: true,
+        bets: [{ key: definition.key, units: requestedUnits }]
+      });
+      return {
+        reply: `Understood. I drafted exactly ${requestedUnits} units on ${definition.label}. Confirm if you want me to place it on the felt.`,
+        riskTolerance: risk,
+        plan
+      };
+    }
+
+    if (definition && requestedUnits > availableUnits) {
+      return {
+        reply: `I can't place ${requestedUnits} units on ${definition.label} because only ${availableUnits} units are available right now.`,
+        riskTolerance: risk,
+        plan: null
+      };
+    }
+
+    if (definition && requestedUnits > 0 && requestedUnits % 5 !== 0) {
+      return {
+        reply: `I understood that as ${definition.label}, but bet sizes need to be in multiples of 5 units. Want me to round ${requestedUnits} to the nearest valid amount?`,
+        riskTolerance: risk,
+        plan: null
+      };
+    }
+
+    if (!definition) {
+      return {
+        reply: `I couldn't map "${targetText}" to a live bet yet. Try a phrasing like "8+ cards", "Bust Hearts", "Ace", or "Ace of Spades", and I'll stage it.`,
+        riskTolerance: risk,
+        plan: null
+      };
+    }
+  }
+
+  let reply = "";
+  if (wantsRules) {
+    reply +=
+      "Number cards keep the hand alive, while any Jack, Queen, King, or Joker ends it. Number bets can hit multiple times before the stopper arrives, and the active paytable controls those ladder payouts.\n\n";
+  }
+  reply += `With a ${PLAY_ASSISTANT_RISK_LABELS[risk].toLowerCase()} profile, I'd keep your total pre-hand exposure around ${
+    risk === "cautious" ? "2%" : risk === "aggressive" ? "7%" : "4%"
+  } of bankroll and stay concentrated on a small set of bets rather than spraying chips everywhere.`;
+  if (plan) {
+    reply += "\n\nI drafted a simple layout you can approve below.";
+  }
+  return {
+    reply,
+    riskTolerance: risk,
+    plan
+  };
+}
+
+async function requestPlayAssistantResponse(userMessage) {
+  const state = getPlayAssistantState();
+  try {
+    const { data, error } = await supabase.functions.invoke("play-assistant", {
+      body: {
+        message: userMessage,
+        messages: serializePlayAssistantMessages(),
+        state
+      }
+    });
+    if (error) {
+      throw error;
+    }
+    if (data?.reply) {
+      return {
+        reply: String(data.reply),
+        riskTolerance: data.riskTolerance || state.riskTolerance,
+        plan: normalizeAssistantPlan(data.plan)
+      };
+    }
+  } catch (error) {
+    console.warn("[RTN] play assistant fallback", error);
+  }
+
+  return buildLocalAssistantFallback(userMessage, state);
+}
+
+function applyAssistantPlan(plan, messageId = null) {
+  const normalizedPlan = normalizeAssistantPlan(plan);
+  if (!normalizedPlan) {
+    showToast("That assistant plan could not be applied.", "error");
+    return false;
+  }
+
+  if (currentRoute !== "play") {
+    showToast("Open the PLAY table before applying assistant bets.", "error");
+    return false;
+  }
+
+  if (dealing) {
+    pushPlayAssistantMessage({
+      role: "system",
+      text: "The hand is already in motion. Wait for the table to reopen before I place a new layout."
+    });
+    return false;
+  }
+
+  const outstanding = bets.reduce((sum, bet) => sum + bet.units, 0);
+  const available = normalizedPlan.replaceExisting ? bankroll + outstanding : bankroll;
+  if (normalizedPlan.totalUnits > available) {
+    pushPlayAssistantMessage({
+      role: "system",
+      text: `This layout needs ${formatCurrency(
+        normalizedPlan.totalUnits
+      )} units, but only ${formatCurrency(available)} are available right now.`
+    });
+    return false;
+  }
+
+  if (normalizedPlan.replaceExisting && outstanding > 0) {
+    restoreUnits(outstanding);
+    resetBets();
+  }
+
+  if (normalizedPlan.replaceExisting) {
+    applyBetLayout(
+      normalizedPlan.bets.map((bet) => ({
+        key: bet.key,
+        chips: [...bet.chips]
+      }))
+    );
+  } else {
+    normalizedPlan.bets.forEach((bet) => {
+      bet.chips.forEach((chip) => addBet(bet.key, chip));
+    });
+  }
+
+  playAssistantPendingPlan = null;
+  if (messageId) {
+    const sourceMessage = playAssistantThread.find((entry) => entry.id === messageId);
+    if (sourceMessage?.plan) {
+      sourceMessage.plan.applied = true;
+      renderPlayAssistantThread();
+    }
+  }
+  statusEl.textContent = `Assistant placed ${formatCurrency(
+    normalizedPlan.totalUnits
+  )} units on the felt. Review the layout, then deal when you're ready.`;
+  pushPlayAssistantMessage({
+    role: "system",
+    text: `Placed ${formatCurrency(
+      normalizedPlan.totalUnits
+    )} units on the table. I stopped there so you stay in control of starting the hand.`
+  });
+  return true;
+}
+
+async function sendPlayAssistantMessage(rawMessage) {
+  const userMessage = String(rawMessage || "").trim();
+  if (!userMessage || playAssistantRequestInFlight) {
+    return;
+  }
+
+  const inferredRisk = inferPlayAssistantRiskTolerance(userMessage);
+  if (inferredRisk) {
+    setPlayAssistantRiskTolerance(inferredRisk);
+  }
+
+  if (
+    playAssistantPendingPlan &&
+    /^\s*(yes|y|apply|place|set it|do it|go ahead|ok|okay)\b/i.test(userMessage)
+  ) {
+    pushPlayAssistantMessage({ role: "user", text: userMessage });
+    resetPlayAssistantDraft();
+    applyAssistantPlan(playAssistantPendingPlan);
+    return;
+  }
+
+  pushPlayAssistantMessage({ role: "user", text: userMessage });
+  resetPlayAssistantDraft();
+  setPlayAssistantLoading(true);
+
+  const response = await requestPlayAssistantResponse(userMessage);
+
+  setPlayAssistantLoading(false);
+
+  if (response?.riskTolerance) {
+    setPlayAssistantRiskTolerance(response.riskTolerance);
+  }
+
+  playAssistantPendingPlan = response?.plan || null;
+
+  pushPlayAssistantMessage({
+    role: "assistant",
+    text: response?.reply || "I hit a snag, but I can still talk through rules and bankroll sizing.",
+    plan: response?.plan || null
+  });
+}
+
+function seedPlayAssistant() {
+  if (playAssistantThread.length > 0) {
+    return;
+  }
+  updatePlayAssistantContext();
+  pushPlayAssistantMessage({
+    role: "assistant",
+    text: "I can explain the rules, help you pick a beginner strategy, size bets from your bankroll, and stage chips on the felt if you approve. Tell me your risk tolerance or ask for a starter plan."
+  });
+}
+
 function summarizeBetResult(bet) {
   if (bet.type === "number") {
     const spokenRank = describeRank(bet.metadata?.rank ?? bet.rank ?? "");
@@ -9527,25 +10354,135 @@ function summarizeBetResult(bet) {
 }
 
 function addHistoryEntry(result) {
-  const item = document.createElement("li");
-  const drawnCards = result.drawnCards || [];
-  const cardsList = drawnCards.map(card => {
-    if (card.label === "Joker") {
-      return "Joker";
-    }
-    return `${card.label}${card.suit || ""}`;
-  }).join(", ");
-  
-  const handLength = drawnCards.length;
-  
-  item.innerHTML = `
-    <div>${cardsList}</div>
-    <div>Hand Length: ${handLength}</div>
-  `;
-  historyList.prepend(item);
-  while (historyList.children.length > 8) {
-    historyList.removeChild(historyList.lastChild);
+  recentHandReviews.unshift({
+    id: result.id || `hand-review-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    drawnCards: Array.isArray(result.drawnCards) ? result.drawnCards.map((card) => ({ ...card })) : [],
+    bets: Array.isArray(result.bets) ? result.bets.map((bet) => ({ ...bet })) : [],
+    totalWager: Math.max(0, Math.round(Number(result.totalWager || 0))),
+    totalReturn: Math.max(0, Math.round(Number(result.totalReturn || 0))),
+    net: Math.round(Number(result.net || 0)),
+    timestamp: Date.now()
+  });
+  if (recentHandReviews.length > 8) {
+    recentHandReviews = recentHandReviews.slice(0, 8);
   }
+  renderRecentHandHistory();
+}
+
+function clearRecentHandHistory() {
+  recentHandReviews = [];
+  if (historyList) {
+    historyList.innerHTML = "";
+  }
+  closeHandReviewModal();
+}
+
+function renderRecentHandHistory() {
+  if (!historyList) {
+    return;
+  }
+
+  historyList.innerHTML = "";
+  recentHandReviews.forEach((entry) => {
+    const item = document.createElement("li");
+    const cardsList = (entry.drawnCards || [])
+      .map((card) => {
+        if (card.label === "Joker") {
+          return "Joker";
+        }
+        return `${card.label}${card.suit || ""}`;
+      })
+      .join(", ");
+
+    item.innerHTML = `
+      <div class="history-hand-cards">${cardsList}</div>
+      <div class="history-hand-meta">Hand Length: ${(entry.drawnCards || []).length}</div>
+      <button type="button" class="history-review-button" data-hand-review-id="${escapeAssistantHtml(entry.id)}">Review Hand</button>
+    `;
+    historyList.appendChild(item);
+  });
+}
+
+function closeHandReviewModal({ restoreFocus = false } = {}) {
+  if (!handReviewModal) {
+    return;
+  }
+
+  handReviewModal.classList.remove("is-open");
+  handReviewModal.setAttribute("aria-hidden", "true");
+  handReviewModal.hidden = true;
+
+  if (
+    (!resetModal || resetModal.hidden) &&
+    (!shippingModal || shippingModal.hidden) &&
+    (!paytableModal || paytableModal.hidden) &&
+    (!adminPrizeModal || adminPrizeModal.hidden) &&
+    (!prizeImageModal || prizeImageModal.hidden) &&
+    (!numberBetsModal || numberBetsModal.hidden) &&
+    (!betAnalyticsModal || betAnalyticsModal.hidden)
+  ) {
+    document.body.classList.remove("modal-open");
+  }
+
+  if (restoreFocus && handReviewModalTrigger instanceof HTMLElement) {
+    handReviewModalTrigger.focus();
+  }
+  handReviewModalTrigger = null;
+}
+
+function openHandReviewModal(reviewId, trigger = null) {
+  if (!handReviewModal || !handReviewBodyEl) {
+    return;
+  }
+
+  const entry = recentHandReviews.find((candidate) => candidate.id === reviewId);
+  if (!entry) {
+    showToast("That hand review is no longer available.", "error");
+    return;
+  }
+
+  handReviewModalTrigger = trigger instanceof HTMLElement ? trigger : document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  if (handReviewSummaryEl) {
+    handReviewSummaryEl.textContent = `Hand length ${entry.drawnCards.length}. Total return ${formatCurrency(
+      entry.totalReturn
+    )} units on ${formatCurrency(entry.totalWager)} wagered.`;
+  }
+
+  handReviewBodyEl.innerHTML = "";
+  entry.bets.forEach((bet) => {
+    const row = document.createElement("tr");
+    const wager = Math.max(0, Math.round(Number(bet.units || 0)));
+    const totalReturn = Math.max(0, Math.round(Number(bet.paid || 0)));
+    const net = totalReturn - wager;
+    const netClass =
+      net > 0 ? "hand-review-positive" : net < 0 ? "hand-review-negative" : "hand-review-neutral";
+
+    row.innerHTML = `
+      <td>${escapeAssistantHtml(bet.label || bet.key || "Bet")}</td>
+      <td>${formatCurrency(wager)}</td>
+      <td>${formatCurrency(totalReturn)}</td>
+      <td class="${netClass}">${formatSignedCurrency(net)}</td>
+    `;
+    handReviewBodyEl.appendChild(row);
+  });
+
+  if (handReviewTotalWagerEl) {
+    handReviewTotalWagerEl.textContent = formatCurrency(entry.totalWager);
+  }
+  if (handReviewTotalReturnEl) {
+    handReviewTotalReturnEl.textContent = formatCurrency(entry.totalReturn);
+  }
+  if (handReviewTotalNetEl) {
+    handReviewTotalNetEl.textContent = formatSignedCurrency(entry.net);
+    handReviewTotalNetEl.className =
+      entry.net > 0 ? "hand-review-positive" : entry.net < 0 ? "hand-review-negative" : "hand-review-neutral";
+  }
+
+  handReviewModal.hidden = false;
+  handReviewModal.classList.add("is-open");
+  handReviewModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  handReviewOkButton?.focus();
 }
 
 function resetTable(
@@ -9586,7 +10523,7 @@ async function performAccountReset() {
   updateStatsUI();
   lastBetLayout = [];
   currentOpeningLayout = [];
-  historyList.innerHTML = "";
+  clearRecentHandHistory();
   resetBets();
   stopCarterCashAnimation();
   carterCash = resetCarterCash;
@@ -9815,9 +10752,11 @@ async function endHand(stopperCard, context = {}) {
   }. Place your next bets.`;
 
   addHistoryEntry({
-    stopper: stopperCard,
     drawnCards: context.drawnCards || [],
-    betSummaries: bets.map((bet) => summarizeBetResult(bet))
+    bets: betSnapshots,
+    totalWager: totalWagerThisHand,
+    totalReturn: totalPaidThisHand,
+    net: netThisHand
   });
 
   lastBetLayout = currentOpeningLayout.length > 0 ? snapshotLayout(currentOpeningLayout) : [];
@@ -10116,6 +11055,66 @@ rebetButton.addEventListener("click", () => {
   updateRebetButtonState();
   dealButton.disabled = false;
 });
+
+if (playAssistantToggle) {
+  playAssistantToggle.addEventListener("click", () => {
+    seedPlayAssistant();
+    togglePlayAssistant();
+  });
+}
+
+if (playAssistantCloseButton) {
+  playAssistantCloseButton.addEventListener("click", () => {
+    togglePlayAssistant(false);
+    playAssistantToggle?.focus();
+  });
+}
+
+if (playAssistantQuickActionButtons.length) {
+  playAssistantQuickActionButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      seedPlayAssistant();
+      togglePlayAssistant(true);
+      void sendPlayAssistantMessage(button.dataset.playAssistantPrompt || "");
+    });
+  });
+}
+
+if (playAssistantThreadEl) {
+  playAssistantThreadEl.addEventListener("click", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target.closest("[data-plan-id]") : null;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const messageId = target.dataset.planId;
+    const message = playAssistantThread.find((entry) => entry.id === messageId);
+    if (message?.plan) {
+      applyAssistantPlan(message.plan, messageId);
+    }
+  });
+}
+
+if (playAssistantInput) {
+  playAssistantInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void sendPlayAssistantMessage(playAssistantInput.value);
+    }
+  });
+}
+
+if (playAssistantForm) {
+  playAssistantForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    void sendPlayAssistantMessage(playAssistantInput?.value || "");
+  });
+}
+
+if (playAssistantRiskSelect) {
+  playAssistantRiskSelect.addEventListener("change", () => {
+    setPlayAssistantRiskTolerance(playAssistantRiskSelect.value, { announce: true });
+  });
+}
 
 if (resetAccountButton) {
   resetAccountButton.addEventListener("click", () => {
@@ -10746,6 +11745,36 @@ if (numberBetsModal) {
   });
 }
 
+if (historyList) {
+  historyList.addEventListener("click", (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest("[data-hand-review-id]") : null;
+    if (!(button instanceof HTMLElement)) {
+      return;
+    }
+    openHandReviewModal(button.dataset.handReviewId || "", button);
+  });
+}
+
+if (handReviewCloseButton) {
+  handReviewCloseButton.addEventListener("click", () => {
+    closeHandReviewModal({ restoreFocus: true });
+  });
+}
+
+if (handReviewOkButton) {
+  handReviewOkButton.addEventListener("click", () => {
+    closeHandReviewModal({ restoreFocus: true });
+  });
+}
+
+if (handReviewModal) {
+  handReviewModal.addEventListener("click", (event) => {
+    if (event.target === handReviewModal) {
+      closeHandReviewModal({ restoreFocus: true });
+    }
+  });
+}
+
 if (betAnalyticsClose) {
   betAnalyticsClose.addEventListener("click", () => {
     closeBetAnalyticsModal();
@@ -10756,6 +11785,79 @@ if (betAnalyticsModal) {
   betAnalyticsModal.addEventListener("click", (event) => {
     if (event.target === betAnalyticsModal) {
       closeBetAnalyticsModal();
+    }
+  });
+}
+
+if (mostActiveWeekListEl) {
+  mostActiveWeekListEl.addEventListener("click", (event) => {
+    const bankrollButton =
+      event.target instanceof HTMLElement ? event.target.closest("[data-player-bankroll-user-id]") : null;
+    if (bankrollButton instanceof HTMLElement) {
+      void openPlayerBankrollModal(
+        bankrollButton.dataset.playerBankrollUserId || "",
+        bankrollButton.dataset.playerBankrollName || "Player"
+      );
+      return;
+    }
+
+    const breakdownButton =
+      event.target instanceof HTMLElement ? event.target.closest("[data-player-mode-breakdown-user-id]") : null;
+    if (breakdownButton instanceof HTMLElement) {
+      void openPlayerModeBreakdownModal(
+        breakdownButton.dataset.playerModeBreakdownUserId || "",
+        breakdownButton.dataset.playerModeBreakdownName || "Player"
+      );
+    }
+  });
+}
+
+if (playerBankrollClose) {
+  playerBankrollClose.addEventListener("click", () => {
+    closePlayerBankrollModal();
+  });
+}
+
+if (playerBankrollModal) {
+  playerBankrollModal.addEventListener("click", (event) => {
+    if (event.target === playerBankrollModal) {
+      closePlayerBankrollModal();
+    }
+  });
+}
+
+document.querySelectorAll("[data-player-bankroll-period]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const nextPeriod = button instanceof HTMLElement ? button.dataset.playerBankrollPeriod || "all" : "all";
+    playerBankrollPeriod = nextPeriod;
+    document.querySelectorAll("[data-player-bankroll-period]").forEach((candidate) => {
+      candidate.classList.toggle(
+        "active",
+        candidate instanceof HTMLElement && candidate.dataset.playerBankrollPeriod === nextPeriod
+      );
+    });
+    if (activePlayerBankrollUserId) {
+      void renderPlayerBankrollChart(activePlayerBankrollUserId, nextPeriod);
+    }
+  });
+});
+
+if (playerModeBreakdownClose) {
+  playerModeBreakdownClose.addEventListener("click", () => {
+    closePlayerModeBreakdownModal();
+  });
+}
+
+if (playerModeBreakdownOk) {
+  playerModeBreakdownOk.addEventListener("click", () => {
+    closePlayerModeBreakdownModal();
+  });
+}
+
+if (playerModeBreakdownModal) {
+  playerModeBreakdownModal.addEventListener("click", (event) => {
+    if (event.target === playerModeBreakdownModal) {
+      closePlayerModeBreakdownModal();
     }
   });
 }
@@ -10857,6 +11959,12 @@ let analyticsPlayerFilterLoaded = false;
 let analyticsMostActiveRequestId = 0;
 let analyticsMostActiveEntries = [];
 let analyticsMostActiveVisibleCount = 10;
+let playerBankrollChartInstance = null;
+let playerBankrollPeriod = "all";
+let activePlayerBankrollUserId = null;
+let activePlayerBankrollName = "";
+let activePlayerBreakdownUserId = null;
+let activePlayerBreakdownName = "";
 const analyticsProfileCache = new Map();
 const ANALYTICS_ACTIVITY_PAGE_SIZE = 10;
 
@@ -10978,8 +12086,27 @@ function renderMostActiveEntries() {
     meta.className = "analytics-activity-meta";
     meta.textContent = `${(entry.handsPlayed || 0).toLocaleString()} hands played`;
 
+    const actions = document.createElement("div");
+    actions.className = "analytics-activity-actions";
+
+    const viewGraphButton = document.createElement("button");
+    viewGraphButton.type = "button";
+    viewGraphButton.className = "analytics-inline-action";
+    viewGraphButton.dataset.playerBankrollUserId = entry.userId;
+    viewGraphButton.dataset.playerBankrollName = getContestDisplayName(profile, entry.userId);
+    viewGraphButton.textContent = "View Graph";
+
+    const viewBreakdownButton = document.createElement("button");
+    viewBreakdownButton.type = "button";
+    viewBreakdownButton.className = "analytics-inline-action";
+    viewBreakdownButton.dataset.playerModeBreakdownUserId = entry.userId;
+    viewBreakdownButton.dataset.playerModeBreakdownName = getContestDisplayName(profile, entry.userId);
+    viewBreakdownButton.textContent = "View Breakdown";
+
     body.append(name, meta);
-    item.append(rank, body);
+    actions.appendChild(viewGraphButton);
+    actions.appendChild(viewBreakdownButton);
+    item.append(rank, body, actions);
     fragment.appendChild(item);
   });
 
@@ -10992,6 +12119,262 @@ function renderMostActiveEntries() {
       mostActiveLoadMoreButton.textContent = `Load More (${remainingCount.toLocaleString()} left)`;
     }
   }
+}
+
+async function invokeAdminAnalytics(action, payload = {}) {
+  const { data, error } = await supabase.functions.invoke("admin-analytics", {
+    body: {
+      action,
+      ...payload
+    }
+  });
+  if (error) {
+    throw error;
+  }
+  return data || {};
+}
+
+async function loadPlayerBankrollHistory(userId) {
+  if (!supabase || !userId) {
+    return [];
+  }
+  const data = await invokeAdminAnalytics("player_bankroll_history", {
+    userId,
+    period: playerBankrollPeriod
+  });
+  return Array.isArray(data?.points) ? data.points : [];
+}
+
+function closePlayerBankrollModal() {
+  if (!playerBankrollModal) {
+    return;
+  }
+
+  playerBankrollModal.classList.remove("is-open");
+  playerBankrollModal.setAttribute("aria-hidden", "true");
+  playerBankrollModal.hidden = true;
+
+  if (playerBankrollChartInstance) {
+    playerBankrollChartInstance.destroy();
+    playerBankrollChartInstance = null;
+  }
+
+  if (
+    (!betAnalyticsModal || betAnalyticsModal.hidden) &&
+    (!resetModal || resetModal.hidden) &&
+    (!shippingModal || shippingModal.hidden) &&
+    (!paytableModal || paytableModal.hidden) &&
+    (!adminPrizeModal || adminPrizeModal.hidden) &&
+    (!prizeImageModal || prizeImageModal.hidden) &&
+    (!numberBetsModal || numberBetsModal.hidden) &&
+    (!handReviewModal || handReviewModal.hidden)
+  ) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+async function renderPlayerBankrollChart(userId, period = "all") {
+  playerBankrollPeriod = period;
+  const points = await loadPlayerBankrollHistory(userId);
+  const source = points;
+
+  const canvas = document.getElementById("player-bankroll-chart");
+  if (!(canvas instanceof HTMLCanvasElement)) {
+    return;
+  }
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return;
+  }
+
+  if (playerBankrollChartInstance) {
+    playerBankrollChartInstance.destroy();
+  }
+
+  const labels = source.map((point, index) => formatBankrollTickLabel(point, index));
+  const values = source.length ? source.map((point) => Number(point.value || 0)) : [INITIAL_BANKROLL];
+
+  playerBankrollChartInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Bankroll",
+          data: values,
+          borderColor: "rgba(53, 255, 234, 1)",
+          backgroundColor: "rgba(53, 255, 234, 0.14)",
+          borderWidth: 2,
+          fill: true,
+          tension: 0.25,
+          pointRadius: values.length > 1 ? 0 : 4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          mode: "index",
+          intersect: false,
+          backgroundColor: "rgba(9, 18, 32, 0.95)",
+          titleColor: "rgba(53, 255, 234, 1)",
+          bodyColor: "rgba(226, 248, 255, 0.9)",
+          borderColor: "rgba(53, 255, 234, 0.5)",
+          borderWidth: 1,
+          padding: 12,
+          displayColors: false,
+          callbacks: {
+            label(context) {
+              return `Bankroll: ${formatCurrency(Math.round(Number(context.parsed.y || 0)))}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            color: "rgba(53, 255, 234, 0.1)"
+          },
+          ticks: {
+            color: "rgba(173, 225, 247, 0.75)",
+            maxRotation: 45,
+            minRotation: 0
+          }
+        },
+        y: {
+          grid: {
+            color: "rgba(53, 255, 234, 0.1)"
+          },
+          ticks: {
+            color: "rgba(173, 225, 247, 0.75)",
+            callback(value) {
+              return formatCurrency(Math.round(Number(value || 0)));
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (playerBankrollSubheadEl) {
+    const labelsByPeriod = {
+      week: `Showing ${source.length.toLocaleString()} normal-mode hands from the last week.`,
+      month: `Showing ${source.length.toLocaleString()} normal-mode hands from the last month.`,
+      "90days": `Showing ${source.length.toLocaleString()} normal-mode hands from the last 90 days.`,
+      year: `Showing ${source.length.toLocaleString()} normal-mode hands from the last year.`,
+      all: `Showing ${source.length.toLocaleString()} normal-mode hands across all time.`
+    };
+    playerBankrollSubheadEl.textContent = labelsByPeriod[period] || labelsByPeriod.all;
+  }
+}
+
+async function openPlayerBankrollModal(userId, playerName) {
+  if (!playerBankrollModal || !userId) {
+    return;
+  }
+
+  activePlayerBankrollUserId = userId;
+  activePlayerBankrollName = playerName || "Player";
+  playerBankrollPeriod = "all";
+
+  if (playerBankrollTitleEl) {
+    playerBankrollTitleEl.textContent = `${activePlayerBankrollName} Bankroll Graph`;
+  }
+
+  document.querySelectorAll("[data-player-bankroll-period]").forEach((button) => {
+    button.classList.toggle(
+      "active",
+      button instanceof HTMLElement && button.dataset.playerBankrollPeriod === "all"
+    );
+  });
+
+  playerBankrollModal.hidden = false;
+  playerBankrollModal.classList.add("is-open");
+  playerBankrollModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+
+  await renderPlayerBankrollChart(userId, "all");
+  playerBankrollClose?.focus();
+}
+
+function closePlayerModeBreakdownModal() {
+  if (!playerModeBreakdownModal) {
+    return;
+  }
+
+  playerModeBreakdownModal.classList.remove("is-open");
+  playerModeBreakdownModal.setAttribute("aria-hidden", "true");
+  playerModeBreakdownModal.hidden = true;
+
+  if (
+    (!playerBankrollModal || playerBankrollModal.hidden) &&
+    (!betAnalyticsModal || betAnalyticsModal.hidden) &&
+    (!resetModal || resetModal.hidden) &&
+    (!shippingModal || shippingModal.hidden) &&
+    (!paytableModal || paytableModal.hidden) &&
+    (!adminPrizeModal || adminPrizeModal.hidden) &&
+    (!prizeImageModal || prizeImageModal.hidden) &&
+    (!numberBetsModal || numberBetsModal.hidden) &&
+    (!handReviewModal || handReviewModal.hidden)
+  ) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+async function openPlayerModeBreakdownModal(userId, playerName) {
+  if (!playerModeBreakdownModal || !playerModeBreakdownBodyEl || !userId) {
+    return;
+  }
+
+  activePlayerBreakdownUserId = userId;
+  activePlayerBreakdownName = playerName || "Player";
+  if (playerModeBreakdownTitleEl) {
+    playerModeBreakdownTitleEl.textContent = `${activePlayerBreakdownName} Hand Breakdown`;
+  }
+
+  const data = await invokeAdminAnalytics("player_mode_breakdown", {
+    userId,
+    period: activityLeaderboardPeriod
+  });
+
+  const rows = Array.isArray(data?.rows) ? data.rows : [];
+  const totalHands = Math.max(0, Number(data?.totalHands || 0));
+
+  if (playerModeBreakdownSummaryEl) {
+    const labelsByPeriod = {
+      day: `Hands played by mode in the last 24 hours.`,
+      week: `Hands played by mode in the last 7 days.`,
+      month: `Hands played by mode in the last 30 days.`,
+      all: `Hands played by mode across all time.`
+    };
+    playerModeBreakdownSummaryEl.textContent = labelsByPeriod[activityLeaderboardPeriod] || labelsByPeriod.week;
+  }
+
+  playerModeBreakdownBodyEl.innerHTML = "";
+  rows.forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeAssistantHtml(row.label || "Unknown Mode")}</td>
+      <td>${formatCurrency(Math.round(Number(row.handsPlayed || 0)))}</td>
+    `;
+    playerModeBreakdownBodyEl.appendChild(tr);
+  });
+
+  if (playerModeBreakdownTotalEl) {
+    playerModeBreakdownTotalEl.textContent = formatCurrency(totalHands);
+  }
+
+  playerModeBreakdownModal.hidden = false;
+  playerModeBreakdownModal.classList.add("is-open");
+  playerModeBreakdownModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  playerModeBreakdownOk?.focus();
 }
 
 function updateAnalyticsBetFilterUI() {
@@ -11576,6 +12959,12 @@ if (outOfCreditsCloseButton) {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
+    if (playAssistantOpen) {
+      togglePlayAssistant(false);
+      playAssistantToggle?.focus();
+      event.preventDefault();
+      return;
+    }
     setCarterCashTooltipOpen(false);
     const outOfCreditsModal = document.getElementById("out-of-credits-modal");
     if (outOfCreditsModal && !outOfCreditsModal.hidden) {
@@ -11647,9 +13036,12 @@ updateBankroll();
 updateCarterCashDisplay();
 resetTable();
 updateStatsUI();
-  resetBankrollHistory();
-  window.addEventListener("resize", schedulePlayAreaHeightUpdate);
-  window.addEventListener("resize", drawBankrollChart);
+updatePlayAssistantVisibility();
+seedPlayAssistant();
+updatePlayAssistantBounds();
+resetBankrollHistory();
+window.addEventListener("resize", schedulePlayAreaHeightUpdate);
+window.addEventListener("resize", drawBankrollChart);
 
 async function bootstrapAuth(initialRoute) {
   try {

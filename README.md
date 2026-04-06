@@ -18,6 +18,17 @@ Run the Numbers is a web-based simulator for the updated First Face ruleset. Sta
 12. The realtime leaderboard drawer now always includes your current profile and updates as soon as credits change, so if you’re the only player you’ll still see your name and bankroll sitting in the top slot.
 13. The prize shop supports two currencies—Units and Carter Cash. Prize cards show the active cost type, and the client checks your balance before redeeming. Successful purchases deduct the proper currency, refresh your balances, and open a shipping form so you can record a phone number and mailing address. Once submitted, the app emails the administrator with the order and shipping details and marks the listing as sold.
 
+## AI Play Assistant
+
+The PLAY table now includes a floating AI assistant button. It can explain the rules, suggest beginner-friendly strategy, tailor bet sizing to the player's live bankroll and risk tolerance, and draft a bet layout that the player can approve to place on the felt. The assistant never starts the hand.
+
+To enable the OpenAI-backed version in Supabase Edge Functions, deploy `supabase/functions/play-assistant` and set:
+
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL` (optional, defaults to `gpt-5-mini`)
+
+If the function or OpenAI credentials are unavailable, the client falls back to a local rules-based assistant so the UI still works.
+
 ## Layout Overview
 
 * The main view is split into two responsive panels: the left felt for the active paytable and dealing lane, and the right column for wagering. Each panel holds half of the available play space and scrolls independently—side by side on desktops and stacked top-to-bottom on mobile so both stay visible at once.

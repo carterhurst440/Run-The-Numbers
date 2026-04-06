@@ -1320,6 +1320,111 @@
         </div>
         </main>
 
+        <button
+          type="button"
+          id="play-assistant-toggle"
+          class="play-assistant-fab"
+          aria-label="Open strategy assistant"
+          aria-expanded="false"
+          aria-controls="play-assistant-panel"
+        >
+          <span class="play-assistant-fab-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path
+                d="M12 3.5c4.97 0 9 3.58 9 8 0 2.19-.99 4.18-2.6 5.62-.34.31-.55.75-.57 1.21l-.08 1.95c-.03.78-.85 1.28-1.55.94l-2.2-1.06c-.34-.16-.73-.2-1.09-.11-.61.15-1.25.23-1.91.23-4.97 0-9-3.58-9-8s4.03-8 9-8Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-linejoin="round"
+                stroke-width="1.7"
+              ></path>
+              <path
+                d="M8.5 11.6h7"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-width="1.7"
+              ></path>
+              <path
+                d="M8.5 8.8h4.7"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-width="1.7"
+              ></path>
+            </svg>
+          </span>
+          <span class="play-assistant-fab-label">AI</span>
+        </button>
+
+        <aside
+          id="play-assistant-panel"
+          class="play-assistant-panel"
+          aria-labelledby="play-assistant-title"
+          aria-hidden="true"
+          hidden
+        >
+          <div class="play-assistant-panel-header">
+            <div>
+              <p class="play-assistant-eyebrow">PLAY Assistant</p>
+              <h2 id="play-assistant-title">Bankroll Coach</h2>
+            </div>
+            <button
+              type="button"
+              id="play-assistant-close"
+              class="play-assistant-close"
+              aria-label="Close strategy assistant"
+            >
+              ×
+            </button>
+          </div>
+          <div class="play-assistant-toolbar">
+            <label class="play-assistant-risk-wrap" for="play-assistant-risk-select">
+              <span class="play-assistant-risk-label">Risk</span>
+              <select id="play-assistant-risk-select" class="play-assistant-risk-select">
+                <option value="cautious">Cautious</option>
+                <option value="balanced" selected>Balanced</option>
+                <option value="aggressive">Aggressive</option>
+              </select>
+            </label>
+          </div>
+          <div
+            id="play-assistant-thread"
+            class="play-assistant-thread"
+            role="log"
+            aria-live="polite"
+            aria-relevant="additions"
+          ></div>
+          <div class="play-assistant-quick-actions" id="play-assistant-quick-actions">
+            <button type="button" class="play-assistant-chip" data-play-assistant-prompt="Explain how Run the Numbers works in simple terms.">
+              How do I play?
+            </button>
+            <button type="button" class="play-assistant-chip" data-play-assistant-prompt="Give me a beginner-friendly strategy for my bankroll.">
+              Beginner plan
+            </button>
+            <button type="button" class="play-assistant-chip" data-play-assistant-prompt="Help me choose bet sizing based on my bankroll and risk tolerance.">
+              Size my bets
+            </button>
+          </div>
+          <form id="play-assistant-form" class="play-assistant-form">
+            <label class="sr-only" for="play-assistant-input">Ask the strategy assistant</label>
+            <textarea
+              id="play-assistant-input"
+              name="message"
+              rows="1"
+              maxlength="500"
+              placeholder="Ask a question"
+            ></textarea>
+            <button type="submit" id="play-assistant-send" class="play-assistant-send" aria-label="Send message">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  d="M4.75 19.25 19.25 12 4.75 4.75l2.1 6.1h6.1v2.3h-6.1l-2.1 6.1Z"
+                  fill="currentColor"
+                ></path>
+              </svg>
+            </button>
+          </form>
+        </aside>
+
         <div class="chip-bar" aria-label="Bet controls">
           <div
             class="chip-selector"
@@ -1852,6 +1957,82 @@
     </div>
 
     <div
+      class="modal"
+      id="player-bankroll-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="player-bankroll-title"
+      hidden
+    >
+      <div class="modal-content analytics-modal player-bankroll-modal">
+        <div class="modal-header">
+          <h2 id="player-bankroll-title">Player Bankroll Graph</h2>
+          <button type="button" class="modal-close" id="player-bankroll-close" aria-label="Close player bankroll graph">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body player-bankroll-modal-body">
+          <p id="player-bankroll-subhead" class="analytics-card-subhead">Normal-mode bankroll history.</p>
+          <div class="chart-header">
+            <h3 class="chart-title">Bankroll Over Time</h3>
+            <div class="chart-filters">
+              <button type="button" class="chart-filter-btn" data-player-bankroll-period="week">Last Week</button>
+              <button type="button" class="chart-filter-btn" data-player-bankroll-period="month">Last Month</button>
+              <button type="button" class="chart-filter-btn" data-player-bankroll-period="90days">Last 90 Days</button>
+              <button type="button" class="chart-filter-btn" data-player-bankroll-period="year">Last Year</button>
+              <button type="button" class="chart-filter-btn active" data-player-bankroll-period="all">All Time</button>
+            </div>
+          </div>
+          <div class="chart-container player-bankroll-chart-container">
+            <canvas id="player-bankroll-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal"
+      id="player-mode-breakdown-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="player-mode-breakdown-title"
+      hidden
+    >
+      <div class="modal-content hand-review-modal">
+        <div class="modal-header">
+          <h2 id="player-mode-breakdown-title">Player Hand Breakdown</h2>
+          <button type="button" class="modal-close" id="player-mode-breakdown-close" aria-label="Close player hand breakdown">×</button>
+        </div>
+        <div class="modal-body hand-review-body">
+          <p id="player-mode-breakdown-summary" class="hand-review-summary"></p>
+          <div class="hand-review-table-wrap">
+            <table class="hand-review-table">
+              <thead>
+                <tr>
+                  <th scope="col">Mode</th>
+                  <th scope="col">Hands</th>
+                </tr>
+              </thead>
+              <tbody id="player-mode-breakdown-body"></tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row">Total</th>
+                  <td id="player-mode-breakdown-total">0</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="player-mode-breakdown-ok" class="primary">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <div
       class="modal info-modal"
       id="number-bets-modal"
       role="dialog"
@@ -1870,6 +2051,49 @@
         </div>
         <div class="modal-actions">
           <button type="button" id="number-bets-modal-ok" class="primary">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal"
+      id="hand-review-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="hand-review-modal-title"
+      hidden
+    >
+      <div class="modal-content hand-review-modal">
+        <div class="modal-header">
+          <h2 id="hand-review-modal-title">Review Hand</h2>
+          <button type="button" class="modal-close" id="hand-review-close" aria-label="Close hand review">×</button>
+        </div>
+        <div class="modal-body hand-review-body">
+          <p id="hand-review-summary" class="hand-review-summary"></p>
+          <div class="hand-review-table-wrap">
+            <table class="hand-review-table">
+              <thead>
+                <tr>
+                  <th scope="col">Bet</th>
+                  <th scope="col">Wager</th>
+                  <th scope="col">Return</th>
+                  <th scope="col">Net</th>
+                </tr>
+              </thead>
+              <tbody id="hand-review-body"></tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row">Total</th>
+                  <td id="hand-review-total-wager">0</td>
+                  <td id="hand-review-total-return">0</td>
+                  <td id="hand-review-total-net">0</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="hand-review-ok" class="primary">OK</button>
         </div>
       </div>
     </div>
@@ -2256,6 +2480,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260402-ranks1"></script>
+    <script type="module" src="script.js?v=20260405-play-assistant1"></script>
   </body>
 </html>
