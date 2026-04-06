@@ -58,7 +58,6 @@ type DraftBetPlanArgs = {
   summary?: string;
   risk_tolerance?: string;
   replace_existing?: boolean;
-  bankroll_fraction?: number;
   follow_user_directive?: boolean;
   bets?: Array<{
     key?: string;
@@ -73,8 +72,7 @@ You are the Run the Numbers PLAY assistant.
 
 Responsibilities:
 - Explain the game's rules clearly and accurately.
-- Give beginner-friendly strategy guidance.
-- Use bankroll-aware bet sizing.
+- Answer the player's question using the game rules and current table context.
 - Respect the player's requested or inferred risk tolerance: cautious, balanced, or aggressive.
 - You may draft a bet layout, but you must never imply that you started a hand.
 - If the user asks for specific bets or asks you to place/set bets, use the draft_bet_plan tool so the client can ask for consent.
@@ -88,19 +86,13 @@ Game facts:
 - Number bets can hit repeatedly before the stopper arrives.
 - Specific-card bets win only on the exact card.
 - Card-count bets include the final bust card.
-- Beginner advice should usually focus on a small number of number bets rather than spreading chips too widely.
-
-Bankroll guidance:
-- Cautious beginners usually risk about 2% of bankroll on one hand.
-- Balanced beginners usually risk about 4% of bankroll on one hand.
-- Aggressive beginners usually risk about 7% of bankroll on one hand.
-- Keep bet sizes in multiples of 5 units.
+- Keep draft_bet_plan wagers in multiples of 5 units.
 
 Behavior:
 - Use get_table_context whenever rules, bankroll, table state, or current wagers matter.
 - Ask at most one focused follow-up when necessary.
 - Keep answers concise, practical, and confident.
-- If risk tolerance is unknown and the player asks for strategy, you may provide a balanced default while inviting them to say cautious, balanced, or aggressive.
+- Do not invent a default playbook or preset betting pattern when the user has not asked for one.
 `.trim();
 
 function safeNumber(value: unknown, fallback = 0) {
@@ -140,12 +132,6 @@ function parseUnits(value: unknown) {
   if (!Number.isFinite(base)) return NaN;
   const multiplier = match[2] === "m" ? 1000000 : match[2] === "k" ? 1000 : 1;
   return Math.round(base * multiplier);
-}
-
-function getRiskFraction(risk: string) {
-  if (risk === "cautious") return 0.02;
-  if (risk === "aggressive") return 0.07;
-  return 0.04;
 }
 
 function resolveBetTarget(targetText: unknown, state: AssistantState) {
@@ -308,42 +294,12 @@ function sanitizeState(input: unknown): AssistantState {
   };
 }
 
-function buildDefaultBets(state: AssistantState, risk: string) {
-  const catalogMap = new Map((state.betCatalog || []).map((entry) => [entry.key, entry]));
-  const exposures = Math.max(0, safeNumber(state.betting?.totalExposureUnits));
-  const bankrollBudget = clampToChipUnits(exposures * getRiskFraction(risk));
-  const fallbackBudget = bankrollBudget || 10;
-  const focus =
-    risk === "cautious"
-      ? ["number-A", "number-7"]
-      : risk === "aggressive"
-        ? ["number-A", "number-7", "count-4"]
-        : ["number-A", "number-7", "number-8"];
-  const unitsPerBet = clampToChipUnits(fallbackBudget / focus.length);
-
-  return focus
-    .map((key) => {
-      const entry = catalogMap.get(key);
-      if (!entry) return null;
-      return {
-        key,
-        units: unitsPerBet || 5
-      };
-    })
-    .filter(Boolean) as Array<{ key: string; units: number }>;
-}
-
 function draftBetPlan(args: DraftBetPlanArgs, state: AssistantState) {
   const risk = normalizeRiskTolerance(args.risk_tolerance || state.riskTolerance);
-  const exposure = Math.max(0, safeNumber(state.betting?.totalExposureUnits));
-  const availableUnits = Math.max(0, safeNumber(state.betting?.availableUnits, exposure));
+  const availableUnits = Math.max(0, safeNumber(state.betting?.availableUnits, state.bankroll));
   const followDirective = Boolean(args.follow_user_directive);
-  const requestedFraction = safeNumber(args.bankroll_fraction, getRiskFraction(risk));
-  const safeFraction = Math.min(Math.max(requestedFraction, 0.01), 0.12);
-  const maxBudget = clampToChipUnits(exposure * safeFraction);
   const catalogMap = new Map((state.betCatalog || []).map((entry) => [entry.key, entry]));
-  const sourceBets =
-    Array.isArray(args.bets) && args.bets.length ? args.bets : buildDefaultBets(state, risk);
+  const sourceBets = Array.isArray(args.bets) ? args.bets : [];
 
   const cleanedBets = sourceBets
     .map((bet) => {
@@ -365,7 +321,7 @@ function draftBetPlan(args: DraftBetPlanArgs, state: AssistantState) {
     return {
       summary: followDirective
         ? "I could not match that directive to a valid bet on the table."
-        : "No valid bet plan could be drafted from the current request.",
+        : "No valid bet plan could be drafted from the model response.",
       replaceExisting: true,
       bets: [],
       totalUnits: 0,
@@ -384,22 +340,12 @@ function draftBetPlan(args: DraftBetPlanArgs, state: AssistantState) {
     };
   }
 
-  if (!followDirective && maxBudget > 0 && totalUnits > maxBudget) {
-    const scale = maxBudget / totalUnits;
-    cleanedBets.forEach((bet) => {
-      bet.units = Math.max(5, clampToChipUnits(bet.units * scale));
-    });
-    totalUnits = cleanedBets.reduce((sum, bet) => sum + bet.units, 0);
-  }
-
   return {
     summary:
       String(args.summary || "").trim() ||
       (followDirective
         ? "Direct instruction captured. Confirm and I will stage this exact layout on the felt."
-        : `${risk[0].toUpperCase()}${risk.slice(1)} layout sized for about ${Math.round(
-            safeFraction * 100
-          )}% of bankroll.`),
+        : "Suggested betting layout ready for your review."),
     replaceExisting: args.replace_existing !== false,
     bets: cleanedBets,
     totalUnits,
@@ -627,7 +573,6 @@ Deno.serve(async (request) => {
               enum: ["cautious", "balanced", "aggressive"]
             },
             replace_existing: { type: "boolean" },
-            bankroll_fraction: { type: "number" },
             follow_user_directive: { type: "boolean" },
             bets: {
               type: "array",
@@ -725,7 +670,9 @@ Deno.serve(async (request) => {
       });
     }
 
-    const reply = extractOutputText(response) || "I can help with the rules, bankroll sizing, and a starter betting layout if you want one.";
+    const reply =
+      extractOutputText(response) ||
+      "I can explain the rules, talk through the table state, and draft a layout if you want one.";
     console.info("[play-assistant] final payload", {
       responseId: response?.id ?? null,
       reply,

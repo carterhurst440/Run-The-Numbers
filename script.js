@@ -9973,7 +9973,7 @@ function setPlayAssistantRiskTolerance(risk, { announce = false } = {}) {
   if (announce) {
     pushPlayAssistantMessage({
       role: "system",
-      text: `${PLAY_ASSISTANT_RISK_LABELS[risk]} risk mode saved. Future bet sizing will lean ${risk}.`
+      text: `${PLAY_ASSISTANT_RISK_LABELS[risk]} risk mode saved. I’ll keep that preference in mind for future suggestions.`
     });
   }
 }
@@ -10279,44 +10279,6 @@ function normalizeAssistantPlan(plan) {
   };
 }
 
-function buildLocalAssistantBetPlan(state, risk = playAssistantRiskTolerance) {
-  const effectiveBankroll = Math.max(0, Math.round(Number(state?.betting?.totalExposureUnits ?? bankroll)));
-  const normalizedRisk = PLAY_ASSISTANT_RISK_LABELS[risk] ? risk : "balanced";
-  const targets = {
-    cautious: { percent: 0.02, focus: ["number-A", "number-7"] },
-    balanced: { percent: 0.04, focus: ["number-A", "number-7", "number-8"] },
-    aggressive: { percent: 0.07, focus: ["number-A", "number-7", "count-4"] }
-  };
-  const config = targets[normalizedRisk];
-  const rawBudget = Math.max(10, Math.round(effectiveBankroll * config.percent));
-  const budget = Math.max(5, Math.floor(rawBudget / 5) * 5);
-  const unitsPerBet = Math.max(5, Math.floor((budget / config.focus.length) / 5) * 5);
-  const betsForPlan = config.focus
-    .map((key) => {
-      const definition = getBetDefinition(key);
-      return definition
-        ? {
-            key,
-            label: definition.label,
-            units: unitsPerBet
-          }
-        : null;
-    })
-    .filter(Boolean);
-
-  if (!betsForPlan.length) {
-    return null;
-  }
-
-  return normalizeAssistantPlan({
-    summary: `${PLAY_ASSISTANT_RISK_LABELS[normalizedRisk]} starter plan sized around ${Math.round(
-      config.percent * 100
-    )}% of bankroll.`,
-    replaceExisting: true,
-    bets: betsForPlan
-  });
-}
-
 function normalizeAssistantBetPhrase(value = "") {
   return String(value || "")
     .toLowerCase()
@@ -10449,76 +10411,6 @@ function parseAssistantDirective(message, state) {
   };
 }
 
-function buildLocalAssistantFallback(userMessage, state) {
-  const normalized = String(userMessage || "").toLowerCase();
-  const risk = inferPlayAssistantRiskTolerance(normalized) || state.riskTolerance || "balanced";
-  const wantsRules = /(rule|how do i play|how to play|explain|what is this|what are the bets)/.test(
-    normalized
-  );
-  const wantsSizing = /(size|bankroll|bet size|risk|strategy|starter|recommend|plan)/.test(normalized);
-  const wantsPlacement = /(place|set|apply|put.*bet)/.test(normalized);
-  const explicitDirective = parseAssistantDirective(userMessage, state);
-
-  let plan = wantsSizing || wantsPlacement ? buildLocalAssistantBetPlan(state, risk) : null;
-  if (explicitDirective) {
-    const { requestedUnits, targetText, definition, availableUnits } = explicitDirective;
-
-    if (definition && requestedUnits > 0 && requestedUnits % 5 === 0 && requestedUnits <= availableUnits) {
-      plan = normalizeAssistantPlan({
-        summary: "Direct instruction captured. Confirm and I will stage this exact layout on the felt.",
-        replaceExisting: true,
-        bets: [{ key: definition.key, units: requestedUnits }]
-      });
-      return {
-        reply: `Understood. I drafted exactly ${requestedUnits} units on ${definition.label}. Confirm if you want me to place it on the felt.`,
-        riskTolerance: risk,
-        plan
-      };
-    }
-
-    if (definition && requestedUnits > availableUnits) {
-      return {
-        reply: `I can't place ${requestedUnits} units on ${definition.label} because only ${availableUnits} units are available right now.`,
-        riskTolerance: risk,
-        plan: null
-      };
-    }
-
-    if (definition && requestedUnits > 0 && requestedUnits % 5 !== 0) {
-      return {
-        reply: `I understood that as ${definition.label}, but bet sizes need to be in multiples of 5 units. Want me to round ${requestedUnits} to the nearest valid amount?`,
-        riskTolerance: risk,
-        plan: null
-      };
-    }
-
-    if (!definition) {
-      return {
-        reply: `I couldn't map "${targetText}" to a live bet yet. Try a phrasing like "8+ cards", "Bust Hearts", "Ace", or "Ace of Spades", and I'll stage it.`,
-        riskTolerance: risk,
-        plan: null
-      };
-    }
-  }
-
-  let reply = "";
-  if (wantsRules) {
-    reply +=
-      "Number cards keep the hand alive, while any Jack, Queen, King, or Joker ends it. Number bets can hit multiple times before the stopper arrives, and the active paytable controls those ladder payouts.\n\n";
-  }
-  reply += `With a ${PLAY_ASSISTANT_RISK_LABELS[risk].toLowerCase()} profile, I'd keep your total pre-hand exposure around ${
-    risk === "cautious" ? "2%" : risk === "aggressive" ? "7%" : "4%"
-  } of bankroll and stay concentrated on a small set of bets rather than spraying chips everywhere.`;
-  if (plan) {
-    reply += "\n\nI drafted a simple layout you can approve below.";
-  }
-  return {
-    reply,
-    riskTolerance: risk,
-    plan
-  };
-}
-
 async function requestPlayAssistantResponse(userMessage) {
   const state = getPlayAssistantState();
   try {
@@ -10543,7 +10435,52 @@ async function requestPlayAssistantResponse(userMessage) {
     console.warn("[RTN] play assistant fallback", error);
   }
 
-  return buildLocalAssistantFallback(userMessage, state);
+  const explicitDirective = parseAssistantDirective(userMessage, state);
+  if (explicitDirective) {
+    const { requestedUnits, targetText, definition, availableUnits } = explicitDirective;
+
+    if (definition && requestedUnits > 0 && requestedUnits % 5 === 0 && requestedUnits <= availableUnits) {
+      return {
+        reply: `Understood. I drafted exactly ${requestedUnits} units on ${definition.label}. Confirm if you want me to place it on the felt.`,
+        riskTolerance: state.riskTolerance,
+        plan: normalizeAssistantPlan({
+          summary: "Direct instruction captured. Confirm and I will stage this exact layout on the felt.",
+          replaceExisting: true,
+          bets: [{ key: definition.key, units: requestedUnits }]
+        })
+      };
+    }
+
+    if (definition && requestedUnits > availableUnits) {
+      return {
+        reply: `I can't place ${requestedUnits} units on ${definition.label} because only ${availableUnits} units are available right now.`,
+        riskTolerance: state.riskTolerance,
+        plan: null
+      };
+    }
+
+    if (definition && requestedUnits > 0 && requestedUnits % 5 !== 0) {
+      return {
+        reply: `I understood that as ${definition.label}, but bet sizes need to be in multiples of 5 units. Want me to round ${requestedUnits} to the nearest valid amount?`,
+        riskTolerance: state.riskTolerance,
+        plan: null
+      };
+    }
+
+    if (!definition) {
+      return {
+        reply: `I couldn't map "${targetText}" to a live bet yet. Try a phrasing like "8+ cards", "Bust Hearts", "Ace", or "Ace of Spades", and I'll stage it.`,
+        riskTolerance: state.riskTolerance,
+        plan: null
+      };
+    }
+  }
+
+  return {
+    reply: "The assistant is temporarily unavailable. Try again in a moment.",
+    riskTolerance: state.riskTolerance,
+    plan: null
+  };
 }
 
 function applyAssistantPlan(plan, messageId = null) {
@@ -10653,7 +10590,7 @@ async function sendPlayAssistantMessage(rawMessage) {
 
   pushPlayAssistantMessage({
     role: "assistant",
-    text: response?.reply || "I hit a snag, but I can still talk through rules and bankroll sizing.",
+    text: response?.reply || "I hit a snag. Please try again in a moment.",
     plan: response?.plan || null
   });
 }
@@ -10665,7 +10602,7 @@ function seedPlayAssistant() {
   updatePlayAssistantContext();
   pushPlayAssistantMessage({
     role: "assistant",
-    text: "I can explain the rules, help you pick a beginner strategy, size bets from your bankroll, and stage chips on the felt if you approve. Tell me your risk tolerance or ask for a starter plan."
+    text: "I can explain the rules, talk through the current table state, and draft a betting layout if you want one. Tell me what you want to understand or propose."
   });
 }
 

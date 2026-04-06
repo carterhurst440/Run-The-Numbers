@@ -4425,15 +4425,15 @@ button:disabled {
 }
 
 .play-assistant-fab {
-  position: fixed;
-  right: clamp(1rem, 2.5vw, 1.6rem);
-  bottom: clamp(5.9rem, 14vw, 7.25rem);
-  z-index: 18;
-  width: 4rem;
-  height: 4rem;
-  padding: 0;
+  position: relative;
+  z-index: 1;
+  width: 3rem;
+  height: 3rem;
+  min-width: 3rem;
+  min-height: 3rem;
+  padding: 0.2rem 0;
   border: 1px solid var(--assistant-fab-border);
-  border-radius: 50%;
+  border-radius: 999px;
   background: var(--assistant-fab-bg);
   box-shadow: var(--assistant-fab-shadow);
   opacity: 1;
@@ -4444,6 +4444,7 @@ button:disabled {
   justify-content: center;
   gap: 0.12rem;
   transition: transform 0.18s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  flex: 0 0 auto;
 }
 
 .play-assistant-fab:hover,
@@ -4465,8 +4466,8 @@ body.play-assistant-open .play-assistant-fab {
 }
 
 .play-assistant-fab-icon {
-  width: 1.3rem;
-  height: 1.3rem;
+  width: 1rem;
+  height: 1rem;
   display: inline-flex;
 }
 
@@ -4476,8 +4477,8 @@ body.play-assistant-open .play-assistant-fab {
 }
 
 .play-assistant-fab-label {
-  font-size: 0.62rem;
-  letter-spacing: 0.16em;
+  font-size: 0.54rem;
+  letter-spacing: 0.12em;
   line-height: 1;
 }
 
@@ -4859,10 +4860,10 @@ body.play-assistant-open .play-assistant-fab {
 
 @media (max-width: 768px) {
   .play-assistant-fab {
-    right: 0.85rem;
-    bottom: 5.55rem;
-    width: 3.45rem;
-    height: 3.45rem;
+    width: 2.8rem;
+    height: 2.8rem;
+    min-width: 2.8rem;
+    min-height: 2.8rem;
   }
 
   .play-assistant-panel {
