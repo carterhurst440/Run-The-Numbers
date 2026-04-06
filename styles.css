@@ -4873,10 +4873,10 @@ body.play-assistant-open .play-assistant-fab {
     bottom: var(--play-assistant-bottom, 5.25rem);
     padding: 0.8rem;
     gap: 0.7rem;
-    background: color-mix(in srgb, var(--menu-bg) 96%, black 4%);
+    background: var(--menu-bg);
     box-shadow:
       0 22px 48px rgba(0, 0, 0, 0.5),
-      inset 0 0 0 1px color-mix(in srgb, white 8%, transparent);
+      inset 0 0 0 1px rgba(255, 255, 255, 0.08);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
@@ -4918,17 +4918,17 @@ body.play-assistant-open .play-assistant-fab {
   .play-assistant-message {
     padding: 0.68rem 0.74rem;
     border-radius: 16px;
-    background: color-mix(in srgb, var(--menu-bg) 92%, white 8%);
+    background: rgba(34, 12, 58, 0.96);
   }
 
   .play-assistant-message[data-role="user"] {
     margin-left: 0.8rem;
-    background: color-mix(in srgb, var(--header-gradient) 78%, var(--neon-cyan) 22%);
+    background: linear-gradient(135deg, rgba(63, 240, 255, 0.18), rgba(9, 32, 112, 0.9));
   }
 
   .play-assistant-message[data-role="assistant"] {
     margin-right: 0.4rem;
-    background: color-mix(in srgb, var(--menu-bg) 94%, white 6%);
+    background: rgba(48, 16, 78, 0.98);
   }
 
   .play-assistant-message-meta {
