@@ -5209,18 +5209,18 @@ body.play-assistant-open .play-assistant-fab {
 }
 
 .bets-panel {
-  background: linear-gradient(135deg, rgba(5, 30, 34, 0.86), rgba(4, 14, 24, 0.9));
+  background: var(--betting-panel-bg);
   border-radius: 18px;
-  border: 1px solid rgba(12, 168, 138, 0.22);
+  border: 1px solid var(--betting-panel-border);
   padding: clamp(0.9rem, 2.4vw, 1.2rem) clamp(1rem, 3vw, 1.5rem);
   width: 100%;
   margin: clamp(0.75rem, 2.5vw, 1.3rem) 0 0;
-  box-shadow: inset 0 0 32px rgba(12, 168, 138, 0.16), 0 18px 36px rgba(2, 8, 12, 0.55);
+  box-shadow: var(--betting-panel-shadow);
 }
 
 .bets-panel h3 {
   margin: 0 0 0.65rem 0;
-  color: rgba(148, 255, 233, 0.92);
+  color: var(--neon-cyan);
   text-transform: uppercase;
   letter-spacing: 0.12rem;
 }
@@ -5234,8 +5234,9 @@ body.play-assistant-open .play-assistant-fab {
 
 .bets-panel th,
 .bets-panel td {
+  color: var(--text-light);
   padding: 0.4rem 0.25rem;
-  border-bottom: 1px solid rgba(54, 245, 199, 0.16);
+  border-bottom: 1px solid color-mix(in srgb, var(--betting-panel-border) 72%, transparent);
 }
 
 .bets-panel tbody tr:last-child td {
