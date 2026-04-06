@@ -8651,9 +8651,13 @@ function updatePlayAssistantBounds() {
   const { height: viewportHeight, offsetTop } = getViewportMetrics();
   const headerHeight = headerEl ? headerEl.offsetHeight : 0;
   const chipBarHeight = chipBarEl ? chipBarEl.offsetHeight : 0;
+  const isMobileViewport =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(max-width: 768px)").matches;
   const topInset = Math.max(headerHeight + 12 + offsetTop, 76);
   const closedBottomInset = Math.max(chipBarHeight + 22, 130);
-  const openBottomInset = Math.max(chipBarHeight + 8, 24);
+  const openBottomInset = isMobileViewport ? 0 : Math.max(chipBarHeight + 8, 24);
   const bottomInset = playAssistantOpen ? openBottomInset : closedBottomInset;
   const maxAvailable = Math.max(viewportHeight - topInset - bottomInset, 220);
 
