@@ -1500,27 +1500,49 @@
             <section class="route-section contest-settings-section" aria-labelledby="contest-settings-title">
               <div class="section-heading">
                 <h2 id="contest-settings-title">Contest Notifications</h2>
-                <p class="section-sub">Choose whether we should email you whenever a new contest goes live.</p>
+                <p class="section-sub">Email me when a new contest goes live.</p>
               </div>
               <label class="contest-email-setting">
                 <input type="checkbox" id="contest-email-opt-in" />
-                <span>Receive email notifications each time a new contest begins.</span>
+                <span>Receive contest emails</span>
               </label>
               <p id="contest-email-setting-message" class="contest-email-setting-message" role="status" aria-live="polite"></p>
             </section>
             <section class="route-section">
               <div class="section-heading">
-                <h2>Live Contests</h2>
-                <p class="section-sub">Join any live contest to add it as its own playable mode.</p>
+                <h2>Contests</h2>
+                <p class="section-sub">Join any live contest to add it as its own playable mode, or review completed results.</p>
               </div>
-              <ul id="player-live-contest-list" class="admin-prize-list" aria-live="polite"></ul>
-            </section>
-            <section class="route-section">
-              <div class="section-heading">
-                <h2>Ended Contests</h2>
-                <p class="section-sub">Review completed contest standings and winners.</p>
+              <div class="contest-list-tabs" role="tablist" aria-label="Contest lists">
+                <button
+                  type="button"
+                  id="contest-tab-live"
+                  class="contest-list-tab is-active"
+                  data-contest-tab="live"
+                  role="tab"
+                  aria-selected="true"
+                  aria-controls="contest-panel-live"
+                >
+                  Live
+                </button>
+                <button
+                  type="button"
+                  id="contest-tab-ended"
+                  class="contest-list-tab"
+                  data-contest-tab="ended"
+                  role="tab"
+                  aria-selected="false"
+                  aria-controls="contest-panel-ended"
+                >
+                  Ended
+                </button>
               </div>
-              <ul id="player-ended-contest-list" class="admin-prize-list" aria-live="polite"></ul>
+              <div id="contest-panel-live" class="contest-list-panel" role="tabpanel" aria-labelledby="contest-tab-live">
+                <ul id="player-live-contest-list" class="admin-prize-list" aria-live="polite"></ul>
+              </div>
+              <div id="contest-panel-ended" class="contest-list-panel" role="tabpanel" aria-labelledby="contest-tab-ended" hidden>
+                <ul id="player-ended-contest-list" class="admin-prize-list" aria-live="polite"></ul>
+              </div>
             </section>
           </div>
         </section>
@@ -1699,7 +1721,50 @@
                   <h2>Contests</h2>
                   <button type="button" class="primary" id="admin-add-contest-button">Create contest</button>
                 </div>
-                <ul id="admin-contest-list" class="admin-prize-list admin-contest-list" aria-live="polite"></ul>
+                <div class="contest-list-tabs admin-contest-subtabs" role="tablist" aria-label="Admin contest lists">
+                  <button
+                    type="button"
+                    id="admin-contest-tab-upcoming"
+                    class="contest-list-tab is-active"
+                    data-admin-contest-tab="upcoming"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="admin-contest-panel-upcoming"
+                  >
+                    Upcoming
+                  </button>
+                  <button
+                    type="button"
+                    id="admin-contest-tab-live"
+                    class="contest-list-tab"
+                    data-admin-contest-tab="live"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="admin-contest-panel-live"
+                  >
+                    Live
+                  </button>
+                  <button
+                    type="button"
+                    id="admin-contest-tab-ended"
+                    class="contest-list-tab"
+                    data-admin-contest-tab="ended"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="admin-contest-panel-ended"
+                  >
+                    Ended
+                  </button>
+                </div>
+                <div id="admin-contest-panel-upcoming" class="contest-list-panel" role="tabpanel" aria-labelledby="admin-contest-tab-upcoming">
+                  <ul id="admin-contest-list-upcoming" class="admin-prize-list admin-contest-list" aria-live="polite"></ul>
+                </div>
+                <div id="admin-contest-panel-live" class="contest-list-panel" role="tabpanel" aria-labelledby="admin-contest-tab-live" hidden>
+                  <ul id="admin-contest-list-live" class="admin-prize-list admin-contest-list" aria-live="polite"></ul>
+                </div>
+                <div id="admin-contest-panel-ended" class="contest-list-panel" role="tabpanel" aria-labelledby="admin-contest-tab-ended" hidden>
+                  <ul id="admin-contest-list-ended" class="admin-prize-list admin-contest-list" aria-live="polite"></ul>
+                </div>
               </section>
             </section>
             <section class="admin-tab-content" id="admin-ranks-content" hidden>
@@ -2254,54 +2319,75 @@
           <button type="button" class="modal-close" id="admin-contest-close" aria-label="Close contest form">×</button>
         </div>
         <form id="admin-contest-form" class="admin-form">
-          <label class="admin-field">
-            <span>Contest name</span>
-            <input type="text" name="title" required />
-          </label>
-          <label class="admin-field">
-            <span>Caption / Details</span>
-            <textarea name="contestDetails" rows="3" placeholder="Add any custom details you want shown on the contest listing and start email."></textarea>
-          </label>
-          <label class="admin-field">
-            <span>Start date</span>
-            <input type="datetime-local" name="startsAt" required />
-          </label>
-          <label class="admin-field">
-            <span>End date</span>
-            <input type="datetime-local" name="endsAt" required />
-          </label>
-          <label class="admin-field">
-            <span>Starting bankroll</span>
-            <input type="number" name="startingBankroll" min="0" step="1" required />
-          </label>
-          <label class="admin-field">
-            <span>Starting Carter Cash</span>
-            <input type="number" name="startingCarterCash" min="0" step="1" required />
-          </label>
-          <label class="admin-field">
-            <span>Contest Entry Fee (Carter Cash)</span>
-            <input type="number" name="entryFeeCarterCash" min="0" step="1" value="0" required />
-          </label>
-          <label class="admin-field">
-            <span>Contestant Limit</span>
-            <input type="number" name="contestantLimit" min="1" step="1" value="100" required />
-          </label>
-          <label class="admin-field">
-            <span>Qualification requirement (Carter Cash)</span>
-            <input type="number" name="qualificationCarterCash" min="0" step="1" value="0" required />
-          </label>
-          <label class="admin-field">
-            <span>Minimum Rank Requirement</span>
-            <select name="requiredRankTier" id="contest-required-rank-tier" required>
-              <option value="1">Accountant or higher</option>
-              <option value="2">Analyst or higher</option>
-              <option value="3">Senior Analyst or higher</option>
-              <option value="4">Auditor or higher</option>
-              <option value="5">Controller or higher</option>
-              <option value="6">Auditor General or higher</option>
-              <option value="7">The Ledger only</option>
-            </select>
-          </label>
+          <fieldset class="admin-fieldset">
+            <legend>General Details</legend>
+            <div class="admin-form-section-grid">
+              <label class="admin-field">
+                <span>Contest Name</span>
+                <input type="text" name="title" required />
+              </label>
+              <label class="admin-field admin-field-full">
+                <span>Caption / Details</span>
+                <textarea name="contestDetails" rows="3" placeholder="Add any custom details you want shown on the contest listing and contest emails."></textarea>
+              </label>
+              <label class="admin-field admin-toggle-field admin-field-full">
+                <span>Launch Timing</span>
+                <span class="admin-toggle-control">
+                  <input type="checkbox" name="startWhenRequirementReached" id="contest-start-when-requirement-reached" />
+                  <span>Start when contestant requirement is reached.</span>
+                </span>
+              </label>
+              <label class="admin-field" data-scheduled-contest-field="true">
+                <span>Start Date</span>
+                <input type="datetime-local" name="startsAt" required />
+              </label>
+              <label class="admin-field" data-scheduled-contest-field="true">
+                <span>End Date</span>
+                <input type="datetime-local" name="endsAt" required />
+              </label>
+              <label class="admin-field" data-threshold-contest-field="true" hidden>
+                <span>Contestant Starting Requirement</span>
+                <input type="number" name="contestantStartingRequirement" min="1" step="1" value="2" />
+              </label>
+              <label class="admin-field" data-threshold-contest-field="true" hidden>
+                <span>Contest Length (Hours)</span>
+                <input type="number" name="contestLengthHours" min="1" step="1" value="24" />
+              </label>
+              <label class="admin-field">
+                <span>Starting Bankroll</span>
+                <input type="number" name="startingBankroll" min="0" step="1" required />
+              </label>
+            </div>
+          </fieldset>
+          <fieldset class="admin-fieldset">
+            <legend>Requirements</legend>
+            <div class="admin-form-section-grid">
+              <label class="admin-field">
+                <span>Contest Entry Fee (Carter Cash)</span>
+                <input type="number" name="entryFeeCarterCash" min="0" step="1" value="0" required />
+              </label>
+              <label class="admin-field">
+                <span>Contestant Limit</span>
+                <input type="number" name="contestantLimit" min="1" step="1" value="100" required />
+              </label>
+              <label class="admin-field">
+                <span>Qualification Requirements</span>
+                <input type="number" name="qualificationCarterCash" min="0" step="1" value="0" required />
+              </label>
+              <label class="admin-field">
+                <span>Minimum Rank Requirement</span>
+                <select name="requiredRankTier" id="contest-required-rank-tier" required>
+                  <option value="1">Accountant or higher</option>
+                  <option value="2">Analyst or higher</option>
+                  <option value="3">Senior Analyst or higher</option>
+                  <option value="4">Auditor or higher</option>
+                  <option value="5">Controller or higher</option>
+                  <option value="6">Auditor General or higher</option>
+                  <option value="7">The Ledger only</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
           <label class="admin-field">
             <span>Contest Prize Pot</span>
             <input type="number" name="prizeStaticAmount" min="0" step="0.01" value="0" required />

@@ -4456,17 +4456,37 @@ function formatContestDateTime(value) {
   });
 }
 
+function isThresholdContest(contest) {
+  return String(contest?.start_mode || "").toLowerCase() === "threshold";
+}
+
+function getContestStartRequirement(contest) {
+  return Math.max(1, Math.round(Number(contest?.contestant_starting_requirement ?? 1)));
+}
+
+function getContestLengthHours(contest) {
+  return Math.max(1, Math.round(Number(contest?.contest_length_hours ?? 1)));
+}
+
 function getContestStatus(contest, now = Date.now()) {
   if (!contest) return "none";
+  const explicitStatus = String(contest.status || "").toLowerCase();
+  if (explicitStatus === "pending") {
+    return "pending";
+  }
   const startsAt = new Date(contest.starts_at).getTime();
   const endsAt = new Date(contest.ends_at).getTime();
-  if (!Number.isFinite(startsAt) || !Number.isFinite(endsAt)) return "draft";
+  if (!Number.isFinite(startsAt) || !Number.isFinite(endsAt)) {
+    return explicitStatus === "live" ? "live" : explicitStatus === "ended" ? "ended" : "draft";
+  }
+  if (explicitStatus === "ended" || now > endsAt) return "ended";
   if (now < startsAt) return "upcoming";
   if (now >= startsAt && now <= endsAt) return "live";
   return "ended";
 }
 
 function getContestStatusLabel(status) {
+  if (status === "pending") return "Pending";
   if (status === "live") return "Live";
   if (status === "upcoming") return "Upcoming";
   if (status === "ended") return "Ended";
@@ -4969,6 +4989,37 @@ async function dispatchContestStartEmails(seedResults = []) {
   );
 }
 
+async function sendContestPublishEmail(contestId) {
+  if (!contestId || !supabase?.functions?.invoke) {
+    return;
+  }
+
+  try {
+    const { error } = await supabase.functions.invoke("send-contest-publish-emails", {
+      body: { contestId }
+    });
+    if (error) throw error;
+  } catch (error) {
+    console.warn("[RTN] sendContestPublishEmail warning", error);
+  }
+}
+
+async function maybeActivatePendingContest(contestId) {
+  if (!contestId) {
+    return { activated: false };
+  }
+
+  const { data, error } = await supabase.rpc("maybe_activate_pending_contest", {
+    _contest_id: contestId
+  });
+  if (error) throw error;
+
+  if (Array.isArray(data) && data.length) {
+    return data[0];
+  }
+  return data || { activated: false };
+}
+
 function updateNotificationBadge() {
   if (!notificationBadge || !notificationToggle) return;
   const unreadCount = contestNotifications.filter((item) => item.unread).length;
@@ -5433,6 +5484,41 @@ function updateContestPrizeModeFields() {
   }
 }
 
+function updateContestLaunchModeFields() {
+  if (!adminContestForm) return;
+  const useThresholdStart = Boolean(contestStartWhenRequirementReachedInput?.checked);
+  const scheduledFields = Array.from(adminContestForm.querySelectorAll("[data-scheduled-contest-field]"));
+  const thresholdFields = Array.from(adminContestForm.querySelectorAll("[data-threshold-contest-field]"));
+  const startsAtInput = adminContestForm.querySelector('input[name="startsAt"]');
+  const endsAtInput = adminContestForm.querySelector('input[name="endsAt"]');
+  const contestantStartingRequirementInput = adminContestForm.querySelector('input[name="contestantStartingRequirement"]');
+  const contestLengthHoursInput = adminContestForm.querySelector('input[name="contestLengthHours"]');
+
+  scheduledFields.forEach((field) => {
+    field.hidden = useThresholdStart;
+  });
+  thresholdFields.forEach((field) => {
+    field.hidden = !useThresholdStart;
+  });
+
+  if (startsAtInput) {
+    startsAtInput.disabled = useThresholdStart;
+    startsAtInput.required = !useThresholdStart;
+  }
+  if (endsAtInput) {
+    endsAtInput.disabled = useThresholdStart;
+    endsAtInput.required = !useThresholdStart;
+  }
+  if (contestantStartingRequirementInput) {
+    contestantStartingRequirementInput.disabled = !useThresholdStart;
+    contestantStartingRequirementInput.required = useThresholdStart;
+  }
+  if (contestLengthHoursInput) {
+    contestLengthHoursInput.disabled = !useThresholdStart;
+    contestLengthHoursInput.required = useThresholdStart;
+  }
+}
+
 function getDefaultPrizeAllocations() {
   return [{ place: 1, percentage: 100 }];
 }
@@ -5826,9 +5912,7 @@ function renderContestModal() {
     contestTitleEl.textContent = contest?.title || "Contest details";
   }
   if (contestWindowEl) {
-    contestWindowEl.textContent = contest
-      ? `${formatContestDateTime(contest.starts_at)} - ${formatContestDateTime(contest.ends_at)}`
-      : "";
+    contestWindowEl.textContent = contest ? getContestScheduleLabel(contest) : "";
   }
   const contestCaptionDetailsEl = document.getElementById("contest-caption-details");
   if (contestCaptionDetailsEl) {
@@ -5868,9 +5952,13 @@ function renderContestModal() {
     if (!contest) {
       contestOptInCopyEl.textContent = "Check back soon for the next contest.";
     } else if (currentContestEntry) {
-      contestOptInCopyEl.textContent = `You're opted in. Switch into ${contest.title} from the Mode selector in the menu whenever you want to play this contest account. You need at least ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash to qualify.${rankCopy}${entryFeeCopy}`;
+      contestOptInCopyEl.textContent = status === "pending"
+        ? `You're entered. ${contest.title} will go live automatically as soon as ${getContestStartRequirement(contest)} contestants have joined, and it will run for ${getContestLengthHours(contest)} hour${getContestLengthHours(contest) === 1 ? "" : "s"}.${rankCopy}${entryFeeCopy}`
+        : `You're opted in. Switch into ${contest.title} from the Mode selector in the menu whenever you want to play this contest account. You need at least ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash to qualify.${rankCopy}${entryFeeCopy}`;
     } else {
-      contestOptInCopyEl.textContent = `Opt in to add this contest to your Mode selector. Your normal account stays untouched, and this contest gets its own starting balance of ${formatCurrency(contest.starting_credits ?? 0)} credits and ${formatCurrency(contest.starting_carter_cash ?? 0)} CC. You need at least ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash by the end to qualify to win.${rankCopy}${entryFeeCopy}`;
+      contestOptInCopyEl.textContent = status === "pending"
+        ? `Join now to reserve your spot. This contest will begin the moment ${getContestStartRequirement(contest)} contestants have joined, then it will run for ${getContestLengthHours(contest)} hour${getContestLengthHours(contest) === 1 ? "" : "s"}. Your normal account stays untouched, and this contest gets its own starting balance of ${formatCurrency(contest.starting_credits ?? 0)} credits. You need at least ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash by the end to qualify to win.${rankCopy}${entryFeeCopy}`
+        : `Opt in to add this contest to your Mode selector. Your normal account stays untouched, and this contest gets its own starting balance of ${formatCurrency(contest.starting_credits ?? 0)} credits and ${formatCurrency(contest.starting_carter_cash ?? 0)} CC. You need at least ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash by the end to qualify to win.${rankCopy}${entryFeeCopy}`;
     }
   }
   if (contestOptInButton) {
@@ -5886,6 +5974,8 @@ function renderContestModal() {
     } else if (!meetsRankRequirement) {
       const requiredRank = getRankByTier(requiredRankTier);
       contestOptInButton.textContent = requiredRank ? `${requiredRank.name} Required` : "Rank Required";
+    } else if (status === "pending") {
+      contestOptInButton.textContent = `Join Pending Contest`;
     } else {
       contestOptInButton.textContent = "Add Contest Mode";
     }
@@ -5893,9 +5983,71 @@ function renderContestModal() {
   renderContestLeaderboard();
 }
 
+function getContestScheduleLabel(contest, statsOrCount = contestParticipantCounts[contest?.id] || 0) {
+  if (!contest) return "";
+  if (getContestStatus(contest) === "pending" && isThresholdContest(contest)) {
+    const stats = normalizeContestPrizeStats(statsOrCount);
+    const remaining = Math.max(0, getContestStartRequirement(contest) - stats.participants);
+    const remainingCopy = remaining > 0
+      ? `${remaining} more contestant${remaining === 1 ? "" : "s"} needed`
+      : "Ready to start";
+    return `Starts when ${getContestStartRequirement(contest)} contestants join • ${getContestLengthHours(contest)} hour${getContestLengthHours(contest) === 1 ? "" : "s"} long • ${remainingCopy}`;
+  }
+  return `${formatContestDateTime(contest.starts_at)} - ${formatContestDateTime(contest.ends_at)}`;
+}
+
+function createContestThresholdProgress(contest, statsOrCount = 0, variant = "list") {
+  if (!contest || !isThresholdContest(contest) || getContestStatus(contest) !== "pending") {
+    return null;
+  }
+
+  const stats = normalizeContestPrizeStats(statsOrCount);
+  const required = getContestStartRequirement(contest);
+  const entered = Math.max(0, stats.participants);
+  const progress = Math.max(0, Math.min(100, (entered / required) * 100));
+
+  const wrap = document.createElement("div");
+  wrap.className = `contest-threshold-progress contest-threshold-progress-${variant}`;
+
+  const headline = document.createElement("p");
+  headline.className = "contest-threshold-progress-title";
+  headline.textContent = `Contest starts when ${required} contestants have entered`;
+
+  const duration = document.createElement("p");
+  duration.className = "contest-threshold-progress-duration";
+  duration.textContent = `Contest duration ${getContestLengthHours(contest)} hours`;
+
+  const bar = document.createElement("div");
+  bar.className = "contest-threshold-progress-bar";
+  bar.setAttribute("role", "progressbar");
+  bar.setAttribute("aria-valuemin", "0");
+  bar.setAttribute("aria-valuemax", String(required));
+  bar.setAttribute("aria-valuenow", String(Math.min(entered, required)));
+  bar.setAttribute("aria-label", `${entered} of ${required} contestants entered`);
+
+  const fill = document.createElement("span");
+  fill.className = "contest-threshold-progress-fill";
+  fill.style.width = `${progress}%`;
+  bar.append(fill);
+
+  const meta = document.createElement("p");
+  meta.className = "contest-threshold-progress-meta";
+  meta.textContent = `${entered}/${required} entered`;
+
+  wrap.append(headline, duration, bar, meta);
+  return wrap;
+}
+
 function formatContestRemaining(contest) {
   if (!contest) return "Details";
   const status = getContestStatus(contest);
+  if (status === "pending" && isThresholdContest(contest)) {
+    const stats = normalizeContestPrizeStats(contestParticipantCounts[contest.id] || 0);
+    const remaining = Math.max(0, getContestStartRequirement(contest) - stats.participants);
+    return remaining > 0
+      ? `Waiting for ${remaining}`
+      : "Starting soon";
+  }
   const now = Date.now();
   const target = status === "upcoming"
     ? new Date(contest.starts_at).getTime()
@@ -5920,7 +6072,7 @@ function renderContestChip() {
     : chooseCurrentContest(visibleContests);
   if (!drawerContestLink) {
     if (menuContestBadge) {
-      menuContestBadge.hidden = !visibleContests.some((entry) => getContestStatus(entry) === "live");
+      menuContestBadge.hidden = !visibleContests.some((entry) => ["live", "pending"].includes(getContestStatus(entry)));
     }
     return;
   }
@@ -5936,7 +6088,7 @@ function renderContestChip() {
     drawerContestTimer.textContent = contest && isContestVisibleToCurrentUser(contest) ? formatContestRemaining(contest) : "View";
   }
   if (menuContestBadge) {
-    menuContestBadge.hidden = !visibleContests.some((entry) => getContestStatus(entry) === "live");
+    menuContestBadge.hidden = !visibleContests.some((entry) => ["live", "pending"].includes(getContestStatus(entry)));
   }
 }
 
@@ -6007,6 +6159,7 @@ function openAdminContestModal() {
   adminContestModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
   updateContestPrizeModeFields();
+  updateContestLaunchModeFields();
   adminContestForm?.querySelector('input[name="title"]')?.focus();
 }
 
@@ -6015,6 +6168,7 @@ function closeAdminContestModal({ resetFields = true, restoreFocus = false } = {
   if (resetFields && adminContestForm) {
     adminContestForm.reset();
     updateContestPrizeModeFields();
+    updateContestLaunchModeFields();
     renderPrizeAllocationRows();
   }
   if (adminContestMessage) {
@@ -6044,6 +6198,10 @@ function chooseCurrentContest(contests) {
   const live = visibleContests.filter((contest) => getContestStatus(contest, now) === "live");
   if (live.length) {
     return live.sort((a, b) => new Date(a.ends_at) - new Date(b.ends_at))[0];
+  }
+  const pending = visibleContests.filter((contest) => getContestStatus(contest, now) === "pending");
+  if (pending.length) {
+    return pending.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0];
   }
   const upcoming = visibleContests.filter((contest) => getContestStatus(contest, now) === "upcoming");
   if (upcoming.length) {
@@ -6379,16 +6537,13 @@ async function optIntoContest(contest = currentContest) {
       contestId: insertedEntry.contest_id
     };
     saveAccountModeSelection(currentAccountMode);
+    const activationResult = await maybeActivatePendingContest(insertedEntry.contest_id);
     showToast(entryFee > 0 ? `Contest mode added for ${formatCurrency(entryFee)} CC` : "Contest mode added", "success");
+    if (activationResult?.activated) {
+      showToast(`${contest.title || "Contest"} is now live`, "success");
+    }
     incrementContestParticipantCount(contest, insertedEntry);
-    renderContestChip();
-    renderContestModal();
-    renderAccountModeSelector();
-    updateModeSpecificModalCopy();
-    refreshContestNotifications(contestCache);
-    await loadPlayerContestList(currentRoute === "contests");
-    await renderHomeContestPromos();
-    syncActiveAccountMode({ forceApply: true, resetHistory: true });
+    await syncContestState({ force: true });
   } catch (error) {
     console.error("[RTN] optIntoContest error", error);
     showToast(error?.message || "Unable to join contest", "error");
@@ -6409,12 +6564,14 @@ async function handleAdminContestSubmit(event) {
   const formData = new FormData(adminContestForm);
   const title = String(formData.get("title") ?? "").trim();
   const contestDetails = String(formData.get("contestDetails") ?? "").trim();
+  const startWhenRequirementReached = String(formData.get("startWhenRequirementReached") ?? "") === "on";
   const startsAt = String(formData.get("startsAt") ?? "");
   const endsAt = String(formData.get("endsAt") ?? "");
   const startingBankroll = Math.max(0, Math.round(Number(formData.get("startingBankroll") ?? 0)));
-  const startingCarterCash = Math.max(0, Math.round(Number(formData.get("startingCarterCash") ?? 0)));
   const entryFeeCarterCash = Math.max(0, Math.round(Number(formData.get("entryFeeCarterCash") ?? 0)));
   const contestantLimit = Math.max(1, Math.round(Number(formData.get("contestantLimit") ?? 100)));
+  const contestantStartingRequirement = Math.max(1, Math.round(Number(formData.get("contestantStartingRequirement") ?? 1)));
+  const contestLengthHours = Math.max(1, Math.round(Number(formData.get("contestLengthHours") ?? 1)));
   const qualificationCarterCash = Math.max(0, Math.round(Number(formData.get("qualificationCarterCash") ?? 0)));
   const requiredRankTier = Math.max(1, Math.round(Number(formData.get("requiredRankTier") ?? 1)));
   const prizeStaticAmount = Math.max(0, Number(formData.get("prizeStaticAmount") ?? 0));
@@ -6424,16 +6581,23 @@ async function handleAdminContestSubmit(event) {
   const isTestContest = String(formData.get("isTestContest") ?? "") === "on";
   const prizeAllocations = normalizePrizeAllocations(getPrizeAllocationValues());
 
-  if (!title || !startsAt || !endsAt) {
+  if (!title || (!startWhenRequirementReached && (!startsAt || !endsAt))) {
     if (adminContestMessage) {
       adminContestMessage.textContent = "Please fill out all contest fields.";
     }
     return;
   }
 
-  if (new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
+  if (!startWhenRequirementReached && new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
     if (adminContestMessage) {
       adminContestMessage.textContent = "End date must be after the start date.";
+    }
+    return;
+  }
+
+  if (startWhenRequirementReached && contestantStartingRequirement > contestantLimit) {
+    if (adminContestMessage) {
+      adminContestMessage.textContent = "Contestant starting requirement cannot be higher than the contestant limit.";
     }
     return;
   }
@@ -6456,10 +6620,14 @@ async function handleAdminContestSubmit(event) {
   const payload = {
     title,
     contest_details: contestDetails || null,
-    starts_at: new Date(startsAt).toISOString(),
-    ends_at: new Date(endsAt).toISOString(),
+    starts_at: startWhenRequirementReached ? null : new Date(startsAt).toISOString(),
+    ends_at: startWhenRequirementReached ? null : new Date(endsAt).toISOString(),
+    start_mode: startWhenRequirementReached ? "threshold" : "scheduled",
+    status: startWhenRequirementReached ? "pending" : "upcoming",
+    contestant_starting_requirement: startWhenRequirementReached ? contestantStartingRequirement : null,
+    contest_length_hours: startWhenRequirementReached ? contestLengthHours : null,
     starting_credits: startingBankroll,
-    starting_carter_cash: startingCarterCash,
+    starting_carter_cash: 0,
     entry_fee_carter_cash: entryFeeCarterCash,
     contestant_limit: contestantLimit,
     winning_criteria: "highest_bankroll",
@@ -6485,8 +6653,11 @@ async function handleAdminContestSubmit(event) {
 
   try {
     if (adminContestSaveButton) adminContestSaveButton.disabled = true;
-    const { error } = await supabase.from("contests").insert(payload);
+    const { data, error } = await supabase.from("contests").insert(payload).select("id").single();
     if (error) throw error;
+    if (startWhenRequirementReached && sendStartEmailNotification) {
+      await sendContestPublishEmail(data?.id);
+    }
     showToast("Contest created", "success");
     adminContestsLoaded = false;
     closeAdminContestModal({ resetFields: true, restoreFocus: true });
@@ -6597,7 +6768,7 @@ function renderPlayerContestRow(contest, participantStats = 0) {
 
   const details = document.createElement("p");
   details.className = "contest-window";
-  details.textContent = `${formatContestDateTime(contest.starts_at)} - ${formatContestDateTime(contest.ends_at)}`;
+  details.textContent = getContestScheduleLabel(contest, stats);
 
   const meta = document.createElement("p");
   meta.className = "contest-opt-in-copy";
@@ -6611,6 +6782,8 @@ function renderPlayerContestRow(contest, participantStats = 0) {
   const growth = document.createElement("p");
   growth.className = "contest-prize-growth";
   growth.textContent = getContestPrizeGrowthCopy(contest);
+
+  const thresholdProgress = createContestThresholdProgress(contest, stats, "list");
 
   const caption = document.createElement("p");
   caption.className = "contest-prize-growth";
@@ -6655,19 +6828,23 @@ function renderPlayerContestRow(contest, participantStats = 0) {
     void shareContestLink(contest);
   });
 
-  if (status === "live") {
+  if (status === "live" || status === "pending") {
     if (playerEntry) {
       const switchButton = document.createElement("button");
       switchButton.type = "button";
       switchButton.className = "primary";
       const usingMode = isUsingContestMode(contest.id);
-      switchButton.textContent = usingMode
-        ? "Using This Mode"
-        : "Switch to Mode";
-      switchButton.disabled = usingMode;
-      switchButton.addEventListener("click", () => {
-        void switchToContestMode(contest.id, { navigateToPlay: true });
-      });
+      switchButton.textContent = status === "pending"
+        ? "Joined"
+        : usingMode
+          ? "Using This Mode"
+          : "Switch to Mode";
+      switchButton.disabled = status === "pending" || usingMode;
+      if (status !== "pending") {
+        switchButton.addEventListener("click", () => {
+          void switchToContestMode(contest.id, { navigateToPlay: true });
+        });
+      }
       actions.append(switchButton);
     } else {
       const joinButton = document.createElement("button");
@@ -6709,9 +6886,13 @@ function renderPlayerContestRow(contest, participantStats = 0) {
   actions.append(shareButton);
 
   if (caption.textContent) {
-    item.append(header, details, prize, growth, caption, payoutTable, meta, distribution, actions);
+    item.append(header, details, prize, growth);
+    if (thresholdProgress) item.append(thresholdProgress);
+    item.append(caption, payoutTable, meta, distribution, actions);
   } else {
-    item.append(header, details, prize, growth, payoutTable, meta, distribution, actions);
+    item.append(header, details, prize, growth);
+    if (thresholdProgress) item.append(thresholdProgress);
+    item.append(payoutTable, meta, distribution, actions);
   }
   return item;
 }
@@ -6763,6 +6944,8 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
   growth.className = "home-contest-card-growth";
   growth.textContent = getContestPrizeGrowthCopy(contest);
 
+  const thresholdProgress = createContestThresholdProgress(contest, stats, "home");
+
   const caption = document.createElement("p");
   caption.className = "home-contest-card-growth";
   caption.textContent = String(contest.contest_details || "").trim();
@@ -6782,7 +6965,7 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
   joinButton.className = "home-button home-primary home-contest-action is-spotlight";
 
   if (playerEntry) {
-    joinButton.textContent = "Joined";
+    joinButton.textContent = status === "pending" ? "Joined" : "Joined";
     joinButton.disabled = true;
   } else {
     joinButton.textContent = contestIsFull
@@ -6810,9 +6993,13 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
 
   actions.append(joinButton, shareButton);
   if (caption.textContent) {
-    item.append(top, prize, growth, caption, payouts, actions);
+    item.append(top, prize, growth);
+    if (thresholdProgress) item.append(thresholdProgress);
+    item.append(caption, payouts, actions);
   } else {
-    item.append(top, prize, growth, payouts, actions);
+    item.append(top, prize, growth);
+    if (thresholdProgress) item.append(thresholdProgress);
+    item.append(payouts, actions);
   }
   return item;
 }
@@ -6829,8 +7016,17 @@ async function renderHomeContestPromos() {
 
   const liveContests = contestCache
     .filter((contest) => isContestVisibleToCurrentUser(contest))
-    .filter((contest) => getContestStatus(contest) === "live")
-    .sort((a, b) => new Date(a.ends_at) - new Date(b.ends_at));
+    .filter((contest) => ["live", "pending"].includes(getContestStatus(contest)))
+    .sort((a, b) => {
+      const aStatus = getContestStatus(a);
+      const bStatus = getContestStatus(b);
+      if (aStatus !== bStatus) {
+        return aStatus === "live" ? -1 : 1;
+      }
+      const aTime = new Date(a.ends_at || a.created_at || 0).getTime();
+      const bTime = new Date(b.ends_at || b.created_at || 0).getTime();
+      return aTime - bTime;
+    });
 
   if (!liveContests.length) {
     homeLiveContestsSectionEl.hidden = true;
@@ -6857,11 +7053,62 @@ async function renderHomeContestPromos() {
   }
 }
 
+function renderContestListTabs() {
+  if (!contestTabButtons.length) return;
+
+  contestTabButtons.forEach((button) => {
+    const isActive = button.dataset.contestTab === currentContestListTab;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-selected", isActive ? "true" : "false");
+    button.tabIndex = isActive ? 0 : -1;
+  });
+
+  if (contestPanelLiveEl) {
+    contestPanelLiveEl.hidden = currentContestListTab !== "live";
+  }
+  if (contestPanelEndedEl) {
+    contestPanelEndedEl.hidden = currentContestListTab !== "ended";
+  }
+}
+
+function setContestListTab(tab) {
+  currentContestListTab = tab === "ended" ? "ended" : "live";
+  renderContestListTabs();
+}
+
+function renderAdminContestTabs() {
+  if (!adminContestTabButtons.length) return;
+
+  adminContestTabButtons.forEach((button) => {
+    const isActive = button.dataset.adminContestTab === currentAdminContestTab;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-selected", isActive ? "true" : "false");
+    button.tabIndex = isActive ? 0 : -1;
+  });
+
+  if (adminContestPanelUpcomingEl) {
+    adminContestPanelUpcomingEl.hidden = currentAdminContestTab !== "upcoming";
+  }
+  if (adminContestPanelLiveEl) {
+    adminContestPanelLiveEl.hidden = currentAdminContestTab !== "live";
+  }
+  if (adminContestPanelEndedEl) {
+    adminContestPanelEndedEl.hidden = currentAdminContestTab !== "ended";
+  }
+}
+
+function setAdminContestTab(tab) {
+  currentAdminContestTab = ["live", "ended"].includes(tab) ? tab : "upcoming";
+  renderAdminContestTabs();
+}
+
 async function loadPlayerContestList(force = false) {
   if (!playerLiveContestListEl || !playerEndedContestListEl || !currentUser?.id || currentUser.id === GUEST_USER.id) {
     return;
   }
   if (!force && currentRoute !== "contests") return;
+
+  renderContestListTabs();
 
   playerLiveContestListEl.innerHTML = "";
   playerEndedContestListEl.innerHTML = "";
@@ -6889,8 +7136,12 @@ async function loadPlayerContestList(force = false) {
     const counts = await loadContestParticipantCounts(visibleContests);
 
     const liveContests = visibleContests
-      .filter((contest) => getContestStatus(contest) === "live")
-      .sort((a, b) => new Date(a.ends_at) - new Date(b.ends_at));
+      .filter((contest) => ["live", "pending", "upcoming"].includes(getContestStatus(contest)))
+      .sort((a, b) => {
+        const aStart = new Date(a.starts_at || 0).getTime();
+        const bStart = new Date(b.starts_at || 0).getTime();
+        return aStart - bStart;
+      });
     const endedContests = visibleContests
       .filter((contest) => getContestStatus(contest) === "ended")
       .sort((a, b) => new Date(b.ends_at) - new Date(a.ends_at));
@@ -6935,6 +7186,7 @@ async function loadPlayerContestList(force = false) {
 function renderAdminContestRow(contest, participantStats = 0) {
   const item = document.createElement("li");
   item.className = "admin-contest-card";
+  const stats = normalizeContestPrizeStats(participantStats);
 
   const header = document.createElement("div");
   header.className = "admin-contest-header";
@@ -6949,11 +7201,10 @@ function renderAdminContestRow(contest, participantStats = 0) {
 
   const details = document.createElement("p");
   details.className = "contest-window";
-  details.textContent = `${formatContestDateTime(contest.starts_at)} - ${formatContestDateTime(contest.ends_at)}`;
+  details.textContent = getContestScheduleLabel(contest, stats);
 
   const meta = document.createElement("p");
   meta.className = "contest-opt-in-copy";
-  const stats = normalizeContestPrizeStats(participantStats);
   meta.textContent = `Highest credits wins • Requires ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash • Contestants: ${formatContestFill(contest, stats)}`;
 
   const prize = document.createElement("p");
@@ -6997,18 +7248,25 @@ function renderAdminContestRow(contest, participantStats = 0) {
 
 async function loadAdminContestList(force = false) {
   if (!isAdmin()) {
-    if (adminContestListEl) adminContestListEl.innerHTML = "";
+    if (adminContestListUpcomingEl) adminContestListUpcomingEl.innerHTML = "";
+    if (adminContestListLiveEl) adminContestListLiveEl.innerHTML = "";
+    if (adminContestListEndedEl) adminContestListEndedEl.innerHTML = "";
     return;
   }
   if (adminContestsLoaded && !force) return;
-  if (!adminContestListEl) return;
+  if (!adminContestListUpcomingEl || !adminContestListLiveEl || !adminContestListEndedEl) return;
   adminContestsLoaded = true;
-  adminContestListEl.innerHTML = "";
+  renderAdminContestTabs();
+  adminContestListUpcomingEl.innerHTML = "";
+  adminContestListLiveEl.innerHTML = "";
+  adminContestListEndedEl.innerHTML = "";
 
   const loadingItem = document.createElement("li");
   loadingItem.className = "admin-prize-empty";
   loadingItem.textContent = "Loading contests...";
-  adminContestListEl.appendChild(loadingItem);
+  adminContestListUpcomingEl.appendChild(loadingItem.cloneNode(true));
+  adminContestListLiveEl.appendChild(loadingItem.cloneNode(true));
+  adminContestListEndedEl.appendChild(loadingItem);
 
   try {
     let contests = contestCache;
@@ -7032,31 +7290,69 @@ async function loadAdminContestList(force = false) {
       counts[entry.contest_id] = (counts[entry.contest_id] || 0) + 1;
     });
 
-    adminContestListEl.innerHTML = "";
+    adminContestListUpcomingEl.innerHTML = "";
+    adminContestListLiveEl.innerHTML = "";
+    adminContestListEndedEl.innerHTML = "";
     if (!contestCache.length) {
       const empty = document.createElement("li");
       empty.className = "admin-prize-empty";
       empty.textContent = "No contests created yet.";
-      adminContestListEl.appendChild(empty);
+      adminContestListUpcomingEl.appendChild(empty.cloneNode(true));
+      adminContestListLiveEl.appendChild(empty.cloneNode(true));
+      adminContestListEndedEl.appendChild(empty);
       updateAdminContestCreateState(contestCache);
       return;
     }
 
-    contestCache
+    const sortedContests = contestCache
       .slice()
-      .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at))
-      .forEach((contest) => {
-        adminContestListEl.appendChild(renderAdminContestRow(contest, counts[contest.id] || 0));
+      .sort((a, b) => {
+        const aTime = new Date(a.starts_at || a.created_at || 0).getTime();
+        const bTime = new Date(b.starts_at || b.created_at || 0).getTime();
+        return bTime - aTime;
       });
+
+    const renderContestGroup = (listEl, contests, emptyMessage) => {
+      if (!contests.length) {
+        const empty = document.createElement("li");
+        empty.className = "admin-prize-empty";
+        empty.textContent = emptyMessage;
+        listEl.appendChild(empty);
+        return;
+      }
+      contests.forEach((contest) => {
+        listEl.appendChild(renderAdminContestRow(contest, counts[contest.id] || 0));
+      });
+    };
+
+    renderContestGroup(
+      adminContestListUpcomingEl,
+      sortedContests.filter((contest) => ["pending", "upcoming"].includes(getContestStatus(contest))),
+      "No upcoming contests."
+    );
+    renderContestGroup(
+      adminContestListLiveEl,
+      sortedContests.filter((contest) => getContestStatus(contest) === "live"),
+      "No live contests."
+    );
+    renderContestGroup(
+      adminContestListEndedEl,
+      sortedContests.filter((contest) => getContestStatus(contest) === "ended"),
+      "No ended contests."
+    );
     updateAdminContestCreateState(contestCache);
   } catch (error) {
     console.error("[RTN] loadAdminContestList error", error);
     adminContestsLoaded = false;
-    adminContestListEl.innerHTML = "";
+    adminContestListUpcomingEl.innerHTML = "";
+    adminContestListLiveEl.innerHTML = "";
+    adminContestListEndedEl.innerHTML = "";
     const errorItem = document.createElement("li");
     errorItem.className = "admin-prize-empty";
     errorItem.textContent = "Unable to load contests.";
-    adminContestListEl.appendChild(errorItem);
+    adminContestListUpcomingEl.appendChild(errorItem.cloneNode(true));
+    adminContestListLiveEl.appendChild(errorItem.cloneNode(true));
+    adminContestListEndedEl.appendChild(errorItem);
     updateAdminContestCreateState([]);
   }
 }
@@ -7966,7 +8262,13 @@ const homeLiveContestListEl = document.getElementById("home-live-contest-list");
 const adminAddButton = document.getElementById("admin-add-button");
 const adminSaveButton = document.getElementById("admin-save-button");
 const adminPrizeListEl = document.getElementById("admin-prize-list");
-const adminContestListEl = document.getElementById("admin-contest-list");
+const adminContestListUpcomingEl = document.getElementById("admin-contest-list-upcoming");
+const adminContestListLiveEl = document.getElementById("admin-contest-list-live");
+const adminContestListEndedEl = document.getElementById("admin-contest-list-ended");
+const adminContestTabButtons = Array.from(document.querySelectorAll("[data-admin-contest-tab]"));
+const adminContestPanelUpcomingEl = document.getElementById("admin-contest-panel-upcoming");
+const adminContestPanelLiveEl = document.getElementById("admin-contest-panel-live");
+const adminContestPanelEndedEl = document.getElementById("admin-contest-panel-ended");
 const adminPrizeForm = document.getElementById("admin-prize-form");
 const adminPrizeMessage = document.getElementById("admin-prize-message");
 const adminPrizeImageUrlInput = document.getElementById("prize-image-url");
@@ -7982,6 +8284,7 @@ const adminContestAddButton = document.getElementById("admin-add-contest-button"
 const adminContestCloseButton = document.getElementById("admin-contest-close");
 const adminContestCancelButton = document.getElementById("admin-contest-cancel");
 const adminContestSaveButton = document.getElementById("admin-contest-save");
+const contestStartWhenRequirementReachedInput = document.getElementById("contest-start-when-requirement-reached");
 const adminRankListEl = document.getElementById("admin-rank-list");
 const adminAddRankButton = document.getElementById("admin-add-rank-button");
 const adminRankModal = document.getElementById("admin-rank-modal");
@@ -8038,6 +8341,9 @@ const contestOptInCopyEl = document.getElementById("contest-opt-in-copy");
 const contestLeaderboardListEl = document.getElementById("contest-leaderboard-list");
 const playerLiveContestListEl = document.getElementById("player-live-contest-list");
 const playerEndedContestListEl = document.getElementById("player-ended-contest-list");
+const contestTabButtons = Array.from(document.querySelectorAll("[data-contest-tab]"));
+const contestPanelLiveEl = document.getElementById("contest-panel-live");
+const contestPanelEndedEl = document.getElementById("contest-panel-ended");
 const contestResultsModal = document.getElementById("contest-results-modal");
 const contestResultsTitleEl = document.getElementById("contest-results-title");
 const contestResultsCloseButton = document.getElementById("contest-results-close");
@@ -8193,6 +8499,7 @@ let dashboardLoaded = false;
 let prizesLoaded = false;
 let adminPrizesLoaded = false;
 let adminContestsLoaded = false;
+let currentAdminContestTab = "upcoming";
 let adminRanksLoaded = false;
 let adminEditingPrizeId = null;
 let adminEditingRankId = null;
@@ -8209,6 +8516,7 @@ let contestLeaderboard = [];
 let userContestEntries = [];
 let contestEntryMap = new Map();
 let contestParticipantCounts = {};
+let currentContestListTab = "live";
 let currentAccountMode = {
   type: "normal",
   contestId: null
@@ -8278,6 +8586,28 @@ function clearPlayAreaHeight() {
   }
 }
 
+function getViewportMetrics() {
+  if (typeof window === "undefined") {
+    return {
+      height: 0,
+      offsetTop: 0
+    };
+  }
+
+  const visualViewport = window.visualViewport;
+  if (visualViewport) {
+    return {
+      height: Math.round(visualViewport.height || window.innerHeight || 0),
+      offsetTop: Math.max(0, Math.round(visualViewport.offsetTop || 0))
+    };
+  }
+
+  return {
+    height: window.innerHeight || 0,
+    offsetTop: 0
+  };
+}
+
 function updatePlayAreaHeight() {
   if (!playLayout) {
     return;
@@ -8288,7 +8618,7 @@ function updatePlayAreaHeight() {
     return;
   }
 
-  const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 0;
+  const { height: viewportHeight } = getViewportMetrics();
   if (!viewportHeight) {
     return;
   }
@@ -8318,10 +8648,10 @@ function updatePlayAssistantBounds() {
     return;
   }
 
-  const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 0;
+  const { height: viewportHeight, offsetTop } = getViewportMetrics();
   const headerHeight = headerEl ? headerEl.offsetHeight : 0;
   const chipBarHeight = chipBarEl ? chipBarEl.offsetHeight : 0;
-  const topInset = Math.max(headerHeight + 12, 76);
+  const topInset = Math.max(headerHeight + 12 + offsetTop, 76);
   const closedBottomInset = Math.max(chipBarHeight + 22, 130);
   const openBottomInset = Math.max(chipBarHeight + 8, 24);
   const bottomInset = playAssistantOpen ? openBottomInset : closedBottomInset;
@@ -11421,9 +11751,31 @@ if (adminContestForm) {
     if (target instanceof HTMLSelectElement && target.name === "prizeVariableBasis") {
       updateContestPrizeModeFields();
     }
+    if (target instanceof HTMLInputElement && target.name === "startWhenRequirementReached") {
+      updateContestLaunchModeFields();
+    }
   });
   updateContestPrizeModeFields();
+  updateContestLaunchModeFields();
   renderPrizeAllocationRows();
+}
+
+if (contestTabButtons.length) {
+  contestTabButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      setContestListTab(button.dataset.contestTab || "live");
+    });
+  });
+  renderContestListTabs();
+}
+
+if (adminContestTabButtons.length) {
+  adminContestTabButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      setAdminContestTab(button.dataset.adminContestTab || "upcoming");
+    });
+  });
+  renderAdminContestTabs();
 }
 
 const addPrizeAllocationButton = document.getElementById("add-prize-allocation-button");
@@ -13042,6 +13394,10 @@ updatePlayAssistantBounds();
 resetBankrollHistory();
 window.addEventListener("resize", schedulePlayAreaHeightUpdate);
 window.addEventListener("resize", drawBankrollChart);
+if (typeof window !== "undefined" && window.visualViewport) {
+  window.visualViewport.addEventListener("resize", schedulePlayAreaHeightUpdate);
+  window.visualViewport.addEventListener("scroll", schedulePlayAreaHeightUpdate);
+}
 
 async function bootstrapAuth(initialRoute) {
   try {

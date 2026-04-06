@@ -2,8 +2,12 @@ create table if not exists public.contests (
   id uuid primary key default gen_random_uuid(),
   title text not null,
   contest_details text,
-  starts_at timestamptz not null,
-  ends_at timestamptz not null,
+  starts_at timestamptz,
+  ends_at timestamptz,
+  start_mode text not null default 'scheduled' check (start_mode in ('scheduled', 'threshold')),
+  status text not null default 'upcoming' check (status in ('pending', 'upcoming', 'live', 'ended')),
+  contestant_starting_requirement integer,
+  contest_length_hours integer,
   starting_credits integer not null default 1000,
   starting_carter_cash integer not null default 0,
   entry_fee_carter_cash integer not null default 0,
@@ -26,6 +30,12 @@ create table if not exists public.contests (
 );
 
 alter table public.contests add column if not exists contest_details text;
+alter table public.contests alter column starts_at drop not null;
+alter table public.contests alter column ends_at drop not null;
+alter table public.contests add column if not exists start_mode text not null default 'scheduled';
+alter table public.contests add column if not exists status text not null default 'upcoming';
+alter table public.contests add column if not exists contestant_starting_requirement integer;
+alter table public.contests add column if not exists contest_length_hours integer;
 alter table public.contests add column if not exists qualification_carter_cash integer not null default 0;
 alter table public.contests add column if not exists contestant_limit integer not null default 100;
 alter table public.contests add column if not exists entry_fee_carter_cash integer not null default 0;
@@ -39,11 +49,23 @@ alter table public.contests add column if not exists prize_allocations jsonb not
 alter table public.contests add column if not exists send_start_email_notification boolean not null default false;
 alter table public.contests add column if not exists is_test boolean not null default false;
 alter table public.contests add column if not exists start_notifications_seeded_at timestamptz;
+alter table public.contests drop constraint if exists contests_start_mode_check;
+alter table public.contests add constraint contests_start_mode_check check (start_mode in ('scheduled', 'threshold'));
+alter table public.contests drop constraint if exists contests_status_check;
+alter table public.contests add constraint contests_status_check check (status in ('pending', 'upcoming', 'live', 'ended'));
 alter table public.contests drop constraint if exists contests_prize_mode_check;
 alter table public.contests add constraint contests_prize_mode_check check (prize_mode in ('static', 'variable'));
 alter table public.contests drop constraint if exists contests_prize_variable_basis_check;
 alter table public.contests add constraint contests_prize_variable_basis_check check (prize_variable_basis in ('none', 'contestant', 'qualifying_contestant'));
 update public.contests set winning_criteria = 'highest_bankroll' where winning_criteria <> 'highest_bankroll';
+update public.contests
+set status = case
+  when status = 'pending' then 'pending'
+  when ends_at is not null and ends_at <= timezone('utc', now()) then 'ended'
+  when starts_at is not null and starts_at <= timezone('utc', now()) and ends_at is not null and ends_at > timezone('utc', now()) then 'live'
+  else 'upcoming'
+end
+where coalesce(status, '') <> 'pending';
 
 alter table public.profiles add column if not exists receive_contest_start_emails boolean not null default true;
 
@@ -202,7 +224,8 @@ begin
   with live_contests as (
     select c.id, c.title, c.send_start_email_notification, c.is_test
     from public.contests c
-    where c.starts_at <= timezone('utc', now())
+    where coalesce(c.status, 'upcoming') <> 'pending'
+      and c.starts_at <= timezone('utc', now())
       and c.ends_at > timezone('utc', now())
   ),
   inserted as (
@@ -246,6 +269,8 @@ end;
 $$;
 
 drop function if exists public.get_contest_start_email_recipients(uuid);
+drop function if exists public.get_contest_publish_email_recipients(uuid);
+drop function if exists public.maybe_activate_pending_contest(uuid);
 
 create function public.get_contest_start_email_recipients(_contest_id uuid)
 returns table(
@@ -290,8 +315,99 @@ as $$
     and coalesce(u.email, '') <> '';
 $$;
 
+create function public.get_contest_publish_email_recipients(_contest_id uuid)
+returns table(
+  user_id uuid,
+  email text,
+  first_name text,
+  contest_title text,
+  contest_details text,
+  contestant_starting_requirement integer,
+  contest_length_hours integer
+)
+language sql
+security definer
+as $$
+  select
+    p.id,
+    u.email::text,
+    p.first_name,
+    c.title,
+    c.contest_details,
+    c.contestant_starting_requirement,
+    c.contest_length_hours
+  from public.contests c
+  join public.profiles p
+    on c.send_start_email_notification
+   and coalesce(p.receive_contest_start_emails, true)
+  join auth.users u on u.id = p.id
+  where c.id = _contest_id
+    and c.start_mode = 'threshold'
+    and (
+      c.is_test = false
+      or u.email = 'carterwarrenhurst@gmail.com'
+    )
+    and coalesce(u.email, '') <> '';
+$$;
+
+create function public.maybe_activate_pending_contest(_contest_id uuid)
+returns table(
+  contest_id uuid,
+  activated boolean,
+  starts_at timestamptz,
+  ends_at timestamptz
+)
+language plpgsql
+security definer
+as $$
+declare
+  contest_record public.contests%rowtype;
+  participant_total integer;
+  activated_contest public.contests%rowtype;
+begin
+  select *
+  into contest_record
+  from public.contests
+  where id = _contest_id;
+
+  if not found then
+    return;
+  end if;
+
+  select count(*)
+  into participant_total
+  from public.contest_entries
+  where public.contest_entries.contest_id = _contest_id;
+
+  if contest_record.start_mode = 'threshold'
+    and contest_record.status = 'pending'
+    and participant_total >= greatest(coalesce(contest_record.contestant_starting_requirement, 1), 1) then
+    update public.contests c
+    set
+      status = 'live',
+      starts_at = timezone('utc', now()),
+      ends_at = timezone('utc', now()) + make_interval(hours => greatest(coalesce(c.contest_length_hours, 1), 1)),
+      updated_at = timezone('utc', now())
+    where c.id = _contest_id
+      and c.status = 'pending'
+    returning *
+    into activated_contest;
+
+    if found then
+      return query
+      select activated_contest.id, true, activated_contest.starts_at, activated_contest.ends_at;
+      return;
+    end if;
+  end if;
+
+  return query
+  select contest_record.id, false, contest_record.starts_at, contest_record.ends_at;
+end;
+$$;
+
 grant select, insert, update, delete on public.contests to authenticated;
 grant select, insert, update, delete on public.contest_entries to authenticated;
 grant select, insert, update, delete on public.contest_medals to authenticated;
 grant select, insert, update, delete on public.contest_start_notifications to authenticated;
 grant execute on function public.seed_live_contest_notifications() to authenticated;
+grant execute on function public.maybe_activate_pending_contest(uuid) to authenticated;
