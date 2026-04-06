@@ -1386,16 +1386,6 @@
               ×
             </button>
           </div>
-          <div class="play-assistant-toolbar">
-            <label class="play-assistant-risk-wrap" for="play-assistant-risk-select">
-              <span class="play-assistant-risk-label">Risk</span>
-              <select id="play-assistant-risk-select" class="play-assistant-risk-select">
-                <option value="cautious">Cautious</option>
-                <option value="balanced" selected>Balanced</option>
-                <option value="aggressive">Aggressive</option>
-              </select>
-            </label>
-          </div>
           <div
             id="play-assistant-thread"
             class="play-assistant-thread"
@@ -1410,7 +1400,7 @@
             <button type="button" class="play-assistant-chip" data-play-assistant-prompt="Give me a beginner-friendly strategy for my bankroll.">
               Beginner plan
             </button>
-            <button type="button" class="play-assistant-chip" data-play-assistant-prompt="Help me choose bet sizing based on my bankroll and risk tolerance.">
+            <button type="button" class="play-assistant-chip" data-play-assistant-prompt="Help me choose bet sizing based on my bankroll.">
               Size my bets
             </button>
           </div>
@@ -1626,6 +1616,8 @@
                     <h3>Hands Played</h3>
                     <div class="overview-chart-controls">
                       <div class="chart-filters overview-filters">
+                        <button type="button" class="chart-filter-btn" data-period="hour">Last Hour</button>
+                        <button type="button" class="chart-filter-btn" data-period="day">Last 24 Hours</button>
                         <button type="button" class="chart-filter-btn" data-period="week">Last Week</button>
                         <button type="button" class="chart-filter-btn" data-period="month">Last Month</button>
                         <button type="button" class="chart-filter-btn" data-period="90days">Last 90 Days</button>
@@ -1668,6 +1660,7 @@
                   <div class="overview-chart-header">
                     <h3>Most Active</h3>
                     <div class="chart-filters activity-filters">
+                      <button type="button" class="chart-filter-btn" data-activity-period="hour">Last Hour</button>
                       <button type="button" class="chart-filter-btn" data-activity-period="day">Last 24 Hours</button>
                       <button type="button" class="chart-filter-btn active" data-activity-period="week">Last 7 Days</button>
                       <button type="button" class="chart-filter-btn" data-activity-period="month">Last 30 Days</button>

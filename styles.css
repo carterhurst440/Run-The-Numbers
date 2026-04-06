@@ -4742,56 +4742,6 @@ body.play-assistant-open .play-assistant-fab {
   justify-content: center;
 }
 
-.play-assistant-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-}
-
-.play-assistant-risk-wrap {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 0 0 auto;
-}
-
-.play-assistant-risk-label {
-  font-size: 0.66rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--assistant-muted-text);
-  white-space: nowrap;
-}
-
-.play-assistant-risk-select {
-  min-width: 8.2rem;
-  padding: 0.38rem 2rem 0.38rem 0.7rem;
-  border-radius: 999px;
-  border: 1px solid var(--assistant-chip-border);
-  background: var(--assistant-input-bg);
-  color: var(--text-light);
-  font: inherit;
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image:
-    linear-gradient(45deg, transparent 50%, currentColor 50%),
-    linear-gradient(135deg, currentColor 50%, transparent 50%);
-  background-position:
-    calc(100% - 1rem) calc(50% - 1px),
-    calc(100% - 0.7rem) calc(50% - 1px);
-  background-size: 0.38rem 0.38rem, 0.38rem 0.38rem;
-  background-repeat: no-repeat;
-}
-
-.play-assistant-risk-select:focus-visible {
-  outline: 2px solid rgba(160, 248, 255, 0.48);
-  outline-offset: 2px;
-}
-
 .play-assistant-thread {
   min-height: 0;
   flex: 1 1 auto;
@@ -5101,31 +5051,6 @@ body.play-assistant-open .play-assistant-fab {
 
   .play-assistant-panel-header h2 {
     font-size: 0.9rem;
-  }
-
-  .play-assistant-risk-label {
-    font-size: 0.72rem;
-    line-height: 1.38;
-  }
-
-  .play-assistant-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.45rem;
-  }
-
-  .play-assistant-risk-wrap {
-    justify-content: stretch;
-  }
-
-  .play-assistant-risk-label {
-    font-size: 0.56rem;
-  }
-
-  .play-assistant-risk-select {
-    min-width: 0;
-    width: 100%;
-    font-size: 16px;
   }
 
   .play-assistant-message {

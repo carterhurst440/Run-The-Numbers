@@ -2560,18 +2560,165 @@ async function renderOverviewChart(period = "all") {
 
   console.info(`[RTN] Rendering overview chart with period: ${period}`);
 
-  // Calculate date range
   const now = new Date();
-  let startDate = null;
+  const startDate = getAnalyticsPeriodStart(period);
 
-  if (period === "week") {
-    startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  } else if (period === "month") {
-    startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  } else if (period === "90days") {
-    startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-  } else if (period === "year") {
-    startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+  const renderChart = (labels, values) => {
+    const canvas = document.getElementById("overview-analytics-chart");
+    if (!canvas) {
+      console.warn("[RTN] Overview chart canvas not found");
+      return;
+    }
+
+    const ctx = canvas.getContext("2d");
+
+    if (overviewChartInstance) {
+      overviewChartInstance.destroy();
+    }
+
+    overviewChartInstance = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Hands Played",
+            data: values,
+            borderColor: "rgba(53, 255, 234, 1)",
+            backgroundColor: "rgba(53, 255, 234, 0.14)",
+            borderWidth: 2,
+            fill: true,
+            tension: 0.3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false,
+            labels: {
+              color: "rgba(226, 248, 255, 0.85)",
+              boxWidth: 14,
+              boxHeight: 14
+            }
+          },
+          tooltip: {
+            mode: "index",
+            intersect: false,
+            backgroundColor: "rgba(9, 18, 32, 0.95)",
+            titleColor: "rgba(255, 105, 180, 1)",
+            bodyColor: "rgba(226, 248, 255, 0.9)",
+            borderColor: "rgba(255, 105, 180, 0.5)",
+            borderWidth: 1,
+            padding: 12,
+            displayColors: false
+          }
+        },
+        scales: {
+          x: {
+            grid: {
+              color: "rgba(53, 255, 234, 0.1)"
+            },
+            ticks: {
+              color: "rgba(173, 225, 247, 0.75)",
+              maxRotation: 45,
+              minRotation: 0
+            }
+          },
+          y: {
+            beginAtZero: true,
+            grid: {
+              color: "rgba(53, 255, 234, 0.1)"
+            },
+            ticks: {
+              color: "rgba(173, 225, 247, 0.75)",
+              precision: 0
+            },
+            title: {
+              display: true,
+              text: "Hands Played",
+              color: "rgba(173, 225, 247, 0.75)"
+            }
+          }
+        }
+      }
+    });
+  };
+
+  const finalizeOverviewLoad = () => {
+    console.info("[RTN] Overview chart rendered successfully");
+    if (loadingOverlay) {
+      loadingOverlay.style.display = "none";
+    }
+    document.querySelectorAll(".overview-filters .chart-filter-btn").forEach((btn) => {
+      btn.disabled = false;
+    });
+  };
+
+  if (period === "hour" || period === "day") {
+    const bucketMinutes = period === "hour" ? 5 : 60;
+    const startTime = startDate || new Date(now.getTime() - (period === "hour" ? 60 : 24 * 60) * 60 * 1000);
+    const allRecords = [];
+    const pageSize = 1000;
+    let page = 0;
+    let hasMore = true;
+
+    try {
+      while (hasMore) {
+        let query = supabase
+          .from("game_hands")
+          .select("created_at")
+          .gte("created_at", startTime.toISOString())
+          .lte("created_at", now.toISOString())
+          .order("created_at", { ascending: true })
+          .range(page * pageSize, page * pageSize + pageSize - 1);
+
+        if (selectedPlayerIds && selectedPlayerIds.length > 0) {
+          query = query.in("user_id", selectedPlayerIds);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const batch = Array.isArray(data) ? data : [];
+        allRecords.push(...batch);
+        hasMore = batch.length === pageSize;
+        page += 1;
+      }
+
+      const bucketCount = period === "hour" ? 12 : 24;
+      const bucketLabels = [];
+      const bucketValues = [];
+
+      for (let index = 0; index < bucketCount; index += 1) {
+        const bucketStart = new Date(startTime.getTime() + index * bucketMinutes * 60 * 1000);
+        const bucketEnd = new Date(bucketStart.getTime() + bucketMinutes * 60 * 1000);
+        const label = bucketStart.toLocaleTimeString([], {
+          hour: "numeric",
+          minute: bucketMinutes < 60 ? "2-digit" : undefined
+        });
+        bucketLabels.push(label);
+        bucketValues.push(
+          allRecords.filter((entry) => {
+            const createdAt = new Date(entry.created_at);
+            return createdAt >= bucketStart && createdAt < bucketEnd;
+          }).length
+        );
+      }
+
+      renderChart(bucketLabels, bucketValues);
+      finalizeOverviewLoad();
+      return;
+    } catch (error) {
+      console.error("[RTN] Error loading short-window overview hands data:", error);
+      if (loadingOverlay) loadingOverlay.style.display = "none";
+      document.querySelectorAll(".overview-filters .chart-filter-btn").forEach((btn) => {
+        btn.disabled = false;
+      });
+      return;
+    }
   }
 
   // Determine date range for chart
@@ -2638,100 +2785,8 @@ async function renderOverviewChart(period = "all") {
   console.info(`[RTN] Today (${todayStr}) has ${handsPerDateMap[todayStr] ?? 0} hands dealt`);
   console.info(`[RTN] Chart date range: ${dates[0]} to ${dates[dates.length - 1]}`);
 
-  // Render chart
-  const canvas = document.getElementById("overview-analytics-chart");
-  if (!canvas) {
-    console.warn("[RTN] Overview chart canvas not found");
-    return;
-  }
-
-  const ctx = canvas.getContext("2d");
-
-  if (overviewChartInstance) {
-    overviewChartInstance.destroy();
-  }
-
-  overviewChartInstance = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: dates,
-      datasets: [
-        {
-          label: "Hands Played",
-          data: handsPerDay,
-          borderColor: "rgba(53, 255, 234, 1)",
-          backgroundColor: "rgba(53, 255, 234, 0.14)",
-          borderWidth: 2,
-          fill: true,
-          tension: 0.3
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false,
-          labels: {
-            color: "rgba(226, 248, 255, 0.85)",
-            boxWidth: 14,
-            boxHeight: 14
-          }
-        },
-        tooltip: {
-          mode: "index",
-          intersect: false,
-          backgroundColor: "rgba(9, 18, 32, 0.95)",
-          titleColor: "rgba(255, 105, 180, 1)",
-          bodyColor: "rgba(226, 248, 255, 0.9)",
-          borderColor: "rgba(255, 105, 180, 0.5)",
-          borderWidth: 1,
-          padding: 12,
-          displayColors: false
-        }
-      },
-      scales: {
-        x: {
-          grid: {
-            color: "rgba(53, 255, 234, 0.1)"
-          },
-          ticks: {
-            color: "rgba(173, 225, 247, 0.75)",
-            maxRotation: 45,
-            minRotation: 0
-          }
-        },
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: "rgba(53, 255, 234, 0.1)"
-          },
-          ticks: {
-            color: "rgba(173, 225, 247, 0.75)",
-            precision: 0
-          },
-          title: {
-            display: true,
-            text: "Hands Played",
-            color: "rgba(173, 225, 247, 0.75)"
-          }
-        }
-      }
-    }
-  });
-
-  console.info("[RTN] Overview chart rendered successfully");
-  
-  // Hide loading state
-  if (loadingOverlay) {
-    loadingOverlay.style.display = "none";
-  }
-  
-  // Re-enable filter buttons
-  document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(btn => {
-    btn.disabled = false;
-  });
+  renderChart(dates, handsPerDay);
+  finalizeOverviewLoad();
 }
 
 function updateActiveUsersChartFilterUI() {
@@ -8456,13 +8511,13 @@ const playAssistantPanel = document.getElementById("play-assistant-panel");
 const playAssistantCloseButton = document.getElementById("play-assistant-close");
 const playAssistantContextEl = document.getElementById("play-assistant-context");
 const playAssistantThreadEl = document.getElementById("play-assistant-thread");
+const playAssistantQuickActionsEl = document.getElementById("play-assistant-quick-actions");
 const playAssistantQuickActionButtons = Array.from(
   document.querySelectorAll("[data-play-assistant-prompt]")
 );
 const playAssistantForm = document.getElementById("play-assistant-form");
 const playAssistantInput = document.getElementById("play-assistant-input");
 const playAssistantSendButton = document.getElementById("play-assistant-send");
-const playAssistantRiskSelect = document.getElementById("play-assistant-risk-select");
 const chipEditorModal = document.getElementById("chip-editor-modal");
 const chipEditorForm = document.getElementById("chip-editor-form");
 const chipEditorInputs = [1, 2, 3, 4]
@@ -9514,6 +9569,7 @@ function formatSignedCurrency(value) {
 
 function getAnalyticsPeriodStart(period) {
   const now = Date.now();
+  if (period === "hour") return new Date(now - 60 * 60 * 1000);
   if (period === "day") return new Date(now - 24 * 60 * 60 * 1000);
   if (period === "week") return new Date(now - 7 * 24 * 60 * 60 * 1000);
   if (period === "month") return new Date(now - 30 * 24 * 60 * 60 * 1000);
@@ -9595,6 +9651,7 @@ function updateActivityFilterUI() {
   if (!mostActiveSubheadEl) return;
 
   const labels = {
+    hour: "Ranked by hands played in the last hour.",
     day: "Ranked by hands played in the last 24 hours.",
     week: "Ranked by hands played in the last 7 days.",
     month: "Ranked by hands played in the last 30 days.",
@@ -10204,9 +10261,6 @@ function setPlayAssistantRiskTolerance(risk, { announce = false } = {}) {
     return;
   }
   playAssistantRiskTolerance = risk;
-  if (playAssistantRiskSelect) {
-    playAssistantRiskSelect.value = risk;
-  }
   updatePlayAssistantContext();
   if (announce) {
     pushPlayAssistantMessage({
@@ -10339,9 +10393,6 @@ function setPlayAssistantLoading(loading) {
   if (playAssistantInput) {
     playAssistantInput.disabled = loading;
   }
-  if (playAssistantRiskSelect) {
-    playAssistantRiskSelect.disabled = loading;
-  }
 
   const lastMessage = playAssistantThread[playAssistantThread.length - 1];
   if (loading) {
@@ -10359,6 +10410,14 @@ function setPlayAssistantLoading(loading) {
     playAssistantThread.pop();
     renderPlayAssistantThread();
   }
+}
+
+function updatePlayAssistantQuickActionsVisibility() {
+  if (!playAssistantQuickActionsEl) return;
+  const hasUserMessage = playAssistantThread.some(
+    (message) => !message.loading && message.role === "user"
+  );
+  playAssistantQuickActionsEl.hidden = hasUserMessage;
 }
 
 function renderPlayAssistantThread() {
@@ -10418,6 +10477,7 @@ function renderPlayAssistantThread() {
   });
 
   playAssistantThreadEl.scrollTop = playAssistantThreadEl.scrollHeight;
+  updatePlayAssistantQuickActionsVisibility();
 }
 
 function togglePlayAssistant(open = !playAssistantOpen) {
@@ -11601,12 +11661,6 @@ if (playAssistantForm) {
   playAssistantForm.addEventListener("submit", (event) => {
     event.preventDefault();
     void sendPlayAssistantMessage(playAssistantInput?.value || "");
-  });
-}
-
-if (playAssistantRiskSelect) {
-  playAssistantRiskSelect.addEventListener("change", () => {
-    setPlayAssistantRiskTolerance(playAssistantRiskSelect.value, { announce: true });
   });
 }
 
@@ -12897,6 +12951,7 @@ async function openPlayerModeBreakdownModal(userId, playerName) {
 
   if (playerModeBreakdownSummaryEl) {
     const labelsByPeriod = {
+      hour: `Hands played by mode in the last hour.`,
       day: `Hands played by mode in the last 24 hours.`,
       week: `Hands played by mode in the last 7 days.`,
       month: `Hands played by mode in the last 30 days.`,
@@ -12929,6 +12984,7 @@ async function openPlayerModeBreakdownModal(userId, playerName) {
 function updateAnalyticsBetFilterUI() {
   const subhead = document.getElementById("analytics-bet-filter-subhead");
   const labels = {
+    hour: "Showing bet counts from the last hour. Click on any bet to view detailed statistics.",
     day: "Showing bet counts from the last 24 hours. Click on any bet to view detailed statistics.",
     week: "Showing bet counts from the last 7 days. Click on any bet to view detailed statistics.",
     month: "Showing bet counts from the last 30 days. Click on any bet to view detailed statistics.",
@@ -13078,7 +13134,7 @@ async function loadMostActiveThisWeek() {
     mostActiveWeekListEl.innerHTML = "";
     const errorItem = document.createElement("li");
     errorItem.className = "analytics-activity-item analytics-activity-empty";
-    errorItem.textContent = "Unable to load weekly activity.";
+    errorItem.textContent = "Unable to load activity rankings.";
     mostActiveWeekListEl.appendChild(errorItem);
   }
 }
