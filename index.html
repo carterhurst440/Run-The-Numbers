@@ -490,6 +490,51 @@
 
       <div
         class="modal"
+        id="chip-editor-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="chip-editor-modal-title"
+        hidden
+      >
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 id="chip-editor-modal-title">Edit Chip Rack</h2>
+            <button type="button" class="modal-close" id="chip-editor-close" aria-label="Close chip editor">×</button>
+          </div>
+          <form class="modal-body chip-editor-form" id="chip-editor-form">
+            <p class="chip-editor-copy">
+              Choose four chip denominations for this play session. Values can be any whole numbers greater than 0.
+            </p>
+            <div class="chip-editor-grid">
+              <label class="chip-editor-field" for="chip-editor-1">
+                <span>Chip 1</span>
+                <input type="number" id="chip-editor-1" name="chip-1" min="1" step="1" inputmode="numeric" required />
+              </label>
+              <label class="chip-editor-field" for="chip-editor-2">
+                <span>Chip 2</span>
+                <input type="number" id="chip-editor-2" name="chip-2" min="1" step="1" inputmode="numeric" required />
+              </label>
+              <label class="chip-editor-field" for="chip-editor-3">
+                <span>Chip 3</span>
+                <input type="number" id="chip-editor-3" name="chip-3" min="1" step="1" inputmode="numeric" required />
+              </label>
+              <label class="chip-editor-field" for="chip-editor-4">
+                <span>Chip 4</span>
+                <input type="number" id="chip-editor-4" name="chip-4" min="1" step="1" inputmode="numeric" required />
+              </label>
+            </div>
+            <p class="chip-editor-message" id="chip-editor-message" hidden></p>
+          </form>
+          <div class="modal-actions">
+            <button type="button" id="chip-editor-reset" class="secondary">Default Rack</button>
+            <button type="button" id="chip-editor-cancel" class="secondary">Cancel</button>
+            <button type="button" id="chip-editor-apply" class="primary">Apply</button>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="modal"
         id="reset-modal"
         role="dialog"
         aria-modal="true"
@@ -1395,45 +1440,21 @@
             id="chip-selector"
             role="radiogroup"
             aria-label="Choose chip denomination"
-          >
-            <button
-              class="chip-choice"
-              type="button"
-              data-value="5"
-              role="radio"
-              aria-checked="true"
-            >
-              5
-            </button>
-            <button
-              class="chip-choice"
-              type="button"
-              data-value="10"
-              role="radio"
-              aria-checked="false"
-            >
-              10
-            </button>
-            <button
-              class="chip-choice"
-              type="button"
-              data-value="25"
-              role="radio"
-              aria-checked="false"
-            >
-              25
-            </button>
-            <button
-              class="chip-choice"
-              type="button"
-              data-value="100"
-              role="radio"
-              aria-checked="false"
-            >
-              100
-            </button>
-          </div>
+          ></div>
           <div class="chip-actions">
+            <button type="button" class="chip-rack-edit" id="chip-rack-edit">Edit</button>
+            <button
+              type="button"
+              id="clear-bets-footer"
+              class="clear-bets secondary"
+              data-action="clear-bets"
+            >
+              Clear
+            </button>
+            <button type="button" id="rebet-button" class="secondary" hidden>
+              Rebet
+            </button>
+            <button id="deal-button" class="deal" disabled>Deal Hand</button>
             <button
               type="button"
               id="play-assistant-toggle"
@@ -1469,18 +1490,6 @@
               </span>
               <span class="play-assistant-fab-label">AI</span>
             </button>
-            <button
-              type="button"
-              id="clear-bets-footer"
-              class="clear-bets secondary"
-              data-action="clear-bets"
-            >
-              Clear
-            </button>
-            <button type="button" id="rebet-button" class="secondary" hidden>
-              Rebet
-            </button>
-            <button id="deal-button" class="deal" disabled>Deal Hand</button>
           </div>
         </div>
         </section>

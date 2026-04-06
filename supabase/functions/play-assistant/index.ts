@@ -86,7 +86,7 @@ Game facts:
 - Number bets can hit repeatedly before the stopper arrives.
 - Specific-card bets win only on the exact card.
 - Card-count bets include the final bust card.
-- Keep draft_bet_plan wagers in multiples of 5 units.
+- Keep draft_bet_plan wagers as whole-number units.
 
 Behavior:
 - Use get_table_context whenever rules, bankroll, table state, or current wagers matter.
@@ -108,9 +108,9 @@ function normalizeRiskTolerance(value: unknown) {
   return "balanced";
 }
 
-function clampToChipUnits(value: number) {
+function clampToWholeUnits(value: number) {
   if (!Number.isFinite(value) || value <= 0) return 0;
-  return Math.max(5, Math.floor(value / 5) * 5);
+  return Math.max(1, Math.round(value));
 }
 
 function normalizeBetPhrase(value: unknown) {
@@ -305,7 +305,7 @@ function draftBetPlan(args: DraftBetPlanArgs, state: AssistantState) {
     .map((bet) => {
       const rawKey = String(bet?.key || "").trim();
       const catalogEntry = catalogMap.get(rawKey) || resolveBetTarget(rawKey, state);
-      const units = clampToChipUnits(safeNumber(bet?.units));
+      const units = clampToWholeUnits(safeNumber(bet?.units));
       if (!catalogEntry || units <= 0) {
         return null;
       }
@@ -488,23 +488,6 @@ Deno.serve(async (request) => {
         );
       }
 
-      if (requestedUnits % 5 !== 0) {
-        return new Response(
-          JSON.stringify({
-            reply: `I understood that as ${bet.label}, but wagers need to be in multiples of 5 units. Want me to round ${requestedUnits} to the nearest valid amount?`,
-            riskTolerance: state.riskTolerance,
-            plan: null
-          }),
-          {
-            status: 200,
-            headers: {
-              ...corsHeaders,
-              "Content-Type": "application/json"
-            }
-          }
-        );
-      }
-
       if (requestedUnits > availableUnits) {
         return new Response(
           JSON.stringify({
@@ -563,7 +546,7 @@ Deno.serve(async (request) => {
       {
         type: "function",
         name: "draft_bet_plan",
-        description: "Create a consent-gated betting layout in multiples of 5 units that the client can place on the felt.",
+        description: "Create a consent-gated betting layout in whole-number units that the client can place on the felt.",
         parameters: {
           type: "object",
           properties: {

@@ -953,6 +953,11 @@ body[data-app-state="loading"] #app-shell {
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, white 8%, transparent),
     inset 0 0 22px color-mix(in srgb, var(--neon-cyan) 12%, transparent);
+  animation: contest-threshold-float 5.2s ease-in-out infinite;
+}
+
+.contest-threshold-progress.is-boosted {
+  animation: contest-threshold-card-pulse 1s ease;
 }
 
 .contest-threshold-progress-title,
@@ -992,6 +997,60 @@ body[data-app-state="loading"] #app-shell {
   border-radius: inherit;
   background: linear-gradient(90deg, var(--neon-cyan), var(--gold));
   box-shadow: 0 0 14px color-mix(in srgb, var(--neon-cyan) 34%, transparent);
+  position: relative;
+}
+
+.contest-threshold-progress-fill::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, white 34%, transparent) 45%,
+    transparent 100%
+  );
+  transform: translateX(-135%);
+  animation: contest-threshold-idle-shimmer 3.8s ease-in-out infinite;
+}
+
+.contest-threshold-progress.is-boosted .contest-threshold-progress-fill {
+  animation: contest-threshold-fill-boost 1.1s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.contest-threshold-progress-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-115%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, white 78%, transparent) 50%,
+    transparent 100%
+  );
+  opacity: 0;
+}
+
+.contest-threshold-progress.is-boosted .contest-threshold-progress-fill::after {
+  opacity: 1;
+  animation: contest-threshold-fill-shimmer 0.9s ease-out;
+}
+
+.contest-threshold-progress-burst {
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0.08rem 0.38rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--gold) 80%, black 20%);
+  color: var(--chip-text-dark);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--gold) 28%, transparent);
+  animation: contest-threshold-burst-pop 1.2s ease-out forwards;
 }
 
 .contest-threshold-progress-home {
@@ -1000,6 +1059,93 @@ body[data-app-state="loading"] #app-shell {
 
 .contest-threshold-progress-list {
   margin-top: 0.45rem;
+}
+
+@keyframes contest-threshold-fill-boost {
+  0% {
+    width: max(0%, calc(var(--progress-width) - 8%));
+    filter: brightness(0.9);
+  }
+  35% {
+    width: min(100%, calc(var(--progress-width) + 6%));
+    filter: brightness(1.25);
+  }
+  100% {
+    width: var(--progress-width);
+    filter: brightness(1);
+  }
+}
+
+@keyframes contest-threshold-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes contest-threshold-idle-shimmer {
+  0%,
+  20% {
+    transform: translateX(-135%);
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.45;
+  }
+  55% {
+    transform: translateX(125%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(125%);
+    opacity: 0;
+  }
+}
+
+@keyframes contest-threshold-fill-shimmer {
+  0% {
+    transform: translateX(-115%);
+  }
+  100% {
+    transform: translateX(130%);
+  }
+}
+
+@keyframes contest-threshold-burst-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.7);
+  }
+  18% {
+    opacity: 1;
+    transform: translateY(-140%) scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-220%) scale(0.92);
+  }
+}
+
+@keyframes contest-threshold-card-pulse {
+  0% {
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, white 8%, transparent),
+      inset 0 0 22px color-mix(in srgb, var(--neon-cyan) 12%, transparent);
+  }
+  40% {
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, white 14%, transparent),
+      inset 0 0 34px color-mix(in srgb, var(--gold) 26%, transparent),
+      0 0 28px color-mix(in srgb, var(--neon-cyan) 16%, transparent);
+  }
+  100% {
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, white 8%, transparent),
+      inset 0 0 22px color-mix(in srgb, var(--neon-cyan) 12%, transparent);
+  }
 }
 
 .home-contest-payouts {
@@ -4289,6 +4435,36 @@ body.theme-angelic {
   color: var(--chip-100-text);
 }
 
+.chip[data-tone="0"] {
+  background: radial-gradient(circle at 35% 28%, #ffe978, #d5a200 70%);
+  color: #241400;
+}
+
+.chip[data-tone="1"] {
+  background: radial-gradient(circle at 35% 28%, #ffb36b, #d96800 70%);
+  color: #341400;
+}
+
+.chip[data-tone="2"] {
+  background: radial-gradient(circle at 35% 28%, #ff8fe7, #bc2ca2 70%);
+  color: #fff7fd;
+}
+
+.chip[data-tone="3"] {
+  background: radial-gradient(circle at 35% 28%, #79cbff, #1f5ed6 70%);
+  color: #f7fbff;
+}
+
+.chip[data-tone="4"] {
+  background: radial-gradient(circle at 35% 28%, #8dffb8, #11894f 70%);
+  color: #f6fff9;
+}
+
+.chip[data-tone="5"] {
+  background: radial-gradient(circle at 35% 28%, #ff7b7b, #181818 72%);
+  color: #fff5f5;
+}
+
 .status {
   text-align: center;
   font-size: clamp(0.92rem, 2.4vw, 1.05rem);
@@ -4403,6 +4579,25 @@ button:disabled {
 .chip-actions button {
   flex: 0 1 auto;
   white-space: nowrap;
+}
+
+.chip-rack-edit {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: color-mix(in srgb, var(--text-light) 82%, var(--muted) 18%);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.chip-rack-edit:hover,
+.chip-rack-edit:focus-visible {
+  color: var(--neon-cyan);
+  outline: none;
 }
 
 .chip-bar .secondary,
@@ -5047,6 +5242,36 @@ body.play-assistant-open .play-assistant-fab {
   background: var(--chip-choice-active-bg);
 }
 
+.chip-choice[data-tone="0"] {
+  background: radial-gradient(circle at 35% 28%, #ffe978, #d5a200 70%);
+  color: #241400;
+}
+
+.chip-choice[data-tone="1"] {
+  background: radial-gradient(circle at 35% 28%, #ffb36b, #d96800 70%);
+  color: #341400;
+}
+
+.chip-choice[data-tone="2"] {
+  background: radial-gradient(circle at 35% 28%, #ff8fe7, #bc2ca2 70%);
+  color: #fff7fd;
+}
+
+.chip-choice[data-tone="3"] {
+  background: radial-gradient(circle at 35% 28%, #79cbff, #1f5ed6 70%);
+  color: #f7fbff;
+}
+
+.chip-choice[data-tone="4"] {
+  background: radial-gradient(circle at 35% 28%, #8dffb8, #11894f 70%);
+  color: #f6fff9;
+}
+
+.chip-choice[data-tone="5"] {
+  background: radial-gradient(circle at 35% 28%, #ff7b7b, #181818 72%);
+  color: #fff5f5;
+}
+
 .chip-choice:disabled {
   opacity: 0.35;
   cursor: not-allowed;
@@ -5486,6 +5711,17 @@ body.play-assistant-open .play-assistant-fab {
   .chip-actions {
     width: 100%;
   }
+
+  .chip-rack-edit {
+    font-size: 0.7rem;
+  }
+
+  .chip-actions .clear-bets {
+    padding-inline: 0.55rem;
+    min-width: 0;
+    font-size: 0.68rem;
+    letter-spacing: 0.06rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -5509,6 +5745,10 @@ body.play-assistant-open .play-assistant-fab {
     width: 36px;
     height: 36px;
     font-size: 0.75rem;
+  }
+
+  .chip-editor-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -6537,6 +6777,60 @@ body.play-assistant-open .play-assistant-fab {
   display: flex;
   flex-direction: column;
   gap: clamp(0.8rem, 2vw, 1.1rem);
+}
+
+.chip-editor-form {
+  gap: 0.9rem;
+}
+
+.chip-editor-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.chip-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.chip-editor-field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.chip-editor-field span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.chip-editor-field input {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--neon-cyan) 28%, transparent);
+  background: color-mix(in srgb, var(--menu-bg) 90%, black 10%);
+  color: var(--text-light);
+  padding: 0.75rem 0.85rem;
+  font: inherit;
+  font-size: 1rem;
+}
+
+.chip-editor-field input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--neon-cyan) 58%, transparent);
+  outline-offset: 2px;
+}
+
+.chip-editor-message {
+  margin: 0;
+  color: #ffb7c4;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
 }
 
 .modal-actions {

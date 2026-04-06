@@ -104,7 +104,9 @@ const PAYTABLES = [
   }
 ];
 const NUMBER_RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
-const DENOMINATIONS = [5, 10, 25, 100];
+const DEFAULT_CHIP_DENOMINATIONS = [5, 10, 25, 100];
+const CHIP_DENOMINATIONS_STORAGE_KEY = "run-the-numbers-chip-denominations";
+const ASSISTANT_SHADOW_DENOMINATION = 1;
 const INITIAL_BANKROLL = 1000;
 const ADMIN_EMAIL = "carterwarrenhurst@gmail.com";
 const DEFAULT_RANK_LADDER = [
@@ -5173,6 +5175,16 @@ async function loadContestParticipantCounts(contests = contestCache) {
       counts[entry.contest_id].qualifying += 1;
     }
   });
+  Object.entries(counts).forEach(([contestId, nextStats]) => {
+    const previousStats = normalizeContestPrizeStats(contestParticipantCounts[contestId] || 0);
+    if (previousStats.participants > 0 && nextStats.participants > previousStats.participants) {
+      contestJoinBoosts.set(contestId, {
+        entered: nextStats.participants,
+        delta: nextStats.participants - previousStats.participants,
+        expiresAt: Date.now() + 2200
+      });
+    }
+  });
   contestParticipantCounts = {
     ...contestParticipantCounts,
     ...counts
@@ -5184,12 +5196,36 @@ function incrementContestParticipantCount(contest, entry) {
   if (!contest?.id || !entry) return;
   const qualificationRequirement = getContestQualificationRequirement(contest);
   const currentStats = normalizeContestPrizeStats(contestParticipantCounts[contest.id] || 0);
+  const nextParticipants = currentStats.participants + 1;
   contestParticipantCounts[contest.id] = {
-    participants: currentStats.participants + 1,
+    participants: nextParticipants,
     qualifying:
       currentStats.qualifying +
       (Number(entry.current_carter_cash ?? entry.starting_carter_cash ?? 0) >= qualificationRequirement ? 1 : 0)
   };
+  contestJoinBoosts.set(contest.id, {
+    entered: nextParticipants,
+    delta: 1,
+    expiresAt: Date.now() + 2200
+  });
+}
+
+function getContestJoinBoost(contestId, entered) {
+  if (!contestId || !contestJoinBoosts.has(contestId)) {
+    return null;
+  }
+
+  const boost = contestJoinBoosts.get(contestId);
+  if (!boost || boost.expiresAt <= Date.now()) {
+    contestJoinBoosts.delete(contestId);
+    return null;
+  }
+
+  if (Number(boost.entered) !== Number(entered)) {
+    return null;
+  }
+
+  return boost;
 }
 
 function getContestDisplayName(profile, fallbackId = "") {
@@ -6005,9 +6041,13 @@ function createContestThresholdProgress(contest, statsOrCount = 0, variant = "li
   const required = getContestStartRequirement(contest);
   const entered = Math.max(0, stats.participants);
   const progress = Math.max(0, Math.min(100, (entered / required) * 100));
+  const joinBoost = getContestJoinBoost(contest.id, entered);
 
   const wrap = document.createElement("div");
   wrap.className = `contest-threshold-progress contest-threshold-progress-${variant}`;
+  if (joinBoost) {
+    wrap.classList.add("is-boosted");
+  }
 
   const headline = document.createElement("p");
   headline.className = "contest-threshold-progress-title";
@@ -6028,7 +6068,15 @@ function createContestThresholdProgress(contest, statsOrCount = 0, variant = "li
   const fill = document.createElement("span");
   fill.className = "contest-threshold-progress-fill";
   fill.style.width = `${progress}%`;
+  fill.style.setProperty("--progress-width", `${progress}%`);
   bar.append(fill);
+
+  if (joinBoost) {
+    const burst = document.createElement("span");
+    burst.className = "contest-threshold-progress-burst";
+    burst.textContent = `+${joinBoost.delta}`;
+    bar.append(burst);
+  }
 
   const meta = document.createElement("p");
   meta.className = "contest-threshold-progress-meta";
@@ -7858,7 +7906,7 @@ function applySignedOutState(reason = "unknown", { focusInput = true } = {}) {
     closePrizeImageModal({ restoreFocus: false });
   }
 
-  setSelectedChip(DENOMINATIONS[0], false);
+  setSelectedChip(chipDenominations[0], false);
   resetTable("Select a chip and place your bets in the betting panel.", { clearDraws: true });
   closeUtilityPanel();
   closeActiveDrawer();
@@ -8056,7 +8104,8 @@ const clearBetsButtons = Array.from(
 const drawsContainer = document.getElementById("draws");
 const statusEl = document.getElementById("status");
 const chipSelectorEl = document.getElementById("chip-selector");
-const chipButtons = Array.from(document.querySelectorAll(".chip-choice"));
+let chipButtons = [];
+const chipRackEditButton = document.getElementById("chip-rack-edit");
 const betSpotButtons = Array.from(document.querySelectorAll(".bet-spot"));
 const betDefinitions = new Map();
 const betSpots = new Map();
@@ -8414,6 +8463,16 @@ const playAssistantForm = document.getElementById("play-assistant-form");
 const playAssistantInput = document.getElementById("play-assistant-input");
 const playAssistantSendButton = document.getElementById("play-assistant-send");
 const playAssistantRiskSelect = document.getElementById("play-assistant-risk-select");
+const chipEditorModal = document.getElementById("chip-editor-modal");
+const chipEditorForm = document.getElementById("chip-editor-form");
+const chipEditorInputs = [1, 2, 3, 4]
+  .map((slot) => document.getElementById(`chip-editor-${slot}`))
+  .filter(Boolean);
+const chipEditorMessage = document.getElementById("chip-editor-message");
+const chipEditorCloseButton = document.getElementById("chip-editor-close");
+const chipEditorCancelButton = document.getElementById("chip-editor-cancel");
+const chipEditorApplyButton = document.getElementById("chip-editor-apply");
+const chipEditorResetButton = document.getElementById("chip-editor-reset");
 
 const THEME_CLASS_MAP = {
   blue: "theme-blue",
@@ -8431,7 +8490,8 @@ const THEME_STORAGE_KEY = "run-the-numbers-theme";
 let bankroll = INITIAL_BANKROLL;
 let bets = [];
 let dealing = false;
-let selectedChip = DENOMINATIONS[0];
+let chipDenominations = loadStoredChipDenominations();
+let selectedChip = chipDenominations[0];
 let bettingOpen = true;
 let stats = {
   hands: 0,
@@ -8516,6 +8576,7 @@ let contestLeaderboard = [];
 let userContestEntries = [];
 let contestEntryMap = new Map();
 let contestParticipantCounts = {};
+let contestJoinBoosts = new Map();
 let currentContestListTab = "live";
 let currentAccountMode = {
   type: "normal",
@@ -8532,6 +8593,7 @@ let playAssistantPendingPlan = null;
 let playAssistantRequestInFlight = false;
 let recentHandReviews = [];
 let handReviewModalTrigger = null;
+let chipEditorModalTrigger = null;
 
 let shippingModalTrigger = null;
 let activeShippingPurchase = null;
@@ -8682,6 +8744,175 @@ if (layoutResizeObserver) {
 
 function getPaytableById(id) {
   return PAYTABLES.find((table) => table.id === id) ?? PAYTABLES[0];
+}
+
+function normalizeChipDenominations(values) {
+  if (!Array.isArray(values)) {
+    return [...DEFAULT_CHIP_DENOMINATIONS];
+  }
+
+  const normalized = values
+    .map((value) => Math.round(Number(value)))
+    .filter((value) => Number.isFinite(value) && value >= 1)
+    .sort((a, b) => a - b);
+
+  if (normalized.length !== 4 || new Set(normalized).size !== 4) {
+    return [...DEFAULT_CHIP_DENOMINATIONS];
+  }
+
+  return normalized;
+}
+
+function loadStoredChipDenominations() {
+  if (typeof window === "undefined" || !window.sessionStorage) {
+    return [...DEFAULT_CHIP_DENOMINATIONS];
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(CHIP_DENOMINATIONS_STORAGE_KEY);
+    return raw ? normalizeChipDenominations(JSON.parse(raw)) : [...DEFAULT_CHIP_DENOMINATIONS];
+  } catch (error) {
+    console.warn("[RTN] unable to load chip denominations", error);
+    return [...DEFAULT_CHIP_DENOMINATIONS];
+  }
+}
+
+function persistChipDenominations() {
+  if (typeof window === "undefined" || !window.sessionStorage) {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(
+      CHIP_DENOMINATIONS_STORAGE_KEY,
+      JSON.stringify(chipDenominations)
+    );
+  } catch (error) {
+    console.warn("[RTN] unable to persist chip denominations", error);
+  }
+}
+
+function getChipToneIndex(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue) || numericValue <= 0) return 0;
+  if (numericValue <= 5) return 0;
+  if (numericValue <= 15) return 1;
+  if (numericValue <= 49) return 2;
+  if (numericValue <= 99) return 3;
+  if (numericValue <= 499) return 4;
+  return 5;
+}
+
+function renderChipSelector() {
+  if (!chipSelectorEl) return;
+
+  chipSelectorEl.innerHTML = chipDenominations
+    .map(
+      (value) => `
+        <button
+          class="chip-choice"
+          type="button"
+          data-value="${value}"
+          data-tone="${getChipToneIndex(value)}"
+          role="radio"
+          aria-checked="${value === selectedChip ? "true" : "false"}"
+        >
+          ${value}
+        </button>
+      `
+    )
+    .join("");
+
+  chipButtons = Array.from(chipSelectorEl.querySelectorAll(".chip-choice"));
+  chipButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.disabled) return;
+      const value = Number(button.dataset.value);
+      if (!Number.isFinite(value)) return;
+      setSelectedChip(value);
+    });
+  });
+
+  updateChipSelectionUI();
+}
+
+function showChipEditorMessage(message = "") {
+  if (!chipEditorMessage) return;
+  chipEditorMessage.textContent = message;
+  chipEditorMessage.hidden = !message;
+}
+
+function syncChipEditorFormValues(values = chipDenominations) {
+  chipEditorInputs.forEach((input, index) => {
+    input.value = String(values[index] ?? "");
+  });
+  showChipEditorMessage("");
+}
+
+function openChipEditorModal() {
+  if (!chipEditorModal || !chipEditorModal.hidden) return;
+  chipEditorModalTrigger =
+    document.activeElement instanceof HTMLElement ? document.activeElement : chipRackEditButton;
+  syncChipEditorFormValues(chipDenominations);
+  chipEditorModal.hidden = false;
+  chipEditorModal.classList.add("is-open");
+  chipEditorModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  chipEditorInputs[0]?.focus();
+}
+
+function closeChipEditorModal({ restoreFocus = false } = {}) {
+  if (!chipEditorModal) return;
+  chipEditorModal.classList.remove("is-open");
+  chipEditorModal.setAttribute("aria-hidden", "true");
+  chipEditorModal.hidden = true;
+  if (
+    (!paytableModal || paytableModal.hidden) &&
+    (!shippingModal || shippingModal.hidden) &&
+    (!resetModal || resetModal.hidden) &&
+    (!adminPrizeModal || adminPrizeModal.hidden) &&
+    (!prizeImageModal || prizeImageModal.hidden) &&
+    (!contestModal || contestModal.hidden) &&
+    (!contestResultsModal || contestResultsModal.hidden) &&
+    (!adminContestResultsModal || adminContestResultsModal.hidden) &&
+    (!adminContestModal || adminContestModal.hidden)
+  ) {
+    document.body.classList.remove("modal-open");
+  }
+  if (restoreFocus && chipEditorModalTrigger instanceof HTMLElement) {
+    chipEditorModalTrigger.focus();
+  }
+  chipEditorModalTrigger = null;
+}
+
+function applyChipDenominations(values, { announce = true } = {}) {
+  chipDenominations = normalizeChipDenominations(values);
+  persistChipDenominations();
+  if (!chipDenominations.includes(selectedChip)) {
+    selectedChip = chipDenominations[0];
+  }
+  renderChipSelector();
+  refreshBetControls();
+  if (announce && statusEl && !dealing) {
+    statusEl.textContent = `Chip rack updated to ${chipDenominations
+      .map((value) => formatCurrency(value))
+      .join(", ")} units.`;
+  }
+}
+
+function handleChipEditorApply(values = chipEditorInputs.map((input) => input.value)) {
+  const normalized = values.map((value) => Math.round(Number(value)));
+  if (normalized.some((value) => !Number.isFinite(value) || value < 1)) {
+    showChipEditorMessage("Enter four whole-number chip values greater than 0.");
+    return false;
+  }
+  if (new Set(normalized).size !== 4) {
+    showChipEditorMessage("Choose four different chip values.");
+    return false;
+  }
+  applyChipDenominations(normalized);
+  closeChipEditorModal({ restoreFocus: true });
+  return true;
 }
 
 function formatPaytableSummary(table) {
@@ -9051,6 +9282,7 @@ function addChipToSpot(key, value) {
   const chip = document.createElement("div");
   chip.className = "chip";
   chip.dataset.value = value;
+  chip.dataset.tone = String(getChipToneIndex(value));
   chip.textContent = value.toString();
   chip.setAttribute("aria-hidden", "true");
   const stackIndex = stackEl.children.length;
@@ -9103,11 +9335,17 @@ function updateAutoDealToggleUI() {
 function refreshBetControls() {
   const intermission = dealing && awaitingManualDeal;
   const chipEnabled = bettingOpen || intermission;
-  chipSelectorEl.classList.toggle("selector-disabled", !chipEnabled);
+  if (chipSelectorEl) {
+    chipSelectorEl.classList.toggle("selector-disabled", !chipEnabled);
+  }
   chipButtons.forEach((button) => {
     button.disabled = !chipEnabled;
     button.setAttribute("aria-disabled", String(!chipEnabled));
   });
+  if (chipRackEditButton) {
+    chipRackEditButton.disabled = dealing;
+    chipRackEditButton.setAttribute("aria-disabled", String(dealing));
+  }
 
   betSpotButtons.forEach((button) => {
     const key = button.dataset.betKey || button.dataset.rank;
@@ -10228,11 +10466,13 @@ function serializePlayAssistantMessages() {
 
 function buildAssistantChipBreakdown(units) {
   let remaining = Math.round(Number(units));
-  if (!Number.isFinite(remaining) || remaining <= 0 || remaining % 5 !== 0) {
+  if (!Number.isFinite(remaining) || remaining <= 0) {
     return null;
   }
   const chips = [];
-  const ordered = [...DENOMINATIONS].sort((a, b) => b - a);
+  const ordered = [...new Set([...chipDenominations, ASSISTANT_SHADOW_DENOMINATION])].sort(
+    (a, b) => b - a
+  );
   ordered.forEach((value) => {
     while (remaining >= value) {
       chips.push(value);
@@ -10439,7 +10679,7 @@ async function requestPlayAssistantResponse(userMessage) {
   if (explicitDirective) {
     const { requestedUnits, targetText, definition, availableUnits } = explicitDirective;
 
-    if (definition && requestedUnits > 0 && requestedUnits % 5 === 0 && requestedUnits <= availableUnits) {
+    if (definition && requestedUnits > 0 && requestedUnits <= availableUnits) {
       return {
         reply: `Understood. I drafted exactly ${requestedUnits} units on ${definition.label}. Confirm if you want me to place it on the felt.`,
         riskTolerance: state.riskTolerance,
@@ -10454,14 +10694,6 @@ async function requestPlayAssistantResponse(userMessage) {
     if (definition && requestedUnits > availableUnits) {
       return {
         reply: `I can't place ${requestedUnits} units on ${definition.label} because only ${availableUnits} units are available right now.`,
-        riskTolerance: state.riskTolerance,
-        plan: null
-      };
-    }
-
-    if (definition && requestedUnits > 0 && requestedUnits % 5 !== 0) {
-      return {
-        reply: `I understood that as ${definition.label}, but bet sizes need to be in multiples of 5 units. Want me to round ${requestedUnits} to the nearest valid amount?`,
         riskTolerance: state.riskTolerance,
         plan: null
       };
@@ -11221,15 +11453,6 @@ function placeBet(key) {
   }.`;
 }
 
-chipButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    if (button.disabled) return;
-    const value = Number(button.dataset.value);
-    if (!Number.isFinite(value)) return;
-    setSelectedChip(value);
-  });
-});
-
 betSpotButtons.forEach((button) => {
   button.addEventListener("click", () => {
     if (button.disabled) return;
@@ -11386,6 +11609,39 @@ if (playAssistantRiskSelect) {
     setPlayAssistantRiskTolerance(playAssistantRiskSelect.value, { announce: true });
   });
 }
+
+chipRackEditButton?.addEventListener("click", () => {
+  if (chipRackEditButton.disabled) return;
+  openChipEditorModal();
+});
+
+chipEditorCloseButton?.addEventListener("click", () => {
+  closeChipEditorModal({ restoreFocus: true });
+});
+
+chipEditorCancelButton?.addEventListener("click", () => {
+  closeChipEditorModal({ restoreFocus: true });
+});
+
+chipEditorApplyButton?.addEventListener("click", () => {
+  handleChipEditorApply();
+});
+
+chipEditorResetButton?.addEventListener("click", () => {
+  syncChipEditorFormValues(DEFAULT_CHIP_DENOMINATIONS);
+  handleChipEditorApply(DEFAULT_CHIP_DENOMINATIONS);
+});
+
+chipEditorForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  handleChipEditorApply();
+});
+
+chipEditorModal?.addEventListener("click", (event) => {
+  if (event.target === chipEditorModal) {
+    closeChipEditorModal({ restoreFocus: true });
+  }
+});
 
 if (resetAccountButton) {
   resetAccountButton.addEventListener("click", () => {
@@ -13295,6 +13551,11 @@ document.addEventListener("keydown", (event) => {
       event.preventDefault();
       return;
     }
+    if (chipEditorModal && !chipEditorModal.hidden) {
+      closeChipEditorModal({ restoreFocus: true });
+      event.preventDefault();
+      return;
+    }
     if (paytableModal && !paytableModal.hidden) {
       pendingPaytableId = activePaytable.id;
       closePaytableModal({ restoreFocus: true });
@@ -13323,6 +13584,7 @@ initTheme();
 startContestTimer();
 setActivePaytable(activePaytable.id, { announce: false });
 updatePaytableAvailability();
+renderChipSelector();
 setSelectedChip(selectedChip, false);
 renderBets();
 updateBankroll();
