@@ -438,6 +438,10 @@
             </button>
           </div>
           <form class="modal-body" id="paytable-form">
+            <div class="paytable-panel paytable-panel-header">
+              <h2>How Number Bets Pay</h2>
+              <p>The selected paytable controls the multiplier progression each time your number hits before the bust card. Number bets can pay repeatedly during the same hand and lose when the hand ends.</p>
+            </div>
             <fieldset class="paytable-options" role="radiogroup" aria-labelledby="paytable-modal-title">
               <legend class="sr-only">Paytable choices</legend>
               <label class="paytable-option" for="paytable-1">
@@ -670,28 +674,11 @@
                 <div class="bets-heading-row">
                   <div class="bets-heading-main">
                     <h2 class="bets-heading" id="number-bets-heading">Number Bets</h2>
-                    <button type="button" class="info-icon" id="number-bets-info" aria-label="Information about number bets">
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
-                        <path d="M8 7V11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                        <circle cx="8" cy="5" r="0.75" fill="currentColor"/>
-                      </svg>
-                    </button>
                   </div>
                   <p class="bets-subheading">Lock before dealing</p>
                 </div>
                 <div class="active-paytable active-paytable-inline" aria-live="polite">
                   <div class="active-paytable-info">
-                    <span class="active-paytable-label">
-                      Active Paytable
-                      <button type="button" class="info-icon" id="paytable-info" aria-label="Information about the paytable">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
-                          <path d="M8 7V11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                          <circle cx="8" cy="5" r="0.75" fill="currentColor"/>
-                        </svg>
-                      </button>
-                    </span>
                     <div class="active-paytable-inline-row">
                       <span id="active-paytable-name" class="active-paytable-name"></span>
                       <button type="button" id="change-paytable" class="change-paytable">Change</button>
@@ -1425,14 +1412,16 @@
         </aside>
 
         <div class="chip-bar" aria-label="Bet controls">
-          <div
-            class="chip-selector"
-            id="chip-selector"
-            role="radiogroup"
-            aria-label="Choose chip denomination"
-          ></div>
-          <div class="chip-actions">
+          <div class="chip-selector-row">
             <button type="button" class="chip-rack-edit" id="chip-rack-edit">Edit</button>
+            <div
+              class="chip-selector"
+              id="chip-selector"
+              role="radiogroup"
+              aria-label="Choose chip denomination"
+            ></div>
+          </div>
+          <div class="chip-actions">
             <button
               type="button"
               id="clear-bets-footer"
@@ -1445,43 +1434,43 @@
               Rebet
             </button>
             <button id="deal-button" class="deal" disabled>Deal Hand</button>
-            <button
-              type="button"
-              id="play-assistant-toggle"
-              class="play-assistant-fab"
-              aria-label="Open strategy assistant"
-              aria-expanded="false"
-              aria-controls="play-assistant-panel"
-            >
-              <span class="play-assistant-fab-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-                  <path
-                    d="M12 3.5c4.97 0 9 3.58 9 8 0 2.19-.99 4.18-2.6 5.62-.34.31-.55.75-.57 1.21l-.08 1.95c-.03.78-.85 1.28-1.55.94l-2.2-1.06c-.34-.16-.73-.2-1.09-.11-.61.15-1.25.23-1.91.23-4.97 0-9-3.58-9-8s4.03-8 9-8Z"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-linejoin="round"
-                    stroke-width="1.7"
-                  ></path>
-                  <path
-                    d="M8.5 11.6h7"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-linecap="round"
-                    stroke-width="1.7"
-                  ></path>
-                  <path
-                    d="M8.5 8.8h4.7"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-linecap="round"
-                    stroke-width="1.7"
-                  ></path>
-                </svg>
-              </span>
-              <span class="play-assistant-fab-label">AI</span>
-            </button>
           </div>
         </div>
+        <button
+          type="button"
+          id="play-assistant-toggle"
+          class="play-assistant-fab"
+          aria-label="Open strategy assistant"
+          aria-expanded="false"
+          aria-controls="play-assistant-panel"
+        >
+          <span class="play-assistant-fab-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path
+                d="M12 3.5c4.97 0 9 3.58 9 8 0 2.19-.99 4.18-2.6 5.62-.34.31-.55.75-.57 1.21l-.08 1.95c-.03.78-.85 1.28-1.55.94l-2.2-1.06c-.34-.16-.73-.2-1.09-.11-.61.15-1.25.23-1.91.23-4.97 0-9-3.58-9-8s4.03-8 9-8Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-linejoin="round"
+                stroke-width="1.7"
+              ></path>
+              <path
+                d="M8.5 11.6h7"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-width="1.7"
+              ></path>
+              <path
+                d="M8.5 8.8h4.7"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-width="1.7"
+              ></path>
+            </svg>
+          </span>
+          <span class="play-assistant-fab-label">AI</span>
+        </button>
         </section>
 
         <section id="contests-view" class="route-view app-page contests-view" hidden aria-labelledby="contests-title">
@@ -2277,6 +2266,32 @@
         </div>
         <div class="modal-actions">
           <button type="button" id="admin-contest-results-ok" class="primary">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal"
+      id="admin-contestants-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="admin-contestants-title"
+      hidden
+    >
+      <div class="modal-content contest-modal">
+        <div class="modal-header">
+          <h2 id="admin-contestants-title">Contestants</h2>
+          <button type="button" class="modal-close" id="admin-contestants-close" aria-label="Close contestant list">×</button>
+        </div>
+        <div class="modal-body contest-modal-body">
+          <p id="admin-contestants-summary" class="contest-results-summary"></p>
+          <div class="contest-results-group">
+            <h3>Joined So Far</h3>
+            <ul id="admin-contestants-list" class="contest-results-list"></ul>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="admin-contestants-ok" class="primary">OK</button>
         </div>
       </div>
     </div>

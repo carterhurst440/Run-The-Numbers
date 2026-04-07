@@ -3587,12 +3587,12 @@ body.theme-angelic {
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  margin: -0.15rem 0 0.2rem;
+  margin: -0.05rem 0 0.8rem;
 }
 
 .active-paytable-info {
   display: grid;
-  gap: 0.25rem;
+  gap: 0.4rem;
   min-width: 0;
 }
 
@@ -3629,6 +3629,7 @@ body.theme-angelic {
   font-size: clamp(0.75rem, 1.9vw, 0.9rem);
   color: var(--active-paytable-steps-color);
   letter-spacing: 0.08rem;
+  padding-top: 0.15rem;
 }
 
 .change-paytable {
@@ -4568,6 +4569,17 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+.chip-selector-row {
+  display: flex;
+  align-items: center;
+  gap: var(--chip-actions-gap);
+  width: 100%;
+}
+
+.chip-selector-row .chip-selector {
+  flex: 1 1 auto;
+}
+
 .chip-actions {
   display: flex;
   align-items: center;
@@ -4582,6 +4594,7 @@ button:disabled {
 }
 
 .chip-rack-edit {
+  flex: 0 0 auto;
   padding: 0;
   border: 0;
   background: none;
@@ -4620,8 +4633,10 @@ button:disabled {
 }
 
 .play-assistant-fab {
-  position: relative;
-  z-index: 1;
+  position: fixed;
+  right: clamp(1rem, 2.5vw, 1.6rem);
+  bottom: calc(env(safe-area-inset-bottom) + 8.1rem);
+  z-index: 9;
   width: 3rem;
   height: 3rem;
   min-width: 3rem;
@@ -4878,6 +4893,11 @@ body.play-assistant-open .play-assistant-fab {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.play-assistant-quick-actions[hidden],
+.play-assistant-quick-actions.is-hidden {
+  display: none !important;
 }
 
 .play-assistant-chip {
@@ -5419,6 +5439,10 @@ body.play-assistant-open .play-assistant-fab {
     width: 100%;
     justify-content: center;
   }
+
+  .chip-selector-row {
+    justify-content: center;
+  }
 }
 
 @media (min-width: 960px) {
@@ -5628,6 +5652,10 @@ body.play-assistant-open .play-assistant-fab {
     padding-inline: clamp(0.65rem, 6vw, 1rem);
   }
 
+  .chip-selector-row {
+    gap: 0.5rem;
+  }
+
   .chip-bar .secondary,
   .chip-bar .deal {
     padding: 0.42rem 0.7rem;
@@ -5647,6 +5675,11 @@ body.play-assistant-open .play-assistant-fab {
     min-width: 0;
     font-size: 0.68rem;
     letter-spacing: 0.06rem;
+  }
+
+  .play-assistant-fab {
+    right: 0.85rem;
+    bottom: calc(env(safe-area-inset-bottom) + 8.6rem);
   }
 }
 
@@ -8418,6 +8451,19 @@ body.modal-open {
 .contest-player-score {
   color: var(--muted);
   font-size: 0.9rem;
+}
+
+.contest-results-entry-email,
+.contest-results-entry-meta span {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.contest-results-entry-meta {
+  display: grid;
+  justify-items: end;
+  gap: 0.12rem;
+  text-align: right;
 }
 
 .contest-result-main {

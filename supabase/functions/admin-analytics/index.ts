@@ -15,6 +15,8 @@ type RunRow = {
 
 function getPeriodStart(period: string) {
   const now = Date.now();
+  if (period === "hour") return new Date(now - 60 * 60 * 1000);
+  if (period === "day") return new Date(now - 24 * 60 * 60 * 1000);
   if (period === "week") return new Date(now - 7 * 24 * 60 * 60 * 1000);
   if (period === "month") return new Date(now - 30 * 24 * 60 * 60 * 1000);
   if (period === "90days") return new Date(now - 90 * 24 * 60 * 60 * 1000);
@@ -46,6 +48,13 @@ function getContestIdFromRun(run: RunRow) {
   const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
   const contestId = String(metadata?.contest_id || "").trim();
   return contestId || null;
+}
+
+function formatBucketLabel(date: Date, bucketMinutes: number) {
+  return date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: bucketMinutes < 60 ? "2-digit" : undefined
+  });
 }
 
 async function loadRunsForUser(supabase: ReturnType<typeof createClient>, userId: string) {
@@ -116,8 +125,73 @@ Deno.serve(async (request) => {
     const userId = String(body?.userId || "").trim();
     const period = String(body?.period || "all").trim();
 
-    if (!action || !userId) {
-      throw new Error("action and userId are required.");
+    if (!action) {
+      throw new Error("action is required.");
+    }
+
+    if (action === "hands_timeseries") {
+      const now = body?.endAt ? new Date(String(body.endAt)) : new Date();
+      const requestedStart = body?.startAt ? new Date(String(body.startAt)) : null;
+      const startDate = requestedStart && !Number.isNaN(requestedStart.getTime())
+        ? requestedStart
+        : getPeriodStart(period) || new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const bucketMinutes = period === "hour" ? 5 : 60;
+      const bucketCount = period === "hour" ? 12 : 24;
+      const targetUserIds = Array.isArray(body?.targetUserIds)
+        ? body.targetUserIds.map((value: unknown) => String(value || "").trim()).filter(Boolean)
+        : [];
+
+      const allRecords: Array<{ created_at?: string | null }> = [];
+      const pageSize = 1000;
+      let page = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        let query = supabase
+          .from("game_hands")
+          .select("created_at")
+          .gte("created_at", startDate.toISOString())
+          .lte("created_at", now.toISOString())
+          .order("created_at", { ascending: true })
+          .range(page * pageSize, page * pageSize + pageSize - 1);
+
+        if (targetUserIds.length) {
+          query = query.in("user_id", targetUserIds);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const batch = Array.isArray(data) ? data : [];
+        allRecords.push(...batch);
+        hasMore = batch.length === pageSize;
+        page += 1;
+      }
+
+      const rows = Array.from({ length: bucketCount }, (_, index) => {
+        const bucketStart = new Date(startDate.getTime() + index * bucketMinutes * 60 * 1000);
+        const bucketEnd = new Date(bucketStart.getTime() + bucketMinutes * 60 * 1000);
+        const handsPlayed = allRecords.filter((entry) => {
+          const createdAt = entry?.created_at ? new Date(entry.created_at) : null;
+          return createdAt && !Number.isNaN(createdAt.getTime()) && createdAt >= bucketStart && createdAt < bucketEnd;
+        }).length;
+        return {
+          label: formatBucketLabel(bucketStart, bucketMinutes),
+          handsPlayed
+        };
+      });
+
+      return new Response(JSON.stringify({ rows }), {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      });
+    }
+
+    if (!userId) {
+      throw new Error("userId is required.");
     }
 
     const allRuns = await loadRunsForUser(supabase, userId);

@@ -216,6 +216,42 @@ function resolveBetTarget(targetText: unknown, state: AssistantState) {
   return null;
 }
 
+function resolveBetTargets(targetText: unknown, state: AssistantState) {
+  const normalized = normalizeBetPhrase(targetText);
+  const catalog = state.betCatalog || [];
+  if (!normalized || !catalog.length) {
+    return [];
+  }
+
+  const categoryMatchers = [
+    {
+      pattern: /\b(?:every|all|each)\s+(?:number|rank)\s+bets?\b|\b(?:every|all|each)\s+numbers?\b|\ball\s+ten\s+numbers?\b/,
+      filter: (entry: BetCatalogEntry) => entry.type === "number"
+    },
+    {
+      pattern: /\b(?:every|all|each)\s+(?:count|card count)\s+bets?\b|\b(?:every|all|each)\s+counts?\b/,
+      filter: (entry: BetCatalogEntry) => entry.type === "count"
+    },
+    {
+      pattern: /\b(?:every|all|each)\s+(?:specific\s+card|card)\s+bets?\b|\b(?:every|all|each)\s+specific\s+cards?\b/,
+      filter: (entry: BetCatalogEntry) => entry.type === "card"
+    },
+    {
+      pattern: /\b(?:every|all|each)\s+(?:bust|stopper|end)\s+bets?\b|\b(?:every|all|each)\s+busts?\b/,
+      filter: (entry: BetCatalogEntry) => entry.type === "bust"
+    }
+  ];
+
+  for (const matcher of categoryMatchers) {
+    if (matcher.pattern.test(normalized)) {
+      return catalog.filter(matcher.filter);
+    }
+  }
+
+  const single = resolveBetTarget(targetText, state);
+  return single ? [single] : [];
+}
+
 function parseExplicitBetDirective(message: string, state: AssistantState) {
   const commandMatch = String(message || "").trim().match(
     /(?:^|\b)(?:play|place|bet|put|set|drop|stage)\s+\$?([\d,.]+(?:\.\d+)?\s*[km]?)\s*(?:units?)?\s+(?:on\s+)?(.+)$/i
@@ -228,13 +264,13 @@ function parseExplicitBetDirective(message: string, state: AssistantState) {
   const targetText = String(commandMatch[2] || "")
     .replace(/\s+(?:please|pls|for me|thanks?)\s*$/i, "")
     .trim();
-  const bet = resolveBetTarget(targetText, state);
+  const bets = resolveBetTargets(targetText, state);
   const availableUnits = Math.max(0, safeNumber(state.betting?.availableUnits, state.bankroll));
 
   return {
     requestedUnits,
     targetText,
-    bet,
+    bets,
     availableUnits
   };
 }
@@ -451,13 +487,15 @@ Deno.serve(async (request) => {
 
     const explicitDirective = parseExplicitBetDirective(latestMessage, state);
     if (explicitDirective) {
-      const { requestedUnits, targetText, bet, availableUnits } = explicitDirective;
+      const { requestedUnits, targetText, bets, availableUnits } = explicitDirective;
+      const totalRequestedUnits =
+        Array.isArray(bets) && bets.length > 0 ? requestedUnits * bets.length : requestedUnits;
       console.info("[play-assistant] explicit directive parse", explicitDirective);
 
-      if (!bet) {
+      if (!bets?.length) {
         return new Response(
           JSON.stringify({
-            reply: `I couldn't map "${targetText}" to a live bet yet. Try a phrasing like "8+ cards", "Bust Hearts", "Ace", or "Ace of Spades", and I'll stage it.`,
+            reply: `I couldn't map "${targetText}" cleanly to a live bet yet. Try a phrasing like "8+ cards", "Bust Hearts", "Ace", "Ace of Spades", or "every number bet", and I'll make my best draft for you.`,
             riskTolerance: state.riskTolerance,
             plan: null
           }),
@@ -472,9 +510,10 @@ Deno.serve(async (request) => {
       }
 
       if (!Number.isFinite(requestedUnits) || requestedUnits <= 0) {
+        const targetLabel = bets[0]?.label || targetText;
         return new Response(
           JSON.stringify({
-            reply: `I understood the bet target as ${bet.label}, but I couldn't read the wager amount. Try something like "place 500 on ${bet.label}".`,
+            reply: `I understood the bet target as ${targetLabel}, but I couldn't read the wager amount. Try something like "place 500 on ${targetLabel}".`,
             riskTolerance: state.riskTolerance,
             plan: null
           }),
@@ -488,10 +527,15 @@ Deno.serve(async (request) => {
         );
       }
 
-      if (requestedUnits > availableUnits) {
+      if (totalRequestedUnits > availableUnits) {
+        const targetLabel =
+          bets.length === 1 ? bets[0].label : targetText.replace(/\s+/g, " ").trim() || "that layout";
         return new Response(
           JSON.stringify({
-            reply: `I can't place ${requestedUnits} units on ${bet.label} because only ${availableUnits} units are available right now.`,
+            reply:
+              bets.length === 1
+                ? `I can't place ${requestedUnits} units on ${targetLabel} because only ${availableUnits} units are available right now.`
+                : `I can't place ${requestedUnits} units on each target in ${targetLabel} because that needs ${totalRequestedUnits} units and only ${availableUnits} are available right now.`,
             riskTolerance: state.riskTolerance,
             plan: null
           }),
@@ -507,17 +551,23 @@ Deno.serve(async (request) => {
 
       const directPlan = draftBetPlan(
         {
-          summary: "Direct instruction captured. Confirm and I will stage this exact layout on the felt.",
+          summary:
+            bets.length === 1
+              ? "Direct instruction captured. Confirm and I will stage this exact layout on the felt."
+              : "Best-guess instruction captured. Confirm and I will stage this layout on the felt.",
           follow_user_directive: true,
           replace_existing: true,
-          bets: [{ key: bet.key, units: requestedUnits }]
+          bets: bets.map((bet) => ({ key: bet.key, units: requestedUnits }))
         },
         state
       );
 
       return new Response(
         JSON.stringify({
-          reply: `Understood. I drafted exactly ${requestedUnits} units on ${bet.label}. Confirm if you want me to place it on the felt.`,
+          reply:
+            bets.length === 1
+              ? `Understood. I drafted exactly ${requestedUnits} units on ${bets[0].label}. Confirm if you want me to place it on the felt.`
+              : `Understood. I made a best-guess draft of ${requestedUnits} units on each target in ${targetText} for ${totalRequestedUnits} units total. Confirm if you want me to place it on the felt.`,
           riskTolerance: directPlan.riskTolerance || state.riskTolerance,
           plan: directPlan
         }),

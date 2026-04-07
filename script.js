@@ -2658,57 +2658,18 @@ async function renderOverviewChart(period = "all") {
   };
 
   if (period === "hour" || period === "day") {
-    const bucketMinutes = period === "hour" ? 5 : 60;
-    const startTime = startDate || new Date(now.getTime() - (period === "hour" ? 60 : 24 * 60) * 60 * 1000);
-    const allRecords = [];
-    const pageSize = 1000;
-    let page = 0;
-    let hasMore = true;
-
     try {
-      while (hasMore) {
-        let query = supabase
-          .from("game_hands")
-          .select("created_at")
-          .gte("created_at", startTime.toISOString())
-          .lte("created_at", now.toISOString())
-          .order("created_at", { ascending: true })
-          .range(page * pageSize, page * pageSize + pageSize - 1);
-
-        if (selectedPlayerIds && selectedPlayerIds.length > 0) {
-          query = query.in("user_id", selectedPlayerIds);
-        }
-
-        const { data, error } = await query;
-        if (error) throw error;
-
-        const batch = Array.isArray(data) ? data : [];
-        allRecords.push(...batch);
-        hasMore = batch.length === pageSize;
-        page += 1;
-      }
-
-      const bucketCount = period === "hour" ? 12 : 24;
-      const bucketLabels = [];
-      const bucketValues = [];
-
-      for (let index = 0; index < bucketCount; index += 1) {
-        const bucketStart = new Date(startTime.getTime() + index * bucketMinutes * 60 * 1000);
-        const bucketEnd = new Date(bucketStart.getTime() + bucketMinutes * 60 * 1000);
-        const label = bucketStart.toLocaleTimeString([], {
-          hour: "numeric",
-          minute: bucketMinutes < 60 ? "2-digit" : undefined
-        });
-        bucketLabels.push(label);
-        bucketValues.push(
-          allRecords.filter((entry) => {
-            const createdAt = new Date(entry.created_at);
-            return createdAt >= bucketStart && createdAt < bucketEnd;
-          }).length
-        );
-      }
-
-      renderChart(bucketLabels, bucketValues);
+      const data = await invokeAdminAnalytics("hands_timeseries", {
+        period,
+        startAt: startDate ? startDate.toISOString() : null,
+        endAt: now.toISOString(),
+        targetUserIds: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null
+      });
+      const rows = Array.isArray(data?.rows) ? data.rows : [];
+      renderChart(
+        rows.map((row) => row.label || ""),
+        rows.map((row) => Number(row.handsPlayed || 0))
+      );
       finalizeOverviewLoad();
       return;
     } catch (error) {
@@ -5987,9 +5948,98 @@ function closeAdminContestResultsModal() {
     (!contestResultsModal || contestResultsModal.hidden) &&
     (!contestJourneyModal || contestJourneyModal.hidden) &&
     (!adminContestResultsModal || adminContestResultsModal.hidden) &&
+    (!adminContestantsModal || adminContestantsModal.hidden) &&
     (!adminContestModal || adminContestModal.hidden)
   ) {
     document.body.classList.remove("modal-open");
+  }
+}
+
+function renderAdminContestantsModal(contest, contestants = []) {
+  if (!adminContestantsSummaryEl || !adminContestantsListEl) return;
+  const required = getContestStartRequirement(contest);
+  const entered = contestants.length;
+  const remaining = Math.max(0, required - entered);
+  adminContestantsSummaryEl.textContent = `${contest.title} currently has ${entered} contestant${entered === 1 ? "" : "s"} entered.${required > 0 ? ` ${remaining === 0 ? "The start requirement has been met." : `${remaining} more ${remaining === 1 ? "entrant is" : "entrants are"} needed to start.`}` : ""}`;
+
+  adminContestantsListEl.innerHTML = "";
+  if (!contestants.length) {
+    const empty = document.createElement("li");
+    empty.className = "contest-result-row";
+    empty.innerHTML = "<span>No contestants have joined yet.</span><strong>Pending</strong>";
+    adminContestantsListEl.appendChild(empty);
+    return;
+  }
+
+  contestants.forEach((entry, index) => {
+    const item = document.createElement("li");
+    item.className = "contest-result-row";
+
+    const nameWrap = document.createElement("div");
+    const name = document.createElement("strong");
+    name.textContent = entry.display_name || getContestDisplayName(null, entry.user_id);
+    const meta = document.createElement("div");
+    meta.className = "contest-results-entry-email";
+    meta.textContent = entry.participant_email || "Email unavailable";
+    nameWrap.append(name, meta);
+
+    const joined = document.createElement("div");
+    joined.className = "contest-results-entry-meta";
+    joined.innerHTML = `<strong>#${index + 1}</strong><span>${entry.opted_in_at ? new Date(entry.opted_in_at).toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    }) : "Joined"}</span>`;
+
+    item.append(nameWrap, joined);
+    adminContestantsListEl.appendChild(item);
+  });
+}
+
+function openAdminContestantsModal(contest, contestants) {
+  if (!adminContestantsModal) return;
+  renderAdminContestantsModal(contest, contestants);
+  adminContestantsModal.hidden = false;
+  adminContestantsModal.classList.add("is-open");
+  adminContestantsModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+
+function closeAdminContestantsModal() {
+  if (!adminContestantsModal) return;
+  adminContestantsModal.hidden = true;
+  adminContestantsModal.classList.remove("is-open");
+  adminContestantsModal.setAttribute("aria-hidden", "true");
+  if (
+    (!shippingModal || shippingModal.hidden) &&
+    (!resetModal || resetModal.hidden) &&
+    (!paytableModal || paytableModal.hidden) &&
+    (!prizeImageModal || prizeImageModal.hidden) &&
+    (!contestModal || contestModal.hidden) &&
+    (!contestResultsModal || contestResultsModal.hidden) &&
+    (!contestJourneyModal || contestJourneyModal.hidden) &&
+    (!adminContestResultsModal || adminContestResultsModal.hidden) &&
+    (!adminContestantsModal || adminContestantsModal.hidden) &&
+    (!adminContestModal || adminContestModal.hidden)
+  ) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+async function handleAdminContestViewContestants(contest) {
+  if (!contest?.id) return;
+  try {
+    const { data, error } = await supabase
+      .from("contest_entries")
+      .select("user_id, display_name, participant_email, opted_in_at")
+      .eq("contest_id", contest.id)
+      .order("opted_in_at", { ascending: true });
+    if (error) throw error;
+    openAdminContestantsModal(contest, Array.isArray(data) ? data : []);
+  } catch (error) {
+    console.error("[RTN] admin contest contestants error", error);
+    showToast(error?.message || "Unable to load contestants", "error");
   }
 }
 
@@ -7325,6 +7375,17 @@ function renderAdminContestRow(contest, participantStats = 0) {
   const actions = document.createElement("div");
   actions.className = "contest-actions";
 
+  if (status === "pending") {
+    const contestantsButton = document.createElement("button");
+    contestantsButton.type = "button";
+    contestantsButton.className = "secondary";
+    contestantsButton.textContent = "View Contestants";
+    contestantsButton.addEventListener("click", () => {
+      void handleAdminContestViewContestants(contest);
+    });
+    actions.append(contestantsButton);
+  }
+
   if (status === "ended") {
     const resultsButton = document.createElement("button");
     resultsButton.type = "button";
@@ -8462,6 +8523,11 @@ const adminContestResultsOkButton = document.getElementById("admin-contest-resul
 const adminContestResultsSummaryEl = document.getElementById("admin-contest-results-summary");
 const adminContestResultsListEl = document.getElementById("admin-contest-results-list");
 const adminContestResultsNonQualifyingListEl = document.getElementById("admin-contest-results-nonqualifying-list");
+const adminContestantsModal = document.getElementById("admin-contestants-modal");
+const adminContestantsCloseButton = document.getElementById("admin-contestants-close");
+const adminContestantsOkButton = document.getElementById("admin-contestants-ok");
+const adminContestantsSummaryEl = document.getElementById("admin-contestants-summary");
+const adminContestantsListEl = document.getElementById("admin-contestants-list");
 const contestJourneyModal = document.getElementById("contest-journey-modal");
 const contestJourneyTitleEl = document.getElementById("contest-journey-title");
 const contestJourneySummaryEl = document.getElementById("contest-journey-summary");
@@ -10414,10 +10480,12 @@ function setPlayAssistantLoading(loading) {
 
 function updatePlayAssistantQuickActionsVisibility() {
   if (!playAssistantQuickActionsEl) return;
-  const hasUserMessage = playAssistantThread.some(
+  const hasStartedConversation = playAssistantThread.some(
     (message) => !message.loading && message.role === "user"
   );
-  playAssistantQuickActionsEl.hidden = hasUserMessage;
+  playAssistantQuickActionsEl.hidden = hasStartedConversation;
+  playAssistantQuickActionsEl.classList.toggle("is-hidden", hasStartedConversation);
+  playAssistantQuickActionsEl.setAttribute("aria-hidden", String(hasStartedConversation));
 }
 
 function renderPlayAssistantThread() {
@@ -10687,6 +10755,42 @@ function resolveAssistantBetTarget(targetText) {
   return null;
 }
 
+function resolveAssistantBetTargets(targetText, state) {
+  const normalized = normalizeAssistantBetPhrase(targetText);
+  const catalog = Array.isArray(state?.betCatalog) ? state.betCatalog : getPlayAssistantBetCatalog();
+  if (!normalized) {
+    return [];
+  }
+
+  const categoryMatchers = [
+    {
+      pattern: /\b(?:every|all|each)\s+(?:number|rank)\s+bets?\b|\b(?:every|all|each)\s+numbers?\b|\ball\s+ten\s+numbers?\b/,
+      filter: (entry) => entry.type === "number"
+    },
+    {
+      pattern: /\b(?:every|all|each)\s+(?:count|card count)\s+bets?\b|\b(?:every|all|each)\s+counts?\b/,
+      filter: (entry) => entry.type === "count"
+    },
+    {
+      pattern: /\b(?:every|all|each)\s+(?:specific\s+card|card)\s+bets?\b|\b(?:every|all|each)\s+specific\s+cards?\b/,
+      filter: (entry) => entry.type === "card"
+    },
+    {
+      pattern: /\b(?:every|all|each)\s+(?:bust|stopper|end)\s+bets?\b|\b(?:every|all|each)\s+busts?\b/,
+      filter: (entry) => entry.type === "bust"
+    }
+  ];
+
+  for (const matcher of categoryMatchers) {
+    if (matcher.pattern.test(normalized)) {
+      return catalog.filter(matcher.filter);
+    }
+  }
+
+  const single = resolveAssistantBetTarget(targetText);
+  return single ? [single] : [];
+}
+
 function parseAssistantDirective(message, state) {
   const normalized = String(message || "").trim();
   const commandMatch = normalized.match(
@@ -10700,13 +10804,13 @@ function parseAssistantDirective(message, state) {
   const targetText = String(commandMatch[2] || "")
     .replace(/\s+(?:please|pls|for me|thanks?)\s*$/i, "")
     .trim();
-  const definition = resolveAssistantBetTarget(targetText);
+  const definitions = resolveAssistantBetTargets(targetText, state);
   const availableUnits = Math.max(0, Math.round(Number(state?.betting?.availableUnits ?? bankroll)));
 
   return {
     requestedUnits,
     targetText,
-    definition,
+    definitions,
     availableUnits
   };
 }
@@ -10737,31 +10841,48 @@ async function requestPlayAssistantResponse(userMessage) {
 
   const explicitDirective = parseAssistantDirective(userMessage, state);
   if (explicitDirective) {
-    const { requestedUnits, targetText, definition, availableUnits } = explicitDirective;
+    const { requestedUnits, targetText, definitions, availableUnits } = explicitDirective;
+    const totalRequestedUnits =
+      Array.isArray(definitions) && definitions.length > 0 ? requestedUnits * definitions.length : requestedUnits;
 
-    if (definition && requestedUnits > 0 && requestedUnits <= availableUnits) {
+    if (definitions?.length && requestedUnits > 0 && totalRequestedUnits <= availableUnits) {
+      const summaryTarget =
+        definitions.length === 1
+          ? definitions[0].label
+          : targetText.replace(/\s+/g, " ").trim() || "that layout";
       return {
-        reply: `Understood. I drafted exactly ${requestedUnits} units on ${definition.label}. Confirm if you want me to place it on the felt.`,
+        reply:
+          definitions.length === 1
+            ? `Understood. I drafted exactly ${requestedUnits} units on ${definitions[0].label}. Confirm if you want me to place it on the felt.`
+            : `Understood. I made a best-guess draft of ${requestedUnits} units on each target in ${summaryTarget} for ${totalRequestedUnits} units total. Confirm if you want me to place it on the felt.`,
         riskTolerance: state.riskTolerance,
         plan: normalizeAssistantPlan({
-          summary: "Direct instruction captured. Confirm and I will stage this exact layout on the felt.",
+          summary:
+            definitions.length === 1
+              ? "Direct instruction captured. Confirm and I will stage this exact layout on the felt."
+              : "Best-guess instruction captured. Confirm and I will stage this layout on the felt.",
           replaceExisting: true,
-          bets: [{ key: definition.key, units: requestedUnits }]
+          bets: definitions.map((definition) => ({ key: definition.key, units: requestedUnits }))
         })
       };
     }
 
-    if (definition && requestedUnits > availableUnits) {
+    if (definitions?.length && totalRequestedUnits > availableUnits) {
+      const targetLabel =
+        definitions.length === 1 ? definitions[0].label : targetText.replace(/\s+/g, " ").trim() || "that layout";
       return {
-        reply: `I can't place ${requestedUnits} units on ${definition.label} because only ${availableUnits} units are available right now.`,
+        reply:
+          definitions.length === 1
+            ? `I can't place ${requestedUnits} units on ${targetLabel} because only ${availableUnits} units are available right now.`
+            : `I can't place ${requestedUnits} units on each target in ${targetLabel} because that needs ${totalRequestedUnits} units and only ${availableUnits} are available right now.`,
         riskTolerance: state.riskTolerance,
         plan: null
       };
     }
 
-    if (!definition) {
+    if (!definitions?.length) {
       return {
-        reply: `I couldn't map "${targetText}" to a live bet yet. Try a phrasing like "8+ cards", "Bust Hearts", "Ace", or "Ace of Spades", and I'll stage it.`,
+        reply: `I couldn't map "${targetText}" cleanly to a live bet yet. Try a phrasing like "8+ cards", "Bust Hearts", "Ace", "Ace of Spades", or "every number bet", and I'll make my best draft for you.`,
         riskTolerance: state.riskTolerance,
         plan: null
       };
@@ -12109,6 +12230,26 @@ if (adminContestResultsModal) {
   adminContestResultsModal.addEventListener("click", (event) => {
     if (event.target === adminContestResultsModal) {
       closeAdminContestResultsModal();
+    }
+  });
+}
+
+if (adminContestantsCloseButton) {
+  adminContestantsCloseButton.addEventListener("click", () => {
+    closeAdminContestantsModal();
+  });
+}
+
+if (adminContestantsOkButton) {
+  adminContestantsOkButton.addEventListener("click", () => {
+    closeAdminContestantsModal();
+  });
+}
+
+if (adminContestantsModal) {
+  adminContestantsModal.addEventListener("click", (event) => {
+    if (event.target === adminContestantsModal) {
+      closeAdminContestantsModal();
     }
   });
 }
