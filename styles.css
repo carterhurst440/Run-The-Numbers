@@ -4327,7 +4327,44 @@ body.theme-angelic {
 
 @media (max-width: 1100px) {
   .suit-bet-grid {
-    grid-template-columns: repeat(4, minmax(64px, max-content));
+    grid-template-columns: repeat(auto-fit, 78px);
+    justify-content: start;
+  }
+}
+
+@media (max-width: 720px) {
+  .suit-bet-grid {
+    grid-template-columns: repeat(auto-fit, 72px);
+    gap: 0.22rem;
+  }
+
+  .suit-bet {
+    min-height: 72px;
+    padding: 0.22rem 0.24rem;
+  }
+
+  .suit-bet .bet-label {
+    gap: 0.14rem;
+    font-size: 0.56rem;
+    letter-spacing: 0.04em;
+  }
+
+  .suit-bet .suit-icon {
+    font-size: 0.66rem;
+  }
+
+  .suit-bet-group-header {
+    margin-bottom: 0.24rem;
+  }
+
+  .suit-bet-group-title,
+  .suit-bet-group-odds {
+    font-size: 0.54rem;
+  }
+
+  .suit-bets .bets-subheading {
+    font-size: 0.52rem;
+    letter-spacing: 0.1em;
   }
 }
 
