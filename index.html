@@ -327,7 +327,7 @@
               Each hand uses a fresh 53-card deck. Jacks, Queens, Kings, and the Joker stop play immediately; Ace and numbers 2–10 keep the hand alive.
             </p>
             <p>
-              Number bets and card count bets lock before the hand starts. With Auto Deal off, specific card bets and advanced bust bets can be added between revealed cards.
+              Number bets, suit bets, and card count bets lock before the hand starts. With Auto Deal off, specific card bets and advanced bust bets can be added between revealed cards.
             </p>
           </div>
         </section>
@@ -383,6 +383,8 @@
           <div class="overview-chart-header">
             <h3 class="chart-title">Lifetime Bankroll History</h3>
             <div class="chart-filters bankroll-history-filters">
+              <button type="button" class="chart-filter-btn" data-bankroll-period="hour">Last Hour</button>
+              <button type="button" class="chart-filter-btn" data-bankroll-period="day">Last 24 Hours</button>
               <button type="button" class="chart-filter-btn" data-bankroll-period="week">Last Week</button>
               <button type="button" class="chart-filter-btn" data-bankroll-period="month">Last Month</button>
               <button type="button" class="chart-filter-btn" data-bankroll-period="90days">Last 3 Months</button>
@@ -1180,6 +1182,98 @@
                       </button>
                     </div>
               </section>
+              <section class="suit-bets" aria-labelledby="suit-bets-heading">
+                <div class="bets-heading-row">
+                  <h2 class="bets-heading" id="suit-bets-heading">Suit Bets</h2>
+                  <p class="bets-subheading">Lock before dealing · any/none include the bust card</p>
+                </div>
+                <div class="suit-bet-groups" role="group" aria-label="Suit bet spots">
+                  <div class="suit-bet-group">
+                    <div class="suit-bet-group-header">
+                      <h3 class="suit-bet-group-title">None</h3>
+                      <span class="suit-bet-group-odds">6:5</span>
+                    </div>
+                    <div class="suit-bet-grid">
+                      <button class="bet-spot suit-bet" type="button" data-bet-type="suit-pattern" data-bet-key="suit-none-hearts" data-bet-label="No Hearts" data-suit="Hearts" data-pattern="none" data-payout="1.2" data-payout-display="6:5" data-lock="hand" aria-label="Bet that Hearts never appear in the hand, including the bust card. Pays 6 to 5.">
+                        <span class="bet-label"><span class="suit-icon" aria-hidden="true">♥</span><span class="bet-text">Hearts</span></span>
+                        <span class="bet-total" aria-live="polite" aria-atomic="true">0</span>
+                        <div class="chip-stack" aria-hidden="true"></div>
+                      </button>
+                      <button class="bet-spot suit-bet" type="button" data-bet-type="suit-pattern" data-bet-key="suit-none-clubs" data-bet-label="No Clubs" data-suit="Clubs" data-pattern="none" data-payout="1.2" data-payout-display="6:5" data-lock="hand" aria-label="Bet that Clubs never appear in the hand, including the bust card. Pays 6 to 5.">
+                        <span class="bet-label"><span class="suit-icon" aria-hidden="true">♣</span><span class="bet-text">Clubs</span></span>
+                        <span class="bet-total" aria-live="polite" aria-atomic="true">0</span>
+                        <div class="chip-stack" aria-hidden="true"></div>
+                      </button>
+                      <button class="bet-spot suit-bet" type="button" data-bet-type="suit-pattern" data-bet-key="suit-none-spades" data-bet-label="No Spades" data-suit="Spades" data-pattern="none" data-payout="1.2" data-payout-display="6:5" data-lock="hand" aria-label="Bet that Spades never appear in the hand, including the bust card. Pays 6 to 5.">
+                        <span class="bet-label"><span class="suit-icon" aria-hidden="true">♠</span><span class="bet-text">Spades</span></span>
+                        <span class="bet-total" aria-live="polite" aria-atomic="true">0</span>
+                        <div class="chip-stack" aria-hidden="true"></div>
+                      </button>
+                      <button class="bet-spot suit-bet" type="button" data-bet-type="suit-pattern" data-bet-key="suit-none-diamonds" data-bet-label="No Diamonds" data-suit="Diamonds" data-pattern="none" data-payout="1.2" data-payout-display="6:5" data-lock="hand" aria-label="Bet that Diamonds never appear in the hand, including the bust card. Pays 6 to 5.">
+                        <span class="bet-label"><span class="suit-icon" aria-hidden="true">♦</span><span class="bet-text">Diamonds</span></span>
+                        <span class="bet-total" aria-live="polite" aria-atomic="true">0</span>
+                        <div class="chip-stack" aria-hidden="true"></div>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="suit-bet-group">
+                    <div class="suit-bet-group-header">
+                      <h3 class="suit-bet-group-title">Any</h3>
+                      <span class="suit-bet-group-odds">3:4</span>
+                    </div>
+                    <div class="suit-bet-grid">
+                      <button class="bet-spot suit-bet" type="button" data-bet-type="suit-pattern" data-bet-key="suit-any-hearts" data-bet-label="Any Hearts" data-suit="Hearts" data-pattern="any" data-payout="0.75" data-payout-display="3:4" data-lock="hand" aria-label="Bet that Hearts appear at least once in the hand, including the bust card. Pays 3 to 4.">
+                        <span class="bet-label"><span class="suit-icon" aria-hidden="true">♥</span><span class="bet-text">Hearts</span></span>
+                        <span class="bet-total" aria-live="polite" aria-atomic="true">0</span>
+                        <div class="chip-stack" aria-hidden="true"></div>
+                      </button>
+                      <button class="bet-spot suit-bet" type="button" data-bet-type="suit-pattern" data-bet-key="suit-any-clubs" data-bet-label="Any Clubs" data-suit="Clubs" data-pattern="any" data-payout="0.75" data-payout-display="3:4" data-lock="hand" aria-label="Bet that Clubs appear at least once in the hand, including the bust card. Pays 3 to 4.">
+                        <span class="bet-label"><span class="suit-icon" aria-hidden="true">♣</span><span class="bet-text">Clubs</span></span>
+                        <span class="bet-total" aria-live="polite" aria-atomic="true">0</span>
+                        <div class="chip-stack" aria-hidden="true"></div>
+                      </button>
+                      <button class="bet-spot suit-bet" type="button" data-bet-type="suit-pattern" data-bet-key="suit-any-spades" data-bet-label="Any Spades" data-suit="Spades" data-pattern="any" data-payout="0.75" data-payout-display="3:4" data-lock="hand" aria-label="Bet that Spades appear at least once in the hand, including the bust card. Pays 3 to 4.">
+                        <span class="bet-label"><span class="suit-icon" aria-hidden="true">♠</span><span class="bet-text">Spades</span></span>
+                        <span class="bet-total" aria-live="polite" aria-atomic="true">0</span>
+                        <div class="chip-stack" aria-hidden="true"></div>
+                      </button>
+                      <button class="bet-spot suit-bet" type="button" data-bet-type="suit-pattern" data-bet-key="suit-any-diamonds" data-bet-label="Any Diamonds" data-suit="Diamonds" data-pattern="any" data-payout="0.75" data-payout-display="3:4" data-lock="hand" aria-label="Bet that Diamonds appear at least once in the hand, including the bust card. Pays 3 to 4.">
+                        <span class="bet-label"><span class="suit-icon" aria-hidden="true">♦</span><span class="bet-text">Diamonds</span></span>
+                        <span class="bet-total" aria-live="polite" aria-atomic="true">0</span>
+                        <div class="chip-stack" aria-hidden="true"></div>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="suit-bet-group">
+                    <div class="suit-bet-group-header">
+                      <h3 class="suit-bet-group-title">First</h3>
+                      <span class="suit-bet-group-odds">3:1</span>
+                    </div>
+                    <div class="suit-bet-grid">
+                      <button class="bet-spot suit-bet" type="button" data-bet-type="suit-pattern" data-bet-key="suit-first-hearts" data-bet-label="First Hearts" data-suit="Hearts" data-pattern="first" data-payout="3" data-payout-display="3:1" data-lock="hand" aria-label="Bet that the first card drawn is Hearts. Pays 3 to 1.">
+                        <span class="bet-label"><span class="suit-icon" aria-hidden="true">♥</span><span class="bet-text">Hearts</span></span>
+                        <span class="bet-total" aria-live="polite" aria-atomic="true">0</span>
+                        <div class="chip-stack" aria-hidden="true"></div>
+                      </button>
+                      <button class="bet-spot suit-bet" type="button" data-bet-type="suit-pattern" data-bet-key="suit-first-clubs" data-bet-label="First Clubs" data-suit="Clubs" data-pattern="first" data-payout="3" data-payout-display="3:1" data-lock="hand" aria-label="Bet that the first card drawn is Clubs. Pays 3 to 1.">
+                        <span class="bet-label"><span class="suit-icon" aria-hidden="true">♣</span><span class="bet-text">Clubs</span></span>
+                        <span class="bet-total" aria-live="polite" aria-atomic="true">0</span>
+                        <div class="chip-stack" aria-hidden="true"></div>
+                      </button>
+                      <button class="bet-spot suit-bet" type="button" data-bet-type="suit-pattern" data-bet-key="suit-first-spades" data-bet-label="First Spades" data-suit="Spades" data-pattern="first" data-payout="3" data-payout-display="3:1" data-lock="hand" aria-label="Bet that the first card drawn is Spades. Pays 3 to 1.">
+                        <span class="bet-label"><span class="suit-icon" aria-hidden="true">♠</span><span class="bet-text">Spades</span></span>
+                        <span class="bet-total" aria-live="polite" aria-atomic="true">0</span>
+                        <div class="chip-stack" aria-hidden="true"></div>
+                      </button>
+                      <button class="bet-spot suit-bet" type="button" data-bet-type="suit-pattern" data-bet-key="suit-first-diamonds" data-bet-label="First Diamonds" data-suit="Diamonds" data-pattern="first" data-payout="3" data-payout-display="3:1" data-lock="hand" aria-label="Bet that the first card drawn is Diamonds. Pays 3 to 1.">
+                        <span class="bet-label"><span class="suit-icon" aria-hidden="true">♦</span><span class="bet-text">Diamonds</span></span>
+                        <span class="bet-total" aria-live="polite" aria-atomic="true">0</span>
+                        <div class="chip-stack" aria-hidden="true"></div>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
               <section class="card-count-bets" aria-labelledby="card-count-bets-heading">
                 <div class="bets-heading-row">
                   <h2 class="bets-heading" id="card-count-bets-heading">Card Count Bets</h2>
@@ -1694,6 +1788,14 @@
                       <!-- Bust bets -->
                     </div>
                   </section>
+                  <section class="analytics-suit-bets" aria-labelledby="analytics-suit-bets-heading">
+                    <div class="bets-heading-row">
+                      <h3 class="bets-heading" id="analytics-suit-bets-heading">Suit Bets</h3>
+                    </div>
+                    <div class="suit-bet-groups analytics-suit-bet-groups" role="group" aria-label="Suit bet analytics">
+                      <!-- Suit bets -->
+                    </div>
+                  </section>
                   <section class="analytics-card-count-bets" aria-labelledby="analytics-card-count-bets-heading">
                     <div class="bets-heading-row">
                       <h3 class="bets-heading" id="analytics-card-count-bets-heading">Card Count Bets</h3>
@@ -1929,12 +2031,7 @@
       <div class="modal-content analytics-modal">
         <div class="modal-header">
           <h2 id="bet-analytics-title">Bet Analytics</h2>
-          <button type="button" class="modal-close" id="bet-analytics-close" aria-label="Close analytics">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
+          <button type="button" class="modal-close" id="bet-analytics-close" aria-label="Close analytics">×</button>
         </div>
         <div class="modal-body analytics-modal-body">
           <div class="analytics-left">
@@ -2022,18 +2119,15 @@
       <div class="modal-content analytics-modal player-bankroll-modal">
         <div class="modal-header">
           <h2 id="player-bankroll-title">Player Bankroll Graph</h2>
-          <button type="button" class="modal-close" id="player-bankroll-close" aria-label="Close player bankroll graph">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
+          <button type="button" class="modal-close" id="player-bankroll-close" aria-label="Close player bankroll graph">×</button>
         </div>
         <div class="modal-body player-bankroll-modal-body">
           <p id="player-bankroll-subhead" class="analytics-card-subhead">Normal-mode bankroll history.</p>
           <div class="chart-header">
             <h3 class="chart-title">Bankroll Over Time</h3>
             <div class="chart-filters">
+              <button type="button" class="chart-filter-btn" data-player-bankroll-period="hour">Last Hour</button>
+              <button type="button" class="chart-filter-btn" data-player-bankroll-period="day">Last 24 Hours</button>
               <button type="button" class="chart-filter-btn" data-player-bankroll-period="week">Last Week</button>
               <button type="button" class="chart-filter-btn" data-player-bankroll-period="month">Last Month</button>
               <button type="button" class="chart-filter-btn" data-player-bankroll-period="90days">Last 90 Days</button>

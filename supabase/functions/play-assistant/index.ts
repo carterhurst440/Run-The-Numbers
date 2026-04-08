@@ -13,6 +13,7 @@ type BetCatalogEntry = {
   type?: string;
   label?: string;
   payout?: number | null;
+  payoutDisplay?: string | null;
   metadata?: Record<string, unknown>;
 };
 
@@ -78,6 +79,7 @@ Responsibilities:
 - If the user asks for specific bets or asks you to place/set bets, use the draft_bet_plan tool so the client can ask for consent.
 - If the user gives an explicit betting directive, prioritize executing that directive exactly.
 - For explicit directives, do not argue with the choice or substitute a "safer" recommendation. Only mention blockers if the request is impossible, and otherwise keep the reply to a concise confirmation plus a request for consent.
+- If the user intent is operational but the phrasing is a little fuzzy, make a reasonable best guess and draft the layout anyway rather than refusing on the first try. Say what you inferred, then ask for consent.
 
 Game facts:
 - The deck has 53 cards.
@@ -85,6 +87,7 @@ Game facts:
 - Any Jack, Queen, King, or the Joker ends the hand immediately.
 - Number bets can hit repeatedly before the stopper arrives.
 - Specific-card bets win only on the exact card.
+- Suit bets can target whether a suit never appears, appears at least once, or is the very first suit drawn.
 - Card-count bets include the final bust card.
 - Keep draft_bet_plan wagers as whole-number units.
 
@@ -123,6 +126,14 @@ function normalizeBetPhrase(value: unknown) {
     .trim();
 }
 
+function normalizeCatalogType(type: unknown) {
+  const raw = String(type || "").trim().toLowerCase();
+  if (raw === "specific-card") return "card";
+  if (raw === "bust-suit" || raw === "bust-rank" || raw === "bust-joker") return "bust";
+  if (raw === "suit-pattern") return "suit";
+  return raw;
+}
+
 function parseUnits(value: unknown) {
   const raw = String(value || "").trim().toLowerCase().replace(/[$,\s]/g, "");
   if (!raw) return NaN;
@@ -136,7 +147,7 @@ function parseUnits(value: unknown) {
 
 function resolveBetTarget(targetText: unknown, state: AssistantState) {
   const normalized = normalizeBetPhrase(targetText);
-  const catalog = state.betCatalog || [];
+  const catalog = (state.betCatalog || []).map((entry) => ({ ...entry, type: normalizeCatalogType(entry.type) }));
   if (!normalized || !catalog.length) {
     return null;
   }
@@ -198,6 +209,19 @@ function resolveBetTarget(targetText: unknown, state: AssistantState) {
     return catalog.find((entry) => entry.key === `card-${rank}${suitMap[suitName]}`) || null;
   }
 
+  const suitPatternChecks = [
+    { pattern: /\b(?:no|none)\s+(hearts|diamonds|clubs|spades)\b|\b(hearts|diamonds|clubs|spades)\s+(?:none|never)\b/, keyPrefix: "suit-none-" },
+    { pattern: /\bany\s+(hearts|diamonds|clubs|spades)\b|\b(hearts|diamonds|clubs|spades)\s+any\b/, keyPrefix: "suit-any-" },
+    { pattern: /\bfirst\s+(hearts|diamonds|clubs|spades)\b|\b(hearts|diamonds|clubs|spades)\s+first\b/, keyPrefix: "suit-first-" }
+  ];
+  for (const { pattern, keyPrefix } of suitPatternChecks) {
+    const match = normalized.match(pattern);
+    const suitName = match?.[1] || match?.[2];
+    if (suitName) {
+      return catalog.find((entry) => entry.key === `${keyPrefix}${suitName}`) || null;
+    }
+  }
+
   const bustSuitMatch = normalized.match(/\b(?:bust|stop(?:per)?|end)\s+(?:on\s+)?(hearts|diamonds|clubs|spades)\b/);
   if (bustSuitMatch) {
     return catalog.find((entry) => entry.key === `bust-${bustSuitMatch[1]}`) || null;
@@ -218,7 +242,7 @@ function resolveBetTarget(targetText: unknown, state: AssistantState) {
 
 function resolveBetTargets(targetText: unknown, state: AssistantState) {
   const normalized = normalizeBetPhrase(targetText);
-  const catalog = state.betCatalog || [];
+  const catalog = (state.betCatalog || []).map((entry) => ({ ...entry, type: normalizeCatalogType(entry.type) }));
   if (!normalized || !catalog.length) {
     return [];
   }
@@ -239,6 +263,10 @@ function resolveBetTargets(targetText: unknown, state: AssistantState) {
     {
       pattern: /\b(?:every|all|each)\s+(?:bust|stopper|end)\s+bets?\b|\b(?:every|all|each)\s+busts?\b/,
       filter: (entry: BetCatalogEntry) => entry.type === "bust"
+    },
+    {
+      pattern: /\b(?:every|all|each)\s+suit\s+bets?\b|\b(?:every|all|each)\s+suits?\b/,
+      filter: (entry: BetCatalogEntry) => entry.type === "suit"
     }
   ];
 
@@ -250,6 +278,95 @@ function resolveBetTargets(targetText: unknown, state: AssistantState) {
 
   const single = resolveBetTarget(targetText, state);
   return single ? [single] : [];
+}
+
+function shuffleEntries<T>(entries: T[]) {
+  const copy = [...entries];
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+  }
+  return copy;
+}
+
+function parseRandomSpreadDirective(message: string, state: AssistantState) {
+  const raw = String(message || "").trim();
+  const normalized = normalizeBetPhrase(raw);
+  if (!raw || !normalized.includes("random")) {
+    return null;
+  }
+  if (!/\b(?:play|place|bet|put|set|drop|stage|choose|pick)\b/.test(normalized)) {
+    return null;
+  }
+
+  const countMatch = raw.match(/(?:play|place|bet|put|set|drop|stage|choose|pick)\s+(\d+)/i);
+  const perBetMatch = raw.match(/(\d+|one)\s+(?:unit|units|credit|credits)\s+bets?/i);
+  const maxPerBetMatch = raw.match(/no more than\s+(\d+|one)\s+(?:unit|units|credit|credits)\s+(?:on|in)\s+any\s+one\s+bet/i);
+  const betCount = countMatch ? Math.max(1, Math.round(parseUnits(countMatch[1]) || 0)) : 0;
+  const perBetUnits = perBetMatch
+    ? Math.max(1, Math.round(parseUnits(perBetMatch[1]) || (String(perBetMatch[1]).toLowerCase() === "one" ? 1 : 0)))
+    : 1;
+  const maxPerBet = maxPerBetMatch
+    ? Math.max(1, Math.round(parseUnits(maxPerBetMatch[1]) || (String(maxPerBetMatch[1]).toLowerCase() === "one" ? 1 : 0)))
+    : perBetUnits;
+
+  if (!betCount || !perBetUnits) {
+    return null;
+  }
+
+  const catalog = Array.isArray(state.betCatalog)
+    ? state.betCatalog.map((entry) => ({ ...entry, type: normalizeCatalogType(entry.type) }))
+    : [];
+  if (!catalog.length) {
+    return null;
+  }
+
+  let pool = catalog;
+  if (/\bnumber\b/.test(normalized)) {
+    pool = pool.filter((entry) => entry.type === "number");
+  } else if (/\bcount\b/.test(normalized)) {
+    pool = pool.filter((entry) => entry.type === "count");
+  } else if (/\bbust|stopper|end\b/.test(normalized)) {
+    pool = pool.filter((entry) => entry.type === "bust");
+  } else if (/\bcard\b/.test(normalized)) {
+    pool = pool.filter((entry) => entry.type === "card");
+  } else if (/\bsuit\b|\b(?:no|none|any|first)\s+(?:hearts|diamonds|clubs|spades)\b/.test(normalized)) {
+    pool = pool.filter((entry) => entry.type === "suit");
+  }
+
+  if (!pool.length) {
+    return null;
+  }
+
+  const availableUnits = Math.max(0, safeNumber(state.betting?.availableUnits, state.bankroll));
+  const cappedPerBetUnits = Math.max(1, Math.min(perBetUnits, maxPerBet));
+  const affordableCount = Math.max(0, Math.floor(availableUnits / cappedPerBetUnits));
+  const selectedCount = Math.min(betCount, pool.length, affordableCount);
+  if (!selectedCount) {
+    return {
+      requestedCount: betCount,
+      selectedCount: 0,
+      perBetUnits: cappedPerBetUnits,
+      availableUnits,
+      bets: []
+    };
+  }
+
+  const bets = shuffleEntries(pool)
+    .slice(0, selectedCount)
+    .map((entry) => ({
+      key: entry.key,
+      label: entry.label || entry.key,
+      units: cappedPerBetUnits
+    }));
+
+  return {
+    requestedCount: betCount,
+    selectedCount,
+    perBetUnits: cappedPerBetUnits,
+    availableUnits,
+    bets
+  };
 }
 
 function parseExplicitBetDirective(message: string, state: AssistantState) {
@@ -485,17 +602,13 @@ Deno.serve(async (request) => {
       currentBetCount: state.betting?.currentBets?.length ?? 0
     });
 
-    const explicitDirective = parseExplicitBetDirective(latestMessage, state);
-    if (explicitDirective) {
-      const { requestedUnits, targetText, bets, availableUnits } = explicitDirective;
-      const totalRequestedUnits =
-        Array.isArray(bets) && bets.length > 0 ? requestedUnits * bets.length : requestedUnits;
-      console.info("[play-assistant] explicit directive parse", explicitDirective);
-
-      if (!bets?.length) {
+    const randomSpreadDirective = parseRandomSpreadDirective(latestMessage, state);
+    if (randomSpreadDirective) {
+      const totalRequestedUnits = randomSpreadDirective.selectedCount * randomSpreadDirective.perBetUnits;
+      if (!randomSpreadDirective.bets.length) {
         return new Response(
           JSON.stringify({
-            reply: `I couldn't map "${targetText}" cleanly to a live bet yet. Try a phrasing like "8+ cards", "Bust Hearts", "Ace", "Ace of Spades", or "every number bet", and I'll make my best draft for you.`,
+            reply: `I couldn't stage that random layout because only ${randomSpreadDirective.availableUnits} units are available right now.`,
             riskTolerance: state.riskTolerance,
             plan: null
           }),
@@ -509,7 +622,45 @@ Deno.serve(async (request) => {
         );
       }
 
-      if (!Number.isFinite(requestedUnits) || requestedUnits <= 0) {
+      const randomPlan = draftBetPlan(
+        {
+          summary: "Best-guess random layout captured. Confirm and I will stage it on the felt.",
+          follow_user_directive: true,
+          replace_existing: true,
+          bets: randomSpreadDirective.bets.map((bet) => ({ key: bet.key, units: bet.units }))
+        },
+        state
+      );
+
+      const adjustedCopy =
+        randomSpreadDirective.selectedCount < randomSpreadDirective.requestedCount
+          ? ` I could fit ${randomSpreadDirective.selectedCount} bets within your current bankroll and the one-per-bet limit.`
+          : "";
+
+      return new Response(
+        JSON.stringify({
+          reply: `Understood. I made a best-guess random draft of ${randomSpreadDirective.selectedCount} bet${randomSpreadDirective.selectedCount === 1 ? "" : "s"} at ${randomSpreadDirective.perBetUnits} unit${randomSpreadDirective.perBetUnits === 1 ? "" : "s"} each for ${totalRequestedUnits} total units.${adjustedCopy} Confirm if you want me to place it on the felt.`,
+          riskTolerance: randomPlan.riskTolerance || state.riskTolerance,
+          plan: randomPlan
+        }),
+        {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+
+    const explicitDirective = parseExplicitBetDirective(latestMessage, state);
+    if (explicitDirective) {
+      const { requestedUnits, targetText, bets, availableUnits } = explicitDirective;
+      const totalRequestedUnits =
+        Array.isArray(bets) && bets.length > 0 ? requestedUnits * bets.length : requestedUnits;
+      console.info("[play-assistant] explicit directive parse", explicitDirective);
+
+      if (bets?.length && (!Number.isFinite(requestedUnits) || requestedUnits <= 0)) {
         const targetLabel = bets[0]?.label || targetText;
         return new Response(
           JSON.stringify({
@@ -527,7 +678,7 @@ Deno.serve(async (request) => {
         );
       }
 
-      if (totalRequestedUnits > availableUnits) {
+      if (bets?.length && totalRequestedUnits > availableUnits) {
         const targetLabel =
           bets.length === 1 ? bets[0].label : targetText.replace(/\s+/g, " ").trim() || "that layout";
         return new Response(
@@ -549,36 +700,38 @@ Deno.serve(async (request) => {
         );
       }
 
-      const directPlan = draftBetPlan(
-        {
-          summary:
-            bets.length === 1
-              ? "Direct instruction captured. Confirm and I will stage this exact layout on the felt."
-              : "Best-guess instruction captured. Confirm and I will stage this layout on the felt.",
-          follow_user_directive: true,
-          replace_existing: true,
-          bets: bets.map((bet) => ({ key: bet.key, units: requestedUnits }))
-        },
-        state
-      );
+      if (bets?.length) {
+        const directPlan = draftBetPlan(
+          {
+            summary:
+              bets.length === 1
+                ? "Direct instruction captured. Confirm and I will stage this exact layout on the felt."
+                : "Best-guess instruction captured. Confirm and I will stage this layout on the felt.",
+            follow_user_directive: true,
+            replace_existing: true,
+            bets: bets.map((bet) => ({ key: bet.key, units: requestedUnits }))
+          },
+          state
+        );
 
-      return new Response(
-        JSON.stringify({
-          reply:
-            bets.length === 1
-              ? `Understood. I drafted exactly ${requestedUnits} units on ${bets[0].label}. Confirm if you want me to place it on the felt.`
-              : `Understood. I made a best-guess draft of ${requestedUnits} units on each target in ${targetText} for ${totalRequestedUnits} units total. Confirm if you want me to place it on the felt.`,
-          riskTolerance: directPlan.riskTolerance || state.riskTolerance,
-          plan: directPlan
-        }),
-        {
-          status: 200,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json"
+        return new Response(
+          JSON.stringify({
+            reply:
+              bets.length === 1
+                ? `Understood. I drafted exactly ${requestedUnits} units on ${bets[0].label}. Confirm if you want me to place it on the felt.`
+                : `Understood. I made a best-guess draft of ${requestedUnits} units on each target in ${targetText} for ${totalRequestedUnits} units total. Confirm if you want me to place it on the felt.`,
+            riskTolerance: directPlan.riskTolerance || state.riskTolerance,
+            plan: directPlan
+          }),
+          {
+            status: 200,
+            headers: {
+              ...corsHeaders,
+              "Content-Type": "application/json"
+            }
           }
-        }
-      );
+        );
+      }
     }
 
     const input = buildResponsesInput(messages, latestMessage);

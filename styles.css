@@ -4092,12 +4092,14 @@ body.theme-angelic {
 
 .specific-card-bets,
 .bust-card-bets,
+.suit-bets,
 .card-count-bets {
   margin-top: clamp(0.7rem, 2vw, 1.2rem);
 }
 
 .specific-card-bets .bets-heading-row,
 .bust-card-bets .bets-heading-row,
+.suit-bets .bets-heading-row,
 .card-count-bets .bets-heading-row {
   display: flex;
   align-items: baseline;
@@ -4107,6 +4109,7 @@ body.theme-angelic {
 
 .specific-card-bets .bets-subheading,
 .bust-card-bets .bets-subheading,
+.suit-bets .bets-subheading,
 .card-count-bets .bets-subheading {
   font-size: clamp(0.56rem, 1.4vw, 0.68rem);
   letter-spacing: 0.12em;
@@ -4168,7 +4171,50 @@ body.theme-angelic {
   align-items: stretch;
 }
 
+.suit-bet-groups {
+  display: grid;
+  gap: clamp(0.35rem, 0.9vw, 0.55rem);
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+.suit-bet-group {
+  min-width: 0;
+}
+
+.suit-bet-group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: clamp(0.22rem, 0.7vw, 0.34rem);
+}
+
+.suit-bet-group-title,
+.suit-bet-group-odds {
+  margin: 0;
+  font-size: clamp(0.56rem, 1.4vw, 0.68rem);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.suit-bet-group-title {
+  color: var(--text-light);
+}
+
+.suit-bet-group-odds {
+  color: var(--bet-odds-color);
+}
+
+.suit-bet-grid {
+  display: grid;
+  gap: clamp(0.18rem, 0.55vw, 0.28rem);
+  grid-template-columns: repeat(4, minmax(64px, max-content));
+  justify-content: start;
+  align-items: stretch;
+}
+
 .bust-bet,
+.suit-bet,
 .count-bet {
   aspect-ratio: unset;
   min-height: clamp(16px, 5vw, 24px);
@@ -4179,6 +4225,7 @@ body.theme-angelic {
 }
 
 .bust-bet .bet-label,
+.suit-bet .bet-label,
 .count-bet .bet-label {
   font-size: clamp(0.6rem, 1.6vw, 0.78rem);
   letter-spacing: 0.05em;
@@ -4199,9 +4246,24 @@ body.theme-angelic {
   width: 100%;
 }
 
+.suit-bet .bet-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  width: 100%;
+  font-size: clamp(0.58rem, 1.45vw, 0.74rem);
+}
+
 .bust-bet .bet-text {
   flex: 0 1 auto;
   text-align: left;
+}
+
+.suit-bet .bet-text {
+  flex: 0 1 auto;
+  text-align: left;
+  font-size: inherit;
 }
 
 .count-bet .bet-label {
@@ -4227,8 +4289,18 @@ body.theme-angelic {
   transition: transform 0.18s ease, box-shadow 0.2s ease;
 }
 
+.suit-bet {
+  background: linear-gradient(145deg, rgba(93, 67, 169, 0.22), rgba(35, 112, 166, 0.16));
+  border: 1px solid rgba(140, 223, 255, 0.4);
+  color: rgba(244, 248, 255, 0.96);
+  transition: transform 0.18s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  min-height: clamp(16px, 5vw, 24px);
+}
+
 .bust-bet:hover,
-.bust-bet:focus-visible {
+.bust-bet:focus-visible,
+.suit-bet:hover,
+.suit-bet:focus-visible {
   transform: translateY(-1px);
   box-shadow: var(--bust-bet-shadow);
 }
@@ -4237,10 +4309,26 @@ body.theme-angelic {
   color: var(--bust-label-color, rgba(233, 243, 255, 0.85));
 }
 
+.suit-bet .bet-total {
+  color: rgba(222, 241, 255, 0.86);
+}
+
 .bust-bet .bet-label,
 .bust-bet .suit-icon,
 .bust-bet .bet-text {
   color: inherit;
+}
+
+.suit-bet .bet-label,
+.suit-bet .suit-icon,
+.suit-bet .bet-text {
+  color: inherit;
+}
+
+@media (max-width: 1100px) {
+  .suit-bet-grid {
+    grid-template-columns: repeat(4, minmax(64px, max-content));
+  }
 }
 
 .count-bet {

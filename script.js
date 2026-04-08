@@ -4372,7 +4372,7 @@ function applyAccountSnapshot(snapshot, { resetHistory = false } = {}) {
   if (!snapshot) return;
 
   const numericCredits = Number(snapshot.credits);
-  const nextBankroll = Number.isFinite(numericCredits) ? Math.round(numericCredits) : INITIAL_BANKROLL;
+  const nextBankroll = Number.isFinite(numericCredits) ? Number(numericCredits.toFixed(2)) : INITIAL_BANKROLL;
   const numericCarter = Number(snapshot.carter_cash);
   const nextCarterCash = Number.isFinite(numericCarter) ? Math.round(numericCarter) : 0;
   const numericProgress = Number(snapshot.carter_cash_progress);
@@ -8225,6 +8225,14 @@ const chipRackEditButton = document.getElementById("chip-rack-edit");
 const betSpotButtons = Array.from(document.querySelectorAll(".bet-spot"));
 const betDefinitions = new Map();
 const betSpots = new Map();
+
+function normalizeBetCatalogType(type) {
+  if (type === "specific-card") return "card";
+  if (type === "bust-suit" || type === "bust-rank" || type === "bust-joker") return "bust";
+  if (type === "suit-pattern") return "suit";
+  return type;
+}
+
 betSpotButtons.forEach((button) => {
   const key = button.dataset.betKey || button.dataset.rank;
   if (!key) return;
@@ -8232,6 +8240,7 @@ betSpotButtons.forEach((button) => {
   const label = button.dataset.betLabel || button.querySelector(".bet-label")?.textContent?.trim() || key;
   const lockDuringHand = button.dataset.lock === "hand";
   const payout = Number(button.dataset.payout) || 0;
+  const payoutDisplay = button.dataset.payoutDisplay || button.querySelector(".bet-odds")?.textContent?.trim() || null;
   const metadata = {};
 
   if (type === "number") {
@@ -8246,6 +8255,9 @@ betSpotButtons.forEach((button) => {
     metadata.face = button.dataset.face;
   } else if (type === "bust-joker") {
     metadata.face = "Joker";
+  } else if (type === "suit-pattern") {
+    metadata.suit = button.dataset.suit;
+    metadata.pattern = button.dataset.pattern;
   } else if (type === "count") {
     const min = button.dataset.countMin ? Number(button.dataset.countMin) : 0;
     const maxValue = button.dataset.countMax === "Infinity" ? Infinity : Number(button.dataset.countMax);
@@ -8268,6 +8280,9 @@ betSpotButtons.forEach((button) => {
     announce = `Bust ${metadata.face}`;
   } else if (type === "bust-joker") {
     announce = "Bust Joker";
+  } else if (type === "suit-pattern") {
+    const prefix = metadata.pattern === "none" ? "No" : metadata.pattern === "any" ? "Any" : "First";
+    announce = `${prefix} ${metadata.suit}`;
   } else {
     announce = label;
   }
@@ -8278,6 +8293,7 @@ betSpotButtons.forEach((button) => {
     label,
     lockDuringHand,
     payout,
+    payoutDisplay,
     metadata,
     announce
   });
@@ -9190,7 +9206,7 @@ function deductCarterCash(amount) {
 function updateDashboardCreditsDisplay(value = bankroll) {
   if (!dashboardCreditsEl) return;
   if (Number.isFinite(value)) {
-    dashboardCreditsEl.textContent = Number(value).toString();
+    dashboardCreditsEl.textContent = formatCurrency(Number(value));
   } else if (typeof value === "string") {
     dashboardCreditsEl.textContent = value;
   } else {
@@ -9618,12 +9634,21 @@ function makeCardElement(card) {
   return node;
 }
 
+function roundCurrencyValue(value) {
+  if (!Number.isFinite(Number(value))) return 0;
+  return Number(Number(value).toFixed(2));
+}
+
 function formatCurrency(value) {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  const amount = Number(value || 0);
+  return amount.toLocaleString(undefined, {
+    minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+    maximumFractionDigits: 2
+  });
 }
 
 function formatSignedCurrency(value) {
-  const amount = Math.round(Number(value || 0));
+  const amount = Number(Number(value || 0).toFixed(2));
   if (amount > 0) {
     return `+${formatCurrency(amount)}`;
   }
@@ -9644,10 +9669,23 @@ function getAnalyticsPeriodStart(period) {
   return null;
 }
 
-function formatBankrollTickLabel(point, fallbackIndex) {
+function formatBankrollTickLabel(point, fallbackIndex, period = "all") {
   if (point?.created_at) {
     const date = new Date(point.created_at);
     if (!Number.isNaN(date.getTime())) {
+      if (period === "hour") {
+        return date.toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit"
+        });
+      }
+      if (period === "day") {
+        return date.toLocaleString([], {
+          month: "short",
+          day: "numeric",
+          hour: "numeric"
+        });
+      }
       return date.toLocaleDateString([], {
         month: "short",
         day: "numeric"
@@ -9665,19 +9703,6 @@ function getFilteredBankrollHistoryPoints() {
         created_at: null,
         fallbackIndex: index
       }));
-
-  if (!isContestAccountMode() && currentProfile && currentUser?.id && currentUser.id !== GUEST_USER.id) {
-    const liveNormalBalance = Number(currentProfile.credits);
-    const latestTracked = source.length ? Number(source[source.length - 1]?.value) : NaN;
-    if (Number.isFinite(liveNormalBalance) && Number.isFinite(latestTracked) && latestTracked !== liveNormalBalance) {
-      const delta = Math.round(liveNormalBalance - latestTracked);
-      source = source.map((point, index) => ({
-        ...point,
-        value: Math.round(Number(point?.value ?? 0) + delta),
-        fallbackIndex: point?.fallbackIndex ?? index
-      }));
-    }
-  }
 
   const startDate = getAnalyticsPeriodStart(bankrollChartPeriod);
   const filtered = startDate
@@ -9699,6 +9724,8 @@ function updateBankrollChartFilterUI() {
   if (!bankrollChartSubhead) return;
 
   const labels = {
+    hour: "Showing normal-mode account value snapshots from the last hour.",
+    day: "Showing normal-mode account value snapshots from the last 24 hours.",
     week: "Showing normal-mode bankroll history for the last week.",
     month: "Showing normal-mode bankroll history for the last month.",
     "90days": "Showing normal-mode bankroll history for the last 3 months.",
@@ -9944,7 +9971,7 @@ function drawBankrollChart() {
 
     tickIndices.forEach((index) => {
       const point = points[index];
-      ctx.fillText(formatBankrollTickLabel(historyPoints[index], index), point.x, baseY + 8);
+      ctx.fillText(formatBankrollTickLabel(historyPoints[index], index, bankrollChartPeriod), point.x, baseY + 8);
     });
   }
 
@@ -10008,7 +10035,6 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
     }
   }
 
-  let runningBalance = INITIAL_BANKROLL;
   const normalModeRuns = allRuns.filter((run) => {
     const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
     const accountMode = String(metadata?.account_mode || "").trim().toLowerCase();
@@ -10022,21 +10048,16 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
   persistentBankrollHistory = normalModeRuns.map((run, index) => {
     const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
     const endingBankroll = Number(metadata?.ending_bankroll);
-    if (Number.isFinite(endingBankroll)) {
-      runningBalance = Math.round(endingBankroll);
-    } else {
-      const scoreDelta = Number(run?.score ?? 0);
-      if (Number.isFinite(scoreDelta)) {
-        runningBalance += Math.round(scoreDelta);
-      }
+    if (!Number.isFinite(endingBankroll)) {
+      return null;
     }
 
     return {
-      value: runningBalance,
+      value: Number(endingBankroll.toFixed(2)),
       created_at: run?.created_at || null,
       fallbackIndex: index
     };
-  });
+  }).filter(Boolean);
 
   persistentBankrollUserId = currentUser.id;
   updateBankrollChartFilterUI();
@@ -10339,9 +10360,10 @@ function setPlayAssistantRiskTolerance(risk, { announce = false } = {}) {
 function getPlayAssistantBetCatalog() {
   return Array.from(betDefinitions.values()).map((definition) => ({
     key: definition.key,
-    type: definition.type,
+    type: normalizeBetCatalogType(definition.type),
     label: definition.label,
     payout: definition.payout ?? null,
+    payoutDisplay: definition.payoutDisplay ?? null,
     metadata: definition.metadata ?? {}
   }));
 }
@@ -10731,6 +10753,19 @@ function resolveAssistantBetTarget(targetText) {
     return getBetDefinition(`card-${rank}${suitMap[suitName]}`) || null;
   }
 
+  const suitPatternChecks = [
+    { pattern: /\b(?:no|none)\s+(hearts|diamonds|clubs|spades)\b|\b(hearts|diamonds|clubs|spades)\s+(?:none|never)\b/, keyPrefix: "suit-none-" },
+    { pattern: /\bany\s+(hearts|diamonds|clubs|spades)\b|\b(hearts|diamonds|clubs|spades)\s+any\b/, keyPrefix: "suit-any-" },
+    { pattern: /\bfirst\s+(hearts|diamonds|clubs|spades)\b|\b(hearts|diamonds|clubs|spades)\s+first\b/, keyPrefix: "suit-first-" }
+  ];
+  for (const { pattern, keyPrefix } of suitPatternChecks) {
+    const match = normalized.match(pattern);
+    const suitName = match?.[1] || match?.[2];
+    if (suitName) {
+      return getBetDefinition(`${keyPrefix}${suitName}`) || null;
+    }
+  }
+
   const bustSuitMatch = normalized.match(/\b(?:bust|stop(?:per)?|end)\s+(?:on\s+)?(hearts|diamonds|clubs|spades)\b/);
   if (bustSuitMatch) {
     return getBetDefinition(`bust-${bustSuitMatch[1]}`) || null;
@@ -10778,6 +10813,10 @@ function resolveAssistantBetTargets(targetText, state) {
     {
       pattern: /\b(?:every|all|each)\s+(?:bust|stopper|end)\s+bets?\b|\b(?:every|all|each)\s+busts?\b/,
       filter: (entry) => entry.type === "bust"
+    },
+    {
+      pattern: /\b(?:every|all|each)\s+suit\s+bets?\b|\b(?:every|all|each)\s+suits?\b/,
+      filter: (entry) => entry.type === "suit"
     }
   ];
 
@@ -10789,6 +10828,75 @@ function resolveAssistantBetTargets(targetText, state) {
 
   const single = resolveAssistantBetTarget(targetText);
   return single ? [single] : [];
+}
+
+function shuffleAssistantEntries(entries) {
+  const copy = [...entries];
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+  }
+  return copy;
+}
+
+function parseAssistantRandomSpreadDirective(message, state) {
+  const raw = String(message || "").trim();
+  const normalized = normalizeAssistantBetPhrase(raw);
+  if (!raw || !normalized.includes("random")) {
+    return null;
+  }
+  if (!/\b(?:play|place|bet|put|set|drop|stage|choose|pick)\b/.test(normalized)) {
+    return null;
+  }
+
+  const countMatch = raw.match(/(?:play|place|bet|put|set|drop|stage|choose|pick)\s+(\d+)/i);
+  const perBetMatch = raw.match(/(\d+|one)\s+(?:unit|units|credit|credits)\s+bets?/i);
+  const maxPerBetMatch = raw.match(/no more than\s+(\d+|one)\s+(?:unit|units|credit|credits)\s+(?:on|in)\s+any\s+one\s+bet/i);
+  const betCount = countMatch ? Math.max(1, Math.round(parseAssistantUnits(countMatch[1]) || 0)) : 0;
+  const perBetUnits = perBetMatch
+    ? Math.max(1, Math.round(parseAssistantUnits(perBetMatch[1]) || (String(perBetMatch[1]).toLowerCase() === "one" ? 1 : 0)))
+    : 1;
+  const maxPerBet = maxPerBetMatch
+    ? Math.max(1, Math.round(parseAssistantUnits(maxPerBetMatch[1]) || (String(maxPerBetMatch[1]).toLowerCase() === "one" ? 1 : 0)))
+    : perBetUnits;
+
+  if (!betCount || !perBetUnits) {
+    return null;
+  }
+
+  const catalog = Array.isArray(state?.betCatalog) ? state.betCatalog : getPlayAssistantBetCatalog();
+  if (!catalog.length) {
+    return null;
+  }
+
+  let pool = catalog;
+  if (/\bnumber\b/.test(normalized)) {
+    pool = pool.filter((entry) => entry.type === "number");
+  } else if (/\bcount\b/.test(normalized)) {
+    pool = pool.filter((entry) => entry.type === "count");
+  } else if (/\bbust|stopper|end\b/.test(normalized)) {
+    pool = pool.filter((entry) => entry.type === "bust");
+  } else if (/\bcard\b/.test(normalized)) {
+    pool = pool.filter((entry) => entry.type === "card");
+  } else if (/\bsuit\b|\b(?:no|none|any|first)\s+(?:hearts|diamonds|clubs|spades)\b/.test(normalized)) {
+    pool = pool.filter((entry) => entry.type === "suit");
+  }
+
+  const availableUnits = Math.max(0, Math.round(Number(state?.betting?.availableUnits ?? bankroll)));
+  const cappedPerBetUnits = Math.max(1, Math.min(perBetUnits, maxPerBet));
+  const affordableCount = Math.max(0, Math.floor(availableUnits / cappedPerBetUnits));
+  const selectedCount = Math.min(betCount, pool.length, affordableCount);
+  const definitions = shuffleAssistantEntries(pool).slice(0, selectedCount).map((entry) =>
+    getBetDefinition(entry.key)
+  ).filter(Boolean);
+
+  return {
+    requestedCount: betCount,
+    selectedCount,
+    perBetUnits: cappedPerBetUnits,
+    availableUnits,
+    definitions
+  };
 }
 
 function parseAssistantDirective(message, state) {
@@ -10840,6 +10948,29 @@ async function requestPlayAssistantResponse(userMessage) {
   }
 
   const explicitDirective = parseAssistantDirective(userMessage, state);
+  const randomSpreadDirective = parseAssistantRandomSpreadDirective(userMessage, state);
+  if (randomSpreadDirective) {
+    const totalRequestedUnits = randomSpreadDirective.selectedCount * randomSpreadDirective.perBetUnits;
+    if (randomSpreadDirective.definitions?.length) {
+      const adjustedCopy =
+        randomSpreadDirective.selectedCount < randomSpreadDirective.requestedCount
+          ? ` I could fit ${randomSpreadDirective.selectedCount} bets within your current bankroll and the one-per-bet limit.`
+          : "";
+      return {
+        reply: `Understood. I made a best-guess random draft of ${randomSpreadDirective.selectedCount} bet${randomSpreadDirective.selectedCount === 1 ? "" : "s"} at ${randomSpreadDirective.perBetUnits} unit${randomSpreadDirective.perBetUnits === 1 ? "" : "s"} each for ${totalRequestedUnits} total units.${adjustedCopy} Confirm if you want me to place it on the felt.`,
+        riskTolerance: state.riskTolerance,
+        plan: normalizeAssistantPlan({
+          summary: "Best-guess random layout captured. Confirm and I will stage it on the felt.",
+          replaceExisting: true,
+          bets: randomSpreadDirective.definitions.map((definition) => ({
+            key: definition.key,
+            units: randomSpreadDirective.perBetUnits
+          }))
+        })
+      };
+    }
+  }
+
   if (explicitDirective) {
     const { requestedUnits, targetText, definitions, availableUnits } = explicitDirective;
     const totalRequestedUnits =
@@ -10880,13 +11011,6 @@ async function requestPlayAssistantResponse(userMessage) {
       };
     }
 
-    if (!definitions?.length) {
-      return {
-        reply: `I couldn't map "${targetText}" cleanly to a live bet yet. Try a phrasing like "8+ cards", "Bust Hearts", "Ace", "Ace of Spades", or "every number bet", and I'll make my best draft for you.`,
-        riskTolerance: state.riskTolerance,
-        plan: null
-      };
-    }
   }
 
   return {
@@ -11042,9 +11166,9 @@ function addHistoryEntry(result) {
     id: result.id || `hand-review-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     drawnCards: Array.isArray(result.drawnCards) ? result.drawnCards.map((card) => ({ ...card })) : [],
     bets: Array.isArray(result.bets) ? result.bets.map((bet) => ({ ...bet })) : [],
-    totalWager: Math.max(0, Math.round(Number(result.totalWager || 0))),
-    totalReturn: Math.max(0, Math.round(Number(result.totalReturn || 0))),
-    net: Math.round(Number(result.net || 0)),
+    totalWager: Math.max(0, Number(Number(result.totalWager || 0).toFixed(2))),
+    totalReturn: Math.max(0, Number(Number(result.totalReturn || 0).toFixed(2))),
+    net: Number(Number(result.net || 0).toFixed(2)),
     timestamp: Date.now()
   });
   if (recentHandReviews.length > 8) {
@@ -11329,6 +11453,7 @@ function renderDraw(card) {
 function settleAdvancedBets(stopperCard, context = {}) {
   const nonStopperCount = context.nonStopperCount ?? 0;
   const totalCards = context.totalCards ?? nonStopperCount;
+  const drawnCards = Array.isArray(context.drawnCards) ? context.drawnCards : [];
 
   for (const bet of bets) {
     if (bet.type === "number") {
@@ -11359,6 +11484,22 @@ function settleAdvancedBets(stopperCard, context = {}) {
           payout = definition.payout * bet.units;
         }
         break;
+      case "suit-pattern":
+        {
+          const suit = metadata.suit;
+          const pattern = String(metadata.pattern || "").toLowerCase();
+          const matchingCards = drawnCards.filter((card) => card?.suitName === suit);
+          const firstCard = drawnCards[0] || null;
+
+          if (pattern === "none" && matchingCards.length === 0) {
+            payout = definition.payout * bet.units;
+          } else if (pattern === "any" && matchingCards.length > 0) {
+            payout = definition.payout * bet.units;
+          } else if (pattern === "first" && firstCard?.suitName === suit) {
+            payout = definition.payout * bet.units;
+          }
+        }
+        break;
       case "count":
         {
           const min = metadata.countMin ?? 0;
@@ -11376,10 +11517,10 @@ function settleAdvancedBets(stopperCard, context = {}) {
         break;
     }
 
-    if (payout > 0) {
-      const totalReturn = payout + bet.units;
-      bet.paid += totalReturn;
-      bankroll += totalReturn;
+  if (payout > 0) {
+      const totalReturn = roundCurrencyValue(payout + bet.units);
+      bet.paid = roundCurrencyValue(bet.paid + totalReturn);
+      bankroll = roundCurrencyValue(bankroll + totalReturn);
       handleBankrollChanged();
     }
   }
@@ -12936,7 +13077,7 @@ async function renderPlayerBankrollChart(userId, period = "all") {
     playerBankrollChartInstance.destroy();
   }
 
-  const labels = source.map((point, index) => formatBankrollTickLabel(point, index));
+  const labels = source.map((point, index) => formatBankrollTickLabel(point, index, period));
   const values = source.length ? source.map((point) => Number(point.value || 0)) : [INITIAL_BANKROLL];
 
   playerBankrollChartInstance = new Chart(ctx, {
@@ -13008,11 +13149,13 @@ async function renderPlayerBankrollChart(userId, period = "all") {
 
   if (playerBankrollSubheadEl) {
     const labelsByPeriod = {
-      week: `Showing ${source.length.toLocaleString()} normal-mode hands from the last week.`,
-      month: `Showing ${source.length.toLocaleString()} normal-mode hands from the last month.`,
-      "90days": `Showing ${source.length.toLocaleString()} normal-mode hands from the last 90 days.`,
-      year: `Showing ${source.length.toLocaleString()} normal-mode hands from the last year.`,
-      all: `Showing ${source.length.toLocaleString()} normal-mode hands across all time.`
+      hour: `Showing ${source.length.toLocaleString()} account balance snapshots from the last hour.`,
+      day: `Showing ${source.length.toLocaleString()} account balance snapshots from the last 24 hours.`,
+      week: `Showing ${source.length.toLocaleString()} account balance snapshots from the last week.`,
+      month: `Showing ${source.length.toLocaleString()} account balance snapshots from the last month.`,
+      "90days": `Showing ${source.length.toLocaleString()} account balance snapshots from the last 90 days.`,
+      year: `Showing ${source.length.toLocaleString()} account balance snapshots from the last year.`,
+      all: `Showing ${source.length.toLocaleString()} account balance snapshots across all time.`
     };
     playerBankrollSubheadEl.textContent = labelsByPeriod[period] || labelsByPeriod.all;
   }
@@ -13524,6 +13667,80 @@ function initializeAnalyticsBettingGrid() {
     jokerBadge.textContent = '...';
     jokerButton.appendChild(jokerBadge);
     
+  }
+
+  const suitBetsContainer = document.querySelector(".analytics-suit-bets .analytics-suit-bet-groups");
+  if (suitBetsContainer && suitBetsContainer.children.length === 0) {
+    const suitBetGroups = [
+      {
+        title: "None",
+        odds: "6:5",
+        bets: [
+          { key: "suit-none-hearts", label: "No Hearts", icon: "♥", text: "Hearts" },
+          { key: "suit-none-clubs", label: "No Clubs", icon: "♣", text: "Clubs" },
+          { key: "suit-none-spades", label: "No Spades", icon: "♠", text: "Spades" },
+          { key: "suit-none-diamonds", label: "No Diamonds", icon: "♦", text: "Diamonds" }
+        ]
+      },
+      {
+        title: "Any",
+        odds: "3:4",
+        bets: [
+          { key: "suit-any-hearts", label: "Any Hearts", icon: "♥", text: "Hearts" },
+          { key: "suit-any-clubs", label: "Any Clubs", icon: "♣", text: "Clubs" },
+          { key: "suit-any-spades", label: "Any Spades", icon: "♠", text: "Spades" },
+          { key: "suit-any-diamonds", label: "Any Diamonds", icon: "♦", text: "Diamonds" }
+        ]
+      },
+      {
+        title: "First",
+        odds: "3:1",
+        bets: [
+          { key: "suit-first-hearts", label: "First Hearts", icon: "♥", text: "Hearts" },
+          { key: "suit-first-clubs", label: "First Clubs", icon: "♣", text: "Clubs" },
+          { key: "suit-first-spades", label: "First Spades", icon: "♠", text: "Spades" },
+          { key: "suit-first-diamonds", label: "First Diamonds", icon: "♦", text: "Diamonds" }
+        ]
+      }
+    ];
+
+    for (const group of suitBetGroups) {
+      const groupEl = document.createElement("div");
+      groupEl.className = "suit-bet-group";
+      groupEl.innerHTML = `
+        <div class="suit-bet-group-header">
+          <h4 class="suit-bet-group-title">${group.title}</h4>
+          <span class="suit-bet-group-odds">${group.odds}</span>
+        </div>
+      `;
+      const gridEl = document.createElement("div");
+      gridEl.className = "suit-bet-grid analytics-grid";
+
+      for (const suitBet of group.bets) {
+        const button = document.createElement("button");
+        button.className = "bet-spot suit-bet analytics-bet-spot";
+        button.type = "button";
+        button.dataset.betKey = suitBet.key;
+        button.dataset.betLabel = suitBet.label;
+        button.innerHTML = `
+          <span class="bet-label">
+            <span class="suit-icon">${suitBet.icon}</span>
+            <span class="bet-text">${suitBet.text}</span>
+          </span>
+        `;
+        button.addEventListener("click", () => {
+          loadBetAnalytics(button.dataset.betKey, button.dataset.betLabel);
+        });
+        const badge = document.createElement("span");
+        badge.className = "bet-count-badge";
+        badge.textContent = "...";
+        button.appendChild(badge);
+        gridEl.appendChild(button);
+      }
+
+      groupEl.appendChild(gridEl);
+      suitBetsContainer.appendChild(groupEl);
+    }
   }
 
   // Populate card count bets

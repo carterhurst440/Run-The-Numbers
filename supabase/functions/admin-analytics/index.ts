@@ -204,27 +204,22 @@ Deno.serve(async (request) => {
       : allRuns;
 
     if (action === "player_bankroll_history") {
-      let runningBalance = 1000;
       const points = runsInPeriod
         .filter((run) => isNormalModeRun(run))
         .map((run, index) => {
           const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
           const endingBankroll = Number(metadata?.ending_bankroll);
-          if (Number.isFinite(endingBankroll)) {
-            runningBalance = Math.round(endingBankroll);
-          } else {
-            const scoreDelta = Number(run?.score ?? 0);
-            if (Number.isFinite(scoreDelta)) {
-              runningBalance += Math.round(scoreDelta);
-            }
+          if (!Number.isFinite(endingBankroll)) {
+            return null;
           }
 
           return {
-            value: runningBalance,
+            value: Number(endingBankroll.toFixed(2)),
             created_at: run?.created_at || null,
             fallbackIndex: index
           };
-        });
+        })
+        .filter(Boolean);
 
       return new Response(JSON.stringify({ points }), {
         status: 200,
