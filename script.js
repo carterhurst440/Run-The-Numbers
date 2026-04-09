@@ -10137,6 +10137,11 @@ async function dealRedBlackCard() {
       `${nextCard.label}${nextCard.suit} missed ${selectionLabel}. Hand over. Place a new wager to start again.`,
       { clearBet: true }
     );
+    applyPlaythrough(completedBet);
+    await persistBankroll({
+      recordContestHistory: isContestAccountMode(),
+      contestHistoryLabel: "Guess 10 Hand"
+    });
     await incrementProfileHandProgress(1);
     await ensureProfileSynced({ force: true });
     await logStandaloneGameHand({
@@ -10195,6 +10200,11 @@ async function withdrawRedBlackHand() {
     )} on winnings (${formatCurrency(commission)}).`,
     { clearBet: true }
   );
+  applyPlaythrough(completedBet);
+  await persistBankroll({
+    recordContestHistory: isContestAccountMode(),
+    contestHistoryLabel: "Guess 10 Hand"
+  });
   await incrementProfileHandProgress(1);
   await ensureProfileSynced({ force: true });
   await logStandaloneGameHand({
