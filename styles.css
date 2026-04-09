@@ -1767,10 +1767,11 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .beta-wager-inline-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 220px minmax(5.6rem, max-content);
   align-items: center;
   gap: 0.55rem;
-  width: 100%;
+  width: auto;
 }
 
 .beta-action-group-wager {
@@ -1798,8 +1799,8 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .beta-bet-spot-circle {
-  width: min(100%, 220px);
-  min-width: 0;
+  width: 220px;
+  min-width: 220px;
   min-height: 56px;
   padding: 0.55rem 0.9rem;
   border-radius: 1rem;
@@ -2652,11 +2653,15 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .beta-bet-spot-circle {
-    width: min(100%, 190px);
-    min-width: 0;
+    width: 190px;
+    min-width: 190px;
     min-height: 52px;
     padding: 0.44rem 0.7rem;
     border-radius: 0.9rem;
+  }
+
+  .beta-wager-inline-row {
+    grid-template-columns: 190px minmax(5rem, max-content);
   }
 
   .beta-bet-spot-total {
