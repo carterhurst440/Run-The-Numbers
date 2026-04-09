@@ -313,27 +313,6 @@
             <button type="button" data-action="sign-out" class="drawer-link">Sign out</button>
           </div>
         </section>
-        <section class="drawer-section" aria-labelledby="how-to-title">
-          <h3 id="how-to-title">Run the Numbers Rules</h3>
-          <ol class="how-to-list">
-            <li>Choose a chip value from the rack.</li>
-            <li>Stack chips on Ace or any number 2–10 before dealing.</li>
-            <li>Press <strong>Deal Hand</strong> to reveal cards. With Auto Deal on, the hand runs to the end automatically; with it off, each press reveals the next card.</li>
-            <li>Each time your number hits before the bust card, you earn the next step on the active paytable.</li>
-            <li>Use <strong>Rebet</strong> to restore your previous layout or <strong>Clear</strong> to start fresh.</li>
-          </ol>
-          <div class="rules-summary">
-            <p>
-              Each hand uses a fresh 53-card deck. Jacks, Queens, Kings, and the Joker stop play immediately; Ace and numbers 2–10 keep the hand alive.
-            </p>
-            <p>
-              Number bets, suit bets, and card count bets lock before the hand starts. With Auto Deal off, specific card bets and advanced bust bets can be added between revealed cards.
-            </p>
-            <p>
-              GUESS 10 is available as a beta table from the home screen or drawer and has its own rules and paytable on that page.
-            </p>
-          </div>
-        </section>
         <section class="drawer-section" aria-labelledby="recent-hands-title">
           <div class="section-heading">
             <h3 id="recent-hands-title">Recent Hands</h3>
@@ -2478,14 +2457,14 @@
             <table class="hand-review-table">
               <thead>
                 <tr>
-                  <th scope="col">Bet</th>
-                  <th scope="col">Wager</th>
-                  <th scope="col">Return</th>
-                  <th scope="col">Net</th>
+                  <th scope="col" id="hand-review-col-1">Bet</th>
+                  <th scope="col" id="hand-review-col-2">Wager</th>
+                  <th scope="col" id="hand-review-col-3">Return</th>
+                  <th scope="col" id="hand-review-col-4">Net</th>
                 </tr>
               </thead>
               <tbody id="hand-review-body"></tbody>
-              <tfoot>
+              <tfoot id="hand-review-totals">
                 <tr>
                   <th scope="row">Total</th>
                   <td id="hand-review-total-wager">0</td>
@@ -2942,6 +2921,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260405-play-assistant1"></script>
+    <script type="module" src="script.js?v=20260409-contest-game-ids"></script>
   </body>
 </html>

@@ -6801,7 +6801,8 @@ async function handleAdminContestSubmit(event) {
   const contestLengthHours = Math.max(1, Math.round(Number(formData.get("contestLengthHours") ?? 1)));
   const qualificationCarterCash = Math.max(0, Math.round(Number(formData.get("qualificationCarterCash") ?? 0)));
   const requiredRankTier = Math.max(1, Math.round(Number(formData.get("requiredRankTier") ?? 1)));
-  const allowedGameIds = normalizeContestAllowedGameIds(formData.getAll("contestGameIds"));
+  const rawContestGameIds = formData.getAll("contestGameIds");
+  const allowedGameIds = normalizeContestAllowedGameIds(rawContestGameIds);
   const prizeStaticAmount = Math.max(0, Number(formData.get("prizeStaticAmount") ?? 0));
   const prizeVariableBasis = String(formData.get("prizeVariableBasis") ?? "none");
   const prizeVariableUnitAmount = Math.max(0, Number(formData.get("prizeVariableUnitAmount") ?? 0));
@@ -6889,6 +6890,11 @@ async function handleAdminContestSubmit(event) {
 
   try {
     if (adminContestSaveButton) adminContestSaveButton.disabled = true;
+    console.info("[RTN] handleAdminContestSubmit payload", {
+      rawContestGameIds,
+      normalizedAllowedGameIds: allowedGameIds,
+      payloadAllowedGameIds: payload.allowed_game_ids
+    });
     const { data, error } = await supabase.from("contests").insert(payload).select("id").single();
     if (error) throw error;
     if (startWhenRequirementReached && sendStartEmailNotification) {
@@ -8225,8 +8231,15 @@ async function insertGameHandRecord(handPayload, betRows = []) {
     .select()
     .single();
 
-  if (handError && isMissingColumnError(handError, "game_id")) {
-    const { game_id: _gameId, ...fallbackPayload } = payload;
+  if (
+    handError &&
+    (isMissingColumnError(handError, "game_id") || isMissingColumnError(handError, "commission_kept"))
+  ) {
+    const {
+      game_id: _gameId,
+      commission_kept: _commissionKept,
+      ...fallbackPayload
+    } = payload;
     payload = fallbackPayload;
     ({ data: hand, error: handError } = await supabase
       .from("game_hands")
@@ -8257,7 +8270,8 @@ async function logStandaloneGameHand({
   totalCards = null,
   totalWager = 0,
   totalPaid = 0,
-  net = 0
+  net = 0,
+  commissionKept = 0
 } = {}) {
   try {
     const { data: userResponse, error: logHandUserError } = await supabase.auth.getUser();
@@ -8277,7 +8291,8 @@ async function logStandaloneGameHand({
       total_cards: totalCards,
       total_wager: totalWager,
       total_paid: totalPaid,
-      net
+      net,
+      commission_kept: commissionKept
     });
   } catch (error) {
     console.error("Failed to log standalone game hand", error);
@@ -8309,7 +8324,8 @@ async function logHandAndBets(stopperCard, context, betSnapshots, netThisHand, o
       total_cards: context?.totalCards ?? null,
       total_wager: totalWager,
       total_paid: totalPaid,
-      net: netThisHand
+      net: netThisHand,
+      commission_kept: 0
     };
 
     const betRows = safeBets.map((bet) => {
@@ -8747,6 +8763,11 @@ const numberBetsModalOk = document.getElementById("number-bets-modal-ok");
 const handReviewModal = document.getElementById("hand-review-modal");
 const handReviewSummaryEl = document.getElementById("hand-review-summary");
 const handReviewBodyEl = document.getElementById("hand-review-body");
+const handReviewCol1El = document.getElementById("hand-review-col-1");
+const handReviewCol2El = document.getElementById("hand-review-col-2");
+const handReviewCol3El = document.getElementById("hand-review-col-3");
+const handReviewCol4El = document.getElementById("hand-review-col-4");
+const handReviewTotalsEl = document.getElementById("hand-review-totals");
 const handReviewTotalWagerEl = document.getElementById("hand-review-total-wager");
 const handReviewTotalReturnEl = document.getElementById("hand-review-total-return");
 const handReviewTotalNetEl = document.getElementById("hand-review-total-net");
@@ -8837,6 +8858,7 @@ let redBlackCurrentPot = 0;
 let redBlackCategory = "color";
 let redBlackSelectedValues = ["red"];
 let redBlackLastBet = 0;
+let redBlackHandHistoryEntries = [];
 let stats = {
   hands: 0,
   wagered: 0,
@@ -9930,14 +9952,22 @@ function clearRedBlackDraws() {
 function clearRedBlackHistory() {
   if (!redBlackHistoryEl) return;
   redBlackHistoryEl.innerHTML = "";
+  redBlackHandHistoryEntries = [];
 }
 
-function appendRedBlackHistoryEntry({ card, matched, multiplier, selectionLabel }) {
+function appendRedBlackHistoryEntry({ card, matched, multiplier, selectionLabel, potAfter = 0 }) {
   if (!redBlackHistoryEl) return;
   const item = document.createElement("li");
   const cardLabel = `${card?.label || ""}${card?.suit || ""}`;
   item.textContent = `${selectionLabel} · ${formatRedBlackMultiplier(multiplier)} · ${cardLabel} · ${matched ? "Hit" : "Miss"}`;
   redBlackHistoryEl.appendChild(item);
+  redBlackHandHistoryEntries.push({
+    card: card ? { ...card } : null,
+    matched: Boolean(matched),
+    multiplier,
+    selectionLabel,
+    potAfter: roundCurrencyValue(potAfter)
+  });
 }
 
 function appendRedBlackCard(card) {
@@ -10167,15 +10197,31 @@ async function dealRedBlackCard() {
   const selectionLabel = getRedBlackSelectionLabel();
 
   const matched = doesRedBlackCardMatch(nextCard);
-  appendRedBlackHistoryEntry({ card: nextCard, matched, multiplier, selectionLabel });
+  const nextPot = matched ? roundCurrencyValue(redBlackCurrentPot * multiplier) : 0;
+  appendRedBlackHistoryEntry({ card: nextCard, matched, multiplier, selectionLabel, potAfter: nextPot });
 
   if (!matched) {
     const completedBet = redBlackBet;
     const completedCards = redBlackHistoryEl?.children.length || 1;
+    const handHistory = redBlackHandHistoryEntries.map((entry) => ({
+      ...entry,
+      card: entry.card ? { ...entry.card } : null
+    }));
+    const drawnCards = handHistory.map((entry) => entry.card).filter(Boolean);
     finishRedBlackHand(
       `${nextCard.label}${nextCard.suit} missed ${selectionLabel}. Hand over. Place a new wager to start again.`,
       { clearBet: true }
     );
+    addHistoryEntry({
+      gameKey: GAME_KEYS.GUESS_10,
+      gameLabel: getGameLabel(GAME_KEYS.GUESS_10),
+      drawnCards,
+      handHistory,
+      totalWager: completedBet,
+      totalReturn: 0,
+      net: -completedBet,
+      commissionKept: 0
+    });
     applyPlaythrough(completedBet);
     await persistBankroll({
       recordContestHistory: isContestAccountMode(),
@@ -10189,7 +10235,8 @@ async function dealRedBlackCard() {
       totalCards: completedCards,
       totalWager: completedBet,
       totalPaid: 0,
-      net: -completedBet
+      net: -completedBet,
+      commissionKept: 0
     });
     logGameRun(-completedBet, {
       gameKey: GAME_KEYS.GUESS_10,
@@ -10204,7 +10251,7 @@ async function dealRedBlackCard() {
     return;
   }
 
-  redBlackCurrentPot = roundCurrencyValue(redBlackCurrentPot * multiplier);
+  redBlackCurrentPot = nextPot;
   redBlackRung += 1;
   if (cardEl) {
     cardEl.classList.add("card-match");
@@ -10247,6 +10294,11 @@ async function withdrawRedBlackHand() {
   const winnings = Math.max(0, redBlackCurrentPot - redBlackBet);
   const commission = roundCurrencyValue(winnings * commissionRate);
   const payout = roundCurrencyValue(redBlackCurrentPot - commission);
+  const handHistory = redBlackHandHistoryEntries.map((entry) => ({
+    ...entry,
+    card: entry.card ? { ...entry.card } : null
+  }));
+  const drawnCards = handHistory.map((entry) => entry.card).filter(Boolean);
   bankroll = roundCurrencyValue(bankroll + payout);
   handleBankrollChanged();
   finishRedBlackHand(
@@ -10255,6 +10307,16 @@ async function withdrawRedBlackHand() {
     )} on winnings (${formatCurrency(commission)}).`,
     { clearBet: true }
   );
+  addHistoryEntry({
+    gameKey: GAME_KEYS.GUESS_10,
+    gameLabel: getGameLabel(GAME_KEYS.GUESS_10),
+    drawnCards,
+    handHistory,
+    totalWager: completedBet,
+    totalReturn: payout,
+    net: roundCurrencyValue(payout - completedBet),
+    commissionKept: commission
+  });
   applyPlaythrough(completedBet);
   await persistBankroll({
     recordContestHistory: isContestAccountMode(),
@@ -10268,7 +10330,8 @@ async function withdrawRedBlackHand() {
     totalCards: completedCards,
     totalWager: completedBet,
     totalPaid: payout,
-    net: roundCurrencyValue(payout - completedBet)
+    net: roundCurrencyValue(payout - completedBet),
+    commissionKept: commission
   });
   logGameRun(roundCurrencyValue(payout - completedBet), {
     gameKey: GAME_KEYS.GUESS_10,
@@ -12129,6 +12192,10 @@ function summarizeBetResult(bet) {
 function addHistoryEntry(result) {
   recentHandReviews.unshift({
     id: result.id || `hand-review-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    gameKey: result.gameKey || GAME_KEYS.RUN_THE_NUMBERS,
+    gameLabel: result.gameLabel || getGameLabel(result.gameKey || GAME_KEYS.RUN_THE_NUMBERS),
+    commissionKept: Math.max(0, Number(Number(result.commissionKept || 0).toFixed(2))),
+    handHistory: Array.isArray(result.handHistory) ? result.handHistory.map((item) => ({ ...item })) : [],
     drawnCards: Array.isArray(result.drawnCards) ? result.drawnCards.map((card) => ({ ...card })) : [],
     bets: Array.isArray(result.bets) ? result.bets.map((bet) => ({ ...bet })) : [],
     totalWager: Math.max(0, Number(Number(result.totalWager || 0).toFixed(2))),
@@ -12158,6 +12225,7 @@ function renderRecentHandHistory() {
   historyList.innerHTML = "";
   recentHandReviews.forEach((entry) => {
     const item = document.createElement("li");
+    const gameLabel = entry.gameLabel || getGameLabel(entry.gameKey || GAME_KEYS.RUN_THE_NUMBERS);
     const cardsList = (entry.drawnCards || [])
       .map((card) => {
         if (card.label === "Joker") {
@@ -12166,11 +12234,14 @@ function renderRecentHandHistory() {
         return `${card.label}${card.suit || ""}`;
       })
       .join(", ");
+    const totalCards = Array.isArray(entry.drawnCards) ? entry.drawnCards.length : 0;
+    const metaLine = `${formatCurrency(entry.totalWager)} wagered · ${formatCurrency(entry.totalReturn)} returned`;
 
     item.innerHTML = `
+      <div class="history-hand-game">${escapeAssistantHtml(gameLabel)}</div>
       <div class="history-hand-cards">${cardsList}</div>
-      <div class="history-hand-meta">Hand Length: ${(entry.drawnCards || []).length}</div>
-      <button type="button" class="history-review-button" data-hand-review-id="${escapeAssistantHtml(entry.id)}">Review Hand</button>
+      <div class="history-hand-meta">${metaLine} · ${totalCards} card${totalCards === 1 ? "" : "s"}</div>
+      <button type="button" class="history-review-button" data-hand-review-id="${escapeAssistantHtml(entry.id)}">Hand Review</button>
     `;
     historyList.appendChild(item);
   });
@@ -12215,29 +12286,64 @@ function openHandReviewModal(reviewId, trigger = null) {
   }
 
   handReviewModalTrigger = trigger instanceof HTMLElement ? trigger : document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  handReviewBodyEl.innerHTML = "";
+  const isGuess10 = (entry.gameKey || "") === GAME_KEYS.GUESS_10;
+
   if (handReviewSummaryEl) {
-    handReviewSummaryEl.textContent = `Hand length ${entry.drawnCards.length}. Total return ${formatCurrency(
-      entry.totalReturn
-    )} units on ${formatCurrency(entry.totalWager)} wagered.`;
+    handReviewSummaryEl.textContent = isGuess10
+      ? `${entry.gameLabel || "Guess 10"} · ${entry.drawnCards.length} cards · ${formatCurrency(entry.totalWager)} wagered · ${formatCurrency(entry.totalReturn)} returned · ${formatSignedCurrency(entry.net)} net · ${formatCurrency(entry.commissionKept || 0)} commission kept.`
+      : `Hand length ${entry.drawnCards.length}. Total return ${formatCurrency(
+          entry.totalReturn
+        )} units on ${formatCurrency(entry.totalWager)} wagered.`;
   }
 
-  handReviewBodyEl.innerHTML = "";
-  entry.bets.forEach((bet) => {
-    const row = document.createElement("tr");
-    const wager = Math.max(0, Math.round(Number(bet.units || 0)));
-    const totalReturn = Math.max(0, Math.round(Number(bet.paid || 0)));
-    const net = totalReturn - wager;
-    const netClass =
-      net > 0 ? "hand-review-positive" : net < 0 ? "hand-review-negative" : "hand-review-neutral";
+  if (isGuess10) {
+    if (handReviewCol1El) handReviewCol1El.textContent = "Round";
+    if (handReviewCol2El) handReviewCol2El.textContent = "Prediction";
+    if (handReviewCol3El) handReviewCol3El.textContent = "Card";
+    if (handReviewCol4El) handReviewCol4El.textContent = "Result";
+    if (handReviewTotalsEl) {
+      handReviewTotalsEl.hidden = true;
+    }
+    (entry.handHistory || []).forEach((step, index) => {
+      const row = document.createElement("tr");
+      const cardLabel = step?.card ? `${step.card.label || ""}${step.card.suit || ""}` : "—";
+      const resultText = step?.matched
+        ? `Hit · Pot ${formatCurrency(step.potAfter || 0)}`
+        : "Miss";
+      row.innerHTML = `
+        <td>Round ${index + 1}</td>
+        <td>${escapeAssistantHtml(`${step.selectionLabel || "Selection"} · ${formatRedBlackMultiplier(step.multiplier || 0) || "0x"}`)}</td>
+        <td>${escapeAssistantHtml(cardLabel)}</td>
+        <td class="${step?.matched ? "hand-review-positive" : "hand-review-negative"}">${escapeAssistantHtml(resultText)}</td>
+      `;
+      handReviewBodyEl.appendChild(row);
+    });
+  } else {
+    if (handReviewCol1El) handReviewCol1El.textContent = "Bet";
+    if (handReviewCol2El) handReviewCol2El.textContent = "Wager";
+    if (handReviewCol3El) handReviewCol3El.textContent = "Return";
+    if (handReviewCol4El) handReviewCol4El.textContent = "Net";
+    if (handReviewTotalsEl) {
+      handReviewTotalsEl.hidden = false;
+    }
+    entry.bets.forEach((bet) => {
+      const row = document.createElement("tr");
+      const wager = Math.max(0, Math.round(Number(bet.units || 0)));
+      const totalReturn = Math.max(0, Math.round(Number(bet.paid || 0)));
+      const net = totalReturn - wager;
+      const netClass =
+        net > 0 ? "hand-review-positive" : net < 0 ? "hand-review-negative" : "hand-review-neutral";
 
-    row.innerHTML = `
-      <td>${escapeAssistantHtml(bet.label || bet.key || "Bet")}</td>
-      <td>${formatCurrency(wager)}</td>
-      <td>${formatCurrency(totalReturn)}</td>
-      <td class="${netClass}">${formatSignedCurrency(net)}</td>
-    `;
-    handReviewBodyEl.appendChild(row);
-  });
+      row.innerHTML = `
+        <td>${escapeAssistantHtml(bet.label || bet.key || "Bet")}</td>
+        <td>${formatCurrency(wager)}</td>
+        <td>${formatCurrency(totalReturn)}</td>
+        <td class="${netClass}">${formatSignedCurrency(net)}</td>
+      `;
+      handReviewBodyEl.appendChild(row);
+    });
+  }
 
   if (handReviewTotalWagerEl) {
     handReviewTotalWagerEl.textContent = formatCurrency(entry.totalWager);
@@ -12542,6 +12648,8 @@ async function endHand(stopperCard, context = {}) {
   }. Place your next bets.`;
 
   addHistoryEntry({
+    gameKey: GAME_KEYS.RUN_THE_NUMBERS,
+    gameLabel: getGameLabel(GAME_KEYS.RUN_THE_NUMBERS),
     drawnCards: context.drawnCards || [],
     bets: betSnapshots,
     totalWager: totalWagerThisHand,

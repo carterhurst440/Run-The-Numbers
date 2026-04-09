@@ -2794,7 +2794,7 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .beta-bet-empty-label {
-    font-size: 0.8rem;
+    font-size: 0.92rem;
   }
 
   .beta-wager-inline-row {
@@ -2806,7 +2806,7 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .beta-bet-spot-total {
-    font-size: 1.45rem;
+    font-size: 1.22rem;
     line-height: 1;
   }
 
@@ -8318,6 +8318,15 @@ body.modal-open {
 .history-hand-cards {
   line-height: 1.55;
   color: var(--text-light);
+}
+
+.history-hand-game {
+  margin-bottom: 0.2rem;
+  color: rgba(255, 122, 224, 0.86);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .history-hand-meta {
