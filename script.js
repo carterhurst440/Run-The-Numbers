@@ -8181,16 +8181,31 @@ export async function logGameRun(score, metadata = {}) {
   }
   const enrichedMetadata = {
     ...metadata,
+    recorded_score: roundCurrencyValue(score),
     ending_bankroll: bankroll,
     ending_carter_cash: carterCash,
     account_mode: getAccountModeValue(),
     contest_id: isContestAccountMode() ? currentAccountMode.contestId : null
   };
-  await supabase.from("game_runs").insert({
+  let runScore = Number.isFinite(Number(score)) ? roundCurrencyValue(score) : 0;
+  let { error: insertError } = await supabase.from("game_runs").insert({
     user_id: sessionUser.id,
-    score,
+    score: runScore,
     metadata: enrichedMetadata
   });
+
+  if (insertError) {
+    const fallbackScore = Math.round(runScore);
+    ({ error: insertError } = await supabase.from("game_runs").insert({
+      user_id: sessionUser.id,
+      score: fallbackScore,
+      metadata: enrichedMetadata
+    }));
+  }
+
+  if (insertError) {
+    throw insertError;
+  }
 
   if (sessionUser.id === currentUser?.id) {
     persistentBankrollUserId = sessionUser.id;
