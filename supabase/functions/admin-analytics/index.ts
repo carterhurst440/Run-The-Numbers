@@ -27,6 +27,7 @@ const GAME_LABELS: Record<string, string> = {
   [GAME_IDS.RUN_THE_NUMBERS]: "Run the Numbers",
   [GAME_IDS.GUESS_10]: "Guess 10"
 };
+const ANALYTICS_TIME_ZONE = "America/Denver";
 
 function getPeriodStart(period: string) {
   const now = Date.now();
@@ -66,17 +67,23 @@ function getContestIdFromRun(run: RunRow) {
 }
 
 function formatBucketLabel(date: Date, bucketMinutes: number) {
-  return date.toLocaleTimeString([], {
+  return date.toLocaleTimeString("en-US", {
+    timeZone: ANALYTICS_TIME_ZONE,
     hour: "numeric",
     minute: bucketMinutes < 60 ? "2-digit" : undefined
   });
 }
 
 function formatDayBucketLabel(date: Date) {
-  return date.toLocaleDateString([], {
+  return date.toLocaleDateString("en-US", {
+    timeZone: ANALYTICS_TIME_ZONE,
     month: "short",
     day: "numeric"
   });
+}
+
+function getModeLabel(run: RunRow) {
+  return getRunModeKey(run) === "normal" ? "Normal Mode" : "Contest Mode";
 }
 
 function normalizeGameId(value: unknown) {
@@ -236,9 +243,10 @@ Deno.serve(async (request) => {
     if (action === "hands_timeseries") {
       const now = body?.endAt ? new Date(String(body.endAt)) : new Date();
       const requestedStart = body?.startAt ? new Date(String(body.startAt)) : null;
+      const periodStart = getPeriodStart(period);
       const startDate = requestedStart && !Number.isNaN(requestedStart.getTime())
         ? requestedStart
-        : getPeriodStart(period) || new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        : periodStart;
       const targetUserIds = Array.isArray(body?.targetUserIds)
         ? body.targetUserIds.map((value: unknown) => String(value || "").trim()).filter(Boolean)
         : [];
@@ -249,9 +257,15 @@ Deno.serve(async (request) => {
         userIds: targetUserIds
       });
 
+      const effectiveStartDate =
+        startDate ||
+        (allRecords.length > 0
+          ? new Date(String(allRecords[0]?.created_at || now.toISOString()))
+          : now);
+
       const bucketStarts: Date[] = [];
       if (period === "hour") {
-        const current = new Date(startDate);
+        const current = new Date(effectiveStartDate);
         current.setSeconds(0, 0);
         current.setMinutes(Math.floor(current.getMinutes() / 5) * 5, 0, 0);
         while (current <= now) {
@@ -259,14 +273,14 @@ Deno.serve(async (request) => {
           current.setMinutes(current.getMinutes() + 5);
         }
       } else if (period === "day") {
-        const current = new Date(startDate);
+        const current = new Date(effectiveStartDate);
         current.setMinutes(0, 0, 0);
         while (current <= now) {
           bucketStarts.push(new Date(current));
           current.setHours(current.getHours() + 1);
         }
       } else {
-        const current = new Date(startDate);
+        const current = new Date(effectiveStartDate);
         current.setHours(0, 0, 0, 0);
         const endDay = new Date(now);
         endDay.setHours(0, 0, 0, 0);
@@ -359,6 +373,15 @@ Deno.serve(async (request) => {
         userIds: [userId]
       });
 
+      const modeCounts = new Map<string, number>([
+        ["Normal Mode", 0],
+        ["Contest Mode", 0]
+      ]);
+      runsInPeriod.forEach((run) => {
+        const label = getModeLabel(run);
+        modeCounts.set(label, (modeCounts.get(label) || 0) + 1);
+      });
+
       const counts = new Map<string, number>([
         [GAME_IDS.RUN_THE_NUMBERS, 0],
         [GAME_IDS.GUESS_10, 0]
@@ -369,7 +392,7 @@ Deno.serve(async (request) => {
         counts.set(gameId, (counts.get(gameId) || 0) + 1);
       });
 
-      const rows = Array.from(counts.entries())
+      const gameRows = Array.from(counts.entries())
         .map(([key, handsPlayed]) => ({
           key,
           label: GAME_LABELS[key] || "Unknown Game",
@@ -377,7 +400,19 @@ Deno.serve(async (request) => {
         }))
         .sort((a, b) => b.handsPlayed - a.handsPlayed || a.label.localeCompare(b.label));
 
-      return new Response(JSON.stringify({ rows, totalHands: rows.reduce((sum, row) => sum + row.handsPlayed, 0) }), {
+      const modeRows = Array.from(modeCounts.entries())
+        .map(([label, handsPlayed]) => ({
+          label,
+          handsPlayed
+        }))
+        .sort((a, b) => b.handsPlayed - a.handsPlayed || a.label.localeCompare(b.label));
+
+      return new Response(JSON.stringify({
+        modeRows,
+        gameRows,
+        modeTotalHands: modeRows.reduce((sum, row) => sum + row.handsPlayed, 0),
+        gameTotalHands: gameRows.reduce((sum, row) => sum + row.handsPlayed, 0)
+      }), {
         status: 200,
         headers: {
           ...corsHeaders,

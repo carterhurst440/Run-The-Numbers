@@ -2640,7 +2640,7 @@ async function renderBetVolumeChart(betKey, period) {
 let overviewChartInstance = null;
 let activeUsersChartInstance = null;
 
-async function renderOverviewChart(period = "all") {
+async function renderOverviewChart(period = "year") {
   if (!supabase) {
     console.warn("[RTN] Cannot render overview chart: Supabase client not initialized");
     return;
@@ -2799,13 +2799,7 @@ async function renderOverviewChart(period = "all") {
   }
 
   // Generate all dates from start to today
-  const toLocalDateKey = (value) => {
-    const date = value instanceof Date ? new Date(value) : new Date(value);
-    const year = date.getFullYear();
-    const month = `${date.getMonth() + 1}`.padStart(2, "0");
-    const day = `${date.getDate()}`.padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
+  const toLocalDateKey = (value) => formatAnalyticsDateKey(value);
 
   const dates = [];
   const current = new Date(chartStartDate);
@@ -2854,7 +2848,7 @@ function updateActiveUsersChartFilterUI() {
   activeUsersSubheadEl.textContent = labels[activeUsersChartPeriod] || labels.all;
 }
 
-async function renderActiveUsersChart(period = "all") {
+async function renderActiveUsersChart(period = "year") {
   if (!supabase) {
     console.warn("[RTN] Cannot render active users chart: Supabase client not initialized");
     return;
@@ -2875,13 +2869,7 @@ async function renderActiveUsersChart(period = "all") {
   const now = new Date();
   const startDate = getAnalyticsPeriodStart(period);
 
-  const toLocalDateKey = (value) => {
-    const date = value instanceof Date ? new Date(value) : new Date(value);
-    const year = date.getFullYear();
-    const month = `${date.getMonth() + 1}`.padStart(2, "0");
-    const day = `${date.getDate()}`.padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
+  const toLocalDateKey = (value) => formatAnalyticsDateKey(value);
 
   const { data, error } = await supabase.rpc("get_admin_app_activity_snapshot_timeseries", {
     start_at: startDate ? startDate.toISOString() : null,
@@ -8499,9 +8487,6 @@ const redBlackBetTotalEl = document.getElementById("red-black-bet-total");
 const redBlackBetEmptyLabelEl = document.getElementById("red-black-bet-empty-label");
 const redBlackChipStackEl = document.getElementById("red-black-chip-stack");
 const redBlackPotTotalEl = document.getElementById("red-black-pot-total");
-const redBlackPotEmptyLabelEl = document.getElementById("red-black-pot-empty-label");
-const redBlackPotChipStackEl = document.getElementById("red-black-pot-chip-stack");
-const redBlackSelectedChipLabelEl = document.getElementById("red-black-selected-chip-label");
 const redBlackChipButtons = Array.from(document.querySelectorAll("[data-red-black-chip]"));
 const redBlackCategoryButtons = Array.from(document.querySelectorAll("[data-red-black-category]"));
 const redBlackValueSelectorEl = document.getElementById("red-black-value-selector");
@@ -8774,13 +8759,20 @@ const playerBankrollModal = document.getElementById("player-bankroll-modal");
 const playerBankrollClose = document.getElementById("player-bankroll-close");
 const playerBankrollTitleEl = document.getElementById("player-bankroll-title");
 const playerBankrollSubheadEl = document.getElementById("player-bankroll-subhead");
+const playerHandsModal = document.getElementById("player-hands-modal");
+const playerHandsClose = document.getElementById("player-hands-close");
+const playerHandsTitleEl = document.getElementById("player-hands-title");
+const playerHandsSubheadEl = document.getElementById("player-hands-subhead");
 const playerModeBreakdownModal = document.getElementById("player-mode-breakdown-modal");
 const playerModeBreakdownClose = document.getElementById("player-mode-breakdown-close");
 const playerModeBreakdownTitleEl = document.getElementById("player-mode-breakdown-title");
 const playerModeBreakdownSummaryEl = document.getElementById("player-mode-breakdown-summary");
-const playerModeBreakdownBodyEl = document.getElementById("player-mode-breakdown-body");
-const playerModeBreakdownTotalEl = document.getElementById("player-mode-breakdown-total");
+const playerModeBreakdownModeBodyEl = document.getElementById("player-mode-breakdown-mode-body");
+const playerModeBreakdownModeTotalEl = document.getElementById("player-mode-breakdown-mode-total");
+const playerModeBreakdownGameBodyEl = document.getElementById("player-mode-breakdown-game-body");
+const playerModeBreakdownGameTotalEl = document.getElementById("player-mode-breakdown-game-total");
 const playerModeBreakdownOk = document.getElementById("player-mode-breakdown-ok");
+const playerBreakdownFilterButtons = Array.from(document.querySelectorAll("[data-player-breakdown-period]"));
 const adminTabButtons = document.querySelectorAll(".admin-tab");
 const adminPrizesContent = document.getElementById("admin-prizes-content");
 const adminAnalyticsContent = document.getElementById("admin-analytics-content");
@@ -8858,7 +8850,7 @@ let bankrollDeltaTimeout = null;
 let bankrollHistory = [];
 let persistentBankrollHistory = [];
 let persistentBankrollUserId = null;
-let bankrollChartPeriod = "all";
+let bankrollChartPeriod = "year";
 let activityLeaderboardPeriod = "week";
 let activeUsersChartPeriod = "all";
 let autoDealEnabled = true;
@@ -9886,6 +9878,7 @@ function renderRedBlackSummary() {
   const commissionUnits = roundCurrencyValue(Math.max(0, redBlackCurrentPot - redBlackBet) * commissionRate);
   if (redBlackBetTotalEl) {
     redBlackBetTotalEl.textContent = formatCurrency(redBlackBet);
+    redBlackBetTotalEl.hidden = redBlackBet <= 0;
   }
   if (redBlackPotTotalEl) {
     redBlackPotTotalEl.textContent = formatCurrency(redBlackCurrentPot);
@@ -9893,19 +9886,12 @@ function renderRedBlackSummary() {
   if (redBlackBetEmptyLabelEl) {
     redBlackBetEmptyLabelEl.hidden = redBlackBet > 0;
   }
-  if (redBlackPotEmptyLabelEl) {
-    redBlackPotEmptyLabelEl.hidden = redBlackCurrentPot > 0;
-  }
   updateRedBlackMultiplierChip();
   if (redBlackCommissionDisplayEl) {
     redBlackCommissionDisplayEl.textContent = `${formatCurrency(commissionUnits)} (${Math.round(commissionRate * 100)}%)`;
   }
-  if (redBlackSelectedChipLabelEl) {
-    redBlackSelectedChipLabelEl.textContent = `Wager: ${formatCurrency(redBlackBet)}`;
-  }
   renderRedBlackSelectionMeta();
   renderRedBlackBetStack();
-  renderRedBlackPotStack();
 }
 
 function updateRedBlackMultiplierChip() {
@@ -10114,10 +10100,6 @@ function renderRedBlackChipStack(stackEl, amount) {
 
 function renderRedBlackBetStack() {
   renderRedBlackChipStack(redBlackChipStackEl, redBlackBet);
-}
-
-function renderRedBlackPotStack() {
-  renderRedBlackChipStack(redBlackPotChipStackEl, redBlackCurrentPot);
 }
 
 function resetRedBlackHand({ keepBet = true } = {}) {
@@ -10507,7 +10489,7 @@ function buildHandsChartBuckets(period, startDate, endDate = new Date()) {
       const key = current.toISOString();
       buckets.push({
         key,
-        label: current.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+        label: formatAnalyticsDate(current, { hour: "numeric", minute: "2-digit" }),
         start: new Date(current),
         end: new Date(current.getTime() + 5 * 60 * 1000)
       });
@@ -10521,7 +10503,7 @@ function buildHandsChartBuckets(period, startDate, endDate = new Date()) {
       const key = current.toISOString();
       buckets.push({
         key,
-        label: current.toLocaleTimeString([], { hour: "numeric" }),
+        label: formatAnalyticsDate(current, { hour: "numeric" }),
         start: new Date(current),
         end: new Date(current.getTime() + 60 * 60 * 1000)
       });
@@ -10538,7 +10520,7 @@ function buildHandsChartBuckets(period, startDate, endDate = new Date()) {
     bucketEnd.setDate(bucketEnd.getDate() + 1);
     buckets.push({
       key: bucketStart.toISOString(),
-      label: bucketStart.toLocaleDateString([], { month: "short", day: "numeric" }),
+      label: formatAnalyticsDate(bucketStart, { month: "short", day: "numeric" }),
       start: bucketStart,
       end: bucketEnd
     });
@@ -10623,19 +10605,19 @@ function formatBankrollTickLabel(point, fallbackIndex, period = "all") {
     const date = new Date(point.created_at);
     if (!Number.isNaN(date.getTime())) {
       if (period === "hour") {
-        return date.toLocaleTimeString([], {
+        return formatAnalyticsDate(date, {
           hour: "numeric",
           minute: "2-digit"
         });
       }
       if (period === "day") {
-        return date.toLocaleString([], {
+        return formatAnalyticsDate(date, {
           month: "short",
           day: "numeric",
           hour: "numeric"
         });
       }
-      return date.toLocaleDateString([], {
+      return formatAnalyticsDate(date, {
         month: "short",
         day: "numeric"
       });
@@ -10678,11 +10660,10 @@ function updateBankrollChartFilterUI() {
     week: "Showing normal-mode bankroll history for the last week.",
     month: "Showing normal-mode bankroll history for the last month.",
     "90days": "Showing normal-mode bankroll history for the last 3 months.",
-    year: "Showing normal-mode bankroll history for the last year.",
-    all: "Showing normal-mode bankroll history across the player's lifetime."
+    year: "Showing normal-mode bankroll history for the last year."
   };
 
-  bankrollChartSubhead.textContent = labels[bankrollChartPeriod] || labels.all;
+  bankrollChartSubhead.textContent = labels[bankrollChartPeriod] || labels.year;
 }
 
 function updateActivityFilterUI() {
@@ -10697,7 +10678,7 @@ function updateActivityFilterUI() {
     day: "Ranked by hands played in the last 24 hours.",
     week: "Ranked by hands played in the last 7 days.",
     month: "Ranked by hands played in the last 30 days.",
-    all: "Ranked by hands played across all time."
+    year: "Ranked by hands played in the last year."
   };
 
   mostActiveSubheadEl.textContent = labels[activityLeaderboardPeriod] || labels.week;
@@ -11011,6 +10992,41 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
   persistentBankrollUserId = currentUser.id;
   updateBankrollChartFilterUI();
   drawBankrollChart();
+}
+
+async function loadGameRunsForUser(userId, { startAt = null } = {}) {
+  const allRuns = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = supabase
+      .from("game_runs")
+      .select("score, created_at, metadata")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (startAt) {
+      query = query.gte("created_at", startAt.toISOString());
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      throw error;
+    }
+
+    if (Array.isArray(data) && data.length) {
+      allRuns.push(...data);
+      hasMore = data.length === pageSize;
+      page += 1;
+    } else {
+      hasMore = false;
+    }
+  }
+
+  return allRuns;
 }
 
 function updatePauseButton() {
@@ -13103,7 +13119,7 @@ if (drawerGraphLink && chartPanel && chartClose) {
 
 bankrollChartFilterButtons.forEach((button) => {
   button.addEventListener("click", () => {
-    bankrollChartPeriod = button.dataset.bankrollPeriod || "all";
+    bankrollChartPeriod = button.dataset.bankrollPeriod || "year";
     updateBankrollChartFilterUI();
     drawBankrollChart();
   });
@@ -13643,6 +13659,16 @@ if (mostActiveWeekListEl) {
       return;
     }
 
+    const handsButton =
+      event.target instanceof HTMLElement ? event.target.closest("[data-player-hands-user-id]") : null;
+    if (handsButton instanceof HTMLElement) {
+      void openPlayerHandsModal(
+        handsButton.dataset.playerHandsUserId || "",
+        handsButton.dataset.playerHandsName || "Player"
+      );
+      return;
+    }
+
     const breakdownButton =
       event.target instanceof HTMLElement ? event.target.closest("[data-player-mode-breakdown-user-id]") : null;
     if (breakdownButton instanceof HTMLElement) {
@@ -13670,7 +13696,7 @@ if (playerBankrollModal) {
 
 document.querySelectorAll("[data-player-bankroll-period]").forEach((button) => {
   button.addEventListener("click", () => {
-    const nextPeriod = button instanceof HTMLElement ? button.dataset.playerBankrollPeriod || "all" : "all";
+    const nextPeriod = button instanceof HTMLElement ? button.dataset.playerBankrollPeriod || "year" : "year";
     playerBankrollPeriod = nextPeriod;
     document.querySelectorAll("[data-player-bankroll-period]").forEach((candidate) => {
       candidate.classList.toggle(
@@ -13680,6 +13706,36 @@ document.querySelectorAll("[data-player-bankroll-period]").forEach((button) => {
     });
     if (activePlayerBankrollUserId) {
       void renderPlayerBankrollChart(activePlayerBankrollUserId, nextPeriod);
+    }
+  });
+});
+
+if (playerHandsClose) {
+  playerHandsClose.addEventListener("click", () => {
+    closePlayerHandsModal();
+  });
+}
+
+if (playerHandsModal) {
+  playerHandsModal.addEventListener("click", (event) => {
+    if (event.target === playerHandsModal) {
+      closePlayerHandsModal();
+    }
+  });
+}
+
+document.querySelectorAll("[data-player-hands-period]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const nextPeriod = button instanceof HTMLElement ? button.dataset.playerHandsPeriod || "year" : "year";
+    playerHandsPeriod = nextPeriod;
+    document.querySelectorAll("[data-player-hands-period]").forEach((candidate) => {
+      candidate.classList.toggle(
+        "active",
+        candidate instanceof HTMLElement && candidate.dataset.playerHandsPeriod === nextPeriod
+      );
+    });
+    if (activePlayerHandsUserId) {
+      void renderPlayerHandsChart(activePlayerHandsUserId, nextPeriod);
     }
   });
 });
@@ -13703,6 +13759,22 @@ if (playerModeBreakdownModal) {
     }
   });
 }
+
+playerBreakdownFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const nextPeriod = button.dataset.playerBreakdownPeriod || "year";
+    playerBreakdownPeriod = nextPeriod;
+    playerBreakdownFilterButtons.forEach((candidate) => {
+      candidate.classList.toggle(
+        "active",
+        candidate instanceof HTMLElement && candidate.dataset.playerBreakdownPeriod === nextPeriod
+      );
+    });
+    if (activePlayerBreakdownUserId) {
+      void renderPlayerModeBreakdown(activePlayerBreakdownUserId, nextPeriod);
+    }
+  });
+});
 
 // Chart filter buttons
 document.querySelectorAll(".analytics-modal .chart-filter-btn[data-period]").forEach(button => {
@@ -13750,8 +13822,8 @@ adminTabButtons.forEach(button => {
       if (adminRanksContent) adminRanksContent.hidden = true;
       loadPlayerFilter(); // Load player list for filter
       initializeAnalyticsBettingGrid();
-      renderOverviewChart("all");
-      renderActiveUsersChart("all");
+      renderOverviewChart("year");
+      renderActiveUsersChart("year");
       loadMostActiveThisWeek();
     } else if (targetTab === "contests") {
       adminPrizesContent.hidden = true;
@@ -13787,7 +13859,7 @@ document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(button 
 
 activeUsersFilterButtons.forEach((button) => {
   button.addEventListener("click", () => {
-    const period = button.dataset.activeUsersPeriod || "all";
+    const period = button.dataset.activeUsersPeriod || "year";
     renderActiveUsersChart(period);
   });
 });
@@ -13802,11 +13874,37 @@ let analyticsMostActiveRequestId = 0;
 let analyticsMostActiveEntries = [];
 let analyticsMostActiveVisibleCount = 10;
 let playerBankrollChartInstance = null;
-let playerBankrollPeriod = "all";
+let playerBankrollPeriod = "year";
 let activePlayerBankrollUserId = null;
 let activePlayerBankrollName = "";
+let playerHandsChartInstance = null;
+let playerHandsPeriod = "year";
+let activePlayerHandsUserId = null;
+let activePlayerHandsName = "";
+const ANALYTICS_TIME_ZONE = "America/Denver";
+
+function formatAnalyticsDate(dateInput, options = {}) {
+  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("en-US", {
+    timeZone: ANALYTICS_TIME_ZONE,
+    ...options
+  });
+}
+
+function formatAnalyticsDateKey(dateInput) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: ANALYTICS_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(dateInput instanceof Date ? dateInput : new Date(dateInput));
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
 let activePlayerBreakdownUserId = null;
 let activePlayerBreakdownName = "";
+let playerBreakdownPeriod = "year";
 const analyticsProfileCache = new Map();
 const ANALYTICS_ACTIVITY_PAGE_SIZE = 10;
 
@@ -13931,12 +14029,19 @@ function renderMostActiveEntries() {
     const actions = document.createElement("div");
     actions.className = "analytics-activity-actions";
 
+    const bankrollButton = document.createElement("button");
+    bankrollButton.type = "button";
+    bankrollButton.className = "analytics-inline-action";
+    bankrollButton.dataset.playerBankrollUserId = entry.userId;
+    bankrollButton.dataset.playerBankrollName = getContestDisplayName(profile, entry.userId);
+    bankrollButton.textContent = "Bankroll Analytics";
+
     const viewGraphButton = document.createElement("button");
     viewGraphButton.type = "button";
     viewGraphButton.className = "analytics-inline-action";
-    viewGraphButton.dataset.playerBankrollUserId = entry.userId;
-    viewGraphButton.dataset.playerBankrollName = getContestDisplayName(profile, entry.userId);
-    viewGraphButton.textContent = "View Graph";
+    viewGraphButton.dataset.playerHandsUserId = entry.userId;
+    viewGraphButton.dataset.playerHandsName = getContestDisplayName(profile, entry.userId);
+    viewGraphButton.textContent = "Hands Played";
 
     const viewBreakdownButton = document.createElement("button");
     viewBreakdownButton.type = "button";
@@ -13946,6 +14051,7 @@ function renderMostActiveEntries() {
     viewBreakdownButton.textContent = "View Breakdown";
 
     body.append(name, meta);
+    actions.appendChild(bankrollButton);
     actions.appendChild(viewGraphButton);
     actions.appendChild(viewBreakdownButton);
     item.append(rank, body, actions);
@@ -13987,6 +14093,16 @@ async function loadPlayerBankrollHistory(userId) {
   return Array.isArray(data?.points) ? data.points : [];
 }
 
+async function loadPlayerHandsHistory(userId, period = "all") {
+  const data = await invokeAdminAnalytics("hands_timeseries", {
+    userId,
+    period,
+    endAt: new Date().toISOString(),
+    targetUserIds: [userId]
+  });
+  return Array.isArray(data?.rows) ? data.rows : [];
+}
+
 function closePlayerBankrollModal() {
   if (!playerBankrollModal) {
     return;
@@ -14015,7 +14131,7 @@ function closePlayerBankrollModal() {
   }
 }
 
-async function renderPlayerBankrollChart(userId, period = "all") {
+async function renderPlayerBankrollChart(userId, period = "year") {
   playerBankrollPeriod = period;
   const points = await loadPlayerBankrollHistory(userId);
   const source = points;
@@ -14073,7 +14189,7 @@ async function renderPlayerBankrollChart(userId, period = "all") {
           displayColors: false,
           callbacks: {
             label(context) {
-              return `Bankroll: ${formatCurrency(Math.round(Number(context.parsed.y || 0)))}`;
+              return `Bankroll: ${formatCurrency(Number(context.parsed.y || 0))}`;
             }
           }
         }
@@ -14096,7 +14212,7 @@ async function renderPlayerBankrollChart(userId, period = "all") {
           ticks: {
             color: "rgba(173, 225, 247, 0.75)",
             callback(value) {
-              return formatCurrency(Math.round(Number(value || 0)));
+              return formatCurrency(Number(value || 0));
             }
           }
         }
@@ -14111,10 +14227,9 @@ async function renderPlayerBankrollChart(userId, period = "all") {
       week: `Showing ${source.length.toLocaleString()} account balance snapshots from the last week.`,
       month: `Showing ${source.length.toLocaleString()} account balance snapshots from the last month.`,
       "90days": `Showing ${source.length.toLocaleString()} account balance snapshots from the last 90 days.`,
-      year: `Showing ${source.length.toLocaleString()} account balance snapshots from the last year.`,
-      all: `Showing ${source.length.toLocaleString()} account balance snapshots across all time.`
+      year: `Showing ${source.length.toLocaleString()} account balance snapshots from the last year.`
     };
-    playerBankrollSubheadEl.textContent = labelsByPeriod[period] || labelsByPeriod.all;
+    playerBankrollSubheadEl.textContent = labelsByPeriod[period] || labelsByPeriod.year;
   }
 }
 
@@ -14125,16 +14240,16 @@ async function openPlayerBankrollModal(userId, playerName) {
 
   activePlayerBankrollUserId = userId;
   activePlayerBankrollName = playerName || "Player";
-  playerBankrollPeriod = "all";
+  playerBankrollPeriod = "year";
 
   if (playerBankrollTitleEl) {
-    playerBankrollTitleEl.textContent = `${activePlayerBankrollName} Bankroll Graph`;
+    playerBankrollTitleEl.textContent = `${activePlayerBankrollName} Bankroll Analytics`;
   }
 
   document.querySelectorAll("[data-player-bankroll-period]").forEach((button) => {
     button.classList.toggle(
       "active",
-      button instanceof HTMLElement && button.dataset.playerBankrollPeriod === "all"
+      button instanceof HTMLElement && button.dataset.playerBankrollPeriod === "year"
     );
   });
 
@@ -14143,8 +14258,163 @@ async function openPlayerBankrollModal(userId, playerName) {
   playerBankrollModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
 
-  await renderPlayerBankrollChart(userId, "all");
+  await renderPlayerBankrollChart(userId, "year");
   playerBankrollClose?.focus();
+}
+
+function closePlayerHandsModal() {
+  if (!playerHandsModal) {
+    return;
+  }
+
+  playerHandsModal.classList.remove("is-open");
+  playerHandsModal.setAttribute("aria-hidden", "true");
+  playerHandsModal.hidden = true;
+
+  if (playerHandsChartInstance) {
+    playerHandsChartInstance.destroy();
+    playerHandsChartInstance = null;
+  }
+
+  if (
+    (!playerBankrollModal || playerBankrollModal.hidden) &&
+    (!playerModeBreakdownModal || playerModeBreakdownModal.hidden) &&
+    (!betAnalyticsModal || betAnalyticsModal.hidden) &&
+    (!resetModal || resetModal.hidden) &&
+    (!shippingModal || shippingModal.hidden) &&
+    (!paytableModal || paytableModal.hidden) &&
+    (!adminPrizeModal || adminPrizeModal.hidden) &&
+    (!prizeImageModal || prizeImageModal.hidden) &&
+    (!numberBetsModal || numberBetsModal.hidden) &&
+    (!handReviewModal || handReviewModal.hidden)
+  ) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+async function renderPlayerHandsChart(userId, period = "year") {
+  playerHandsPeriod = period;
+  const rows = await loadPlayerHandsHistory(userId, period);
+  const labels = rows.map((row) => row.label || "");
+  const values = rows.map((row) => Number(row.handsPlayed || 0));
+
+  const canvas = document.getElementById("player-hands-chart");
+  if (!(canvas instanceof HTMLCanvasElement)) {
+    return;
+  }
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return;
+  }
+
+  if (playerHandsChartInstance) {
+    playerHandsChartInstance.destroy();
+  }
+
+  playerHandsChartInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: labels.length ? labels : ["No Data"],
+      datasets: [
+        {
+          label: "Hands Played",
+          data: values.length ? values : [0],
+          borderColor: "rgba(255, 118, 222, 1)",
+          backgroundColor: "rgba(255, 118, 222, 0.14)",
+          borderWidth: 2,
+          fill: true,
+          tension: 0.25,
+          pointRadius: values.length > 1 ? 0 : 4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          mode: "index",
+          intersect: false,
+          backgroundColor: "rgba(9, 18, 32, 0.95)",
+          titleColor: "rgba(255, 118, 222, 1)",
+          bodyColor: "rgba(226, 248, 255, 0.9)",
+          borderColor: "rgba(255, 118, 222, 0.5)",
+          borderWidth: 1,
+          padding: 12,
+          displayColors: false,
+          callbacks: {
+            label(context) {
+              return `Hands: ${Math.round(Number(context.parsed.y || 0)).toLocaleString()}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: "rgba(53, 255, 234, 0.1)" },
+          ticks: {
+            color: "rgba(173, 225, 247, 0.75)",
+            maxRotation: 45,
+            minRotation: 0
+          }
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: "rgba(53, 255, 234, 0.1)" },
+          ticks: {
+            color: "rgba(173, 225, 247, 0.75)",
+            precision: 0,
+            callback(value) {
+              return Math.round(Number(value || 0)).toLocaleString();
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (playerHandsSubheadEl) {
+    const labelsByPeriod = {
+      hour: `Showing ${rows.length.toLocaleString()} hands buckets from the last hour in US Mountain Time.`,
+      day: `Showing ${rows.length.toLocaleString()} hands buckets from the last 24 hours in US Mountain Time.`,
+      week: `Showing ${rows.length.toLocaleString()} hands buckets from the last week in US Mountain Time.`,
+      month: `Showing ${rows.length.toLocaleString()} hands buckets from the last month in US Mountain Time.`,
+      "90days": `Showing ${rows.length.toLocaleString()} hands buckets from the last 90 days in US Mountain Time.`,
+      year: `Showing ${rows.length.toLocaleString()} hands buckets from the last year in US Mountain Time.`
+    };
+    playerHandsSubheadEl.textContent = labelsByPeriod[period] || labelsByPeriod.year;
+  }
+}
+
+async function openPlayerHandsModal(userId, playerName) {
+  if (!playerHandsModal || !userId) {
+    return;
+  }
+
+  activePlayerHandsUserId = userId;
+  activePlayerHandsName = playerName || "Player";
+  playerHandsPeriod = "year";
+
+  if (playerHandsTitleEl) {
+    playerHandsTitleEl.textContent = `${activePlayerHandsName} Hands Played`;
+  }
+
+  document.querySelectorAll("[data-player-hands-period]").forEach((button) => {
+    button.classList.toggle(
+      "active",
+      button instanceof HTMLElement && button.dataset.playerHandsPeriod === "year"
+    );
+  });
+
+  playerHandsModal.hidden = false;
+  playerHandsModal.classList.add("is-open");
+  playerHandsModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+
+  await renderPlayerHandsChart(userId, "year");
+  playerHandsClose?.focus();
 }
 
 function closePlayerModeBreakdownModal() {
@@ -14172,78 +14442,144 @@ function closePlayerModeBreakdownModal() {
 }
 
 async function openPlayerModeBreakdownModal(userId, playerName) {
-  if (!playerModeBreakdownModal || !playerModeBreakdownBodyEl || !userId) {
+  if (!playerModeBreakdownModal || !playerModeBreakdownModeBodyEl || !playerModeBreakdownGameBodyEl || !userId) {
     return;
   }
 
   activePlayerBreakdownUserId = userId;
   activePlayerBreakdownName = playerName || "Player";
   if (playerModeBreakdownTitleEl) {
-    playerModeBreakdownTitleEl.textContent = `${activePlayerBreakdownName} Game Breakdown`;
+    playerModeBreakdownTitleEl.textContent = `${activePlayerBreakdownName} Breakdown`;
   }
 
-  let rows = [];
-  let totalHands = 0;
-  try {
-    const data = await invokeAdminAnalytics("player_mode_breakdown", {
-      userId,
-      period: activityLeaderboardPeriod
-    });
-    rows = Array.isArray(data?.rows) ? data.rows : [];
-    totalHands = Math.max(0, Number(data?.totalHands || 0));
-  } catch (error) {
-    console.warn("[RTN] player breakdown edge fallback", error);
-    const startDate = getAnalyticsPeriodStart(activityLeaderboardPeriod);
-    const records = await fetchGameHandsRecords({
-      startAt: startDate,
-      endAt: new Date(),
-      userIds: [userId],
-      fields: ["user_id", "created_at", "game_id"]
-    });
-    const countsByGame = new Map(
-      Object.values(GAME_KEYS).map((gameKey) => [gameKey, 0])
+  playerBreakdownPeriod = "year";
+  playerBreakdownFilterButtons.forEach((button) => {
+    button.classList.toggle(
+      "active",
+      button instanceof HTMLElement && button.dataset.playerBreakdownPeriod === playerBreakdownPeriod
     );
-    records.forEach((record) => {
-      const gameKey = resolveGameKey(record.game_id);
-      countsByGame.set(gameKey, (countsByGame.get(gameKey) || 0) + 1);
-    });
-    rows = Array.from(countsByGame.entries()).map(([gameKey, handsPlayed]) => ({
-      label: getGameLabel(gameKey),
-      handsPlayed
-    }));
-    totalHands = rows.reduce((sum, row) => sum + Number(row.handsPlayed || 0), 0);
-  }
-
-  if (playerModeBreakdownSummaryEl) {
-    const labelsByPeriod = {
-      hour: `Hands played by game in the last hour.`,
-      day: `Hands played by game in the last 24 hours.`,
-      week: `Hands played by game in the last 7 days.`,
-      month: `Hands played by game in the last 30 days.`,
-      all: `Hands played by game across all time.`
-    };
-    playerModeBreakdownSummaryEl.textContent = labelsByPeriod[activityLeaderboardPeriod] || labelsByPeriod.week;
-  }
-
-  playerModeBreakdownBodyEl.innerHTML = "";
-  rows.forEach((row) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${escapeAssistantHtml(row.label || "Unknown Game")}</td>
-      <td>${formatCurrency(Math.round(Number(row.handsPlayed || 0)))}</td>
-    `;
-    playerModeBreakdownBodyEl.appendChild(tr);
   });
 
-  if (playerModeBreakdownTotalEl) {
-    playerModeBreakdownTotalEl.textContent = formatCurrency(totalHands);
-  }
+  await renderPlayerModeBreakdown(userId, playerBreakdownPeriod);
 
   playerModeBreakdownModal.hidden = false;
   playerModeBreakdownModal.classList.add("is-open");
   playerModeBreakdownModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
   playerModeBreakdownOk?.focus();
+}
+
+async function loadPlayerModeBreakdownFallback(userId, period = "year") {
+  const startDate = getAnalyticsPeriodStart(period);
+  const records = await fetchGameHandsRecords({
+    startAt: startDate,
+    endAt: new Date(),
+    userIds: [userId],
+    fields: ["user_id", "created_at", "game_id"]
+  });
+  const countsByGame = new Map(
+    Object.values(GAME_KEYS).map((gameKey) => [gameKey, 0])
+  );
+  records.forEach((record) => {
+    const gameKey = resolveGameKey(record.game_id);
+    countsByGame.set(gameKey, (countsByGame.get(gameKey) || 0) + 1);
+  });
+  const gameRows = Array.from(countsByGame.entries()).map(([gameKey, handsPlayed]) => ({
+    label: getGameLabel(gameKey),
+    handsPlayed
+  }));
+  const gameTotalHands = gameRows.reduce((sum, row) => sum + Number(row.handsPlayed || 0), 0);
+
+  const runRows = await loadGameRunsForUser(userId, { startAt: startDate });
+  const contestHands = (Array.isArray(runRows) ? runRows : []).filter((row) => {
+    const metadata = row?.metadata && typeof row.metadata === "object" ? row.metadata : {};
+    const accountMode = String(metadata?.account_mode || "").trim().toLowerCase();
+    const contestId = String(metadata?.contest_id || "").trim();
+    return accountMode === "contest" || Boolean(contestId);
+  }).length;
+  const normalHands = Math.max(0, (Array.isArray(runRows) ? runRows.length : 0) - contestHands);
+  const modeRows = [
+    { label: "Normal Mode", handsPlayed: normalHands },
+    { label: "Contest Mode", handsPlayed: contestHands }
+  ];
+  const modeTotalHands = modeRows.reduce((sum, row) => sum + Number(row.handsPlayed || 0), 0);
+
+  return {
+    modeRows,
+    gameRows,
+    modeTotalHands,
+    gameTotalHands
+  };
+}
+
+async function renderPlayerModeBreakdown(userId, period = "year") {
+  let modeRows = [];
+  let gameRows = [];
+  let modeTotalHands = 0;
+  let gameTotalHands = 0;
+  try {
+    const data = await invokeAdminAnalytics("player_mode_breakdown", {
+      userId,
+      period
+    });
+    modeRows = Array.isArray(data?.modeRows) ? data.modeRows : [];
+    gameRows = Array.isArray(data?.gameRows) ? data.gameRows : [];
+    modeTotalHands = Math.max(0, Number(data?.modeTotalHands || 0));
+    gameTotalHands = Math.max(0, Number(data?.gameTotalHands || 0));
+    if (!modeRows.length && !gameRows.length && modeTotalHands === 0 && gameTotalHands === 0) {
+      const fallback = await loadPlayerModeBreakdownFallback(userId, period);
+      modeRows = fallback.modeRows;
+      gameRows = fallback.gameRows;
+      modeTotalHands = fallback.modeTotalHands;
+      gameTotalHands = fallback.gameTotalHands;
+    }
+  } catch (error) {
+    console.warn("[RTN] player breakdown edge fallback", error);
+    const fallback = await loadPlayerModeBreakdownFallback(userId, period);
+    modeRows = fallback.modeRows;
+    gameRows = fallback.gameRows;
+    modeTotalHands = fallback.modeTotalHands;
+    gameTotalHands = fallback.gameTotalHands;
+  }
+
+  if (playerModeBreakdownSummaryEl) {
+    const labelsByPeriod = {
+      hour: `Mode and game hands played in the last hour.`,
+      day: `Mode and game hands played in the last 24 hours.`,
+      week: `Mode and game hands played in the last 7 days.`,
+      month: `Mode and game hands played in the last 30 days.`,
+      "90days": `Mode and game hands played in the last 90 days.`,
+      year: `Mode and game hands played in the last year.`
+    };
+    playerModeBreakdownSummaryEl.textContent = labelsByPeriod[period] || labelsByPeriod.year;
+  }
+
+  playerModeBreakdownModeBodyEl.innerHTML = "";
+  modeRows.forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeAssistantHtml(row.label || "Unknown Mode")}</td>
+      <td>${formatRankRequirementValue(row.handsPlayed || 0)}</td>
+    `;
+    playerModeBreakdownModeBodyEl.appendChild(tr);
+  });
+
+  playerModeBreakdownGameBodyEl.innerHTML = "";
+  gameRows.forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeAssistantHtml(row.label || "Unknown Game")}</td>
+      <td>${formatRankRequirementValue(row.handsPlayed || 0)}</td>
+    `;
+    playerModeBreakdownGameBodyEl.appendChild(tr);
+  });
+
+  if (playerModeBreakdownModeTotalEl) {
+    playerModeBreakdownModeTotalEl.textContent = formatRankRequirementValue(modeTotalHands);
+  }
+  if (playerModeBreakdownGameTotalEl) {
+    playerModeBreakdownGameTotalEl.textContent = formatRankRequirementValue(gameTotalHands);
+  }
 }
 
 function updateAnalyticsBetFilterUI() {
@@ -14498,10 +14834,10 @@ function refreshAnalytics() {
   
   // Reload overview chart
   const activeFilterBtn = document.querySelector(".overview-filters .chart-filter-btn.active");
-  const period = activeFilterBtn?.dataset.period || "all";
+  const period = activeFilterBtn?.dataset.period || "year";
   renderOverviewChart(period);
   const activeUsersFilterBtn = document.querySelector(".active-users-filters .chart-filter-btn.active");
-  const activeUsersPeriod = activeUsersFilterBtn?.dataset.activeUsersPeriod || "all";
+  const activeUsersPeriod = activeUsersFilterBtn?.dataset.activeUsersPeriod || "year";
   renderActiveUsersChart(activeUsersPeriod);
   loadMostActiveThisWeek();
 }

@@ -391,8 +391,7 @@
               <button type="button" class="chart-filter-btn" data-bankroll-period="week">Last Week</button>
               <button type="button" class="chart-filter-btn" data-bankroll-period="month">Last Month</button>
               <button type="button" class="chart-filter-btn" data-bankroll-period="90days">Last 3 Months</button>
-              <button type="button" class="chart-filter-btn" data-bankroll-period="year">Last Year</button>
-              <button type="button" class="chart-filter-btn active" data-bankroll-period="all">All Time</button>
+              <button type="button" class="chart-filter-btn active" data-bankroll-period="year">Last Year</button>
             </div>
           </div>
           <p class="drawer-subhead" id="bankroll-chart-subhead">Line chart showing bankroll after each completed hand.</p>
@@ -696,29 +695,30 @@
 
         <section id="red-black-view" class="route-view app-page beta-game-view" hidden aria-labelledby="red-black-paytable-title">
           <div class="beta-game-shell">
-            <section class="beta-game-panel beta-ladder-panel" aria-label="Current hand progress">
-              <div class="beta-ladder-sticky-rail" aria-label="Commission progress">
-                <div class="beta-ladder-sticky-track">
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="1"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="10%">10% commission</span></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="2"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="9%">9% commission</span></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="3"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="8%">8% commission</span></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="4"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="7%">7% commission</span></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="5"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="6%">6% commission</span></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="6"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="5%">5% commission</span></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="7"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="4%">4% commission</span></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="8"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="3%">3% commission</span></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="9"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="2%">2% commission</span></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="10"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="1%">1% commission</span></span>
-                </div>
-              </div>
-            </section>
-
             <div class="beta-table-layout beta-table-layout-split">
               <section class="beta-game-panel beta-table-panel beta-draw-panel" aria-labelledby="red-black-table-title">
                 <div class="beta-table-header">
-                  <div>
-                    <p class="beta-game-panel-kicker">Table</p>
+                  <div class="beta-draw-title-group">
+                    <div class="beta-draw-brand-row">
+                      <p class="beta-game-panel-kicker">Guess 10</p>
+                      <span class="game-beta-pill beta-draw-beta-pill">Beta</span>
+                    </div>
                     <h2 id="red-black-table-title">Cards Dealt</h2>
+                  </div>
+                </div>
+                <div class="beta-ladder-sticky-rail beta-ladder-sticky-rail-inline" aria-label="Commission progress">
+                  <p class="beta-ladder-sticky-title">Commission Ladder</p>
+                  <div class="beta-ladder-sticky-track">
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="1"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="10%">10%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="2"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="9%">9%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="3"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="8%">8%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="4"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="7%">7%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="5"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="6%">6%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="6"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="5%">5%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="7"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="4%">4%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="8"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="3%">3%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="9"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="2%">2%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="10"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="1%">1%</span></span>
                   </div>
                 </div>
 
@@ -744,7 +744,10 @@
                       <span id="red-black-multiplier-chip" class="beta-control-multiplier">Multiplier 2X</span>
                     </div>
                     <div class="beta-action-group beta-action-group-wager">
-                      <p class="beta-control-label">Wager</p>
+                      <div class="beta-wager-inline-labels" aria-hidden="true">
+                        <p class="beta-control-label">Wager</p>
+                        <p class="beta-control-label">Pot Size</p>
+                      </div>
                       <div class="beta-wager-inline-row">
                         <div class="beta-bet-spot-wrap">
                           <button type="button" id="red-black-bet-spot" class="beta-bet-spot beta-bet-spot-circle" aria-label="Place chip on base wager spot">
@@ -755,12 +758,9 @@
                           <button type="button" id="red-black-clear-bet-inline" class="beta-inline-clear-chip" aria-label="Clear wager" aria-hidden="true" tabindex="-1">X</button>
                         </div>
                         <div id="red-black-pot-spot" class="beta-bet-spot beta-bet-spot-circle beta-pot-spot" aria-label="Current pot">
-                          <span id="red-black-pot-empty-label" class="beta-bet-empty-label">Current Pot</span>
                           <span id="red-black-pot-total" class="beta-bet-spot-total">0</span>
-                          <div id="red-black-pot-chip-stack" class="beta-chip-stack beta-chip-stack-pot" aria-hidden="true"></div>
                         </div>
                       </div>
-                      <span id="red-black-selected-chip-label" class="beta-bet-spot-chip">Wager: 0</span>
                     </div>
                   </div>
                 </div>
@@ -1899,8 +1899,7 @@
                         <button type="button" class="chart-filter-btn" data-period="week">Last Week</button>
                         <button type="button" class="chart-filter-btn" data-period="month">Last Month</button>
                         <button type="button" class="chart-filter-btn" data-period="90days">Last 90 Days</button>
-                        <button type="button" class="chart-filter-btn" data-period="year">Last Year</button>
-                        <button type="button" class="chart-filter-btn active" data-period="all">All Time</button>
+                        <button type="button" class="chart-filter-btn active" data-period="year">Last Year</button>
                       </div>
                     </div>
                   </div>
@@ -1920,8 +1919,7 @@
                         <button type="button" class="chart-filter-btn" data-active-users-period="week">Last Week</button>
                         <button type="button" class="chart-filter-btn" data-active-users-period="month">Last Month</button>
                         <button type="button" class="chart-filter-btn" data-active-users-period="90days">Last 90 Days</button>
-                        <button type="button" class="chart-filter-btn" data-active-users-period="year">Last Year</button>
-                        <button type="button" class="chart-filter-btn active" data-active-users-period="all">All Time</button>
+                        <button type="button" class="chart-filter-btn active" data-active-users-period="year">Last Year</button>
                       </div>
                     </div>
                   </div>
@@ -1942,7 +1940,7 @@
                       <button type="button" class="chart-filter-btn" data-activity-period="day">Last 24 Hours</button>
                       <button type="button" class="chart-filter-btn active" data-activity-period="week">Last 7 Days</button>
                       <button type="button" class="chart-filter-btn" data-activity-period="month">Last 30 Days</button>
-                      <button type="button" class="chart-filter-btn" data-activity-period="all">All Time</button>
+                      <button type="button" class="chart-filter-btn" data-activity-period="year">Last Year</button>
                     </div>
                   </div>
                   <p id="most-active-subhead" class="analytics-card-subhead">Ranked by hands played in the last 7 days.</p>
@@ -2313,25 +2311,57 @@
     >
       <div class="modal-content analytics-modal player-bankroll-modal">
         <div class="modal-header">
-          <h2 id="player-bankroll-title">Player Bankroll Graph</h2>
-          <button type="button" class="modal-close" id="player-bankroll-close" aria-label="Close player bankroll graph">×</button>
+          <h2 id="player-bankroll-title">Player Bankroll Analytics</h2>
+          <button type="button" class="modal-close" id="player-bankroll-close" aria-label="Close player bankroll analytics">×</button>
         </div>
         <div class="modal-body player-bankroll-modal-body">
           <p id="player-bankroll-subhead" class="analytics-card-subhead">Normal-mode bankroll history.</p>
           <div class="chart-header">
-            <h3 class="chart-title">Bankroll Over Time</h3>
+            <h3 class="chart-title">Bankroll Analytics</h3>
             <div class="chart-filters">
               <button type="button" class="chart-filter-btn" data-player-bankroll-period="hour">Last Hour</button>
               <button type="button" class="chart-filter-btn" data-player-bankroll-period="day">Last 24 Hours</button>
               <button type="button" class="chart-filter-btn" data-player-bankroll-period="week">Last Week</button>
               <button type="button" class="chart-filter-btn" data-player-bankroll-period="month">Last Month</button>
               <button type="button" class="chart-filter-btn" data-player-bankroll-period="90days">Last 90 Days</button>
-              <button type="button" class="chart-filter-btn" data-player-bankroll-period="year">Last Year</button>
-              <button type="button" class="chart-filter-btn active" data-player-bankroll-period="all">All Time</button>
+              <button type="button" class="chart-filter-btn active" data-player-bankroll-period="year">Last Year</button>
             </div>
           </div>
           <div class="chart-container player-bankroll-chart-container">
             <canvas id="player-bankroll-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal"
+      id="player-hands-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="player-hands-title"
+      hidden
+    >
+      <div class="modal-content analytics-modal player-bankroll-modal">
+        <div class="modal-header">
+          <h2 id="player-hands-title">Player Hands Graph</h2>
+          <button type="button" class="modal-close" id="player-hands-close" aria-label="Close player hands graph">×</button>
+        </div>
+        <div class="modal-body player-bankroll-modal-body">
+          <p id="player-hands-subhead" class="analytics-card-subhead">Hands played over time.</p>
+          <div class="chart-header">
+            <h3 class="chart-title">Hands Played Over Time</h3>
+            <div class="chart-filters">
+              <button type="button" class="chart-filter-btn" data-player-hands-period="hour">Last Hour</button>
+              <button type="button" class="chart-filter-btn" data-player-hands-period="day">Last 24 Hours</button>
+              <button type="button" class="chart-filter-btn" data-player-hands-period="week">Last Week</button>
+              <button type="button" class="chart-filter-btn" data-player-hands-period="month">Last Month</button>
+              <button type="button" class="chart-filter-btn" data-player-hands-period="90days">Last 90 Days</button>
+              <button type="button" class="chart-filter-btn active" data-player-hands-period="year">Last Year</button>
+            </div>
+          </div>
+          <div class="chart-container player-bankroll-chart-container">
+            <canvas id="player-hands-chart"></canvas>
           </div>
         </div>
       </div>
@@ -2347,12 +2377,42 @@
     >
       <div class="modal-content hand-review-modal">
         <div class="modal-header">
-          <h2 id="player-mode-breakdown-title">Player Game Breakdown</h2>
-          <button type="button" class="modal-close" id="player-mode-breakdown-close" aria-label="Close player game breakdown">×</button>
+          <h2 id="player-mode-breakdown-title">Player Breakdown</h2>
+          <button type="button" class="modal-close" id="player-mode-breakdown-close" aria-label="Close player breakdown">×</button>
         </div>
         <div class="modal-body hand-review-body">
           <p id="player-mode-breakdown-summary" class="hand-review-summary"></p>
+          <div class="chart-header">
+            <h3 class="chart-title">Hands Breakdown</h3>
+            <div class="chart-filters">
+              <button type="button" class="chart-filter-btn" data-player-breakdown-period="hour">Last Hour</button>
+              <button type="button" class="chart-filter-btn" data-player-breakdown-period="day">Last 24 Hours</button>
+              <button type="button" class="chart-filter-btn" data-player-breakdown-period="week">Last Week</button>
+              <button type="button" class="chart-filter-btn" data-player-breakdown-period="month">Last Month</button>
+              <button type="button" class="chart-filter-btn" data-player-breakdown-period="90days">Last 90 Days</button>
+              <button type="button" class="chart-filter-btn active" data-player-breakdown-period="year">Last Year</button>
+            </div>
+          </div>
           <div class="hand-review-table-wrap">
+            <h3 class="chart-title">Mode Breakdown</h3>
+            <table class="hand-review-table">
+              <thead>
+                <tr>
+                  <th scope="col">Mode</th>
+                  <th scope="col">Hands</th>
+                </tr>
+              </thead>
+              <tbody id="player-mode-breakdown-mode-body"></tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row">Total</th>
+                  <td id="player-mode-breakdown-mode-total">0</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <div class="hand-review-table-wrap">
+            <h3 class="chart-title">Game Breakdown</h3>
             <table class="hand-review-table">
               <thead>
                 <tr>
@@ -2360,11 +2420,11 @@
                   <th scope="col">Hands</th>
                 </tr>
               </thead>
-              <tbody id="player-mode-breakdown-body"></tbody>
+              <tbody id="player-mode-breakdown-game-body"></tbody>
               <tfoot>
                 <tr>
                   <th scope="row">Total</th>
-                  <td id="player-mode-breakdown-total">0</td>
+                  <td id="player-mode-breakdown-game-total">0</td>
                 </tr>
               </tfoot>
             </table>
