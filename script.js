@@ -9866,7 +9866,7 @@ function renderRedBlackSummary() {
     redBlackRungDisplayEl.textContent = String(redBlackRung);
   }
   if (redBlackCommissionDisplayEl) {
-    redBlackCommissionDisplayEl.textContent = formatCurrency(commissionUnits);
+    redBlackCommissionDisplayEl.textContent = `${formatCurrency(commissionUnits)} (${Math.round(commissionRate * 100)}%)`;
   }
   if (redBlackMultiplierDisplayEl) {
     redBlackMultiplierDisplayEl.textContent = selectionValid

@@ -2540,9 +2540,10 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .beta-summary-inline-hand {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.7rem;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: start;
+    gap: 0.45rem;
   }
 
   .beta-ladder-sticky-fill {
@@ -2550,8 +2551,25 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .beta-ladder-sticky-label {
-    font-size: 0.32rem;
+    font-size: 0;
     letter-spacing: 0.02em;
+  }
+
+  .beta-ladder-sticky-label::before {
+    content: attr(data-mobile-label);
+    font-size: 0.32rem;
+  }
+
+  .beta-summary-inline-hand .beta-summary-inline-item {
+    min-width: 0;
+  }
+
+  .beta-summary-inline-hand .beta-summary-inline-item strong {
+    display: block;
+    font-size: 0.84rem;
+    line-height: 1.1;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .beta-paytable-horizontal {
