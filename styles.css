@@ -2695,7 +2695,17 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .beta-ladder-sticky-fill {
-    height: 4px;
+    width: 10px;
+    min-width: 10px;
+    height: 10px;
+    min-height: 10px;
+    border-radius: 50%;
+  }
+
+  .beta-ladder-sticky-step::before {
+    top: 4px;
+    left: calc(50% + 5px);
+    right: calc(-50% + 5px);
   }
 
   .beta-ladder-sticky-label {
