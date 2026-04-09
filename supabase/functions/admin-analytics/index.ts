@@ -19,8 +19,8 @@ type HandRow = {
 };
 
 const GAME_IDS = {
-  RUN_THE_NUMBERS: "run-the-numbers",
-  GUESS_10: "guess-10"
+  RUN_THE_NUMBERS: "game_001",
+  GUESS_10: "game_002"
 } as const;
 
 const GAME_LABELS: Record<string, string> = {
@@ -81,10 +81,20 @@ function formatDayBucketLabel(date: Date) {
 
 function normalizeGameId(value: unknown) {
   const normalized = String(value || "").trim().toLowerCase();
-  if (normalized === GAME_IDS.GUESS_10 || normalized === "red-black" || normalized === "red_black" || normalized === "guess10") {
+  if (
+    normalized === GAME_IDS.GUESS_10 ||
+    normalized === "guess-10" ||
+    normalized === "red-black" ||
+    normalized === "red_black" ||
+    normalized === "guess10"
+  ) {
     return GAME_IDS.GUESS_10;
   }
-  if (normalized === GAME_IDS.RUN_THE_NUMBERS || normalized === "run_the_numbers") {
+  if (
+    normalized === GAME_IDS.RUN_THE_NUMBERS ||
+    normalized === "run-the-numbers" ||
+    normalized === "run_the_numbers"
+  ) {
     return GAME_IDS.RUN_THE_NUMBERS;
   }
   return GAME_IDS.RUN_THE_NUMBERS;

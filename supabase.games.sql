@@ -8,8 +8,8 @@ create table if not exists public.games (
 
 insert into public.games (id, name, status)
 values
-  ('run-the-numbers', 'Run the Numbers', 'active'),
-  ('guess-10', 'Guess 10', 'beta')
+  ('game_001', 'Run the Numbers', 'active'),
+  ('game_002', 'Guess 10', 'beta')
 on conflict (id) do update
 set
   name = excluded.name,
@@ -17,10 +17,10 @@ set
   updated_at = timezone('utc', now());
 
 alter table public.game_hands
-  add column if not exists game_id text not null default 'run-the-numbers';
+  add column if not exists game_id text not null default 'game_001';
 
 update public.game_hands
-set game_id = 'run-the-numbers'
+set game_id = 'game_001'
 where coalesce(game_id, '') = '';
 
 do $$
@@ -44,10 +44,10 @@ create index if not exists idx_game_hands_user_id_game_id_created_at
   on public.game_hands (user_id, game_id, created_at desc);
 
 alter table public.contests
-  add column if not exists allowed_game_ids text[] not null default array['run-the-numbers', 'guess-10']::text[];
+  add column if not exists allowed_game_ids text[] not null default array['game_001', 'game_002']::text[];
 
 update public.contests
-set allowed_game_ids = array['run-the-numbers', 'guess-10']::text[]
+set allowed_game_ids = array['game_001', 'game_002']::text[]
 where allowed_game_ids is null or cardinality(allowed_game_ids) = 0;
 
 create or replace function public.validate_allowed_game_ids(ids text[])

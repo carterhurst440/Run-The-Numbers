@@ -11,8 +11,8 @@ let appReady = false;
 let authBootstrapFallbackShown = false;
 
 const GAME_KEYS = {
-  RUN_THE_NUMBERS: "run-the-numbers",
-  GUESS_10: "guess-10"
+  RUN_THE_NUMBERS: "game_001",
+  GUESS_10: "game_002"
 };
 
 const GAME_LABELS = {
@@ -23,10 +23,21 @@ const GAME_LABELS = {
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function normalizeGameKey(value) {
-  if (value === GAME_KEYS.RUN_THE_NUMBERS || value === "run_the_numbers") {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (
+    normalized === GAME_KEYS.RUN_THE_NUMBERS ||
+    normalized === "run-the-numbers" ||
+    normalized === "run_the_numbers"
+  ) {
     return GAME_KEYS.RUN_THE_NUMBERS;
   }
-  if (value === GAME_KEYS.GUESS_10 || value === "red-black" || value === "red_black" || value === "guess10") {
+  if (
+    normalized === GAME_KEYS.GUESS_10 ||
+    normalized === "guess-10" ||
+    normalized === "red-black" ||
+    normalized === "red_black" ||
+    normalized === "guess10"
+  ) {
     return GAME_KEYS.GUESS_10;
   }
   return null;
@@ -10103,13 +10114,7 @@ async function dealRedBlackCard() {
     return;
   }
   if (!redBlackHandActive) {
-    if (redBlackBet > bankroll) {
-      setRedBlackStatus(`Not enough bankroll for a ${formatCurrency(redBlackBet)} unit wager.`);
-      return;
-    }
     redBlackLastBet = redBlackBet;
-    bankroll = roundCurrencyValue(bankroll - redBlackBet);
-    handleBankrollChanged();
     redBlackRung = 0;
     redBlackCurrentPot = redBlackBet;
     redBlackHandActive = true;
@@ -10176,6 +10181,12 @@ function rebetRedBlackHand() {
   if (redBlackHandActive || redBlackLastBet <= 0) {
     return;
   }
+  if (redBlackLastBet > bankroll) {
+    setRedBlackStatus(`Not enough bankroll to rebet ${formatCurrency(redBlackLastBet)}.`);
+    return;
+  }
+  bankroll = roundCurrencyValue(bankroll - redBlackLastBet);
+  handleBankrollChanged();
   redBlackBet = redBlackLastBet;
   redBlackCurrentPot = 0;
   renderRedBlackSummary();
@@ -14770,6 +14781,12 @@ redBlackCategoryButtons.forEach((button) => {
 if (redBlackBetSpotButton) {
   redBlackBetSpotButton.addEventListener("click", () => {
     if (redBlackHandActive) return;
+    if (redBlackSelectedChip > bankroll) {
+      setRedBlackStatus(`Not enough bankroll for a ${formatCurrency(redBlackSelectedChip)} unit chip.`);
+      return;
+    }
+    bankroll = roundCurrencyValue(bankroll - redBlackSelectedChip);
+    handleBankrollChanged();
     redBlackBet += redBlackSelectedChip;
     renderRedBlackSummary();
     updateRedBlackActionState();
@@ -14780,6 +14797,8 @@ if (redBlackBetSpotButton) {
 if (redBlackClearBetButton) {
   redBlackClearBetButton.addEventListener("click", () => {
     if (redBlackHandActive || redBlackBet === 0) return;
+    bankroll = roundCurrencyValue(bankroll + redBlackBet);
+    handleBankrollChanged();
     redBlackBet = 0;
     redBlackCurrentPot = 0;
     renderRedBlackSummary();
