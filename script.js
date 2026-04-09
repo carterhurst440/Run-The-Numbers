@@ -10158,6 +10158,16 @@ async function dealRedBlackCard() {
       totalPaid: 0,
       net: -completedBet
     });
+    logGameRun(-completedBet, {
+      gameKey: GAME_KEYS.GUESS_10,
+      totalCards: completedCards,
+      totalWager: completedBet,
+      totalPaid: 0,
+      result: "loss"
+    }).catch((error) => {
+      console.error(error);
+      showToast("Could not record game run", "error");
+    });
     return;
   }
 
@@ -10226,6 +10236,16 @@ async function withdrawRedBlackHand() {
     totalWager: completedBet,
     totalPaid: payout,
     net: roundCurrencyValue(payout - completedBet)
+  });
+  logGameRun(roundCurrencyValue(payout - completedBet), {
+    gameKey: GAME_KEYS.GUESS_10,
+    totalCards: completedCards,
+    totalWager: completedBet,
+    totalPaid: payout,
+    result: "cashout"
+  }).catch((error) => {
+    console.error(error);
+    showToast("Could not record game run", "error");
   });
 }
 
