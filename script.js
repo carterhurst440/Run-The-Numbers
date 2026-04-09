@@ -10,7 +10,75 @@ if (typeof document !== "undefined" && document.body) {
 let appReady = false;
 let authBootstrapFallbackShown = false;
 
+const GAME_KEYS = {
+  RUN_THE_NUMBERS: "run-the-numbers",
+  GUESS_10: "guess-10"
+};
+
+const GAME_LABELS = {
+  [GAME_KEYS.RUN_THE_NUMBERS]: "Run the Numbers",
+  [GAME_KEYS.GUESS_10]: "Guess 10"
+};
+
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function normalizeGameKey(value) {
+  if (value === GAME_KEYS.RUN_THE_NUMBERS || value === "run_the_numbers") {
+    return GAME_KEYS.RUN_THE_NUMBERS;
+  }
+  if (value === GAME_KEYS.GUESS_10 || value === "red-black" || value === "red_black" || value === "guess10") {
+    return GAME_KEYS.GUESS_10;
+  }
+  return null;
+}
+
+function resolveGameKey(value) {
+  return normalizeGameKey(value) || GAME_KEYS.RUN_THE_NUMBERS;
+}
+
+function getGameLabel(value) {
+  return GAME_LABELS[resolveGameKey(value)] || "Run the Numbers";
+}
+
+function isMissingColumnError(error, columnName) {
+  const message = String(error?.message || error?.details || error?.hint || "");
+  return message.includes(columnName) && message.includes("does not exist");
+}
+
+function normalizeContestAllowedGameIds(value) {
+  const values = Array.isArray(value) ? value : [];
+  const normalized = values
+    .map((entry) => normalizeGameKey(entry))
+    .filter(Boolean);
+  return normalized.length ? Array.from(new Set(normalized)) : Object.values(GAME_KEYS);
+}
+
+function contestAllowsGame(contest, gameKey) {
+  const allowed = normalizeContestAllowedGameIds(contest?.allowed_game_ids);
+  return allowed.includes(resolveGameKey(gameKey));
+}
+
+function getContestGamesLabel(contest) {
+  const allowed = normalizeContestAllowedGameIds(contest?.allowed_game_ids);
+  if (allowed.length === Object.values(GAME_KEYS).length) {
+    return "All games";
+  }
+  return allowed.map((gameId) => getGameLabel(gameId)).join(" • ");
+}
+
+function getGameKeyForRoute(route) {
+  if (route === "run-the-numbers") return GAME_KEYS.RUN_THE_NUMBERS;
+  if (route === "red-black") return GAME_KEYS.GUESS_10;
+  return null;
+}
+
+function canUseCurrentFundsForGame(gameKey) {
+  if (!isContestAccountMode(currentAccountMode)) {
+    return true;
+  }
+  const contest = getModeContest(currentAccountMode);
+  return !contest || contestAllowsGame(contest, gameKey);
+}
 
 function startStopwatch(label) {
   const startedAt = Date.now();
@@ -1189,6 +1257,15 @@ async function setRoute(route, { replaceHash = false } = {}) {
     nextRoute = "home";
   }
 
+  const requestedGameKey = getGameKeyForRoute(nextRoute);
+  if (requestedGameKey && isContestAccountMode(currentAccountMode)) {
+    const modeContest = getModeContest(currentAccountMode);
+    if (modeContest && !contestAllowsGame(modeContest, requestedGameKey)) {
+      showToast(`This contest bankroll can only be used for ${getContestGamesLabel(modeContest)}.`, "error");
+      nextRoute = "play";
+    }
+  }
+
   hideAllRoutes();
   if (authView) {
     setViewVisibility(authView, false);
@@ -1226,7 +1303,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     setViewVisibility(targetView, true);
   }
 
-  if (resolvedRoute === "play") {
+  if (resolvedRoute === "run-the-numbers") {
     schedulePlayAreaHeightUpdate();
   } else {
     clearPlayAreaHeight();
@@ -2563,7 +2640,7 @@ async function renderOverviewChart(period = "all") {
   const now = new Date();
   const startDate = getAnalyticsPeriodStart(period);
 
-  const renderChart = (labels, values) => {
+  const renderChart = (labels, seriesEntries) => {
     const canvas = document.getElementById("overview-analytics-chart");
     if (!canvas) {
       console.warn("[RTN] Overview chart canvas not found");
@@ -2580,24 +2657,37 @@ async function renderOverviewChart(period = "all") {
       type: "line",
       data: {
         labels,
-        datasets: [
-          {
-            label: "Hands Played",
-            data: values,
-            borderColor: "rgba(53, 255, 234, 1)",
-            backgroundColor: "rgba(53, 255, 234, 0.14)",
+        datasets: (Array.isArray(seriesEntries) ? seriesEntries : []).map((entry, index) => {
+          const palette = [
+            {
+              borderColor: "rgba(255, 209, 102, 1)",
+              backgroundColor: "rgba(255, 209, 102, 0.18)"
+            },
+            {
+              borderColor: "rgba(255, 127, 216, 1)",
+              backgroundColor: "rgba(255, 127, 216, 0.16)"
+            }
+          ];
+          const colors = palette[index] || palette[0];
+          return {
+            label: entry.label,
+            data: entry.values,
+            borderColor: colors.borderColor,
+            backgroundColor: colors.backgroundColor,
             borderWidth: 2,
-            fill: true,
-            tension: 0.3
-          }
-        ]
+            fill: false,
+            tension: 0.3,
+            pointRadius: entry.values.length > 1 ? 0 : 4,
+            pointHoverRadius: 4
+          };
+        })
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
           legend: {
-            display: false,
+            display: true,
             labels: {
               color: "rgba(226, 248, 255, 0.85)",
               boxWidth: 14,
@@ -2613,7 +2703,7 @@ async function renderOverviewChart(period = "all") {
             borderColor: "rgba(255, 105, 180, 0.5)",
             borderWidth: 1,
             padding: 12,
-            displayColors: false
+            displayColors: true
           }
         },
         scales: {
@@ -2659,17 +2749,12 @@ async function renderOverviewChart(period = "all") {
 
   if (period === "hour" || period === "day") {
     try {
-      const data = await invokeAdminAnalytics("hands_timeseries", {
-        period,
-        startAt: startDate ? startDate.toISOString() : null,
-        endAt: now.toISOString(),
-        targetUserIds: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null
+      const series = await buildHandsByGameSeries(period, {
+        startAt: startDate,
+        endAt: now,
+        userIds: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null
       });
-      const rows = Array.isArray(data?.rows) ? data.rows : [];
-      renderChart(
-        rows.map((row) => row.label || ""),
-        rows.map((row) => Number(row.handsPlayed || 0))
-      );
+      renderChart(series.labels, series.datasets);
       finalizeOverviewLoad();
       return;
     } catch (error) {
@@ -2711,20 +2796,15 @@ async function renderOverviewChart(period = "all") {
     current.setDate(current.getDate() + 1);
   }
 
-  const handsPerDateMap = {};
-  dates.forEach(date => {
-    handsPerDateMap[date] = 0;
-  });
-
-  const timezoneName = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  const { data: aggregatedHands, error } = await supabase.rpc("get_admin_hands_played_timeseries", {
-    start_at: startDate ? startDate.toISOString() : null,
-    end_at: now.toISOString(),
-    target_user_ids: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null,
-    local_tz: timezoneName
-  });
-
-  if (error) {
+  try {
+    const series = await buildHandsByGameSeries(period, {
+      startAt: startDate,
+      endAt: now,
+      userIds: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null
+    });
+    renderChart(series.labels.length ? series.labels : dates, series.datasets);
+    finalizeOverviewLoad();
+  } catch (error) {
     console.error("[RTN] Error loading overview hands data:", error);
     if (loadingOverlay) loadingOverlay.style.display = "none";
     document.querySelectorAll(".overview-filters .chart-filter-btn").forEach((btn) => {
@@ -2732,22 +2812,6 @@ async function renderOverviewChart(period = "all") {
     });
     return;
   }
-
-  (aggregatedHands || []).forEach((row) => {
-    const dateStr = typeof row.day === "string" ? row.day : toLocalDateKey(row.day);
-    if (Object.prototype.hasOwnProperty.call(handsPerDateMap, dateStr)) {
-      handsPerDateMap[dateStr] = Number(row.hands_played || 0);
-    }
-  });
-
-  const handsPerDay = dates.map((date) => handsPerDateMap[date]);
-
-  const todayStr = toLocalDateKey(now);
-  console.info(`[RTN] Today (${todayStr}) has ${handsPerDateMap[todayStr] ?? 0} hands dealt`);
-  console.info(`[RTN] Chart date range: ${dates[0]} to ${dates[dates.length - 1]}`);
-
-  renderChart(dates, handsPerDay);
-  finalizeOverviewLoad();
 }
 
 function updateActiveUsersChartFilterUI() {
@@ -6727,6 +6791,7 @@ async function handleAdminContestSubmit(event) {
   const contestLengthHours = Math.max(1, Math.round(Number(formData.get("contestLengthHours") ?? 1)));
   const qualificationCarterCash = Math.max(0, Math.round(Number(formData.get("qualificationCarterCash") ?? 0)));
   const requiredRankTier = Math.max(1, Math.round(Number(formData.get("requiredRankTier") ?? 1)));
+  const allowedGameIds = normalizeContestAllowedGameIds(formData.getAll("contestGameIds"));
   const prizeStaticAmount = Math.max(0, Number(formData.get("prizeStaticAmount") ?? 0));
   const prizeVariableBasis = String(formData.get("prizeVariableBasis") ?? "none");
   const prizeVariableUnitAmount = Math.max(0, Number(formData.get("prizeVariableUnitAmount") ?? 0));
@@ -6737,6 +6802,13 @@ async function handleAdminContestSubmit(event) {
   if (!title || (!startWhenRequirementReached && (!startsAt || !endsAt))) {
     if (adminContestMessage) {
       adminContestMessage.textContent = "Please fill out all contest fields.";
+    }
+    return;
+  }
+
+  if (!allowedGameIds.length) {
+    if (adminContestMessage) {
+      adminContestMessage.textContent = "Select at least one game for this contest.";
     }
     return;
   }
@@ -6783,6 +6855,7 @@ async function handleAdminContestSubmit(event) {
     starting_carter_cash: 0,
     entry_fee_carter_cash: entryFeeCarterCash,
     contestant_limit: contestantLimit,
+    allowed_game_ids: allowedGameIds,
     winning_criteria: "highest_bankroll",
     qualification_carter_cash: qualificationCarterCash,
     required_rank_tier: requiredRankTier,
@@ -6886,7 +6959,14 @@ async function switchToContestMode(contestId, { navigateToPlay = false } = {}) {
   saveAccountModeSelection(currentAccountMode);
   syncActiveAccountMode({ forceApply: true, resetHistory: true });
   if (navigateToPlay) {
-    await setRoute("play");
+    const contest = getContestById(contestId);
+    const allowedGames = normalizeContestAllowedGameIds(contest?.allowed_game_ids);
+    const firstAllowedRoute = allowedGames.includes(GAME_KEYS.RUN_THE_NUMBERS)
+      ? "run-the-numbers"
+      : allowedGames.includes(GAME_KEYS.GUESS_10)
+        ? "red-black"
+        : "play";
+    await setRoute(firstAllowedRoute);
   }
 }
 
@@ -6927,6 +7007,10 @@ function renderPlayerContestRow(contest, participantStats = 0) {
   meta.className = "contest-opt-in-copy";
   const entryFeeAmount = getContestEntryFee(contest);
   meta.textContent = `Highest credits wins • Requires ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash • Entry fee: ${formatCurrency(entryFeeAmount)} CC • Contestants: ${formatContestFill(contest, stats)}`;
+
+  const games = document.createElement("p");
+  games.className = "contest-prize-growth";
+  games.textContent = `Games: ${getContestGamesLabel(contest)}`;
 
   const prize = document.createElement("p");
   prize.className = "contest-prize-pill";
@@ -7041,11 +7125,11 @@ function renderPlayerContestRow(contest, participantStats = 0) {
   if (caption.textContent) {
     item.append(header, details, prize, growth);
     if (thresholdProgress) item.append(thresholdProgress);
-    item.append(caption, payoutTable, meta, distribution, actions);
+    item.append(caption, payoutTable, meta, games, distribution, actions);
   } else {
     item.append(header, details, prize, growth);
     if (thresholdProgress) item.append(thresholdProgress);
-    item.append(payoutTable, meta, distribution, actions);
+    item.append(payoutTable, meta, games, distribution, actions);
   }
   return item;
 }
@@ -7360,6 +7444,10 @@ function renderAdminContestRow(contest, participantStats = 0) {
   meta.className = "contest-opt-in-copy";
   meta.textContent = `Highest credits wins • Requires ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash • Contestants: ${formatContestFill(contest, stats)}`;
 
+  const games = document.createElement("p");
+  games.className = "contest-prize-growth";
+  games.textContent = `Games: ${getContestGamesLabel(contest)}`;
+
   const prize = document.createElement("p");
   prize.className = "contest-prize-pill";
   prize.textContent = `Prize Pot ${getContestPrizeHeadline(contest, stats)}`;
@@ -7406,7 +7494,7 @@ function renderAdminContestRow(contest, participantStats = 0) {
   });
 
   actions.append(deleteButton);
-  item.append(header, details, prize, meta, growth, distribution, actions);
+  item.append(header, details, prize, meta, games, growth, distribution, actions);
   return item;
 }
 
@@ -8104,7 +8192,74 @@ export async function logGameRun(score, metadata = {}) {
   }
 }
 
-async function logHandAndBets(stopperCard, context, betSnapshots, netThisHand) {
+async function insertGameHandRecord(handPayload, betRows = []) {
+  let payload = { ...handPayload };
+  let { data: hand, error: handError } = await supabase
+    .from("game_hands")
+    .insert(payload)
+    .select()
+    .single();
+
+  if (handError && isMissingColumnError(handError, "game_id")) {
+    const { game_id: _gameId, ...fallbackPayload } = payload;
+    payload = fallbackPayload;
+    ({ data: hand, error: handError } = await supabase
+      .from("game_hands")
+      .insert(payload)
+      .select()
+      .single());
+  }
+
+  if (handError) {
+    throw handError;
+  }
+
+  if (!Array.isArray(betRows) || betRows.length === 0) {
+    return hand;
+  }
+
+  const { error: betsError } = await supabase.from("bet_plays").insert(betRows);
+  if (betsError) {
+    throw betsError;
+  }
+
+  return hand;
+}
+
+async function logStandaloneGameHand({
+  gameKey = GAME_KEYS.RUN_THE_NUMBERS,
+  stopperCard = null,
+  totalCards = null,
+  totalWager = 0,
+  totalPaid = 0,
+  net = 0
+} = {}) {
+  try {
+    const { data: userResponse, error: logHandUserError } = await supabase.auth.getUser();
+    if (logHandUserError) {
+      console.error("[RTN] logStandaloneGameHand getUser error", logHandUserError);
+    }
+    const sessionUser = userResponse?.user ?? null;
+    if (!sessionUser) {
+      return;
+    }
+
+    await insertGameHandRecord({
+      user_id: sessionUser.id,
+      game_id: resolveGameKey(gameKey),
+      stopper_label: stopperCard?.label ?? null,
+      stopper_suit: stopperCard?.suitName ?? stopperCard?.suit ?? null,
+      total_cards: totalCards,
+      total_wager: totalWager,
+      total_paid: totalPaid,
+      net
+    });
+  } catch (error) {
+    console.error("Failed to log standalone game hand", error);
+  }
+}
+
+async function logHandAndBets(stopperCard, context, betSnapshots, netThisHand, options = {}) {
   try {
     const { data: userResponse, error: logHandUserError } = await supabase.auth.getUser();
     if (logHandUserError) {
@@ -8123,6 +8278,7 @@ async function logHandAndBets(stopperCard, context, betSnapshots, netThisHand) {
 
     const handPayload = {
       user_id: sessionUser.id,
+      game_id: resolveGameKey(options.gameKey),
       stopper_label: stopperCard?.label ?? null,
       stopper_suit: stopperCard?.suitName ?? null,
       total_cards: context?.totalCards ?? null,
@@ -8130,21 +8286,6 @@ async function logHandAndBets(stopperCard, context, betSnapshots, netThisHand) {
       total_paid: totalPaid,
       net: netThisHand
     };
-
-    const { data: hand, error: handError } = await supabase
-      .from("game_hands")
-      .insert(handPayload)
-      .select()
-      .single();
-
-    if (handError) {
-      console.error("hand insert failed", handError);
-      return;
-    }
-
-    if (safeBets.length === 0) {
-      return;
-    }
 
     const betRows = safeBets.map((bet) => {
       const amountWagered = bet.units ?? 0;
@@ -8164,11 +8305,7 @@ async function logHandAndBets(stopperCard, context, betSnapshots, netThisHand) {
       };
     });
 
-    const { error: betsError } = await supabase.from("bet_plays").insert(betRows);
-
-    if (betsError) {
-      console.error("bet insert failed", betsError);
-    }
+    await insertGameHandRecord(handPayload, betRows);
   } catch (error) {
     console.error("Failed to log hand and bets", error);
   }
@@ -8311,6 +8448,29 @@ const holdEl = document.getElementById("hold");
 const houseEdgeEl = document.getElementById("house-edge");
 const historyList = document.getElementById("history-list");
 const cardTemplate = document.getElementById("card-template");
+const redBlackStatusEl = document.getElementById("red-black-status");
+const redBlackBetDisplayEl = document.getElementById("red-black-bet-display");
+const redBlackPotDisplayEl = document.getElementById("red-black-pot-display");
+const redBlackRungDisplayEl = document.getElementById("red-black-rung-display");
+const redBlackCommissionDisplayEl = document.getElementById("red-black-commission-display");
+const redBlackMultiplierDisplayEl = document.getElementById("red-black-multiplier-display");
+const redBlackNewPotDisplayEl = document.getElementById("red-black-new-pot-display");
+const redBlackDrawsEl = document.getElementById("red-black-draws");
+const redBlackHistoryEl = document.getElementById("red-black-history");
+const redBlackPaytableRows = Array.from(document.querySelectorAll("[data-red-black-rung]"));
+const redBlackBetSpotButton = document.getElementById("red-black-bet-spot");
+const redBlackBetTotalEl = document.getElementById("red-black-bet-total");
+const redBlackChipStackEl = document.getElementById("red-black-chip-stack");
+const redBlackSelectedChipLabelEl = document.getElementById("red-black-selected-chip-label");
+const redBlackChipButtons = Array.from(document.querySelectorAll("[data-red-black-chip]"));
+const redBlackCategoryButtons = Array.from(document.querySelectorAll("[data-red-black-category]"));
+const redBlackValueSelectorEl = document.getElementById("red-black-value-selector");
+const redBlackSelectionHintEl = document.getElementById("red-black-selection-hint");
+const redBlackSelectionSummaryEl = document.getElementById("red-black-selection-summary");
+const redBlackClearBetButton = document.getElementById("red-black-clear-bet");
+const redBlackRebetButton = document.getElementById("red-black-rebet");
+const redBlackDealButton = document.getElementById("red-black-draw");
+const redBlackWithdrawButton = document.getElementById("red-black-withdraw");
 const resetAccountButton = document.getElementById("reset-account");
 const menuToggle = document.getElementById("menu-toggle");
 const utilityPanel = document.getElementById("utility-panel");
@@ -8381,6 +8541,8 @@ const resetPasswordForm = document.getElementById("reset-password-form");
 const appShell = document.getElementById("app-shell");
 const homeView = document.getElementById("home-view");
 const playView = document.getElementById("play-view");
+const runTheNumbersView = document.getElementById("run-the-numbers-view");
+const redBlackView = document.getElementById("red-black-view");
 const contestsView = document.getElementById("contests-view");
 const storeView = document.getElementById("store-view");
 const dashboardView = document.getElementById("dashboard-view");
@@ -8389,6 +8551,8 @@ const profileView = document.getElementById("profile-view");
 const routeViews = {
   home: homeView,
   play: playView,
+  "run-the-numbers": runTheNumbersView,
+  "red-black": redBlackView,
   contests: contestsView,
   store: storeView,
   dashboard: dashboardView,
@@ -8397,9 +8561,9 @@ const routeViews = {
 };
 const headerEl = document.querySelector(".header");
 const chipBarEl = document.querySelector(".chip-bar");
-const playLayout = playView ? playView.querySelector(".layout") : null;
+const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout") : null;
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
-const TABLE_ROUTES = new Set(["home", "play", "contests", "store", "admin"]);
+const TABLE_ROUTES = new Set(["home", "play", "run-the-numbers", "red-black", "contests", "store", "admin"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
@@ -8630,6 +8794,16 @@ let dealing = false;
 let chipDenominations = loadStoredChipDenominations();
 let selectedChip = chipDenominations[0];
 let bettingOpen = true;
+let redBlackSelectedChip = 5;
+let redBlackBet = 0;
+let redBlackRung = 0;
+let redBlackHandActive = false;
+let redBlackAwaitingDecision = false;
+let redBlackDeck = [];
+let redBlackCurrentPot = 0;
+let redBlackCategory = "color";
+let redBlackSelectedValues = ["red"];
+let redBlackLastBet = 0;
 let stats = {
   hands: 0,
   wagered: 0,
@@ -8812,7 +8986,7 @@ function updatePlayAreaHeight() {
     return;
   }
 
-  if (currentRoute !== "play") {
+  if (currentRoute !== "run-the-numbers") {
     clearPlayAreaHeight();
     return;
   }
@@ -9634,6 +9808,472 @@ function makeCardElement(card) {
   return node;
 }
 
+function setRedBlackStatus(message) {
+  if (redBlackStatusEl) {
+    redBlackStatusEl.textContent = String(message || "");
+  }
+}
+
+function updateRedBlackActionState() {
+  const selectionValid = isRedBlackSelectionValid();
+  if (redBlackClearBetButton) {
+    const canClear = !redBlackHandActive && redBlackBet > 0;
+    redBlackClearBetButton.disabled = !canClear;
+    redBlackClearBetButton.hidden = !canClear;
+  }
+  if (redBlackRebetButton) {
+    redBlackRebetButton.disabled = redBlackHandActive || redBlackBet > 0 || redBlackLastBet <= 0;
+  }
+  if (redBlackDealButton) {
+    redBlackDealButton.disabled = redBlackBet <= 0 || !selectionValid;
+  }
+  if (redBlackWithdrawButton) {
+    redBlackWithdrawButton.disabled = !redBlackHandActive || redBlackRung <= 0 || redBlackCurrentPot <= 0;
+  }
+  redBlackCategoryButtons.forEach((button) => {
+    const isActive = button.dataset.redBlackCategory === redBlackCategory;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
+function renderRedBlackSummary() {
+  const commissionRate = getRedBlackCommissionRate();
+  const commissionUnits = roundCurrencyValue(Math.max(0, redBlackCurrentPot - redBlackBet) * commissionRate);
+  const selectionValid = isRedBlackSelectionValid();
+  const basePot = redBlackHandActive ? redBlackCurrentPot : redBlackBet;
+  const projectedPot = selectionValid && basePot > 0
+    ? roundCurrencyValue(basePot * getRedBlackMultiplier())
+    : 0;
+  if (redBlackBetDisplayEl) {
+    redBlackBetDisplayEl.textContent = formatCurrency(redBlackBet);
+  }
+  if (redBlackPotDisplayEl) {
+    redBlackPotDisplayEl.textContent = formatCurrency(redBlackCurrentPot);
+  }
+  if (redBlackBetTotalEl) {
+    redBlackBetTotalEl.textContent = formatCurrency(redBlackBet);
+  }
+  if (redBlackRungDisplayEl) {
+    redBlackRungDisplayEl.textContent = String(redBlackRung);
+  }
+  if (redBlackCommissionDisplayEl) {
+    redBlackCommissionDisplayEl.textContent = formatCurrency(commissionUnits);
+  }
+  if (redBlackMultiplierDisplayEl) {
+    redBlackMultiplierDisplayEl.textContent = selectionValid
+      ? `Multiplier ${formatRedBlackMultiplier(getRedBlackMultiplier())}`
+      : "";
+  }
+  if (redBlackNewPotDisplayEl) {
+    redBlackNewPotDisplayEl.textContent = selectionValid && projectedPot > 0
+      ? `New Pot ${formatCurrency(projectedPot)}`
+      : "";
+  }
+  if (redBlackSelectedChipLabelEl) {
+    redBlackSelectedChipLabelEl.textContent = `Selected chip: ${formatCurrency(redBlackSelectedChip)}`;
+  }
+  renderRedBlackSelectionMeta();
+  renderRedBlackBetStack();
+}
+
+function updateRedBlackPaytableHighlight() {
+  const visualRung = Math.max(0, Math.min(redBlackRung, RED_BLACK_MAX_RUNGS));
+  redBlackPaytableRows.forEach((row) => {
+    const rung = Number(row.dataset.redBlackRung || 0);
+    const isComplete = rung <= visualRung;
+    const isCurrent = rung === visualRung && visualRung > 0;
+    row.classList.toggle("is-complete", isComplete);
+    row.classList.toggle("is-current", isCurrent);
+  });
+}
+
+function ensureRedBlackDrawPlaceholder() {
+  if (!redBlackDrawsEl) return;
+  if (redBlackDrawsEl.children.length === 0) {
+    const placeholder = document.createElement("div");
+    placeholder.className = "beta-draw-placeholder";
+    placeholder.textContent = "No cards drawn yet.";
+    redBlackDrawsEl.appendChild(placeholder);
+  }
+}
+
+function clearRedBlackDraws() {
+  if (!redBlackDrawsEl) return;
+  redBlackDrawsEl.innerHTML = "";
+  ensureRedBlackDrawPlaceholder();
+}
+
+function clearRedBlackHistory() {
+  if (!redBlackHistoryEl) return;
+  redBlackHistoryEl.innerHTML = "";
+}
+
+function appendRedBlackHistoryEntry({ card, matched, multiplier, selectionLabel }) {
+  if (!redBlackHistoryEl) return;
+  const item = document.createElement("li");
+  const cardLabel = `${card?.label || ""}${card?.suit || ""}`;
+  item.textContent = `${selectionLabel} · ${formatRedBlackMultiplier(multiplier)} · ${cardLabel} · ${matched ? "Hit" : "Miss"}`;
+  redBlackHistoryEl.appendChild(item);
+}
+
+function appendRedBlackCard(card) {
+  if (!redBlackDrawsEl) return;
+  const placeholder = redBlackDrawsEl.querySelector(".beta-draw-placeholder");
+  placeholder?.remove();
+  const cardEl = makeCardElement(card);
+  redBlackDrawsEl.appendChild(cardEl);
+  requestAnimationFrame(() => {
+    cardEl.classList.add("dealt-in");
+  });
+  return cardEl;
+}
+
+function renderRedBlackChipRack() {
+  redBlackChipButtons.forEach((button) => {
+    const value = Number(button.dataset.redBlackChip || 0);
+    const isSelected = value === redBlackSelectedChip;
+    button.classList.toggle("active", isSelected);
+    button.setAttribute("aria-pressed", String(isSelected));
+  });
+  renderRedBlackSummary();
+}
+
+function getRedBlackSelectionConfig(category = redBlackCategory) {
+  if (category === "color") {
+    return {
+      max: 1,
+      values: [
+        { key: "red", label: "Red", short: "RED" },
+        { key: "black", label: "Black", short: "BLACK" }
+      ]
+    };
+  }
+  if (category === "suit") {
+    return {
+      max: 3,
+      values: [
+        { key: "hearts", label: "Hearts", short: "♥" },
+        { key: "diamonds", label: "Diamonds", short: "♦" },
+        { key: "clubs", label: "Clubs", short: "♣" },
+        { key: "spades", label: "Spades", short: "♠" }
+      ]
+    };
+  }
+  return {
+    max: 12,
+    values: ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"].map((rank) => ({
+      key: rank,
+      label: rank,
+      short: rank
+    }))
+  };
+}
+
+function isRedBlackSelectionValid() {
+  const count = redBlackSelectedValues.length;
+  if (redBlackCategory === "color") return count === 1;
+  if (redBlackCategory === "suit") return count >= 1 && count <= 3;
+  if (redBlackCategory === "rank") return count >= 1 && count <= 12;
+  return false;
+}
+
+function getRedBlackMultiplier() {
+  if (!isRedBlackSelectionValid()) return 0;
+  if (redBlackCategory === "color") return 2;
+  if (redBlackCategory === "suit") return 4 / redBlackSelectedValues.length;
+  return 13 / redBlackSelectedValues.length;
+}
+
+function formatRedBlackMultiplier(value) {
+  if (!Number.isFinite(Number(value)) || Number(value) <= 0) return "";
+  return `${roundCurrencyValue(value)}x`;
+}
+
+function renderRedBlackValueSelector() {
+  if (!redBlackValueSelectorEl) return;
+  const config = getRedBlackSelectionConfig();
+  redBlackValueSelectorEl.innerHTML = "";
+  config.values.forEach((item) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "secondary beta-value-button";
+    button.dataset.redBlackValue = item.key;
+    button.textContent = item.short;
+    button.dataset.category = redBlackCategory;
+    const isSelected = redBlackSelectedValues.includes(item.key);
+    button.classList.toggle("active", isSelected);
+    button.setAttribute("aria-pressed", String(isSelected));
+    button.addEventListener("click", () => {
+      toggleRedBlackValue(item.key);
+    });
+    redBlackValueSelectorEl.appendChild(button);
+  });
+}
+
+function renderRedBlackSelectionMeta() {
+  const count = redBlackSelectedValues.length;
+  if (redBlackSelectionHintEl) {
+    if (redBlackCategory === "color") {
+      redBlackSelectionHintEl.textContent = "Pick exactly 1 color.";
+    } else if (redBlackCategory === "suit") {
+      redBlackSelectionHintEl.textContent = "Pick 1 to 3 suits.";
+    } else {
+      redBlackSelectionHintEl.textContent = "Pick 1 to 12 ranks.";
+    }
+  }
+  if (redBlackSelectionSummaryEl) {
+    if (redBlackCategory === "color") {
+      redBlackSelectionSummaryEl.textContent = count === 1 ? "1 selected" : "Choose 1";
+    } else if (redBlackCategory === "suit") {
+      redBlackSelectionSummaryEl.textContent = `${count} / 3 selected`;
+    } else {
+      redBlackSelectionSummaryEl.textContent = `${count} / 12 selected`;
+    }
+  }
+}
+
+function renderRedBlackBetStack() {
+  if (!redBlackChipStackEl) return;
+  redBlackChipStackEl.innerHTML = "";
+  if (redBlackBet <= 0) return;
+
+  const chipsToRender = [];
+  let remaining = redBlackBet;
+  const orderedChips = [...RED_BLACK_CHIPS].sort((a, b) => b - a);
+
+  orderedChips.forEach((value) => {
+    while (remaining >= value && chipsToRender.length < 7) {
+      chipsToRender.push(value);
+      remaining -= value;
+    }
+  });
+
+  if (remaining > 0 && chipsToRender.length < 7) {
+    chipsToRender.push(remaining);
+  }
+
+  chipsToRender.forEach((value, index) => {
+    const chip = document.createElement("div");
+    chip.className = "chip";
+    chip.dataset.value = String(value);
+    chip.dataset.tone = String(getChipToneIndex(value));
+    chip.textContent = String(value);
+    chip.style.setProperty("--stack-index", String(index));
+    chip.style.setProperty("--stack-shift", `${Math.min(index, 4) * 3}px`);
+    chip.style.zIndex = String(index + 1);
+    redBlackChipStackEl.appendChild(chip);
+    requestAnimationFrame(() => {
+      chip.classList.add("chip-enter");
+    });
+  });
+}
+
+function resetRedBlackHand({ keepBet = true } = {}) {
+  redBlackRung = 0;
+  redBlackHandActive = false;
+  redBlackAwaitingDecision = false;
+  redBlackDeck = [];
+  redBlackCurrentPot = 0;
+  redBlackCategory = "color";
+  redBlackSelectedValues = ["red"];
+  if (!keepBet) {
+    redBlackBet = 0;
+  }
+  clearRedBlackDraws();
+  clearRedBlackHistory();
+  renderRedBlackValueSelector();
+  renderRedBlackSummary();
+  updateRedBlackPaytableHighlight();
+  updateRedBlackActionState();
+}
+
+function finishRedBlackHand(message, { clearBet = false } = {}) {
+  redBlackHandActive = false;
+  redBlackAwaitingDecision = false;
+  redBlackDeck = [];
+  redBlackCurrentPot = 0;
+  if (clearBet) {
+    redBlackBet = 0;
+  }
+  setRedBlackStatus(message);
+  renderRedBlackSummary();
+  updateRedBlackPaytableHighlight();
+  updateRedBlackActionState();
+}
+
+async function dealRedBlackCard() {
+  if (redBlackBet <= 0 || !isRedBlackSelectionValid()) {
+    return;
+  }
+  if (!canUseCurrentFundsForGame(GAME_KEYS.GUESS_10)) {
+    const contest = getModeContest(currentAccountMode);
+    setRedBlackStatus(`This contest bankroll can only be used for ${getContestGamesLabel(contest)}.`);
+    showToast(`This contest bankroll can only be used for ${getContestGamesLabel(contest)}.`, "error");
+    return;
+  }
+  if (!redBlackHandActive) {
+    if (redBlackBet > bankroll) {
+      setRedBlackStatus(`Not enough bankroll for a ${formatCurrency(redBlackBet)} unit wager.`);
+      return;
+    }
+    redBlackLastBet = redBlackBet;
+    bankroll = roundCurrencyValue(bankroll - redBlackBet);
+    handleBankrollChanged();
+    redBlackRung = 0;
+    redBlackCurrentPot = redBlackBet;
+    redBlackHandActive = true;
+    clearRedBlackDraws();
+    clearRedBlackHistory();
+  }
+
+  redBlackDeck = createRedBlackDeck();
+  const nextCard = redBlackDeck.pop();
+  if (!nextCard) {
+    finishRedBlackHand("No cards left in the deck.", { clearBet: false });
+    return;
+  }
+
+  const cardEl = appendRedBlackCard(nextCard);
+  const multiplier = getRedBlackMultiplier();
+  const selectionLabel = getRedBlackSelectionLabel();
+
+  const matched = doesRedBlackCardMatch(nextCard);
+  appendRedBlackHistoryEntry({ card: nextCard, matched, multiplier, selectionLabel });
+
+  if (!matched) {
+    const completedBet = redBlackBet;
+    const completedCards = redBlackHistoryEl?.children.length || 1;
+    finishRedBlackHand(
+      `${nextCard.label}${nextCard.suit} missed ${selectionLabel}. Hand over. Place a new wager to start again.`,
+      { clearBet: true }
+    );
+    await incrementProfileHandProgress(1);
+    await ensureProfileSynced({ force: true });
+    await logStandaloneGameHand({
+      gameKey: GAME_KEYS.GUESS_10,
+      stopperCard: nextCard,
+      totalCards: completedCards,
+      totalWager: completedBet,
+      totalPaid: 0,
+      net: -completedBet
+    });
+    return;
+  }
+
+  redBlackCurrentPot = roundCurrencyValue(redBlackCurrentPot * multiplier);
+  redBlackRung += 1;
+  if (cardEl) {
+    cardEl.classList.add("card-match");
+  }
+  renderRedBlackSummary();
+  updateRedBlackPaytableHighlight();
+  const commissionRate = getRedBlackCommissionRate();
+  setRedBlackStatus(
+    `${nextCard.label}${nextCard.suit} matched ${selectionLabel}. Pot is now ${formatCurrency(
+      redBlackCurrentPot
+    )}. Adjust your selection, draw again, or cash out. Current commission: ${formatPercent(commissionRate)} of winnings.`
+  );
+  updateRedBlackActionState();
+}
+
+function rebetRedBlackHand() {
+  if (redBlackHandActive || redBlackLastBet <= 0) {
+    return;
+  }
+  redBlackBet = redBlackLastBet;
+  redBlackCurrentPot = 0;
+  renderRedBlackSummary();
+  updateRedBlackActionState();
+  setRedBlackStatus(`Rebet loaded for ${formatCurrency(redBlackBet)}. Choose your prediction and draw.`);
+}
+
+async function withdrawRedBlackHand() {
+  if (!redBlackHandActive || redBlackRung <= 0 || redBlackCurrentPot <= 0) {
+    return;
+  }
+  const completedBet = redBlackBet;
+  const completedCards = redBlackHistoryEl?.children.length || redBlackRung;
+  const commissionRate = getRedBlackCommissionRate();
+  const winnings = Math.max(0, redBlackCurrentPot - redBlackBet);
+  const commission = roundCurrencyValue(winnings * commissionRate);
+  const payout = roundCurrencyValue(redBlackCurrentPot - commission);
+  bankroll = roundCurrencyValue(bankroll + payout);
+  handleBankrollChanged();
+  finishRedBlackHand(
+    `You cashed out for ${formatCurrency(payout)} after a ${redBlackRung}-card streak. Commission: ${formatPercent(
+      commissionRate
+    )} on winnings (${formatCurrency(commission)}).`,
+    { clearBet: true }
+  );
+  await incrementProfileHandProgress(1);
+  await ensureProfileSynced({ force: true });
+  await logStandaloneGameHand({
+    gameKey: GAME_KEYS.GUESS_10,
+    stopperCard: null,
+    totalCards: completedCards,
+    totalWager: completedBet,
+    totalPaid: payout,
+    net: roundCurrencyValue(payout - completedBet)
+  });
+}
+
+function getRedBlackCommissionRate() {
+  return RED_BLACK_COMMISSION_BY_RUNG[Math.min(redBlackRung, RED_BLACK_MAX_RUNGS)] ?? 0;
+}
+
+function formatPercent(value) {
+  return `${Math.round(Number(value || 0) * 100)}%`;
+}
+
+function getRedBlackSelectionLabel() {
+  if (redBlackCategory === "color") {
+    return redBlackSelectedValues[0].toUpperCase();
+  }
+  if (redBlackCategory === "suit") {
+    return redBlackSelectedValues.map((value) => value.toUpperCase()).join(" + ");
+  }
+  return redBlackSelectedValues.join(" + ");
+}
+
+function doesRedBlackCardMatch(card) {
+  if (!card) return false;
+  if (redBlackCategory === "color") {
+    return redBlackSelectedValues.includes(card.color);
+  }
+  if (redBlackCategory === "suit") {
+    const suitKey = SUITS.find((suit) => suit.symbol === card.suit)?.name.toLowerCase();
+    return redBlackSelectedValues.includes(suitKey);
+  }
+  return redBlackSelectedValues.includes(card.label);
+}
+
+function setRedBlackCategory(category) {
+  redBlackCategory = category;
+  if (category === "color") {
+    redBlackSelectedValues = ["red"];
+  } else {
+    redBlackSelectedValues = [];
+  }
+  renderRedBlackValueSelector();
+  renderRedBlackSummary();
+  updateRedBlackActionState();
+}
+
+function toggleRedBlackValue(value) {
+  const config = getRedBlackSelectionConfig();
+  if (redBlackCategory === "color") {
+    redBlackSelectedValues = [value];
+  } else if (redBlackSelectedValues.includes(value)) {
+    redBlackSelectedValues = redBlackSelectedValues.filter((entry) => entry !== value);
+  } else if (redBlackSelectedValues.length < config.max) {
+    redBlackSelectedValues = [...redBlackSelectedValues, value];
+  }
+  renderRedBlackValueSelector();
+  renderRedBlackSummary();
+  updateRedBlackActionState();
+}
+
 function roundCurrencyValue(value) {
   if (!Number.isFinite(Number(value))) return 0;
   return Number(Number(value).toFixed(2));
@@ -9658,6 +10298,43 @@ function formatSignedCurrency(value) {
   return "0";
 }
 
+const RED_BLACK_MAX_RUNGS = 10;
+const RED_BLACK_CHIPS = [5, 10, 25, 100];
+const RED_BLACK_COMMISSION_BY_RUNG = {
+  1: 0.1,
+  2: 0.09,
+  3: 0.08,
+  4: 0.07,
+  5: 0.06,
+  6: 0.05,
+  7: 0.04,
+  8: 0.03,
+  9: 0.02,
+  10: 0.01
+};
+
+function createRedBlackDeck() {
+  const deck = [];
+  for (const suit of SUITS) {
+    for (let value = 1; value <= 13; value += 1) {
+      const label = value === 1 ? "A" : value === 11 ? "J" : value === 12 ? "Q" : value === 13 ? "K" : String(value);
+      deck.push({
+        label,
+        suit: suit.symbol,
+        color: suit.color,
+        stopper: false,
+        isJoker: false
+      });
+    }
+  }
+  for (let index = deck.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [deck[index], deck[swapIndex]] = [deck[swapIndex], deck[index]];
+  }
+
+  return deck;
+}
+
 function getAnalyticsPeriodStart(period) {
   const now = Date.now();
   if (period === "hour") return new Date(now - 60 * 60 * 1000);
@@ -9667,6 +10344,189 @@ function getAnalyticsPeriodStart(period) {
   if (period === "90days") return new Date(now - 90 * 24 * 60 * 60 * 1000);
   if (period === "year") return new Date(now - 365 * 24 * 60 * 60 * 1000);
   return null;
+}
+
+async function fetchGameHandsRecords({
+  startAt = null,
+  endAt = null,
+  userIds = null,
+  fields = ["user_id", "created_at", "game_id"]
+} = {}) {
+  const allRecords = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+  let includeGameId = fields.includes("game_id");
+
+  while (hasMore) {
+    const selectFields = fields.filter((field) => field !== "game_id" || includeGameId).join(", ");
+    let query = supabase
+      .from("game_hands")
+      .select(selectFields)
+      .order("created_at", { ascending: true })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (startAt) {
+      query = query.gte("created_at", startAt.toISOString());
+    }
+
+    if (endAt) {
+      query = query.lte("created_at", endAt.toISOString());
+    }
+
+    if (Array.isArray(userIds) && userIds.length > 0) {
+      query = query.in("user_id", userIds);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      if (includeGameId && isMissingColumnError(error, "game_id")) {
+        includeGameId = false;
+        page = 0;
+        hasMore = true;
+        allRecords.length = 0;
+        continue;
+      }
+      throw error;
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    rows.forEach((row) => {
+      allRecords.push({
+        ...row,
+        game_id: resolveGameKey(row?.game_id)
+      });
+    });
+
+    hasMore = rows.length === pageSize;
+    page += 1;
+  }
+
+  return allRecords;
+}
+
+function buildHandsChartBuckets(period, startDate, endDate = new Date()) {
+  const start = new Date(startDate || endDate);
+  const end = new Date(endDate);
+  const buckets = [];
+
+  if (period === "hour") {
+    start.setSeconds(0, 0);
+    const minuteBlock = Math.floor(start.getMinutes() / 5) * 5;
+    start.setMinutes(minuteBlock, 0, 0);
+    for (const current = new Date(start); current <= end; current = new Date(current.getTime() + 5 * 60 * 1000)) {
+      const key = current.toISOString();
+      buckets.push({
+        key,
+        label: current.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+        start: new Date(current),
+        end: new Date(current.getTime() + 5 * 60 * 1000)
+      });
+    }
+    return buckets;
+  }
+
+  if (period === "day") {
+    start.setMinutes(0, 0, 0);
+    for (const current = new Date(start); current <= end; current = new Date(current.getTime() + 60 * 60 * 1000)) {
+      const key = current.toISOString();
+      buckets.push({
+        key,
+        label: current.toLocaleTimeString([], { hour: "numeric" }),
+        start: new Date(current),
+        end: new Date(current.getTime() + 60 * 60 * 1000)
+      });
+    }
+    return buckets;
+  }
+
+  start.setHours(0, 0, 0, 0);
+  const last = new Date(end);
+  last.setHours(0, 0, 0, 0);
+  for (const current = new Date(start); current <= last; current.setDate(current.getDate() + 1)) {
+    const bucketStart = new Date(current);
+    const bucketEnd = new Date(current);
+    bucketEnd.setDate(bucketEnd.getDate() + 1);
+    buckets.push({
+      key: bucketStart.toISOString(),
+      label: bucketStart.toLocaleDateString([], { month: "short", day: "numeric" }),
+      start: bucketStart,
+      end: bucketEnd
+    });
+  }
+  return buckets;
+}
+
+async function buildHandsByGameSeries(period, {
+  startAt = null,
+  endAt = new Date(),
+  userIds = null
+} = {}) {
+  try {
+    const data = await invokeAdminAnalytics("hands_timeseries", {
+      period,
+      startAt: startAt ? startAt.toISOString() : null,
+      endAt: endAt.toISOString(),
+      targetUserIds: Array.isArray(userIds) && userIds.length ? userIds : null
+    });
+    const rows = Array.isArray(data?.rows) ? data.rows : [];
+    if (rows.length) {
+      return {
+        labels: rows.map((row) => row.label || ""),
+        datasets: [
+          {
+            key: GAME_KEYS.RUN_THE_NUMBERS,
+            label: getGameLabel(GAME_KEYS.RUN_THE_NUMBERS),
+            values: rows.map((row) => Number(row.runTheNumbersHands || 0))
+          },
+          {
+            key: GAME_KEYS.GUESS_10,
+            label: getGameLabel(GAME_KEYS.GUESS_10),
+            values: rows.map((row) => Number(row.guess10Hands || 0))
+          }
+        ]
+      };
+    }
+  } catch (error) {
+    console.warn("[RTN] buildHandsByGameSeries edge fallback", error);
+  }
+
+  const records = await fetchGameHandsRecords({
+    startAt,
+    endAt,
+    userIds,
+    fields: ["user_id", "created_at", "game_id"]
+  });
+
+  const effectiveStart =
+    startAt ||
+    (records.length > 0 ? new Date(records[0].created_at) : new Date(endAt.getTime() - 29 * 24 * 60 * 60 * 1000));
+  const buckets = buildHandsChartBuckets(period, effectiveStart, endAt);
+  const seriesMap = new Map(
+    Object.values(GAME_KEYS).map((gameKey) => [
+      gameKey,
+      {
+        key: gameKey,
+        label: getGameLabel(gameKey),
+        values: new Array(buckets.length).fill(0)
+      }
+    ])
+  );
+
+  records.forEach((record) => {
+    const createdAt = new Date(record.created_at);
+    const bucketIndex = buckets.findIndex((bucket) => createdAt >= bucket.start && createdAt < bucket.end);
+    if (bucketIndex < 0) return;
+    const gameKey = resolveGameKey(record.game_id);
+    const series = seriesMap.get(gameKey);
+    if (!series) return;
+    series.values[bucketIndex] += 1;
+  });
+
+  return {
+    labels: buckets.map((bucket) => bucket.label),
+    datasets: Array.from(seriesMap.values())
+  };
 }
 
 function formatBankrollTickLabel(point, fallbackIndex, period = "all") {
@@ -10581,7 +11441,7 @@ function togglePlayAssistant(open = !playAssistantOpen) {
     playAssistantPanel.setAttribute("aria-hidden", String(!playAssistantOpen));
   }
   if (playAssistantToggle) {
-    playAssistantToggle.hidden = currentRoute !== "play" || playAssistantOpen;
+    playAssistantToggle.hidden = currentRoute !== "run-the-numbers" || playAssistantOpen;
     playAssistantToggle.setAttribute("aria-expanded", String(playAssistantOpen));
   }
   if (playAssistantOpen && playAssistantInput) {
@@ -10590,7 +11450,7 @@ function togglePlayAssistant(open = !playAssistantOpen) {
 }
 
 function updatePlayAssistantVisibility() {
-  const shouldShow = currentRoute === "play";
+  const shouldShow = currentRoute === "run-the-numbers";
   if (playAssistantToggle) {
     playAssistantToggle.hidden = !shouldShow || playAssistantOpen;
   }
@@ -11027,7 +11887,7 @@ function applyAssistantPlan(plan, messageId = null) {
     return false;
   }
 
-  if (currentRoute !== "play") {
+  if (currentRoute !== "run-the-numbers") {
     showToast("Open the PLAY table before applying assistant bets.", "error");
     return false;
   }
@@ -11597,7 +12457,9 @@ async function endHand(stopperCard, context = {}) {
   });
   await incrementProfileHandProgress(1);
   await ensureProfileSynced({ force: true });
-  await logHandAndBets(stopperCard, context, betSnapshots, netThisHand);
+  await logHandAndBets(stopperCard, context, betSnapshots, netThisHand, {
+    gameKey: GAME_KEYS.RUN_THE_NUMBERS
+  });
   const metadata = {
     stopper: stopperCard.label,
     suit: stopperCard.suitName ?? null,
@@ -11693,6 +12555,12 @@ async function processCard(card, context) {
 
 async function dealHand() {
   if (bets.length === 0 || dealing) return;
+  if (!canUseCurrentFundsForGame(GAME_KEYS.RUN_THE_NUMBERS)) {
+    const contest = getModeContest(currentAccountMode);
+    statusEl.textContent = `This contest bankroll can only be used for ${getContestGamesLabel(contest)}.`;
+    showToast(`This contest bankroll can only be used for ${getContestGamesLabel(contest)}.`, "error");
+    return;
+  }
   currentOpeningLayout = snapshotLayout(bets);
   dealing = true;
   awaitingManualDeal = false;
@@ -13222,24 +14090,48 @@ async function openPlayerModeBreakdownModal(userId, playerName) {
   activePlayerBreakdownUserId = userId;
   activePlayerBreakdownName = playerName || "Player";
   if (playerModeBreakdownTitleEl) {
-    playerModeBreakdownTitleEl.textContent = `${activePlayerBreakdownName} Hand Breakdown`;
+    playerModeBreakdownTitleEl.textContent = `${activePlayerBreakdownName} Game Breakdown`;
   }
 
-  const data = await invokeAdminAnalytics("player_mode_breakdown", {
-    userId,
-    period: activityLeaderboardPeriod
-  });
-
-  const rows = Array.isArray(data?.rows) ? data.rows : [];
-  const totalHands = Math.max(0, Number(data?.totalHands || 0));
+  let rows = [];
+  let totalHands = 0;
+  try {
+    const data = await invokeAdminAnalytics("player_mode_breakdown", {
+      userId,
+      period: activityLeaderboardPeriod
+    });
+    rows = Array.isArray(data?.rows) ? data.rows : [];
+    totalHands = Math.max(0, Number(data?.totalHands || 0));
+  } catch (error) {
+    console.warn("[RTN] player breakdown edge fallback", error);
+    const startDate = getAnalyticsPeriodStart(activityLeaderboardPeriod);
+    const records = await fetchGameHandsRecords({
+      startAt: startDate,
+      endAt: new Date(),
+      userIds: [userId],
+      fields: ["user_id", "created_at", "game_id"]
+    });
+    const countsByGame = new Map(
+      Object.values(GAME_KEYS).map((gameKey) => [gameKey, 0])
+    );
+    records.forEach((record) => {
+      const gameKey = resolveGameKey(record.game_id);
+      countsByGame.set(gameKey, (countsByGame.get(gameKey) || 0) + 1);
+    });
+    rows = Array.from(countsByGame.entries()).map(([gameKey, handsPlayed]) => ({
+      label: getGameLabel(gameKey),
+      handsPlayed
+    }));
+    totalHands = rows.reduce((sum, row) => sum + Number(row.handsPlayed || 0), 0);
+  }
 
   if (playerModeBreakdownSummaryEl) {
     const labelsByPeriod = {
-      hour: `Hands played by mode in the last hour.`,
-      day: `Hands played by mode in the last 24 hours.`,
-      week: `Hands played by mode in the last 7 days.`,
-      month: `Hands played by mode in the last 30 days.`,
-      all: `Hands played by mode across all time.`
+      hour: `Hands played by game in the last hour.`,
+      day: `Hands played by game in the last 24 hours.`,
+      week: `Hands played by game in the last 7 days.`,
+      month: `Hands played by game in the last 30 days.`,
+      all: `Hands played by game across all time.`
     };
     playerModeBreakdownSummaryEl.textContent = labelsByPeriod[activityLeaderboardPeriod] || labelsByPeriod.week;
   }
@@ -13248,7 +14140,7 @@ async function openPlayerModeBreakdownModal(userId, playerName) {
   rows.forEach((row) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${escapeAssistantHtml(row.label || "Unknown Mode")}</td>
+      <td>${escapeAssistantHtml(row.label || "Unknown Game")}</td>
       <td>${formatCurrency(Math.round(Number(row.handsPlayed || 0)))}</td>
     `;
     playerModeBreakdownBodyEl.appendChild(tr);
@@ -13849,6 +14741,66 @@ signOutButtons.forEach((button) => {
   });
 });
 
+redBlackChipButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    if (redBlackHandActive) return;
+    const value = Number(button.dataset.redBlackChip || 0);
+    if (!RED_BLACK_CHIPS.includes(value)) return;
+    redBlackSelectedChip = value;
+    renderRedBlackChipRack();
+    setRedBlackStatus(`Selected a ${formatCurrency(value)} unit chip. Tap the wager spot to add it to the hand.`);
+  });
+});
+
+redBlackCategoryButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    if (redBlackAwaitingDecision) return;
+    const category = button.dataset.redBlackCategory;
+    if (!category) return;
+    setRedBlackCategory(category);
+    setRedBlackStatus(`Category set to ${category.toUpperCase()}. Make your selection and review the multiplier.`);
+  });
+});
+
+if (redBlackBetSpotButton) {
+  redBlackBetSpotButton.addEventListener("click", () => {
+    if (redBlackHandActive) return;
+    redBlackBet += redBlackSelectedChip;
+    renderRedBlackSummary();
+    updateRedBlackActionState();
+    setRedBlackStatus(`Added ${formatCurrency(redBlackSelectedChip)} to the wager. Current bet: ${formatCurrency(redBlackBet)}.`);
+  });
+}
+
+if (redBlackClearBetButton) {
+  redBlackClearBetButton.addEventListener("click", () => {
+    if (redBlackHandActive || redBlackBet === 0) return;
+    redBlackBet = 0;
+    redBlackCurrentPot = 0;
+    renderRedBlackSummary();
+    updateRedBlackActionState();
+    setRedBlackStatus("Wager cleared. Select a chip and tap the bet spot to build your hand.");
+  });
+}
+
+if (redBlackRebetButton) {
+  redBlackRebetButton.addEventListener("click", () => {
+    rebetRedBlackHand();
+  });
+}
+
+if (redBlackDealButton) {
+  redBlackDealButton.addEventListener("click", () => {
+    dealRedBlackCard();
+  });
+}
+
+if (redBlackWithdrawButton) {
+  redBlackWithdrawButton.addEventListener("click", () => {
+    withdrawRedBlackHand();
+  });
+}
+
 if (typeof window !== "undefined") {
   window.addEventListener("hashchange", handleHashChange);
 }
@@ -14000,6 +14952,9 @@ setActivePaytable(activePaytable.id, { announce: false });
 updatePaytableAvailability();
 renderChipSelector();
 setSelectedChip(selectedChip, false);
+renderRedBlackChipRack();
+resetRedBlackHand({ keepBet: false });
+setRedBlackStatus("Build one base wager, choose COLOR, SUIT, or RANK, make your selection, then draw.");
 renderBets();
 updateBankroll();
 updateCarterCashDisplay();

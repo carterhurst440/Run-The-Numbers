@@ -164,7 +164,7 @@
             <p id="dashboard-email" class="route-subheading"></p>
           </div>
           <div class="route-actions">
-            <button type="button" data-route-target="play" class="link-button">Back to table</button>
+            <button type="button" data-route-target="run-the-numbers" class="link-button">Back to table</button>
             <button type="button" data-action="sign-out" class="link-button">Sign out</button>
           </div>
         </header>
@@ -314,7 +314,7 @@
           </div>
         </section>
         <section class="drawer-section" aria-labelledby="how-to-title">
-          <h3 id="how-to-title">How to Play</h3>
+          <h3 id="how-to-title">Run the Numbers Rules</h3>
           <ol class="how-to-list">
             <li>Choose a chip value from the rack.</li>
             <li>Stack chips on Ace or any number 2–10 before dealing.</li>
@@ -328,6 +328,9 @@
             </p>
             <p>
               Number bets, suit bets, and card count bets lock before the hand starts. With Auto Deal off, specific card bets and advanced bust bets can be added between revealed cards.
+            </p>
+            <p>
+              GUESS 10 is available as a beta table from the home screen or drawer and has its own rules and paytable on that page.
             </p>
           </div>
         </section>
@@ -592,7 +595,13 @@
       <main class="app-main">
         <section id="home-view" class="route-view app-page home-view" hidden aria-labelledby="home-title">
           <div class="home-hero">
-            <h1 id="home-title" class="home-title">RUN THE NUMBERS</h1>
+            <h1 id="home-title" class="home-title">Welcome to the Casino Floor</h1>
+            <p class="home-subtitle">Track your rank, jump into live contests, and head to Play when you're ready to pick a table.</p>
+            <div class="home-actions">
+              <button type="button" class="home-button home-primary home-hero-play-button" data-route-target="play">
+                Play
+              </button>
+            </div>
             <p id="home-rank-typing" class="home-rank-typing" hidden></p>
             <section id="home-rank-panel" class="home-rank-panel" hidden aria-labelledby="home-rank-title">
               <div class="home-rank-header">
@@ -640,21 +649,219 @@
               <p class="home-contests-copy">Track the live prize pot and jump into the contest mode whenever you're ready.</p>
               <ul id="home-live-contest-list" class="home-live-contest-list" aria-live="polite"></ul>
             </section>
-            <div class="home-actions">
-              <button type="button" class="home-button home-primary" data-route-target="play">
-                Play Game
-              </button>
+          </div>
+        </section>
+
+        <section id="play-view" class="route-view app-page home-view play-hub-view" hidden aria-labelledby="play-title">
+          <div class="home-hero play-hub-hero">
+            <h1 id="play-title" class="home-title">PLAY</h1>
+            <p class="home-subtitle">Choose a game to jump straight to the table.</p>
+            <section class="home-games" aria-label="Available games">
+              <article class="game-card game-card-primary">
+                <div class="game-card-head">
+                  <p class="game-card-kicker">Original Game</p>
+                  <h2 class="game-card-title">RUN THE NUMBERS</h2>
+                </div>
+                <p class="game-card-copy">Build your wager board, fade the bust card, and press number hits across the active paytable.</p>
+                <button
+                  type="button"
+                  class="home-button home-primary"
+                  data-route-target="run-the-numbers"
+                  data-game-id="run-the-numbers"
+                >
+                  Play Run the Numbers
+                </button>
+              </article>
+              <article class="game-card game-card-beta">
+                <div class="game-card-head">
+                  <p class="game-card-kicker">New Beta Game</p>
+                  <div class="game-card-title-row">
+                    <h2 class="game-card-title">GUESS 10</h2>
+                    <span class="game-beta-pill">Beta</span>
+                  </div>
+                </div>
+                <p class="game-card-copy">Predict by color, suit, or rank, multiply the live pot on every hit, and cash out before the deck turns on you.</p>
+                <button
+                  type="button"
+                  class="home-button home-secondary"
+                  data-route-target="red-black"
+                  data-game-id="red-black"
+                >
+                  Play GUESS 10
+                </button>
+              </article>
+            </section>
+          </div>
+        </section>
+
+        <section id="red-black-view" class="route-view app-page beta-game-view" hidden aria-labelledby="red-black-paytable-title">
+          <div class="beta-game-shell">
+            <section class="beta-game-panel beta-ladder-panel" aria-labelledby="red-black-paytable-title">
+              <div class="beta-ladder-header">
+                <div class="beta-ladder-title-group">
+                  <div class="beta-ladder-game-tag" aria-label="Game title">
+                    <span class="beta-ladder-game-name">Guess 10</span>
+                    <span class="game-beta-pill beta-ladder-beta-pill">Beta</span>
+                  </div>
+                  <h2 id="red-black-paytable-title">Streak Ladder</h2>
+                </div>
+                <div class="beta-summary-inline" aria-label="Current hand summary">
+                  <span class="beta-summary-inline-item"><span class="beta-summary-inline-label">Wager</span><strong id="red-black-bet-display">0</strong></span>
+                  <span class="beta-summary-inline-item"><span class="beta-summary-inline-label">Pot</span><strong id="red-black-pot-display">0</strong></span>
+                  <span class="beta-summary-inline-item"><span class="beta-summary-inline-label">Streak</span><strong id="red-black-rung-display">0</strong></span>
+                  <span class="beta-summary-inline-item"><span class="beta-summary-inline-label">Commission</span><strong id="red-black-commission-display">0</strong></span>
+                </div>
+              </div>
+              <div class="beta-paytable beta-paytable-horizontal" role="table" aria-label="Prediction game streak ladder">
+                <div class="beta-paytable-row beta-paytable-head" role="row">
+                  <span role="columnheader">Step</span>
+                  <span role="columnheader">Commission</span>
+                </div>
+                <div class="beta-paytable-row" data-red-black-rung="1" role="row"><span role="cell">1</span><span role="cell">10% commission</span></div>
+                <div class="beta-paytable-row" data-red-black-rung="2" role="row"><span role="cell">2</span><span role="cell">9% commission</span></div>
+                <div class="beta-paytable-row" data-red-black-rung="3" role="row"><span role="cell">3</span><span role="cell">8% commission</span></div>
+                <div class="beta-paytable-row" data-red-black-rung="4" role="row"><span role="cell">4</span><span role="cell">7% commission</span></div>
+                <div class="beta-paytable-row" data-red-black-rung="5" role="row"><span role="cell">5</span><span role="cell">6% commission</span></div>
+                <div class="beta-paytable-row" data-red-black-rung="6" role="row"><span role="cell">6</span><span role="cell">5% commission</span></div>
+                <div class="beta-paytable-row" data-red-black-rung="7" role="row"><span role="cell">7</span><span role="cell">4% commission</span></div>
+                <div class="beta-paytable-row" data-red-black-rung="8" role="row"><span role="cell">8</span><span role="cell">3% commission</span></div>
+                <div class="beta-paytable-row" data-red-black-rung="9" role="row"><span role="cell">9</span><span role="cell">2% commission</span></div>
+                <div class="beta-paytable-row" data-red-black-rung="10" role="row"><span role="cell">10</span><span role="cell">1% commission</span></div>
+              </div>
+            </section>
+
+            <div class="beta-table-layout beta-table-layout-split">
+              <section class="beta-game-panel beta-table-panel beta-draw-panel" aria-labelledby="red-black-table-title">
+                <div class="beta-table-header">
+                  <div>
+                    <p class="beta-game-panel-kicker">Table</p>
+                    <h2 id="red-black-table-title">Prediction Hand</h2>
+                  </div>
+                </div>
+
+                <p id="red-black-status" class="status beta-status" aria-live="polite">
+                  Build one base wager, choose COLOR, SUIT, or RANK, make your selection, then draw.
+                </p>
+
+                <div class="beta-draw-area">
+                  <div class="dealer-header">
+                    <h3 class="draws-title">Revealed Cards</h3>
+                  </div>
+                  <div id="red-black-draws" class="draws beta-draws" aria-label="Cards revealed this hand">
+                    <div class="beta-draw-placeholder">No cards drawn yet.</div>
+                  </div>
+                </div>
+
+                <section class="beta-game-panel beta-inline-panel" aria-labelledby="red-black-history-title">
+                  <p class="beta-game-panel-kicker">Hand Log</p>
+                  <h2 id="red-black-history-title">Revealed History</h2>
+                  <ul id="red-black-history" class="beta-game-list beta-history-list" aria-live="polite"></ul>
+                </section>
+              </section>
+
+              <section class="beta-game-panel beta-table-panel beta-control-panel" aria-labelledby="red-black-controls-title">
+                <div class="beta-table-header">
+                  <div>
+                    <p class="beta-game-panel-kicker">Controls</p>
+                    <h2 id="red-black-controls-title">Bet & Prediction</h2>
+                  </div>
+                  <div class="beta-top-metrics">
+                    <span id="red-black-multiplier-display" class="beta-current-payout"></span>
+                    <span id="red-black-new-pot-display" class="beta-current-payout beta-current-payout-alt"></span>
+                  </div>
+                </div>
+
+                <div class="beta-bet-controls beta-bet-controls-prediction">
+                  <div class="beta-single-bet">
+                    <p class="beta-control-label">Base Wager</p>
+                    <button type="button" id="red-black-bet-spot" class="beta-bet-spot" aria-label="Place chip on base wager spot">
+                      <span class="beta-bet-spot-label">Main Bet</span>
+                      <span id="red-black-bet-total" class="beta-bet-spot-total">0</span>
+                      <div id="red-black-chip-stack" class="beta-chip-stack" aria-hidden="true"></div>
+                      <span id="red-black-selected-chip-label" class="beta-bet-spot-chip">Selected chip: 5</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="beta-prediction-panel">
+                  <div class="beta-action-group">
+                    <p class="beta-control-label">Category</p>
+                    <div id="red-black-category-selector" class="beta-category-row" role="radiogroup" aria-label="Choose prediction category">
+                      <button type="button" class="secondary beta-category-button active" data-red-black-category="color" aria-pressed="true">Color</button>
+                      <button type="button" class="secondary beta-category-button" data-red-black-category="suit" aria-pressed="false">Suit</button>
+                      <button type="button" class="secondary beta-category-button" data-red-black-category="rank" aria-pressed="false">Rank</button>
+                    </div>
+                  </div>
+
+                  <div class="beta-action-group">
+                    <p class="beta-control-label">Selection</p>
+                    <div class="beta-selection-meta" aria-live="polite">
+                      <span id="red-black-selection-hint" class="beta-selection-hint">Pick exactly 1 color.</span>
+                      <span id="red-black-selection-summary" class="beta-selection-summary">1 selected</span>
+                    </div>
+                    <div id="red-black-value-selector" class="beta-value-grid" aria-live="polite"></div>
+                  </div>
+                </div>
+
+              </section>
+            </div>
+
+            <div class="beta-bottom-panels">
+              <section class="beta-game-panel" aria-labelledby="red-black-overview-title">
+                <p class="beta-game-panel-kicker">How It Works</p>
+                <h2 id="red-black-overview-title">Core Loop</h2>
+                <ol class="beta-game-list">
+                  <li>Place one base wager.</li>
+                  <li>Choose COLOR, SUIT, or RANK before each draw.</li>
+                  <li>Pick valid values and review the multiplier.</li>
+                  <li>Draw one card. A match multiplies the current pot.</li>
+                  <li>Cash out after a hit, or continue predicting.</li>
+                </ol>
+              </section>
+
+              <section class="beta-game-panel" aria-labelledby="red-black-rules-title">
+                <p class="beta-game-panel-kicker">Rules</p>
+                <h2 id="red-black-rules-title">Selection Rules</h2>
+                <ul class="beta-game-list beta-game-list-bulleted">
+                  <li>52-card standard deck. No Joker.</li>
+                  <li>A fresh deck is shuffled before every draw.</li>
+                  <li>COLOR requires exactly 1 pick.</li>
+                  <li>SUIT allows 1 to 3 suits. RANK allows 1 to 12 ranks.</li>
+                  <li>Multiplier is shown live before each draw and applies to the current pot on a hit.</li>
+                  <li>Cash out pays the full base wager plus winnings minus the rung commission.</li>
+                </ul>
+              </section>
+            </div>
+
+          </div>
+          <div class="chip-bar beta-chip-bar" aria-label="RED BLACK chip rack and actions">
+            <div class="chip-selector-row beta-chip-selector-row">
+              <div id="red-black-chip-selector" class="chip-selector" role="radiogroup" aria-label="Choose chip denomination">
+                <button type="button" class="chip-choice active" data-red-black-chip="5" data-tone="0" aria-pressed="true">5</button>
+                <button type="button" class="chip-choice" data-red-black-chip="10" data-tone="1" aria-pressed="false">10</button>
+                <button type="button" class="chip-choice" data-red-black-chip="25" data-tone="2" aria-pressed="false">25</button>
+                <button type="button" class="chip-choice" data-red-black-chip="100" data-tone="3" aria-pressed="false">100</button>
+              </div>
+            </div>
+            <div class="chip-actions beta-chip-actions">
+              <button type="button" id="red-black-clear-bet" class="secondary" hidden>Clear</button>
+              <button type="button" id="red-black-rebet" class="secondary" disabled>Rebet</button>
+              <button type="button" id="red-black-draw" class="deal" disabled>Draw</button>
+              <button type="button" id="red-black-withdraw" class="secondary" disabled>Cash Out</button>
             </div>
           </div>
         </section>
 
-        <section id="play-view" class="route-view app-page play-view" hidden>
+        <section id="run-the-numbers-view" class="route-view app-page play-view" hidden>
           <main class="layout" aria-label="Run the Numbers simulator">
         <div class="panels">
           <section class="panel table-panel" aria-label="Table play area">
             <section class="dealer-zone" aria-live="polite">
               <div class="dealer-header">
-                <h2 class="draws-title">Cards Dealt</h2>
+                <div class="dealer-title-group">
+                  <p class="dealer-game-tag">Run the Numbers</p>
+                  <h2 class="draws-title">Cards Dealt</h2>
+                </div>
                 <label class="advanced-toggle deal-mode-toggle is-active" id="auto-deal-toggle-wrap">
                   <input type="checkbox" id="auto-deal-toggle" checked aria-checked="true" />
                   <span class="toggle-label">Auto Deal</span>
@@ -2152,8 +2359,8 @@
     >
       <div class="modal-content hand-review-modal">
         <div class="modal-header">
-          <h2 id="player-mode-breakdown-title">Player Hand Breakdown</h2>
-          <button type="button" class="modal-close" id="player-mode-breakdown-close" aria-label="Close player hand breakdown">×</button>
+          <h2 id="player-mode-breakdown-title">Player Game Breakdown</h2>
+          <button type="button" class="modal-close" id="player-mode-breakdown-close" aria-label="Close player game breakdown">×</button>
         </div>
         <div class="modal-body hand-review-body">
           <p id="player-mode-breakdown-summary" class="hand-review-summary"></p>
@@ -2161,7 +2368,7 @@
             <table class="hand-review-table">
               <thead>
                 <tr>
-                  <th scope="col">Mode</th>
+                  <th scope="col">Game</th>
                   <th scope="col">Hands</th>
                 </tr>
               </thead>
@@ -2496,6 +2703,17 @@
                   <option value="7">The Ledger only</option>
                 </select>
               </label>
+              <fieldset class="admin-field admin-field-full">
+                <span>Games</span>
+                <label class="admin-checkbox">
+                  <input type="checkbox" name="contestGameIds" value="run-the-numbers" checked />
+                  <span>Run the Numbers</span>
+                </label>
+                <label class="admin-checkbox">
+                  <input type="checkbox" name="contestGameIds" value="guess-10" checked />
+                  <span>Guess 10</span>
+                </label>
+              </fieldset>
             </div>
           </fieldset>
           <label class="admin-field">

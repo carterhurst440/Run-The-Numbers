@@ -13,6 +13,21 @@ type RunRow = {
   metadata?: Record<string, unknown> | null;
 };
 
+type HandRow = {
+  created_at?: string | null;
+  game_id?: string | null;
+};
+
+const GAME_IDS = {
+  RUN_THE_NUMBERS: "run-the-numbers",
+  GUESS_10: "guess-10"
+} as const;
+
+const GAME_LABELS: Record<string, string> = {
+  [GAME_IDS.RUN_THE_NUMBERS]: "Run the Numbers",
+  [GAME_IDS.GUESS_10]: "Guess 10"
+};
+
 function getPeriodStart(period: string) {
   const now = Date.now();
   if (period === "hour") return new Date(now - 60 * 60 * 1000);
@@ -55,6 +70,85 @@ function formatBucketLabel(date: Date, bucketMinutes: number) {
     hour: "numeric",
     minute: bucketMinutes < 60 ? "2-digit" : undefined
   });
+}
+
+function formatDayBucketLabel(date: Date) {
+  return date.toLocaleDateString([], {
+    month: "short",
+    day: "numeric"
+  });
+}
+
+function normalizeGameId(value: unknown) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === GAME_IDS.GUESS_10 || normalized === "red-black" || normalized === "red_black" || normalized === "guess10") {
+    return GAME_IDS.GUESS_10;
+  }
+  if (normalized === GAME_IDS.RUN_THE_NUMBERS || normalized === "run_the_numbers") {
+    return GAME_IDS.RUN_THE_NUMBERS;
+  }
+  return GAME_IDS.RUN_THE_NUMBERS;
+}
+
+async function loadHands(
+  supabase: ReturnType<typeof createClient>,
+  {
+    startAt,
+    endAt,
+    userIds
+  }: {
+    startAt: Date | null;
+    endAt: Date;
+    userIds: string[];
+  }
+) {
+  const allHands: HandRow[] = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+  let includeGameId = true;
+
+  while (hasMore) {
+    let query = supabase
+      .from("game_hands")
+      .select(includeGameId ? "created_at, game_id" : "created_at")
+      .lte("created_at", endAt.toISOString())
+      .order("created_at", { ascending: true })
+      .range(page * pageSize, page * pageSize + pageSize - 1);
+
+    if (startAt) {
+      query = query.gte("created_at", startAt.toISOString());
+    }
+
+    if (userIds.length) {
+      query = query.in("user_id", userIds);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      const message = String(error?.message || error?.details || "");
+      if (includeGameId && message.includes("game_id") && message.includes("does not exist")) {
+        includeGameId = false;
+        page = 0;
+        hasMore = true;
+        allHands.length = 0;
+        continue;
+      }
+      throw error;
+    }
+
+    const batch = Array.isArray(data) ? data : [];
+    batch.forEach((row) => {
+      allHands.push({
+        created_at: row.created_at,
+        game_id: includeGameId ? normalizeGameId(row.game_id) : GAME_IDS.RUN_THE_NUMBERS
+      });
+    });
+    hasMore = batch.length === pageSize;
+    page += 1;
+  }
+
+  return allHands;
 }
 
 async function loadRunsForUser(supabase: ReturnType<typeof createClient>, userId: string) {
@@ -135,49 +229,67 @@ Deno.serve(async (request) => {
       const startDate = requestedStart && !Number.isNaN(requestedStart.getTime())
         ? requestedStart
         : getPeriodStart(period) || new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const bucketMinutes = period === "hour" ? 5 : 60;
-      const bucketCount = period === "hour" ? 12 : 24;
       const targetUserIds = Array.isArray(body?.targetUserIds)
         ? body.targetUserIds.map((value: unknown) => String(value || "").trim()).filter(Boolean)
         : [];
 
-      const allRecords: Array<{ created_at?: string | null }> = [];
-      const pageSize = 1000;
-      let page = 0;
-      let hasMore = true;
+      const allRecords = await loadHands(supabase, {
+        startAt: startDate,
+        endAt: now,
+        userIds: targetUserIds
+      });
 
-      while (hasMore) {
-        let query = supabase
-          .from("game_hands")
-          .select("created_at")
-          .gte("created_at", startDate.toISOString())
-          .lte("created_at", now.toISOString())
-          .order("created_at", { ascending: true })
-          .range(page * pageSize, page * pageSize + pageSize - 1);
-
-        if (targetUserIds.length) {
-          query = query.in("user_id", targetUserIds);
+      const bucketStarts: Date[] = [];
+      if (period === "hour") {
+        const current = new Date(startDate);
+        current.setSeconds(0, 0);
+        current.setMinutes(Math.floor(current.getMinutes() / 5) * 5, 0, 0);
+        while (current <= now) {
+          bucketStarts.push(new Date(current));
+          current.setMinutes(current.getMinutes() + 5);
         }
-
-        const { data, error } = await query;
-        if (error) throw error;
-
-        const batch = Array.isArray(data) ? data : [];
-        allRecords.push(...batch);
-        hasMore = batch.length === pageSize;
-        page += 1;
+      } else if (period === "day") {
+        const current = new Date(startDate);
+        current.setMinutes(0, 0, 0);
+        while (current <= now) {
+          bucketStarts.push(new Date(current));
+          current.setHours(current.getHours() + 1);
+        }
+      } else {
+        const current = new Date(startDate);
+        current.setHours(0, 0, 0, 0);
+        const endDay = new Date(now);
+        endDay.setHours(0, 0, 0, 0);
+        while (current <= endDay) {
+          bucketStarts.push(new Date(current));
+          current.setDate(current.getDate() + 1);
+        }
       }
 
-      const rows = Array.from({ length: bucketCount }, (_, index) => {
-        const bucketStart = new Date(startDate.getTime() + index * bucketMinutes * 60 * 1000);
-        const bucketEnd = new Date(bucketStart.getTime() + bucketMinutes * 60 * 1000);
-        const handsPlayed = allRecords.filter((entry) => {
+      const rows = bucketStarts.map((bucketStart) => {
+        const bucketEnd = new Date(bucketStart);
+        if (period === "hour") {
+          bucketEnd.setMinutes(bucketEnd.getMinutes() + 5);
+        } else if (period === "day") {
+          bucketEnd.setHours(bucketEnd.getHours() + 1);
+        } else {
+          bucketEnd.setDate(bucketEnd.getDate() + 1);
+        }
+        const matchingHands = allRecords.filter((entry) => {
           const createdAt = entry?.created_at ? new Date(entry.created_at) : null;
           return createdAt && !Number.isNaN(createdAt.getTime()) && createdAt >= bucketStart && createdAt < bucketEnd;
-        }).length;
+        });
+        const runTheNumbersHands = matchingHands.filter((entry) => normalizeGameId(entry.game_id) === GAME_IDS.RUN_THE_NUMBERS).length;
+        const guess10Hands = matchingHands.filter((entry) => normalizeGameId(entry.game_id) === GAME_IDS.GUESS_10).length;
         return {
-          label: formatBucketLabel(bucketStart, bucketMinutes),
-          handsPlayed
+          label: period === "hour"
+            ? formatBucketLabel(bucketStart, 5)
+            : period === "day"
+              ? formatBucketLabel(bucketStart, 60)
+              : formatDayBucketLabel(bucketStart),
+          handsPlayed: matchingHands.length,
+          runTheNumbersHands,
+          guess10Hands
         };
       });
 
@@ -231,50 +343,27 @@ Deno.serve(async (request) => {
     }
 
     if (action === "player_mode_breakdown") {
-      const contestIds = Array.from(
-        new Set(
-          runsInPeriod
-            .map((run) => getContestIdFromRun(run))
-            .filter(Boolean)
-        )
-      ) as string[];
+      const hands = await loadHands(supabase, {
+        startAt: getPeriodStart(period),
+        endAt: new Date(),
+        userIds: [userId]
+      });
 
-      let contestTitleMap = new Map<string, string>();
-      if (contestIds.length) {
-        const { data: contests, error: contestError } = await supabase
-          .from("contests")
-          .select("id, title")
-          .in("id", contestIds);
-        if (contestError) throw contestError;
-        contestTitleMap = new Map(
-          (Array.isArray(contests) ? contests : []).map((contest) => [String(contest.id), String(contest.title || "Contest Mode")])
-        );
-      }
+      const counts = new Map<string, number>([
+        [GAME_IDS.RUN_THE_NUMBERS, 0],
+        [GAME_IDS.GUESS_10, 0]
+      ]);
 
-      const counts = new Map<string, { label: string; handsPlayed: number }>();
-      runsInPeriod.forEach((run) => {
-        const modeKey = getRunModeKey(run);
-        if (modeKey === "normal") {
-          const current = counts.get(modeKey) || { label: "Normal Mode", handsPlayed: 0 };
-          current.handsPlayed += 1;
-          counts.set(modeKey, current);
-          return;
-        }
-
-        const contestId = getContestIdFromRun(run);
-        const label = contestId
-          ? `Contest: ${contestTitleMap.get(contestId) || "Contest Mode"}`
-          : "Contest Mode";
-        const current = counts.get(modeKey) || { label, handsPlayed: 0 };
-        current.handsPlayed += 1;
-        counts.set(modeKey, current);
+      hands.forEach((hand) => {
+        const gameId = normalizeGameId(hand.game_id);
+        counts.set(gameId, (counts.get(gameId) || 0) + 1);
       });
 
       const rows = Array.from(counts.entries())
-        .map(([key, value]) => ({
+        .map(([key, handsPlayed]) => ({
           key,
-          label: value.label,
-          handsPlayed: value.handsPlayed
+          label: GAME_LABELS[key] || "Unknown Game",
+          handsPlayed
         }))
         .sort((a, b) => b.handsPlayed - a.handsPlayed || a.label.localeCompare(b.label));
 
