@@ -1314,6 +1314,17 @@ async function setRoute(route, { replaceHash = false } = {}) {
     setViewVisibility(targetView, true);
   }
 
+  if (redBlackChipBarEl) {
+    redBlackChipBarEl.hidden = resolvedRoute !== "red-black";
+  }
+
+  if (resolvedRoute === "red-black") {
+    updateRedBlackMultiplierChip();
+    renderRedBlackSummary();
+    updateRedBlackActionState();
+    updateRedBlackPaytableHighlight();
+  }
+
   if (resolvedRoute === "run-the-numbers") {
     schedulePlayAreaHeightUpdate();
   } else {
@@ -8478,6 +8489,7 @@ const redBlackStatusEl = document.getElementById("red-black-status");
 const redBlackBetDisplayEl = document.getElementById("red-black-bet-display");
 const redBlackPotDisplayEl = document.getElementById("red-black-pot-display");
 const redBlackRungDisplayEl = document.getElementById("red-black-rung-display");
+const redBlackMultiplierChipEl = document.getElementById("red-black-multiplier-chip");
 const redBlackCommissionDisplayEl = document.getElementById("red-black-commission-display");
 const redBlackDrawsEl = document.getElementById("red-black-draws");
 const redBlackHistoryEl = document.getElementById("red-black-history");
@@ -8486,6 +8498,9 @@ const redBlackBetSpotButton = document.getElementById("red-black-bet-spot");
 const redBlackBetTotalEl = document.getElementById("red-black-bet-total");
 const redBlackBetEmptyLabelEl = document.getElementById("red-black-bet-empty-label");
 const redBlackChipStackEl = document.getElementById("red-black-chip-stack");
+const redBlackPotTotalEl = document.getElementById("red-black-pot-total");
+const redBlackPotEmptyLabelEl = document.getElementById("red-black-pot-empty-label");
+const redBlackPotChipStackEl = document.getElementById("red-black-pot-chip-stack");
 const redBlackSelectedChipLabelEl = document.getElementById("red-black-selected-chip-label");
 const redBlackChipButtons = Array.from(document.querySelectorAll("[data-red-black-chip]"));
 const redBlackCategoryButtons = Array.from(document.querySelectorAll("[data-red-black-category]"));
@@ -8568,6 +8583,7 @@ const homeView = document.getElementById("home-view");
 const playView = document.getElementById("play-view");
 const runTheNumbersView = document.getElementById("run-the-numbers-view");
 const redBlackView = document.getElementById("red-black-view");
+const redBlackChipBarEl = document.getElementById("red-black-chip-bar");
 const contestsView = document.getElementById("contests-view");
 const storeView = document.getElementById("store-view");
 const dashboardView = document.getElementById("dashboard-view");
@@ -8585,7 +8601,7 @@ const routeViews = {
   profile: profileView
 };
 const headerEl = document.querySelector(".header");
-const chipBarEl = document.querySelector(".chip-bar");
+const chipBarEl = runTheNumbersView ? runTheNumbersView.querySelector(".chip-bar") : null;
 const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout") : null;
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
 const TABLE_ROUTES = new Set(["home", "play", "run-the-numbers", "red-black", "contests", "store", "admin"]);
@@ -9868,23 +9884,19 @@ function updateRedBlackActionState() {
 function renderRedBlackSummary() {
   const commissionRate = getRedBlackCommissionRate();
   const commissionUnits = roundCurrencyValue(Math.max(0, redBlackCurrentPot - redBlackBet) * commissionRate);
-  const selectionValid = isRedBlackSelectionValid();
-  const multiplierText = selectionValid ? formatRedBlackMultiplier(getRedBlackMultiplier()) : "0x";
-  if (redBlackBetDisplayEl) {
-    redBlackBetDisplayEl.textContent = formatCurrency(redBlackBet);
-  }
-  if (redBlackPotDisplayEl) {
-    redBlackPotDisplayEl.textContent = formatCurrency(redBlackCurrentPot);
-  }
   if (redBlackBetTotalEl) {
     redBlackBetTotalEl.textContent = formatCurrency(redBlackBet);
+  }
+  if (redBlackPotTotalEl) {
+    redBlackPotTotalEl.textContent = formatCurrency(redBlackCurrentPot);
   }
   if (redBlackBetEmptyLabelEl) {
     redBlackBetEmptyLabelEl.hidden = redBlackBet > 0;
   }
-  if (redBlackRungDisplayEl) {
-    redBlackRungDisplayEl.textContent = multiplierText;
+  if (redBlackPotEmptyLabelEl) {
+    redBlackPotEmptyLabelEl.hidden = redBlackCurrentPot > 0;
   }
+  updateRedBlackMultiplierChip();
   if (redBlackCommissionDisplayEl) {
     redBlackCommissionDisplayEl.textContent = `${formatCurrency(commissionUnits)} (${Math.round(commissionRate * 100)}%)`;
   }
@@ -9893,6 +9905,13 @@ function renderRedBlackSummary() {
   }
   renderRedBlackSelectionMeta();
   renderRedBlackBetStack();
+  renderRedBlackPotStack();
+}
+
+function updateRedBlackMultiplierChip() {
+  if (!redBlackMultiplierChipEl) return;
+  const multiplierText = (formatRedBlackMultiplier(getRedBlackPreviewMultiplier()) || "0x").toUpperCase();
+  redBlackMultiplierChipEl.textContent = `Multiplier ${multiplierText}`;
 }
 
 function updateRedBlackPaytableHighlight() {
@@ -10003,6 +10022,13 @@ function getRedBlackMultiplier() {
   return 13 / redBlackSelectedValues.length;
 }
 
+function getRedBlackPreviewMultiplier() {
+  if (redBlackCategory === "color") return 2;
+  const count = Math.max(1, redBlackSelectedValues.length);
+  if (redBlackCategory === "suit") return 4 / count;
+  return 13 / count;
+}
+
 function formatRedBlackMultiplier(value) {
   if (!Number.isFinite(Number(value)) || Number(value) <= 0) return "";
   return `${roundCurrencyValue(value)}x`;
@@ -10051,13 +10077,12 @@ function renderRedBlackSelectionMeta() {
   }
 }
 
-function renderRedBlackBetStack() {
-  if (!redBlackChipStackEl) return;
-  redBlackChipStackEl.innerHTML = "";
-  if (redBlackBet <= 0) return;
-
+function renderRedBlackChipStack(stackEl, amount) {
+  if (!stackEl) return;
+  stackEl.innerHTML = "";
+  if (amount <= 0) return;
   const chipsToRender = [];
-  let remaining = redBlackBet;
+  let remaining = amount;
   const orderedChips = [...RED_BLACK_CHIPS].sort((a, b) => b - a);
 
   orderedChips.forEach((value) => {
@@ -10080,11 +10105,19 @@ function renderRedBlackBetStack() {
     chip.style.setProperty("--stack-index", String(index));
     chip.style.setProperty("--stack-shift", `${Math.min(index, 4) * 3}px`);
     chip.style.zIndex = String(index + 1);
-    redBlackChipStackEl.appendChild(chip);
+    stackEl.appendChild(chip);
     requestAnimationFrame(() => {
       chip.classList.add("chip-enter");
     });
   });
+}
+
+function renderRedBlackBetStack() {
+  renderRedBlackChipStack(redBlackChipStackEl, redBlackBet);
+}
+
+function renderRedBlackPotStack() {
+  renderRedBlackChipStack(redBlackPotChipStackEl, redBlackCurrentPot);
 }
 
 function resetRedBlackHand({ keepBet = true } = {}) {
@@ -10305,6 +10338,7 @@ function setRedBlackCategory(category) {
     redBlackSelectedValues = [];
   }
   renderRedBlackValueSelector();
+  updateRedBlackMultiplierChip();
   renderRedBlackSummary();
   updateRedBlackActionState();
 }
@@ -10319,6 +10353,7 @@ function toggleRedBlackValue(value) {
     redBlackSelectedValues = [...redBlackSelectedValues, value];
   }
   renderRedBlackValueSelector();
+  updateRedBlackMultiplierChip();
   renderRedBlackSummary();
   updateRedBlackActionState();
 }

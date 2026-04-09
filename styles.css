@@ -1546,6 +1546,35 @@ body[data-app-state="loading"] #app-shell {
   flex-wrap: wrap;
 }
 
+.beta-control-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.beta-control-title-row h2 {
+  margin: 0;
+  min-width: 0;
+}
+
+.beta-control-multiplier {
+  flex: 0 0 auto;
+  min-height: 1.85rem;
+  padding: 0.28rem 0.72rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 214, 128, 0.28);
+  background: rgba(255, 214, 128, 0.1);
+  color: #ffe9b3;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .beta-ladder-panel {
   display: grid;
   gap: 0;
@@ -1569,13 +1598,13 @@ body[data-app-state="loading"] #app-shell {
 
 .beta-ladder-sticky-step {
   display: grid;
-  gap: 0.16rem;
+  gap: 0.2rem;
   align-items: start;
 }
 
 .beta-ladder-sticky-fill {
   display: block;
-  height: 6px;
+  height: 8px;
   border-radius: 999px;
   background: var(--rung-fill-idle, rgba(224, 244, 255, 0.18));
   transition: background-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
@@ -1594,9 +1623,9 @@ body[data-app-state="loading"] #app-shell {
 
 .beta-ladder-sticky-label {
   color: rgba(224, 244, 255, 0.46);
-  font-size: 0.5rem;
+  font-size: 0.58rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
   text-align: center;
   line-height: 1;
   white-space: nowrap;
@@ -1768,10 +1797,16 @@ body[data-app-state="loading"] #app-shell {
 
 .beta-wager-inline-row {
   display: grid;
-  grid-template-columns: 220px minmax(5.6rem, max-content);
+  grid-template-columns: 220px 220px;
   align-items: center;
   gap: 0.55rem;
   width: auto;
+}
+
+.beta-bet-spot-wrap {
+  position: relative;
+  width: 220px;
+  min-width: 220px;
 }
 
 .beta-action-group-wager {
@@ -1811,6 +1846,12 @@ body[data-app-state="loading"] #app-shell {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 10px 20px rgba(2, 6, 18, 0.14);
+}
+
+.beta-pot-spot {
+  pointer-events: none;
+  border-color: rgba(110, 206, 255, 0.2);
+  background: rgba(8, 20, 44, 0.34);
 }
 
 .beta-bet-spot:hover,
@@ -1855,6 +1896,10 @@ body[data-app-state="loading"] #app-shell {
   pointer-events: none;
 }
 
+.beta-chip-stack-pot .chip {
+  box-shadow: 0 10px 20px rgba(8, 32, 72, 0.4);
+}
+
 .beta-chip-stack .chip {
   position: absolute;
   left: 50%;
@@ -1888,22 +1933,41 @@ body[data-app-state="loading"] #app-shell {
   text-align: left;
 }
 
-.beta-inline-clear {
-  min-height: 2rem;
-  min-width: 5.6rem;
-  padding: 0.45rem 0.8rem;
-  font-size: 0.68rem;
-  letter-spacing: 0.14em;
+.beta-inline-clear-chip {
+  position: absolute;
+  right: 0.42rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.2rem;
+  height: 1.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(224, 244, 255, 0.18);
+  background: rgba(9, 18, 38, 0.72);
+  color: rgba(224, 244, 255, 0.82);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.18s ease;
+  transition: opacity 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 
-.beta-inline-clear.is-visible {
+.beta-inline-clear-chip.is-visible {
   visibility: visible;
   opacity: 1;
   pointer-events: auto;
+}
+
+.beta-inline-clear-chip:hover,
+.beta-inline-clear-chip:focus-visible {
+  border-color: rgba(224, 244, 255, 0.34);
+  background: rgba(18, 30, 62, 0.92);
+  outline: none;
 }
 
 .beta-action-groups {
@@ -2154,15 +2218,20 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .beta-chip-bar {
-  margin-top: 0;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  margin: 0;
   border-radius: 0;
   box-sizing: border-box;
-  width: calc(100vw + env(safe-area-inset-left) + env(safe-area-inset-right));
-  max-width: none;
-  margin-left: calc(50% - 50vw - env(safe-area-inset-left));
-  margin-right: calc(50% - 50vw - env(safe-area-inset-right));
   padding-left: calc(clamp(1.1rem, 4vw, 1.9rem) + env(safe-area-inset-left));
   padding-right: calc(clamp(1.1rem, 4vw, 1.9rem) + env(safe-area-inset-right));
+  padding-bottom: calc(clamp(0.45rem, 1.2vw, 0.75rem) + env(safe-area-inset-bottom));
+  max-width: none;
+  align-self: auto;
+  z-index: 30;
 }
 
 .beta-chip-selector-row {
@@ -2661,7 +2730,7 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .beta-wager-inline-row {
-    grid-template-columns: 190px minmax(5rem, max-content);
+    grid-template-columns: 190px 190px;
   }
 
   .beta-bet-spot-total {
@@ -6725,6 +6794,21 @@ body.play-assistant-open .play-assistant-fab {
 
   .chip-selector-row {
     justify-content: center;
+  }
+
+  .beta-wager-inline-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .beta-bet-spot-wrap {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .beta-bet-spot-circle {
+    width: 100%;
+    min-width: 0;
   }
 }
 

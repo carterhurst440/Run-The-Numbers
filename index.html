@@ -720,12 +720,6 @@
                     <p class="beta-game-panel-kicker">Table</p>
                     <h2 id="red-black-table-title">Cards Dealt</h2>
                   </div>
-                  <div class="beta-summary-inline beta-summary-inline-hand" aria-label="Current hand summary">
-                    <span class="beta-summary-inline-item"><span class="beta-summary-inline-label">Wager</span><strong id="red-black-bet-display">0</strong></span>
-                    <span class="beta-summary-inline-item"><span class="beta-summary-inline-label">Pot Size</span><strong id="red-black-pot-display">0</strong></span>
-                    <span class="beta-summary-inline-item"><span class="beta-summary-inline-label">Commission</span><strong id="red-black-commission-display">0</strong></span>
-                    <span class="beta-summary-inline-item"><span class="beta-summary-inline-label">Multiplier</span><strong id="red-black-rung-display">0x</strong></span>
-                  </div>
                 </div>
 
                 <div class="beta-draw-area">
@@ -745,16 +739,26 @@
                 <div class="beta-table-header">
                   <div class="beta-control-heading">
                     <p class="beta-game-panel-kicker">Controls</p>
-                    <h2 id="red-black-controls-title">Prediction</h2>
+                    <div class="beta-control-title-row">
+                      <h2 id="red-black-controls-title">Prediction</h2>
+                      <span id="red-black-multiplier-chip" class="beta-control-multiplier">Multiplier 2X</span>
+                    </div>
                     <div class="beta-action-group beta-action-group-wager">
                       <p class="beta-control-label">Wager</p>
                       <div class="beta-wager-inline-row">
-                        <button type="button" id="red-black-bet-spot" class="beta-bet-spot beta-bet-spot-circle" aria-label="Place chip on base wager spot">
-                          <span id="red-black-bet-empty-label" class="beta-bet-empty-label">Place Bets</span>
-                          <span id="red-black-bet-total" class="beta-bet-spot-total">0</span>
-                          <div id="red-black-chip-stack" class="beta-chip-stack" aria-hidden="true"></div>
-                        </button>
-                        <button type="button" id="red-black-clear-bet-inline" class="secondary beta-inline-clear" aria-hidden="true" tabindex="-1">Clear</button>
+                        <div class="beta-bet-spot-wrap">
+                          <button type="button" id="red-black-bet-spot" class="beta-bet-spot beta-bet-spot-circle" aria-label="Place chip on base wager spot">
+                            <span id="red-black-bet-empty-label" class="beta-bet-empty-label">Place Bets</span>
+                            <span id="red-black-bet-total" class="beta-bet-spot-total">0</span>
+                            <div id="red-black-chip-stack" class="beta-chip-stack" aria-hidden="true"></div>
+                          </button>
+                          <button type="button" id="red-black-clear-bet-inline" class="beta-inline-clear-chip" aria-label="Clear wager" aria-hidden="true" tabindex="-1">X</button>
+                        </div>
+                        <div id="red-black-pot-spot" class="beta-bet-spot beta-bet-spot-circle beta-pot-spot" aria-label="Current pot">
+                          <span id="red-black-pot-empty-label" class="beta-bet-empty-label">Current Pot</span>
+                          <span id="red-black-pot-total" class="beta-bet-spot-total">0</span>
+                          <div id="red-black-pot-chip-stack" class="beta-chip-stack beta-chip-stack-pot" aria-hidden="true"></div>
+                        </div>
                       </div>
                       <span id="red-black-selected-chip-label" class="beta-bet-spot-chip">Wager: 0</span>
                     </div>
@@ -818,22 +822,23 @@
             </div>
 
           </div>
-          <div class="chip-bar beta-chip-bar" aria-label="RED BLACK chip rack and actions">
-            <div class="chip-selector-row beta-chip-selector-row">
-              <div id="red-black-chip-selector" class="chip-selector" role="radiogroup" aria-label="Choose chip denomination">
-                <button type="button" class="chip-choice active" data-red-black-chip="5" data-tone="0" aria-pressed="true">5</button>
-                <button type="button" class="chip-choice" data-red-black-chip="10" data-tone="1" aria-pressed="false">10</button>
-                <button type="button" class="chip-choice" data-red-black-chip="25" data-tone="2" aria-pressed="false">25</button>
-                <button type="button" class="chip-choice" data-red-black-chip="100" data-tone="3" aria-pressed="false">100</button>
-              </div>
-            </div>
-            <div class="chip-actions beta-chip-actions">
-              <button type="button" id="red-black-rebet" class="secondary" disabled>Rebet</button>
-              <button type="button" id="red-black-draw" class="deal" disabled>Draw</button>
-              <button type="button" id="red-black-withdraw" class="secondary" disabled>Cash Out</button>
+        </section>
+
+        <div id="red-black-chip-bar" class="chip-bar beta-chip-bar" aria-label="RED BLACK chip rack and actions" hidden>
+          <div class="chip-selector-row beta-chip-selector-row">
+            <div id="red-black-chip-selector" class="chip-selector" role="radiogroup" aria-label="Choose chip denomination">
+              <button type="button" class="chip-choice active" data-red-black-chip="5" data-tone="0" aria-pressed="true">5</button>
+              <button type="button" class="chip-choice" data-red-black-chip="10" data-tone="1" aria-pressed="false">10</button>
+              <button type="button" class="chip-choice" data-red-black-chip="25" data-tone="2" aria-pressed="false">25</button>
+              <button type="button" class="chip-choice" data-red-black-chip="100" data-tone="3" aria-pressed="false">100</button>
             </div>
           </div>
-        </section>
+          <div class="chip-actions beta-chip-actions">
+            <button type="button" id="red-black-rebet" class="secondary" disabled>Rebet</button>
+            <button type="button" id="red-black-draw" class="deal" disabled>Draw</button>
+            <button type="button" id="red-black-withdraw" class="secondary" disabled>Cash Out</button>
+          </div>
+        </div>
 
         <section id="run-the-numbers-view" class="route-view app-page play-view" hidden>
           <main class="layout" aria-label="Run the Numbers simulator">
