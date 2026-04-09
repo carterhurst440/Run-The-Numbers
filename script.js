@@ -5384,7 +5384,7 @@ function splitContestParticipants(leaderboard = []) {
 }
 
 function buildContestHistory(baseHistory = [], creditsValue, label = "Checkpoint", createdAt = new Date().toISOString()) {
-  const safeCredits = Number.isFinite(Number(creditsValue)) ? Math.max(0, Math.round(Number(creditsValue))) : 0;
+  const safeCredits = normalizeStoredCreditValue(creditsValue);
   const history = Array.isArray(baseHistory) ? [...baseHistory] : [];
   const nextPoint = {
     label,
@@ -6466,7 +6466,7 @@ async function finalizeContestEntryFromLocalState(contest, entry) {
   }
 
   const finalSnapshot = {
-    current_credits: Number.isFinite(Number(bankroll)) ? Math.max(0, Math.round(Number(bankroll))) : 0,
+    current_credits: normalizeStoredCreditValue(bankroll),
     current_carter_cash: Number.isFinite(Number(carterCash)) ? Math.max(0, Math.round(Number(carterCash))) : 0,
     current_carter_cash_progress: Number.isFinite(Number(carterCashProgress)) ? Math.max(0, Number(carterCashProgress)) : 0,
     contest_history: buildContestHistory(entry.contest_history, bankroll, "Finish"),
@@ -6649,7 +6649,7 @@ async function optIntoContest(contest = currentContest) {
       return;
     }
 
-    const startingCredits = Math.max(0, Math.round(Number(contest.starting_credits || 0)));
+    const startingCredits = normalizeStoredCreditValue(contest.starting_credits || 0);
     const startingCarterCash = Math.max(0, Math.round(Number(contest.starting_carter_cash || 0)));
     const displayName = getContestDisplayName(currentProfile, currentUser.id);
     let chargedProfile = null;
@@ -6695,7 +6695,7 @@ async function optIntoContest(contest = currentContest) {
     const entryPayload = {
       contest_id: contest.id,
       user_id: currentUser.id,
-      pre_contest_credits: Number.isFinite(Number(currentProfile?.credits)) ? Math.round(Number(currentProfile.credits)) : INITIAL_BANKROLL,
+      pre_contest_credits: normalizeStoredCreditValue(currentProfile?.credits ?? INITIAL_BANKROLL),
       pre_contest_carter_cash: Number.isFinite(Number(currentProfile?.carter_cash)) ? Math.round(Number(currentProfile.carter_cash)) : 0,
       pre_contest_carter_cash_progress: Number.isFinite(Number(currentProfile?.carter_cash_progress))
         ? Number(currentProfile.carter_cash_progress)
@@ -9839,7 +9839,7 @@ function updateRedBlackActionState() {
 
 function renderRedBlackSummary() {
   const commissionRate = getRedBlackCommissionRate();
-  const commissionUnits = normalizeStoredCreditValue(Math.max(0, redBlackCurrentPot - redBlackBet) * commissionRate);
+  const commissionUnits = roundCurrencyValue(Math.max(0, redBlackCurrentPot - redBlackBet) * commissionRate);
   const selectionValid = isRedBlackSelectionValid();
   const multiplierText = selectionValid ? formatRedBlackMultiplier(getRedBlackMultiplier()) : "0x";
   if (redBlackBetDisplayEl) {
@@ -10108,7 +10108,7 @@ async function dealRedBlackCard() {
       return;
     }
     redBlackLastBet = redBlackBet;
-    bankroll = normalizeStoredCreditValue(bankroll - redBlackBet);
+    bankroll = roundCurrencyValue(bankroll - redBlackBet);
     handleBankrollChanged();
     redBlackRung = 0;
     redBlackCurrentPot = redBlackBet;
@@ -10156,7 +10156,7 @@ async function dealRedBlackCard() {
     return;
   }
 
-  redBlackCurrentPot = normalizeStoredCreditValue(redBlackCurrentPot * multiplier);
+  redBlackCurrentPot = roundCurrencyValue(redBlackCurrentPot * multiplier);
   redBlackRung += 1;
   if (cardEl) {
     cardEl.classList.add("card-match");
@@ -10191,9 +10191,9 @@ async function withdrawRedBlackHand() {
   const completedCards = redBlackHistoryEl?.children.length || redBlackRung;
   const commissionRate = getRedBlackCommissionRate();
   const winnings = Math.max(0, redBlackCurrentPot - redBlackBet);
-  const commission = normalizeStoredCreditValue(winnings * commissionRate);
-  const payout = normalizeStoredCreditValue(redBlackCurrentPot - commission);
-  bankroll = normalizeStoredCreditValue(bankroll + payout);
+  const commission = roundCurrencyValue(winnings * commissionRate);
+  const payout = roundCurrencyValue(redBlackCurrentPot - commission);
+  bankroll = roundCurrencyValue(bankroll + payout);
   handleBankrollChanged();
   finishRedBlackHand(
     `You cashed out for ${formatCurrency(payout)} after a ${redBlackRung}-card streak. Commission: ${formatPercent(
@@ -10281,7 +10281,7 @@ function roundCurrencyValue(value) {
 
 function normalizeStoredCreditValue(value) {
   if (!Number.isFinite(Number(value))) return 0;
-  return Math.max(0, Math.round(Number(value)));
+  return Math.max(0, Number(Number(value).toFixed(2)));
 }
 
 function formatCurrency(value) {
@@ -12184,7 +12184,7 @@ async function performAccountReset() {
   const modeContest = getModeContest();
   const modeEntry = getModeContestEntry();
   const resetCredits = contestMode
-    ? Math.max(0, Math.round(Number(modeEntry?.starting_credits ?? modeContest?.starting_credits ?? 0)))
+    ? normalizeStoredCreditValue(modeEntry?.starting_credits ?? modeContest?.starting_credits ?? 0)
     : INITIAL_BANKROLL;
   const resetCarterCash = contestMode
     ? Math.max(0, Math.round(Number(modeEntry?.starting_carter_cash ?? modeContest?.starting_carter_cash ?? 0)))

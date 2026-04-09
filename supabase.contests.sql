@@ -8,7 +8,7 @@ create table if not exists public.contests (
   status text not null default 'upcoming' check (status in ('pending', 'upcoming', 'live', 'ended')),
   contestant_starting_requirement integer,
   contest_length_hours integer,
-  starting_credits integer not null default 1000,
+  starting_credits numeric(12,2) not null default 1000.00,
   starting_carter_cash integer not null default 0,
   entry_fee_carter_cash integer not null default 0,
   contestant_limit integer not null default 100,
@@ -73,12 +73,12 @@ create table if not exists public.contest_entries (
   contest_id uuid not null references public.contests (id) on delete cascade,
   user_id uuid not null references auth.users (id) on delete cascade,
   opted_in_at timestamptz not null default timezone('utc', now()),
-  pre_contest_credits integer not null default 1000,
+  pre_contest_credits numeric(12,2) not null default 1000.00,
   pre_contest_carter_cash integer not null default 0,
   pre_contest_carter_cash_progress numeric not null default 0,
-  starting_credits integer not null default 1000,
+  starting_credits numeric(12,2) not null default 1000.00,
   starting_carter_cash integer not null default 0,
-  current_credits integer not null default 1000,
+  current_credits numeric(12,2) not null default 1000.00,
   current_carter_cash integer not null default 0,
   current_carter_cash_progress numeric not null default 0,
   contest_history jsonb not null default '[]'::jsonb,
@@ -108,10 +108,10 @@ create table if not exists public.contest_start_notifications (
   primary key (contest_id, user_id)
 );
 
-alter table public.contest_entries add column if not exists pre_contest_credits integer not null default 1000;
+alter table public.contest_entries add column if not exists pre_contest_credits numeric(12,2) not null default 1000.00;
 alter table public.contest_entries add column if not exists pre_contest_carter_cash integer not null default 0;
 alter table public.contest_entries add column if not exists pre_contest_carter_cash_progress numeric not null default 0;
-alter table public.contest_entries add column if not exists current_credits integer not null default 1000;
+alter table public.contest_entries add column if not exists current_credits numeric(12,2) not null default 1000.00;
 alter table public.contest_entries add column if not exists current_carter_cash integer not null default 0;
 alter table public.contest_entries add column if not exists current_carter_cash_progress numeric not null default 0;
 alter table public.contest_entries add column if not exists contest_history jsonb not null default '[]'::jsonb;
