@@ -10107,6 +10107,7 @@ function resetRedBlackHand({ keepBet = true } = {}) {
 }
 
 function finishRedBlackHand(message, { clearBet = false } = {}) {
+  redBlackRung = 0;
   redBlackHandActive = false;
   redBlackAwaitingDecision = false;
   redBlackDeck = [];

@@ -1577,20 +1577,20 @@ body[data-app-state="loading"] #app-shell {
   display: block;
   height: 6px;
   border-radius: 999px;
-  background: rgba(224, 244, 255, 0.18);
+  background: var(--rung-fill-idle, rgba(224, 244, 255, 0.18));
   transition: background-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 }
 
-.beta-ladder-sticky-step:nth-child(1) .beta-ladder-sticky-fill { background: rgba(255, 215, 102, 0.42); }
-.beta-ladder-sticky-step:nth-child(2) .beta-ladder-sticky-fill { background: rgba(255, 190, 112, 0.42); }
-.beta-ladder-sticky-step:nth-child(3) .beta-ladder-sticky-fill { background: rgba(255, 160, 128, 0.42); }
-.beta-ladder-sticky-step:nth-child(4) .beta-ladder-sticky-fill { background: rgba(255, 132, 158, 0.42); }
-.beta-ladder-sticky-step:nth-child(5) .beta-ladder-sticky-fill { background: rgba(244, 120, 206, 0.42); }
-.beta-ladder-sticky-step:nth-child(6) .beta-ladder-sticky-fill { background: rgba(209, 126, 255, 0.42); }
-.beta-ladder-sticky-step:nth-child(7) .beta-ladder-sticky-fill { background: rgba(160, 150, 255, 0.42); }
-.beta-ladder-sticky-step:nth-child(8) .beta-ladder-sticky-fill { background: rgba(118, 182, 255, 0.42); }
-.beta-ladder-sticky-step:nth-child(9) .beta-ladder-sticky-fill { background: rgba(88, 219, 255, 0.42); }
-.beta-ladder-sticky-step:nth-child(10) .beta-ladder-sticky-fill { background: rgba(78, 241, 215, 0.42); }
+.beta-ladder-sticky-step:nth-child(1) { --rung-fill-idle: rgba(255, 215, 102, 0.42); --rung-fill-active: rgba(255, 228, 142, 0.95); --rung-glow: rgba(255, 220, 120, 0.28); }
+.beta-ladder-sticky-step:nth-child(2) { --rung-fill-idle: rgba(255, 190, 112, 0.42); --rung-fill-active: rgba(255, 204, 142, 0.95); --rung-glow: rgba(255, 196, 122, 0.28); }
+.beta-ladder-sticky-step:nth-child(3) { --rung-fill-idle: rgba(255, 160, 128, 0.42); --rung-fill-active: rgba(255, 180, 152, 0.95); --rung-glow: rgba(255, 170, 138, 0.28); }
+.beta-ladder-sticky-step:nth-child(4) { --rung-fill-idle: rgba(255, 132, 158, 0.42); --rung-fill-active: rgba(255, 156, 180, 0.95); --rung-glow: rgba(255, 145, 170, 0.28); }
+.beta-ladder-sticky-step:nth-child(5) { --rung-fill-idle: rgba(244, 120, 206, 0.42); --rung-fill-active: rgba(249, 150, 220, 0.95); --rung-glow: rgba(246, 136, 214, 0.28); }
+.beta-ladder-sticky-step:nth-child(6) { --rung-fill-idle: rgba(209, 126, 255, 0.42); --rung-fill-active: rgba(222, 156, 255, 0.95); --rung-glow: rgba(216, 138, 255, 0.28); }
+.beta-ladder-sticky-step:nth-child(7) { --rung-fill-idle: rgba(160, 150, 255, 0.42); --rung-fill-active: rgba(183, 175, 255, 0.95); --rung-glow: rgba(170, 162, 255, 0.28); }
+.beta-ladder-sticky-step:nth-child(8) { --rung-fill-idle: rgba(118, 182, 255, 0.42); --rung-fill-active: rgba(145, 198, 255, 0.95); --rung-glow: rgba(128, 190, 255, 0.28); }
+.beta-ladder-sticky-step:nth-child(9) { --rung-fill-idle: rgba(88, 219, 255, 0.42); --rung-fill-active: rgba(122, 229, 255, 0.95); --rung-glow: rgba(102, 224, 255, 0.28); }
+.beta-ladder-sticky-step:nth-child(10) { --rung-fill-idle: rgba(78, 241, 215, 0.42); --rung-fill-active: rgba(118, 247, 224, 0.95); --rung-glow: rgba(96, 244, 220, 0.28); }
 
 .beta-ladder-sticky-label {
   color: rgba(224, 244, 255, 0.46);
@@ -1604,8 +1604,8 @@ body[data-app-state="loading"] #app-shell {
 
 .beta-ladder-sticky-step.is-complete .beta-ladder-sticky-fill,
 .beta-ladder-sticky-step.is-current .beta-ladder-sticky-fill {
-  background: linear-gradient(90deg, rgba(255, 230, 120, 0.96), rgba(63, 240, 255, 0.92));
-  box-shadow: 0 0 12px rgba(63, 240, 255, 0.24);
+  background: var(--rung-fill-active, rgba(255, 230, 120, 0.96));
+  box-shadow: 0 0 12px var(--rung-glow, rgba(63, 240, 255, 0.24));
 }
 
 .beta-summary-inline {
