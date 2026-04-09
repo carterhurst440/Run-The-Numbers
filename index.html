@@ -697,6 +697,20 @@
         <section id="red-black-view" class="route-view app-page beta-game-view" hidden aria-labelledby="red-black-paytable-title">
           <div class="beta-game-shell">
             <section class="beta-game-panel beta-ladder-panel" aria-labelledby="red-black-paytable-title">
+              <div class="beta-ladder-sticky-rail" aria-hidden="true">
+                <div class="beta-ladder-sticky-track">
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="1"></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="2"></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="3"></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="4"></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="5"></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="6"></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="7"></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="8"></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="9"></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="10"></span>
+                </div>
+              </div>
               <div class="beta-ladder-header">
                 <div class="beta-ladder-title-group">
                   <div class="beta-ladder-game-tag" aria-label="Game title">
@@ -739,10 +753,6 @@
                   </div>
                 </div>
 
-                <p id="red-black-status" class="status beta-status" aria-live="polite">
-                  Build one base wager, choose COLOR, SUIT, or RANK, make your selection, then draw.
-                </p>
-
                 <div class="beta-draw-area">
                   <div class="dealer-header">
                     <h3 class="draws-title">Revealed Cards</h3>
@@ -751,12 +761,9 @@
                     <div class="beta-draw-placeholder">No cards drawn yet.</div>
                   </div>
                 </div>
-
-                <section class="beta-game-panel beta-inline-panel" aria-labelledby="red-black-history-title">
-                  <p class="beta-game-panel-kicker">Hand Log</p>
-                  <h2 id="red-black-history-title">Revealed History</h2>
-                  <ul id="red-black-history" class="beta-game-list beta-history-list" aria-live="polite"></ul>
-                </section>
+                <p id="red-black-status" class="beta-status beta-status-inline" aria-live="polite">
+                  Build one base wager, choose COLOR, SUIT, or RANK, make your selection, then draw.
+                </p>
               </section>
 
               <section class="beta-game-panel beta-table-panel beta-control-panel" aria-labelledby="red-black-controls-title">
@@ -807,6 +814,12 @@
             </div>
 
             <div class="beta-bottom-panels">
+              <section class="beta-game-panel beta-inline-panel" aria-labelledby="red-black-history-title">
+                <p class="beta-game-panel-kicker">Hand Log</p>
+                <h2 id="red-black-history-title">Revealed History</h2>
+                <ul id="red-black-history" class="beta-game-list beta-history-list" aria-live="polite"></ul>
+              </section>
+
               <section class="beta-game-panel" aria-labelledby="red-black-overview-title">
                 <p class="beta-game-panel-kicker">How It Works</p>
                 <h2 id="red-black-overview-title">Core Loop</h2>
