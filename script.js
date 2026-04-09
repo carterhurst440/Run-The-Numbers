@@ -9389,10 +9389,11 @@ function updateDashboardCreditsDisplay(value = bankroll) {
 
 async function persistBankroll({ recordContestHistory = false, contestHistoryLabel = "Hand" } = {}) {
   if (!currentUser) return;
+  const normalizedBankroll = normalizeStoredCreditValue(bankroll);
 
   const updates = {};
-  if (Number.isFinite(bankroll) && bankroll !== lastSyncedBankroll) {
-    updates.credits = bankroll;
+  if (Number.isFinite(normalizedBankroll) && normalizedBankroll !== lastSyncedBankroll) {
+    updates.credits = normalizedBankroll;
   }
   if (Number.isFinite(carterCash) && carterCash !== lastSyncedCarterCash) {
     updates.carter_cash = carterCash;
@@ -9417,11 +9418,11 @@ async function persistBankroll({ recordContestHistory = false, contestHistoryLab
       }
 
       const contestSnapshot = {
-        current_credits: Number.isFinite(bankroll) ? bankroll : 0,
+        current_credits: Number.isFinite(normalizedBankroll) ? normalizedBankroll : 0,
         current_carter_cash: Number.isFinite(carterCash) ? carterCash : 0,
         current_carter_cash_progress: Number.isFinite(carterCashProgress) ? carterCashProgress : 0,
         contest_history: recordContestHistory
-          ? buildContestHistory(activeEntry.contest_history, bankroll, contestHistoryLabel)
+          ? buildContestHistory(activeEntry.contest_history, normalizedBankroll, contestHistoryLabel)
           : activeEntry.contest_history,
         display_name: getContestDisplayName(currentProfile, currentUser.id),
         participant_email: currentUser.email || ""
@@ -9471,8 +9472,8 @@ async function persistBankroll({ recordContestHistory = false, contestHistoryLab
 
       if (data) {
         const nextCredits = Number.isFinite(Number(data.credits))
-          ? Math.round(Number(data.credits))
-          : bankroll;
+          ? normalizeStoredCreditValue(data.credits)
+          : normalizedBankroll;
         const nextCarterCash = Number.isFinite(Number(data.carter_cash))
           ? Math.round(Number(data.carter_cash))
           : carterCash;
@@ -9838,7 +9839,7 @@ function updateRedBlackActionState() {
 
 function renderRedBlackSummary() {
   const commissionRate = getRedBlackCommissionRate();
-  const commissionUnits = roundCurrencyValue(Math.max(0, redBlackCurrentPot - redBlackBet) * commissionRate);
+  const commissionUnits = normalizeStoredCreditValue(Math.max(0, redBlackCurrentPot - redBlackBet) * commissionRate);
   const selectionValid = isRedBlackSelectionValid();
   const multiplierText = selectionValid ? formatRedBlackMultiplier(getRedBlackMultiplier()) : "0x";
   if (redBlackBetDisplayEl) {
@@ -10107,7 +10108,7 @@ async function dealRedBlackCard() {
       return;
     }
     redBlackLastBet = redBlackBet;
-    bankroll = roundCurrencyValue(bankroll - redBlackBet);
+    bankroll = normalizeStoredCreditValue(bankroll - redBlackBet);
     handleBankrollChanged();
     redBlackRung = 0;
     redBlackCurrentPot = redBlackBet;
@@ -10155,7 +10156,7 @@ async function dealRedBlackCard() {
     return;
   }
 
-  redBlackCurrentPot = roundCurrencyValue(redBlackCurrentPot * multiplier);
+  redBlackCurrentPot = normalizeStoredCreditValue(redBlackCurrentPot * multiplier);
   redBlackRung += 1;
   if (cardEl) {
     cardEl.classList.add("card-match");
@@ -10190,9 +10191,9 @@ async function withdrawRedBlackHand() {
   const completedCards = redBlackHistoryEl?.children.length || redBlackRung;
   const commissionRate = getRedBlackCommissionRate();
   const winnings = Math.max(0, redBlackCurrentPot - redBlackBet);
-  const commission = roundCurrencyValue(winnings * commissionRate);
-  const payout = roundCurrencyValue(redBlackCurrentPot - commission);
-  bankroll = roundCurrencyValue(bankroll + payout);
+  const commission = normalizeStoredCreditValue(winnings * commissionRate);
+  const payout = normalizeStoredCreditValue(redBlackCurrentPot - commission);
+  bankroll = normalizeStoredCreditValue(bankroll + payout);
   handleBankrollChanged();
   finishRedBlackHand(
     `You cashed out for ${formatCurrency(payout)} after a ${redBlackRung}-card streak. Commission: ${formatPercent(
@@ -10276,6 +10277,11 @@ function toggleRedBlackValue(value) {
 function roundCurrencyValue(value) {
   if (!Number.isFinite(Number(value))) return 0;
   return Number(Number(value).toFixed(2));
+}
+
+function normalizeStoredCreditValue(value) {
+  if (!Number.isFinite(Number(value))) return 0;
+  return Math.max(0, Math.round(Number(value)));
 }
 
 function formatCurrency(value) {
