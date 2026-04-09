@@ -8451,15 +8451,17 @@ const cardTemplate = document.getElementById("card-template");
 const redBlackStatusEl = document.getElementById("red-black-status");
 const redBlackBetDisplayEl = document.getElementById("red-black-bet-display");
 const redBlackPotDisplayEl = document.getElementById("red-black-pot-display");
+const redBlackPotInlineDisplayEl = document.getElementById("red-black-pot-inline-display");
 const redBlackRungDisplayEl = document.getElementById("red-black-rung-display");
 const redBlackCommissionDisplayEl = document.getElementById("red-black-commission-display");
 const redBlackMultiplierDisplayEl = document.getElementById("red-black-multiplier-display");
 const redBlackNewPotDisplayEl = document.getElementById("red-black-new-pot-display");
 const redBlackDrawsEl = document.getElementById("red-black-draws");
 const redBlackHistoryEl = document.getElementById("red-black-history");
-const redBlackPaytableRows = Array.from(document.querySelectorAll("[data-red-black-rung]"));
+const redBlackProgressSteps = Array.from(document.querySelectorAll(".beta-ladder-sticky-step[data-red-black-rung]"));
 const redBlackBetSpotButton = document.getElementById("red-black-bet-spot");
 const redBlackBetTotalEl = document.getElementById("red-black-bet-total");
+const redBlackBetEmptyLabelEl = document.getElementById("red-black-bet-empty-label");
 const redBlackChipStackEl = document.getElementById("red-black-chip-stack");
 const redBlackSelectedChipLabelEl = document.getElementById("red-black-selected-chip-label");
 const redBlackChipButtons = Array.from(document.querySelectorAll("[data-red-black-chip]"));
@@ -8467,7 +8469,7 @@ const redBlackCategoryButtons = Array.from(document.querySelectorAll("[data-red-
 const redBlackValueSelectorEl = document.getElementById("red-black-value-selector");
 const redBlackSelectionHintEl = document.getElementById("red-black-selection-hint");
 const redBlackSelectionSummaryEl = document.getElementById("red-black-selection-summary");
-const redBlackClearBetButton = document.getElementById("red-black-clear-bet");
+const redBlackClearBetButton = document.getElementById("red-black-clear-bet-inline");
 const redBlackRebetButton = document.getElementById("red-black-rebet");
 const redBlackDealButton = document.getElementById("red-black-draw");
 const redBlackWithdrawButton = document.getElementById("red-black-withdraw");
@@ -9851,8 +9853,14 @@ function renderRedBlackSummary() {
   if (redBlackPotDisplayEl) {
     redBlackPotDisplayEl.textContent = formatCurrency(redBlackCurrentPot);
   }
+  if (redBlackPotInlineDisplayEl) {
+    redBlackPotInlineDisplayEl.textContent = `Current Pot ${formatCurrency(redBlackCurrentPot)}`;
+  }
   if (redBlackBetTotalEl) {
     redBlackBetTotalEl.textContent = formatCurrency(redBlackBet);
+  }
+  if (redBlackBetEmptyLabelEl) {
+    redBlackBetEmptyLabelEl.hidden = redBlackBet > 0;
   }
   if (redBlackRungDisplayEl) {
     redBlackRungDisplayEl.textContent = String(redBlackRung);
@@ -9867,11 +9875,11 @@ function renderRedBlackSummary() {
   }
   if (redBlackNewPotDisplayEl) {
     redBlackNewPotDisplayEl.textContent = selectionValid && projectedPot > 0
-      ? `New Pot ${formatCurrency(projectedPot)}`
+      ? `Next Pot ${formatCurrency(projectedPot)}`
       : "";
   }
   if (redBlackSelectedChipLabelEl) {
-    redBlackSelectedChipLabelEl.textContent = `Selected chip: ${formatCurrency(redBlackSelectedChip)}`;
+    redBlackSelectedChipLabelEl.textContent = `Wager: ${formatCurrency(redBlackBet)}`;
   }
   renderRedBlackSelectionMeta();
   renderRedBlackBetStack();
@@ -9879,7 +9887,7 @@ function renderRedBlackSummary() {
 
 function updateRedBlackPaytableHighlight() {
   const visualRung = Math.max(0, Math.min(redBlackRung, RED_BLACK_MAX_RUNGS));
-  redBlackPaytableRows.forEach((row) => {
+  redBlackProgressSteps.forEach((row) => {
     const rung = Number(row.dataset.redBlackRung || 0);
     const isComplete = rung <= visualRung;
     const isCurrent = rung === visualRung && visualRung > 0;

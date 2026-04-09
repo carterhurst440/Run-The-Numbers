@@ -696,51 +696,20 @@
 
         <section id="red-black-view" class="route-view app-page beta-game-view" hidden aria-labelledby="red-black-paytable-title">
           <div class="beta-game-shell">
-            <section class="beta-game-panel beta-ladder-panel" aria-labelledby="red-black-paytable-title">
-              <div class="beta-ladder-sticky-rail" aria-hidden="true">
+            <section class="beta-game-panel beta-ladder-panel" aria-label="Current hand progress">
+              <div class="beta-ladder-sticky-rail" aria-label="Commission progress">
                 <div class="beta-ladder-sticky-track">
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="1"></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="2"></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="3"></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="4"></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="5"></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="6"></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="7"></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="8"></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="9"></span>
-                  <span class="beta-ladder-sticky-step" data-red-black-rung="10"></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="1"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">10% commission</span></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="2"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">9% commission</span></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="3"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">8% commission</span></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="4"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">7% commission</span></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="5"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">6% commission</span></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="6"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">5% commission</span></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="7"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">4% commission</span></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="8"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">3% commission</span></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="9"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">2% commission</span></span>
+                  <span class="beta-ladder-sticky-step" data-red-black-rung="10"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">1% commission</span></span>
                 </div>
-              </div>
-              <div class="beta-ladder-header">
-                <div class="beta-ladder-title-group">
-                  <div class="beta-ladder-game-tag" aria-label="Game title">
-                    <span class="beta-ladder-game-name">Guess 10</span>
-                    <span class="game-beta-pill beta-ladder-beta-pill">Beta</span>
-                  </div>
-                  <h2 id="red-black-paytable-title">Streak Ladder</h2>
-                </div>
-                <div class="beta-summary-inline" aria-label="Current hand summary">
-                  <span class="beta-summary-inline-item"><span class="beta-summary-inline-label">Wager</span><strong id="red-black-bet-display">0</strong></span>
-                  <span class="beta-summary-inline-item"><span class="beta-summary-inline-label">Pot</span><strong id="red-black-pot-display">0</strong></span>
-                  <span class="beta-summary-inline-item"><span class="beta-summary-inline-label">Streak</span><strong id="red-black-rung-display">0</strong></span>
-                  <span class="beta-summary-inline-item"><span class="beta-summary-inline-label">Commission</span><strong id="red-black-commission-display">0</strong></span>
-                </div>
-              </div>
-              <div class="beta-paytable beta-paytable-horizontal" role="table" aria-label="Prediction game streak ladder">
-                <div class="beta-paytable-row beta-paytable-head" role="row">
-                  <span role="columnheader">Step</span>
-                  <span role="columnheader">Commission</span>
-                </div>
-                <div class="beta-paytable-row" data-red-black-rung="1" role="row"><span role="cell">1</span><span role="cell">10% commission</span></div>
-                <div class="beta-paytable-row" data-red-black-rung="2" role="row"><span role="cell">2</span><span role="cell">9% commission</span></div>
-                <div class="beta-paytable-row" data-red-black-rung="3" role="row"><span role="cell">3</span><span role="cell">8% commission</span></div>
-                <div class="beta-paytable-row" data-red-black-rung="4" role="row"><span role="cell">4</span><span role="cell">7% commission</span></div>
-                <div class="beta-paytable-row" data-red-black-rung="5" role="row"><span role="cell">5</span><span role="cell">6% commission</span></div>
-                <div class="beta-paytable-row" data-red-black-rung="6" role="row"><span role="cell">6</span><span role="cell">5% commission</span></div>
-                <div class="beta-paytable-row" data-red-black-rung="7" role="row"><span role="cell">7</span><span role="cell">4% commission</span></div>
-                <div class="beta-paytable-row" data-red-black-rung="8" role="row"><span role="cell">8</span><span role="cell">3% commission</span></div>
-                <div class="beta-paytable-row" data-red-black-rung="9" role="row"><span role="cell">9</span><span role="cell">2% commission</span></div>
-                <div class="beta-paytable-row" data-red-black-rung="10" role="row"><span role="cell">10</span><span role="cell">1% commission</span></div>
               </div>
             </section>
 
@@ -750,6 +719,12 @@
                   <div>
                     <p class="beta-game-panel-kicker">Table</p>
                     <h2 id="red-black-table-title">Prediction Hand</h2>
+                  </div>
+                  <div class="beta-summary-inline beta-summary-inline-hand" aria-label="Current hand summary">
+                    <span class="beta-summary-inline-item"><span class="beta-summary-inline-label">Wager</span><strong id="red-black-bet-display">0</strong></span>
+                    <span class="beta-summary-inline-item"><span class="beta-summary-inline-label">Pot Size</span><strong id="red-black-pot-display">0</strong></span>
+                    <span class="beta-summary-inline-item"><span class="beta-summary-inline-label">Commission</span><strong id="red-black-commission-display">0</strong></span>
+                    <span class="beta-summary-inline-item"><span class="beta-summary-inline-label">Streak</span><strong id="red-black-rung-display">0</strong></span>
                   </div>
                 </div>
 
@@ -768,25 +743,26 @@
 
               <section class="beta-game-panel beta-table-panel beta-control-panel" aria-labelledby="red-black-controls-title">
                 <div class="beta-table-header">
-                  <div>
+                  <div class="beta-control-heading">
                     <p class="beta-game-panel-kicker">Controls</p>
-                    <h2 id="red-black-controls-title">Bet & Prediction</h2>
+                    <h2 id="red-black-controls-title">Prediction</h2>
+                    <div class="beta-action-group beta-action-group-wager">
+                      <p class="beta-control-label">Wager</p>
+                      <div class="beta-wager-inline-row">
+                        <button type="button" id="red-black-bet-spot" class="beta-bet-spot beta-bet-spot-circle" aria-label="Place chip on base wager spot">
+                          <span id="red-black-bet-empty-label" class="beta-bet-empty-label">Place Bets</span>
+                          <span id="red-black-bet-total" class="beta-bet-spot-total">0</span>
+                          <div id="red-black-chip-stack" class="beta-chip-stack" aria-hidden="true"></div>
+                        </button>
+                        <button type="button" id="red-black-clear-bet-inline" class="secondary beta-inline-clear" hidden>Clear</button>
+                      </div>
+                      <span id="red-black-selected-chip-label" class="beta-bet-spot-chip">Wager: 0</span>
+                    </div>
                   </div>
                   <div class="beta-top-metrics">
-                    <span id="red-black-multiplier-display" class="beta-current-payout"></span>
-                    <span id="red-black-new-pot-display" class="beta-current-payout beta-current-payout-alt"></span>
-                  </div>
-                </div>
-
-                <div class="beta-bet-controls beta-bet-controls-prediction">
-                  <div class="beta-single-bet">
-                    <p class="beta-control-label">Base Wager</p>
-                    <button type="button" id="red-black-bet-spot" class="beta-bet-spot" aria-label="Place chip on base wager spot">
-                      <span class="beta-bet-spot-label">Main Bet</span>
-                      <span id="red-black-bet-total" class="beta-bet-spot-total">0</span>
-                      <div id="red-black-chip-stack" class="beta-chip-stack" aria-hidden="true"></div>
-                      <span id="red-black-selected-chip-label" class="beta-bet-spot-chip">Selected chip: 5</span>
-                    </button>
+                    <span id="red-black-multiplier-display" class="beta-current-payout">Multiplier 2x</span>
+                    <span id="red-black-pot-inline-display" class="beta-current-payout beta-current-payout-neutral">Current Pot 0</span>
+                    <span id="red-black-new-pot-display" class="beta-current-payout beta-current-payout-alt">Next Pot 0</span>
                   </div>
                 </div>
 
@@ -857,7 +833,6 @@
               </div>
             </div>
             <div class="chip-actions beta-chip-actions">
-              <button type="button" id="red-black-clear-bet" class="secondary" hidden>Clear</button>
               <button type="button" id="red-black-rebet" class="secondary" disabled>Rebet</button>
               <button type="button" id="red-black-draw" class="deal" disabled>Draw</button>
               <button type="button" id="red-black-withdraw" class="secondary" disabled>Cash Out</button>
