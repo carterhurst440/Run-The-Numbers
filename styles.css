@@ -1560,6 +1560,9 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .beta-control-multiplier {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
   min-height: 1.85rem;
   padding: 0.28rem 0.72rem;
@@ -2794,7 +2797,7 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .beta-bet-empty-label {
-    font-size: 0.92rem;
+    font-size: 1.08rem;
   }
 
   .beta-wager-inline-row {
@@ -2830,7 +2833,8 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .beta-bet-empty-label {
-    font-size: 0.36rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
   }
 
   .beta-inline-clear {
