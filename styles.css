@@ -1575,11 +1575,22 @@ body[data-app-state="loading"] #app-shell {
 
 .beta-ladder-sticky-fill {
   display: block;
-  height: 4px;
+  height: 6px;
   border-radius: 999px;
-  background: rgba(224, 244, 255, 0.14);
+  background: rgba(224, 244, 255, 0.18);
   transition: background-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 }
+
+.beta-ladder-sticky-step:nth-child(1) .beta-ladder-sticky-fill { background: rgba(255, 215, 102, 0.42); }
+.beta-ladder-sticky-step:nth-child(2) .beta-ladder-sticky-fill { background: rgba(255, 190, 112, 0.42); }
+.beta-ladder-sticky-step:nth-child(3) .beta-ladder-sticky-fill { background: rgba(255, 160, 128, 0.42); }
+.beta-ladder-sticky-step:nth-child(4) .beta-ladder-sticky-fill { background: rgba(255, 132, 158, 0.42); }
+.beta-ladder-sticky-step:nth-child(5) .beta-ladder-sticky-fill { background: rgba(244, 120, 206, 0.42); }
+.beta-ladder-sticky-step:nth-child(6) .beta-ladder-sticky-fill { background: rgba(209, 126, 255, 0.42); }
+.beta-ladder-sticky-step:nth-child(7) .beta-ladder-sticky-fill { background: rgba(160, 150, 255, 0.42); }
+.beta-ladder-sticky-step:nth-child(8) .beta-ladder-sticky-fill { background: rgba(118, 182, 255, 0.42); }
+.beta-ladder-sticky-step:nth-child(9) .beta-ladder-sticky-fill { background: rgba(88, 219, 255, 0.42); }
+.beta-ladder-sticky-step:nth-child(10) .beta-ladder-sticky-fill { background: rgba(78, 241, 215, 0.42); }
 
 .beta-ladder-sticky-label {
   color: rgba(224, 244, 255, 0.46);
@@ -1878,9 +1889,20 @@ body[data-app-state="loading"] #app-shell {
 
 .beta-inline-clear {
   min-height: 2rem;
+  min-width: 5.6rem;
   padding: 0.45rem 0.8rem;
   font-size: 0.68rem;
   letter-spacing: 0.14em;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.beta-inline-clear.is-visible {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .beta-action-groups {
@@ -2549,7 +2571,7 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .beta-ladder-sticky-fill {
-    height: 3px;
+    height: 4px;
   }
 
   .beta-ladder-sticky-label {

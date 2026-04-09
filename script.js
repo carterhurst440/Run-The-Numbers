@@ -9845,7 +9845,9 @@ function updateRedBlackActionState() {
   if (redBlackClearBetButton) {
     const canClear = !redBlackHandActive && redBlackBet > 0;
     redBlackClearBetButton.disabled = !canClear;
-    redBlackClearBetButton.hidden = !canClear;
+    redBlackClearBetButton.classList.toggle("is-visible", canClear);
+    redBlackClearBetButton.setAttribute("aria-hidden", String(!canClear));
+    redBlackClearBetButton.tabIndex = canClear ? 0 : -1;
   }
   if (redBlackRebetButton) {
     redBlackRebetButton.disabled = redBlackHandActive || redBlackBet > 0 || redBlackLastBet <= 0;
