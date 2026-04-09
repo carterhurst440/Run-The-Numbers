@@ -8451,11 +8451,8 @@ const cardTemplate = document.getElementById("card-template");
 const redBlackStatusEl = document.getElementById("red-black-status");
 const redBlackBetDisplayEl = document.getElementById("red-black-bet-display");
 const redBlackPotDisplayEl = document.getElementById("red-black-pot-display");
-const redBlackPotInlineDisplayEl = document.getElementById("red-black-pot-inline-display");
 const redBlackRungDisplayEl = document.getElementById("red-black-rung-display");
 const redBlackCommissionDisplayEl = document.getElementById("red-black-commission-display");
-const redBlackMultiplierDisplayEl = document.getElementById("red-black-multiplier-display");
-const redBlackNewPotDisplayEl = document.getElementById("red-black-new-pot-display");
 const redBlackDrawsEl = document.getElementById("red-black-draws");
 const redBlackHistoryEl = document.getElementById("red-black-history");
 const redBlackProgressSteps = Array.from(document.querySelectorAll(".beta-ladder-sticky-step[data-red-black-rung]"));
@@ -9843,18 +9840,12 @@ function renderRedBlackSummary() {
   const commissionRate = getRedBlackCommissionRate();
   const commissionUnits = roundCurrencyValue(Math.max(0, redBlackCurrentPot - redBlackBet) * commissionRate);
   const selectionValid = isRedBlackSelectionValid();
-  const basePot = redBlackHandActive ? redBlackCurrentPot : redBlackBet;
-  const projectedPot = selectionValid && basePot > 0
-    ? roundCurrencyValue(basePot * getRedBlackMultiplier())
-    : 0;
+  const multiplierText = selectionValid ? formatRedBlackMultiplier(getRedBlackMultiplier()) : "0x";
   if (redBlackBetDisplayEl) {
     redBlackBetDisplayEl.textContent = formatCurrency(redBlackBet);
   }
   if (redBlackPotDisplayEl) {
     redBlackPotDisplayEl.textContent = formatCurrency(redBlackCurrentPot);
-  }
-  if (redBlackPotInlineDisplayEl) {
-    redBlackPotInlineDisplayEl.textContent = `Current Pot ${formatCurrency(redBlackCurrentPot)}`;
   }
   if (redBlackBetTotalEl) {
     redBlackBetTotalEl.textContent = formatCurrency(redBlackBet);
@@ -9863,20 +9854,10 @@ function renderRedBlackSummary() {
     redBlackBetEmptyLabelEl.hidden = redBlackBet > 0;
   }
   if (redBlackRungDisplayEl) {
-    redBlackRungDisplayEl.textContent = String(redBlackRung);
+    redBlackRungDisplayEl.textContent = multiplierText;
   }
   if (redBlackCommissionDisplayEl) {
     redBlackCommissionDisplayEl.textContent = `${formatCurrency(commissionUnits)} (${Math.round(commissionRate * 100)}%)`;
-  }
-  if (redBlackMultiplierDisplayEl) {
-    redBlackMultiplierDisplayEl.textContent = selectionValid
-      ? `Multiplier ${formatRedBlackMultiplier(getRedBlackMultiplier())}`
-      : "";
-  }
-  if (redBlackNewPotDisplayEl) {
-    redBlackNewPotDisplayEl.textContent = selectionValid && projectedPot > 0
-      ? `Next Pot ${formatCurrency(projectedPot)}`
-      : "";
   }
   if (redBlackSelectedChipLabelEl) {
     redBlackSelectedChipLabelEl.textContent = `Wager: ${formatCurrency(redBlackBet)}`;
