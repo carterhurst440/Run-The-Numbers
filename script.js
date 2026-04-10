@@ -8503,6 +8503,7 @@ const redBlackBetTotalEl = document.getElementById("red-black-bet-total");
 const redBlackBetEmptyLabelEl = document.getElementById("red-black-bet-empty-label");
 const redBlackChipStackEl = document.getElementById("red-black-chip-stack");
 const redBlackPotTotalEl = document.getElementById("red-black-pot-total");
+const redBlackPotCommissionEl = document.getElementById("red-black-pot-commission");
 const redBlackChipButtons = Array.from(document.querySelectorAll("[data-red-black-chip]"));
 const redBlackCategoryButtons = Array.from(document.querySelectorAll("[data-red-black-category]"));
 const redBlackValueSelectorEl = document.getElementById("red-black-value-selector");
@@ -9907,6 +9908,9 @@ function renderRedBlackSummary() {
   }
   if (redBlackPotTotalEl) {
     redBlackPotTotalEl.textContent = formatCurrency(redBlackCurrentPot);
+  }
+  if (redBlackPotCommissionEl) {
+    redBlackPotCommissionEl.textContent = `(-${formatCurrency(commissionUnits)})`;
   }
   if (redBlackBetEmptyLabelEl) {
     redBlackBetEmptyLabelEl.hidden = redBlackBet > 0;

@@ -1960,6 +1960,25 @@ body[data-app-state="loading"] #app-shell {
   background: rgba(8, 20, 44, 0.34);
 }
 
+.beta-pot-spot .beta-bet-spot-total {
+  top: calc(50% - 0.45rem);
+}
+
+.beta-pot-commission-preview {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% + 1rem);
+  transform: translateY(-50%);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: #ff6b78;
+  pointer-events: none;
+}
+
 .beta-bet-spot:hover,
 .beta-bet-spot:focus-visible {
   border-color: rgba(224, 244, 255, 0.28);
