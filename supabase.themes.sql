@@ -42,3 +42,19 @@ create trigger set_themes_updated_at
 before update on public.themes
 for each row
 execute function public.set_updated_at_timestamp();
+
+insert into public.themes (key, name, base_theme, palette, settings, is_builtin)
+values
+  ('blue', 'Blue', 'blue', '{}'::jsonb, '{}'::jsonb, true),
+  ('pink', 'Pink', 'pink', '{}'::jsonb, '{}'::jsonb, true),
+  ('orange', 'Orange', 'orange', '{}'::jsonb, '{}'::jsonb, true),
+  ('steel-black', 'Steel Black', 'steel-black', '{}'::jsonb, '{}'::jsonb, true),
+  ('angelic', 'Angelic', 'angelic', '{}'::jsonb, '{}'::jsonb, true),
+  ('retro', 'Retro', 'retro', '{}'::jsonb, '{}'::jsonb, true),
+  ('cotton-candy', 'Cotton Candy', 'cotton-candy', '{}'::jsonb, '{}'::jsonb, true),
+  ('pastel', 'Pastel', 'pastel', '{}'::jsonb, '{}'::jsonb, true)
+on conflict (key) do update
+set
+  name = excluded.name,
+  base_theme = excluded.base_theme,
+  is_builtin = true;

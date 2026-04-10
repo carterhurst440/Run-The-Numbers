@@ -508,10 +508,10 @@ async function loadThemeLibrary(force = false) {
   try {
     const { data, error } = await supabase.from("themes").select("*").order("name", { ascending: true });
     if (error) throw error;
-    const customThemes = (Array.isArray(data) ? data : [])
+    const remoteThemes = (Array.isArray(data) ? data : [])
       .map((theme) => normalizeThemeRecord(theme))
-      .filter((theme) => !theme.is_builtin && !THEME_CLASS_MAP[theme.key]);
-    themeLibraryCache = [...builtin, ...customThemes];
+      .filter((theme) => !THEME_CLASS_MAP[theme.key]);
+    themeLibraryCache = [...builtin, ...remoteThemes];
   } catch (error) {
     console.warn("[RTN] loadThemeLibrary falling back to builtin themes", error);
     themeLibraryCache = builtin;
@@ -1081,6 +1081,8 @@ function resetAdminThemeForm(theme = null) {
     }
   );
   adminEditingThemeId = record.is_builtin ? null : record.id;
+  adminEditingThemeSourceKey = theme?.key || null;
+  adminEditingThemeSourceBuiltin = Boolean(theme?.is_builtin);
   const setValue = (name, value) => {
     const field = adminThemeForm.elements.namedItem(name);
     if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement) {
@@ -1088,8 +1090,10 @@ function resetAdminThemeForm(theme = null) {
     }
   };
   setValue("themeId", record.id || "");
+  setValue("themeSourceKey", theme?.key || "");
+  setValue("themeSourceBuiltin", theme?.is_builtin ? "1" : "0");
   setValue("themeName", theme?.name || "");
-  setValue("themeKey", theme?.key || "");
+  setValue("themeKey", theme?.is_builtin ? "" : theme?.key || "");
   populateAdminThemeBaseOptions(record.base_theme || "blue");
   setValue("baseTheme", record.base_theme || "blue");
   setValue("accentColor", record.palette.accent);
@@ -1109,7 +1113,9 @@ function resetAdminThemeForm(theme = null) {
   setValue("surfaceContrast", String(record.settings.surfaceContrast));
   setValue("radiusScale", String(record.settings.radiusScale));
   if (adminThemeMessage) {
-    adminThemeMessage.textContent = "";
+    adminThemeMessage.textContent = theme?.is_builtin
+      ? "Built-in themes load as editable starting points. Saving will create a custom copy."
+      : "";
   }
   if (adminThemeSaveButton) {
     adminThemeSaveButton.textContent = theme && !record.is_builtin ? "Save theme" : "Save theme";
@@ -1138,7 +1144,7 @@ function renderAdminThemeRow(theme) {
     </div>
     <div class="admin-theme-preview-swatch">${buildThemeCardPreviewMarkup(theme)}</div>
     <div class="admin-theme-actions">
-      <button type="button" class="secondary">Load Into Builder</button>
+      <button type="button" class="secondary">${theme.is_builtin ? "Customize" : "Edit Theme"}</button>
       ${theme.is_builtin ? "" : '<button type="button" class="secondary">Delete Theme</button>'}
     </div>
   `;
@@ -1165,12 +1171,12 @@ async function loadAdminThemes(force = false) {
   populateAdminRankThemeOptions(adminRankThemeSelect?.value || "blue");
   if (!adminThemeListEl) return;
   adminThemeListEl.innerHTML = "";
-  const customThemes = getThemeLibrary().filter((theme) => !theme.is_builtin);
-  if (!customThemes.length) {
-    adminThemeListEl.innerHTML = '<li class="admin-prize-empty">No custom themes yet. Build one above to get started.</li>';
+  const themes = getThemeLibrary();
+  if (!themes.length) {
+    adminThemeListEl.innerHTML = '<li class="admin-prize-empty">No themes available.</li>';
     return;
   }
-  customThemes.forEach((theme) => {
+  themes.forEach((theme) => {
     adminThemeListEl.appendChild(renderAdminThemeRow(theme));
   });
 }
@@ -1203,20 +1209,35 @@ async function handleAdminThemeDelete(theme) {
 async function handleAdminThemeSubmit(event) {
   event.preventDefault();
   if (!adminThemeForm || !isAdmin()) return;
+  const formData = new FormData(adminThemeForm);
+  const sourceKey = slugifyThemeKey(String(formData.get("themeSourceKey") || "").trim()) || null;
+  const sourceBuiltin = String(formData.get("themeSourceBuiltin") || "0") === "1";
   const theme = getThemeFormState();
-  if (!theme.name || !theme.key) {
+  let themeId = theme.id;
+  let themeKey = theme.key;
+  if (!theme.name) {
     if (adminThemeMessage) {
       adminThemeMessage.textContent = "Please add a theme name.";
     }
     return;
   }
-  if (THEME_CLASS_MAP[theme.key]) {
+
+  if (sourceBuiltin) {
+    themeId = null;
+    if (!themeKey || THEME_CLASS_MAP[themeKey] || themeKey === sourceKey) {
+      themeKey = slugifyThemeKey(`${theme.name}-custom`) || `${sourceKey || "theme"}-custom`;
+    }
+  }
+
+  if (THEME_CLASS_MAP[themeKey]) {
     if (adminThemeMessage) {
-      adminThemeMessage.textContent = "That key is reserved by a built-in theme. Choose a different key.";
+      adminThemeMessage.textContent = sourceBuiltin
+        ? "Built-in themes save as custom copies. Choose a custom key or keep editing and we will create one automatically."
+        : "That key is reserved by a built-in theme. Choose a different key.";
     }
     return;
   }
-  const existing = getThemeLibrary().find((entry) => entry.key === theme.key && entry.id !== theme.id);
+  const existing = getThemeLibrary().find((entry) => entry.key === themeKey && entry.id !== themeId);
   if (existing) {
     if (adminThemeMessage) {
       adminThemeMessage.textContent = "That theme key already exists.";
@@ -1225,7 +1246,7 @@ async function handleAdminThemeSubmit(event) {
   }
 
   const payload = {
-    key: theme.key,
+    key: themeKey,
     name: theme.name,
     base_theme: theme.base_theme,
     palette: theme.palette,
@@ -1234,17 +1255,17 @@ async function handleAdminThemeSubmit(event) {
   };
 
   try {
-    const query = theme.id
-      ? supabase.from("themes").update(payload).eq("id", theme.id)
+    const query = themeId
+      ? supabase.from("themes").update(payload).eq("id", themeId)
       : supabase.from("themes").insert(payload);
     const { error } = await query;
     if (error) throw error;
-    showToast(theme.id ? "Theme updated" : "Theme created", "success");
+    showToast(themeId ? "Theme updated" : "Theme created", "success");
     themeLibraryCache = [];
     adminThemesLoaded = false;
     await loadThemeLibrary(true);
     await loadAdminThemes(true);
-    populateAdminRankThemeOptions(theme.key);
+    populateAdminRankThemeOptions(themeKey);
     await loadAdminRanks(true);
     await refreshCurrentRankState({ force: true });
     resetAdminThemeForm();
@@ -9694,6 +9715,8 @@ let adminThemesLoaded = false;
 let adminEditingPrizeId = null;
 let adminEditingRankId = null;
 let adminEditingThemeId = null;
+let adminEditingThemeSourceKey = null;
+let adminEditingThemeSourceBuiltin = false;
 let adminPrizeCache = [];
 let rankLadderCache = [];
 let themeLibraryCache = [];
