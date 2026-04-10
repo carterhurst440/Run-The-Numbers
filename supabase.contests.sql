@@ -322,6 +322,7 @@ returns table(
   first_name text,
   contest_title text,
   contest_details text,
+  starts_at timestamptz,
   contestant_starting_requirement integer,
   contest_length_hours integer
 )
@@ -334,6 +335,7 @@ as $$
     p.first_name,
     c.title,
     c.contest_details,
+    c.starts_at,
     c.contestant_starting_requirement,
     c.contest_length_hours
   from public.contests c

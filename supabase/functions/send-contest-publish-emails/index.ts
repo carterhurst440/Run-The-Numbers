@@ -6,6 +6,7 @@ type RecipientRow = {
   first_name: string | null;
   contest_title: string;
   contest_details: string | null;
+  starts_at: string | null;
   contestant_starting_requirement: number | string | null;
   contest_length_hours: number | string | null;
 };
@@ -15,19 +16,45 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"
 };
 
+const CONTEST_EMAIL_TIME_ZONE = "America/Denver";
+
+function formatContestStartTime(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const startTime = new Date(value);
+  if (Number.isNaN(startTime.getTime())) {
+    return null;
+  }
+
+  return startTime.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: CONTEST_EMAIL_TIME_ZONE,
+    timeZoneName: "short"
+  });
+}
+
 function buildEmailHtml(recipient: RecipientRow, contestId: string) {
   const firstName = recipient.first_name?.trim() || "there";
   const contestantRequirement = Math.max(1, Number(recipient.contestant_starting_requirement ?? 1));
   const contestLengthHours = Math.max(1, Number(recipient.contest_length_hours ?? 1));
+  const formattedStart = formatContestStartTime(recipient.starts_at);
   const appBaseUrl = (Deno.env.get("APP_BASE_URL") || "https://carterscasino.app").replace(/\/+$/, "");
   const joinUrl = `${appBaseUrl}/#/contests?contest=${encodeURIComponent(contestId)}`;
+  const introCopy = formattedStart
+    ? `Hi ${firstName}, a new Run The Numbers contest has been published and is scheduled to begin ${formattedStart}. It will run for ${contestLengthHours} hour${contestLengthHours === 1 ? "" : "s"}.`
+    : `Hi ${firstName}, a new Run The Numbers contest has been published. This one will stay in a pending state until ${contestantRequirement} contestants have joined, then it will start immediately and run for ${contestLengthHours} hour${contestLengthHours === 1 ? "" : "s"}.`;
 
   return `
     <div style="font-family: Arial, sans-serif; background: #071632; color: #ecf7ff; padding: 24px;">
       <div style="max-width: 640px; margin: 0 auto; background: #0b1d45; border: 1px solid rgba(63,240,255,0.2); border-radius: 16px; padding: 28px;">
         <p style="margin: 0 0 8px; color: #37f0ff; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase;">Contest Alert</p>
         <h1 style="margin: 0 0 16px; font-size: 28px;">${recipient.contest_title} is open for entry</h1>
-        <p style="margin: 0 0 18px; font-size: 16px; line-height: 1.6;">Hi ${firstName}, a new Run The Numbers contest has been published. This one will stay in a pending state until ${contestantRequirement} contestants have joined, then it will start immediately and run for ${contestLengthHours} hour${contestLengthHours === 1 ? "" : "s"}.</p>
+        <p style="margin: 0 0 18px; font-size: 16px; line-height: 1.6;">${introCopy}</p>
         ${recipient.contest_details?.trim()
           ? `<p style="margin: 0 0 18px; padding: 14px 16px; border-radius: 14px; background: rgba(255,255,255,0.04); color: rgba(236,247,255,0.88); font-size: 14px; line-height: 1.6;">${recipient.contest_details.trim()}</p>`
           : ""}
