@@ -7301,6 +7301,7 @@ body.play-assistant-open .play-assistant-fab {
 @media (max-width: 540px) {
   .chip-bar {
     padding-inline: clamp(0.65rem, 6vw, 1rem);
+    padding-bottom: calc(0.95rem + env(safe-area-inset-bottom));
   }
 
   .chip-selector-row {
