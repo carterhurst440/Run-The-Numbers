@@ -19,6 +19,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"
 };
 
+const CONTEST_EMAIL_TIME_ZONE = "America/Denver";
+
 function formatPrizeMoney(value: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -42,18 +44,26 @@ function getPrizeGrowthCopy(recipient: RecipientRow) {
   return `Grows by ${formatPrizeMoney(unitAmount)} per ${basisLabel}.`;
 }
 
+function formatContestStartTime(value: string) {
+  const startTime = new Date(value);
+  if (Number.isNaN(startTime.getTime())) {
+    return "right now";
+  }
+
+  return startTime.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: CONTEST_EMAIL_TIME_ZONE,
+    timeZoneName: "short"
+  });
+}
+
 function buildEmailHtml(recipient: RecipientRow, contestId: string) {
   const firstName = recipient.first_name?.trim() || "there";
   const startTime = new Date(recipient.starts_at);
-  const formattedStart = Number.isNaN(startTime.getTime())
-    ? "right now"
-    : startTime.toLocaleString("en-US", {
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        timeZoneName: "short"
-      });
+  const formattedStart = formatContestStartTime(recipient.starts_at);
   const endTime = new Date(recipient.ends_at);
   const durationMs = Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())
     ? 0
