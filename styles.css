@@ -8620,12 +8620,15 @@ body.modal-open {
 .hand-review-modal {
   width: min(760px, 94vw);
   max-height: min(720px, 92vh);
+  overflow: hidden;
 }
 
 .hand-review-body {
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   padding-right: 0.25rem;
+  overscroll-behavior: contain;
 }
 
 .hand-review-summary {
@@ -8639,6 +8642,11 @@ body.modal-open {
   border-radius: 14px;
   background: color-mix(in srgb, var(--menu-bg) 78%, black 22%);
   overflow: hidden;
+}
+
+.hand-review-table-wrap .chart-title {
+  margin: 0;
+  padding: 0.9rem 1rem 0;
 }
 
 .hand-review-table {
@@ -8764,7 +8772,7 @@ body.modal-open {
 
   .hand-review-table tfoot tr {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 0.55rem;
   }
 

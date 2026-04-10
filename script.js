@@ -15762,8 +15762,8 @@ async function renderPlayerModeBreakdown(userId, period = "year") {
   modeRows.forEach((row) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${escapeAssistantHtml(row.label || "Unknown Mode")}</td>
-      <td>${formatRankRequirementValue(row.handsPlayed || 0)}</td>
+      <td data-label="Mode">${escapeAssistantHtml(row.label || "Unknown Mode")}</td>
+      <td data-label="Hands">${formatRankRequirementValue(row.handsPlayed || 0)}</td>
     `;
     playerModeBreakdownModeBodyEl.appendChild(tr);
   });
@@ -15772,8 +15772,8 @@ async function renderPlayerModeBreakdown(userId, period = "year") {
   gameRows.forEach((row) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${escapeAssistantHtml(row.label || "Unknown Game")}</td>
-      <td>${formatRankRequirementValue(row.handsPlayed || 0)}</td>
+      <td data-label="Game">${escapeAssistantHtml(row.label || "Unknown Game")}</td>
+      <td data-label="Hands">${formatRankRequirementValue(row.handsPlayed || 0)}</td>
     `;
     playerModeBreakdownGameBodyEl.appendChild(tr);
   });
