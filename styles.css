@@ -8638,6 +8638,7 @@ body.modal-open {
   border: 1px solid color-mix(in srgb, var(--drawer-border) 88%, transparent);
   border-radius: 14px;
   background: color-mix(in srgb, var(--menu-bg) 78%, black 22%);
+  overflow: hidden;
 }
 
 .hand-review-table {
@@ -8686,6 +8687,120 @@ body.modal-open {
 
 .hand-review-neutral {
   color: var(--muted) !important;
+}
+
+@media (max-width: 700px) {
+  .hand-review-modal {
+    width: min(100vw - 1rem, 560px);
+    max-height: calc(100vh - 1rem);
+  }
+
+  .hand-review-body {
+    padding-right: 0;
+  }
+
+  .hand-review-table {
+    min-width: 0;
+  }
+
+  .hand-review-table thead {
+    display: none;
+  }
+
+  .hand-review-table,
+  .hand-review-table tbody,
+  .hand-review-table tr,
+  .hand-review-table td,
+  .hand-review-table tfoot,
+  .hand-review-table tfoot tr,
+  .hand-review-table tfoot th {
+    display: block;
+    width: 100%;
+  }
+
+  .hand-review-table tbody {
+    padding: 0.4rem;
+  }
+
+  .hand-review-table tbody tr {
+    padding: 0.15rem;
+    margin-bottom: 0.45rem;
+    border: 1px solid color-mix(in srgb, var(--drawer-border) 58%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--header-gradient) 70%, black 30%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, white 6%, transparent);
+  }
+
+  .hand-review-table tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .hand-review-table td {
+    display: grid;
+    grid-template-columns: minmax(5.2rem, 40%) 1fr;
+    gap: 0.65rem;
+    align-items: start;
+    padding: 0.72rem 0.8rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--drawer-border) 40%, transparent);
+    overflow-wrap: anywhere;
+  }
+
+  .hand-review-table td:last-child {
+    border-bottom: 0;
+  }
+
+  .hand-review-table td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .hand-review-table tfoot {
+    padding: 0.5rem 0.75rem 0.8rem;
+    border-top: 1px solid color-mix(in srgb, var(--drawer-border) 62%, transparent);
+  }
+
+  .hand-review-table tfoot tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem;
+  }
+
+  .hand-review-table tfoot th {
+    grid-column: 1 / -1;
+    padding: 0 0 0.2rem;
+    border-bottom: 0;
+  }
+
+  .hand-review-table tfoot td {
+    padding: 0.65rem 0.7rem;
+    border-bottom: 0;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--header-gradient) 64%, black 36%);
+  }
+
+  .hand-review-table tfoot td::before {
+    display: block;
+    margin-bottom: 0.22rem;
+    color: var(--muted);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  #hand-review-total-wager::before {
+    content: "Wager";
+  }
+
+  #hand-review-total-return::before {
+    content: "Return";
+  }
+
+  #hand-review-total-net::before {
+    content: "Net";
+  }
 }
 
 .route-view.active {

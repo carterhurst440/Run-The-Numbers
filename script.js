@@ -12402,10 +12402,10 @@ function openHandReviewModal(reviewId, trigger = null) {
         ? `Hit · Pot ${formatCurrency(step.potAfter || 0)}`
         : "Miss";
       row.innerHTML = `
-        <td>Round ${index + 1}</td>
-        <td>${escapeAssistantHtml(`${step.selectionLabel || "Selection"} · ${formatRedBlackMultiplier(step.multiplier || 0) || "0x"}`)}</td>
-        <td>${escapeAssistantHtml(cardLabel)}</td>
-        <td class="${step?.matched ? "hand-review-positive" : "hand-review-negative"}">${escapeAssistantHtml(resultText)}</td>
+        <td data-label="Round">Round ${index + 1}</td>
+        <td data-label="Prediction">${escapeAssistantHtml(`${step.selectionLabel || "Selection"} · ${formatRedBlackMultiplier(step.multiplier || 0) || "0x"}`)}</td>
+        <td data-label="Card">${escapeAssistantHtml(cardLabel)}</td>
+        <td data-label="Result" class="${step?.matched ? "hand-review-positive" : "hand-review-negative"}">${escapeAssistantHtml(resultText)}</td>
       `;
       handReviewBodyEl.appendChild(row);
     });
@@ -12426,10 +12426,10 @@ function openHandReviewModal(reviewId, trigger = null) {
         net > 0 ? "hand-review-positive" : net < 0 ? "hand-review-negative" : "hand-review-neutral";
 
       row.innerHTML = `
-        <td>${escapeAssistantHtml(bet.label || bet.key || "Bet")}</td>
-        <td>${formatCurrency(wager)}</td>
-        <td>${formatCurrency(totalReturn)}</td>
-        <td class="${netClass}">${formatSignedCurrency(net)}</td>
+        <td data-label="Bet">${escapeAssistantHtml(bet.label || bet.key || "Bet")}</td>
+        <td data-label="Wager">${formatCurrency(wager)}</td>
+        <td data-label="Return">${formatCurrency(totalReturn)}</td>
+        <td data-label="Net" class="${netClass}">${formatSignedCurrency(net)}</td>
       `;
       handReviewBodyEl.appendChild(row);
     });
