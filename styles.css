@@ -842,6 +842,7 @@ body[data-app-state="loading"] #app-shell {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  margin-bottom: 0.45rem;
 }
 
 .home-contests-eyebrow {
@@ -2609,7 +2610,7 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .home-title {
-    font-size: clamp(1.85rem, 10vw, 2.7rem);
+    font-size: clamp(1.6rem, 8.8vw, 2.3rem);
     letter-spacing: 0.16em;
   }
 
