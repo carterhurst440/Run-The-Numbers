@@ -9143,6 +9143,10 @@ body.modal-open {
   flex-wrap: wrap;
 }
 
+.admin-view .route-shell {
+  width: min(1180px, 100%);
+}
+
 .admin-prize-list {
   list-style: none;
   display: grid;
@@ -9335,22 +9339,219 @@ body.modal-open {
 }
 
 @media (max-width: 768px) {
+  .admin-view .route-shell {
+    padding-inline: 1rem;
+  }
+
+  .admin-tabs {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 1.1rem;
+    margin-inline: -0.15rem;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .admin-listing-header > * {
+    width: 100%;
+  }
+
+  .admin-listing-header .primary,
+  .admin-listing-header .secondary,
+  .admin-listing-header .link-button {
+    width: 100%;
+    justify-content: center;
+  }
+
   .admin-prize-item {
     flex-direction: column;
     align-items: stretch;
+    padding: 1rem;
   }
 
   .admin-prize-main {
     flex: 1 1 auto;
   }
 
+  .admin-prize-thumb {
+    width: 72px;
+  }
+
   .admin-prize-controls {
     align-items: flex-start;
     flex: 1 1 100%;
+    width: 100%;
   }
 
   .admin-prize-buttons {
     justify-content: flex-start;
+    width: 100%;
+  }
+
+  .admin-prize-buttons > * {
+    flex: 1 1 140px;
+  }
+
+  .admin-status-toggle {
+    flex-wrap: wrap;
+  }
+
+  .analytics-player-filter,
+  .analytics-overview-chart,
+  .analytics-activity-card {
+    padding: 1rem;
+  }
+
+  .player-filter-wrapper {
+    flex-direction: column;
+  }
+
+  #player-filter-select {
+    max-width: none;
+    width: 100%;
+  }
+
+  .player-filter-actions {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .player-filter-actions button {
+    flex: 1 1 160px;
+  }
+
+  .overview-chart-header,
+  .analytics-bet-filters-row,
+  .chart-header {
+    align-items: stretch;
+  }
+
+  .overview-chart-controls,
+  .chart-filters,
+  .bet-grid-filters,
+  .activity-filters {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .chart-filter-btn {
+    flex: 1 1 140px;
+    text-align: center;
+  }
+
+  .overview-chart-container {
+    height: 240px;
+  }
+
+  .analytics-activity-item {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .analytics-activity-rank {
+    min-width: auto;
+  }
+
+  .analytics-activity-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .admin-contest-subtabs {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 0.35rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-contest-subtabs .contest-list-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .admin-contest-card {
+    padding: 1rem;
+  }
+
+  .admin-contest-header,
+  .contest-actions {
+    align-items: stretch;
+  }
+
+  .contest-actions {
+    width: 100%;
+  }
+
+  .contest-actions .primary,
+  .contest-actions .secondary,
+  .contest-actions .contest-share-button {
+    flex: 1 1 180px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .contest-actions .contest-share-button {
+    margin-left: 0;
+  }
+
+  .admin-rank-card {
+    padding: 1rem;
+  }
+
+  .admin-rank-player-list li {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .admin-rank-player-list li span:last-child {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 560px) {
+  .admin-view .route-shell {
+    padding-inline: 0.75rem;
+  }
+
+  .admin-tab {
+    padding: 0.58rem 0.9rem;
+    font-size: 0.82rem;
+  }
+
+  .admin-prize-main {
+    flex-direction: column;
+  }
+
+  .admin-prize-thumb {
+    width: 100%;
+    max-width: 92px;
+  }
+
+  .admin-prize-buttons > * {
+    flex-basis: 100%;
+  }
+
+  .player-filter-actions button,
+  .chart-filter-btn,
+  .contest-actions .primary,
+  .contest-actions .secondary,
+  .contest-actions .contest-share-button {
+    flex-basis: 100%;
+  }
+
+  .contest-status-meta {
+    width: 100%;
+  }
+
+  .admin-rank-heading {
+    grid-template-columns: 1fr;
+    justify-items: start;
   }
 }
 
