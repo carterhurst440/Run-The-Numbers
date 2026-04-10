@@ -7330,7 +7330,7 @@ body.play-assistant-open .play-assistant-fab {
 
   .play-assistant-fab {
     right: 0.85rem;
-    bottom: calc(env(safe-area-inset-bottom) + 8.6rem);
+    bottom: calc(env(safe-area-inset-bottom) + 7.9rem);
   }
 }
 
