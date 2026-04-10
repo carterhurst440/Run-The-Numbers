@@ -2210,10 +2210,25 @@ body[data-app-state="loading"] #app-shell {
   gap: 0.7rem;
 }
 
+.beta-category-button {
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
 .beta-category-button.active {
-  border-color: rgba(255, 230, 120, 0.52);
-  box-shadow: 0 0 0 2px rgba(255, 230, 120, 0.12), 0 16px 28px rgba(8, 18, 44, 0.26);
-  transform: translateY(-2px);
+  border-color: rgba(255, 230, 120, 0.76);
+  background: linear-gradient(135deg, rgba(255, 230, 120, 0.24), rgba(255, 121, 222, 0.18));
+  color: #fff8de;
+  box-shadow:
+    0 0 0 2px rgba(255, 230, 120, 0.18),
+    0 0 24px rgba(255, 196, 112, 0.18),
+    inset 0 0 24px rgba(255, 170, 235, 0.12),
+    0 16px 28px rgba(8, 18, 44, 0.26);
+  transform: translateY(-2px) scale(1.01);
 }
 
 .beta-value-grid {
@@ -2288,10 +2303,15 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .beta-value-button.active {
-  border-color: rgba(255, 230, 120, 0.52);
-  background: linear-gradient(135deg, rgba(255, 230, 120, 0.18), rgba(63, 240, 255, 0.08));
-  box-shadow: 0 0 0 2px rgba(255, 230, 120, 0.1), 0 12px 20px rgba(8, 18, 44, 0.24);
-  transform: translateY(-1px);
+  border-color: rgba(255, 230, 120, 0.72);
+  background: linear-gradient(135deg, rgba(255, 230, 120, 0.24), rgba(63, 240, 255, 0.12));
+  color: #fff8de;
+  box-shadow:
+    0 0 0 2px rgba(255, 230, 120, 0.16),
+    0 0 22px rgba(255, 230, 120, 0.14),
+    inset 0 0 18px rgba(255, 255, 255, 0.04),
+    0 12px 20px rgba(8, 18, 44, 0.24);
+  transform: translateY(-1px) scale(1.01);
 }
 
 .beta-value-button[data-category="color"].active[data-red-black-value="red"] {
