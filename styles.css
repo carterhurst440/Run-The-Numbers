@@ -948,18 +948,36 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .contest-threshold-progress {
+  position: relative;
   display: grid;
   gap: 0.35rem;
   margin: 0.55rem 0 0;
   padding: 0.75rem 0.85rem;
   border-radius: 14px;
-  border: 1px solid var(--betting-panel-border);
+  border: 1px solid rgba(255, 214, 128, 0.26);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--betting-panel-bg) 92%, transparent), color-mix(in srgb, var(--menu-bg) 88%, black 12%));
+    linear-gradient(135deg, rgba(88, 28, 135, 0.44), rgba(119, 45, 160, 0.34) 44%, rgba(255, 214, 128, 0.14));
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, white 8%, transparent),
-    inset 0 0 22px color-mix(in srgb, var(--neon-cyan) 12%, transparent);
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 0 1px rgba(255, 214, 128, 0.06),
+    0 10px 24px rgba(2, 6, 18, 0.18);
   animation: contest-threshold-float 5.2s ease-in-out infinite;
+  overflow: hidden;
+}
+
+.contest-threshold-progress::after {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background: linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 236, 186, 0.18) 48%,
+    rgba(255, 255, 255, 0) 64%
+  );
+  transform: translateX(-65%);
+  animation: betaBetSpotShimmer 3.2s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .contest-threshold-progress.is-boosted {
@@ -970,6 +988,8 @@ body[data-app-state="loading"] #app-shell {
 .contest-threshold-progress-duration,
 .contest-threshold-progress-meta {
   margin: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .contest-threshold-progress-title {
@@ -990,6 +1010,7 @@ body[data-app-state="loading"] #app-shell {
 
 .contest-threshold-progress-bar {
   position: relative;
+  z-index: 1;
   height: 0.55rem;
   overflow: hidden;
   border-radius: 999px;
@@ -1286,6 +1307,28 @@ body[data-app-state="loading"] #app-shell {
 
 .home-contests-link {
   flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--neon-cyan);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
+.home-contests-link:hover,
+.home-contests-link:focus-visible {
+  border-color: transparent;
+  box-shadow: none;
+  color: color-mix(in srgb, var(--neon-cyan) 72%, white 28%);
+  transform: none;
+  opacity: 0.92;
+  outline: none;
 }
 
 .home-title {
@@ -2598,7 +2641,7 @@ body[data-app-state="loading"] #app-shell {
 
   .home-contests-link {
     align-self: flex-start;
-    padding: 0.5rem 0.9rem;
+    padding: 0;
     font-size: 0.8rem;
     letter-spacing: 0.12em;
   }
