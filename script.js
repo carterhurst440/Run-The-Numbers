@@ -8176,6 +8176,10 @@ async function handleSignOut() {
 }
 
 export async function logGameRun(score, metadata = {}) {
+  const endingBankrollSnapshot = bankroll;
+  const endingCarterCashSnapshot = carterCash;
+  const accountModeSnapshot = getAccountModeValue();
+  const contestIdSnapshot = isContestAccountMode() ? currentAccountMode.contestId : null;
   const { data: userResponse, error: logRunUserError } = await supabase.auth.getUser();
   if (logRunUserError) {
     console.error("[RTN] logGameRun getUser error", logRunUserError);
@@ -8187,10 +8191,10 @@ export async function logGameRun(score, metadata = {}) {
   const enrichedMetadata = {
     ...metadata,
     recorded_score: roundCurrencyValue(score),
-    ending_bankroll: bankroll,
-    ending_carter_cash: carterCash,
-    account_mode: getAccountModeValue(),
-    contest_id: isContestAccountMode() ? currentAccountMode.contestId : null
+    ending_bankroll: endingBankrollSnapshot,
+    ending_carter_cash: endingCarterCashSnapshot,
+    account_mode: accountModeSnapshot,
+    contest_id: contestIdSnapshot
   };
   let runScore = Number.isFinite(Number(score)) ? roundCurrencyValue(score) : 0;
   let { error: insertError } = await supabase.from("game_runs").insert({
