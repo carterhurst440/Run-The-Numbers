@@ -884,10 +884,10 @@ body[data-app-state="loading"] #app-shell {
   border: 1px solid color-mix(in srgb, white 40%, var(--betting-panel-border) 60%);
   border-radius: 24px;
   background:
-    radial-gradient(circle at top right, color-mix(in srgb, white 18%, transparent), transparent 26%),
-    radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--neon-cyan) 14%, white 10%), transparent 34%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 214, 240, 0.08)),
-    linear-gradient(180deg, rgba(120, 34, 122, 0.46), rgba(82, 20, 98, 0.54));
+    radial-gradient(circle at top right, color-mix(in srgb, white 14%, transparent), transparent 26%),
+    radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--neon-cyan) 12%, white 8%), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 214, 240, 0.05)),
+    linear-gradient(180deg, rgba(110, 28, 118, 0.52), rgba(74, 16, 94, 0.62));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.24),
     inset 0 0 0 1px rgba(255, 255, 255, 0.05),
