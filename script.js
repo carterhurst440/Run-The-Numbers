@@ -7205,7 +7205,9 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
 
   const details = document.createElement("p");
   details.className = "home-contest-card-window";
-  details.textContent = `${formatContestRemaining(contest)} • Contestants ${formatContestFill(contest, stats)}`;
+  details.textContent = getContestStatus(contest) === "pending" && isThresholdContest(contest)
+    ? `Starts when ${getContestStartRequirement(contest)} contestants join • ${getContestLengthHours(contest)} hour${getContestLengthHours(contest) === 1 ? "" : "s"} long`
+    : getContestScheduleLabel(contest, stats);
   titleRow.append(title, entryFeeBadge);
   titleWrap.append(titleRow, details);
 
@@ -7227,15 +7229,11 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
   prize.className = "home-contest-card-prize";
   prize.textContent = `Prize Pot ${getContestPrizeHeadline(contest, stats)}`;
 
-  const growth = document.createElement("p");
-  growth.className = "home-contest-card-growth";
-  growth.textContent = getContestPrizeGrowthCopy(contest);
-
   const thresholdProgress = createContestThresholdProgress(contest, stats, "home");
 
-  const caption = document.createElement("p");
-  caption.className = "home-contest-card-growth";
-  caption.textContent = String(contest.contest_details || "").trim();
+  const games = document.createElement("p");
+  games.className = "home-contest-card-growth";
+  games.textContent = `Games: ${getContestGamesLabel(contest)}`;
 
   const payouts = buildContestPayoutTable(contest, stats, "home-contest-payouts");
 
@@ -7279,15 +7277,9 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
   });
 
   actions.append(joinButton, shareButton);
-  if (caption.textContent) {
-    item.append(top, prize, growth);
-    if (thresholdProgress) item.append(thresholdProgress);
-    item.append(caption, payouts, actions);
-  } else {
-    item.append(top, prize, growth);
-    if (thresholdProgress) item.append(thresholdProgress);
-    item.append(payouts, actions);
-  }
+  item.append(top, prize);
+  if (thresholdProgress) item.append(thresholdProgress);
+  item.append(games, payouts, actions);
   return item;
 }
 
