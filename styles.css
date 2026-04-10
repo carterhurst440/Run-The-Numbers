@@ -325,8 +325,8 @@
   --assistant-fab-border: color-mix(in srgb, var(--neon-cyan) 55%, white 45%);
   --assistant-fab-highlight: rgba(255, 255, 255, 0.38);
   --assistant-fab-bg:
-    radial-gradient(circle at 28% 24%, var(--assistant-fab-highlight), transparent 28%),
-    linear-gradient(145deg, color-mix(in srgb, var(--menu-bg) 78%, black 22%), color-mix(in srgb, var(--header-gradient) 86%, transparent));
+    radial-gradient(circle at 28% 24%, color-mix(in srgb, white 30%, transparent), transparent 26%),
+    linear-gradient(145deg, color-mix(in srgb, var(--neon-cyan) 18%, var(--menu-bg) 82%), color-mix(in srgb, var(--header-gradient) 92%, black 8%));
   --assistant-fab-shadow:
     0 18px 34px rgba(0, 0, 0, 0.42),
     0 0 0 1px color-mix(in srgb, var(--neon-cyan) 18%, transparent),
