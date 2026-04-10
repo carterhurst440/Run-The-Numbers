@@ -5422,9 +5422,13 @@ async function loadContestJourneyPoints(contest, entry) {
   if (!contest?.id || !entry?.user_id) return [];
 
   const startingValue = Number(entry.starting_credits ?? contest.starting_bankroll ?? 0);
+  const normalizeJourneyValue = (value) => {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? Number(numericValue.toFixed(2)) : null;
+  };
   const points = [{
     label: "Start",
-    value: Number.isFinite(startingValue) ? startingValue : 0,
+    value: Number.isFinite(startingValue) ? Number(startingValue.toFixed(2)) : 0,
     created_at: contest.starts_at || entry.opted_in_at || null
   }];
 
@@ -5456,11 +5460,11 @@ async function loadContestJourneyPoints(contest, entry) {
 
     allRuns.forEach((run, index) => {
       const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
-      const endingBankroll = Number(metadata?.ending_bankroll);
+      const endingBankroll = normalizeJourneyValue(metadata?.ending_bankroll);
       if (!Number.isFinite(endingBankroll)) return;
       points.push({
         label: `Hand ${index + 1}`,
-        value: Math.round(endingBankroll),
+        value: endingBankroll,
         created_at: run?.created_at || null
       });
     });
@@ -5472,21 +5476,21 @@ async function loadContestJourneyPoints(contest, entry) {
     });
 
     filteredHistory.forEach((point, index) => {
-      const endingBankroll = Number(point?.value);
+      const endingBankroll = normalizeJourneyValue(point?.value);
       if (!Number.isFinite(endingBankroll)) return;
       points.push({
         label: point?.label || `Hand ${index + 1}`,
-        value: Math.round(endingBankroll),
+        value: endingBankroll,
         created_at: point?.created_at || null
       });
     });
   }
 
-  const endingValue = Number(entry.current_credits ?? entry.score ?? points[points.length - 1]?.value ?? 0);
-  if (Number.isFinite(endingValue) && points[points.length - 1]?.value !== Math.round(endingValue)) {
+  const endingValue = normalizeJourneyValue(entry.current_credits ?? entry.score ?? points[points.length - 1]?.value ?? 0);
+  if (Number.isFinite(endingValue) && points[points.length - 1]?.value !== endingValue) {
     points.push({
       label: "Finish",
-      value: Math.round(endingValue),
+      value: endingValue,
       created_at: contest.ends_at || null
     });
   }
@@ -14415,7 +14419,9 @@ async function renderPlayerHandsChart(userId, period = "year") {
   playerHandsPeriod = period;
   const rows = await loadPlayerHandsHistory(userId, period);
   const labels = rows.map((row) => row.label || "");
-  const values = rows.map((row) => Number(row.handsPlayed || 0));
+  const runTheNumbersValues = rows.map((row) => Number(row.runTheNumbersHands || 0));
+  const guess10Values = rows.map((row) => Number(row.guess10Hands || 0));
+  const hasSplitData = rows.length > 0;
 
   const canvas = document.getElementById("player-hands-chart");
   if (!(canvas instanceof HTMLCanvasElement)) {
@@ -14435,24 +14441,56 @@ async function renderPlayerHandsChart(userId, period = "year") {
     type: "line",
     data: {
       labels: labels.length ? labels : ["No Data"],
-      datasets: [
-        {
-          label: "Hands Played",
-          data: values.length ? values : [0],
-          borderColor: "rgba(255, 118, 222, 1)",
-          backgroundColor: "rgba(255, 118, 222, 0.14)",
-          borderWidth: 2,
-          fill: true,
-          tension: 0.25,
-          pointRadius: values.length > 1 ? 0 : 4
-        }
-      ]
+      datasets: hasSplitData
+        ? [
+            {
+              label: getGameLabel(GAME_KEYS.RUN_THE_NUMBERS),
+              data: runTheNumbersValues,
+              borderColor: "rgba(255, 209, 102, 1)",
+              backgroundColor: "rgba(255, 209, 102, 0.18)",
+              borderWidth: 2,
+              fill: false,
+              tension: 0.25,
+              pointRadius: runTheNumbersValues.length > 1 ? 0 : 4,
+              pointHoverRadius: 4
+            },
+            {
+              label: getGameLabel(GAME_KEYS.GUESS_10),
+              data: guess10Values,
+              borderColor: "rgba(255, 118, 222, 1)",
+              backgroundColor: "rgba(255, 118, 222, 0.14)",
+              borderWidth: 2,
+              fill: false,
+              tension: 0.25,
+              pointRadius: guess10Values.length > 1 ? 0 : 4,
+              pointHoverRadius: 4
+            }
+          ]
+        : [
+            {
+              label: "Hands Played",
+              data: [0],
+              borderColor: "rgba(255, 118, 222, 1)",
+              backgroundColor: "rgba(255, 118, 222, 0.14)",
+              borderWidth: 2,
+              fill: false,
+              tension: 0.25,
+              pointRadius: 4
+            }
+          ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: true,
+          labels: {
+            color: "rgba(226, 248, 255, 0.85)",
+            boxWidth: 14,
+            boxHeight: 14
+          }
+        },
         tooltip: {
           mode: "index",
           intersect: false,
@@ -14462,10 +14500,10 @@ async function renderPlayerHandsChart(userId, period = "year") {
           borderColor: "rgba(255, 118, 222, 0.5)",
           borderWidth: 1,
           padding: 12,
-          displayColors: false,
+          displayColors: true,
           callbacks: {
             label(context) {
-              return `Hands: ${Math.round(Number(context.parsed.y || 0)).toLocaleString()}`;
+              return `${context.dataset.label}: ${Math.round(Number(context.parsed.y || 0)).toLocaleString()}`;
             }
           }
         }
@@ -14496,12 +14534,12 @@ async function renderPlayerHandsChart(userId, period = "year") {
 
   if (playerHandsSubheadEl) {
     const labelsByPeriod = {
-      hour: `Showing ${rows.length.toLocaleString()} hands buckets from the last hour in US Mountain Time.`,
-      day: `Showing ${rows.length.toLocaleString()} hands buckets from the last 24 hours in US Mountain Time.`,
-      week: `Showing ${rows.length.toLocaleString()} hands buckets from the last week in US Mountain Time.`,
-      month: `Showing ${rows.length.toLocaleString()} hands buckets from the last month in US Mountain Time.`,
-      "90days": `Showing ${rows.length.toLocaleString()} hands buckets from the last 90 days in US Mountain Time.`,
-      year: `Showing ${rows.length.toLocaleString()} hands buckets from the last year in US Mountain Time.`
+      hour: `Showing ${rows.length.toLocaleString()} hands buckets from the last hour in US Mountain Time, split by game.`,
+      day: `Showing ${rows.length.toLocaleString()} hands buckets from the last 24 hours in US Mountain Time, split by game.`,
+      week: `Showing ${rows.length.toLocaleString()} hands buckets from the last week in US Mountain Time, split by game.`,
+      month: `Showing ${rows.length.toLocaleString()} hands buckets from the last month in US Mountain Time, split by game.`,
+      "90days": `Showing ${rows.length.toLocaleString()} hands buckets from the last 90 days in US Mountain Time, split by game.`,
+      year: `Showing ${rows.length.toLocaleString()} hands buckets from the last year in US Mountain Time, split by game.`
     };
     playerHandsSubheadEl.textContent = labelsByPeriod[period] || labelsByPeriod.year;
   }
