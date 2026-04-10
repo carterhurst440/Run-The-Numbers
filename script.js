@@ -460,8 +460,8 @@ function getBuiltinThemeRecords() {
     key,
     name: BUILTIN_THEME_LABELS[key] || humanizeThemeKey(key),
     base_theme: key,
-    palette: { ...DEFAULT_CUSTOM_THEME_PALETTE },
-    settings: { ...DEFAULT_CUSTOM_THEME_SETTINGS },
+    palette: { ...(BUILTIN_THEME_PROFILES[key]?.palette || DEFAULT_CUSTOM_THEME_PALETTE) },
+    settings: { ...(BUILTIN_THEME_PROFILES[key]?.settings || DEFAULT_CUSTOM_THEME_SETTINGS) },
     is_builtin: true
   }));
 }
@@ -9500,6 +9500,184 @@ const DEFAULT_CUSTOM_THEME_SETTINGS = {
   glowStrength: 48,
   surfaceContrast: 58,
   radiusScale: 72
+};
+const BUILTIN_THEME_PROFILES = {
+  blue: {
+    palette: {
+      accent: "#63f0ff",
+      accentSecondary: "#f857c1",
+      accentTertiary: "#8b80ff",
+      gold: "#ffd166",
+      muted: "#bfd5ff",
+      success: "#5af78e",
+      danger: "#ff5c8a",
+      bgStart: "#08142d",
+      bgEnd: "#050913",
+      panelStart: "#0e2c63",
+      panelEnd: "#08142d",
+      headerStart: "#15386d",
+      headerEnd: "#0b1b3d"
+    },
+    settings: {
+      glowStrength: 52,
+      surfaceContrast: 60,
+      radiusScale: 72
+    }
+  },
+  pink: {
+    palette: {
+      accent: "#ff9bf3",
+      accentSecondary: "#ff4fd2",
+      accentTertiary: "#b78bff",
+      gold: "#ffeac0",
+      muted: "#f7bff0",
+      success: "#a4ffe8",
+      danger: "#ff6a9c",
+      bgStart: "#25021c",
+      bgEnd: "#1b0228",
+      panelStart: "#501260",
+      panelEnd: "#20062e",
+      headerStart: "#5a1060",
+      headerEnd: "#340c4a"
+    },
+    settings: {
+      glowStrength: 68,
+      surfaceContrast: 62,
+      radiusScale: 74
+    }
+  },
+  orange: {
+    palette: {
+      accent: "#ffe58a",
+      accentSecondary: "#ff8f3a",
+      accentTertiary: "#ffb45c",
+      gold: "#ffd372",
+      muted: "#ffd8a6",
+      success: "#9ff7d6",
+      danger: "#ff6b5c",
+      bgStart: "#261002",
+      bgEnd: "#1d0800",
+      panelStart: "#5b2400",
+      panelEnd: "#241003",
+      headerStart: "#682600",
+      headerEnd: "#421400"
+    },
+    settings: {
+      glowStrength: 60,
+      surfaceContrast: 64,
+      radiusScale: 68
+    }
+  },
+  "steel-black": {
+    palette: {
+      accent: "#b7d0df",
+      accentSecondary: "#d7dee5",
+      accentTertiary: "#8f9cab",
+      gold: "#f1f5f9",
+      muted: "#c9d2dc",
+      success: "#d5dde3",
+      danger: "#c46f7c",
+      bgStart: "#0d1016",
+      bgEnd: "#090b0f",
+      panelStart: "#21272f",
+      panelEnd: "#080a0d",
+      headerStart: "#222831",
+      headerEnd: "#0e1116"
+    },
+    settings: {
+      glowStrength: 18,
+      surfaceContrast: 78,
+      radiusScale: 58
+    }
+  },
+  angelic: {
+    palette: {
+      accent: "#c8efff",
+      accentSecondary: "#ffd7ee",
+      accentTertiary: "#c7d6ff",
+      gold: "#fff2cc",
+      muted: "#e8f4ff",
+      success: "#f2fbff",
+      danger: "#ff8eb2",
+      bgStart: "#152542",
+      bgEnd: "#1a2745",
+      panelStart: "#5878b0",
+      panelEnd: "#1a2440",
+      headerStart: "#405d8d",
+      headerEnd: "#1b2d4e"
+    },
+    settings: {
+      glowStrength: 34,
+      surfaceContrast: 54,
+      radiusScale: 76
+    }
+  },
+  retro: {
+    palette: {
+      accent: "#8ff2ff",
+      accentSecondary: "#ff7a59",
+      accentTertiary: "#ffd166",
+      gold: "#ffd166",
+      muted: "#f4cf95",
+      success: "#9ff7d6",
+      danger: "#ff8b72",
+      bgStart: "#1f1028",
+      bgEnd: "#1a1326",
+      panelStart: "#2f1c49",
+      panelEnd: "#1b1030",
+      headerStart: "#362354",
+      headerEnd: "#22143a"
+    },
+    settings: {
+      glowStrength: 46,
+      surfaceContrast: 56,
+      radiusScale: 66
+    }
+  },
+  "cotton-candy": {
+    palette: {
+      accent: "#6ff4ff",
+      accentSecondary: "#ff7fd8",
+      accentTertiary: "#a8a6ff",
+      gold: "#ffe88f",
+      muted: "#f8d7ff",
+      success: "#adffe9",
+      danger: "#ff88d9",
+      bgStart: "#180926",
+      bgEnd: "#14081c",
+      panelStart: "#241248",
+      panelEnd: "#160a2c",
+      headerStart: "#221e60",
+      headerEnd: "#1a0e3e"
+    },
+    settings: {
+      glowStrength: 58,
+      surfaceContrast: 52,
+      radiusScale: 80
+    }
+  },
+  pastel: {
+    palette: {
+      accent: "#9be7ff",
+      accentSecondary: "#ffc1dc",
+      accentTertiary: "#d6c4ff",
+      gold: "#ffe1a8",
+      muted: "#e8defc",
+      success: "#c3ffe8",
+      danger: "#ff9dbd",
+      bgStart: "#142036",
+      bgEnd: "#111b2b",
+      panelStart: "#1b2a4a",
+      panelEnd: "#111c30",
+      headerStart: "#273a62",
+      headerEnd: "#14223f"
+    },
+    settings: {
+      glowStrength: 30,
+      surfaceContrast: 50,
+      radiusScale: 82
+    }
+  }
 };
 const CUSTOM_THEME_VARIABLE_KEYS = [
   "--neon-cyan",
