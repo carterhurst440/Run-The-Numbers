@@ -8111,11 +8111,10 @@ function applySignedOutState(reason = "unknown", { focusInput = true } = {}) {
   stats = { hands: 0, wagered: 0, paid: 0 };
   updateStatsUI();
 
-  resetBets();
-  lastBetLayout = [];
-  currentOpeningLayout = [];
-  // Advanced mode is always enabled - no need to initialize toggle
-  clearRecentHandHistory();
+  resetSessionScopedGameplayState({
+    reason: `signed-out:${reason}`,
+    resetRunTheNumbersStatus: true
+  });
 
   bankroll = INITIAL_BANKROLL;
   handleBankrollChanged();
@@ -8153,7 +8152,6 @@ function applySignedOutState(reason = "unknown", { focusInput = true } = {}) {
   }
 
   setSelectedChip(chipDenominations[0], false);
-  resetTable("Select a chip and place your bets in the betting panel.", { clearDraws: true });
   closeUtilityPanel();
   closeActiveDrawer();
   clearPlayAreaHeight();
@@ -9941,7 +9939,7 @@ function updateRedBlackActionState() {
 }
 
 function renderRedBlackSummary() {
-  const commissionRate = getRedBlackCommissionRate();
+  const commissionRate = getGuess10CommissionRate();
   const commissionUnits = roundCurrencyValue(Math.max(0, redBlackCurrentPot - redBlackBet) * commissionRate);
   if (redBlackBetSpotButton) {
     redBlackBetSpotButton.classList.toggle("is-empty", redBlackBet <= 0);
@@ -10119,7 +10117,7 @@ function renderRedBlackValueSelector() {
     button.setAttribute("aria-disabled", String(redBlackSettlementPending));
     button.addEventListener("click", () => {
       if (redBlackSettlementPending) return;
-      toggleRedBlackValue(item.key);
+      toggleGuess10Value(item.key);
     });
     redBlackValueSelectorEl.appendChild(button);
   });
@@ -10186,7 +10184,7 @@ function renderRedBlackBetStack() {
   renderRedBlackChipStack(redBlackChipStackEl, redBlackBet);
 }
 
-function resetRedBlackHand({ keepBet = true } = {}) {
+function resetGuess10Hand({ keepBet = true } = {}) {
   redBlackRung = 0;
   redBlackHandActive = false;
   redBlackAwaitingDecision = false;
@@ -10197,6 +10195,7 @@ function resetRedBlackHand({ keepBet = true } = {}) {
   redBlackSelectedValues = ["red"];
   if (!keepBet) {
     redBlackBet = 0;
+    redBlackLastBet = 0;
   }
   clearRedBlackDraws();
   clearRedBlackHistory();
@@ -10206,7 +10205,7 @@ function resetRedBlackHand({ keepBet = true } = {}) {
   updateRedBlackActionState();
 }
 
-function finishRedBlackHand(message, { clearBet = false } = {}) {
+function finishGuess10Hand(message, { clearBet = false } = {}) {
   redBlackRung = 0;
   redBlackHandActive = false;
   redBlackAwaitingDecision = false;
@@ -10221,7 +10220,24 @@ function finishRedBlackHand(message, { clearBet = false } = {}) {
   updateRedBlackActionState();
 }
 
-async function finalizeRedBlackHand({
+function resetSessionScopedGameplayState({
+  reason = "session-change",
+  resetRunTheNumbersStatus = false
+} = {}) {
+  console.info(`[RTN] resetting session-scoped gameplay state (${reason})`);
+  resetBets();
+  lastBetLayout = [];
+  currentOpeningLayout = [];
+  clearRecentHandHistory();
+  resetTable(
+    resetRunTheNumbersStatus ? "Select a chip and place your bets in the betting panel." : "",
+    { clearDraws: true }
+  );
+  resetGuess10Hand({ keepBet: false });
+  setRedBlackStatus("Build one base wager, choose COLOR, SUIT, or RANK, make your selection, then draw.");
+}
+
+async function finalizeGuess10Hand({
   completedBet,
   completedCards,
   drawnCards,
@@ -10268,7 +10284,7 @@ async function finalizeRedBlackHand({
   }
 }
 
-async function dealRedBlackCard() {
+async function dealGuess10Card() {
   if (redBlackBet <= 0 || !isRedBlackSelectionValid()) {
     return;
   }
@@ -10290,15 +10306,15 @@ async function dealRedBlackCard() {
   redBlackDeck = createRedBlackDeck();
   const nextCard = redBlackDeck.pop();
   if (!nextCard) {
-    finishRedBlackHand("No cards left in the deck.", { clearBet: false });
+    finishGuess10Hand("No cards left in the deck.", { clearBet: false });
     return;
   }
 
   const cardEl = appendRedBlackCard(nextCard);
   const multiplier = getRedBlackMultiplier();
-  const selectionLabel = getRedBlackSelectionLabel();
+  const selectionLabel = getGuess10SelectionLabel();
 
-  const matched = doesRedBlackCardMatch(nextCard);
+  const matched = doesGuess10CardMatch(nextCard);
   const nextPot = matched ? roundCurrencyValue(redBlackCurrentPot * multiplier) : 0;
   appendRedBlackHistoryEntry({ card: nextCard, matched, multiplier, selectionLabel, potAfter: nextPot });
 
@@ -10311,7 +10327,7 @@ async function dealRedBlackCard() {
     }));
     const drawnCards = handHistory.map((entry) => entry.card).filter(Boolean);
     redBlackSettlementPending = true;
-    finishRedBlackHand(
+    finishGuess10Hand(
       `${nextCard.label}${nextCard.suit} missed ${selectionLabel}. Hand over. Place a new wager to start again.`,
       { clearBet: true }
     );
@@ -10325,7 +10341,7 @@ async function dealRedBlackCard() {
       net: -completedBet,
       commissionKept: 0
     });
-    await finalizeRedBlackHand({
+    await finalizeGuess10Hand({
       completedBet,
       completedCards,
       drawnCards,
@@ -10346,7 +10362,7 @@ async function dealRedBlackCard() {
   }
   renderRedBlackSummary();
   updateRedBlackPaytableHighlight();
-  const commissionRate = getRedBlackCommissionRate();
+  const commissionRate = getGuess10CommissionRate();
   setRedBlackStatus(
     `${nextCard.label}${nextCard.suit} matched ${selectionLabel}. Pot is now ${formatCurrency(
       redBlackCurrentPot
@@ -10355,7 +10371,7 @@ async function dealRedBlackCard() {
   updateRedBlackActionState();
 }
 
-function rebetRedBlackHand() {
+function rebetGuess10Hand() {
   if (redBlackHandActive || redBlackSettlementPending || redBlackLastBet <= 0) {
     return;
   }
@@ -10372,13 +10388,13 @@ function rebetRedBlackHand() {
   setRedBlackStatus(`Rebet loaded for ${formatCurrency(redBlackBet)}. Choose your prediction and draw.`);
 }
 
-async function withdrawRedBlackHand() {
+async function withdrawGuess10Hand() {
   if (redBlackSettlementPending || !redBlackHandActive || redBlackRung <= 0 || redBlackCurrentPot <= 0) {
     return;
   }
   const completedBet = redBlackBet;
   const completedCards = redBlackHistoryEl?.children.length || redBlackRung;
-  const commissionRate = getRedBlackCommissionRate();
+  const commissionRate = getGuess10CommissionRate();
   const winnings = Math.max(0, redBlackCurrentPot - redBlackBet);
   const commission = roundCurrencyValue(winnings * commissionRate);
   const payout = roundCurrencyValue(redBlackCurrentPot - commission);
@@ -10390,7 +10406,7 @@ async function withdrawRedBlackHand() {
   bankroll = roundCurrencyValue(bankroll + payout);
   handleBankrollChanged();
   redBlackSettlementPending = true;
-  finishRedBlackHand(
+  finishGuess10Hand(
     `You cashed out for ${formatCurrency(payout)} after a ${redBlackRung}-card streak. Commission: ${formatPercent(
       commissionRate
     )} on winnings (${formatCurrency(commission)}).`,
@@ -10406,7 +10422,7 @@ async function withdrawRedBlackHand() {
     net: roundCurrencyValue(payout - completedBet),
     commissionKept: commission
   });
-  await finalizeRedBlackHand({
+  await finalizeGuess10Hand({
     completedBet,
     completedCards,
     drawnCards,
@@ -10419,7 +10435,7 @@ async function withdrawRedBlackHand() {
   });
 }
 
-function getRedBlackCommissionRate() {
+function getGuess10CommissionRate() {
   return RED_BLACK_COMMISSION_BY_RUNG[Math.min(redBlackRung, RED_BLACK_MAX_RUNGS)] ?? 0;
 }
 
@@ -10427,7 +10443,7 @@ function formatPercent(value) {
   return `${Math.round(Number(value || 0) * 100)}%`;
 }
 
-function getRedBlackSelectionLabel() {
+function getGuess10SelectionLabel() {
   if (redBlackCategory === "color") {
     return redBlackSelectedValues[0].toUpperCase();
   }
@@ -10437,7 +10453,7 @@ function getRedBlackSelectionLabel() {
   return redBlackSelectedValues.join(" + ");
 }
 
-function doesRedBlackCardMatch(card) {
+function doesGuess10CardMatch(card) {
   if (!card) return false;
   if (redBlackCategory === "color") {
     return redBlackSelectedValues.includes(card.color);
@@ -10449,7 +10465,7 @@ function doesRedBlackCardMatch(card) {
   return redBlackSelectedValues.includes(card.label);
 }
 
-function setRedBlackCategory(category) {
+function setGuess10Category(category) {
   redBlackCategory = category;
   if (category === "color") {
     redBlackSelectedValues = ["red"];
@@ -10462,7 +10478,7 @@ function setRedBlackCategory(category) {
   updateRedBlackActionState();
 }
 
-function toggleRedBlackValue(value) {
+function toggleGuess10Value(value) {
   const config = getRedBlackSelectionConfig();
   if (redBlackCategory === "color") {
     redBlackSelectedValues = [value];
@@ -15398,7 +15414,7 @@ redBlackCategoryButtons.forEach((button) => {
     if (redBlackAwaitingDecision || redBlackSettlementPending) return;
     const category = button.dataset.redBlackCategory;
     if (!category) return;
-    setRedBlackCategory(category);
+    setGuess10Category(category);
     setRedBlackStatus(`Category set to ${category.toUpperCase()}. Make your selection and review the multiplier.`);
   });
 });
@@ -15434,19 +15450,19 @@ if (redBlackClearBetButton) {
 
 if (redBlackRebetButton) {
   redBlackRebetButton.addEventListener("click", () => {
-    rebetRedBlackHand();
+    rebetGuess10Hand();
   });
 }
 
 if (redBlackDealButton) {
   redBlackDealButton.addEventListener("click", () => {
-    dealRedBlackCard();
+    dealGuess10Card();
   });
 }
 
 if (redBlackWithdrawButton) {
   redBlackWithdrawButton.addEventListener("click", () => {
-    withdrawRedBlackHand();
+    withdrawGuess10Hand();
   });
 }
 
@@ -15602,7 +15618,7 @@ updatePaytableAvailability();
 renderChipSelector();
 setSelectedChip(selectedChip, false);
 renderRedBlackChipRack();
-resetRedBlackHand({ keepBet: false });
+resetGuess10Hand({ keepBet: false });
 setRedBlackStatus("Build one base wager, choose COLOR, SUIT, or RANK, make your selection, then draw.");
 renderBets();
 updateBankroll();
@@ -15695,6 +15711,8 @@ function setupAuthListener() {
 
         const sub = supabase.auth.onAuthStateChange(async (event, session) => {
           console.info(`[RTN] auth state changed: ${event}`);
+          const previousUserId =
+            currentUser?.id && currentUser.id !== GUEST_USER.id ? currentUser.id : null;
           
           if (event === "PASSWORD_RECOVERY") {
             const user = session?.user ?? currentUser ?? null;
@@ -15708,6 +15726,12 @@ function setupAuthListener() {
           } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
             const user = session?.user ?? null;
             if (user) {
+              if (previousUserId && previousUserId !== user.id) {
+                resetSessionScopedGameplayState({
+                  reason: `user-switch:${previousUserId}->${user.id}`,
+                  resetRunTheNumbersStatus: true
+                });
+              }
               currentUser = user;
               updateAdminVisibility(currentUser);
               updateResetButtonVisibility(currentUser);
