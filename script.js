@@ -8886,6 +8886,7 @@ let redBlackBet = 0;
 let redBlackRung = 0;
 let redBlackHandActive = false;
 let redBlackAwaitingDecision = false;
+let redBlackSettlementPending = false;
 let redBlackDeck = [];
 let redBlackCurrentPot = 0;
 let redBlackCategory = "color";
@@ -9905,21 +9906,32 @@ function setRedBlackStatus(message) {
 
 function updateRedBlackActionState() {
   const selectionValid = isRedBlackSelectionValid();
+  const handLocked = redBlackHandActive || redBlackSettlementPending;
+  redBlackChipButtons.forEach((button) => {
+    button.disabled = handLocked;
+    button.setAttribute("aria-disabled", String(handLocked));
+  });
+  if (redBlackBetSpotButton) {
+    const canAddToBet = !handLocked;
+    redBlackBetSpotButton.disabled = !canAddToBet;
+    redBlackBetSpotButton.setAttribute("aria-disabled", String(!canAddToBet));
+  }
   if (redBlackClearBetButton) {
-    const canClear = !redBlackHandActive && redBlackBet > 0;
+    const canClear = !handLocked && redBlackBet > 0;
     redBlackClearBetButton.disabled = !canClear;
     redBlackClearBetButton.classList.toggle("is-visible", canClear);
     redBlackClearBetButton.setAttribute("aria-hidden", String(!canClear));
     redBlackClearBetButton.tabIndex = canClear ? 0 : -1;
   }
   if (redBlackRebetButton) {
-    redBlackRebetButton.disabled = redBlackHandActive || redBlackBet > 0 || redBlackLastBet <= 0;
+    redBlackRebetButton.disabled = handLocked || redBlackBet > 0 || redBlackLastBet <= 0;
   }
   if (redBlackDealButton) {
-    redBlackDealButton.disabled = redBlackBet <= 0 || !selectionValid;
+    redBlackDealButton.disabled = redBlackSettlementPending || redBlackBet <= 0 || !selectionValid;
   }
   if (redBlackWithdrawButton) {
-    redBlackWithdrawButton.disabled = !redBlackHandActive || redBlackRung <= 0 || redBlackCurrentPot <= 0;
+    redBlackWithdrawButton.disabled =
+      redBlackSettlementPending || !redBlackHandActive || redBlackRung <= 0 || redBlackCurrentPot <= 0;
   }
   redBlackCategoryButtons.forEach((button) => {
     const isActive = button.dataset.redBlackCategory === redBlackCategory;
@@ -10103,7 +10115,10 @@ function renderRedBlackValueSelector() {
     const isSelected = redBlackSelectedValues.includes(item.key);
     button.classList.toggle("active", isSelected);
     button.setAttribute("aria-pressed", String(isSelected));
+    button.disabled = redBlackSettlementPending;
+    button.setAttribute("aria-disabled", String(redBlackSettlementPending));
     button.addEventListener("click", () => {
+      if (redBlackSettlementPending) return;
       toggleRedBlackValue(item.key);
     });
     redBlackValueSelectorEl.appendChild(button);
@@ -10175,6 +10190,7 @@ function resetRedBlackHand({ keepBet = true } = {}) {
   redBlackRung = 0;
   redBlackHandActive = false;
   redBlackAwaitingDecision = false;
+  redBlackSettlementPending = false;
   redBlackDeck = [];
   redBlackCurrentPot = 0;
   redBlackCategory = "color";
@@ -10216,25 +10232,25 @@ async function finalizeRedBlackHand({
   stopperCard = null,
   result
 }) {
-  animateBankrollOutcome(net);
-  recordBankrollHistoryPoint();
-  applyPlaythrough(completedBet);
-  await persistBankroll({
-    recordContestHistory: isContestAccountMode(),
-    contestHistoryLabel: "Guess 10 Hand"
-  });
-  await incrementProfileHandProgress(1);
-  await ensureProfileSynced({ force: true });
-  await logStandaloneGameHand({
-    gameKey: GAME_KEYS.GUESS_10,
-    stopperCard,
-    totalCards: completedCards,
-    totalWager: completedBet,
-    totalPaid: totalReturn,
-    net,
-    commissionKept
-  });
   try {
+    animateBankrollOutcome(net);
+    recordBankrollHistoryPoint();
+    applyPlaythrough(completedBet);
+    await persistBankroll({
+      recordContestHistory: isContestAccountMode(),
+      contestHistoryLabel: "Guess 10 Hand"
+    });
+    await incrementProfileHandProgress(1);
+    await ensureProfileSynced({ force: true });
+    await logStandaloneGameHand({
+      gameKey: GAME_KEYS.GUESS_10,
+      stopperCard,
+      totalCards: completedCards,
+      totalWager: completedBet,
+      totalPaid: totalReturn,
+      net,
+      commissionKept
+    });
     await logGameRun(net, {
       gameKey: GAME_KEYS.GUESS_10,
       totalCards: completedCards,
@@ -10245,6 +10261,10 @@ async function finalizeRedBlackHand({
   } catch (error) {
     console.error(error);
     showToast("Could not record game run", "error");
+  } finally {
+    redBlackSettlementPending = false;
+    renderRedBlackValueSelector();
+    updateRedBlackActionState();
   }
 }
 
@@ -10290,6 +10310,7 @@ async function dealRedBlackCard() {
       card: entry.card ? { ...entry.card } : null
     }));
     const drawnCards = handHistory.map((entry) => entry.card).filter(Boolean);
+    redBlackSettlementPending = true;
     finishRedBlackHand(
       `${nextCard.label}${nextCard.suit} missed ${selectionLabel}. Hand over. Place a new wager to start again.`,
       { clearBet: true }
@@ -10335,7 +10356,7 @@ async function dealRedBlackCard() {
 }
 
 function rebetRedBlackHand() {
-  if (redBlackHandActive || redBlackLastBet <= 0) {
+  if (redBlackHandActive || redBlackSettlementPending || redBlackLastBet <= 0) {
     return;
   }
   if (redBlackLastBet > bankroll) {
@@ -10352,7 +10373,7 @@ function rebetRedBlackHand() {
 }
 
 async function withdrawRedBlackHand() {
-  if (!redBlackHandActive || redBlackRung <= 0 || redBlackCurrentPot <= 0) {
+  if (redBlackSettlementPending || !redBlackHandActive || redBlackRung <= 0 || redBlackCurrentPot <= 0) {
     return;
   }
   const completedBet = redBlackBet;
@@ -10368,6 +10389,7 @@ async function withdrawRedBlackHand() {
   const drawnCards = handHistory.map((entry) => entry.card).filter(Boolean);
   bankroll = roundCurrencyValue(bankroll + payout);
   handleBankrollChanged();
+  redBlackSettlementPending = true;
   finishRedBlackHand(
     `You cashed out for ${formatCurrency(payout)} after a ${redBlackRung}-card streak. Commission: ${formatPercent(
       commissionRate
@@ -15362,7 +15384,7 @@ signOutButtons.forEach((button) => {
 
 redBlackChipButtons.forEach((button) => {
   button.addEventListener("click", () => {
-    if (redBlackHandActive) return;
+    if (redBlackHandActive || redBlackSettlementPending) return;
     const value = Number(button.dataset.redBlackChip || 0);
     if (!RED_BLACK_CHIPS.includes(value)) return;
     redBlackSelectedChip = value;
@@ -15373,7 +15395,7 @@ redBlackChipButtons.forEach((button) => {
 
 redBlackCategoryButtons.forEach((button) => {
   button.addEventListener("click", () => {
-    if (redBlackAwaitingDecision) return;
+    if (redBlackAwaitingDecision || redBlackSettlementPending) return;
     const category = button.dataset.redBlackCategory;
     if (!category) return;
     setRedBlackCategory(category);
@@ -15383,7 +15405,7 @@ redBlackCategoryButtons.forEach((button) => {
 
 if (redBlackBetSpotButton) {
   redBlackBetSpotButton.addEventListener("click", () => {
-    if (redBlackHandActive) return;
+    if (redBlackHandActive || redBlackSettlementPending) return;
     if (redBlackSelectedChip > bankroll) {
       setRedBlackStatus(`Not enough bankroll for a ${formatCurrency(redBlackSelectedChip)} unit chip.`);
       return;
@@ -15399,7 +15421,7 @@ if (redBlackBetSpotButton) {
 
 if (redBlackClearBetButton) {
   redBlackClearBetButton.addEventListener("click", () => {
-    if (redBlackHandActive || redBlackBet === 0) return;
+    if (redBlackHandActive || redBlackSettlementPending || redBlackBet === 0) return;
     bankroll = roundCurrencyValue(bankroll + redBlackBet);
     handleBankrollChanged();
     redBlackBet = 0;
