@@ -1465,6 +1465,63 @@ body[data-app-state="loading"] #app-shell {
   color: #ff8da8;
 }
 
+@media (max-width: 768px) {
+  .contest-prize-allocation-row {
+    grid-template-columns: minmax(5.6rem, 1fr) minmax(0, 4.5rem) auto minmax(6.9rem, auto);
+    gap: 0.5rem;
+  }
+
+  .contest-prize-allocation-label {
+    font-size: 0.88rem;
+  }
+
+  .contest-prize-allocation-row input {
+    min-width: 0;
+    padding-inline: 0.55rem;
+    font-size: 1rem;
+    text-align: center;
+  }
+
+  .contest-prize-allocation-suffix {
+    font-size: 0.95rem;
+  }
+
+  .contest-prize-allocation-remove {
+    padding: 0.42rem 0.72rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+  }
+
+  .contest-prize-allocation-actions {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .contest-prize-allocation-row {
+    grid-template-columns: minmax(5rem, 1fr) minmax(0, 4.9rem) auto minmax(6.2rem, auto);
+  }
+
+  .contest-prize-allocation-label {
+    font-size: 0.82rem;
+  }
+
+  .contest-prize-allocation-row input {
+    padding-inline: 0.4rem;
+    font-size: 0.95rem;
+  }
+
+  .contest-prize-allocation-remove {
+    padding-inline: 0.6rem;
+    font-size: 0.68rem;
+  }
+
+  .contest-prize-allocation-summary {
+    font-size: 0.8rem;
+  }
+}
+
 .home-actions {
   display: flex;
   flex-wrap: wrap;
