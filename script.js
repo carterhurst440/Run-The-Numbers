@@ -9898,8 +9898,8 @@ function updateRedBlackActionState() {
 function renderRedBlackSummary() {
   const commissionRate = getRedBlackCommissionRate();
   const commissionUnits = roundCurrencyValue(Math.max(0, redBlackCurrentPot - redBlackBet) * commissionRate);
-  if (redBlackBetSpotEl) {
-    redBlackBetSpotEl.classList.toggle("is-empty", redBlackBet <= 0);
+  if (redBlackBetSpotButton) {
+    redBlackBetSpotButton.classList.toggle("is-empty", redBlackBet <= 0);
   }
   if (redBlackBetTotalEl) {
     redBlackBetTotalEl.textContent = formatCurrency(redBlackBet);
