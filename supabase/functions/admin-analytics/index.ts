@@ -66,6 +66,33 @@ function getContestIdFromRun(run: RunRow) {
   return contestId || null;
 }
 
+function getRunResolvedAt(run: RunRow) {
+  const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
+  const resolvedAt = typeof metadata?.resolved_at === "string" ? metadata.resolved_at : null;
+  return resolvedAt || run?.created_at || null;
+}
+
+function compareRunsByResolvedAt(a: RunRow, b: RunRow) {
+  const aResolvedAt = getRunResolvedAt(a);
+  const bResolvedAt = getRunResolvedAt(b);
+  const aTime = aResolvedAt ? new Date(aResolvedAt).getTime() : Number.NaN;
+  const bTime = bResolvedAt ? new Date(bResolvedAt).getTime() : Number.NaN;
+  const aHasTime = Number.isFinite(aTime);
+  const bHasTime = Number.isFinite(bTime);
+  if (aHasTime && bHasTime && aTime !== bTime) {
+    return aTime - bTime;
+  }
+  if (aHasTime !== bHasTime) {
+    return aHasTime ? -1 : 1;
+  }
+  const aCreatedAt = a?.created_at ? new Date(a.created_at).getTime() : Number.NaN;
+  const bCreatedAt = b?.created_at ? new Date(b.created_at).getTime() : Number.NaN;
+  if (Number.isFinite(aCreatedAt) && Number.isFinite(bCreatedAt) && aCreatedAt !== bCreatedAt) {
+    return aCreatedAt - bCreatedAt;
+  }
+  return 0;
+}
+
 function formatBucketLabel(date: Date, bucketMinutes: number) {
   return date.toLocaleTimeString("en-US", {
     timeZone: ANALYTICS_TIME_ZONE,
@@ -342,6 +369,7 @@ Deno.serve(async (request) => {
     if (action === "player_bankroll_history") {
       const points = runsInPeriod
         .filter((run) => isNormalModeRun(run))
+        .sort(compareRunsByResolvedAt)
         .map((run, index) => {
           const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
           const endingBankroll = Number(metadata?.ending_bankroll);
@@ -351,7 +379,7 @@ Deno.serve(async (request) => {
 
           return {
             value: Number(endingBankroll.toFixed(2)),
-            created_at: run?.created_at || null,
+            created_at: getRunResolvedAt(run),
             fallbackIndex: index
           };
         })

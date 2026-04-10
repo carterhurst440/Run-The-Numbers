@@ -5418,6 +5418,33 @@ function buildContestHistory(baseHistory = [], creditsValue, label = "Checkpoint
   return history;
 }
 
+function getRunResolvedAt(run) {
+  const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
+  const resolvedAt = typeof metadata?.resolved_at === "string" ? metadata.resolved_at : null;
+  return resolvedAt || run?.created_at || null;
+}
+
+function compareRunsByResolvedAt(a, b) {
+  const aResolvedAt = getRunResolvedAt(a);
+  const bResolvedAt = getRunResolvedAt(b);
+  const aTime = aResolvedAt ? new Date(aResolvedAt).getTime() : Number.NaN;
+  const bTime = bResolvedAt ? new Date(bResolvedAt).getTime() : Number.NaN;
+  const aHasTime = Number.isFinite(aTime);
+  const bHasTime = Number.isFinite(bTime);
+  if (aHasTime && bHasTime && aTime !== bTime) {
+    return aTime - bTime;
+  }
+  if (aHasTime !== bHasTime) {
+    return aHasTime ? -1 : 1;
+  }
+  const aCreatedAt = a?.created_at ? new Date(a.created_at).getTime() : Number.NaN;
+  const bCreatedAt = b?.created_at ? new Date(b.created_at).getTime() : Number.NaN;
+  if (Number.isFinite(aCreatedAt) && Number.isFinite(bCreatedAt) && aCreatedAt !== bCreatedAt) {
+    return aCreatedAt - bCreatedAt;
+  }
+  return 0;
+}
+
 async function loadContestJourneyPoints(contest, entry) {
   if (!contest?.id || !entry?.user_id) return [];
 
@@ -5477,14 +5504,14 @@ async function loadContestJourneyPoints(contest, entry) {
       }
     }
 
-    allRuns.forEach((run, index) => {
+    allRuns.sort(compareRunsByResolvedAt).forEach((run, index) => {
       const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
       const endingBankroll = normalizeJourneyValue(metadata?.ending_bankroll);
       if (!Number.isFinite(endingBankroll)) return;
       points.push({
         label: `Hand ${index + 1}`,
         value: endingBankroll,
-        created_at: run?.created_at || null
+        created_at: getRunResolvedAt(run)
       });
     });
   }
@@ -8187,6 +8214,7 @@ export async function logGameRun(score, metadata = {}) {
   const endingCarterCashSnapshot = carterCash;
   const accountModeSnapshot = getAccountModeValue();
   const contestIdSnapshot = isContestAccountMode() ? currentAccountMode.contestId : null;
+  const resolvedAtSnapshot = new Date().toISOString();
   const { data: userResponse, error: logRunUserError } = await supabase.auth.getUser();
   if (logRunUserError) {
     console.error("[RTN] logGameRun getUser error", logRunUserError);
@@ -8200,6 +8228,7 @@ export async function logGameRun(score, metadata = {}) {
     recorded_score: roundCurrencyValue(score),
     ending_bankroll: endingBankrollSnapshot,
     ending_carter_cash: endingCarterCashSnapshot,
+    resolved_at: resolvedAtSnapshot,
     account_mode: accountModeSnapshot,
     contest_id: contestIdSnapshot
   };
@@ -8226,8 +8255,8 @@ export async function logGameRun(score, metadata = {}) {
   if (sessionUser.id === currentUser?.id) {
     persistentBankrollUserId = sessionUser.id;
     persistentBankrollHistory.push({
-      value: bankroll,
-      created_at: new Date().toISOString(),
+      value: endingBankrollSnapshot,
+      created_at: resolvedAtSnapshot,
       fallbackIndex: persistentBankrollHistory.length
     });
     drawBankrollChart();
@@ -11067,7 +11096,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
     const isContestLinked = Boolean(contestId);
     const isNormalOrLegacyRun = !accountMode || accountMode === "normal";
     return isNormalOrLegacyRun && !isContestLinked && !hasExplicitContestMode;
-  });
+  }).sort(compareRunsByResolvedAt);
 
   persistentBankrollHistory = normalModeRuns.map((run, index) => {
     const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
@@ -11078,7 +11107,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
 
     return {
       value: Number(endingBankroll.toFixed(2)),
-      created_at: run?.created_at || null,
+      created_at: getRunResolvedAt(run),
       fallbackIndex: index
     };
   }).filter(Boolean);
