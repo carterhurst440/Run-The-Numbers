@@ -1841,6 +1841,7 @@
               <button type="button" class="admin-tab active" data-admin-tab="prizes">Prizes</button>
               <button type="button" class="admin-tab" data-admin-tab="analytics">Analytics</button>
               <button type="button" class="admin-tab" data-admin-tab="contests">Contests</button>
+              <button type="button" class="admin-tab" data-admin-tab="design">Design</button>
               <button type="button" class="admin-tab" data-admin-tab="ranks">Ranks</button>
             </div>
             <section class="admin-tab-content" id="admin-prizes-content">
@@ -2032,6 +2033,159 @@
                 </div>
                 <div id="admin-contest-panel-ended" class="contest-list-panel" role="tabpanel" aria-labelledby="admin-contest-tab-ended" hidden>
                   <ul id="admin-contest-list-ended" class="admin-prize-list admin-contest-list" aria-live="polite"></ul>
+                </div>
+              </section>
+            </section>
+            <section class="admin-tab-content" id="admin-design-content" hidden>
+              <section class="route-section admin-list-section design-builder-section">
+                <div class="admin-listing-header">
+                  <div>
+                    <h2>Color Theme Builder</h2>
+                    <p class="route-subheading">Create rank-ready themes with a live app preview.</p>
+                  </div>
+                </div>
+                <div class="design-builder-layout">
+                  <form id="admin-theme-form" class="admin-form design-builder-form">
+                    <input type="hidden" name="themeId" />
+                    <label class="admin-field">
+                      <span>Theme Name</span>
+                      <input type="text" name="themeName" placeholder="Midnight Arcade" required />
+                    </label>
+                    <label class="admin-field">
+                      <span>Theme Key</span>
+                      <input type="text" name="themeKey" placeholder="midnight-arcade" />
+                      <span class="admin-hint">Leave blank to auto-generate from the name.</span>
+                    </label>
+                    <label class="admin-field">
+                      <span>Base Theme</span>
+                      <select name="baseTheme" id="admin-theme-base-select" required></select>
+                    </label>
+                    <div class="design-color-grid">
+                      <label class="admin-field">
+                        <span>Primary Accent</span>
+                        <input type="color" name="accentColor" value="#63f0ff" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Secondary Accent</span>
+                        <input type="color" name="accentSecondaryColor" value="#f857c1" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Tertiary Accent</span>
+                        <input type="color" name="accentTertiaryColor" value="#8b80ff" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Gold / Highlight</span>
+                        <input type="color" name="goldColor" value="#ffd166" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Muted Text</span>
+                        <input type="color" name="mutedColor" value="#bfd5ff" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Success</span>
+                        <input type="color" name="successColor" value="#5af78e" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Danger</span>
+                        <input type="color" name="dangerColor" value="#ff5c8a" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Page Background Start</span>
+                        <input type="color" name="bgStartColor" value="#08142d" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Page Background End</span>
+                        <input type="color" name="bgEndColor" value="#050913" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Panel Start</span>
+                        <input type="color" name="panelStartColor" value="#0e2c63" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Panel End</span>
+                        <input type="color" name="panelEndColor" value="#08142d" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Header Start</span>
+                        <input type="color" name="headerStartColor" value="#15386d" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Header End</span>
+                        <input type="color" name="headerEndColor" value="#0b1b3d" />
+                      </label>
+                    </div>
+                    <div class="design-settings-grid">
+                      <label class="admin-field">
+                        <span>Glow Strength</span>
+                        <input type="range" name="glowStrength" min="0" max="100" step="1" value="48" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Surface Contrast</span>
+                        <input type="range" name="surfaceContrast" min="0" max="100" step="1" value="58" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Roundness</span>
+                        <input type="range" name="radiusScale" min="0" max="100" step="1" value="72" />
+                      </label>
+                    </div>
+                    <div class="modal-actions admin-form-actions">
+                      <button type="button" class="secondary" id="admin-theme-reset">Reset</button>
+                      <button type="submit" class="primary" id="admin-theme-save">Save theme</button>
+                    </div>
+                    <p id="admin-theme-message" class="admin-message" role="status" aria-live="polite"></p>
+                  </form>
+                  <aside class="design-preview-panel">
+                    <div class="design-preview-header">
+                      <h3>Live Preview</h3>
+                      <p>See how the app shell reacts as you tune the theme.</p>
+                    </div>
+                    <div id="admin-theme-preview" class="design-preview-shell">
+                      <div class="design-preview-app">
+                        <div class="design-preview-topbar">
+                          <div class="design-preview-logo">RUN THE NUMBERS</div>
+                          <div class="design-preview-actions">
+                            <span class="design-preview-pill">Tier Theme</span>
+                            <span class="design-preview-pill design-preview-pill-solid">1,240</span>
+                          </div>
+                        </div>
+                        <div class="design-preview-hero">
+                          <div class="design-preview-stat-card">
+                            <span>Bankroll</span>
+                            <strong>1,240</strong>
+                          </div>
+                          <div class="design-preview-stat-card">
+                            <span>Carter Cash</span>
+                            <strong>18</strong>
+                          </div>
+                        </div>
+                        <div class="design-preview-main-card">
+                          <div class="design-preview-main-header">
+                            <div>
+                              <h4>Guess 10</h4>
+                              <p>Build your wager, choose a prediction, then draw.</p>
+                            </div>
+                            <span class="design-preview-chip">2x</span>
+                          </div>
+                          <div class="design-preview-buttons">
+                            <button type="button" class="design-preview-btn">Rebet</button>
+                            <button type="button" class="design-preview-btn design-preview-btn-primary">Draw</button>
+                          </div>
+                          <div class="design-preview-chips">
+                            <span>5</span>
+                            <span>10</span>
+                            <span>25</span>
+                            <span>100</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </aside>
+                </div>
+                <div class="design-theme-library">
+                  <div class="admin-listing-header">
+                    <h3>Saved Themes</h3>
+                  </div>
+                  <ul id="admin-theme-list" class="admin-prize-list admin-theme-list" aria-live="polite"></ul>
                 </div>
               </section>
             </section>
@@ -2853,16 +3007,7 @@
           </label>
           <label class="admin-field">
             <span>Rank Theme</span>
-            <select name="themeKey" required>
-              <option value="blue">Blue</option>
-              <option value="pink">Pink</option>
-              <option value="orange">Orange</option>
-              <option value="steel-black">Steel Black</option>
-              <option value="angelic">Angelic</option>
-              <option value="retro">Retro</option>
-              <option value="cotton-candy">Cotton Candy</option>
-              <option value="pastel">Pastel</option>
-            </select>
+            <select name="themeKey" id="admin-rank-theme-select" required></select>
           </label>
           <label class="admin-field">
             <span>Rank Icon URL</span>

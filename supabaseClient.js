@@ -118,6 +118,7 @@ const mockDatabase = {
   prizes: [],
   game_runs: [],
   bet_plays: [],
+  themes: [],
   contests: [],
   contest_entries: []
 };
@@ -189,7 +190,11 @@ function createQuery(table) {
       const tableRows = mockDatabase[table];
       if (Array.isArray(tableRows)) {
         for (const item of items) {
-          tableRows.push(cloneRow(item));
+          const nextItem = cloneRow(item);
+          if (nextItem && typeof nextItem === "object" && !nextItem.id) {
+            nextItem.id = `mock-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+          }
+          tableRows.push(nextItem);
         }
       }
       // persist changes
@@ -199,7 +204,7 @@ function createQuery(table) {
         /* ignore */
       }
 
-      const result = { data: cloneRow(items), error: null };
+      const result = { data: cloneRow(tableRows.slice(-items.length)), error: null };
 
       // Return a thenable object that also supports chaining like
       // `.select(...).maybeSingle()` to mirror supabase-js behaviour in
@@ -253,8 +258,8 @@ function createQuery(table) {
     },
     delete() {
       return {
-        eq() {
-          rows = [];
+        eq(field, value) {
+          rows = rows.filter((row) => !row || row[field] !== value);
           mockDatabase[table] = rows;
           try {
             saveMockDatabase();
@@ -264,6 +269,9 @@ function createQuery(table) {
           return Promise.resolve({ error: null });
         }
       };
+    },
+    then(resolve, reject) {
+      return Promise.resolve({ data: cloneRow(rows), error: null }).then(resolve, reject);
     }
   };
 

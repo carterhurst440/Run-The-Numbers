@@ -407,6 +407,295 @@ async function uploadRankIcon(file) {
   return uploadPrizeImage(file);
 }
 
+function slugifyThemeKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+}
+
+function clampThemeSetting(value, fallback) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(0, Math.min(100, Math.round(numeric)));
+}
+
+function normalizeThemePalette(palette = {}) {
+  return {
+    accent: String(palette.accent || DEFAULT_CUSTOM_THEME_PALETTE.accent),
+    accentSecondary: String(palette.accentSecondary || DEFAULT_CUSTOM_THEME_PALETTE.accentSecondary),
+    accentTertiary: String(palette.accentTertiary || DEFAULT_CUSTOM_THEME_PALETTE.accentTertiary),
+    gold: String(palette.gold || DEFAULT_CUSTOM_THEME_PALETTE.gold),
+    muted: String(palette.muted || DEFAULT_CUSTOM_THEME_PALETTE.muted),
+    success: String(palette.success || DEFAULT_CUSTOM_THEME_PALETTE.success),
+    danger: String(palette.danger || DEFAULT_CUSTOM_THEME_PALETTE.danger),
+    bgStart: String(palette.bgStart || DEFAULT_CUSTOM_THEME_PALETTE.bgStart),
+    bgEnd: String(palette.bgEnd || DEFAULT_CUSTOM_THEME_PALETTE.bgEnd),
+    panelStart: String(palette.panelStart || DEFAULT_CUSTOM_THEME_PALETTE.panelStart),
+    panelEnd: String(palette.panelEnd || DEFAULT_CUSTOM_THEME_PALETTE.panelEnd),
+    headerStart: String(palette.headerStart || DEFAULT_CUSTOM_THEME_PALETTE.headerStart),
+    headerEnd: String(palette.headerEnd || DEFAULT_CUSTOM_THEME_PALETTE.headerEnd)
+  };
+}
+
+function normalizeThemeSettings(settings = {}) {
+  return {
+    glowStrength: clampThemeSetting(settings.glowStrength, DEFAULT_CUSTOM_THEME_SETTINGS.glowStrength),
+    surfaceContrast: clampThemeSetting(settings.surfaceContrast, DEFAULT_CUSTOM_THEME_SETTINGS.surfaceContrast),
+    radiusScale: clampThemeSetting(settings.radiusScale, DEFAULT_CUSTOM_THEME_SETTINGS.radiusScale)
+  };
+}
+
+function humanizeThemeKey(themeKey) {
+  return String(themeKey || "blue")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function getBuiltinThemeRecords() {
+  return Object.keys(THEME_CLASS_MAP).map((key) => ({
+    id: `builtin-${key}`,
+    key,
+    name: BUILTIN_THEME_LABELS[key] || humanizeThemeKey(key),
+    base_theme: key,
+    palette: { ...DEFAULT_CUSTOM_THEME_PALETTE },
+    settings: { ...DEFAULT_CUSTOM_THEME_SETTINGS },
+    is_builtin: true
+  }));
+}
+
+function normalizeThemeRecord(theme = {}) {
+  const key = slugifyThemeKey(theme.key || theme.name || theme.base_theme || "blue") || "blue";
+  const isBuiltin = Boolean(theme.is_builtin) || Boolean(THEME_CLASS_MAP[key] && !theme.base_theme);
+  const baseThemeCandidate = String(theme.base_theme || key || "blue").trim();
+  const baseTheme = THEME_CLASS_MAP[baseThemeCandidate] ? baseThemeCandidate : "blue";
+  return {
+    id: theme.id || (isBuiltin ? `builtin-${key}` : null),
+    key,
+    name: String(theme.name || BUILTIN_THEME_LABELS[key] || humanizeThemeKey(key)).trim() || humanizeThemeKey(key),
+    base_theme: isBuiltin ? key : baseTheme,
+    palette: normalizeThemePalette(theme.palette),
+    settings: normalizeThemeSettings(theme.settings),
+    is_builtin: isBuiltin
+  };
+}
+
+function getThemeLibrary() {
+  if (!themeLibraryCache.length) {
+    themeLibraryCache = getBuiltinThemeRecords().map((theme) => normalizeThemeRecord(theme));
+  }
+  return themeLibraryCache;
+}
+
+function getThemeRecord(themeKey) {
+  const key = slugifyThemeKey(themeKey || "blue") || "blue";
+  return getThemeLibrary().find((theme) => theme.key === key) || normalizeThemeRecord({ key: "blue", is_builtin: true });
+}
+
+async function loadThemeLibrary(force = false) {
+  if (!force && themeLibraryCache.length) {
+    return themeLibraryCache;
+  }
+
+  const builtin = getBuiltinThemeRecords().map((theme) => normalizeThemeRecord(theme));
+  if (!supabase) {
+    themeLibraryCache = builtin;
+    return themeLibraryCache;
+  }
+
+  try {
+    const { data, error } = await supabase.from("themes").select("*").order("name", { ascending: true });
+    if (error) throw error;
+    const customThemes = (Array.isArray(data) ? data : [])
+      .map((theme) => normalizeThemeRecord(theme))
+      .filter((theme) => !theme.is_builtin && !THEME_CLASS_MAP[theme.key]);
+    themeLibraryCache = [...builtin, ...customThemes];
+  } catch (error) {
+    console.warn("[RTN] loadThemeLibrary falling back to builtin themes", error);
+    themeLibraryCache = builtin;
+  }
+
+  return themeLibraryCache;
+}
+
+function hexToRgb(hex) {
+  const value = String(hex || "").replace("#", "").trim();
+  if (![3, 6].includes(value.length)) return null;
+  const expanded = value.length === 3 ? value.split("").map((part) => `${part}${part}`).join("") : value;
+  const numeric = Number.parseInt(expanded, 16);
+  if (!Number.isFinite(numeric)) return null;
+  return {
+    r: (numeric >> 16) & 255,
+    g: (numeric >> 8) & 255,
+    b: numeric & 255
+  };
+}
+
+function rgba(hex, alpha = 1) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${Math.max(0, Math.min(1, Number(alpha)) || 0)})`;
+}
+
+function colorMix(color, amount = 0.5, fallback = "#000000") {
+  const source = hexToRgb(color);
+  const target = hexToRgb(fallback);
+  if (!source || !target) return color;
+  const ratio = Math.max(0, Math.min(1, Number(amount) || 0));
+  const r = Math.round(source.r * (1 - ratio) + target.r * ratio);
+  const g = Math.round(source.g * (1 - ratio) + target.g * ratio);
+  const b = Math.round(source.b * (1 - ratio) + target.b * ratio);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function getThemeCssVariables(theme) {
+  const record = normalizeThemeRecord(theme);
+  if (record.is_builtin) {
+    return {};
+  }
+  const palette = normalizeThemePalette(record.palette);
+  const settings = normalizeThemeSettings(record.settings);
+  const glow = settings.glowStrength / 100;
+  const contrast = settings.surfaceContrast / 100;
+  return {
+    "--neon-cyan": palette.accent,
+    "--neon-magenta": palette.accentSecondary,
+    "--neon-violet": palette.accentTertiary,
+    "--gold": palette.gold,
+    "--muted": palette.muted,
+    "--success": palette.success,
+    "--danger": palette.danger,
+    "--text-light": "#f7fbff",
+    "--body-bg": `linear-gradient(${rgba(palette.accent, 0.08)} 1px, transparent 1px), linear-gradient(90deg, ${rgba(palette.accentSecondary, 0.08)} 1px, transparent 1px), linear-gradient(180deg, ${palette.bgStart} 0%, ${colorMix(palette.bgStart, 0.22, palette.panelStart)} 48%, ${palette.bgEnd} 100%)`,
+    "--body-bg-size": "72px 72px, 72px 72px, 100% 100%",
+    "--body-bg-position": "0 0, 0 0, center",
+    "--app-overlay": `radial-gradient(circle at 18% 12%, ${rgba(palette.accent, 0.24 * glow + 0.04)}, transparent 54%), radial-gradient(circle at 82% 18%, ${rgba(palette.accentSecondary, 0.18 * glow + 0.04)}, transparent 58%), radial-gradient(circle at 50% 120%, ${rgba(palette.accentTertiary, 0.2 * glow + 0.04)}, transparent 70%)`,
+    "--header-gradient": `linear-gradient(135deg, ${palette.headerStart}, ${palette.headerEnd})`,
+    "--header-border-color": rgba(palette.accent, 0.42),
+    "--icon-button-bg": `linear-gradient(135deg, ${colorMix(palette.headerStart, 0.16, "#ffffff")}, ${palette.headerEnd})`,
+    "--icon-button-border-color": rgba(palette.accent, 0.4),
+    "--icon-button-border-hover": rgba(palette.gold, 0.78),
+    "--icon-button-shadow-hover": `0 12px 26px ${rgba(palette.accent, 0.22)}`,
+    "--icon-graph-gradient": `linear-gradient(135deg, ${palette.accent}, ${palette.accentSecondary})`,
+    "--reset-border-color": rgba(palette.accentSecondary, 0.44),
+    "--reset-bg": `linear-gradient(135deg, ${rgba(palette.gold, 0.2)}, ${rgba(palette.accentSecondary, 0.18)})`,
+    "--reset-border-hover": rgba(palette.gold, 0.78),
+    "--reset-bg-hover": `linear-gradient(135deg, ${rgba(palette.gold, 0.28)}, ${rgba(palette.accentSecondary, 0.26)})`,
+    "--reset-shadow-hover": `0 16px 32px ${rgba(palette.accentSecondary, 0.22)}`,
+    "--menu-bg": `linear-gradient(135deg, ${colorMix(palette.panelStart, Math.max(0, 0.18 - contrast * 0.1), "#ffffff")}, ${colorMix(palette.panelEnd, Math.max(0, 0.08 - contrast * 0.04), "#000000")})`,
+    "--menu-border-color": rgba(palette.accent, 0.3),
+    "--menu-shadow": `0 18px 38px ${rgba("#000000", 0.64)}`,
+    "--menu-border-hover": rgba(palette.gold, 0.7),
+    "--menu-shadow-hover": `0 26px 42px ${rgba("#000000", 0.7)}`,
+    "--stat-bg": `linear-gradient(135deg, ${rgba(palette.panelStart, 0.82 + contrast * 0.14)}, ${rgba(palette.panelEnd, 0.86 + contrast * 0.12)})`,
+    "--stat-border": rgba(palette.accent, 0.28),
+    "--stat-shadow": `inset 0 0 24px ${rgba(palette.accent, 0.14)}`,
+    "--table-panel-bg": `linear-gradient(170deg, ${rgba(palette.panelStart, 0.97)} 0%, ${rgba(palette.panelEnd, 0.98)} 58%, ${rgba(colorMix(palette.panelEnd, 0.3, "#000000"), 0.98)} 100%)`,
+    "--table-panel-shadow": `0 42px 92px ${rgba("#000000", 0.74)}, inset 0 0 120px ${rgba(palette.accent, 0.14 + glow * 0.1)}`,
+    "--paytable-panel-bg": `linear-gradient(160deg, ${rgba(colorMix(palette.headerStart, 0.12, "#ffffff"), 0.9)}, ${rgba(palette.panelStart, 0.84)})`,
+    "--paytable-panel-border": rgba(palette.accent, 0.36),
+    "--paytable-panel-shadow": `inset 0 0 26px ${rgba(palette.accent, 0.16)}`,
+    "--paytable-option-bg": rgba(palette.panelStart, 0.64 + contrast * 0.22),
+    "--paytable-option-border": rgba(palette.accent, 0.36),
+    "--paytable-option-shadow": `inset 0 0 20px ${rgba(palette.accent, 0.12)}`,
+    "--paytable-option-border-hover": rgba(palette.gold, 0.72),
+    "--paytable-option-shadow-hover": `inset 0 0 24px ${rgba(palette.accent, 0.18)}`,
+    "--paytable-option-border-selected": rgba(palette.gold, 0.84),
+    "--paytable-option-shadow-selected": `inset 0 0 32px ${rgba(palette.accent, 0.22)}, 0 14px 26px ${rgba("#000000", 0.44)}`,
+    "--paytable-option-name-color": "#f7fbff",
+    "--paytable-option-steps-color": rgba(palette.gold, 0.9),
+    "--active-paytable-bg": `linear-gradient(135deg, ${rgba(colorMix(palette.headerStart, 0.14, "#ffffff"), 0.92)}, ${rgba(palette.panelEnd, 0.88)})`,
+    "--active-paytable-border": rgba(palette.accent, 0.4),
+    "--active-paytable-shadow": `inset 0 0 26px ${rgba(palette.accent, 0.18)}`,
+    "--active-paytable-label-color": rgba(palette.muted, 0.9),
+    "--active-paytable-steps-color": rgba(palette.gold, 0.92),
+    "--change-paytable-bg": `linear-gradient(135deg, ${rgba(palette.gold, 0.24)}, ${rgba(palette.accentSecondary, 0.16)})`,
+    "--change-paytable-border": rgba(palette.accent, 0.42),
+    "--change-paytable-border-hover": rgba(palette.gold, 0.82),
+    "--change-paytable-shadow": `0 14px 32px ${rgba(palette.accentSecondary, 0.2)}`,
+    "--betting-panel-bg": `linear-gradient(160deg, ${rgba(palette.panelStart, 0.84 + contrast * 0.14)}, ${rgba(palette.panelEnd, 0.88 + contrast * 0.1)})`,
+    "--betting-panel-border": rgba(palette.accent, 0.34),
+    "--betting-panel-shadow": `0 28px 68px ${rgba("#000000", 0.72)}, inset 0 0 56px ${rgba(palette.accent, 0.14 + glow * 0.08)}`,
+    "--bet-spot-bg": `linear-gradient(150deg, ${rgba(colorMix(palette.panelStart, 0.08, "#ffffff"), 0.96)}, ${rgba(palette.panelEnd, 0.98)})`,
+    "--bet-spot-border": rgba(palette.accent, 0.5),
+    "--bet-spot-border-hover": rgba(palette.gold, 0.84),
+    "--bet-spot-border-active": rgba("#ffffff", 0.86),
+    "--bet-spot-shadow": `inset 0 0 14px ${rgba("#000000", 0.52)}, 0 12px 28px ${rgba("#000000", 0.46)}`,
+    "--bet-spot-active-shadow": `0 0 34px ${rgba(palette.accent, 0.24 + glow * 0.2)}, inset 0 0 30px ${rgba(palette.accentSecondary, 0.14 + glow * 0.12)}`,
+    "--bet-total-glow": rgba(palette.accent, 0.28),
+    "--bet-total-active-glow": rgba(palette.accentSecondary, 0.26),
+    "--status-text-color": rgba("#f7fbff", 0.94),
+    "--table-callout-color": rgba(palette.muted, 0.9),
+    "--table-callout-shadow": rgba(palette.accent, 0.22),
+    "--chip-5-bg": `radial-gradient(circle at 35% 28%, ${colorMix(palette.accent, 0.18, "#ffffff")}, ${colorMix(palette.accent, 0.38, "#000000")} 70%)`,
+    "--chip-10-bg": `radial-gradient(circle at 35% 28%, ${colorMix(palette.accentSecondary, 0.18, "#ffffff")}, ${colorMix(palette.accentSecondary, 0.38, "#000000")} 70%)`,
+    "--chip-25-bg": `radial-gradient(circle at 35% 28%, ${colorMix(palette.accentTertiary, 0.18, "#ffffff")}, ${colorMix(palette.accentTertiary, 0.38, "#000000")} 70%)`,
+    "--chip-100-bg": `radial-gradient(circle at 35% 28%, ${colorMix(palette.gold, 0.16, "#ffffff")}, ${colorMix(palette.gold, 0.38, "#000000")} 70%)`,
+    "--chip-choice-bg": `radial-gradient(circle at 32% 32%, ${colorMix(palette.accent, 0.26, "#ffffff")}, ${rgba(palette.panelEnd, 0.96)})`,
+    "--chip-choice-border": rgba(palette.accent, 0.48),
+    "--chip-choice-shadow": `0 16px 32px ${rgba("#000000", 0.56)}`,
+    "--chip-choice-shadow-hover": `0 0 0 3px ${rgba(palette.accent, 0.24)}, 0 20px 32px ${rgba(palette.accentSecondary, 0.18)}`,
+    "--chip-choice-active-bg": `radial-gradient(circle at 35% 30%, ${colorMix(palette.gold, 0.18, "#ffffff")}, ${rgba(palette.panelEnd, 0.98)})`,
+    "--chip-choice-active-shadow": `0 22px 36px ${rgba(palette.accent, 0.18)}`,
+    "--chip-bar-bg": `linear-gradient(135deg, ${rgba(palette.panelEnd, 0.96)}, ${rgba(palette.headerStart, 0.96)})`,
+    "--chip-bar-border": rgba(palette.accent, 0.32),
+    "--chip-bar-shadow": `0 -26px 48px ${rgba("#000000", 0.72)}`,
+    "--secondary-button-bg": `linear-gradient(135deg, ${rgba(palette.accent, 0.16)}, ${rgba(palette.panelEnd, 0.96)})`,
+    "--secondary-button-border": rgba(palette.accent, 0.42),
+    "--deal-button-bg": `linear-gradient(135deg, ${colorMix(palette.accent, 0.42, "#ffffff")}, ${colorMix(palette.accentTertiary, 0.36, "#ffffff")})`,
+    "--deal-button-shadow": `0 22px 38px ${rgba(palette.accent, 0.22)}`,
+    "--deal-button-shadow-hover": `0 24px 42px ${rgba(palette.accentSecondary, 0.24)}`,
+    "--drawer-bg": `linear-gradient(145deg, ${rgba(palette.panelStart, 0.96)}, ${rgba(palette.panelEnd, 0.94)})`,
+    "--drawer-border": rgba(palette.accent, 0.28),
+    "--drawer-shadow": `0 34px 92px ${rgba("#000000", 0.72)}`,
+    "--modal-bg": rgba(palette.panelEnd, 0.95),
+    "--modal-border": rgba(palette.accent, 0.32),
+    "--modal-shadow": `0 34px 92px ${rgba("#000000", 0.76)}`,
+    "--scrim-bg": rgba("#050913", 0.74),
+    "--analytics-bg": `linear-gradient(135deg, ${rgba(palette.panelStart, 0.92)}, ${rgba(palette.panelEnd, 0.94)})`,
+    "--analytics-border": rgba(palette.accent, 0.24),
+    "--analytics-shadow": `inset 0 0 24px ${rgba(palette.accent, 0.12)}`,
+    "--chart-background": rgba(palette.panelEnd, 0.94),
+    "--chart-axis-color": rgba(palette.muted, 0.84),
+    "--chart-grid-color": rgba(palette.accent, 0.18),
+    "--chart-line-color": palette.accent,
+    "--chart-line-shadow": rgba(palette.accent, 0.34),
+    "--chart-fill-color": rgba(palette.accent, 0.18),
+    "--chart-fill-fade": rgba(palette.accent, 0),
+    "--chart-background-gradient-start": rgba(palette.accent, 0.14),
+    "--chart-background-gradient-end": rgba(palette.accentSecondary, 0.1),
+    "--chart-marker-color": palette.gold,
+    "--chart-marker-stroke": rgba("#ffffff", 0.88),
+    "--chart-marker-shadow": rgba(palette.accent, 0.32),
+    "--chart-base-line": rgba(palette.accent, 0.22),
+    "--chart-scroll-track": rgba(palette.panelEnd, 0.8),
+    "--chart-scroll-thumb": rgba(palette.accent, 0.28),
+    "--carter-green": palette.success,
+    "--carter-green-glow": rgba(palette.success, 0.34),
+    "--bust-bet-bg": rgba(palette.panelStart, 0.84),
+    "--bust-bet-border": rgba(palette.accent, 0.4),
+    "--bust-bet-shadow": `inset 0 0 20px ${rgba(palette.accent, 0.16)}`,
+    "--count-bet-start-base": rgba(palette.accentTertiary, 0.34),
+    "--count-bet-end-base": rgba(palette.accentSecondary, 0.3)
+  };
+}
+
+function clearThemeVariables(target = document.body) {
+  if (!target?.style) return;
+  CUSTOM_THEME_VARIABLE_KEYS.forEach((key) => target.style.removeProperty(key));
+}
+
+function applyThemeVariables(theme, target = document.body) {
+  if (!target?.style) return;
+  clearThemeVariables(target);
+  const variables = getThemeCssVariables(theme);
+  Object.entries(variables).forEach(([key, value]) => {
+    target.style.setProperty(key, value);
+  });
+}
+
 function normalizeRankRecord(rank = {}) {
   return {
     id: rank.id || null,
@@ -416,7 +705,7 @@ function normalizeRankRecord(rank = {}) {
     required_hands_played: Math.max(0, Math.round(Number(rank.required_hands_played || 0))),
     required_contest_wins: Math.max(0, Math.round(Number(rank.required_contest_wins || 0))),
     icon_url: typeof rank.icon_url === "string" ? rank.icon_url.trim() : "",
-    theme_key: THEME_CLASS_MAP[rank.theme_key] ? rank.theme_key : "blue"
+    theme_key: getThemeRecord(rank.theme_key).key
   };
 }
 
@@ -478,6 +767,8 @@ async function loadRankLadder(force = false) {
   if (!force && rankLadderCache.length) {
     return rankLadderCache;
   }
+
+  await loadThemeLibrary(force);
 
   if (!supabase) {
     rankLadderCache = getFallbackRankLadder();
@@ -686,9 +977,283 @@ function getRankByTier(tier, ladder = getRankLadder()) {
 }
 
 function getRankThemeLabel(themeKey) {
-  return String(themeKey || "blue")
-    .replace(/-/g, " ")
-    .replace(/\b\w/g, (match) => match.toUpperCase());
+  return getThemeRecord(themeKey).name;
+}
+
+function renderThemeSelectOptions(selectEl, selectedKey = "blue", { includeBuiltins = true, onlyBuiltins = false } = {}) {
+  if (!(selectEl instanceof HTMLSelectElement)) return;
+  const themes = getThemeLibrary().filter((theme) => {
+    if (onlyBuiltins) return theme.is_builtin;
+    return includeBuiltins || !theme.is_builtin;
+  });
+  const selected = getThemeRecord(selectedKey).key;
+  selectEl.innerHTML = "";
+  themes.forEach((theme) => {
+    const option = document.createElement("option");
+    option.value = theme.key;
+    option.textContent = theme.is_builtin ? `${theme.name} (Built-in)` : theme.name;
+    option.selected = theme.key === selected;
+    selectEl.appendChild(option);
+  });
+}
+
+function populateAdminThemeBaseOptions(selectedKey = "blue") {
+  renderThemeSelectOptions(adminThemeBaseSelect, selectedKey, { includeBuiltins: true, onlyBuiltins: true });
+}
+
+function populateAdminRankThemeOptions(selectedKey = "blue") {
+  renderThemeSelectOptions(adminRankThemeSelect, selectedKey, { includeBuiltins: true });
+}
+
+function getThemeFormState() {
+  if (!adminThemeForm) {
+    return normalizeThemeRecord({
+      name: "Untitled Theme",
+      key: "untitled-theme",
+      base_theme: "blue",
+      palette: DEFAULT_CUSTOM_THEME_PALETTE,
+      settings: DEFAULT_CUSTOM_THEME_SETTINGS
+    });
+  }
+  const formData = new FormData(adminThemeForm);
+  const name = String(formData.get("themeName") || "").trim() || "Untitled Theme";
+  const manualKey = String(formData.get("themeKey") || "").trim();
+  return normalizeThemeRecord({
+    id: String(formData.get("themeId") || "").trim() || null,
+    name,
+    key: manualKey || slugifyThemeKey(name),
+    base_theme: String(formData.get("baseTheme") || "blue").trim(),
+    palette: {
+      accent: formData.get("accentColor"),
+      accentSecondary: formData.get("accentSecondaryColor"),
+      accentTertiary: formData.get("accentTertiaryColor"),
+      gold: formData.get("goldColor"),
+      muted: formData.get("mutedColor"),
+      success: formData.get("successColor"),
+      danger: formData.get("dangerColor"),
+      bgStart: formData.get("bgStartColor"),
+      bgEnd: formData.get("bgEndColor"),
+      panelStart: formData.get("panelStartColor"),
+      panelEnd: formData.get("panelEndColor"),
+      headerStart: formData.get("headerStartColor"),
+      headerEnd: formData.get("headerEndColor")
+    },
+    settings: {
+      glowStrength: formData.get("glowStrength"),
+      surfaceContrast: formData.get("surfaceContrast"),
+      radiusScale: formData.get("radiusScale")
+    }
+  });
+}
+
+function applyPreviewTheme(theme, target = adminThemePreviewEl) {
+  if (!(target instanceof HTMLElement)) return;
+  const record = normalizeThemeRecord(theme);
+  const palette = normalizeThemePalette(record.palette);
+  const settings = normalizeThemeSettings(record.settings);
+  target.style.setProperty("--preview-accent", palette.accent);
+  target.style.setProperty("--preview-secondary", palette.accentSecondary);
+  target.style.setProperty("--preview-tertiary", palette.accentTertiary);
+  target.style.setProperty("--preview-gold", palette.gold);
+  target.style.setProperty("--preview-muted", palette.muted);
+  target.style.setProperty("--preview-success", palette.success);
+  target.style.setProperty("--preview-danger", palette.danger);
+  target.style.setProperty("--preview-bg-start", palette.bgStart);
+  target.style.setProperty("--preview-bg-end", palette.bgEnd);
+  target.style.setProperty("--preview-panel-start", palette.panelStart);
+  target.style.setProperty("--preview-panel-end", palette.panelEnd);
+  target.style.setProperty("--preview-header-start", palette.headerStart);
+  target.style.setProperty("--preview-header-end", palette.headerEnd);
+  target.style.setProperty("--preview-glow", String(settings.glowStrength / 100));
+  target.style.setProperty("--preview-contrast", String(settings.surfaceContrast / 100));
+  target.style.setProperty("--preview-radius", `${8 + Math.round((settings.radiusScale / 100) * 18)}px`);
+}
+
+function resetAdminThemeForm(theme = null) {
+  if (!adminThemeForm) return;
+  const record = normalizeThemeRecord(
+    theme || {
+      name: "",
+      key: "",
+      base_theme: "blue",
+      palette: DEFAULT_CUSTOM_THEME_PALETTE,
+      settings: DEFAULT_CUSTOM_THEME_SETTINGS
+    }
+  );
+  adminEditingThemeId = record.is_builtin ? null : record.id;
+  const setValue = (name, value) => {
+    const field = adminThemeForm.elements.namedItem(name);
+    if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement) {
+      field.value = value ?? "";
+    }
+  };
+  setValue("themeId", record.id || "");
+  setValue("themeName", theme?.name || "");
+  setValue("themeKey", theme?.key || "");
+  populateAdminThemeBaseOptions(record.base_theme || "blue");
+  setValue("baseTheme", record.base_theme || "blue");
+  setValue("accentColor", record.palette.accent);
+  setValue("accentSecondaryColor", record.palette.accentSecondary);
+  setValue("accentTertiaryColor", record.palette.accentTertiary);
+  setValue("goldColor", record.palette.gold);
+  setValue("mutedColor", record.palette.muted);
+  setValue("successColor", record.palette.success);
+  setValue("dangerColor", record.palette.danger);
+  setValue("bgStartColor", record.palette.bgStart);
+  setValue("bgEndColor", record.palette.bgEnd);
+  setValue("panelStartColor", record.palette.panelStart);
+  setValue("panelEndColor", record.palette.panelEnd);
+  setValue("headerStartColor", record.palette.headerStart);
+  setValue("headerEndColor", record.palette.headerEnd);
+  setValue("glowStrength", String(record.settings.glowStrength));
+  setValue("surfaceContrast", String(record.settings.surfaceContrast));
+  setValue("radiusScale", String(record.settings.radiusScale));
+  if (adminThemeMessage) {
+    adminThemeMessage.textContent = "";
+  }
+  if (adminThemeSaveButton) {
+    adminThemeSaveButton.textContent = theme && !record.is_builtin ? "Save theme" : "Save theme";
+  }
+  applyPreviewTheme(record);
+}
+
+function buildThemeCardPreviewMarkup(theme) {
+  const palette = normalizeThemePalette(theme.palette);
+  const swatches = [palette.accent, palette.accentSecondary, palette.gold, palette.panelEnd]
+    .map((color) => `<span class="admin-theme-preview-color" style="background:${escapeAssistantHtml(color)}"></span>`)
+    .join("");
+  return swatches;
+}
+
+function renderAdminThemeRow(theme) {
+  const item = document.createElement("li");
+  item.className = "admin-theme-card";
+  item.innerHTML = `
+    <div class="admin-theme-card-header">
+      <div>
+        <h3>${escapeAssistantHtml(theme.name)}</h3>
+        <p class="admin-theme-meta">${escapeAssistantHtml(theme.key)} · Base ${escapeAssistantHtml(getRankThemeLabel(theme.base_theme))}</p>
+      </div>
+      <span class="rank-theme-pill">${theme.is_builtin ? "Built-in" : "Custom"}</span>
+    </div>
+    <div class="admin-theme-preview-swatch">${buildThemeCardPreviewMarkup(theme)}</div>
+    <div class="admin-theme-actions">
+      <button type="button" class="secondary">Load Into Builder</button>
+      ${theme.is_builtin ? "" : '<button type="button" class="secondary">Delete Theme</button>'}
+    </div>
+  `;
+  applyPreviewTheme(theme, item.querySelector(".admin-theme-preview-swatch"));
+  const buttons = item.querySelectorAll("button");
+  buttons[0]?.addEventListener("click", () => resetAdminThemeForm(theme));
+  if (!theme.is_builtin) {
+    buttons[1]?.addEventListener("click", () => {
+      void handleAdminThemeDelete(theme);
+    });
+  }
+  return item;
+}
+
+async function loadAdminThemes(force = false) {
+  if (!isAdmin()) {
+    if (adminThemeListEl) adminThemeListEl.innerHTML = "";
+    return;
+  }
+  if (adminThemesLoaded && !force) return;
+  adminThemesLoaded = true;
+  await loadThemeLibrary(force);
+  populateAdminThemeBaseOptions(adminThemeBaseSelect?.value || "blue");
+  populateAdminRankThemeOptions(adminRankThemeSelect?.value || "blue");
+  if (!adminThemeListEl) return;
+  adminThemeListEl.innerHTML = "";
+  const customThemes = getThemeLibrary().filter((theme) => !theme.is_builtin);
+  if (!customThemes.length) {
+    adminThemeListEl.innerHTML = '<li class="admin-prize-empty">No custom themes yet. Build one above to get started.</li>';
+    return;
+  }
+  customThemes.forEach((theme) => {
+    adminThemeListEl.appendChild(renderAdminThemeRow(theme));
+  });
+}
+
+async function handleAdminThemeDelete(theme) {
+  if (!theme?.id || theme.is_builtin || !isAdmin()) return;
+  const ladder = await loadRankLadder(true);
+  if (ladder.some((rank) => rank.theme_key === theme.key)) {
+    showToast("This theme is in use by a rank. Reassign the rank before deleting it.", "error");
+    return;
+  }
+  if (!window.confirm(`Delete theme "${theme.name}"?`)) return;
+  try {
+    const { error } = await supabase.from("themes").delete().eq("id", theme.id);
+    if (error) throw error;
+    showToast("Theme deleted", "success");
+    themeLibraryCache = [];
+    adminThemesLoaded = false;
+    await loadThemeLibrary(true);
+    await loadAdminThemes(true);
+    await loadAdminRanks(true);
+    await refreshCurrentRankState({ force: true });
+    resetAdminThemeForm();
+  } catch (error) {
+    console.error("[RTN] handleAdminThemeDelete error", error);
+    showToast(error?.message || "Unable to delete theme", "error");
+  }
+}
+
+async function handleAdminThemeSubmit(event) {
+  event.preventDefault();
+  if (!adminThemeForm || !isAdmin()) return;
+  const theme = getThemeFormState();
+  if (!theme.name || !theme.key) {
+    if (adminThemeMessage) {
+      adminThemeMessage.textContent = "Please add a theme name.";
+    }
+    return;
+  }
+  if (THEME_CLASS_MAP[theme.key]) {
+    if (adminThemeMessage) {
+      adminThemeMessage.textContent = "That key is reserved by a built-in theme. Choose a different key.";
+    }
+    return;
+  }
+  const existing = getThemeLibrary().find((entry) => entry.key === theme.key && entry.id !== theme.id);
+  if (existing) {
+    if (adminThemeMessage) {
+      adminThemeMessage.textContent = "That theme key already exists.";
+    }
+    return;
+  }
+
+  const payload = {
+    key: theme.key,
+    name: theme.name,
+    base_theme: theme.base_theme,
+    palette: theme.palette,
+    settings: theme.settings,
+    is_builtin: false
+  };
+
+  try {
+    const query = theme.id
+      ? supabase.from("themes").update(payload).eq("id", theme.id)
+      : supabase.from("themes").insert(payload);
+    const { error } = await query;
+    if (error) throw error;
+    showToast(theme.id ? "Theme updated" : "Theme created", "success");
+    themeLibraryCache = [];
+    adminThemesLoaded = false;
+    await loadThemeLibrary(true);
+    await loadAdminThemes(true);
+    populateAdminRankThemeOptions(theme.key);
+    await loadAdminRanks(true);
+    await refreshCurrentRankState({ force: true });
+    resetAdminThemeForm();
+  } catch (error) {
+    console.error("[RTN] handleAdminThemeSubmit error", error);
+    if (adminThemeMessage) {
+      adminThemeMessage.textContent = error?.message || "Unable to save theme.";
+    }
+  }
 }
 
 function stopHomeRankTyping() {
@@ -885,6 +1450,7 @@ function openAdminRankModal(rank = null) {
     }
   };
 
+  populateAdminRankThemeOptions(rank?.theme_key || "blue");
   setValue("name", rank?.name || "");
   setValue("tier", String(rank?.tier || getRankLadder().length + 1));
   setValue("welcomePhrase", rank?.welcome_phrase || "");
@@ -941,7 +1507,7 @@ function renderAdminRankRow(rank, players = []) {
           <h3>${rank.name}</h3>
         </div>
       </div>
-      <span class="rank-theme-pill">${rank.theme_key}</span>
+      <span class="rank-theme-pill">${escapeAssistantHtml(getRankThemeLabel(rank.theme_key))}</span>
     </div>
     <p class="admin-rank-welcome">${interpolateRankWelcome(rank, currentProfile)}</p>
     <p class="admin-rank-requirements">${buildRankRequirementsCopy(rank)}</p>
@@ -975,6 +1541,8 @@ async function loadAdminRanks(force = false) {
   adminRankListEl.innerHTML = '<li class="admin-prize-empty">Loading ranks...</li>';
 
   try {
+    await loadThemeLibrary(force);
+    populateAdminRankThemeOptions(adminRankThemeSelect?.value || "blue");
     const ladder = await loadRankLadder(force);
     const players = await loadAdminRankPlayerSummaries();
     const groupedPlayers = new Map();
@@ -1030,7 +1598,7 @@ async function handleAdminRankSubmit(event) {
     welcome_phrase: String(formData.get("welcomePhrase") || "").trim(),
     required_hands_played: Math.max(0, Math.round(Number(formData.get("requiredHandsPlayed") || 0))),
     required_contest_wins: Math.max(0, Math.round(Number(formData.get("requiredContestWins") || 0))),
-    theme_key: String(formData.get("themeKey") || "blue").trim(),
+    theme_key: getThemeRecord(String(formData.get("themeKey") || "blue").trim()).key,
     icon_url: String(formData.get("iconUrl") || "").trim()
   };
 
@@ -8384,12 +8952,14 @@ async function logHandAndBets(stopperCard, context, betSnapshots, netThisHand, o
 }
 
 function applyTheme(theme) {
-  const next = THEME_CLASS_MAP[theme] ? theme : "blue";
+  const themeRecord = getThemeRecord(theme);
+  const next = THEME_CLASS_MAP[themeRecord.base_theme] ? themeRecord.base_theme : "blue";
   if (!document.body) {
-    currentTheme = next;
+    currentTheme = themeRecord.key;
     return;
   }
-  if (currentTheme === next && document.body.classList.contains(THEME_CLASS_MAP[next])) {
+  if (currentTheme === themeRecord.key && document.body.classList.contains(THEME_CLASS_MAP[next])) {
+    applyThemeVariables(themeRecord);
     if (typeof window !== "undefined") {
       window.requestAnimationFrame(() => drawBankrollChart());
     } else {
@@ -8401,7 +8971,8 @@ function applyTheme(theme) {
     document.body.classList.remove(className);
   });
   document.body.classList.add(THEME_CLASS_MAP[next]);
-  currentTheme = next;
+  applyThemeVariables(themeRecord);
+  currentTheme = themeRecord.key;
   if (typeof window !== "undefined") {
     window.requestAnimationFrame(() => drawBankrollChart());
   } else {
@@ -8829,7 +9400,16 @@ const adminTabButtons = document.querySelectorAll(".admin-tab");
 const adminPrizesContent = document.getElementById("admin-prizes-content");
 const adminAnalyticsContent = document.getElementById("admin-analytics-content");
 const adminContestsContent = document.getElementById("admin-contests-content");
+const adminDesignContent = document.getElementById("admin-design-content");
 const adminRanksContent = document.getElementById("admin-ranks-content");
+const adminThemeForm = document.getElementById("admin-theme-form");
+const adminThemeListEl = document.getElementById("admin-theme-list");
+const adminThemeMessage = document.getElementById("admin-theme-message");
+const adminThemePreviewEl = document.getElementById("admin-theme-preview");
+const adminThemeResetButton = document.getElementById("admin-theme-reset");
+const adminThemeSaveButton = document.getElementById("admin-theme-save");
+const adminThemeBaseSelect = document.getElementById("admin-theme-base-select");
+const adminRankThemeSelect = document.getElementById("admin-rank-theme-select");
 const mostActiveWeekListEl = document.getElementById("most-active-week-list");
 const mostActiveSubheadEl = document.getElementById("most-active-subhead");
 const mostActiveLoadMoreButton = document.getElementById("most-active-load-more");
@@ -8870,6 +9450,157 @@ const THEME_CLASS_MAP = {
   "cotton-candy": "theme-cotton-candy",
   pastel: "theme-pastel"
 };
+const BUILTIN_THEME_LABELS = {
+  blue: "Blue",
+  pink: "Pink",
+  orange: "Orange",
+  "steel-black": "Steel Black",
+  angelic: "Angelic",
+  retro: "Retro",
+  "cotton-candy": "Cotton Candy",
+  pastel: "Pastel"
+};
+const DEFAULT_CUSTOM_THEME_PALETTE = {
+  accent: "#63f0ff",
+  accentSecondary: "#f857c1",
+  accentTertiary: "#8b80ff",
+  gold: "#ffd166",
+  muted: "#bfd5ff",
+  success: "#5af78e",
+  danger: "#ff5c8a",
+  bgStart: "#08142d",
+  bgEnd: "#050913",
+  panelStart: "#0e2c63",
+  panelEnd: "#08142d",
+  headerStart: "#15386d",
+  headerEnd: "#0b1b3d"
+};
+const DEFAULT_CUSTOM_THEME_SETTINGS = {
+  glowStrength: 48,
+  surfaceContrast: 58,
+  radiusScale: 72
+};
+const CUSTOM_THEME_VARIABLE_KEYS = [
+  "--neon-cyan",
+  "--neon-magenta",
+  "--neon-violet",
+  "--gold",
+  "--muted",
+  "--success",
+  "--danger",
+  "--text-light",
+  "--body-bg",
+  "--body-bg-size",
+  "--body-bg-position",
+  "--app-overlay",
+  "--header-gradient",
+  "--header-border-color",
+  "--icon-button-bg",
+  "--icon-button-border-color",
+  "--icon-button-border-hover",
+  "--icon-button-shadow-hover",
+  "--icon-graph-gradient",
+  "--reset-border-color",
+  "--reset-bg",
+  "--reset-border-hover",
+  "--reset-bg-hover",
+  "--reset-shadow-hover",
+  "--menu-bg",
+  "--menu-border-color",
+  "--menu-shadow",
+  "--menu-border-hover",
+  "--menu-shadow-hover",
+  "--stat-bg",
+  "--stat-border",
+  "--stat-shadow",
+  "--table-panel-bg",
+  "--table-panel-shadow",
+  "--paytable-panel-bg",
+  "--paytable-panel-border",
+  "--paytable-panel-shadow",
+  "--paytable-option-bg",
+  "--paytable-option-border",
+  "--paytable-option-shadow",
+  "--paytable-option-border-hover",
+  "--paytable-option-shadow-hover",
+  "--paytable-option-border-selected",
+  "--paytable-option-shadow-selected",
+  "--paytable-option-name-color",
+  "--paytable-option-steps-color",
+  "--active-paytable-bg",
+  "--active-paytable-border",
+  "--active-paytable-shadow",
+  "--active-paytable-label-color",
+  "--active-paytable-steps-color",
+  "--change-paytable-bg",
+  "--change-paytable-border",
+  "--change-paytable-border-hover",
+  "--change-paytable-shadow",
+  "--betting-panel-bg",
+  "--betting-panel-border",
+  "--betting-panel-shadow",
+  "--bet-spot-bg",
+  "--bet-spot-border",
+  "--bet-spot-border-hover",
+  "--bet-spot-border-active",
+  "--bet-spot-shadow",
+  "--bet-spot-active-shadow",
+  "--bet-total-glow",
+  "--bet-total-active-glow",
+  "--status-text-color",
+  "--table-callout-color",
+  "--table-callout-shadow",
+  "--chip-5-bg",
+  "--chip-10-bg",
+  "--chip-25-bg",
+  "--chip-100-bg",
+  "--chip-choice-bg",
+  "--chip-choice-border",
+  "--chip-choice-shadow",
+  "--chip-choice-shadow-hover",
+  "--chip-choice-active-bg",
+  "--chip-choice-active-shadow",
+  "--chip-bar-bg",
+  "--chip-bar-border",
+  "--chip-bar-shadow",
+  "--secondary-button-bg",
+  "--secondary-button-border",
+  "--deal-button-bg",
+  "--deal-button-shadow",
+  "--deal-button-shadow-hover",
+  "--drawer-bg",
+  "--drawer-border",
+  "--drawer-shadow",
+  "--modal-bg",
+  "--modal-border",
+  "--modal-shadow",
+  "--scrim-bg",
+  "--analytics-bg",
+  "--analytics-border",
+  "--analytics-shadow",
+  "--chart-background",
+  "--chart-axis-color",
+  "--chart-grid-color",
+  "--chart-line-color",
+  "--chart-line-shadow",
+  "--chart-fill-color",
+  "--chart-fill-fade",
+  "--chart-background-gradient-start",
+  "--chart-background-gradient-end",
+  "--chart-marker-color",
+  "--chart-marker-stroke",
+  "--chart-marker-shadow",
+  "--chart-base-line",
+  "--chart-scroll-track",
+  "--chart-scroll-thumb",
+  "--carter-green",
+  "--carter-green-glow",
+  "--bust-bet-bg",
+  "--bust-bet-border",
+  "--bust-bet-shadow",
+  "--count-bet-start-base",
+  "--count-bet-end-base"
+];
 const ALL_THEME_CLASSES = [...new Set(Object.values(THEME_CLASS_MAP))];
 const THEME_STORAGE_KEY = "run-the-numbers-theme";
 
@@ -8959,10 +9690,13 @@ let adminPrizesLoaded = false;
 let adminContestsLoaded = false;
 let currentAdminContestTab = "upcoming";
 let adminRanksLoaded = false;
+let adminThemesLoaded = false;
 let adminEditingPrizeId = null;
 let adminEditingRankId = null;
+let adminEditingThemeId = null;
 let adminPrizeCache = [];
 let rankLadderCache = [];
+let themeLibraryCache = [];
 let currentRankState = null;
 let reconciledHandsPlayedUserId = null;
 let rankWelcomeTypingTimer = null;
@@ -13708,6 +14442,22 @@ if (adminRankIconFileInput) {
   });
 }
 
+if (adminThemeForm) {
+  resetAdminThemeForm();
+  adminThemeForm.addEventListener("input", () => {
+    applyPreviewTheme(getThemeFormState());
+  });
+  adminThemeForm.addEventListener("submit", (event) => {
+    void handleAdminThemeSubmit(event);
+  });
+}
+
+if (adminThemeResetButton) {
+  adminThemeResetButton.addEventListener("click", () => {
+    resetAdminThemeForm();
+  });
+}
+
 // Debug: Log button state at initialization
 console.info("[RTN] Profile Edit Button Check:", {
   exists: !!profileEditButton,
@@ -14012,11 +14762,13 @@ adminTabButtons.forEach(button => {
       adminPrizesContent.hidden = false;
       adminAnalyticsContent.hidden = true;
       if (adminContestsContent) adminContestsContent.hidden = true;
+      if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
     } else if (targetTab === "analytics") {
       adminPrizesContent.hidden = true;
       adminAnalyticsContent.hidden = false;
       if (adminContestsContent) adminContestsContent.hidden = true;
+      if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
       loadPlayerFilter(); // Load player list for filter
       initializeAnalyticsBettingGrid();
@@ -14027,12 +14779,21 @@ adminTabButtons.forEach(button => {
       adminPrizesContent.hidden = true;
       adminAnalyticsContent.hidden = true;
       if (adminContestsContent) adminContestsContent.hidden = false;
+      if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
       loadAdminContestList(true);
+    } else if (targetTab === "design") {
+      adminPrizesContent.hidden = true;
+      adminAnalyticsContent.hidden = true;
+      if (adminContestsContent) adminContestsContent.hidden = true;
+      if (adminDesignContent) adminDesignContent.hidden = false;
+      if (adminRanksContent) adminRanksContent.hidden = true;
+      void loadAdminThemes(true);
     } else if (targetTab === "ranks") {
       adminPrizesContent.hidden = true;
       adminAnalyticsContent.hidden = true;
       if (adminContestsContent) adminContestsContent.hidden = true;
+      if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = false;
       void loadAdminRanks(true);
     }
