@@ -1762,6 +1762,11 @@ body[data-app-state="loading"] #app-shell {
   margin-bottom: 0;
 }
 
+#red-black-view .beta-draw-area {
+  gap: 0.55rem;
+  padding-top: 0.45rem;
+}
+
 .beta-control-panel {
   align-content: start;
 }
