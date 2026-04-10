@@ -1244,6 +1244,16 @@ async function handleAdminThemeSubmit(event) {
     }
     return;
   }
+  const normalizedName = theme.name.trim().toLowerCase();
+  const existingName = getThemeLibrary().find(
+    (entry) => entry.id !== themeId && String(entry.name || "").trim().toLowerCase() === normalizedName
+  );
+  if (existingName) {
+    if (adminThemeMessage) {
+      adminThemeMessage.textContent = "That theme name already exists. Please choose a unique name.";
+    }
+    return;
+  }
 
   const payload = {
     key: themeKey,
