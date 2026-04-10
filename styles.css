@@ -1758,6 +1758,11 @@ body[data-app-state="loading"] #app-shell {
   gap: 0.15rem;
 }
 
+#red-black-table-title {
+  margin-bottom: 0.2rem;
+  line-height: 1;
+}
+
 #red-black-view .beta-ladder-sticky-rail-inline {
   margin-bottom: 0;
 }
