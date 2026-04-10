@@ -5426,13 +5426,32 @@ async function loadContestJourneyPoints(contest, entry) {
     const numericValue = Number(value);
     return Number.isFinite(numericValue) ? Number(numericValue.toFixed(2)) : null;
   };
+  const getContestHistoryHandPoints = (history = []) =>
+    (Array.isArray(history) ? history : [])
+      .filter((point) => {
+        const label = String(point?.label || "").trim().toLowerCase();
+        return Boolean(label) && label !== "start" && label !== "finish" && label !== "checkpoint";
+      })
+      .map((point, index) => {
+        const endingBankroll = normalizeJourneyValue(point?.value);
+        if (!Number.isFinite(endingBankroll)) return null;
+        return {
+          label: `Hand ${index + 1}`,
+          value: endingBankroll,
+          created_at: point?.created_at || null
+        };
+      })
+      .filter(Boolean);
   const points = [{
     label: "Start",
     value: Number.isFinite(startingValue) ? Number(startingValue.toFixed(2)) : 0,
     created_at: contest.starts_at || entry.opted_in_at || null
   }];
 
-  if (entry.user_id === currentUser?.id) {
+  const sharedHistoryPoints = getContestHistoryHandPoints(entry.contest_history);
+  if (sharedHistoryPoints.length) {
+    points.push(...sharedHistoryPoints);
+  } else if (entry.user_id === currentUser?.id) {
     const allRuns = [];
     const pageSize = 1000;
     let page = 0;
@@ -5466,22 +5485,6 @@ async function loadContestJourneyPoints(contest, entry) {
         label: `Hand ${index + 1}`,
         value: endingBankroll,
         created_at: run?.created_at || null
-      });
-    });
-  } else {
-    const sharedHistory = Array.isArray(entry.contest_history) ? entry.contest_history : [];
-    const filteredHistory = sharedHistory.filter((point) => {
-      const label = String(point?.label || "").trim();
-      return /^Hand \d+$/.test(label);
-    });
-
-    filteredHistory.forEach((point, index) => {
-      const endingBankroll = normalizeJourneyValue(point?.value);
-      if (!Number.isFinite(endingBankroll)) return;
-      points.push({
-        label: point?.label || `Hand ${index + 1}`,
-        value: endingBankroll,
-        created_at: point?.created_at || null
       });
     });
   }
@@ -10181,6 +10184,49 @@ function finishRedBlackHand(message, { clearBet = false } = {}) {
   updateRedBlackActionState();
 }
 
+async function finalizeRedBlackHand({
+  completedBet,
+  completedCards,
+  drawnCards,
+  handHistory,
+  totalReturn,
+  net,
+  commissionKept = 0,
+  stopperCard = null,
+  result
+}) {
+  animateBankrollOutcome(net);
+  recordBankrollHistoryPoint();
+  applyPlaythrough(completedBet);
+  await persistBankroll({
+    recordContestHistory: isContestAccountMode(),
+    contestHistoryLabel: "Guess 10 Hand"
+  });
+  await incrementProfileHandProgress(1);
+  await ensureProfileSynced({ force: true });
+  await logStandaloneGameHand({
+    gameKey: GAME_KEYS.GUESS_10,
+    stopperCard,
+    totalCards: completedCards,
+    totalWager: completedBet,
+    totalPaid: totalReturn,
+    net,
+    commissionKept
+  });
+  try {
+    await logGameRun(net, {
+      gameKey: GAME_KEYS.GUESS_10,
+      totalCards: completedCards,
+      totalWager: completedBet,
+      totalPaid: totalReturn,
+      result
+    });
+  } catch (error) {
+    console.error(error);
+    showToast("Could not record game run", "error");
+  }
+}
+
 async function dealRedBlackCard() {
   if (redBlackBet <= 0 || !isRedBlackSelectionValid()) {
     return;
@@ -10237,31 +10283,16 @@ async function dealRedBlackCard() {
       net: -completedBet,
       commissionKept: 0
     });
-    applyPlaythrough(completedBet);
-    await persistBankroll({
-      recordContestHistory: isContestAccountMode(),
-      contestHistoryLabel: "Guess 10 Hand"
-    });
-    await incrementProfileHandProgress(1);
-    await ensureProfileSynced({ force: true });
-    await logStandaloneGameHand({
-      gameKey: GAME_KEYS.GUESS_10,
-      stopperCard: nextCard,
-      totalCards: completedCards,
-      totalWager: completedBet,
-      totalPaid: 0,
+    await finalizeRedBlackHand({
+      completedBet,
+      completedCards,
+      drawnCards,
+      handHistory,
+      totalReturn: 0,
       net: -completedBet,
-      commissionKept: 0
-    });
-    logGameRun(-completedBet, {
-      gameKey: GAME_KEYS.GUESS_10,
-      totalCards: completedCards,
-      totalWager: completedBet,
-      totalPaid: 0,
+      commissionKept: 0,
+      stopperCard: nextCard,
       result: "loss"
-    }).catch((error) => {
-      console.error(error);
-      showToast("Could not record game run", "error");
     });
     return;
   }
@@ -10332,31 +10363,16 @@ async function withdrawRedBlackHand() {
     net: roundCurrencyValue(payout - completedBet),
     commissionKept: commission
   });
-  applyPlaythrough(completedBet);
-  await persistBankroll({
-    recordContestHistory: isContestAccountMode(),
-    contestHistoryLabel: "Guess 10 Hand"
-  });
-  await incrementProfileHandProgress(1);
-  await ensureProfileSynced({ force: true });
-  await logStandaloneGameHand({
-    gameKey: GAME_KEYS.GUESS_10,
-    stopperCard: null,
-    totalCards: completedCards,
-    totalWager: completedBet,
-    totalPaid: payout,
+  await finalizeRedBlackHand({
+    completedBet,
+    completedCards,
+    drawnCards,
+    handHistory,
+    totalReturn: payout,
     net: roundCurrencyValue(payout - completedBet),
-    commissionKept: commission
-  });
-  logGameRun(roundCurrencyValue(payout - completedBet), {
-    gameKey: GAME_KEYS.GUESS_10,
-    totalCards: completedCards,
-    totalWager: completedBet,
-    totalPaid: payout,
+    commissionKept: commission,
+    stopperCard: null,
     result: "cashout"
-  }).catch((error) => {
-    console.error(error);
-    showToast("Could not record game run", "error");
   });
 }
 
