@@ -4602,7 +4602,7 @@ function formatContestEntryFeeText(contest) {
 }
 
 function formatContestEntryFeeLabelText(contest) {
-  return `Entry Fee: ${formatContestEntryFeeText(contest)}`;
+  return `Entry: ${formatContestEntryFeeText(contest)}`;
 }
 
 function getContestRequiredRankTier(contest) {
