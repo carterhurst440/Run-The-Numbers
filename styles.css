@@ -881,15 +881,18 @@ body[data-app-state="loading"] #app-shell {
 .home-contest-card {
   position: relative;
   padding: 0.95rem 1rem 1rem;
-  border: 1px solid color-mix(in srgb, var(--betting-panel-border) 72%, white 28%);
+  border: 1px solid color-mix(in srgb, var(--betting-panel-border) 64%, white 36%);
   border-radius: 24px;
   background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--neon-cyan) 18%, transparent), transparent 30%),
-    linear-gradient(180deg, color-mix(in srgb, var(--table-panel-bg) 92%, black 8%), color-mix(in srgb, var(--menu-bg) 82%, black 18%));
+    linear-gradient(180deg, rgba(88, 22, 88, 0.78), rgba(54, 12, 70, 0.84)),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--neon-cyan) 16%, transparent), transparent 28%),
+    linear-gradient(180deg, color-mix(in srgb, var(--table-panel-bg) 96%, black 4%), color-mix(in srgb, var(--menu-bg) 86%, black 14%));
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, white 14%, transparent),
     inset 0 0 0 1px color-mix(in srgb, black 26%, transparent),
     0 24px 42px color-mix(in srgb, black 42%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   overflow: hidden;
 }
 
