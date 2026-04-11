@@ -9083,26 +9083,6 @@ body.modal-open {
     background: color-mix(in srgb, var(--header-gradient) 64%, black 36%);
   }
 
-  .hand-review-table tfoot td::before {
-    display: block;
-    margin-bottom: 0.22rem;
-    color: var(--muted);
-    font-size: 0.68rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  #hand-review-total-wager::before {
-    content: "Wager";
-  }
-
-  #hand-review-total-return::before {
-    content: "Return";
-  }
-
-  #hand-review-total-net::before {
-    content: "Net";
-  }
 }
 
 .route-view.active {
