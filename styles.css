@@ -8624,6 +8624,7 @@ body.modal-open {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
+  margin: 0 auto;
 }
 
 .hand-review-body {
@@ -8720,9 +8721,18 @@ body.modal-open {
     padding: 0.75rem;
   }
 
+  #hand-review-modal,
+  #player-mode-breakdown-modal {
+    align-items: flex-start;
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+    padding-right: 0.5rem;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    padding-left: 0.5rem;
+  }
+
   .hand-review-modal {
     width: min(100vw - 1rem, 560px);
-    max-height: calc(100vh - 1rem);
+    max-height: calc(100dvh - max(0.75rem, env(safe-area-inset-top)) - max(0.75rem, env(safe-area-inset-bottom)));
   }
 
   .hand-review-body {
