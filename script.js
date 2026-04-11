@@ -561,9 +561,6 @@ function colorMix(color, amount = 0.5, fallback = "#000000") {
 
 function getThemeCssVariables(theme) {
   const record = normalizeThemeRecord(theme);
-  if (record.is_builtin) {
-    return {};
-  }
   const palette = normalizeThemePalette(record.palette);
   const settings = normalizeThemeSettings(record.settings);
   const glow = settings.glowStrength / 100;
@@ -1193,14 +1190,6 @@ function buildThemeCardPreviewMarkup(theme) {
   return swatches;
 }
 
-function getScopedThemeCssVariables(theme) {
-  const record = normalizeThemeRecord(theme);
-  return getThemeCssVariables({
-    ...record,
-    is_builtin: false
-  });
-}
-
 function createDuplicateThemeDraft(theme) {
   const source = normalizeThemeRecord(theme);
   const existingNames = new Set(
@@ -1518,7 +1507,7 @@ function renderRankLadderModal() {
         <p class="rank-ladder-requirements">${buildRankRequirementsCopy(rank)}</p>
       </div>
     `;
-    const scopedThemeVariables = getScopedThemeCssVariables(getThemeRecord(rank.theme_key || "blue"));
+    const scopedThemeVariables = getThemeCssVariables(getThemeRecord(rank.theme_key || "blue"));
     Object.entries(scopedThemeVariables).forEach(([key, value]) => {
       item.style.setProperty(key, value);
     });
@@ -1668,7 +1657,7 @@ function renderAdminRankRow(rank, players = []) {
   deleteButton?.addEventListener("click", () => {
     void handleAdminRankDelete(rank);
   });
-  const scopedThemeVariables = getScopedThemeCssVariables(getThemeRecord(rank.theme_key || "blue"));
+  const scopedThemeVariables = getThemeCssVariables(getThemeRecord(rank.theme_key || "blue"));
   Object.entries(scopedThemeVariables).forEach(([key, value]) => {
     item.style.setProperty(key, value);
   });
