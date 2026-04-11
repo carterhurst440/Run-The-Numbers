@@ -8620,26 +8620,16 @@ body.modal-open {
 
 .hand-review-modal {
   width: min(760px, 94vw);
-  height: min(720px, 92vh);
   max-height: min(720px, 92vh);
   overflow: hidden;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: clamp(0.9rem, 2vw, 1.2rem);
 }
 
 .hand-review-body {
-  min-height: 0;
-  height: 100%;
+  max-height: calc(min(720px, 92vh) - 148px);
   overflow-y: auto;
   padding-right: 0.25rem;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-}
-
-.hand-review-modal .modal-header,
-.hand-review-modal .modal-actions {
-  min-height: 0;
 }
 
 .hand-review-summary {
@@ -8716,11 +8706,11 @@ body.modal-open {
 
   .hand-review-modal {
     width: min(100vw - 1rem, 560px);
-    height: min(720px, calc(100vh - 1rem));
     max-height: calc(100vh - 1rem);
   }
 
   .hand-review-body {
+    max-height: calc(100vh - 9.5rem);
     padding-right: 0;
   }
 
