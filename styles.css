@@ -4221,6 +4221,12 @@ body.theme-angelic {
   box-shadow: inset 0 0 22px rgba(63, 240, 255, 0.06);
 }
 
+.admin-rank-card {
+  border-color: var(--betting-panel-border);
+  background: var(--betting-panel-bg);
+  box-shadow: var(--betting-panel-shadow);
+}
+
 .rank-ladder-tier,
 .admin-rank-tier {
   font-size: 0.76rem;
@@ -4352,8 +4358,10 @@ body.theme-angelic {
   margin: 0;
   padding: 0.7rem 0.85rem;
   border-radius: 0.9rem;
-  background: rgba(224, 244, 255, 0.05);
-  color: rgba(224, 244, 255, 0.86);
+  background: color-mix(in srgb, var(--active-paytable-bg) 68%, var(--menu-bg) 32%);
+  border: 1px solid color-mix(in srgb, var(--betting-panel-border) 72%, transparent);
+  color: color-mix(in srgb, var(--text-light) 88%, var(--muted) 12%);
+  box-shadow: inset 0 0 20px color-mix(in srgb, var(--neon-cyan) 10%, transparent);
 }
 
 .admin-rank-preview {
@@ -10044,9 +10052,11 @@ body.modal-open {
 }
 
 .admin-theme-card {
-  padding: 1rem;
+  padding: 0.7rem 0.8rem;
   display: grid;
-  gap: 0.85rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.7rem 0.9rem;
+  align-items: center;
 }
 
 .admin-theme-card-header {
@@ -10054,6 +10064,7 @@ body.modal-open {
   justify-content: space-between;
   gap: 0.75rem;
   align-items: start;
+  min-width: 0;
 }
 
 .admin-theme-card-header h3,
@@ -10065,29 +10076,59 @@ body.modal-open {
 
 .admin-theme-meta {
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: 0.68rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .admin-theme-preview-swatch {
-  min-height: 136px;
-  padding: 0.9rem;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.55rem;
+  min-height: 0;
+  padding: 0.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  border-radius: 999px;
 }
 
 .admin-theme-preview-color {
-  min-height: 52px;
-  border-radius: 0.9rem;
+  width: 14px;
+  height: 14px;
+  min-height: 14px;
+  border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
+  flex: 0 0 auto;
 }
 
 .admin-theme-actions {
   display: flex;
-  gap: 0.6rem;
+  gap: 0.4rem;
   flex-wrap: wrap;
+  justify-content: flex-end;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+.admin-theme-actions > * {
+  min-height: 2rem;
+  padding: 0.35rem 0.72rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+}
+
+.admin-theme-card-header .rank-theme-pill {
+  padding: 0.22rem 0.52rem;
+  font-size: 0.62rem;
+}
+
+.admin-theme-card-header h3 {
+  font-size: 1rem;
+  line-height: 1.15;
+}
+
+.admin-theme-card > .admin-theme-preview-swatch {
+  grid-column: 1;
 }
 
 @media (max-width: 768px) {
@@ -10241,7 +10282,7 @@ body.modal-open {
   }
 
   .admin-theme-preview-swatch {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: flex-start;
   }
 
   .admin-contest-card {
@@ -10271,6 +10312,16 @@ body.modal-open {
 
   .admin-rank-card {
     padding: 1rem;
+  }
+
+  .admin-theme-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-theme-actions {
+    grid-column: 1;
+    grid-row: auto;
+    justify-content: flex-start;
   }
 
   .admin-rank-player-list li {
@@ -10321,6 +10372,10 @@ body.modal-open {
   .admin-rank-heading {
     grid-template-columns: 1fr;
     justify-items: start;
+  }
+
+  .admin-theme-card {
+    gap: 0.55rem;
   }
 
   .admin-theme-actions > * {

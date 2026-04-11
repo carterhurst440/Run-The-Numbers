@@ -1193,6 +1193,14 @@ function buildThemeCardPreviewMarkup(theme) {
   return swatches;
 }
 
+function getScopedThemeCssVariables(theme) {
+  const record = normalizeThemeRecord(theme);
+  return getThemeCssVariables({
+    ...record,
+    is_builtin: false
+  });
+}
+
 function createDuplicateThemeDraft(theme) {
   const source = normalizeThemeRecord(theme);
   const existingNames = new Set(
@@ -1611,6 +1619,7 @@ async function loadAdminRankPlayerSummaries() {
 function renderAdminRankRow(rank, players = []) {
   const item = document.createElement("li");
   item.className = "admin-rank-card";
+  item.dataset.theme = rank.theme_key || "blue";
 
   const playersMarkup = players.length
     ? players
@@ -1654,6 +1663,10 @@ function renderAdminRankRow(rank, players = []) {
   editButton?.addEventListener("click", () => openAdminRankModal(rank));
   deleteButton?.addEventListener("click", () => {
     void handleAdminRankDelete(rank);
+  });
+  const scopedThemeVariables = getScopedThemeCssVariables(getThemeRecord(rank.theme_key || "blue"));
+  Object.entries(scopedThemeVariables).forEach(([key, value]) => {
+    item.style.setProperty(key, value);
   });
   return item;
 }
