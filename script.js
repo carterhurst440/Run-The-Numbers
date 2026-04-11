@@ -512,10 +512,14 @@ async function loadThemeLibrary(force = false) {
   try {
     const { data, error } = await supabase.from("themes").select("*").order("name", { ascending: true });
     if (error) throw error;
-    const remoteThemes = (Array.isArray(data) ? data : [])
-      .map((theme) => normalizeThemeRecord(theme))
-      .filter((theme) => !THEME_CLASS_MAP[theme.key]);
-    themeLibraryCache = [...builtin, ...remoteThemes];
+    const remoteThemes = (Array.isArray(data) ? data : []).map((theme) => normalizeThemeRecord(theme));
+    const mergedByKey = new Map(builtin.map((theme) => [theme.key, theme]));
+    remoteThemes.forEach((theme) => {
+      mergedByKey.set(theme.key, theme);
+    });
+    themeLibraryCache = Array.from(mergedByKey.values()).sort((a, b) =>
+      String(a.name || "").localeCompare(String(b.name || ""))
+    );
   } catch (error) {
     console.warn("[RTN] loadThemeLibrary falling back to builtin themes", error);
     themeLibraryCache = builtin;
@@ -1120,9 +1124,10 @@ function resetAdminThemeForm(theme = null) {
       settings: DEFAULT_CUSTOM_THEME_SETTINGS
     }
   );
-  adminEditingThemeId = record.is_builtin ? null : record.id;
+  const isProtectedBuiltin = String(record.id || "").startsWith("builtin-");
+  adminEditingThemeId = isProtectedBuiltin ? null : record.id;
   adminEditingThemeSourceKey = theme?.key || null;
-  adminEditingThemeSourceBuiltin = Boolean(theme?.is_builtin);
+  adminEditingThemeSourceBuiltin = isProtectedBuiltin;
   const setValue = (name, value) => {
     const field = adminThemeForm.elements.namedItem(name);
     if (field instanceof HTMLInputElement && field.type === "checkbox") {
@@ -1135,9 +1140,9 @@ function resetAdminThemeForm(theme = null) {
   };
   setValue("themeId", record.id || "");
   setValue("themeSourceKey", theme?.key || "");
-  setValue("themeSourceBuiltin", theme?.is_builtin ? "1" : "0");
+  setValue("themeSourceBuiltin", isProtectedBuiltin ? "1" : "0");
   setValue("themeName", theme?.name || "");
-  setValue("themeKey", theme?.is_builtin ? "" : theme?.key || "");
+  setValue("themeKey", isProtectedBuiltin ? "" : theme?.key || "");
   populateAdminThemeBaseOptions(record.base_theme || "blue");
   setValue("baseTheme", record.base_theme || "blue");
   setValue("accentColor", record.palette.accent);
@@ -1158,7 +1163,7 @@ function resetAdminThemeForm(theme = null) {
   setValue("radiusScale", String(record.settings.radiusScale));
   setValue("flatSurfaces", record.settings.flatSurfaces);
   if (adminThemeMessage) {
-    adminThemeMessage.textContent = theme?.is_builtin
+    adminThemeMessage.textContent = isProtectedBuiltin
       ? "Built-in themes load as editable starting points. Saving will create a custom copy."
       : "";
   }
@@ -1201,20 +1206,21 @@ function createDuplicateThemeDraft(theme) {
 function renderAdminThemeRow(theme) {
   const item = document.createElement("li");
   item.className = "admin-theme-card";
+  const isProtectedBuiltin = String(theme?.id || "").startsWith("builtin-");
   item.innerHTML = `
     <div class="admin-theme-card-header">
       <div>
         <h3>${escapeAssistantHtml(theme.name)}</h3>
         <p class="admin-theme-meta">${escapeAssistantHtml(theme.key)} · Base ${escapeAssistantHtml(getRankThemeLabel(theme.base_theme))}</p>
       </div>
-      <span class="rank-theme-pill">${theme.is_builtin ? "Built-in" : "Custom"}</span>
+      <span class="rank-theme-pill">${isProtectedBuiltin ? "Built-in" : "Saved"}</span>
     </div>
     <div class="admin-theme-preview-swatch">${buildThemeCardPreviewMarkup(theme)}</div>
     <div class="admin-theme-actions">
-      <button type="button" class="secondary">${theme.is_builtin ? "Customize" : "Edit Theme"}</button>
+      <button type="button" class="secondary">${isProtectedBuiltin ? "Customize" : "Edit Theme"}</button>
       <button type="button" class="secondary">Duplicate</button>
       <button type="button" class="secondary" data-admin-theme-try-on-key="${escapeAssistantHtml(theme.key)}">Try On</button>
-      ${theme.is_builtin ? "" : '<button type="button" class="secondary">Delete Theme</button>'}
+      ${isProtectedBuiltin ? "" : '<button type="button" class="secondary">Delete Theme</button>'}
     </div>
   `;
   applyPreviewTheme(theme, item.querySelector(".admin-theme-preview-swatch"));
@@ -1226,7 +1232,7 @@ function renderAdminThemeRow(theme) {
   buttons[2]?.addEventListener("click", () => {
     setAdminThemeOverride(theme, { persist: true });
   });
-  if (!theme.is_builtin) {
+  if (!isProtectedBuiltin) {
     buttons[3]?.addEventListener("click", () => {
       void handleAdminThemeDelete(theme);
     });
@@ -1307,7 +1313,8 @@ async function handleAdminThemeSubmit(event) {
     }
   }
 
-  if (THEME_CLASS_MAP[themeKey]) {
+  const editingReservedTheme = Boolean(themeId && sourceKey && themeKey === sourceKey && THEME_CLASS_MAP[themeKey]);
+  if (THEME_CLASS_MAP[themeKey] && !editingReservedTheme) {
     if (adminThemeMessage) {
       adminThemeMessage.textContent = sourceBuiltin
         ? "Built-in themes save as custom copies. Choose a custom key or keep editing and we will create one automatically."
