@@ -450,6 +450,10 @@ function normalizeThemeSettings(settings = {}) {
   };
 }
 
+function hasThemeOverrides(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length);
+}
+
 function humanizeThemeKey(themeKey) {
   return String(themeKey || "blue")
     .replace(/-/g, " ")
@@ -473,13 +477,20 @@ function normalizeThemeRecord(theme = {}) {
   const isBuiltin = Boolean(theme.is_builtin) || Boolean(THEME_CLASS_MAP[key] && !theme.base_theme);
   const baseThemeCandidate = String(theme.base_theme || key || "blue").trim();
   const baseTheme = THEME_CLASS_MAP[baseThemeCandidate] ? baseThemeCandidate : "blue";
+  const builtinProfile = BUILTIN_THEME_PROFILES[key] || null;
+  const paletteSource = hasThemeOverrides(theme.palette)
+    ? theme.palette
+    : builtinProfile?.palette || DEFAULT_CUSTOM_THEME_PALETTE;
+  const settingsSource = hasThemeOverrides(theme.settings)
+    ? theme.settings
+    : builtinProfile?.settings || DEFAULT_CUSTOM_THEME_SETTINGS;
   return {
     id: theme.id || (isBuiltin ? `builtin-${key}` : null),
     key,
     name: String(theme.name || BUILTIN_THEME_LABELS[key] || humanizeThemeKey(key)).trim() || humanizeThemeKey(key),
     base_theme: isBuiltin ? key : baseTheme,
-    palette: normalizeThemePalette(theme.palette),
-    settings: normalizeThemeSettings(theme.settings),
+    palette: normalizeThemePalette(paletteSource),
+    settings: normalizeThemeSettings(settingsSource),
     is_builtin: isBuiltin
   };
 }
