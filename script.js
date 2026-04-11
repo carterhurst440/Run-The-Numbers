@@ -490,6 +490,9 @@ function getThemeLibrary() {
 }
 
 function getThemeRecord(themeKey) {
+  if (themeKey && typeof themeKey === "object") {
+    return normalizeThemeRecord(themeKey);
+  }
   const key = slugifyThemeKey(themeKey || "blue") || "blue";
   return getThemeLibrary().find((theme) => theme.key === key) || normalizeThemeRecord({ key: "blue", is_builtin: true });
 }
@@ -877,7 +880,7 @@ async function refreshCurrentRankState({ force = false } = {}) {
   if (!currentUser?.id || currentUser.id === GUEST_USER.id) {
     currentRankState = null;
     reconciledHandsPlayedUserId = null;
-    applyTheme("blue");
+    applyResolvedTheme();
     renderDrawerRankSummary(null);
     typeHomeRankWelcome("");
     renderHomeRankPanel();
@@ -892,7 +895,7 @@ async function refreshCurrentRankState({ force = false } = {}) {
     : await fetchHandsPlayedCount(currentUser.id);
   const contestWins = Math.max(0, Math.round(Number(currentProfile?.contest_wins || 0)));
   currentRankState = resolveRankState(handsPlayed, contestWins, ladder);
-  applyTheme(currentRankState.currentRank?.theme_key || "blue");
+  applyResolvedTheme();
   renderDrawerRankSummary(currentRankState.currentRank);
   typeHomeRankWelcome(interpolateRankWelcome(currentRankState.currentRank));
   renderHomeRankPanel();
@@ -1121,6 +1124,7 @@ function resetAdminThemeForm(theme = null) {
     adminThemeSaveButton.textContent = theme && !record.is_builtin ? "Save theme" : "Save theme";
   }
   applyPreviewTheme(record);
+  updateAdminThemeOverrideUI();
 }
 
 function buildThemeCardPreviewMarkup(theme) {
@@ -1145,14 +1149,18 @@ function renderAdminThemeRow(theme) {
     <div class="admin-theme-preview-swatch">${buildThemeCardPreviewMarkup(theme)}</div>
     <div class="admin-theme-actions">
       <button type="button" class="secondary">${theme.is_builtin ? "Customize" : "Edit Theme"}</button>
+      <button type="button" class="secondary" data-admin-theme-try-on-key="${escapeAssistantHtml(theme.key)}">Try On</button>
       ${theme.is_builtin ? "" : '<button type="button" class="secondary">Delete Theme</button>'}
     </div>
   `;
   applyPreviewTheme(theme, item.querySelector(".admin-theme-preview-swatch"));
   const buttons = item.querySelectorAll("button");
   buttons[0]?.addEventListener("click", () => resetAdminThemeForm(theme));
+  buttons[1]?.addEventListener("click", () => {
+    setAdminThemeOverride(theme, { persist: true });
+  });
   if (!theme.is_builtin) {
-    buttons[1]?.addEventListener("click", () => {
+    buttons[2]?.addEventListener("click", () => {
       void handleAdminThemeDelete(theme);
     });
   }
@@ -1179,6 +1187,7 @@ async function loadAdminThemes(force = false) {
   themes.forEach((theme) => {
     adminThemeListEl.appendChild(renderAdminThemeRow(theme));
   });
+  updateAdminThemeOverrideUI();
 }
 
 async function handleAdminThemeDelete(theme) {
@@ -1196,10 +1205,12 @@ async function handleAdminThemeDelete(theme) {
     themeLibraryCache = [];
     adminThemesLoaded = false;
     await loadThemeLibrary(true);
+    refreshAdminThemeOverrideThemeFromLibrary();
     await loadAdminThemes(true);
     await loadAdminRanks(true);
     await refreshCurrentRankState({ force: true });
     resetAdminThemeForm();
+    updateAdminThemeOverrideUI();
   } catch (error) {
     console.error("[RTN] handleAdminThemeDelete error", error);
     showToast(error?.message || "Unable to delete theme", "error");
@@ -1274,11 +1285,13 @@ async function handleAdminThemeSubmit(event) {
     themeLibraryCache = [];
     adminThemesLoaded = false;
     await loadThemeLibrary(true);
+    refreshAdminThemeOverrideThemeFromLibrary();
     await loadAdminThemes(true);
     populateAdminRankThemeOptions(themeKey);
     await loadAdminRanks(true);
     await refreshCurrentRankState({ force: true });
     resetAdminThemeForm();
+    updateAdminThemeOverrideUI();
   } catch (error) {
     console.error("[RTN] handleAdminThemeSubmit error", error);
     if (adminThemeMessage) {
@@ -9011,8 +9024,144 @@ function applyTheme(theme) {
   }
 }
 
+function getAdminThemeOverrideStorageKey(userId = currentUser?.id) {
+  if (!userId || userId === GUEST_USER.id) {
+    return null;
+  }
+  return `rtn:admin-theme-override:${userId}`;
+}
+
+function loadStoredAdminThemeOverride(userId = currentUser?.id) {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return null;
+  }
+  const storageKey = getAdminThemeOverrideStorageKey(userId);
+  if (!storageKey) {
+    return null;
+  }
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    return raw ? slugifyThemeKey(raw) || null : null;
+  } catch (error) {
+    console.warn("[RTN] unable to load admin theme override", error);
+    return null;
+  }
+}
+
+function persistAdminThemeOverride(themeKey, userId = currentUser?.id) {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  const storageKey = getAdminThemeOverrideStorageKey(userId);
+  if (!storageKey) {
+    return;
+  }
+  try {
+    if (themeKey) {
+      window.localStorage.setItem(storageKey, String(themeKey));
+    } else {
+      window.localStorage.removeItem(storageKey);
+    }
+  } catch (error) {
+    console.warn("[RTN] unable to persist admin theme override", error);
+  }
+}
+
+function syncAdminThemeOverrideForCurrentUser() {
+  const userId = currentUser?.id || null;
+  if (adminThemeOverrideUserId === userId) {
+    return;
+  }
+  adminThemeOverrideUserId = userId;
+
+  if (!isAdmin()) {
+    adminThemeOverrideTheme = null;
+    adminThemeOverrideStoredKey = null;
+    return;
+  }
+
+  const storedKey = loadStoredAdminThemeOverride(userId);
+  adminThemeOverrideStoredKey = storedKey;
+  adminThemeOverrideTheme = storedKey ? getThemeRecord(storedKey) : null;
+}
+
+function getResolvedThemeRecord() {
+  syncAdminThemeOverrideForCurrentUser();
+  if (!currentUser?.id || currentUser.id === GUEST_USER.id) {
+    return getThemeRecord("blue");
+  }
+  if (isAdmin() && adminThemeOverrideTheme) {
+    return getThemeRecord(adminThemeOverrideTheme);
+  }
+  if (currentRankState?.currentRank?.theme_key) {
+    return getThemeRecord(currentRankState.currentRank.theme_key);
+  }
+  return getThemeRecord(currentTheme || "blue");
+}
+
+function refreshAdminThemeOverrideThemeFromLibrary() {
+  if (!adminThemeOverrideStoredKey) {
+    return;
+  }
+  const matchingTheme = getThemeLibrary().find((theme) => theme.key === adminThemeOverrideStoredKey) || null;
+  if (!matchingTheme) {
+    adminThemeOverrideStoredKey = null;
+    adminThemeOverrideTheme = null;
+    persistAdminThemeOverride(null);
+    return;
+  }
+  adminThemeOverrideTheme = matchingTheme;
+}
+
+function updateAdminThemeOverrideUI() {
+  const overrideTheme = isAdmin() && adminThemeOverrideTheme ? getThemeRecord(adminThemeOverrideTheme) : null;
+  const rankTheme = getThemeRecord(currentRankState?.currentRank?.theme_key || "blue");
+
+  if (adminThemeOverrideStatus) {
+    adminThemeOverrideStatus.textContent = overrideTheme
+      ? `Trying on ${overrideTheme.name}. Rank theme remains ${rankTheme.name}.`
+      : `Using rank theme ${rankTheme.name}.`;
+  }
+
+  if (adminThemeClearOverrideButton) {
+    adminThemeClearOverrideButton.disabled = !overrideTheme;
+  }
+
+  document.querySelectorAll("[data-admin-theme-try-on-key]").forEach((button) => {
+    if (!(button instanceof HTMLButtonElement)) return;
+    const isActive = Boolean(overrideTheme && button.dataset.adminThemeTryOnKey === overrideTheme.key);
+    button.textContent = isActive ? "Trying On" : "Try On";
+    button.disabled = isActive;
+  });
+}
+
+function applyResolvedTheme() {
+  applyTheme(getResolvedThemeRecord());
+  updateAdminThemeOverrideUI();
+}
+
+function setAdminThemeOverride(theme, { persist = false } = {}) {
+  if (!isAdmin()) {
+    return;
+  }
+
+  if (!theme) {
+    adminThemeOverrideTheme = null;
+    adminThemeOverrideStoredKey = null;
+    persistAdminThemeOverride(null);
+    applyResolvedTheme();
+    return;
+  }
+
+  const record = getThemeRecord(theme);
+  adminThemeOverrideTheme = record;
+  adminThemeOverrideStoredKey = persist ? record.key : null;
+  persistAdminThemeOverride(persist ? record.key : null);
+  applyResolvedTheme();
+}
+
 function initTheme() {
-  applyTheme(currentRankState?.currentRank?.theme_key || currentTheme || "blue");
+  applyResolvedTheme();
 }
 
 const bankrollEl = document.getElementById("bankroll");
@@ -9433,8 +9582,11 @@ const adminThemeForm = document.getElementById("admin-theme-form");
 const adminThemeListEl = document.getElementById("admin-theme-list");
 const adminThemeMessage = document.getElementById("admin-theme-message");
 const adminThemePreviewEl = document.getElementById("admin-theme-preview");
+const adminThemeOverrideStatus = document.getElementById("admin-theme-override-status");
 const adminThemeResetButton = document.getElementById("admin-theme-reset");
 const adminThemeSaveButton = document.getElementById("admin-theme-save");
+const adminThemeTryOnButton = document.getElementById("admin-theme-try-on");
+const adminThemeClearOverrideButton = document.getElementById("admin-theme-clear-override");
 const adminThemeBaseSelect = document.getElementById("admin-theme-base-select");
 const adminRankThemeSelect = document.getElementById("admin-rank-theme-select");
 const mostActiveWeekListEl = document.getElementById("most-active-week-list");
@@ -9901,6 +10053,9 @@ let adminEditingRankId = null;
 let adminEditingThemeId = null;
 let adminEditingThemeSourceKey = null;
 let adminEditingThemeSourceBuiltin = false;
+let adminThemeOverrideTheme = null;
+let adminThemeOverrideStoredKey = null;
+let adminThemeOverrideUserId = null;
 let adminPrizeCache = [];
 let rankLadderCache = [];
 let themeLibraryCache = [];
@@ -14711,6 +14866,18 @@ if (adminThemeForm) {
 if (adminThemeResetButton) {
   adminThemeResetButton.addEventListener("click", () => {
     resetAdminThemeForm();
+  });
+}
+
+if (adminThemeTryOnButton) {
+  adminThemeTryOnButton.addEventListener("click", () => {
+    setAdminThemeOverride(getThemeFormState(), { persist: false });
+  });
+}
+
+if (adminThemeClearOverrideButton) {
+  adminThemeClearOverrideButton.addEventListener("click", () => {
+    setAdminThemeOverride(null);
   });
 }
 

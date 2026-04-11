@@ -9799,6 +9799,10 @@ body.modal-open {
   align-items: start;
 }
 
+.design-override-status {
+  margin-top: 0.45rem;
+}
+
 .design-builder-form,
 .design-preview-panel,
 .admin-theme-card {
