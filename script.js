@@ -427,6 +427,7 @@ function normalizeThemePalette(palette = {}) {
     accent: String(palette.accent || DEFAULT_CUSTOM_THEME_PALETTE.accent),
     accentSecondary: String(palette.accentSecondary || DEFAULT_CUSTOM_THEME_PALETTE.accentSecondary),
     accentTertiary: String(palette.accentTertiary || DEFAULT_CUSTOM_THEME_PALETTE.accentTertiary),
+    heroButton: String(palette.heroButton || DEFAULT_CUSTOM_THEME_PALETTE.heroButton),
     gold: String(palette.gold || DEFAULT_CUSTOM_THEME_PALETTE.gold),
     muted: String(palette.muted || DEFAULT_CUSTOM_THEME_PALETTE.muted),
     success: String(palette.success || DEFAULT_CUSTOM_THEME_PALETTE.success),
@@ -595,6 +596,9 @@ function getThemeCssVariables(theme) {
   const secondaryButtonSurface = flatSurfaces
     ? rgba(colorMix(palette.panelEnd, 0.06, "#000000"), 0.96)
     : `linear-gradient(135deg, ${rgba(palette.accent, 0.16)}, ${rgba(palette.panelEnd, 0.96)})`;
+  const heroButtonSurface = flatSurfaces
+    ? `linear-gradient(135deg, ${colorMix(palette.heroButton, 0.2, "#ffffff")}, ${colorMix(palette.heroButton, 0.08, "#000000")})`
+    : `linear-gradient(135deg, ${colorMix(palette.heroButton, 0.52, "#ffffff")} 0%, ${colorMix(palette.heroButton, 0.22, "#ffffff")} 52%, ${colorMix(palette.heroButton, 0.08, palette.gold)} 100%)`;
   const drawerSurface = flatSurfaces
     ? rgba(colorMix(palette.panelStart, 0.14, "#000000"), 0.95)
     : `linear-gradient(145deg, ${rgba(palette.panelStart, 0.96)}, ${rgba(palette.panelEnd, 0.94)})`;
@@ -686,6 +690,10 @@ function getThemeCssVariables(theme) {
     "--chip-bar-shadow": `0 -26px 48px ${rgba("#000000", 0.72)}`,
     "--secondary-button-bg": secondaryButtonSurface,
     "--secondary-button-border": rgba(palette.accent, 0.42),
+    "--hero-button-bg": heroButtonSurface,
+    "--hero-button-border": colorMix(palette.heroButton, 0.34, "#ffffff"),
+    "--hero-button-shadow": `0 18px 36px ${rgba(colorMix(palette.heroButton, 0.34, "#000000"), 0.34)}, 0 0 0 1px ${rgba("#ffffff", 0.08)}, 0 0 28px ${rgba(palette.heroButton, 0.22 + glow * 0.08)}`,
+    "--hero-button-shadow-hover": `0 24px 42px ${rgba(colorMix(palette.heroButton, 0.38, "#000000"), 0.4)}, 0 0 0 1px ${rgba("#ffffff", 0.12)}, 0 0 36px ${rgba(palette.heroButton, 0.28 + glow * 0.1)}`,
     "--deal-button-bg": `linear-gradient(135deg, ${colorMix(palette.accent, 0.42, "#ffffff")}, ${colorMix(palette.accentTertiary, 0.36, "#ffffff")})`,
     "--deal-button-shadow": `0 22px 38px ${rgba(palette.accent, 0.22)}`,
     "--deal-button-shadow-hover": `0 24px 42px ${rgba(palette.accentSecondary, 0.24)}`,
@@ -1069,6 +1077,7 @@ function getThemeFormState() {
       accent: formData.get("accentColor"),
       accentSecondary: formData.get("accentSecondaryColor"),
       accentTertiary: formData.get("accentTertiaryColor"),
+      heroButton: formData.get("heroButtonColor"),
       gold: formData.get("goldColor"),
       muted: formData.get("mutedColor"),
       success: formData.get("successColor"),
@@ -1097,6 +1106,7 @@ function applyPreviewTheme(theme, target = adminThemePreviewEl) {
   target.style.setProperty("--preview-accent", palette.accent);
   target.style.setProperty("--preview-secondary", palette.accentSecondary);
   target.style.setProperty("--preview-tertiary", palette.accentTertiary);
+  target.style.setProperty("--preview-hero-button", palette.heroButton);
   target.style.setProperty("--preview-gold", palette.gold);
   target.style.setProperty("--preview-muted", palette.muted);
   target.style.setProperty("--preview-success", palette.success);
@@ -1148,6 +1158,7 @@ function resetAdminThemeForm(theme = null) {
   setValue("accentColor", record.palette.accent);
   setValue("accentSecondaryColor", record.palette.accentSecondary);
   setValue("accentTertiaryColor", record.palette.accentTertiary);
+  setValue("heroButtonColor", record.palette.heroButton);
   setValue("goldColor", record.palette.gold);
   setValue("mutedColor", record.palette.muted);
   setValue("successColor", record.palette.success);
@@ -1176,7 +1187,7 @@ function resetAdminThemeForm(theme = null) {
 
 function buildThemeCardPreviewMarkup(theme) {
   const palette = normalizeThemePalette(theme.palette);
-  const swatches = [palette.accent, palette.accentSecondary, palette.gold, palette.panelEnd]
+  const swatches = [palette.accent, palette.heroButton, palette.gold, palette.panelEnd]
     .map((color) => `<span class="admin-theme-preview-color" style="background:${escapeAssistantHtml(color)}"></span>`)
     .join("");
   return swatches;
@@ -9717,6 +9728,7 @@ const DEFAULT_CUSTOM_THEME_PALETTE = {
   accent: "#63f0ff",
   accentSecondary: "#f857c1",
   accentTertiary: "#8b80ff",
+  heroButton: "#f7bfdc",
   gold: "#ffd166",
   muted: "#bfd5ff",
   success: "#5af78e",
@@ -9740,6 +9752,7 @@ const BUILTIN_THEME_PROFILES = {
       accent: "#63f0ff",
       accentSecondary: "#f857c1",
       accentTertiary: "#8b80ff",
+      heroButton: "#f7bfdc",
       gold: "#ffd166",
       muted: "#bfd5ff",
       success: "#5af78e",
@@ -9763,6 +9776,7 @@ const BUILTIN_THEME_PROFILES = {
       accent: "#ff9bf3",
       accentSecondary: "#ff4fd2",
       accentTertiary: "#b78bff",
+      heroButton: "#ffc3e5",
       gold: "#ffeac0",
       muted: "#f7bff0",
       success: "#a4ffe8",
@@ -9786,6 +9800,7 @@ const BUILTIN_THEME_PROFILES = {
       accent: "#ffe58a",
       accentSecondary: "#ff8f3a",
       accentTertiary: "#ffb45c",
+      heroButton: "#ffd197",
       gold: "#ffd372",
       muted: "#ffd8a6",
       success: "#9ff7d6",
@@ -9809,6 +9824,7 @@ const BUILTIN_THEME_PROFILES = {
       accent: "#b7d0df",
       accentSecondary: "#d7dee5",
       accentTertiary: "#8f9cab",
+      heroButton: "#d8dee5",
       gold: "#f1f5f9",
       muted: "#c9d2dc",
       success: "#d5dde3",
@@ -9832,6 +9848,7 @@ const BUILTIN_THEME_PROFILES = {
       accent: "#c8efff",
       accentSecondary: "#ffd7ee",
       accentTertiary: "#c7d6ff",
+      heroButton: "#ffe5f3",
       gold: "#fff2cc",
       muted: "#e8f4ff",
       success: "#f2fbff",
@@ -9855,6 +9872,7 @@ const BUILTIN_THEME_PROFILES = {
       accent: "#8ff2ff",
       accentSecondary: "#ff7a59",
       accentTertiary: "#ffd166",
+      heroButton: "#ffc79c",
       gold: "#ffd166",
       muted: "#f4cf95",
       success: "#9ff7d6",
@@ -9878,6 +9896,7 @@ const BUILTIN_THEME_PROFILES = {
       accent: "#6ff4ff",
       accentSecondary: "#ff7fd8",
       accentTertiary: "#a8a6ff",
+      heroButton: "#ffc7e9",
       gold: "#ffe88f",
       muted: "#f8d7ff",
       success: "#adffe9",
@@ -9901,6 +9920,7 @@ const BUILTIN_THEME_PROFILES = {
       accent: "#9be7ff",
       accentSecondary: "#ffc1dc",
       accentTertiary: "#d6c4ff",
+      heroButton: "#ffe0eb",
       gold: "#ffe1a8",
       muted: "#e8defc",
       success: "#c3ffe8",
@@ -10005,6 +10025,10 @@ const CUSTOM_THEME_VARIABLE_KEYS = [
   "--chip-bar-shadow",
   "--secondary-button-bg",
   "--secondary-button-border",
+  "--hero-button-bg",
+  "--hero-button-border",
+  "--hero-button-shadow",
+  "--hero-button-shadow-hover",
   "--deal-button-bg",
   "--deal-button-shadow",
   "--deal-button-shadow-hover",
