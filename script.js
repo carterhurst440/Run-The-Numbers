@@ -1518,6 +1518,10 @@ function renderRankLadderModal() {
         <p class="rank-ladder-requirements">${buildRankRequirementsCopy(rank)}</p>
       </div>
     `;
+    const scopedThemeVariables = getScopedThemeCssVariables(getThemeRecord(rank.theme_key || "blue"));
+    Object.entries(scopedThemeVariables).forEach(([key, value]) => {
+      item.style.setProperty(key, value);
+    });
     rankLadderListEl.appendChild(item);
   });
 }

@@ -4216,9 +4216,9 @@ body.theme-angelic {
   gap: 0.7rem;
   padding: 1rem 1.1rem;
   border-radius: 1.15rem;
-  border: 1px solid rgba(63, 240, 255, 0.18);
-  background: rgba(5, 20, 60, 0.72);
-  box-shadow: inset 0 0 22px rgba(63, 240, 255, 0.06);
+  border: 1px solid var(--betting-panel-border);
+  background: var(--betting-panel-bg);
+  box-shadow: var(--betting-panel-shadow);
 }
 
 .admin-rank-card {
