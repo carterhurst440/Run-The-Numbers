@@ -5242,6 +5242,12 @@ body.theme-angelic {
   box-shadow: var(--table-panel-shadow);
 }
 
+#run-the-numbers-view .table-panel {
+  border: 1px solid var(--betting-panel-border);
+  background: var(--betting-panel-bg);
+  box-shadow: var(--betting-panel-shadow);
+}
+
 .paytable-panel {
   display: grid;
   gap: clamp(0.75rem, 2vw, 1.1rem);
