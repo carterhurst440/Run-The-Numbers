@@ -881,17 +881,17 @@ body[data-app-state="loading"] #app-shell {
 .home-contest-card {
   position: relative;
   padding: 0.95rem 1rem 1rem;
-  border: 1px solid color-mix(in srgb, white 40%, var(--betting-panel-border) 60%);
+  border: 1px solid color-mix(in srgb, var(--betting-panel-border) 82%, white 18%);
   border-radius: 24px;
   background:
-    radial-gradient(circle at top right, color-mix(in srgb, white 14%, transparent), transparent 26%),
-    radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--neon-cyan) 12%, white 8%), transparent 34%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 214, 240, 0.05)),
-    linear-gradient(180deg, rgba(110, 28, 118, 0.52), rgba(74, 16, 94, 0.62));
+    radial-gradient(circle at top right, color-mix(in srgb, var(--gold) 12%, transparent), transparent 26%),
+    radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--neon-cyan) 16%, transparent), transparent 34%),
+    linear-gradient(180deg, color-mix(in srgb, white 9%, transparent), color-mix(in srgb, var(--neon-magenta) 6%, transparent)),
+    var(--betting-panel-bg);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.24),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
-    0 20px 38px color-mix(in srgb, black 34%, transparent);
+    inset 0 1px 0 color-mix(in srgb, white 18%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--neon-cyan) 10%, transparent),
+    var(--betting-panel-shadow);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   overflow: hidden;
@@ -902,8 +902,8 @@ body[data-app-state="loading"] #app-shell {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(135deg, color-mix(in srgb, white 4%, transparent), transparent 38%),
-    radial-gradient(circle at 82% 18%, color-mix(in srgb, var(--gold) 10%, transparent), transparent 24%);
+    linear-gradient(135deg, color-mix(in srgb, white 5%, transparent), transparent 38%),
+    radial-gradient(circle at 82% 18%, color-mix(in srgb, var(--gold) 14%, transparent), transparent 24%);
   pointer-events: none;
 }
 
@@ -979,13 +979,18 @@ body[data-app-state="loading"] #app-shell {
   margin: 0.55rem 0 0;
   padding: 0.75rem 0.85rem;
   border-radius: 14px;
-  border: 1px solid rgba(255, 214, 128, 0.26);
+  border: 1px solid color-mix(in srgb, var(--gold) 34%, var(--betting-panel-border) 66%);
   background:
-    linear-gradient(135deg, rgba(88, 28, 135, 0.44), rgba(119, 45, 160, 0.34) 44%, rgba(255, 214, 128, 0.14));
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--neon-violet) 18%, var(--betting-panel-bg) 82%),
+      color-mix(in srgb, var(--neon-magenta) 14%, var(--betting-panel-bg) 86%) 44%,
+      color-mix(in srgb, var(--gold) 14%, var(--betting-panel-bg) 86%)
+    );
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 0 0 1px rgba(255, 214, 128, 0.06),
-    0 10px 24px rgba(2, 6, 18, 0.18);
+    inset 0 1px 0 color-mix(in srgb, white 8%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--gold) 10%, transparent),
+    0 10px 24px color-mix(in srgb, black 24%, transparent);
   animation: contest-threshold-float 5.2s ease-in-out infinite;
   overflow: hidden;
 }
