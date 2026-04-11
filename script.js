@@ -9395,11 +9395,7 @@ const numberBetsModalClose = document.getElementById("number-bets-modal-close");
 const numberBetsModalOk = document.getElementById("number-bets-modal-ok");
 const handReviewModal = document.getElementById("hand-review-modal");
 const handReviewSummaryEl = document.getElementById("hand-review-summary");
-const handReviewBodyEl = document.getElementById("hand-review-body");
-const handReviewCol1El = document.getElementById("hand-review-col-1");
-const handReviewCol2El = document.getElementById("hand-review-col-2");
-const handReviewCol3El = document.getElementById("hand-review-col-3");
-const handReviewCol4El = document.getElementById("hand-review-col-4");
+const handReviewListEl = document.getElementById("hand-review-list");
 const handReviewTotalsEl = document.getElementById("hand-review-totals");
 const handReviewTotalWagerEl = document.getElementById("hand-review-total-wager");
 const handReviewTotalReturnEl = document.getElementById("hand-review-total-return");
@@ -13309,8 +13305,87 @@ function closeHandReviewModal({ restoreFocus = false } = {}) {
   handReviewModalTrigger = null;
 }
 
+function buildHandReviewField(label, value, options = {}) {
+  const toneClass = options.toneClass ? ` ${options.toneClass}` : "";
+  return `
+    <div class="review-hand-field">
+      <span class="review-hand-field-label">${escapeAssistantHtml(label)}</span>
+      <span class="review-hand-field-value${toneClass}">${escapeAssistantHtml(value)}</span>
+    </div>
+  `;
+}
+
+function renderGuess10ReviewCards(entry) {
+  const steps = Array.isArray(entry.handHistory) ? entry.handHistory : [];
+  if (!steps.length) {
+    return `
+      <article class="review-hand-card review-hand-card-empty">
+        <p>No round details were saved for this hand.</p>
+      </article>
+    `;
+  }
+
+  return steps
+    .map((step, index) => {
+      const predictionText = `${step.selectionLabel || "Selection"} · ${
+        formatRedBlackMultiplier(step.multiplier || 0) || "0x"
+      }`;
+      const cardLabel = step?.card ? `${step.card.label || ""}${step.card.suit || ""}` : "—";
+      const resultText = step?.matched ? `Hit · Pot ${formatCurrency(step.potAfter || 0)}` : "Miss";
+      const resultToneClass = step?.matched ? "review-hand-positive" : "review-hand-negative";
+      return `
+        <article class="review-hand-card review-hand-round-card">
+          <div class="review-hand-card-topline">
+            <span class="review-hand-card-kicker">Round ${index + 1}</span>
+            <span class="review-hand-card-pill ${resultToneClass}">${escapeAssistantHtml(resultText)}</span>
+          </div>
+          <div class="review-hand-field-grid">
+            ${buildHandReviewField("Prediction", predictionText)}
+            ${buildHandReviewField("Card Drawn", cardLabel)}
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function renderClassicHandReviewCards(entry) {
+  const bets = Array.isArray(entry.bets) ? entry.bets : [];
+  if (!bets.length) {
+    return `
+      <article class="review-hand-card review-hand-card-empty">
+        <p>No wager rows were saved for this hand.</p>
+      </article>
+    `;
+  }
+
+  return bets
+    .map((bet) => {
+      const wager = Math.max(0, Math.round(Number(bet.units || 0)));
+      const totalReturn = Math.max(0, Math.round(Number(bet.paid || 0)));
+      const net = totalReturn - wager;
+      const toneClass =
+        net > 0 ? "review-hand-positive" : net < 0 ? "review-hand-negative" : "review-hand-neutral";
+
+      return `
+        <article class="review-hand-card">
+          <div class="review-hand-card-topline">
+            <span class="review-hand-card-title">${escapeAssistantHtml(bet.label || bet.key || "Bet")}</span>
+            <span class="review-hand-card-pill ${toneClass}">${escapeAssistantHtml(formatSignedCurrency(net))}</span>
+          </div>
+          <div class="review-hand-field-grid review-hand-field-grid-compact">
+            ${buildHandReviewField("Wager", formatCurrency(wager))}
+            ${buildHandReviewField("Return", formatCurrency(totalReturn))}
+            ${buildHandReviewField("Net", formatSignedCurrency(net), { toneClass })}
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
 function openHandReviewModal(reviewId, trigger = null) {
-  if (!handReviewModal || !handReviewBodyEl) {
+  if (!handReviewModal || !handReviewListEl) {
     return;
   }
 
@@ -13321,7 +13396,7 @@ function openHandReviewModal(reviewId, trigger = null) {
   }
 
   handReviewModalTrigger = trigger instanceof HTMLElement ? trigger : document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  handReviewBodyEl.innerHTML = "";
+  handReviewListEl.innerHTML = "";
   const isGuess10 = (entry.gameKey || "") === GAME_KEYS.GUESS_10;
 
   if (handReviewSummaryEl) {
@@ -13333,51 +13408,9 @@ function openHandReviewModal(reviewId, trigger = null) {
   }
 
   if (isGuess10) {
-    if (handReviewCol1El) handReviewCol1El.textContent = "Round";
-    if (handReviewCol2El) handReviewCol2El.textContent = "Prediction";
-    if (handReviewCol3El) handReviewCol3El.textContent = "Card";
-    if (handReviewCol4El) handReviewCol4El.textContent = "Result";
-    if (handReviewTotalsEl) {
-      handReviewTotalsEl.hidden = true;
-    }
-    (entry.handHistory || []).forEach((step, index) => {
-      const row = document.createElement("tr");
-      const cardLabel = step?.card ? `${step.card.label || ""}${step.card.suit || ""}` : "—";
-      const resultText = step?.matched
-        ? `Hit · Pot ${formatCurrency(step.potAfter || 0)}`
-        : "Miss";
-      row.innerHTML = `
-        <td data-label="Round">Round ${index + 1}</td>
-        <td data-label="Prediction">${escapeAssistantHtml(`${step.selectionLabel || "Selection"} · ${formatRedBlackMultiplier(step.multiplier || 0) || "0x"}`)}</td>
-        <td data-label="Card">${escapeAssistantHtml(cardLabel)}</td>
-        <td data-label="Result" class="${step?.matched ? "hand-review-positive" : "hand-review-negative"}">${escapeAssistantHtml(resultText)}</td>
-      `;
-      handReviewBodyEl.appendChild(row);
-    });
+    handReviewListEl.innerHTML = renderGuess10ReviewCards(entry);
   } else {
-    if (handReviewCol1El) handReviewCol1El.textContent = "Bet";
-    if (handReviewCol2El) handReviewCol2El.textContent = "Wager";
-    if (handReviewCol3El) handReviewCol3El.textContent = "Return";
-    if (handReviewCol4El) handReviewCol4El.textContent = "Net";
-    if (handReviewTotalsEl) {
-      handReviewTotalsEl.hidden = false;
-    }
-    entry.bets.forEach((bet) => {
-      const row = document.createElement("tr");
-      const wager = Math.max(0, Math.round(Number(bet.units || 0)));
-      const totalReturn = Math.max(0, Math.round(Number(bet.paid || 0)));
-      const net = totalReturn - wager;
-      const netClass =
-        net > 0 ? "hand-review-positive" : net < 0 ? "hand-review-negative" : "hand-review-neutral";
-
-      row.innerHTML = `
-        <td data-label="Bet">${escapeAssistantHtml(bet.label || bet.key || "Bet")}</td>
-        <td data-label="Wager">${formatCurrency(wager)}</td>
-        <td data-label="Return">${formatCurrency(totalReturn)}</td>
-        <td data-label="Net" class="${netClass}">${formatSignedCurrency(net)}</td>
-      `;
-      handReviewBodyEl.appendChild(row);
-    });
+    handReviewListEl.innerHTML = renderClassicHandReviewCards(entry);
   }
 
   if (handReviewTotalWagerEl) {
@@ -13388,8 +13421,9 @@ function openHandReviewModal(reviewId, trigger = null) {
   }
   if (handReviewTotalNetEl) {
     handReviewTotalNetEl.textContent = formatSignedCurrency(entry.net);
-    handReviewTotalNetEl.className =
-      entry.net > 0 ? "hand-review-positive" : entry.net < 0 ? "hand-review-negative" : "hand-review-neutral";
+    handReviewTotalNetEl.className = `review-hand-total-value ${
+      entry.net > 0 ? "review-hand-positive" : entry.net < 0 ? "review-hand-negative" : "review-hand-neutral"
+    }`;
   }
 
   handReviewModal.hidden = false;

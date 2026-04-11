@@ -2606,36 +2606,32 @@
       aria-labelledby="hand-review-modal-title"
       hidden
     >
-      <div class="modal-content hand-review-modal">
-        <div class="modal-header">
-          <h2 id="hand-review-modal-title">Review Hand</h2>
+      <div class="modal-content review-hand-sheet">
+        <div class="review-hand-header">
+          <div class="review-hand-heading">
+            <h2 id="hand-review-modal-title">Review Hand</h2>
+            <p id="hand-review-summary" class="review-hand-summary"></p>
+          </div>
           <button type="button" class="modal-close" id="hand-review-close" aria-label="Close hand review">×</button>
         </div>
-        <div class="modal-body hand-review-body">
-          <p id="hand-review-summary" class="hand-review-summary"></p>
-          <div class="hand-review-table-wrap">
-            <table class="hand-review-table">
-              <thead>
-                <tr>
-                  <th scope="col" id="hand-review-col-1">Bet</th>
-                  <th scope="col" id="hand-review-col-2">Wager</th>
-                  <th scope="col" id="hand-review-col-3">Return</th>
-                  <th scope="col" id="hand-review-col-4">Net</th>
-                </tr>
-              </thead>
-              <tbody id="hand-review-body"></tbody>
-              <tfoot id="hand-review-totals">
-                <tr>
-                  <th scope="row">Total</th>
-                  <td id="hand-review-total-wager">0</td>
-                  <td id="hand-review-total-return">0</td>
-                  <td id="hand-review-total-net">0</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+        <div class="review-hand-scroll">
+          <div id="hand-review-list" class="review-hand-list"></div>
         </div>
-        <div class="modal-actions">
+        <div class="review-hand-footer">
+          <div id="hand-review-totals" class="review-hand-totals" aria-label="Hand totals">
+            <div class="review-hand-total">
+              <span class="review-hand-total-label">Wager</span>
+              <span id="hand-review-total-wager" class="review-hand-total-value">0</span>
+            </div>
+            <div class="review-hand-total">
+              <span class="review-hand-total-label">Return</span>
+              <span id="hand-review-total-return" class="review-hand-total-value">0</span>
+            </div>
+            <div class="review-hand-total">
+              <span class="review-hand-total-label">Net</span>
+              <span id="hand-review-total-net" class="review-hand-total-value">0</span>
+            </div>
+          </div>
           <button type="button" id="hand-review-ok" class="primary">OK</button>
         </div>
       </div>
