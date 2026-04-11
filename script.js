@@ -11463,6 +11463,17 @@ function formatSignedCurrency(value) {
   return "0";
 }
 
+function formatSignedValue(value) {
+  const amount = Number(Number(value || 0).toFixed(2));
+  if (amount > 0) {
+    return `+${formatCurrency(amount)}`;
+  }
+  if (amount < 0) {
+    return `-${formatCurrency(Math.abs(amount))}`;
+  }
+  return "0";
+}
+
 const RED_BLACK_MAX_RUNGS = 10;
 const RED_BLACK_CHIPS = [5, 10, 25, 100];
 const RED_BLACK_COMMISSION_BY_RUNG = {
@@ -13420,7 +13431,7 @@ function openHandReviewModal(reviewId, trigger = null) {
     handReviewTotalReturnEl.textContent = formatCurrency(entry.totalReturn);
   }
   if (handReviewTotalNetEl) {
-    handReviewTotalNetEl.textContent = formatSignedCurrency(entry.net);
+    handReviewTotalNetEl.textContent = formatSignedValue(entry.net);
     handReviewTotalNetEl.className = `review-hand-total-value ${
       entry.net > 0 ? "review-hand-positive" : entry.net < 0 ? "review-hand-negative" : "review-hand-neutral"
     }`;
