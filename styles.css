@@ -6248,7 +6248,7 @@ button:disabled {
   left: 0;
   width: 100%;
   align-self: stretch;
-  background: var(--chip-bar-bg);
+  background: var(--header-gradient);
   border-top: 2px solid var(--chip-bar-border);
   padding: var(--chip-bar-padding);
   box-shadow: var(--chip-bar-shadow);
