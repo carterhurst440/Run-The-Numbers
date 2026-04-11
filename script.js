@@ -444,7 +444,8 @@ function normalizeThemeSettings(settings = {}) {
   return {
     glowStrength: clampThemeSetting(settings.glowStrength, DEFAULT_CUSTOM_THEME_SETTINGS.glowStrength),
     surfaceContrast: clampThemeSetting(settings.surfaceContrast, DEFAULT_CUSTOM_THEME_SETTINGS.surfaceContrast),
-    radiusScale: clampThemeSetting(settings.radiusScale, DEFAULT_CUSTOM_THEME_SETTINGS.radiusScale)
+    radiusScale: clampThemeSetting(settings.radiusScale, DEFAULT_CUSTOM_THEME_SETTINGS.radiusScale),
+    flatSurfaces: Boolean(settings.flatSurfaces)
   };
 }
 
@@ -562,6 +563,40 @@ function getThemeCssVariables(theme) {
   const settings = normalizeThemeSettings(record.settings);
   const glow = settings.glowStrength / 100;
   const contrast = settings.surfaceContrast / 100;
+  const flatSurfaces = settings.flatSurfaces;
+  const menuSurface = flatSurfaces
+    ? rgba(colorMix(palette.panelStart, Math.max(0, 0.14 - contrast * 0.05), "#000000"), 0.96)
+    : `linear-gradient(135deg, ${colorMix(palette.panelStart, Math.max(0, 0.18 - contrast * 0.1), "#ffffff")}, ${colorMix(palette.panelEnd, Math.max(0, 0.08 - contrast * 0.04), "#000000")})`;
+  const statSurface = flatSurfaces
+    ? rgba(colorMix(palette.panelStart, Math.max(0, 0.08 - contrast * 0.04), "#000000"), 0.94)
+    : `linear-gradient(135deg, ${rgba(palette.panelStart, 0.82 + contrast * 0.14)}, ${rgba(palette.panelEnd, 0.86 + contrast * 0.12)})`;
+  const tableSurface = flatSurfaces
+    ? rgba(colorMix(palette.panelEnd, 0.16, "#000000"), 0.97)
+    : `linear-gradient(170deg, ${rgba(palette.panelStart, 0.97)} 0%, ${rgba(palette.panelEnd, 0.98)} 58%, ${rgba(colorMix(palette.panelEnd, 0.3, "#000000"), 0.98)} 100%)`;
+  const paytableSurface = flatSurfaces
+    ? rgba(colorMix(palette.panelStart, 0.12, "#000000"), 0.9)
+    : `linear-gradient(160deg, ${rgba(colorMix(palette.headerStart, 0.12, "#ffffff"), 0.9)}, ${rgba(palette.panelStart, 0.84)})`;
+  const activePaytableSurface = flatSurfaces
+    ? rgba(colorMix(palette.headerStart, 0.16, "#000000"), 0.9)
+    : `linear-gradient(135deg, ${rgba(colorMix(palette.headerStart, 0.14, "#ffffff"), 0.92)}, ${rgba(palette.panelEnd, 0.88)})`;
+  const bettingPanelSurface = flatSurfaces
+    ? rgba(colorMix(palette.panelStart, 0.16, "#000000"), 0.95)
+    : `linear-gradient(160deg, ${rgba(palette.panelStart, 0.84 + contrast * 0.14)}, ${rgba(palette.panelEnd, 0.88 + contrast * 0.1)})`;
+  const betSpotSurface = flatSurfaces
+    ? rgba(colorMix(palette.panelEnd, 0.12, "#000000"), 0.97)
+    : `linear-gradient(150deg, ${rgba(colorMix(palette.panelStart, 0.08, "#ffffff"), 0.96)}, ${rgba(palette.panelEnd, 0.98)})`;
+  const chipBarSurface = flatSurfaces
+    ? rgba(colorMix(palette.panelEnd, 0.08, "#000000"), 0.96)
+    : `linear-gradient(135deg, ${rgba(palette.panelEnd, 0.96)}, ${rgba(palette.headerStart, 0.96)})`;
+  const secondaryButtonSurface = flatSurfaces
+    ? rgba(colorMix(palette.panelEnd, 0.06, "#000000"), 0.96)
+    : `linear-gradient(135deg, ${rgba(palette.accent, 0.16)}, ${rgba(palette.panelEnd, 0.96)})`;
+  const drawerSurface = flatSurfaces
+    ? rgba(colorMix(palette.panelStart, 0.14, "#000000"), 0.95)
+    : `linear-gradient(145deg, ${rgba(palette.panelStart, 0.96)}, ${rgba(palette.panelEnd, 0.94)})`;
+  const analyticsSurface = flatSurfaces
+    ? rgba(colorMix(palette.panelStart, 0.1, "#000000"), 0.94)
+    : `linear-gradient(135deg, ${rgba(palette.panelStart, 0.92)}, ${rgba(palette.panelEnd, 0.94)})`;
   return {
     "--neon-cyan": palette.accent,
     "--neon-magenta": palette.accentSecondary,
@@ -587,17 +622,17 @@ function getThemeCssVariables(theme) {
     "--reset-border-hover": rgba(palette.gold, 0.78),
     "--reset-bg-hover": `linear-gradient(135deg, ${rgba(palette.gold, 0.28)}, ${rgba(palette.accentSecondary, 0.26)})`,
     "--reset-shadow-hover": `0 16px 32px ${rgba(palette.accentSecondary, 0.22)}`,
-    "--menu-bg": `linear-gradient(135deg, ${colorMix(palette.panelStart, Math.max(0, 0.18 - contrast * 0.1), "#ffffff")}, ${colorMix(palette.panelEnd, Math.max(0, 0.08 - contrast * 0.04), "#000000")})`,
+    "--menu-bg": menuSurface,
     "--menu-border-color": rgba(palette.accent, 0.3),
     "--menu-shadow": `0 18px 38px ${rgba("#000000", 0.64)}`,
     "--menu-border-hover": rgba(palette.gold, 0.7),
     "--menu-shadow-hover": `0 26px 42px ${rgba("#000000", 0.7)}`,
-    "--stat-bg": `linear-gradient(135deg, ${rgba(palette.panelStart, 0.82 + contrast * 0.14)}, ${rgba(palette.panelEnd, 0.86 + contrast * 0.12)})`,
+    "--stat-bg": statSurface,
     "--stat-border": rgba(palette.accent, 0.28),
     "--stat-shadow": `inset 0 0 24px ${rgba(palette.accent, 0.14)}`,
-    "--table-panel-bg": `linear-gradient(170deg, ${rgba(palette.panelStart, 0.97)} 0%, ${rgba(palette.panelEnd, 0.98)} 58%, ${rgba(colorMix(palette.panelEnd, 0.3, "#000000"), 0.98)} 100%)`,
+    "--table-panel-bg": tableSurface,
     "--table-panel-shadow": `0 42px 92px ${rgba("#000000", 0.74)}, inset 0 0 120px ${rgba(palette.accent, 0.14 + glow * 0.1)}`,
-    "--paytable-panel-bg": `linear-gradient(160deg, ${rgba(colorMix(palette.headerStart, 0.12, "#ffffff"), 0.9)}, ${rgba(palette.panelStart, 0.84)})`,
+    "--paytable-panel-bg": paytableSurface,
     "--paytable-panel-border": rgba(palette.accent, 0.36),
     "--paytable-panel-shadow": `inset 0 0 26px ${rgba(palette.accent, 0.16)}`,
     "--paytable-option-bg": rgba(palette.panelStart, 0.64 + contrast * 0.22),
@@ -609,7 +644,7 @@ function getThemeCssVariables(theme) {
     "--paytable-option-shadow-selected": `inset 0 0 32px ${rgba(palette.accent, 0.22)}, 0 14px 26px ${rgba("#000000", 0.44)}`,
     "--paytable-option-name-color": "#f7fbff",
     "--paytable-option-steps-color": rgba(palette.gold, 0.9),
-    "--active-paytable-bg": `linear-gradient(135deg, ${rgba(colorMix(palette.headerStart, 0.14, "#ffffff"), 0.92)}, ${rgba(palette.panelEnd, 0.88)})`,
+    "--active-paytable-bg": activePaytableSurface,
     "--active-paytable-border": rgba(palette.accent, 0.4),
     "--active-paytable-shadow": `inset 0 0 26px ${rgba(palette.accent, 0.18)}`,
     "--active-paytable-label-color": rgba(palette.muted, 0.9),
@@ -618,10 +653,10 @@ function getThemeCssVariables(theme) {
     "--change-paytable-border": rgba(palette.accent, 0.42),
     "--change-paytable-border-hover": rgba(palette.gold, 0.82),
     "--change-paytable-shadow": `0 14px 32px ${rgba(palette.accentSecondary, 0.2)}`,
-    "--betting-panel-bg": `linear-gradient(160deg, ${rgba(palette.panelStart, 0.84 + contrast * 0.14)}, ${rgba(palette.panelEnd, 0.88 + contrast * 0.1)})`,
+    "--betting-panel-bg": bettingPanelSurface,
     "--betting-panel-border": rgba(palette.accent, 0.34),
     "--betting-panel-shadow": `0 28px 68px ${rgba("#000000", 0.72)}, inset 0 0 56px ${rgba(palette.accent, 0.14 + glow * 0.08)}`,
-    "--bet-spot-bg": `linear-gradient(150deg, ${rgba(colorMix(palette.panelStart, 0.08, "#ffffff"), 0.96)}, ${rgba(palette.panelEnd, 0.98)})`,
+    "--bet-spot-bg": betSpotSurface,
     "--bet-spot-border": rgba(palette.accent, 0.5),
     "--bet-spot-border-hover": rgba(palette.gold, 0.84),
     "--bet-spot-border-active": rgba("#ffffff", 0.86),
@@ -642,22 +677,22 @@ function getThemeCssVariables(theme) {
     "--chip-choice-shadow-hover": `0 0 0 3px ${rgba(palette.accent, 0.24)}, 0 20px 32px ${rgba(palette.accentSecondary, 0.18)}`,
     "--chip-choice-active-bg": `radial-gradient(circle at 35% 30%, ${colorMix(palette.gold, 0.18, "#ffffff")}, ${rgba(palette.panelEnd, 0.98)})`,
     "--chip-choice-active-shadow": `0 22px 36px ${rgba(palette.accent, 0.18)}`,
-    "--chip-bar-bg": `linear-gradient(135deg, ${rgba(palette.panelEnd, 0.96)}, ${rgba(palette.headerStart, 0.96)})`,
+    "--chip-bar-bg": chipBarSurface,
     "--chip-bar-border": rgba(palette.accent, 0.32),
     "--chip-bar-shadow": `0 -26px 48px ${rgba("#000000", 0.72)}`,
-    "--secondary-button-bg": `linear-gradient(135deg, ${rgba(palette.accent, 0.16)}, ${rgba(palette.panelEnd, 0.96)})`,
+    "--secondary-button-bg": secondaryButtonSurface,
     "--secondary-button-border": rgba(palette.accent, 0.42),
     "--deal-button-bg": `linear-gradient(135deg, ${colorMix(palette.accent, 0.42, "#ffffff")}, ${colorMix(palette.accentTertiary, 0.36, "#ffffff")})`,
     "--deal-button-shadow": `0 22px 38px ${rgba(palette.accent, 0.22)}`,
     "--deal-button-shadow-hover": `0 24px 42px ${rgba(palette.accentSecondary, 0.24)}`,
-    "--drawer-bg": `linear-gradient(145deg, ${rgba(palette.panelStart, 0.96)}, ${rgba(palette.panelEnd, 0.94)})`,
+    "--drawer-bg": drawerSurface,
     "--drawer-border": rgba(palette.accent, 0.28),
     "--drawer-shadow": `0 34px 92px ${rgba("#000000", 0.72)}`,
     "--modal-bg": rgba(palette.panelEnd, 0.95),
     "--modal-border": rgba(palette.accent, 0.32),
     "--modal-shadow": `0 34px 92px ${rgba("#000000", 0.76)}`,
     "--scrim-bg": rgba("#050913", 0.74),
-    "--analytics-bg": `linear-gradient(135deg, ${rgba(palette.panelStart, 0.92)}, ${rgba(palette.panelEnd, 0.94)})`,
+    "--analytics-bg": analyticsSurface,
     "--analytics-border": rgba(palette.accent, 0.24),
     "--analytics-shadow": `inset 0 0 24px ${rgba(palette.accent, 0.12)}`,
     "--chart-background": rgba(palette.panelEnd, 0.94),
@@ -1044,7 +1079,8 @@ function getThemeFormState() {
     settings: {
       glowStrength: formData.get("glowStrength"),
       surfaceContrast: formData.get("surfaceContrast"),
-      radiusScale: formData.get("radiusScale")
+      radiusScale: formData.get("radiusScale"),
+      flatSurfaces: formData.get("flatSurfaces") === "on"
     }
   });
 }
@@ -1070,6 +1106,7 @@ function applyPreviewTheme(theme, target = adminThemePreviewEl) {
   target.style.setProperty("--preview-glow", String(settings.glowStrength / 100));
   target.style.setProperty("--preview-contrast", String(settings.surfaceContrast / 100));
   target.style.setProperty("--preview-radius", `${8 + Math.round((settings.radiusScale / 100) * 18)}px`);
+  target.dataset.previewFlat = settings.flatSurfaces ? "true" : "false";
 }
 
 function resetAdminThemeForm(theme = null) {
@@ -1088,6 +1125,10 @@ function resetAdminThemeForm(theme = null) {
   adminEditingThemeSourceBuiltin = Boolean(theme?.is_builtin);
   const setValue = (name, value) => {
     const field = adminThemeForm.elements.namedItem(name);
+    if (field instanceof HTMLInputElement && field.type === "checkbox") {
+      field.checked = Boolean(value);
+      return;
+    }
     if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement) {
       field.value = value ?? "";
     }
@@ -1115,6 +1156,7 @@ function resetAdminThemeForm(theme = null) {
   setValue("glowStrength", String(record.settings.glowStrength));
   setValue("surfaceContrast", String(record.settings.surfaceContrast));
   setValue("radiusScale", String(record.settings.radiusScale));
+  setValue("flatSurfaces", record.settings.flatSurfaces);
   if (adminThemeMessage) {
     adminThemeMessage.textContent = theme?.is_builtin
       ? "Built-in themes load as editable starting points. Saving will create a custom copy."
@@ -1135,6 +1177,27 @@ function buildThemeCardPreviewMarkup(theme) {
   return swatches;
 }
 
+function createDuplicateThemeDraft(theme) {
+  const source = normalizeThemeRecord(theme);
+  const existingNames = new Set(
+    getThemeLibrary().map((entry) => String(entry.name || "").trim().toLowerCase())
+  );
+  const baseName = `${source.name} Copy`;
+  let nextName = baseName;
+  let counter = 2;
+  while (existingNames.has(nextName.trim().toLowerCase())) {
+    nextName = `${baseName} ${counter}`;
+    counter += 1;
+  }
+  return {
+    ...source,
+    id: null,
+    key: "",
+    name: nextName,
+    is_builtin: false
+  };
+}
+
 function renderAdminThemeRow(theme) {
   const item = document.createElement("li");
   item.className = "admin-theme-card";
@@ -1149,6 +1212,7 @@ function renderAdminThemeRow(theme) {
     <div class="admin-theme-preview-swatch">${buildThemeCardPreviewMarkup(theme)}</div>
     <div class="admin-theme-actions">
       <button type="button" class="secondary">${theme.is_builtin ? "Customize" : "Edit Theme"}</button>
+      <button type="button" class="secondary">Duplicate</button>
       <button type="button" class="secondary" data-admin-theme-try-on-key="${escapeAssistantHtml(theme.key)}">Try On</button>
       ${theme.is_builtin ? "" : '<button type="button" class="secondary">Delete Theme</button>'}
     </div>
@@ -1157,10 +1221,13 @@ function renderAdminThemeRow(theme) {
   const buttons = item.querySelectorAll("button");
   buttons[0]?.addEventListener("click", () => resetAdminThemeForm(theme));
   buttons[1]?.addEventListener("click", () => {
+    resetAdminThemeForm(createDuplicateThemeDraft(theme));
+  });
+  buttons[2]?.addEventListener("click", () => {
     setAdminThemeOverride(theme, { persist: true });
   });
   if (!theme.is_builtin) {
-    buttons[2]?.addEventListener("click", () => {
+    buttons[3]?.addEventListener("click", () => {
       void handleAdminThemeDelete(theme);
     });
   }
@@ -9657,7 +9724,8 @@ const DEFAULT_CUSTOM_THEME_PALETTE = {
 const DEFAULT_CUSTOM_THEME_SETTINGS = {
   glowStrength: 48,
   surfaceContrast: 58,
-  radiusScale: 72
+  radiusScale: 72,
+  flatSurfaces: false
 };
 const BUILTIN_THEME_PROFILES = {
   blue: {
@@ -9679,7 +9747,8 @@ const BUILTIN_THEME_PROFILES = {
     settings: {
       glowStrength: 52,
       surfaceContrast: 60,
-      radiusScale: 72
+      radiusScale: 72,
+      flatSurfaces: false
     }
   },
   pink: {
@@ -9701,7 +9770,8 @@ const BUILTIN_THEME_PROFILES = {
     settings: {
       glowStrength: 68,
       surfaceContrast: 62,
-      radiusScale: 74
+      radiusScale: 74,
+      flatSurfaces: false
     }
   },
   orange: {
@@ -9723,7 +9793,8 @@ const BUILTIN_THEME_PROFILES = {
     settings: {
       glowStrength: 60,
       surfaceContrast: 64,
-      radiusScale: 68
+      radiusScale: 68,
+      flatSurfaces: false
     }
   },
   "steel-black": {
@@ -9745,7 +9816,8 @@ const BUILTIN_THEME_PROFILES = {
     settings: {
       glowStrength: 18,
       surfaceContrast: 78,
-      radiusScale: 58
+      radiusScale: 58,
+      flatSurfaces: false
     }
   },
   angelic: {
@@ -9767,7 +9839,8 @@ const BUILTIN_THEME_PROFILES = {
     settings: {
       glowStrength: 34,
       surfaceContrast: 54,
-      radiusScale: 76
+      radiusScale: 76,
+      flatSurfaces: false
     }
   },
   retro: {
@@ -9789,7 +9862,8 @@ const BUILTIN_THEME_PROFILES = {
     settings: {
       glowStrength: 46,
       surfaceContrast: 56,
-      radiusScale: 66
+      radiusScale: 66,
+      flatSurfaces: false
     }
   },
   "cotton-candy": {
@@ -9811,7 +9885,8 @@ const BUILTIN_THEME_PROFILES = {
     settings: {
       glowStrength: 58,
       surfaceContrast: 52,
-      radiusScale: 80
+      radiusScale: 80,
+      flatSurfaces: false
     }
   },
   pastel: {
@@ -9833,7 +9908,8 @@ const BUILTIN_THEME_PROFILES = {
     settings: {
       glowStrength: 30,
       surfaceContrast: 50,
-      radiusScale: 82
+      radiusScale: 82,
+      flatSurfaces: false
     }
   }
 };
