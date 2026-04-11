@@ -4275,44 +4275,52 @@ body.theme-angelic {
   white-space: nowrap;
 }
 
-.rank-ladder-item[data-theme="blue"] {
+.rank-ladder-item[data-theme="blue"],
+.admin-rank-card[data-theme="blue"] {
   border-color: rgba(63, 240, 255, 0.28);
   background: linear-gradient(145deg, rgba(7, 26, 76, 0.82), rgba(7, 18, 52, 0.9));
 }
 
-.rank-ladder-item[data-theme="pink"] {
+.rank-ladder-item[data-theme="pink"],
+.admin-rank-card[data-theme="pink"] {
   border-color: rgba(255, 127, 216, 0.28);
   background: linear-gradient(145deg, rgba(54, 18, 68, 0.82), rgba(23, 10, 43, 0.92));
 }
 
-.rank-ladder-item[data-theme="orange"] {
+.rank-ladder-item[data-theme="orange"],
+.admin-rank-card[data-theme="orange"] {
   border-color: rgba(255, 187, 92, 0.28);
   background: linear-gradient(145deg, rgba(61, 30, 12, 0.82), rgba(26, 13, 6, 0.92));
 }
 
-.rank-ladder-item[data-theme="retro"] {
+.rank-ladder-item[data-theme="retro"],
+.admin-rank-card[data-theme="retro"] {
   border-color: rgba(133, 108, 255, 0.28);
   background: linear-gradient(145deg, rgba(25, 28, 86, 0.82), rgba(12, 16, 52, 0.92));
 }
 
-.rank-ladder-item[data-theme="steel-black"] {
+.rank-ladder-item[data-theme="steel-black"],
+.admin-rank-card[data-theme="steel-black"] {
   border-color: rgba(183, 208, 223, 0.28);
   background: linear-gradient(145deg, rgba(31, 36, 44, 0.88), rgba(11, 13, 17, 0.95));
   box-shadow: inset 0 0 22px rgba(201, 216, 227, 0.08);
 }
 
-.rank-ladder-item[data-theme="angelic"] {
+.rank-ladder-item[data-theme="angelic"],
+.admin-rank-card[data-theme="angelic"] {
   border-color: rgba(255, 215, 238, 0.32);
   background: linear-gradient(145deg, rgba(70, 98, 148, 0.84), rgba(38, 56, 96, 0.94));
   box-shadow: inset 0 0 24px rgba(255, 244, 251, 0.1);
 }
 
-.rank-ladder-item[data-theme="cotton-candy"] {
+.rank-ladder-item[data-theme="cotton-candy"],
+.admin-rank-card[data-theme="cotton-candy"] {
   border-color: rgba(255, 127, 216, 0.24);
   background: linear-gradient(145deg, rgba(36, 18, 72, 0.82), rgba(22, 10, 44, 0.94));
 }
 
-.rank-ladder-item[data-theme="pastel"] {
+.rank-ladder-item[data-theme="pastel"],
+.admin-rank-card[data-theme="pastel"] {
   border-color: rgba(155, 231, 255, 0.28);
   background: linear-gradient(145deg, rgba(24, 38, 68, 0.84), rgba(14, 24, 42, 0.94));
 }
