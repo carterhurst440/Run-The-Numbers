@@ -7739,6 +7739,9 @@ body.play-assistant-open .play-assistant-fab {
   padding: clamp(1.5rem, 6vw, 3rem);
   background: rgba(3, 6, 18, 0.78);
   z-index: 5000;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal[hidden] {
@@ -8698,6 +8701,11 @@ body.modal-open {
 }
 
 @media (max-width: 700px) {
+  .modal {
+    align-items: flex-start;
+    padding: 0.75rem;
+  }
+
   .hand-review-modal {
     width: min(100vw - 1rem, 560px);
     max-height: calc(100vh - 1rem);
