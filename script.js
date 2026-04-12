@@ -10917,6 +10917,11 @@ let playAssistantThread = [];
 let playAssistantRiskTolerance = "balanced";
 let playAssistantPendingPlan = null;
 let playAssistantRequestInFlight = false;
+let playAssistantHistoryCache = {
+  userId: null,
+  fetchedAt: 0,
+  insights: null
+};
 let recentHandReviews = [];
 let handReviewModalTrigger = null;
 let chipEditorModalTrigger = null;
@@ -10936,6 +10941,8 @@ let contestStartNotifications = [];
 const MAX_HISTORY_POINTS = 500;
 const PROFILE_SYNC_INTERVAL = 15000;
 const PLAY_ASSISTANT_MAX_HISTORY = 12;
+const PLAY_ASSISTANT_HISTORY_LIMIT = 100;
+const PLAY_ASSISTANT_HISTORY_CACHE_MS = 60 * 1000;
 const PLAY_ASSISTANT_RULES_SUMMARY = [
   "Run the Numbers uses a fresh 53-card deck every hand.",
   "Ace and number cards 2 through 10 keep the hand alive.",
@@ -13452,8 +13459,254 @@ function getPlayAssistantBetCatalog() {
   }));
 }
 
-function getPlayAssistantState() {
+function calculateSequentialHitProbability(hitCount) {
+  if (!Number.isFinite(hitCount) || hitCount <= 0) return 0;
+  let probability = 1;
+  for (let index = 0; index < hitCount; index += 1) {
+    probability *= (4 - index) / (17 - index);
+  }
+  return probability;
+}
+
+function calculateExactHandLengthProbability(totalCards) {
+  const length = Math.max(1, Math.round(Number(totalCards) || 0));
+  if (length > 41) return 0;
+  let probability = 1;
+  for (let index = 0; index < length - 1; index += 1) {
+    probability *= (40 - index) / (53 - index);
+  }
+  return probability * (13 / (54 - length));
+}
+
+function calculateAtLeastHandLengthProbability(totalCards) {
+  const length = Math.max(1, Math.round(Number(totalCards) || 0));
+  if (length <= 1) return 1;
+  if (length > 41) return 0;
+  let probability = 1;
+  for (let index = 0; index < length - 1; index += 1) {
+    probability *= (40 - index) / (53 - index);
+  }
+  return probability;
+}
+
+function calculateRunTheNumbersHouseEdge(definition, paytable = activePaytable) {
+  if (!definition) return null;
+
+  if (definition.type === "number") {
+    const steps = Array.isArray(paytable?.steps) ? paytable.steps : [];
+    const expectedPayout = steps.reduce(
+      (sum, step, index) => sum + safeNumber(step) * calculateSequentialHitProbability(index + 1),
+      0
+    );
+    return 1 - expectedPayout;
+  }
+
+  let winProbability = 0;
+  switch (definition.type) {
+    case "specific-card":
+      winProbability = 1 / 53;
+      break;
+    case "bust-suit":
+      winProbability = 3 / 53;
+      break;
+    case "bust-rank":
+      winProbability = 4 / 53;
+      break;
+    case "bust-joker":
+      winProbability = 1 / 53;
+      break;
+    case "suit-pattern":
+      if (definition.metadata?.pattern === "none") {
+        winProbability = 10 / 23;
+      } else if (definition.metadata?.pattern === "any") {
+        winProbability = 13 / 23;
+      } else if (definition.metadata?.pattern === "first") {
+        winProbability = 13 / 53;
+      }
+      break;
+    case "count":
+      if (definition.metadata?.countMax === Infinity) {
+        winProbability = calculateAtLeastHandLengthProbability(definition.metadata?.countMin);
+      } else {
+        winProbability = calculateExactHandLengthProbability(definition.metadata?.countMin);
+      }
+      break;
+    default:
+      return null;
+  }
+
+  return 1 - ((safeNumber(definition.payout) + 1) * winProbability);
+}
+
+function formatAssistantPercent(value, digits = 2) {
+  if (!Number.isFinite(Number(value))) return null;
+  return Number((Number(value) * 100).toFixed(digits));
+}
+
+function getPlayAssistantBetReference() {
+  const catalog = Array.from(betDefinitions.values());
+  const paytables = PAYTABLES.map((paytable) => ({
+    id: paytable.id,
+    name: paytable.name,
+    steps: [...paytable.steps],
+    numberBetHouseEdgePercent: formatAssistantPercent(
+      calculateRunTheNumbersHouseEdge({ type: "number" }, paytable),
+      3
+    )
+  }));
+
+  return {
+    deck: {
+      totalCards: 53,
+      liveCards: 40,
+      stopperCards: 13
+    },
+    activePaytable: {
+      id: activePaytable.id,
+      name: activePaytable.name,
+      steps: [...activePaytable.steps],
+      numberBetHouseEdgePercent: formatAssistantPercent(
+        calculateRunTheNumbersHouseEdge({ type: "number" }, activePaytable),
+        3
+      )
+    },
+    paytables,
+    bets: catalog.map((definition) => {
+      const shared = {
+        key: definition.key,
+        type: normalizeBetCatalogType(definition.type),
+        label: definition.label,
+        payout: definition.payout ?? null,
+        payoutDisplay: definition.payoutDisplay ?? null,
+        metadata: definition.metadata ?? {}
+      };
+      if (definition.type === "number") {
+        return {
+          ...shared,
+          houseEdgeByPaytable: paytables.map((paytable) => ({
+            id: paytable.id,
+            name: paytable.name,
+            houseEdgePercent: paytable.numberBetHouseEdgePercent
+          }))
+        };
+      }
+      return {
+        ...shared,
+        houseEdgePercent: formatAssistantPercent(calculateRunTheNumbersHouseEdge(definition), 3)
+      };
+    })
+  };
+}
+
+function buildPlayAssistantHandHistoryInsights(records = []) {
+  const safeRecords = Array.isArray(records) ? records : [];
+  const summarize = (rows) => {
+    const handCount = rows.length;
+    const totals = rows.reduce(
+      (acc, row) => {
+        const cards = Math.max(0, Math.round(safeNumber(row?.total_cards)));
+        const wager = safeNumber(row?.total_wager);
+        const paid = safeNumber(row?.total_paid);
+        const net = safeNumber(row?.net);
+        const stopperKey = row?.stopper_label === "Joker"
+          ? "Joker"
+          : [row?.stopper_label, row?.stopper_suit].filter(Boolean).join(" ");
+        acc.totalCards += cards;
+        acc.totalWager += wager;
+        acc.totalPaid += paid;
+        acc.totalNet += net;
+        if (cards > 8) {
+          acc.over8 += 1;
+        }
+        if (cards > 0) {
+          acc.distribution[String(cards)] = (acc.distribution[String(cards)] || 0) + 1;
+        }
+        if (stopperKey) {
+          acc.stopperBreakdown[stopperKey] = (acc.stopperBreakdown[stopperKey] || 0) + 1;
+        }
+        return acc;
+      },
+      {
+        totalCards: 0,
+        totalWager: 0,
+        totalPaid: 0,
+        totalNet: 0,
+        over8: 0,
+        distribution: {},
+        stopperBreakdown: {}
+      }
+    );
+
+    return {
+      handCount,
+      averageCards: handCount ? Number((totals.totalCards / handCount).toFixed(2)) : 0,
+      averageWager: handCount ? Number((totals.totalWager / handCount).toFixed(2)) : 0,
+      averageReturn: handCount ? Number((totals.totalPaid / handCount).toFixed(2)) : 0,
+      averageNet: handCount ? Number((totals.totalNet / handCount).toFixed(2)) : 0,
+      over8CardsCount: totals.over8,
+      over8CardsPercent: handCount ? Number(((totals.over8 / handCount) * 100).toFixed(2)) : 0,
+      handLengthDistribution: totals.distribution,
+      stopperBreakdown: totals.stopperBreakdown
+    };
+  };
+
+  const recent = [...safeRecords]
+    .sort((a, b) => new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime())
+    .slice(0, PLAY_ASSISTANT_HISTORY_LIMIT);
+
+  return {
+    allTime: summarize(safeRecords),
+    last100: summarize(recent),
+    recentHands: recent.slice(0, 20).map((row) => ({
+      createdAt: row?.created_at || null,
+      totalCards: Math.max(0, Math.round(safeNumber(row?.total_cards))),
+      stopper: row?.stopper_label === "Joker"
+        ? "Joker"
+        : [row?.stopper_label, row?.stopper_suit].filter(Boolean).join(" "),
+      totalWager: safeNumber(row?.total_wager),
+      totalPaid: safeNumber(row?.total_paid),
+      net: safeNumber(row?.net)
+    }))
+  };
+}
+
+async function loadPlayAssistantHandHistoryInsights({ force = false } = {}) {
+  if (!currentUser?.id || currentUser.id === GUEST_USER.id || !supabase) {
+    return null;
+  }
+
+  const now = Date.now();
+  if (
+    !force &&
+    playAssistantHistoryCache.userId === currentUser.id &&
+    playAssistantHistoryCache.insights &&
+    now - playAssistantHistoryCache.fetchedAt < PLAY_ASSISTANT_HISTORY_CACHE_MS
+  ) {
+    return playAssistantHistoryCache.insights;
+  }
+
+  try {
+    const records = await fetchGameHandsRecords({
+      userIds: [currentUser.id],
+      fields: ["user_id", "created_at", "game_id", "total_cards", "stopper_label", "stopper_suit", "total_wager", "total_paid", "net"]
+    });
+    const rtnRecords = records.filter((row) => resolveGameKey(row?.game_id) === GAME_KEYS.RUN_THE_NUMBERS);
+    const insights = buildPlayAssistantHandHistoryInsights(rtnRecords);
+    playAssistantHistoryCache = {
+      userId: currentUser.id,
+      fetchedAt: now,
+      insights
+    };
+    return insights;
+  } catch (error) {
+    console.warn("[RTN] unable to load play assistant hand history", error);
+    return null;
+  }
+}
+
+async function getPlayAssistantState() {
   const outstanding = bets.reduce((sum, bet) => sum + Math.max(0, Number(bet.units ?? 0)), 0);
+  const handHistory = await loadPlayAssistantHandHistoryInsights();
   return {
     bankroll,
     carterCash,
@@ -13493,7 +13746,9 @@ function getPlayAssistantState() {
       paid: stats.paid
     },
     rulesSummary: PLAY_ASSISTANT_RULES_SUMMARY,
-    betCatalog: getPlayAssistantBetCatalog()
+    betCatalog: getPlayAssistantBetCatalog(),
+    gameReference: getPlayAssistantBetReference(),
+    handHistory
   };
 }
 
@@ -14008,7 +14263,7 @@ function parseAssistantDirective(message, state) {
 }
 
 async function requestPlayAssistantResponse(userMessage) {
-  const state = getPlayAssistantState();
+  const state = await getPlayAssistantState();
   try {
     const { data, error } = await supabase.functions.invoke("play-assistant", {
       body: {

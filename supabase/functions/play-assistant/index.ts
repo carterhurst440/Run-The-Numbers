@@ -17,6 +17,65 @@ type BetCatalogEntry = {
   metadata?: Record<string, unknown>;
 };
 
+type GameReference = {
+  deck?: {
+    totalCards?: number;
+    liveCards?: number;
+    stopperCards?: number;
+  };
+  activePaytable?: {
+    id?: string;
+    name?: string;
+    steps?: number[];
+    numberBetHouseEdgePercent?: number | null;
+  };
+  paytables?: Array<{
+    id?: string;
+    name?: string;
+    steps?: number[];
+    numberBetHouseEdgePercent?: number | null;
+  }>;
+  bets?: Array<{
+    key?: string;
+    type?: string;
+    label?: string;
+    payout?: number | null;
+    payoutDisplay?: string | null;
+    metadata?: Record<string, unknown>;
+    houseEdgePercent?: number | null;
+    houseEdgeByPaytable?: Array<{
+      id?: string;
+      name?: string;
+      houseEdgePercent?: number | null;
+    }>;
+  }>;
+};
+
+type HandHistorySummary = {
+  handCount?: number;
+  averageCards?: number;
+  averageWager?: number;
+  averageReturn?: number;
+  averageNet?: number;
+  over8CardsCount?: number;
+  over8CardsPercent?: number;
+  handLengthDistribution?: Record<string, number>;
+  stopperBreakdown?: Record<string, number>;
+};
+
+type HandHistoryInsights = {
+  allTime?: HandHistorySummary | null;
+  last100?: HandHistorySummary | null;
+  recentHands?: Array<{
+    createdAt?: string | null;
+    totalCards?: number;
+    stopper?: string;
+    totalWager?: number;
+    totalPaid?: number;
+    net?: number;
+  }>;
+};
+
 type AssistantState = {
   bankroll?: number;
   carterCash?: number;
@@ -53,6 +112,8 @@ type AssistantState = {
   };
   rulesSummary?: string;
   betCatalog?: BetCatalogEntry[];
+  gameReference?: GameReference;
+  handHistory?: HandHistoryInsights | null;
 };
 
 type DraftBetPlanArgs = {
@@ -93,6 +154,9 @@ Game facts:
 
 Behavior:
 - Use get_table_context whenever rules, bankroll, table state, or current wagers matter.
+- When get_table_context includes RTN payout and house-edge reference data, use it for bet math questions instead of guessing.
+- When get_table_context includes player hand-history summaries, use those summaries to answer player-specific trend questions such as average hand length or counts in the last 100 hands.
+- If the supplied context is missing the exact figure needed, say what is available and do not invent unsupported house-edge or player-history numbers.
 - Ask at most one focused follow-up when necessary.
 - Keep answers concise, practical, and confident.
 - Do not invent a default playbook or preset betting pattern when the user has not asked for one.
@@ -441,9 +505,139 @@ function sanitizeState(input: unknown): AssistantState {
           type: String(entry?.type || ""),
           label: String(entry?.label || entry?.key || ""),
           payout: entry?.payout == null ? null : safeNumber(entry.payout),
+          payoutDisplay: entry?.payoutDisplay == null ? null : String(entry.payoutDisplay),
           metadata: entry?.metadata && typeof entry.metadata === "object" ? entry.metadata : {}
         }))
-      : []
+      : [],
+    gameReference: raw.gameReference && typeof raw.gameReference === "object"
+      ? {
+          deck: raw.gameReference.deck && typeof raw.gameReference.deck === "object"
+            ? {
+                totalCards: Math.max(0, Math.round(safeNumber(raw.gameReference.deck.totalCards))),
+                liveCards: Math.max(0, Math.round(safeNumber(raw.gameReference.deck.liveCards))),
+                stopperCards: Math.max(0, Math.round(safeNumber(raw.gameReference.deck.stopperCards)))
+              }
+            : undefined,
+          activePaytable: raw.gameReference.activePaytable && typeof raw.gameReference.activePaytable === "object"
+            ? {
+                id: String(raw.gameReference.activePaytable.id || ""),
+                name: String(raw.gameReference.activePaytable.name || ""),
+                steps: Array.isArray(raw.gameReference.activePaytable.steps)
+                  ? raw.gameReference.activePaytable.steps.map((step) => Math.max(0, Math.round(safeNumber(step))))
+                  : [],
+                numberBetHouseEdgePercent:
+                  raw.gameReference.activePaytable.numberBetHouseEdgePercent == null
+                    ? null
+                    : safeNumber(raw.gameReference.activePaytable.numberBetHouseEdgePercent)
+              }
+            : undefined,
+          paytables: Array.isArray(raw.gameReference.paytables)
+            ? raw.gameReference.paytables.map((paytable) => ({
+                id: String(paytable?.id || ""),
+                name: String(paytable?.name || ""),
+                steps: Array.isArray(paytable?.steps)
+                  ? paytable.steps.map((step) => Math.max(0, Math.round(safeNumber(step))))
+                  : [],
+                numberBetHouseEdgePercent:
+                  paytable?.numberBetHouseEdgePercent == null ? null : safeNumber(paytable.numberBetHouseEdgePercent)
+              }))
+            : [],
+          bets: Array.isArray(raw.gameReference.bets)
+            ? raw.gameReference.bets.map((bet) => ({
+                key: String(bet?.key || ""),
+                type: String(bet?.type || ""),
+                label: String(bet?.label || bet?.key || ""),
+                payout: bet?.payout == null ? null : safeNumber(bet.payout),
+                payoutDisplay: bet?.payoutDisplay == null ? null : String(bet.payoutDisplay),
+                metadata: bet?.metadata && typeof bet.metadata === "object" ? bet.metadata : {},
+                houseEdgePercent: bet?.houseEdgePercent == null ? null : safeNumber(bet.houseEdgePercent),
+                houseEdgeByPaytable: Array.isArray(bet?.houseEdgeByPaytable)
+                  ? bet.houseEdgeByPaytable.map((entry) => ({
+                      id: String(entry?.id || ""),
+                      name: String(entry?.name || ""),
+                      houseEdgePercent: entry?.houseEdgePercent == null ? null : safeNumber(entry.houseEdgePercent)
+                    }))
+                  : []
+              }))
+            : []
+        }
+      : undefined,
+    handHistory: raw.handHistory && typeof raw.handHistory === "object"
+      ? {
+          allTime: raw.handHistory.allTime && typeof raw.handHistory.allTime === "object"
+            ? {
+                handCount: Math.max(0, Math.round(safeNumber(raw.handHistory.allTime.handCount))),
+                averageCards: safeNumber(raw.handHistory.allTime.averageCards),
+                averageWager: safeNumber(raw.handHistory.allTime.averageWager),
+                averageReturn: safeNumber(raw.handHistory.allTime.averageReturn),
+                averageNet: safeNumber(raw.handHistory.allTime.averageNet),
+                over8CardsCount: Math.max(0, Math.round(safeNumber(raw.handHistory.allTime.over8CardsCount))),
+                over8CardsPercent: safeNumber(raw.handHistory.allTime.over8CardsPercent),
+                handLengthDistribution:
+                  raw.handHistory.allTime.handLengthDistribution &&
+                  typeof raw.handHistory.allTime.handLengthDistribution === "object"
+                    ? Object.fromEntries(
+                        Object.entries(raw.handHistory.allTime.handLengthDistribution).map(([key, value]) => [
+                          String(key),
+                          Math.max(0, Math.round(safeNumber(value)))
+                        ])
+                      )
+                    : {},
+                stopperBreakdown:
+                  raw.handHistory.allTime.stopperBreakdown &&
+                  typeof raw.handHistory.allTime.stopperBreakdown === "object"
+                    ? Object.fromEntries(
+                        Object.entries(raw.handHistory.allTime.stopperBreakdown).map(([key, value]) => [
+                          String(key),
+                          Math.max(0, Math.round(safeNumber(value)))
+                        ])
+                      )
+                    : {}
+              }
+            : null,
+          last100: raw.handHistory.last100 && typeof raw.handHistory.last100 === "object"
+            ? {
+                handCount: Math.max(0, Math.round(safeNumber(raw.handHistory.last100.handCount))),
+                averageCards: safeNumber(raw.handHistory.last100.averageCards),
+                averageWager: safeNumber(raw.handHistory.last100.averageWager),
+                averageReturn: safeNumber(raw.handHistory.last100.averageReturn),
+                averageNet: safeNumber(raw.handHistory.last100.averageNet),
+                over8CardsCount: Math.max(0, Math.round(safeNumber(raw.handHistory.last100.over8CardsCount))),
+                over8CardsPercent: safeNumber(raw.handHistory.last100.over8CardsPercent),
+                handLengthDistribution:
+                  raw.handHistory.last100.handLengthDistribution &&
+                  typeof raw.handHistory.last100.handLengthDistribution === "object"
+                    ? Object.fromEntries(
+                        Object.entries(raw.handHistory.last100.handLengthDistribution).map(([key, value]) => [
+                          String(key),
+                          Math.max(0, Math.round(safeNumber(value)))
+                        ])
+                      )
+                    : {},
+                stopperBreakdown:
+                  raw.handHistory.last100.stopperBreakdown &&
+                  typeof raw.handHistory.last100.stopperBreakdown === "object"
+                    ? Object.fromEntries(
+                        Object.entries(raw.handHistory.last100.stopperBreakdown).map(([key, value]) => [
+                          String(key),
+                          Math.max(0, Math.round(safeNumber(value)))
+                        ])
+                      )
+                    : {}
+              }
+            : null,
+          recentHands: Array.isArray(raw.handHistory.recentHands)
+            ? raw.handHistory.recentHands.map((hand) => ({
+                createdAt: hand?.createdAt == null ? null : String(hand.createdAt),
+                totalCards: Math.max(0, Math.round(safeNumber(hand?.totalCards))),
+                stopper: String(hand?.stopper || ""),
+                totalWager: safeNumber(hand?.totalWager),
+                totalPaid: safeNumber(hand?.totalPaid),
+                net: safeNumber(hand?.net)
+              }))
+            : []
+        }
+      : null
   };
 }
 
@@ -516,7 +710,9 @@ function getTableContext(state: AssistantState) {
     betting: state.betting,
     stats: state.stats,
     rulesSummary: state.rulesSummary,
-    betCatalog: state.betCatalog
+    betCatalog: state.betCatalog,
+    gameReference: state.gameReference,
+    handHistory: state.handHistory
   };
 }
 
