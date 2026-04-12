@@ -2198,6 +2198,9 @@ body[data-app-state="loading"] #app-shell {
   line-height: 1.15;
   pointer-events: none;
   text-shadow: 0 0 16px rgba(255, 214, 128, 0.14);
+  user-select: none;
+  -webkit-user-select: none;
+  background: transparent;
 }
 
 .beta-bet-spot-label {
@@ -2219,6 +2222,10 @@ body[data-app-state="loading"] #app-shell {
   line-height: 1;
   text-align: center;
   pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .beta-chip-stack {
