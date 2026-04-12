@@ -1306,10 +1306,10 @@ body[data-app-state="loading"] #app-shell {
 
 .home-contest-action.is-joined,
 .home-contest-action.is-joined:disabled {
-  background: var(--joined-button-bg, var(--primary-button-disabled-bg, var(--deal-button-bg)));
-  border-color: var(--joined-button-border, var(--primary-button-disabled-border, var(--secondary-button-border)));
-  box-shadow: var(--joined-button-shadow, var(--primary-button-disabled-shadow, var(--deal-button-shadow)));
-  color: var(--joined-button-text, var(--primary-button-disabled-text, rgba(247, 251, 255, 0.92)));
+  background: var(--secondary-button-disabled-bg, var(--secondary-button-bg));
+  border-color: var(--secondary-button-disabled-border, var(--secondary-button-border));
+  box-shadow: var(--secondary-button-disabled-shadow, var(--secondary-button-shadow));
+  color: var(--secondary-button-disabled-text, rgba(247, 251, 255, 0.92));
   text-shadow: none;
 }
 

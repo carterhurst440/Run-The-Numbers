@@ -434,7 +434,6 @@ function normalizeThemePalette(palette = {}) {
     secondaryButtonDisabled: String(
       palette.secondaryButtonDisabled || DEFAULT_CUSTOM_THEME_PALETTE.secondaryButtonDisabled
     ),
-    joinedButton: String(palette.joinedButton || DEFAULT_CUSTOM_THEME_PALETTE.joinedButton),
     progressStart: String(palette.progressStart || DEFAULT_CUSTOM_THEME_PALETTE.progressStart),
     progressEnd: String(palette.progressEnd || DEFAULT_CUSTOM_THEME_PALETTE.progressEnd),
     gold: String(palette.gold || DEFAULT_CUSTOM_THEME_PALETTE.gold),
@@ -640,13 +639,6 @@ function getThemeCssVariables(theme) {
         0.1,
         "#000000"
       )})`;
-  const joinedButtonSurface = flatSurfaces
-    ? rgba(colorMix(palette.joinedButton, 0.1, "#000000"), 0.97)
-    : `linear-gradient(135deg, ${colorMix(palette.joinedButton, 0.26, "#ffffff")}, ${colorMix(
-        palette.joinedButton,
-        0.12,
-        "#000000"
-      )})`;
   const assistantFabSurface = flatSurfaces
     ? rgba(colorMix(palette.panelStart, 0.08, "#000000"), 0.98)
     : `linear-gradient(135deg, ${rgba(colorMix(palette.headerStart, 0.08, "#ffffff"), 0.96)}, ${rgba(palette.panelEnd, 0.98)})`;
@@ -762,10 +754,6 @@ function getThemeCssVariables(theme) {
     "--secondary-button-disabled-border": rgba(colorMix(palette.secondaryButtonDisabled, 0.22, "#ffffff"), 0.78),
     "--secondary-button-disabled-shadow": `0 10px 22px ${rgba(colorMix(palette.secondaryButtonDisabled, 0.18, "#000000"), 0.16)}`,
     "--secondary-button-disabled-text": rgba("#f7fbff", 0.86),
-    "--joined-button-bg": joinedButtonSurface,
-    "--joined-button-border": rgba(colorMix(palette.joinedButton, 0.28, "#ffffff"), 0.86),
-    "--joined-button-shadow": `0 16px 30px ${rgba(colorMix(palette.joinedButton, 0.3, "#000000"), 0.28)}`,
-    "--joined-button-text": "#f7fbff",
     "--assistant-fab-bg": assistantFabSurface,
     "--assistant-fab-border": rgba(palette.accent, 0.52),
     "--assistant-fab-border-hover": rgba(palette.gold, 0.78),
@@ -1167,7 +1155,6 @@ function getThemeFormState() {
       primaryButtonDisabled: formData.get("primaryButtonDisabledColor"),
       secondaryButton: formData.get("secondaryButtonColor"),
       secondaryButtonDisabled: formData.get("secondaryButtonDisabledColor"),
-      joinedButton: formData.get("joinedButtonColor"),
       progressStart: formData.get("progressStartColor"),
       progressEnd: formData.get("progressEndColor"),
       gold: formData.get("goldColor"),
@@ -1657,7 +1644,6 @@ function applyPreviewTheme(theme, target = adminThemePreviewEl) {
   target.style.setProperty("--preview-hero-button", palette.heroButton);
   target.style.setProperty("--preview-primary-button", palette.primaryButton);
   target.style.setProperty("--preview-secondary-button", palette.secondaryButton);
-  target.style.setProperty("--preview-joined-button", palette.joinedButton);
   target.style.setProperty("--preview-progress-start", palette.progressStart);
   target.style.setProperty("--preview-progress-end", palette.progressEnd);
   target.style.setProperty("--preview-gold", palette.gold);
@@ -1716,7 +1702,6 @@ function resetAdminThemeForm(theme = null) {
   setValue("primaryButtonDisabledColor", record.palette.primaryButtonDisabled);
   setValue("secondaryButtonColor", record.palette.secondaryButton);
   setValue("secondaryButtonDisabledColor", record.palette.secondaryButtonDisabled);
-  setValue("joinedButtonColor", record.palette.joinedButton);
   setValue("progressStartColor", record.palette.progressStart);
   setValue("progressEndColor", record.palette.progressEnd);
   setValue("goldColor", record.palette.gold);
@@ -10439,7 +10424,6 @@ const DEFAULT_CUSTOM_THEME_PALETTE = {
   primaryButtonDisabled: "#7f9dc7",
   secondaryButton: "#2b6fd6",
   secondaryButtonDisabled: "#647da3",
-  joinedButton: "#2f8f83",
   progressStart: "#63f0ff",
   progressEnd: "#8b80ff",
   gold: "#ffd166",
@@ -10756,10 +10740,6 @@ const CUSTOM_THEME_VARIABLE_KEYS = [
   "--secondary-button-disabled-border",
   "--secondary-button-disabled-shadow",
   "--secondary-button-disabled-text",
-  "--joined-button-bg",
-  "--joined-button-border",
-  "--joined-button-shadow",
-  "--joined-button-text",
   "--assistant-fab-bg",
   "--assistant-fab-border",
   "--assistant-fab-border-hover",
