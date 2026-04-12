@@ -1318,9 +1318,8 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
                 </div>
                 <div class="beta-prediction-panel">
                   <div class="beta-prediction-heading">
-                    <p class="beta-game-panel-kicker">Prediction</p>
                     <div class="beta-prediction-title-row">
-                      <h3 class="beta-prediction-title">Make Your Pick</h3>
+                      <h3 class="beta-prediction-title">Prediction</h3>
                       <span class="beta-control-multiplier">Multiplier 2X</span>
                     </div>
                   </div>
