@@ -9732,53 +9732,6 @@ function applyTheme(theme) {
   }
 }
 
-function loadStoredResolvedTheme() {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return null;
-  }
-  try {
-    const raw = window.localStorage.getItem(THEME_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || !parsed.theme) {
-      return null;
-    }
-    return normalizeThemeRecord(parsed.theme);
-  } catch (error) {
-    console.warn("[RTN] unable to load stored resolved theme", error);
-    return null;
-  }
-}
-
-function persistResolvedTheme(theme, userId = currentUser?.id) {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return;
-  }
-  if (!userId || userId === GUEST_USER.id) {
-    return;
-  }
-  try {
-    const record = normalizeThemeRecord(theme);
-    window.localStorage.setItem(
-      THEME_STORAGE_KEY,
-      JSON.stringify({
-        userId,
-        theme: {
-          id: record.id,
-          key: record.key,
-          name: record.name,
-          base_theme: record.base_theme,
-          palette: record.palette,
-          settings: record.settings,
-          is_builtin: record.is_builtin
-        }
-      })
-    );
-  } catch (error) {
-    console.warn("[RTN] unable to persist resolved theme", error);
-  }
-}
-
 function getAdminThemeOverrideStorageKey(userId = currentUser?.id) {
   if (!userId || userId === GUEST_USER.id) {
     return null;
@@ -9851,7 +9804,7 @@ function getResolvedThemeRecord() {
   if (currentRankState?.currentRank?.theme_key) {
     return getThemeRecord(currentRankState.currentRank.theme_key);
   }
-  return getThemeRecord(currentTheme || "blue");
+  return null;
 }
 
 function refreshAdminThemeOverrideThemeFromLibrary() {
@@ -9892,14 +9845,10 @@ function updateAdminThemeOverrideUI() {
 
 function applyResolvedTheme() {
   const resolvedTheme = getResolvedThemeRecord();
-  applyTheme(resolvedTheme);
-  if (
-    currentUser?.id &&
-    currentUser.id !== GUEST_USER.id &&
-    (!isAdmin() || !adminThemeOverrideTheme)
-  ) {
-    persistResolvedTheme(resolvedTheme, currentUser.id);
+  if (!resolvedTheme) {
+    return;
   }
+  applyTheme(resolvedTheme);
   updateAdminThemeOverrideUI();
 }
 
@@ -9924,12 +9873,7 @@ function setAdminThemeOverride(theme, { persist = false } = {}) {
 }
 
 function initTheme() {
-  const storedTheme = loadStoredResolvedTheme();
-  if (storedTheme) {
-    applyTheme(storedTheme);
-    return;
-  }
-  applyResolvedTheme();
+  applyTheme(getThemeRecord("blue"));
 }
 
 const bankrollEl = document.getElementById("bankroll");
@@ -10790,7 +10734,6 @@ const CUSTOM_THEME_VARIABLE_KEYS = [
   "--count-bet-end-base"
 ];
 const ALL_THEME_CLASSES = [...new Set(Object.values(THEME_CLASS_MAP))];
-const THEME_STORAGE_KEY = "run-the-numbers-theme";
 
 let bankroll = INITIAL_BANKROLL;
 let bets = [];
@@ -18193,7 +18136,7 @@ async function initializeApp() {
     // bootstrapAuth can detect an existing session without the app
     // briefly showing the auth screen. If the ready event doesn't
     // fire within the timeout we proceed (to avoid blocking startup).
-    async function waitForSupabaseReady(timeoutMs = 2500) {
+    async function waitForSupabaseReady(timeoutMs = 5000) {
       if (supabase && typeof supabase.auth?.getSession === "function") {
         return true;
       }
@@ -18295,35 +18238,34 @@ async function initializeApp() {
       return; // Don't do anything else - let the auth event handler or fallback take over
     }
 
-    // Skip bootstrapAuth for public auth pages - they don't need session checks
-    const isPublicAuthPage = initialRoute === "auth" || initialRoute === "signup" || 
-                            initialRoute === "forgot-password" || initialRoute === "reset-password";
-    
-    if (isPublicAuthPage) {
+    const isPasswordSupportRoute =
+      initialRoute === "forgot-password" || initialRoute === "reset-password";
+
+    if (isPasswordSupportRoute) {
       console.info(`[RTN] initializeApp showing public auth page: ${initialRoute}`);
-      currentRoute = initialRoute; // Set currentRoute so auth handlers know where we are
-      if (initialRoute === "signup") {
-        showAuthView("signup");
-        updateHash("signup", { replace: true });
-      } else if (initialRoute === "forgot-password") {
+      currentRoute = initialRoute;
+      if (initialRoute === "forgot-password") {
         showAuthView("forgot-password");
         updateHash("forgot-password", { replace: true });
-      } else if (initialRoute === "reset-password") {
+      } else {
         showAuthView("reset-password");
         updateHash("reset-password", { replace: true });
-      } else {
-        showAuthView("login");
-        updateHash("auth", { replace: true });
       }
     } else {
       sessionApplied = await bootstrapAuth(initialRoute);
       console.info(`[RTN] initializeApp bootstrapAuth sessionApplied=${sessionApplied}`);
 
       if (!sessionApplied) {
-        console.info("[RTN] initializeApp showing auth view (no session available; Supabase auth enabled)");
+        console.info(`[RTN] initializeApp showing public auth page: ${initialRoute}`);
         authBootstrapFallbackShown = true;
-        showAuthView("login");
-        updateHash("auth", { replace: true });
+        currentRoute = initialRoute === "signup" ? "signup" : "auth";
+        if (initialRoute === "signup") {
+          showAuthView("signup");
+          updateHash("signup", { replace: true });
+        } else {
+          showAuthView("login");
+          updateHash("auth", { replace: true });
+        }
       }
     }
   } catch (error) {
