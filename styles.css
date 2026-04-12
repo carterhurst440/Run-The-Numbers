@@ -1050,8 +1050,8 @@ body[data-app-state="loading"] #app-shell {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--neon-cyan), var(--gold));
-  box-shadow: 0 0 14px color-mix(in srgb, var(--neon-cyan) 34%, transparent);
+  background: linear-gradient(90deg, var(--progress-fill-start, var(--neon-cyan)), var(--progress-fill-end, var(--gold)));
+  box-shadow: 0 0 14px var(--progress-fill-glow, color-mix(in srgb, var(--neon-cyan) 34%, transparent));
   position: relative;
 }
 
@@ -1294,14 +1294,23 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .home-contest-action.is-spotlight {
-  background: var(--deal-button-bg);
-  border-color: var(--secondary-button-border);
-  box-shadow: var(--deal-button-shadow);
+  background: var(--primary-button-bg, var(--deal-button-bg));
+  border-color: var(--primary-button-border, var(--secondary-button-border));
+  box-shadow: var(--primary-button-shadow, var(--deal-button-shadow));
 }
 
 .home-contest-action.is-spotlight:hover,
 .home-contest-action.is-spotlight:focus-visible {
-  box-shadow: var(--deal-button-shadow-hover);
+  box-shadow: var(--primary-button-shadow-hover, var(--deal-button-shadow-hover));
+}
+
+.home-contest-action.is-joined,
+.home-contest-action.is-joined:disabled {
+  background: var(--joined-button-bg, var(--primary-button-disabled-bg, var(--deal-button-bg)));
+  border-color: var(--joined-button-border, var(--primary-button-disabled-border, var(--secondary-button-border)));
+  box-shadow: var(--joined-button-shadow, var(--primary-button-disabled-shadow, var(--deal-button-shadow)));
+  color: var(--joined-button-text, var(--primary-button-disabled-text, rgba(247, 251, 255, 0.92)));
+  text-shadow: none;
 }
 
 .contest-share-button {
@@ -2677,9 +2686,10 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .home-button.home-primary {
-  background: var(--deal-button-bg);
-  box-shadow: var(--deal-button-shadow);
-  border-color: var(--secondary-button-border);
+  background: var(--primary-button-bg, var(--deal-button-bg));
+  box-shadow: var(--primary-button-shadow, var(--deal-button-shadow));
+  border-color: var(--primary-button-border, var(--secondary-button-border));
+  color: var(--primary-button-text, var(--text-light));
 }
 
 .home-button.home-cta-button {
@@ -2690,7 +2700,7 @@ body[data-app-state="loading"] #app-shell {
 
 .home-button.home-secondary {
   background: var(--secondary-button-bg);
-  box-shadow: var(--change-paytable-shadow);
+  box-shadow: var(--secondary-button-shadow, var(--change-paytable-shadow));
   animation-delay: 0.45s;
 }
 
@@ -2698,7 +2708,7 @@ body[data-app-state="loading"] #app-shell {
 .home-button:focus-visible {
   transform: translateY(-3px);
   border-color: var(--change-paytable-border-hover);
-  box-shadow: var(--deal-button-shadow-hover);
+  box-shadow: var(--primary-button-shadow-hover, var(--deal-button-shadow-hover));
   outline: none;
 }
 
@@ -2706,6 +2716,11 @@ body[data-app-state="loading"] #app-shell {
 .home-button.home-cta-button:focus-visible {
   border-color: var(--hero-button-border);
   box-shadow: var(--hero-button-shadow-hover);
+}
+
+.home-button.home-secondary:hover,
+.home-button.home-secondary:focus-visible {
+  box-shadow: var(--secondary-button-shadow-hover, var(--change-paytable-shadow));
 }
 
 .home-hero-play-button {
@@ -4256,8 +4271,8 @@ body.theme-angelic {
   width: 0;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-violet));
-  box-shadow: 0 0 18px color-mix(in srgb, var(--neon-cyan) 24%, transparent);
+  background: linear-gradient(90deg, var(--progress-fill-start, var(--neon-cyan)), var(--progress-fill-end, var(--neon-violet)));
+  box-shadow: 0 0 18px var(--progress-fill-glow, color-mix(in srgb, var(--neon-cyan) 24%, transparent));
   transition: width 0.25s ease;
 }
 
@@ -5932,11 +5947,11 @@ body.theme-angelic {
 }
 
 .bust-bet .bet-total {
-  color: var(--bust-label-color, rgba(233, 243, 255, 0.85));
+  color: var(--bet-total-color, rgba(247, 251, 255, 0.82));
 }
 
 .suit-bet .bet-total {
-  color: rgba(222, 241, 255, 0.86);
+  color: var(--bet-total-color, rgba(247, 251, 255, 0.82));
 }
 
 .bust-bet .bet-label,
@@ -6097,14 +6112,14 @@ body.theme-angelic {
 
 .bet-total {
   font-size: clamp(0.62rem, 1.8vw, 0.8rem);
-  color: var(--bet-total-color, var(--neon-cyan));
+  color: var(--bet-total-color, rgba(247, 251, 255, 0.82));
   min-height: 1.05rem;
   font-variant-numeric: tabular-nums;
   text-shadow: 0 0 10px var(--bet-total-glow);
 }
 
 .bet-spot.has-bet .bet-total {
-  color: var(--bet-total-active-color, var(--gold));
+  color: var(--bet-total-active-color, var(--neon-cyan));
   font-weight: 700;
   text-shadow: 0 0 12px var(--bet-total-active-glow);
 }
@@ -6251,35 +6266,38 @@ button:disabled {
 }
 
 .primary:disabled,
-.secondary:disabled,
 .deal:disabled {
   opacity: 1;
-  color: rgba(255, 255, 255, 0.98);
-  -webkit-text-fill-color: rgba(255, 255, 255, 0.98);
-  text-shadow: 0 0 12px rgba(255, 255, 255, 0.24);
-  border-color: color-mix(in srgb, var(--gold) 34%, var(--secondary-button-border) 66%);
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--gold) 28%, white 72%),
-      color-mix(in srgb, var(--menu-bg) 14%, white 86%)
-    );
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.14),
-    0 10px 24px rgba(0, 0, 0, 0.16);
+  color: var(--primary-button-disabled-text, rgba(255, 255, 255, 0.98));
+  -webkit-text-fill-color: var(--primary-button-disabled-text, rgba(255, 255, 255, 0.98));
+  text-shadow: none;
+  border-color: var(--primary-button-disabled-border, color-mix(in srgb, var(--gold) 34%, var(--secondary-button-border) 66%));
+  background: var(--primary-button-disabled-bg, linear-gradient(135deg, color-mix(in srgb, var(--gold) 28%, white 72%), color-mix(in srgb, var(--menu-bg) 14%, white 86%)));
+  box-shadow: var(--primary-button-disabled-shadow, inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 10px 24px rgba(0, 0, 0, 0.16));
+  filter: none;
+}
+
+.secondary:disabled {
+  opacity: 1;
+  color: var(--secondary-button-disabled-text, rgba(255, 255, 255, 0.92));
+  -webkit-text-fill-color: var(--secondary-button-disabled-text, rgba(255, 255, 255, 0.92));
+  text-shadow: none;
+  border-color: var(--secondary-button-disabled-border, color-mix(in srgb, var(--secondary-button-border) 72%, white 28%));
+  background: var(--secondary-button-disabled-bg, var(--secondary-button-bg));
+  box-shadow: var(--secondary-button-disabled-shadow, 0 10px 22px rgba(0, 0, 0, 0.14));
   filter: none;
 }
 
 .primary {
-  background: var(--deal-button-bg);
-  color: var(--primary-button-text);
-  border: 1px solid var(--primary-button-border);
-  box-shadow: var(--deal-button-shadow);
+  background: var(--primary-button-bg, var(--deal-button-bg));
+  color: var(--primary-button-text, var(--text-light));
+  border: 1px solid var(--primary-button-border, var(--secondary-button-border));
+  box-shadow: var(--primary-button-shadow, var(--deal-button-shadow));
 }
 
 .primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: var(--deal-button-shadow-hover);
+  box-shadow: var(--primary-button-shadow-hover, var(--deal-button-shadow-hover));
 }
 
 .primary.danger {
@@ -6295,7 +6313,7 @@ button:disabled {
 
 .secondary {
   background: var(--secondary-button-bg);
-  color: var(--text-light);
+  color: var(--secondary-button-text, var(--text-light));
   border: 1px solid var(--secondary-button-border);
   box-shadow: var(--secondary-button-shadow);
 }
@@ -6306,16 +6324,17 @@ button:disabled {
 }
 
 .deal {
-  background: var(--deal-button-bg);
-  color: var(--deal-button-text);
+  background: var(--primary-button-bg, var(--deal-button-bg));
+  color: var(--deal-button-text, var(--primary-button-text, var(--text-light)));
   font-size: 1.05rem;
   padding: 0.85rem 1.6rem;
-  box-shadow: var(--deal-button-shadow);
+  border: 1px solid var(--primary-button-border, var(--secondary-button-border));
+  box-shadow: var(--primary-button-shadow, var(--deal-button-shadow));
 }
 
 .deal:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: var(--deal-button-shadow-hover);
+  box-shadow: var(--primary-button-shadow-hover, var(--deal-button-shadow-hover));
 }
 
 .chip-bar {
@@ -10493,7 +10512,7 @@ body.modal-open {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--preview-accent), var(--preview-tertiary));
+  background: linear-gradient(90deg, var(--preview-progress-start, var(--preview-accent)), var(--preview-progress-end, var(--preview-tertiary)));
 }
 
 .design-home-preview-progress-fill {
@@ -10502,7 +10521,7 @@ body.modal-open {
 
 .design-home-preview-progress-fill-alt {
   width: 50%;
-  background: linear-gradient(90deg, var(--preview-secondary), var(--preview-gold));
+  background: linear-gradient(90deg, var(--preview-progress-start, var(--preview-secondary)), var(--preview-progress-end, var(--preview-gold)));
 }
 
 .design-home-preview-contests {

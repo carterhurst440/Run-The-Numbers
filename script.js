@@ -428,6 +428,15 @@ function normalizeThemePalette(palette = {}) {
     accentSecondary: String(palette.accentSecondary || DEFAULT_CUSTOM_THEME_PALETTE.accentSecondary),
     accentTertiary: String(palette.accentTertiary || DEFAULT_CUSTOM_THEME_PALETTE.accentTertiary),
     heroButton: String(palette.heroButton || DEFAULT_CUSTOM_THEME_PALETTE.heroButton),
+    primaryButton: String(palette.primaryButton || DEFAULT_CUSTOM_THEME_PALETTE.primaryButton),
+    primaryButtonDisabled: String(palette.primaryButtonDisabled || DEFAULT_CUSTOM_THEME_PALETTE.primaryButtonDisabled),
+    secondaryButton: String(palette.secondaryButton || DEFAULT_CUSTOM_THEME_PALETTE.secondaryButton),
+    secondaryButtonDisabled: String(
+      palette.secondaryButtonDisabled || DEFAULT_CUSTOM_THEME_PALETTE.secondaryButtonDisabled
+    ),
+    joinedButton: String(palette.joinedButton || DEFAULT_CUSTOM_THEME_PALETTE.joinedButton),
+    progressStart: String(palette.progressStart || DEFAULT_CUSTOM_THEME_PALETTE.progressStart),
+    progressEnd: String(palette.progressEnd || DEFAULT_CUSTOM_THEME_PALETTE.progressEnd),
     gold: String(palette.gold || DEFAULT_CUSTOM_THEME_PALETTE.gold),
     muted: String(palette.muted || DEFAULT_CUSTOM_THEME_PALETTE.muted),
     success: String(palette.success || DEFAULT_CUSTOM_THEME_PALETTE.success),
@@ -604,8 +613,40 @@ function getThemeCssVariables(theme) {
     ? rgba(colorMix(palette.panelEnd, 0.08, "#000000"), 0.96)
     : `linear-gradient(135deg, ${rgba(palette.panelEnd, 0.96)}, ${rgba(palette.headerStart, 0.96)})`;
   const secondaryButtonSurface = flatSurfaces
-    ? rgba(colorMix(palette.panelEnd, 0.06, "#000000"), 0.96)
-    : `linear-gradient(135deg, ${rgba(palette.accent, 0.16)}, ${rgba(palette.panelEnd, 0.96)})`;
+    ? rgba(colorMix(palette.secondaryButton, 0.12, "#000000"), 0.96)
+    : `linear-gradient(135deg, ${colorMix(palette.secondaryButton, 0.24, "#ffffff")}, ${colorMix(
+        palette.secondaryButton,
+        0.08,
+        "#000000"
+      )})`;
+  const secondaryButtonDisabledSurface = flatSurfaces
+    ? rgba(colorMix(palette.secondaryButtonDisabled, 0.12, "#000000"), 0.94)
+    : `linear-gradient(135deg, ${colorMix(palette.secondaryButtonDisabled, 0.18, "#ffffff")}, ${colorMix(
+        palette.secondaryButtonDisabled,
+        0.1,
+        "#000000"
+      )})`;
+  const primaryButtonSurface = flatSurfaces
+    ? rgba(colorMix(palette.primaryButton, 0.1, "#000000"), 0.97)
+    : `linear-gradient(135deg, ${colorMix(palette.primaryButton, 0.38, "#ffffff")}, ${colorMix(
+        palette.primaryButton,
+        0.12,
+        palette.accentTertiary
+      )})`;
+  const primaryButtonDisabledSurface = flatSurfaces
+    ? rgba(colorMix(palette.primaryButtonDisabled, 0.12, "#000000"), 0.94)
+    : `linear-gradient(135deg, ${colorMix(palette.primaryButtonDisabled, 0.22, "#ffffff")}, ${colorMix(
+        palette.primaryButtonDisabled,
+        0.1,
+        "#000000"
+      )})`;
+  const joinedButtonSurface = flatSurfaces
+    ? rgba(colorMix(palette.joinedButton, 0.1, "#000000"), 0.97)
+    : `linear-gradient(135deg, ${colorMix(palette.joinedButton, 0.26, "#ffffff")}, ${colorMix(
+        palette.joinedButton,
+        0.12,
+        "#000000"
+      )})`;
   const assistantFabSurface = flatSurfaces
     ? rgba(colorMix(palette.panelStart, 0.08, "#000000"), 0.98)
     : `linear-gradient(135deg, ${rgba(colorMix(palette.headerStart, 0.08, "#ffffff"), 0.96)}, ${rgba(palette.panelEnd, 0.98)})`;
@@ -683,6 +724,8 @@ function getThemeCssVariables(theme) {
     "--bet-spot-border-active": rgba("#ffffff", 0.86),
     "--bet-spot-shadow": `inset 0 0 14px ${rgba("#000000", 0.52)}, 0 12px 28px ${rgba("#000000", 0.46)}`,
     "--bet-spot-active-shadow": `0 0 34px ${rgba(palette.accent, 0.24 + glow * 0.2)}, inset 0 0 30px ${rgba(palette.accentSecondary, 0.14 + glow * 0.12)}`,
+    "--bet-total-color": rgba("#f7fbff", 0.82),
+    "--bet-total-active-color": palette.accent,
     "--bet-total-glow": rgba(palette.accent, 0.28),
     "--bet-total-active-glow": rgba(palette.accentSecondary, 0.26),
     "--status-text-color": rgba("#f7fbff", 0.94),
@@ -701,8 +744,28 @@ function getThemeCssVariables(theme) {
     "--chip-bar-bg": chipBarSurface,
     "--chip-bar-border": rgba(palette.accent, 0.32),
     "--chip-bar-shadow": `0 -26px 48px ${rgba("#000000", 0.72)}`,
+    "--primary-button-bg": primaryButtonSurface,
+    "--primary-button-border": rgba(colorMix(palette.primaryButton, 0.24, "#ffffff"), 0.92),
+    "--primary-button-shadow": `0 18px 34px ${rgba(colorMix(palette.primaryButton, 0.28, "#000000"), 0.3)}`,
+    "--primary-button-shadow-hover": `0 24px 40px ${rgba(colorMix(palette.primaryButton, 0.34, "#000000"), 0.38)}`,
+    "--primary-button-text": "#f7fbff",
+    "--primary-button-disabled-bg": primaryButtonDisabledSurface,
+    "--primary-button-disabled-border": rgba(colorMix(palette.primaryButtonDisabled, 0.22, "#ffffff"), 0.8),
+    "--primary-button-disabled-shadow": `0 12px 24px ${rgba(colorMix(palette.primaryButtonDisabled, 0.2, "#000000"), 0.18)}`,
+    "--primary-button-disabled-text": rgba("#f7fbff", 0.9),
     "--secondary-button-bg": secondaryButtonSurface,
-    "--secondary-button-border": rgba(palette.accent, 0.42),
+    "--secondary-button-border": rgba(colorMix(palette.secondaryButton, 0.24, "#ffffff"), 0.88),
+    "--secondary-button-shadow": `0 12px 28px ${rgba(colorMix(palette.secondaryButton, 0.28, "#000000"), 0.24)}`,
+    "--secondary-button-shadow-hover": `0 14px 26px ${rgba(colorMix(palette.secondaryButton, 0.34, "#000000"), 0.3)}`,
+    "--secondary-button-text": "#f7fbff",
+    "--secondary-button-disabled-bg": secondaryButtonDisabledSurface,
+    "--secondary-button-disabled-border": rgba(colorMix(palette.secondaryButtonDisabled, 0.22, "#ffffff"), 0.78),
+    "--secondary-button-disabled-shadow": `0 10px 22px ${rgba(colorMix(palette.secondaryButtonDisabled, 0.18, "#000000"), 0.16)}`,
+    "--secondary-button-disabled-text": rgba("#f7fbff", 0.86),
+    "--joined-button-bg": joinedButtonSurface,
+    "--joined-button-border": rgba(colorMix(palette.joinedButton, 0.28, "#ffffff"), 0.86),
+    "--joined-button-shadow": `0 16px 30px ${rgba(colorMix(palette.joinedButton, 0.3, "#000000"), 0.28)}`,
+    "--joined-button-text": "#f7fbff",
     "--assistant-fab-bg": assistantFabSurface,
     "--assistant-fab-border": rgba(palette.accent, 0.52),
     "--assistant-fab-border-hover": rgba(palette.gold, 0.78),
@@ -712,9 +775,13 @@ function getThemeCssVariables(theme) {
     "--hero-button-border": colorMix(palette.heroButton, 0.34, "#ffffff"),
     "--hero-button-shadow": `0 18px 36px ${rgba(colorMix(palette.heroButton, 0.34, "#000000"), 0.34)}, 0 0 0 1px ${rgba("#ffffff", 0.08)}, 0 0 28px ${rgba(palette.heroButton, 0.22 + glow * 0.08)}`,
     "--hero-button-shadow-hover": `0 24px 42px ${rgba(colorMix(palette.heroButton, 0.38, "#000000"), 0.4)}, 0 0 0 1px ${rgba("#ffffff", 0.12)}, 0 0 36px ${rgba(palette.heroButton, 0.28 + glow * 0.1)}`,
-    "--deal-button-bg": `linear-gradient(135deg, ${colorMix(palette.accent, 0.42, "#ffffff")}, ${colorMix(palette.accentTertiary, 0.36, "#ffffff")})`,
-    "--deal-button-shadow": `0 22px 38px ${rgba(palette.accent, 0.22)}`,
-    "--deal-button-shadow-hover": `0 24px 42px ${rgba(palette.accentSecondary, 0.24)}`,
+    "--deal-button-bg": primaryButtonSurface,
+    "--deal-button-shadow": `0 22px 38px ${rgba(colorMix(palette.primaryButton, 0.3, "#000000"), 0.3)}`,
+    "--deal-button-shadow-hover": `0 24px 42px ${rgba(colorMix(palette.primaryButton, 0.34, "#000000"), 0.36)}`,
+    "--deal-button-text": "#f7fbff",
+    "--progress-fill-start": palette.progressStart,
+    "--progress-fill-end": palette.progressEnd,
+    "--progress-fill-glow": rgba(palette.progressStart, 0.28),
     "--drawer-bg": drawerSurface,
     "--drawer-border": rgba(palette.accent, 0.28),
     "--drawer-shadow": `0 34px 92px ${rgba("#000000", 0.72)}`,
@@ -1096,6 +1163,13 @@ function getThemeFormState() {
       accentSecondary: formData.get("accentSecondaryColor"),
       accentTertiary: formData.get("accentTertiaryColor"),
       heroButton: formData.get("heroButtonColor"),
+      primaryButton: formData.get("primaryButtonColor"),
+      primaryButtonDisabled: formData.get("primaryButtonDisabledColor"),
+      secondaryButton: formData.get("secondaryButtonColor"),
+      secondaryButtonDisabled: formData.get("secondaryButtonDisabledColor"),
+      joinedButton: formData.get("joinedButtonColor"),
+      progressStart: formData.get("progressStartColor"),
+      progressEnd: formData.get("progressEndColor"),
       gold: formData.get("goldColor"),
       muted: formData.get("mutedColor"),
       success: formData.get("successColor"),
@@ -1581,6 +1655,11 @@ function applyPreviewTheme(theme, target = adminThemePreviewEl) {
   target.style.setProperty("--preview-secondary", palette.accentSecondary);
   target.style.setProperty("--preview-tertiary", palette.accentTertiary);
   target.style.setProperty("--preview-hero-button", palette.heroButton);
+  target.style.setProperty("--preview-primary-button", palette.primaryButton);
+  target.style.setProperty("--preview-secondary-button", palette.secondaryButton);
+  target.style.setProperty("--preview-joined-button", palette.joinedButton);
+  target.style.setProperty("--preview-progress-start", palette.progressStart);
+  target.style.setProperty("--preview-progress-end", palette.progressEnd);
   target.style.setProperty("--preview-gold", palette.gold);
   target.style.setProperty("--preview-muted", palette.muted);
   target.style.setProperty("--preview-success", palette.success);
@@ -1633,6 +1712,13 @@ function resetAdminThemeForm(theme = null) {
   setValue("accentSecondaryColor", record.palette.accentSecondary);
   setValue("accentTertiaryColor", record.palette.accentTertiary);
   setValue("heroButtonColor", record.palette.heroButton);
+  setValue("primaryButtonColor", record.palette.primaryButton);
+  setValue("primaryButtonDisabledColor", record.palette.primaryButtonDisabled);
+  setValue("secondaryButtonColor", record.palette.secondaryButton);
+  setValue("secondaryButtonDisabledColor", record.palette.secondaryButtonDisabled);
+  setValue("joinedButtonColor", record.palette.joinedButton);
+  setValue("progressStartColor", record.palette.progressStart);
+  setValue("progressEndColor", record.palette.progressEnd);
   setValue("goldColor", record.palette.gold);
   setValue("mutedColor", record.palette.muted);
   setValue("successColor", record.palette.success);
@@ -8499,6 +8585,7 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
 
   if (playerEntry) {
     joinButton.textContent = status === "pending" ? "Joined" : "Joined";
+    joinButton.classList.add("is-joined");
     joinButton.disabled = true;
   } else {
     joinButton.textContent = contestIsFull
@@ -9821,7 +9908,11 @@ function updateAdminThemeOverrideUI() {
 function applyResolvedTheme() {
   const resolvedTheme = getResolvedThemeRecord();
   applyTheme(resolvedTheme);
-  if (currentUser?.id && currentUser.id !== GUEST_USER.id) {
+  if (
+    currentUser?.id &&
+    currentUser.id !== GUEST_USER.id &&
+    (!isAdmin() || !adminThemeOverrideTheme)
+  ) {
     persistResolvedTheme(resolvedTheme, currentUser.id);
   }
   updateAdminThemeOverrideUI();
@@ -10344,6 +10435,13 @@ const DEFAULT_CUSTOM_THEME_PALETTE = {
   accentSecondary: "#f857c1",
   accentTertiary: "#8b80ff",
   heroButton: "#f7bfdc",
+  primaryButton: "#4f9bff",
+  primaryButtonDisabled: "#7f9dc7",
+  secondaryButton: "#2b6fd6",
+  secondaryButtonDisabled: "#647da3",
+  joinedButton: "#2f8f83",
+  progressStart: "#63f0ff",
+  progressEnd: "#8b80ff",
   gold: "#ffd166",
   muted: "#bfd5ff",
   success: "#5af78e",
@@ -10620,6 +10718,8 @@ const CUSTOM_THEME_VARIABLE_KEYS = [
   "--bet-spot-border-active",
   "--bet-spot-shadow",
   "--bet-spot-active-shadow",
+  "--bet-total-color",
+  "--bet-total-active-color",
   "--bet-total-glow",
   "--bet-total-active-glow",
   "--status-text-color",
@@ -10638,8 +10738,28 @@ const CUSTOM_THEME_VARIABLE_KEYS = [
   "--chip-bar-bg",
   "--chip-bar-border",
   "--chip-bar-shadow",
+  "--primary-button-bg",
+  "--primary-button-border",
+  "--primary-button-shadow",
+  "--primary-button-shadow-hover",
+  "--primary-button-text",
+  "--primary-button-disabled-bg",
+  "--primary-button-disabled-border",
+  "--primary-button-disabled-shadow",
+  "--primary-button-disabled-text",
   "--secondary-button-bg",
   "--secondary-button-border",
+  "--secondary-button-shadow",
+  "--secondary-button-shadow-hover",
+  "--secondary-button-text",
+  "--secondary-button-disabled-bg",
+  "--secondary-button-disabled-border",
+  "--secondary-button-disabled-shadow",
+  "--secondary-button-disabled-text",
+  "--joined-button-bg",
+  "--joined-button-border",
+  "--joined-button-shadow",
+  "--joined-button-text",
   "--assistant-fab-bg",
   "--assistant-fab-border",
   "--assistant-fab-border-hover",
@@ -10652,6 +10772,10 @@ const CUSTOM_THEME_VARIABLE_KEYS = [
   "--deal-button-bg",
   "--deal-button-shadow",
   "--deal-button-shadow-hover",
+  "--deal-button-text",
+  "--progress-fill-start",
+  "--progress-fill-end",
+  "--progress-fill-glow",
   "--drawer-bg",
   "--drawer-border",
   "--drawer-shadow",
