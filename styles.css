@@ -7281,6 +7281,13 @@ body.play-assistant-open .play-assistant-fab {
     width: 100%;
     min-width: 0;
   }
+
+  #run-the-numbers-view .table-panel,
+  #run-the-numbers-view .betting-panel {
+    box-shadow:
+      0 10px 20px rgba(0, 0, 0, 0.14),
+      inset 0 0 28px color-mix(in srgb, var(--neon-cyan) 10%, transparent);
+  }
 }
 
 @media (min-width: 960px) {
