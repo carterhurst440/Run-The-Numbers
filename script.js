@@ -9843,6 +9843,8 @@ const redBlackDrawsEl = document.getElementById("red-black-draws");
 const redBlackHistoryEl = document.getElementById("red-black-history");
 const redBlackProgressSteps = Array.from(document.querySelectorAll(".beta-ladder-sticky-step[data-red-black-rung]"));
 const redBlackBetSpotButton = document.getElementById("red-black-bet-spot");
+const redBlackWagerPrimaryEl = document.getElementById("red-black-wager-primary");
+const redBlackBetSpotWrapEl = document.getElementById("red-black-bet-spot-wrap");
 const redBlackBetTotalEl = document.getElementById("red-black-bet-total");
 const redBlackBetEmptyLabelEl = document.getElementById("red-black-bet-empty-label");
 const redBlackChipStackEl = document.getElementById("red-black-chip-stack");
@@ -11665,6 +11667,20 @@ function updateRedBlackMultiplierChip() {
   if (!redBlackMultiplierChipEl) return;
   const multiplierText = (formatRedBlackMultiplier(getRedBlackPreviewMultiplier()) || "0x").toUpperCase();
   redBlackMultiplierChipEl.textContent = `Multiplier ${multiplierText}`;
+}
+
+function handleGuess10BetSpotPress() {
+  if (redBlackHandActive || redBlackSettlementPending) return;
+  if (redBlackSelectedChip > bankroll) {
+    setRedBlackStatus(`Not enough bankroll for a ${formatCurrency(redBlackSelectedChip)} unit chip.`);
+    return;
+  }
+  bankroll = roundCurrencyValue(bankroll - redBlackSelectedChip);
+  handleBankrollChanged();
+  redBlackBet += redBlackSelectedChip;
+  renderRedBlackSummary();
+  updateRedBlackActionState();
+  setRedBlackStatus(`Added ${formatCurrency(redBlackSelectedChip)} to the wager. Current bet: ${formatCurrency(redBlackBet)}.`);
 }
 
 function updateRedBlackPaytableHighlight() {
@@ -17232,23 +17248,15 @@ redBlackCategoryButtons.forEach((button) => {
 });
 
 if (redBlackBetSpotButton) {
-  redBlackBetSpotButton.addEventListener("click", () => {
-    if (redBlackHandActive || redBlackSettlementPending) return;
-    if (redBlackSelectedChip > bankroll) {
-      setRedBlackStatus(`Not enough bankroll for a ${formatCurrency(redBlackSelectedChip)} unit chip.`);
-      return;
-    }
-    bankroll = roundCurrencyValue(bankroll - redBlackSelectedChip);
-    handleBankrollChanged();
-    redBlackBet += redBlackSelectedChip;
-    renderRedBlackSummary();
-    updateRedBlackActionState();
-    setRedBlackStatus(`Added ${formatCurrency(redBlackSelectedChip)} to the wager. Current bet: ${formatCurrency(redBlackBet)}.`);
+  redBlackBetSpotButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    handleGuess10BetSpotPress();
   });
 }
 
 if (redBlackClearBetButton) {
-  redBlackClearBetButton.addEventListener("click", () => {
+  redBlackClearBetButton.addEventListener("click", (event) => {
+    event.stopPropagation();
     if (redBlackHandActive || redBlackSettlementPending || redBlackBet === 0) return;
     bankroll = roundCurrencyValue(bankroll + redBlackBet);
     handleBankrollChanged();
@@ -17257,6 +17265,27 @@ if (redBlackClearBetButton) {
     renderRedBlackSummary();
     updateRedBlackActionState();
     setRedBlackStatus("Wager cleared. Select a chip and tap the bet spot to build your hand.");
+  });
+}
+
+if (redBlackBetSpotWrapEl) {
+  redBlackBetSpotWrapEl.addEventListener("click", (event) => {
+    if (event.target instanceof Element && event.target.closest("#red-black-clear-bet-inline")) {
+      return;
+    }
+    if (event.target instanceof Element && event.target.closest("#red-black-bet-spot")) {
+      return;
+    }
+    handleGuess10BetSpotPress();
+  });
+}
+
+if (redBlackWagerPrimaryEl) {
+  redBlackWagerPrimaryEl.addEventListener("click", (event) => {
+    if (event.target instanceof Element && event.target.closest("#red-black-bet-spot-wrap")) {
+      return;
+    }
+    handleGuess10BetSpotPress();
   });
 }
 
