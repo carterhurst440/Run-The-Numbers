@@ -7423,8 +7423,8 @@ body.play-assistant-open .play-assistant-fab {
   width: min(360px, 86vw);
   background: var(--drawer-bg);
   border-left: 2px solid var(--drawer-border);
-  box-shadow: var(--drawer-shadow);
-  transform: translateX(100%);
+  box-shadow: 0 20px 48px color-mix(in srgb, black 36%, transparent);
+  transform: translateX(calc(100% + 72px));
   transition: transform 0.35s ease;
   z-index: 15;
   display: flex;
@@ -7522,7 +7522,7 @@ body.play-assistant-open .play-assistant-fab {
   border-radius: 16px;
   padding: 1rem;
   margin-bottom: 1rem;
-  box-shadow: var(--drawer-shadow);
+  box-shadow: 0 12px 28px color-mix(in srgb, black 22%, transparent);
 }
 
 .drawer-section h3 {
