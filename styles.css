@@ -6221,6 +6221,7 @@ button:disabled {
 .deal:disabled {
   color: rgba(255, 255, 255, 0.98);
   -webkit-text-fill-color: rgba(255, 255, 255, 0.98);
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.18);
 }
 
 .primary {
