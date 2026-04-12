@@ -1107,6 +1107,255 @@ function getThemeFormState() {
 }
 
 function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
+  if (page === "rtn") {
+    return `
+      <div class="design-theme-live-preview app">
+        <header class="header design-theme-preview-header-shell" role="presentation">
+          <div class="header-bar">
+            <div class="header-metrics">
+              <div class="bankroll">
+                <div class="bankroll-main">
+                  <span class="bankroll-label">Bank:</span>
+                  <span class="bankroll-value">500</span>
+                  <span class="bankroll-units">units</span>
+                </div>
+              </div>
+              <div class="carter-cash">
+                <span class="carter-label">CC:</span>
+                <span class="carter-value">0</span>
+              </div>
+            </div>
+            <div class="header-actions">
+              <div class="header-mode-select-wrap">
+                <span class="header-mode-select design-theme-preview-mode-label">Normal Mode</span>
+              </div>
+              <button type="button" class="icon-button notification-toggle" aria-hidden="true" tabindex="-1"></button>
+              <button type="button" class="menu-toggle" aria-hidden="true" tabindex="-1">
+                <span class="menu-icon" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
+        </header>
+        <section class="app-page play-view design-theme-preview-page">
+          <main class="layout">
+            <div class="panels">
+              <section class="panel table-panel" aria-label="Table play area">
+                <section class="dealer-zone">
+                  <div class="dealer-header">
+                    <div class="dealer-title-group">
+                      <p class="dealer-game-tag">Run the Numbers</p>
+                      <h2 class="draws-title">Cards Dealt</h2>
+                    </div>
+                    <label class="advanced-toggle deal-mode-toggle is-active">
+                      <span class="toggle-label">Auto Deal</span>
+                      <span class="toggle-visual" aria-hidden="true"><span class="toggle-thumb"></span></span>
+                    </label>
+                  </div>
+                  <div class="draws" aria-label="Cards dealt this hand">
+                    <div class="card">
+                      <div class="card-face">7</div>
+                    </div>
+                    <div class="card">
+                      <div class="card-face">A</div>
+                    </div>
+                    <div class="card">
+                      <div class="card-face">4</div>
+                    </div>
+                  </div>
+                </section>
+              </section>
+              <section class="panel betting-panel" aria-label="Betting regions">
+                <div class="status">Select a chip and place your bets in the betting panel.</div>
+                <div class="betting-scroll">
+                  <section class="number-bets">
+                    <div class="bets-heading-row">
+                      <div class="bets-heading-main">
+                        <h2 class="bets-heading">Number Bets</h2>
+                      </div>
+                      <p class="bets-subheading">Lock before dealing</p>
+                    </div>
+                    <div class="active-paytable active-paytable-inline">
+                      <div class="active-paytable-info">
+                        <div class="active-paytable-inline-row">
+                          <span class="active-paytable-name">Paytable 1</span>
+                          <button type="button" class="change-paytable">Change</button>
+                        </div>
+                        <span class="active-paytable-steps">3x, 4x, 15x, 50x</span>
+                      </div>
+                    </div>
+                    <div class="playmat" role="group" aria-label="Number bet spots">
+                      <button class="bet-spot" type="button"><span class="bet-label">A</span><span class="bet-total">0</span></button>
+                      <button class="bet-spot" type="button"><span class="bet-label">2</span><span class="bet-total">0</span></button>
+                      <button class="bet-spot has-bet" type="button"><span class="bet-label">3</span><span class="bet-total">25</span></button>
+                      <button class="bet-spot" type="button"><span class="bet-label">4</span><span class="bet-total">0</span></button>
+                      <button class="bet-spot" type="button"><span class="bet-label">5</span><span class="bet-total">0</span></button>
+                      <button class="bet-spot" type="button"><span class="bet-label">6</span><span class="bet-total">0</span></button>
+                      <button class="bet-spot" type="button"><span class="bet-label">7</span><span class="bet-total">0</span></button>
+                      <button class="bet-spot" type="button"><span class="bet-label">8</span><span class="bet-total">0</span></button>
+                      <button class="bet-spot" type="button"><span class="bet-label">9</span><span class="bet-total">0</span></button>
+                      <button class="bet-spot" type="button"><span class="bet-label">10</span><span class="bet-total">0</span></button>
+                    </div>
+                  </section>
+                </div>
+              </section>
+            </div>
+          </main>
+          <div class="chip-bar" aria-label="RTN chip rack">
+            <div class="chip-selector-row">
+              <div class="chip-selector">
+                <button type="button" class="chip-choice active" data-tone="0">5</button>
+                <button type="button" class="chip-choice" data-tone="1">10</button>
+                <button type="button" class="chip-choice" data-tone="2">25</button>
+                <button type="button" class="chip-choice" data-tone="3">100</button>
+              </div>
+            </div>
+            <div class="chip-actions">
+              <button type="button" class="secondary">Clear</button>
+              <button type="button" class="deal">Deal Hand</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  if (page === "guess10") {
+    return `
+      <div class="design-theme-live-preview app">
+        <header class="header design-theme-preview-header-shell" role="presentation">
+          <div class="header-bar">
+            <div class="header-metrics">
+              <div class="bankroll">
+                <div class="bankroll-main">
+                  <span class="bankroll-label">Bank:</span>
+                  <span class="bankroll-value">500</span>
+                  <span class="bankroll-units">units</span>
+                </div>
+              </div>
+              <div class="carter-cash">
+                <span class="carter-label">CC:</span>
+                <span class="carter-value">0</span>
+              </div>
+            </div>
+            <div class="header-actions">
+              <div class="header-mode-select-wrap">
+                <span class="header-mode-select design-theme-preview-mode-label">Normal Mode</span>
+              </div>
+              <button type="button" class="icon-button notification-toggle" aria-hidden="true" tabindex="-1"></button>
+              <button type="button" class="menu-toggle" aria-hidden="true" tabindex="-1">
+                <span class="menu-icon" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
+        </header>
+        <section class="app-page beta-game-view design-theme-preview-page">
+          <div class="beta-game-shell">
+            <div class="beta-table-layout beta-table-layout-split">
+              <section class="beta-game-panel beta-table-panel beta-draw-panel">
+                <div class="beta-table-header">
+                  <div class="beta-draw-title-group">
+                    <div class="beta-draw-brand-row">
+                      <p class="beta-game-panel-kicker">Guess 10</p>
+                      <span class="game-beta-pill beta-draw-beta-pill">Beta</span>
+                    </div>
+                    <h2>Cards Dealt</h2>
+                  </div>
+                </div>
+                <div class="beta-ladder-sticky-rail beta-ladder-sticky-rail-inline">
+                  <p class="beta-ladder-sticky-title">Commission Ladder</p>
+                  <div class="beta-ladder-sticky-track">
+                    <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">10%</span></span>
+                    <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">9%</span></span>
+                    <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">8%</span></span>
+                    <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">7%</span></span>
+                  </div>
+                </div>
+                <div class="beta-draw-area">
+                  <div class="dealer-header">
+                    <div class="dealer-title-group">
+                      <h3 class="draws-title">Revealed Cards</h3>
+                      <p class="beta-draw-subcopy">Every card dealt from a fresh 52 card deck.</p>
+                    </div>
+                  </div>
+                  <div class="draws beta-draws">
+                    <div class="card"><div class="card-face">Q</div></div>
+                    <div class="card"><div class="card-face">6</div></div>
+                    <div class="card"><div class="card-face">A</div></div>
+                  </div>
+                </div>
+                <p class="beta-status beta-status-inline">Build one base wager, choose COLOR, SUIT, or RANK, make your selection, then draw.</p>
+              </section>
+              <section class="beta-game-panel beta-table-panel beta-control-panel">
+                <div class="beta-table-header">
+                  <div class="beta-control-heading">
+                    <p class="beta-game-panel-kicker">Controls</p>
+                    <div class="beta-control-title-row">
+                      <h2>Prediction</h2>
+                      <span class="beta-control-multiplier">Multiplier 2X</span>
+                    </div>
+                    <div class="beta-action-group beta-action-group-wager">
+                      <div class="beta-wager-inline-labels">
+                        <p class="beta-control-label">Wager</p>
+                        <p class="beta-control-label">Pot Size</p>
+                      </div>
+                      <div class="beta-wager-inline-row">
+                        <div class="beta-bet-spot-wrap">
+                          <div class="beta-bet-spot beta-bet-spot-circle is-empty">
+                            <span class="beta-bet-empty-label">Place Bets Here</span>
+                          </div>
+                        </div>
+                        <div class="beta-bet-spot beta-bet-spot-circle beta-pot-spot">
+                          <span class="beta-bet-spot-total">0</span>
+                          <span class="beta-pot-commission-preview">(-0)</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="beta-prediction-panel">
+                  <div class="beta-action-group">
+                    <p class="beta-control-label">Category</p>
+                    <div class="beta-category-row">
+                      <button type="button" class="secondary beta-category-button active">Color</button>
+                      <button type="button" class="secondary beta-category-button">Suit</button>
+                      <button type="button" class="secondary beta-category-button">Rank</button>
+                    </div>
+                  </div>
+                  <div class="beta-action-group">
+                    <p class="beta-control-label">Selection</p>
+                    <div class="beta-selection-meta">
+                      <span class="beta-selection-hint">Pick exactly 1 color.</span>
+                      <span class="beta-selection-summary">1 selected</span>
+                    </div>
+                    <div class="beta-value-grid">
+                      <button type="button" class="secondary beta-value-button active">Red</button>
+                      <button type="button" class="secondary beta-value-button">Black</button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+          <div class="chip-bar beta-chip-bar" aria-label="Guess 10 chip rack">
+            <div class="chip-selector-row beta-chip-selector-row">
+              <div class="chip-selector">
+                <button type="button" class="chip-choice active" data-tone="0">5</button>
+                <button type="button" class="chip-choice" data-tone="1">10</button>
+                <button type="button" class="chip-choice" data-tone="2">25</button>
+                <button type="button" class="chip-choice" data-tone="3">100</button>
+              </div>
+            </div>
+            <div class="chip-actions beta-chip-actions">
+              <button type="button" class="secondary">Rebet</button>
+              <button type="button" class="deal">Draw</button>
+              <button type="button" class="secondary">Cash Out</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
   if (page === "play") {
     return `
       <div class="design-theme-live-preview app">

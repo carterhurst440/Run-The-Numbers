@@ -9952,6 +9952,71 @@ body.modal-open {
   min-height: 0;
 }
 
+.design-theme-live-preview .layout {
+  height: auto;
+  min-height: 0;
+  padding: 0.85rem 0.95rem 0.95rem;
+}
+
+.design-theme-live-preview .panels {
+  grid-template-rows: none;
+  height: auto;
+  min-height: 0;
+}
+
+.design-theme-live-preview .beta-game-shell {
+  width: 100%;
+  padding: 0.85rem 0.95rem 0;
+  min-height: 0;
+}
+
+.design-theme-live-preview .chip-bar,
+.design-theme-live-preview .beta-chip-bar {
+  position: relative;
+  bottom: auto;
+  left: auto;
+  flex: 0 0 auto;
+}
+
+.design-theme-live-preview .table-panel,
+.design-theme-live-preview .betting-panel,
+.design-theme-live-preview .beta-table-panel {
+  min-height: 0;
+  height: auto;
+}
+
+.design-theme-live-preview .draws {
+  min-height: 7rem;
+}
+
+.design-theme-live-preview .draws .card {
+  width: 54px;
+  height: 78px;
+}
+
+.design-theme-live-preview .playmat {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.design-theme-live-preview .bet-spot {
+  max-width: none;
+}
+
+.design-theme-live-preview .beta-table-layout,
+.design-theme-live-preview .beta-table-layout-split {
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.9fr);
+}
+
+.design-theme-live-preview .beta-value-grid {
+  min-height: 0;
+}
+
+.design-theme-live-preview .beta-bet-spot-wrap,
+.design-theme-live-preview .beta-bet-spot-circle {
+  width: 100%;
+  min-width: 0;
+}
+
 .design-theme-live-preview .header-bar {
   padding: 0.75rem 0.9rem;
 }
@@ -10536,6 +10601,13 @@ body.modal-open {
 
   .design-preview-select-field {
     min-width: 0;
+  }
+
+  .design-theme-live-preview .playmat,
+  .design-theme-live-preview .beta-table-layout,
+  .design-theme-live-preview .beta-table-layout-split,
+  .design-theme-live-preview .panels {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .design-color-grid,
