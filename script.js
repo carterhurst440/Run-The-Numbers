@@ -1106,9 +1106,186 @@ function getThemeFormState() {
   });
 }
 
+function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
+  if (page === "play") {
+    return `
+      <div class="design-theme-live-preview app">
+        <header class="header design-theme-preview-header-shell" role="presentation">
+          <div class="header-bar">
+            <div class="header-metrics">
+              <div class="bankroll">
+                <div class="bankroll-main">
+                  <span class="bankroll-label">Bank:</span>
+                  <span class="bankroll-value">500</span>
+                  <span class="bankroll-units">units</span>
+                </div>
+              </div>
+              <div class="carter-cash">
+                <span class="carter-label">CC:</span>
+                <span class="carter-value">0</span>
+              </div>
+            </div>
+            <div class="header-actions">
+              <div class="header-mode-select-wrap">
+                <span class="header-mode-select design-theme-preview-mode-label">Normal Mode</span>
+              </div>
+              <button type="button" class="icon-button notification-toggle" aria-hidden="true" tabindex="-1"></button>
+              <button type="button" class="menu-toggle" aria-hidden="true" tabindex="-1">
+                <span class="menu-icon" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
+        </header>
+        <main class="app-main design-theme-preview-main">
+          <section class="app-page home-view play-hub-view design-theme-preview-page">
+            <div class="home-hero play-hub-hero">
+              <h1 class="home-title">PLAY</h1>
+              <p class="home-subtitle">Choose a game to jump straight to the table.</p>
+              <section class="home-games" aria-label="Available games">
+                <article class="game-card game-card-primary">
+                  <div class="game-card-head">
+                    <p class="game-card-kicker">Original Game</p>
+                    <h2 class="game-card-title">RUN THE NUMBERS</h2>
+                  </div>
+                  <p class="game-card-copy">Build your wager board, fade the bust card, and press number hits across the active paytable.</p>
+                  <button type="button" class="home-button home-primary home-cta-button">Play Run the Numbers</button>
+                </article>
+                <article class="game-card game-card-beta">
+                  <div class="game-card-head">
+                    <p class="game-card-kicker">New Beta Game</p>
+                    <div class="game-card-title-row">
+                      <h2 class="game-card-title">GUESS 10</h2>
+                      <span class="game-beta-pill">Beta</span>
+                    </div>
+                  </div>
+                  <p class="game-card-copy">Predict by color, suit, or rank, multiply the live pot on every hit, and cash out before the deck turns on you.</p>
+                  <button type="button" class="home-button home-secondary">Play GUESS 10</button>
+                </article>
+              </section>
+            </div>
+          </section>
+        </main>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="design-theme-live-preview app">
+      <header class="header design-theme-preview-header-shell" role="presentation">
+        <div class="header-bar">
+          <div class="header-metrics">
+            <div class="bankroll">
+              <div class="bankroll-main">
+                <span class="bankroll-label">Bank:</span>
+                <span class="bankroll-value">500</span>
+                <span class="bankroll-units">units</span>
+              </div>
+            </div>
+            <div class="carter-cash">
+              <span class="carter-label">CC:</span>
+              <span class="carter-value">0</span>
+            </div>
+          </div>
+          <div class="header-actions">
+            <div class="header-mode-select-wrap">
+              <span class="header-mode-select design-theme-preview-mode-label">Normal Mode</span>
+            </div>
+            <button type="button" class="icon-button notification-toggle" aria-hidden="true" tabindex="-1"></button>
+            <button type="button" class="menu-toggle" aria-hidden="true" tabindex="-1">
+              <span class="menu-icon" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+      </header>
+      <main class="app-main design-theme-preview-main">
+        <section class="app-page home-view design-theme-preview-page design-theme-preview-home-page">
+          <div class="home-hero">
+            <h1 class="home-title">Welcome to the Casino Floor</h1>
+            <p class="home-subtitle">Track your rank, jump into live contests, and head to Play when you're ready to pick a table.</p>
+            <div class="home-actions">
+              <button type="button" class="home-button home-primary home-cta-button home-hero-play-button">Play</button>
+            </div>
+            <p class="home-rank-typing">Analyst Carter Hurst, you're on. Review the numbers and report your position.</p>
+            <section class="home-rank-panel" aria-label="Current rank">
+              <div class="home-rank-header">
+                <div>
+                  <p class="home-rank-eyebrow">Current Rank</p>
+                  <div class="home-rank-title-row">
+                    <div class="home-rank-icon-wrap home-rank-icon-inline">
+                      <div class="home-rank-icon-fallback" aria-hidden="true">2</div>
+                    </div>
+                    <h2 class="home-rank-title">Analyst · Tier 2</h2>
+                  </div>
+                </div>
+                <button type="button" class="link-button">Rank Ladder</button>
+              </div>
+              <div class="home-rank-progress-grid">
+                <div class="rank-progress-card">
+                  <div class="rank-progress-label-row">
+                    <span>Hands Played</span>
+                    <span>4,775 / 2,000</span>
+                  </div>
+                  <div class="rank-progress-track" aria-hidden="true">
+                    <div class="rank-progress-fill" style="width: 100%"></div>
+                  </div>
+                </div>
+                <div class="rank-progress-card">
+                  <div class="rank-progress-label-row">
+                    <span>Contest Victories</span>
+                    <span>0 / 1</span>
+                  </div>
+                  <div class="rank-progress-track" aria-hidden="true">
+                    <div class="rank-progress-fill" style="width: 0%"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section class="home-contests-panel" aria-label="Contest spotlight">
+              <div class="home-contests-header">
+                <div>
+                  <h2 class="home-contests-title">Contest Spotlight</h2>
+                </div>
+                <button type="button" class="home-contests-link">See All Contests</button>
+              </div>
+              <ul class="home-live-contest-list">
+                <li class="home-contest-card">
+                  <div class="home-contest-card-top">
+                    <div class="home-contest-title-wrap">
+                      <div class="home-contest-title-row">
+                        <h3 class="home-contest-card-title">Weekly Bankroll Sprint</h3>
+                        <span class="contest-entry-fee-badge">25 Units</span>
+                      </div>
+                      <p class="home-contest-card-window">Ends Sunday at 10 PM</p>
+                    </div>
+                  </div>
+                  <p class="home-contest-card-prize">$250 Prize Pool</p>
+                  <div class="contest-threshold-progress contest-threshold-progress-home">
+                    <p class="contest-threshold-progress-title">Boost unlock at 50 players</p>
+                    <div class="contest-threshold-progress-bar">
+                      <span class="contest-threshold-progress-fill" style="width: 68%"></span>
+                    </div>
+                    <p class="contest-threshold-progress-meta">34 / 50 players entered</p>
+                  </div>
+                </li>
+              </ul>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+  `;
+}
+
+function renderAdminThemePreview(page = adminThemePreviewPage) {
+  if (!(adminThemePreviewEl instanceof HTMLElement)) return;
+  adminThemePreviewPage = page;
+  adminThemePreviewEl.innerHTML = getAdminThemePreviewMarkup(page);
+}
+
 function applyPreviewTheme(theme, target = adminThemePreviewEl) {
   if (!(target instanceof HTMLElement)) return;
   const record = normalizeThemeRecord(theme);
+  applyThemeVariables(record, target);
   const palette = normalizeThemePalette(record.palette);
   const settings = normalizeThemeSettings(record.settings);
   target.style.setProperty("--preview-accent", palette.accent);
@@ -1192,6 +1369,10 @@ function resetAdminThemeForm(theme = null) {
   if (adminThemeModalTitle) {
     adminThemeModalTitle.textContent = theme ? "Edit theme" : "Create theme";
   }
+  if (adminThemePreviewPageSelect instanceof HTMLSelectElement) {
+    adminThemePreviewPageSelect.value = adminThemePreviewPage;
+  }
+  renderAdminThemePreview(adminThemePreviewPage);
   applyPreviewTheme(record);
   updateAdminThemeOverrideUI();
 }
@@ -9705,6 +9886,7 @@ const adminThemeForm = document.getElementById("admin-theme-form");
 const adminThemeListEl = document.getElementById("admin-theme-list");
 const adminThemeMessage = document.getElementById("admin-theme-message");
 const adminThemePreviewEl = document.getElementById("admin-theme-preview");
+const adminThemePreviewPageSelect = document.getElementById("admin-theme-preview-page");
 const adminThemeOverrideStatus = document.getElementById("admin-theme-override-status");
 const adminThemeCreateButton = document.getElementById("admin-theme-create-button");
 const adminThemeModal = document.getElementById("admin-theme-modal");
@@ -10205,6 +10387,7 @@ let adminEditingThemeSourceBuiltin = false;
 let adminThemeOverrideTheme = null;
 let adminThemeOverrideStoredKey = null;
 let adminThemeOverrideUserId = null;
+let adminThemePreviewPage = "home";
 let adminPrizeCache = [];
 let rankLadderCache = [];
 let themeLibraryCache = [];
@@ -15009,6 +15192,14 @@ if (adminThemeForm) {
   });
   adminThemeForm.addEventListener("submit", (event) => {
     void handleAdminThemeSubmit(event);
+  });
+}
+
+if (adminThemePreviewPageSelect) {
+  adminThemePreviewPageSelect.addEventListener("change", () => {
+    adminThemePreviewPage = adminThemePreviewPageSelect.value || "home";
+    renderAdminThemePreview(adminThemePreviewPage);
+    applyPreviewTheme(getThemeFormState());
   });
 }
 

@@ -9851,6 +9851,18 @@ body.modal-open {
   color: var(--muted);
 }
 
+.design-preview-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.design-preview-select-field {
+  min-width: 10rem;
+  flex: 0 0 auto;
+}
+
 .design-preview-shell {
   --preview-radius: 24px;
   --preview-accent: #63f0ff;
@@ -9898,6 +9910,118 @@ body.modal-open {
 
 .design-home-preview-shell {
   padding: 0;
+}
+
+.design-theme-live-preview-shell {
+  padding: 0;
+  background: transparent;
+  border-radius: 1.2rem;
+  overflow: hidden;
+}
+
+.design-theme-live-preview {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  color: var(--text-light);
+  background: var(--body-bg);
+  background-size: var(--body-bg-size);
+  background-position: var(--body-bg-position);
+}
+
+.design-theme-live-preview.app {
+  min-height: 100%;
+}
+
+.design-theme-preview-header-shell.header {
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  flex: 0 0 auto;
+}
+
+.design-theme-preview-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+.design-theme-preview-page {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.design-theme-live-preview .header-bar {
+  padding: 0.75rem 0.9rem;
+}
+
+.design-theme-live-preview .bankroll-main,
+.design-theme-live-preview .carter-cash,
+.design-theme-live-preview .header-mode-select,
+.design-theme-live-preview .design-theme-preview-mode-label {
+  font-size: 0.78rem;
+}
+
+.design-theme-live-preview .notification-toggle,
+.design-theme-live-preview .menu-toggle {
+  width: 2.65rem;
+  height: 2.65rem;
+  min-width: 2.65rem;
+}
+
+.design-theme-live-preview .design-theme-preview-mode-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.65rem;
+  min-width: 12rem;
+  pointer-events: none;
+}
+
+.design-theme-live-preview .home-view {
+  padding: 0.9rem 1rem 1.15rem;
+}
+
+.design-theme-live-preview .home-hero {
+  min-height: auto;
+  gap: 0.8rem;
+}
+
+.design-theme-live-preview .home-title {
+  font-size: clamp(2rem, 4.2vw, 3.35rem);
+}
+
+.design-theme-live-preview .home-subtitle,
+.design-theme-live-preview .home-rank-typing {
+  max-width: 46rem;
+}
+
+.design-theme-live-preview .home-rank-typing {
+  display: block;
+  margin: 0;
+}
+
+.design-theme-live-preview .home-rank-panel,
+.design-theme-live-preview .home-contests-panel {
+  width: min(100%, 720px);
+}
+
+.design-theme-live-preview .home-contests-panel {
+  display: block;
+}
+
+.design-theme-live-preview .home-games {
+  width: min(100%, 860px);
+}
+
+.design-theme-live-preview .game-card {
+  text-align: left;
+}
+
+.design-theme-live-preview .home-button,
+.design-theme-live-preview .link-button,
+.design-theme-live-preview .home-contests-link {
+  pointer-events: none;
 }
 
 .design-home-preview-app {
@@ -10403,6 +10527,15 @@ body.modal-open {
 
   .admin-theme-modal-layout {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .design-preview-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .design-preview-select-field {
+    min-width: 0;
   }
 
   .design-color-grid,
