@@ -10628,6 +10628,7 @@ const PROFILE_SYNC_INTERVAL = 15000;
 const PLAY_ASSISTANT_MAX_HISTORY = 12;
 const PLAY_ASSISTANT_HISTORY_LIMIT = 100;
 const PLAY_ASSISTANT_HISTORY_CACHE_MS = 60 * 1000;
+const PLAY_ASSISTANT_REQUEST_TIMEOUT_MS = 25000;
 const PLAY_ASSISTANT_RULES_SUMMARY = [
   "Run the Numbers uses a fresh 53-card deck every hand.",
   "Ace and number cards 2 through 10 keep the hand alive.",
@@ -13950,13 +13951,19 @@ function parseAssistantDirective(message, state) {
 async function requestPlayAssistantResponse(userMessage) {
   const state = await getPlayAssistantState();
   try {
-    const { data, error } = await supabase.functions.invoke("play-assistant", {
+    const invokePromise = supabase.functions.invoke("play-assistant", {
       body: {
         message: userMessage,
         messages: serializePlayAssistantMessages(),
         state
       }
     });
+    const timeoutPromise = new Promise((_, reject) => {
+      window.setTimeout(() => {
+        reject(new Error("Play assistant request timed out."));
+      }, PLAY_ASSISTANT_REQUEST_TIMEOUT_MS);
+    });
+    const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
     if (error) {
       throw error;
     }

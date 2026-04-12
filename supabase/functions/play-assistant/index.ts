@@ -128,6 +128,7 @@ type DraftBetPlanArgs = {
 };
 
 const DEFAULT_MODEL = Deno.env.get("OPENAI_MODEL") || "gpt-5-mini";
+const RESPONSES_API_TIMEOUT_MS = 20000;
 
 const SYSTEM_PROMPT = `
 You are the Run the Numbers PLAY assistant.
@@ -740,14 +741,17 @@ async function callResponsesApi(body: Record<string, unknown>) {
     throw new Error("Missing OPENAI_API_KEY.");
   }
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort("responses-timeout"), RESPONSES_API_TIMEOUT_MS);
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify(body)
-  });
+    body: JSON.stringify(body),
+    signal: controller.signal
+  }).finally(() => clearTimeout(timeoutId));
 
   if (!response.ok) {
     throw new Error(await response.text());
