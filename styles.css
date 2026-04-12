@@ -5266,6 +5266,7 @@ body.theme-angelic {
   display: flex;
   flex-direction: column;
   gap: clamp(0.9rem, 2vw, 1.3rem);
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 0 0 clamp(0.9rem, 2vw, 1.15rem);
   min-height: 0;
@@ -7245,6 +7246,15 @@ body.play-assistant-open .play-assistant-fab {
 
   .playmat {
     grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  }
+
+  .playmat,
+  .specific-cards-grid,
+  .card-count-grid,
+  .bust-grid,
+  .suit-bet-grid {
+    padding: 0;
+    margin: 0;
   }
 
   .chip-bar {
