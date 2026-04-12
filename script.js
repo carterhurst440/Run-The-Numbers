@@ -468,45 +468,23 @@ function humanizeThemeKey(themeKey) {
     .replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
-function getBuiltinThemeRecords() {
-  return Object.keys(THEME_CLASS_MAP).map((key) => ({
-    id: `builtin-${key}`,
-    key,
-    name: BUILTIN_THEME_LABELS[key] || humanizeThemeKey(key),
-    base_theme: key,
-    palette: { ...(BUILTIN_THEME_PROFILES[key]?.palette || DEFAULT_CUSTOM_THEME_PALETTE) },
-    settings: { ...(BUILTIN_THEME_PROFILES[key]?.settings || DEFAULT_CUSTOM_THEME_SETTINGS) },
-    is_builtin: true
-  }));
-}
-
 function normalizeThemeRecord(theme = {}) {
-  const key = slugifyThemeKey(theme.key || theme.name || theme.base_theme || "blue") || "blue";
-  const isBuiltin = Boolean(theme.is_builtin) || Boolean(THEME_CLASS_MAP[key] && !theme.base_theme);
-  const baseThemeCandidate = String(theme.base_theme || key || "blue").trim();
+  const source = theme && typeof theme === "object" ? theme : {};
+  const key = slugifyThemeKey(source.key || source.name || source.base_theme || "blue") || "blue";
+  const baseThemeCandidate = String(source.base_theme || key || "blue").trim();
   const baseTheme = THEME_CLASS_MAP[baseThemeCandidate] ? baseThemeCandidate : "blue";
-  const builtinProfile = BUILTIN_THEME_PROFILES[key] || null;
-  const paletteSource = hasThemeOverrides(theme.palette)
-    ? theme.palette
-    : builtinProfile?.palette || DEFAULT_CUSTOM_THEME_PALETTE;
-  const settingsSource = hasThemeOverrides(theme.settings)
-    ? theme.settings
-    : builtinProfile?.settings || DEFAULT_CUSTOM_THEME_SETTINGS;
   return {
-    id: theme.id || (isBuiltin ? `builtin-${key}` : null),
+    id: source.id || null,
     key,
-    name: String(theme.name || BUILTIN_THEME_LABELS[key] || humanizeThemeKey(key)).trim() || humanizeThemeKey(key),
-    base_theme: isBuiltin ? key : baseTheme,
-    palette: normalizeThemePalette(paletteSource),
-    settings: normalizeThemeSettings(settingsSource),
-    is_builtin: isBuiltin
+    name: String(source.name || humanizeThemeKey(key)).trim() || humanizeThemeKey(key),
+    base_theme: baseTheme,
+    palette: normalizeThemePalette(source.palette || {}),
+    settings: normalizeThemeSettings(source.settings || {}),
+    is_builtin: false
   };
 }
 
 function getThemeLibrary() {
-  if (!themeLibraryCache.length) {
-    themeLibraryCache = getBuiltinThemeRecords().map((theme) => normalizeThemeRecord(theme));
-  }
   return themeLibraryCache;
 }
 
@@ -515,34 +493,27 @@ function getThemeRecord(themeKey) {
     return normalizeThemeRecord(themeKey);
   }
   const key = slugifyThemeKey(themeKey || "blue") || "blue";
-  return getThemeLibrary().find((theme) => theme.key === key) || normalizeThemeRecord({ key: "blue", is_builtin: true });
+  return getThemeLibrary().find((theme) => theme.key === key) || getThemeLibrary()[0] || null;
 }
 
 async function loadThemeLibrary(force = false) {
-  if (!force && themeLibraryCache.length) {
+  if (!force && themeLibraryHydrated) {
     return themeLibraryCache;
   }
 
-  const builtin = getBuiltinThemeRecords().map((theme) => normalizeThemeRecord(theme));
   if (!supabase) {
-    themeLibraryCache = builtin;
     return themeLibraryCache;
   }
 
   try {
     const { data, error } = await supabase.from("themes").select("*").order("name", { ascending: true });
     if (error) throw error;
-    const remoteThemes = (Array.isArray(data) ? data : []).map((theme) => normalizeThemeRecord(theme));
-    const mergedByKey = new Map(builtin.map((theme) => [theme.key, theme]));
-    remoteThemes.forEach((theme) => {
-      mergedByKey.set(theme.key, theme);
-    });
-    themeLibraryCache = Array.from(mergedByKey.values()).sort((a, b) =>
+    themeLibraryCache = (Array.isArray(data) ? data : []).map((theme) => normalizeThemeRecord(theme)).sort((a, b) =>
       String(a.name || "").localeCompare(String(b.name || ""))
     );
+    themeLibraryHydrated = true;
   } catch (error) {
-    console.warn("[RTN] loadThemeLibrary falling back to builtin themes", error);
-    themeLibraryCache = builtin;
+    console.warn("[RTN] loadThemeLibrary failed", error);
   }
 
   refreshAdminThemeOverrideThemeFromLibrary();
@@ -820,6 +791,7 @@ function applyThemeVariables(theme, target = document.body) {
 }
 
 function normalizeRankRecord(rank = {}) {
+  const themeKey = slugifyThemeKey(rank.theme_key || "blue") || "blue";
   return {
     id: rank.id || null,
     tier: Math.max(1, Number(rank.tier || 1)),
@@ -828,7 +800,7 @@ function normalizeRankRecord(rank = {}) {
     required_hands_played: Math.max(0, Math.round(Number(rank.required_hands_played || 0))),
     required_contest_wins: Math.max(0, Math.round(Number(rank.required_contest_wins || 0))),
     icon_url: typeof rank.icon_url === "string" ? rank.icon_url.trim() : "",
-    theme_key: getThemeRecord(rank.theme_key).key
+    theme_key: themeKey
   };
 }
 
@@ -1100,32 +1072,37 @@ function getRankByTier(tier, ladder = getRankLadder()) {
 }
 
 function getRankThemeLabel(themeKey) {
-  return getThemeRecord(themeKey).name;
+  return getThemeRecord(themeKey)?.name || humanizeThemeKey(themeKey);
 }
 
-function renderThemeSelectOptions(selectEl, selectedKey = "blue", { includeBuiltins = true, onlyBuiltins = false } = {}) {
+function renderThemeSelectOptions(selectEl, selectedKey = "blue") {
   if (!(selectEl instanceof HTMLSelectElement)) return;
-  const themes = getThemeLibrary().filter((theme) => {
-    if (onlyBuiltins) return theme.is_builtin;
-    return includeBuiltins || !theme.is_builtin;
-  });
-  const selected = getThemeRecord(selectedKey).key;
+  const themes = getThemeLibrary();
+  const selected = getThemeRecord(selectedKey)?.key || selectedKey;
   selectEl.innerHTML = "";
   themes.forEach((theme) => {
     const option = document.createElement("option");
     option.value = theme.key;
-    option.textContent = theme.is_builtin ? `${theme.name} (Built-in)` : theme.name;
+    option.textContent = theme.name;
     option.selected = theme.key === selected;
     selectEl.appendChild(option);
   });
 }
 
 function populateAdminThemeBaseOptions(selectedKey = "blue") {
-  renderThemeSelectOptions(adminThemeBaseSelect, selectedKey, { includeBuiltins: true, onlyBuiltins: true });
+  if (!(adminThemeBaseSelect instanceof HTMLSelectElement)) return;
+  adminThemeBaseSelect.innerHTML = "";
+  Object.keys(THEME_CLASS_MAP).forEach((key) => {
+    const option = document.createElement("option");
+    option.value = key;
+    option.textContent = humanizeThemeKey(key);
+    option.selected = key === selectedKey;
+    adminThemeBaseSelect.appendChild(option);
+  });
 }
 
 function populateAdminRankThemeOptions(selectedKey = "blue") {
-  renderThemeSelectOptions(adminRankThemeSelect, selectedKey, { includeBuiltins: true });
+  renderThemeSelectOptions(adminRankThemeSelect, selectedKey);
 }
 
 function getThemeFormState() {
@@ -1673,10 +1650,9 @@ function resetAdminThemeForm(theme = null) {
       settings: DEFAULT_CUSTOM_THEME_SETTINGS
     }
   );
-  const isProtectedBuiltin = String(record.id || "").startsWith("builtin-");
-  adminEditingThemeId = isProtectedBuiltin ? null : record.id;
+  adminEditingThemeId = record.id;
   adminEditingThemeSourceKey = theme?.key || null;
-  adminEditingThemeSourceBuiltin = isProtectedBuiltin;
+  adminEditingThemeSourceBuiltin = false;
   const setValue = (name, value) => {
     const field = adminThemeForm.elements.namedItem(name);
     if (field instanceof HTMLInputElement && field.type === "checkbox") {
@@ -1689,9 +1665,9 @@ function resetAdminThemeForm(theme = null) {
   };
   setValue("themeId", record.id || "");
   setValue("themeSourceKey", theme?.key || "");
-  setValue("themeSourceBuiltin", isProtectedBuiltin ? "1" : "0");
+  setValue("themeSourceBuiltin", "0");
   setValue("themeName", theme?.name || "");
-  setValue("themeKey", isProtectedBuiltin ? "" : theme?.key || "");
+  setValue("themeKey", theme?.key || "");
   populateAdminThemeBaseOptions(record.base_theme || "blue");
   setValue("baseTheme", record.base_theme || "blue");
   setValue("accentColor", record.palette.accent);
@@ -1722,7 +1698,7 @@ function resetAdminThemeForm(theme = null) {
     adminThemeMessage.textContent = "";
   }
   if (adminThemeSaveButton) {
-    adminThemeSaveButton.textContent = theme && !record.is_builtin ? "Save theme" : "Save theme";
+    adminThemeSaveButton.textContent = "Save theme";
   }
   if (adminThemeModalTitle) {
     adminThemeModalTitle.textContent = theme ? "Edit theme" : "Create theme";
@@ -1785,7 +1761,6 @@ function createDuplicateThemeDraft(theme) {
 function renderAdminThemeRow(theme) {
   const item = document.createElement("li");
   item.className = "admin-theme-card";
-  const isProtectedBuiltin = String(theme?.id || "").startsWith("builtin-");
   item.innerHTML = `
     <div class="admin-theme-card-header">
       <div>
@@ -1799,7 +1774,7 @@ function renderAdminThemeRow(theme) {
       <button type="button" class="secondary">Edit Theme</button>
       <button type="button" class="secondary">Duplicate</button>
       <button type="button" class="secondary" data-admin-theme-try-on-key="${escapeAssistantHtml(theme.key)}">Try On</button>
-      ${isProtectedBuiltin ? "" : '<button type="button" class="secondary">Delete Theme</button>'}
+      <button type="button" class="secondary">Delete Theme</button>
     </div>
   `;
   applyPreviewTheme(theme, item.querySelector(".admin-theme-preview-swatch"));
@@ -1811,11 +1786,9 @@ function renderAdminThemeRow(theme) {
   buttons[2]?.addEventListener("click", () => {
     setAdminThemeOverride(theme, { persist: true });
   });
-  if (!isProtectedBuiltin) {
-    buttons[3]?.addEventListener("click", () => {
-      void handleAdminThemeDelete(theme);
-    });
-  }
+  buttons[3]?.addEventListener("click", () => {
+    void handleAdminThemeDelete(theme);
+  });
   return item;
 }
 
@@ -1843,7 +1816,7 @@ async function loadAdminThemes(force = false) {
 }
 
 async function handleAdminThemeDelete(theme) {
-  if (!theme?.id || theme.is_builtin || !isAdmin()) return;
+  if (!theme?.id || !isAdmin()) return;
   const ladder = await loadRankLadder(true);
   if (ladder.some((rank) => rank.theme_key === theme.key)) {
     showToast("This theme is in use by a rank. Reassign the rank before deleting it.", "error");
@@ -1855,6 +1828,7 @@ async function handleAdminThemeDelete(theme) {
     if (error) throw error;
     showToast("Theme deleted", "success");
     themeLibraryCache = [];
+    themeLibraryHydrated = false;
     adminThemesLoaded = false;
     await loadThemeLibrary(true);
     refreshAdminThemeOverrideThemeFromLibrary();
@@ -1872,15 +1846,7 @@ async function handleAdminThemeDelete(theme) {
 async function handleAdminThemeSubmit(event) {
   event.preventDefault();
   if (!adminThemeForm || !isAdmin()) return;
-  const formData = new FormData(adminThemeForm);
-  const sourceKey = slugifyThemeKey(String(formData.get("themeSourceKey") || "").trim()) || null;
-  const sourceBuiltin = String(formData.get("themeSourceBuiltin") || "0") === "1";
   const theme = getThemeFormState();
-  const sourceThemeEntry = sourceKey
-    ? getThemeLibrary().find((entry) => entry.key === sourceKey) || null
-    : null;
-  const sourceThemeId = sourceThemeEntry?.id || null;
-  const sourceThemeIsVirtual = !sourceThemeId || String(sourceThemeId).startsWith("builtin-");
   let themeId = theme.id;
   let themeKey = theme.key;
   if (!theme.name) {
@@ -1890,30 +1856,8 @@ async function handleAdminThemeSubmit(event) {
     return;
   }
 
-  if (sourceBuiltin) {
-    themeId = sourceThemeIsVirtual ? null : sourceThemeId;
-    if (!themeKey || THEME_CLASS_MAP[themeKey] || themeKey === sourceKey) {
-      themeKey = slugifyThemeKey(`${theme.name}-custom`) || `${sourceKey || "theme"}-custom`;
-    }
-  }
-
-  const editingSourceTheme = Boolean(sourceKey && themeKey === sourceKey);
-  if (editingSourceTheme) {
-    themeId = sourceThemeIsVirtual ? null : sourceThemeId;
-  }
-
-  const editingReservedTheme = Boolean(themeId && sourceKey && themeKey === sourceKey && THEME_CLASS_MAP[themeKey]);
-  if (THEME_CLASS_MAP[themeKey] && !editingReservedTheme && !editingSourceTheme) {
-    if (adminThemeMessage) {
-      adminThemeMessage.textContent = sourceBuiltin
-        ? "Built-in themes save as custom copies. Choose a custom key or keep editing and we will create one automatically."
-        : "That key is reserved by a built-in theme. Choose a different key.";
-    }
-    return;
-  }
   const existing = getThemeLibrary().find((entry) => {
     if (entry.key !== themeKey) return false;
-    if (editingSourceTheme && entry.key === sourceKey) return false;
     return entry.id !== themeId;
   });
   if (existing) {
@@ -1926,7 +1870,6 @@ async function handleAdminThemeSubmit(event) {
   const existingName = getThemeLibrary().find(
     (entry) => {
       if (String(entry.name || "").trim().toLowerCase() !== normalizedName) return false;
-      if (editingSourceTheme && entry.key === sourceKey) return false;
       return entry.id !== themeId;
     }
   );
@@ -1947,15 +1890,14 @@ async function handleAdminThemeSubmit(event) {
   };
 
   try {
-    const query = editingSourceTheme && sourceThemeIsVirtual
-      ? supabase.from("themes").upsert(payload, { onConflict: "key" })
-      : themeId
-        ? supabase.from("themes").update(payload).eq("id", themeId)
-        : supabase.from("themes").insert(payload);
+    const query = themeId
+      ? supabase.from("themes").update(payload).eq("id", themeId)
+      : supabase.from("themes").insert(payload);
     const { error } = await query;
     if (error) throw error;
-    showToast(themeId || editingSourceTheme ? "Theme updated" : "Theme created", "success");
+    showToast(themeId ? "Theme updated" : "Theme created", "success");
     themeLibraryCache = [];
+    themeLibraryHydrated = false;
     adminThemesLoaded = false;
     await loadThemeLibrary(true);
     refreshAdminThemeOverrideThemeFromLibrary();
@@ -2343,7 +2285,7 @@ async function handleAdminRankSubmit(event) {
     welcome_phrase: String(formData.get("welcomePhrase") || "").trim(),
     required_hands_played: Math.max(0, Math.round(Number(formData.get("requiredHandsPlayed") || 0))),
     required_contest_wins: Math.max(0, Math.round(Number(formData.get("requiredContestWins") || 0))),
-    theme_key: getThemeRecord(String(formData.get("themeKey") || "blue").trim()).key,
+    theme_key: slugifyThemeKey(String(formData.get("themeKey") || "blue").trim()) || "blue",
     icon_url: String(formData.get("iconUrl") || "").trim()
   };
 
@@ -9705,6 +9647,9 @@ async function logHandAndBets(stopperCard, context, betSnapshots, netThisHand, o
 
 function applyTheme(theme) {
   const themeRecord = getThemeRecord(theme);
+  if (!themeRecord) {
+    return;
+  }
   const next = THEME_CLASS_MAP[themeRecord.base_theme] ? themeRecord.base_theme : "blue";
   if (!document.body) {
     currentTheme = themeRecord.key;
@@ -9873,7 +9818,7 @@ function setAdminThemeOverride(theme, { persist = false } = {}) {
 }
 
 function initTheme() {
-  applyTheme(getThemeRecord("blue"));
+  currentTheme = "blue";
 }
 
 const bankrollEl = document.getElementById("bankroll");
@@ -10349,21 +10294,11 @@ const THEME_CLASS_MAP = {
   "cotton-candy": "theme-cotton-candy",
   pastel: "theme-pastel"
 };
-const BUILTIN_THEME_LABELS = {
-  blue: "Blue",
-  pink: "Pink",
-  orange: "Orange",
-  "steel-black": "Steel Black",
-  angelic: "Angelic",
-  retro: "Retro",
-  "cotton-candy": "Cotton Candy",
-  pastel: "Pastel"
-};
 const DEFAULT_CUSTOM_THEME_PALETTE = {
   accent: "#63f0ff",
   accentSecondary: "#f857c1",
   accentTertiary: "#8b80ff",
-  heroButton: "#f7bfdc",
+  heroButton: "#4f9bff",
   primaryButton: "#4f9bff",
   primaryButtonDisabled: "#7f9dc7",
   secondaryButton: "#2b6fd6",
@@ -10386,200 +10321,6 @@ const DEFAULT_CUSTOM_THEME_SETTINGS = {
   surfaceContrast: 58,
   radiusScale: 72,
   flatSurfaces: false
-};
-const BUILTIN_THEME_PROFILES = {
-  blue: {
-    palette: {
-      accent: "#63f0ff",
-      accentSecondary: "#f857c1",
-      accentTertiary: "#8b80ff",
-      heroButton: "#f7bfdc",
-      gold: "#ffd166",
-      muted: "#bfd5ff",
-      success: "#5af78e",
-      danger: "#ff5c8a",
-      bgStart: "#08142d",
-      bgEnd: "#050913",
-      panelStart: "#0e2c63",
-      panelEnd: "#08142d",
-      headerStart: "#15386d",
-      headerEnd: "#0b1b3d"
-    },
-    settings: {
-      glowStrength: 52,
-      surfaceContrast: 60,
-      radiusScale: 72,
-      flatSurfaces: false
-    }
-  },
-  pink: {
-    palette: {
-      accent: "#ff9bf3",
-      accentSecondary: "#ff4fd2",
-      accentTertiary: "#b78bff",
-      heroButton: "#ffc3e5",
-      gold: "#ffeac0",
-      muted: "#f7bff0",
-      success: "#a4ffe8",
-      danger: "#ff6a9c",
-      bgStart: "#25021c",
-      bgEnd: "#1b0228",
-      panelStart: "#501260",
-      panelEnd: "#20062e",
-      headerStart: "#5a1060",
-      headerEnd: "#340c4a"
-    },
-    settings: {
-      glowStrength: 68,
-      surfaceContrast: 62,
-      radiusScale: 74,
-      flatSurfaces: false
-    }
-  },
-  orange: {
-    palette: {
-      accent: "#ffe58a",
-      accentSecondary: "#ff8f3a",
-      accentTertiary: "#ffb45c",
-      heroButton: "#ffd197",
-      gold: "#ffd372",
-      muted: "#ffd8a6",
-      success: "#9ff7d6",
-      danger: "#ff6b5c",
-      bgStart: "#261002",
-      bgEnd: "#1d0800",
-      panelStart: "#5b2400",
-      panelEnd: "#241003",
-      headerStart: "#682600",
-      headerEnd: "#421400"
-    },
-    settings: {
-      glowStrength: 60,
-      surfaceContrast: 64,
-      radiusScale: 68,
-      flatSurfaces: false
-    }
-  },
-  "steel-black": {
-    palette: {
-      accent: "#b7d0df",
-      accentSecondary: "#d7dee5",
-      accentTertiary: "#8f9cab",
-      heroButton: "#d8dee5",
-      gold: "#f1f5f9",
-      muted: "#c9d2dc",
-      success: "#d5dde3",
-      danger: "#c46f7c",
-      bgStart: "#0d1016",
-      bgEnd: "#090b0f",
-      panelStart: "#21272f",
-      panelEnd: "#080a0d",
-      headerStart: "#222831",
-      headerEnd: "#0e1116"
-    },
-    settings: {
-      glowStrength: 18,
-      surfaceContrast: 78,
-      radiusScale: 58,
-      flatSurfaces: false
-    }
-  },
-  angelic: {
-    palette: {
-      accent: "#c8efff",
-      accentSecondary: "#ffd7ee",
-      accentTertiary: "#c7d6ff",
-      heroButton: "#ffe5f3",
-      gold: "#fff2cc",
-      muted: "#e8f4ff",
-      success: "#f2fbff",
-      danger: "#ff8eb2",
-      bgStart: "#152542",
-      bgEnd: "#1a2745",
-      panelStart: "#5878b0",
-      panelEnd: "#1a2440",
-      headerStart: "#405d8d",
-      headerEnd: "#1b2d4e"
-    },
-    settings: {
-      glowStrength: 34,
-      surfaceContrast: 54,
-      radiusScale: 76,
-      flatSurfaces: false
-    }
-  },
-  retro: {
-    palette: {
-      accent: "#8ff2ff",
-      accentSecondary: "#ff7a59",
-      accentTertiary: "#ffd166",
-      heroButton: "#ffc79c",
-      gold: "#ffd166",
-      muted: "#f4cf95",
-      success: "#9ff7d6",
-      danger: "#ff8b72",
-      bgStart: "#1f1028",
-      bgEnd: "#1a1326",
-      panelStart: "#2f1c49",
-      panelEnd: "#1b1030",
-      headerStart: "#362354",
-      headerEnd: "#22143a"
-    },
-    settings: {
-      glowStrength: 46,
-      surfaceContrast: 56,
-      radiusScale: 66,
-      flatSurfaces: false
-    }
-  },
-  "cotton-candy": {
-    palette: {
-      accent: "#6ff4ff",
-      accentSecondary: "#ff7fd8",
-      accentTertiary: "#a8a6ff",
-      heroButton: "#ffc7e9",
-      gold: "#ffe88f",
-      muted: "#f8d7ff",
-      success: "#adffe9",
-      danger: "#ff88d9",
-      bgStart: "#180926",
-      bgEnd: "#14081c",
-      panelStart: "#241248",
-      panelEnd: "#160a2c",
-      headerStart: "#221e60",
-      headerEnd: "#1a0e3e"
-    },
-    settings: {
-      glowStrength: 58,
-      surfaceContrast: 52,
-      radiusScale: 80,
-      flatSurfaces: false
-    }
-  },
-  pastel: {
-    palette: {
-      accent: "#9be7ff",
-      accentSecondary: "#ffc1dc",
-      accentTertiary: "#d6c4ff",
-      heroButton: "#ffe0eb",
-      gold: "#ffe1a8",
-      muted: "#e8defc",
-      success: "#c3ffe8",
-      danger: "#ff9dbd",
-      bgStart: "#142036",
-      bgEnd: "#111b2b",
-      panelStart: "#1b2a4a",
-      panelEnd: "#111c30",
-      headerStart: "#273a62",
-      headerEnd: "#14223f"
-    },
-    settings: {
-      glowStrength: 30,
-      surfaceContrast: 50,
-      radiusScale: 82,
-      flatSurfaces: false
-    }
-  }
 };
 const CUSTOM_THEME_VARIABLE_KEYS = [
   "--neon-cyan",
@@ -10834,6 +10575,7 @@ let adminThemePreviewPage = "home";
 let adminPrizeCache = [];
 let rankLadderCache = [];
 let themeLibraryCache = [];
+let themeLibraryHydrated = false;
 let currentRankState = null;
 let reconciledHandsPlayedUserId = null;
 let rankWelcomeTypingTimer = null;
