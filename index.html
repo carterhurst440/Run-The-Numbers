@@ -721,14 +721,12 @@
                 <div class="beta-table-header">
                   <div class="beta-control-heading">
                     <p class="beta-game-panel-kicker">Controls</p>
-                    <div class="beta-control-title-row">
-                      <h2 id="red-black-controls-title">Wager &amp; Pot</h2>
-                      <span id="red-black-multiplier-chip" class="beta-control-multiplier">Multiplier 2X</span>
-                    </div>
+                    <h2 id="red-black-controls-title">Wager &amp; Pot</h2>
                     <div class="beta-action-group beta-action-group-wager">
                       <div class="beta-wager-inline-labels" aria-hidden="true">
                         <p class="beta-control-label">Wager</p>
                         <p class="beta-control-label">Pot Size</p>
+                        <p class="beta-control-label">Next Pot Size</p>
                       </div>
                       <div class="beta-wager-inline-row">
                         <div class="beta-bet-spot-wrap">
@@ -743,6 +741,9 @@
                           <span id="red-black-pot-total" class="beta-bet-spot-total">0</span>
                           <span id="red-black-pot-commission" class="beta-pot-commission-preview">(-0)</span>
                         </div>
+                        <div id="red-black-next-pot-spot" class="beta-bet-spot beta-bet-spot-circle beta-pot-spot beta-next-pot-spot" aria-label="Next pot after current selection">
+                          <span id="red-black-next-pot-total" class="beta-bet-spot-total">0</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -751,7 +752,10 @@
                 <div class="beta-prediction-panel">
                   <div class="beta-prediction-heading">
                     <p class="beta-game-panel-kicker">Prediction</p>
-                    <h3 class="beta-prediction-title">Make Your Pick</h3>
+                    <div class="beta-prediction-title-row">
+                      <h3 class="beta-prediction-title">Make Your Pick</h3>
+                      <span id="red-black-multiplier-chip" class="beta-control-multiplier">Multiplier 2X</span>
+                    </div>
                   </div>
                   <div class="beta-action-group">
                     <p class="beta-control-label">Category</p>

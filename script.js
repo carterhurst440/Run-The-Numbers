@@ -1289,14 +1289,12 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
                 <div class="beta-table-header">
                   <div class="beta-control-heading">
                     <p class="beta-game-panel-kicker">Controls</p>
-                    <div class="beta-control-title-row">
-                      <h2>Prediction</h2>
-                      <span class="beta-control-multiplier">Multiplier 2X</span>
-                    </div>
+                    <h2>Wager &amp; Pot</h2>
                     <div class="beta-action-group beta-action-group-wager">
                       <div class="beta-wager-inline-labels">
                         <p class="beta-control-label">Wager</p>
                         <p class="beta-control-label">Pot Size</p>
+                        <p class="beta-control-label">Next Pot Size</p>
                       </div>
                       <div class="beta-wager-inline-row">
                         <div class="beta-bet-spot-wrap">
@@ -1308,11 +1306,21 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
                           <span class="beta-bet-spot-total">0</span>
                           <span class="beta-pot-commission-preview">(-0)</span>
                         </div>
+                        <div class="beta-bet-spot beta-bet-spot-circle beta-pot-spot beta-next-pot-spot">
+                          <span class="beta-bet-spot-total">0</span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
                 <div class="beta-prediction-panel">
+                  <div class="beta-prediction-heading">
+                    <p class="beta-game-panel-kicker">Prediction</p>
+                    <div class="beta-prediction-title-row">
+                      <h3 class="beta-prediction-title">Make Your Pick</h3>
+                      <span class="beta-control-multiplier">Multiplier 2X</span>
+                    </div>
+                  </div>
                   <div class="beta-action-group">
                     <p class="beta-control-label">Category</p>
                     <div class="beta-category-row">
@@ -9838,6 +9846,7 @@ const redBlackBetEmptyLabelEl = document.getElementById("red-black-bet-empty-lab
 const redBlackChipStackEl = document.getElementById("red-black-chip-stack");
 const redBlackPotTotalEl = document.getElementById("red-black-pot-total");
 const redBlackPotCommissionEl = document.getElementById("red-black-pot-commission");
+const redBlackNextPotTotalEl = document.getElementById("red-black-next-pot-total");
 const redBlackChipButtons = Array.from(document.querySelectorAll("[data-red-black-chip]"));
 const redBlackCategoryButtons = Array.from(document.querySelectorAll("[data-red-black-category]"));
 const redBlackValueSelectorEl = document.getElementById("red-black-value-selector");
@@ -11616,8 +11625,13 @@ function updateRedBlackActionState() {
 }
 
 function renderRedBlackSummary() {
-  const commissionRate = getGuess10CommissionRate();
-  const commissionUnits = roundCurrencyValue(Math.max(0, redBlackCurrentPot - redBlackBet) * commissionRate);
+  const handStarted = redBlackHandActive || redBlackRung > 0;
+  const displayPot = handStarted ? redBlackCurrentPot : redBlackBet;
+  const commissionRate = handStarted ? getGuess10CommissionRate() : 0;
+  const commissionUnits = handStarted
+    ? roundCurrencyValue(Math.max(0, redBlackCurrentPot - redBlackBet) * commissionRate)
+    : 0;
+  const nextPot = roundCurrencyValue(displayPot * getRedBlackPreviewMultiplier());
   if (redBlackBetSpotButton) {
     redBlackBetSpotButton.classList.toggle("is-empty", redBlackBet <= 0);
   }
@@ -11626,10 +11640,13 @@ function renderRedBlackSummary() {
     redBlackBetTotalEl.hidden = redBlackBet <= 0;
   }
   if (redBlackPotTotalEl) {
-    redBlackPotTotalEl.textContent = formatCurrency(redBlackCurrentPot);
+    redBlackPotTotalEl.textContent = formatCurrency(displayPot);
   }
   if (redBlackPotCommissionEl) {
     redBlackPotCommissionEl.textContent = `(-${formatCurrency(commissionUnits)})`;
+  }
+  if (redBlackNextPotTotalEl) {
+    redBlackNextPotTotalEl.textContent = formatCurrency(nextPot);
   }
   if (redBlackBetEmptyLabelEl) {
     redBlackBetEmptyLabelEl.hidden = redBlackBet > 0;
