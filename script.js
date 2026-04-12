@@ -422,6 +422,11 @@ function clampThemeSetting(value, fallback) {
   return Math.max(0, Math.min(100, Math.round(numeric)));
 }
 
+function safeNumber(value, fallback = 0) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
 function normalizeThemePalette(palette = {}) {
   return {
     accent: String(palette.accent || DEFAULT_CUSTOM_THEME_PALETTE.accent),
