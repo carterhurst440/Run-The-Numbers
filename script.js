@@ -1214,6 +1214,16 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
               <button type="button" class="deal">Deal Hand</button>
             </div>
           </div>
+          <button type="button" class="play-assistant-fab" aria-hidden="true" tabindex="-1">
+            <span class="play-assistant-fab-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path d="M12 3.5c4.97 0 9 3.58 9 8 0 2.19-.99 4.18-2.6 5.62-.34.31-.55.75-.57 1.21l-.08 1.95c-.03.78-.85 1.28-1.55.94l-2.2-1.06c-.34-.16-.73-.2-1.09-.11-.61.15-1.25.23-1.91.23-4.97 0-9-3.58-9-8s4.03-8 9-8Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.7"></path>
+                <path d="M8.5 11.6h7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"></path>
+                <path d="M8.5 8.8h4.7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"></path>
+              </svg>
+            </span>
+            <span class="play-assistant-fab-label">AI</span>
+          </button>
         </section>
       </div>
     `;
@@ -1361,6 +1371,16 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
               <button type="button" class="secondary">Cash Out</button>
             </div>
           </div>
+          <button type="button" class="play-assistant-fab" aria-hidden="true" tabindex="-1">
+            <span class="play-assistant-fab-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path d="M12 3.5c4.97 0 9 3.58 9 8 0 2.19-.99 4.18-2.6 5.62-.34.31-.55.75-.57 1.21l-.08 1.95c-.03.78-.85 1.28-1.55.94l-2.2-1.06c-.34-.16-.73-.2-1.09-.11-.61.15-1.25.23-1.91.23-4.97 0-9-3.58-9-8s4.03-8 9-8Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.7"></path>
+                <path d="M8.5 11.6h7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"></path>
+                <path d="M8.5 8.8h4.7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"></path>
+              </svg>
+            </span>
+            <span class="play-assistant-fab-label">AI</span>
+          </button>
         </section>
       </div>
     `;
