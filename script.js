@@ -13973,8 +13973,30 @@ function parseAssistantDirective(message, state) {
   };
 }
 
+function parseAssistantClearDirective(message) {
+  const normalized = normalizeAssistantBetPhrase(message);
+  if (!normalized) {
+    return false;
+  }
+  return /\b(?:clear|remove|reset|take\s+off)\b/.test(normalized) &&
+    /\b(?:bets|bet|table|layout|board|felt|all)\b/.test(normalized);
+}
+
 async function requestPlayAssistantResponse(userMessage) {
   const state = await getPlayAssistantState();
+  if (parseAssistantClearDirective(userMessage)) {
+    return {
+      reply: "Understood. Confirm if you want me to clear all current bets from the felt.",
+      riskTolerance: state.riskTolerance,
+      plan: {
+        summary: "Clear all current bets from the table.",
+        replaceExisting: true,
+        bets: [],
+        totalUnits: 0,
+        clearOnly: true
+      }
+    };
+  }
   try {
     const invokePromise = supabase.functions.invoke("play-assistant", {
       body: {
@@ -14077,7 +14099,16 @@ async function requestPlayAssistantResponse(userMessage) {
 }
 
 function applyAssistantPlan(plan, messageId = null) {
-  const normalizedPlan = normalizeAssistantPlan(plan);
+  const isClearOnly = Boolean(plan?.clearOnly);
+  const normalizedPlan = isClearOnly
+    ? {
+        summary: String(plan?.summary || "Clear all current bets from the table."),
+        replaceExisting: true,
+        bets: [],
+        totalUnits: 0,
+        clearOnly: true
+      }
+    : normalizeAssistantPlan(plan);
   if (!normalizedPlan) {
     showToast("That assistant plan could not be applied.", "error");
     return false;
@@ -14111,6 +14142,23 @@ function applyAssistantPlan(plan, messageId = null) {
   if (normalizedPlan.replaceExisting && outstanding > 0) {
     restoreUnits(outstanding);
     resetBets();
+  }
+
+  if (normalizedPlan.clearOnly) {
+    playAssistantPendingPlan = null;
+    if (messageId) {
+      const sourceMessage = playAssistantThread.find((entry) => entry.id === messageId);
+      if (sourceMessage?.plan) {
+        sourceMessage.plan.applied = true;
+        renderPlayAssistantThread();
+      }
+    }
+    statusEl.textContent = "Assistant cleared all current bets from the table.";
+    pushPlayAssistantMessage({
+      role: "system",
+      text: "Cleared all current bets from the table. The felt is reset and ready for a new layout."
+    });
+    return true;
   }
 
   if (normalizedPlan.replaceExisting) {
