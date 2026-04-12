@@ -468,6 +468,16 @@ function humanizeThemeKey(themeKey) {
     .replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
+function getEmergencyThemeRecord(themeKey = "blue") {
+  return normalizeThemeRecord({
+    key: slugifyThemeKey(themeKey || "blue") || "blue",
+    name: humanizeThemeKey(themeKey || "blue"),
+    base_theme: THEME_CLASS_MAP[themeKey] ? themeKey : "blue",
+    palette: DEFAULT_CUSTOM_THEME_PALETTE,
+    settings: DEFAULT_CUSTOM_THEME_SETTINGS
+  });
+}
+
 function normalizeThemeRecord(theme = {}) {
   const source = theme && typeof theme === "object" ? theme : {};
   const key = slugifyThemeKey(source.key || source.name || source.base_theme || "blue") || "blue";
@@ -493,7 +503,7 @@ function getThemeRecord(themeKey) {
     return normalizeThemeRecord(themeKey);
   }
   const key = slugifyThemeKey(themeKey || "blue") || "blue";
-  return getThemeLibrary().find((theme) => theme.key === key) || getThemeLibrary()[0] || null;
+  return getThemeLibrary().find((theme) => theme.key === key) || getThemeLibrary()[0] || getEmergencyThemeRecord(key);
 }
 
 async function loadThemeLibrary(force = false) {
@@ -502,18 +512,28 @@ async function loadThemeLibrary(force = false) {
   }
 
   if (!supabase) {
-    return themeLibraryCache;
+    return themeLibraryCache.length ? themeLibraryCache : [getEmergencyThemeRecord("blue")];
   }
 
   try {
-    const { data, error } = await supabase.from("themes").select("*").order("name", { ascending: true });
+    const queryPromise = supabase.from("themes").select("*").order("name", { ascending: true });
+    const timeoutPromise = new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error("Theme library request timed out.")), 8000);
+    });
+    const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
     if (error) throw error;
-    themeLibraryCache = (Array.isArray(data) ? data : []).map((theme) => normalizeThemeRecord(theme)).sort((a, b) =>
-      String(a.name || "").localeCompare(String(b.name || ""))
-    );
+    themeLibraryCache = (Array.isArray(data) ? data : [])
+      .map((theme) => normalizeThemeRecord(theme))
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+    if (!themeLibraryCache.length) {
+      themeLibraryCache = [getEmergencyThemeRecord("blue")];
+    }
     themeLibraryHydrated = true;
   } catch (error) {
     console.warn("[RTN] loadThemeLibrary failed", error);
+    if (!themeLibraryCache.length) {
+      themeLibraryCache = [getEmergencyThemeRecord("blue")];
+    }
   }
 
   refreshAdminThemeOverrideThemeFromLibrary();
@@ -9772,8 +9792,8 @@ function updateAdminThemeOverrideUI() {
 
   if (adminThemeOverrideStatus) {
     adminThemeOverrideStatus.textContent = overrideTheme
-      ? `Trying on ${overrideTheme.name}. Rank theme remains ${rankTheme.name}.`
-      : `Using rank theme ${rankTheme.name}.`;
+      ? `Trying on ${overrideTheme.name}. Rank theme remains ${rankTheme?.name || "Blue"}.`
+      : `Using rank theme ${rankTheme?.name || "Blue"}.`;
   }
 
   if (adminThemeClearOverrideButton) {
