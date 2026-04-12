@@ -604,6 +604,9 @@ function getThemeCssVariables(theme) {
   const secondaryButtonSurface = flatSurfaces
     ? rgba(colorMix(palette.panelEnd, 0.06, "#000000"), 0.96)
     : `linear-gradient(135deg, ${rgba(palette.accent, 0.16)}, ${rgba(palette.panelEnd, 0.96)})`;
+  const assistantFabSurface = flatSurfaces
+    ? rgba(colorMix(palette.panelStart, 0.08, "#000000"), 0.98)
+    : `linear-gradient(135deg, ${rgba(colorMix(palette.headerStart, 0.08, "#ffffff"), 0.96)}, ${rgba(palette.panelEnd, 0.98)})`;
   const heroButtonSurface = flatSurfaces
     ? `linear-gradient(135deg, ${colorMix(palette.heroButton, 0.2, "#ffffff")}, ${colorMix(palette.heroButton, 0.08, "#000000")})`
     : `linear-gradient(135deg, ${colorMix(palette.heroButton, 0.52, "#ffffff")} 0%, ${colorMix(palette.heroButton, 0.22, "#ffffff")} 52%, ${colorMix(palette.heroButton, 0.08, palette.gold)} 100%)`;
@@ -698,6 +701,11 @@ function getThemeCssVariables(theme) {
     "--chip-bar-shadow": `0 -26px 48px ${rgba("#000000", 0.72)}`,
     "--secondary-button-bg": secondaryButtonSurface,
     "--secondary-button-border": rgba(palette.accent, 0.42),
+    "--assistant-fab-bg": assistantFabSurface,
+    "--assistant-fab-border": rgba(palette.accent, 0.52),
+    "--assistant-fab-border-hover": rgba(palette.gold, 0.78),
+    "--assistant-fab-shadow": `0 18px 34px ${rgba("#000000", 0.42)}, 0 0 0 1px ${rgba(palette.accent, 0.22)}, 0 0 24px ${rgba(palette.accent, 0.16 + glow * 0.08)}`,
+    "--assistant-fab-shadow-hover": `0 24px 42px ${rgba("#000000", 0.48)}, 0 0 30px ${rgba(palette.accent, 0.22 + glow * 0.1)}`,
     "--hero-button-bg": heroButtonSurface,
     "--hero-button-border": colorMix(palette.heroButton, 0.34, "#ffffff"),
     "--hero-button-shadow": `0 18px 36px ${rgba(colorMix(palette.heroButton, 0.34, "#000000"), 0.34)}, 0 0 0 1px ${rgba("#ffffff", 0.08)}, 0 0 28px ${rgba(palette.heroButton, 0.22 + glow * 0.08)}`,
@@ -10550,6 +10558,11 @@ const CUSTOM_THEME_VARIABLE_KEYS = [
   "--chip-bar-shadow",
   "--secondary-button-bg",
   "--secondary-button-border",
+  "--assistant-fab-bg",
+  "--assistant-fab-border",
+  "--assistant-fab-border-hover",
+  "--assistant-fab-shadow",
+  "--assistant-fab-shadow-hover",
   "--hero-button-bg",
   "--hero-button-border",
   "--hero-button-shadow",
