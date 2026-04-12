@@ -537,6 +537,8 @@ async function loadThemeLibrary(force = false) {
     themeLibraryCache = builtin;
   }
 
+  refreshAdminThemeOverrideThemeFromLibrary();
+
   return themeLibraryCache;
 }
 
@@ -1803,6 +1805,11 @@ async function handleAdminThemeSubmit(event) {
   const sourceKey = slugifyThemeKey(String(formData.get("themeSourceKey") || "").trim()) || null;
   const sourceBuiltin = String(formData.get("themeSourceBuiltin") || "0") === "1";
   const theme = getThemeFormState();
+  const sourceThemeEntry = sourceKey
+    ? getThemeLibrary().find((entry) => entry.key === sourceKey) || null
+    : null;
+  const sourceThemeId = sourceThemeEntry?.id || null;
+  const sourceThemeIsVirtual = !sourceThemeId || String(sourceThemeId).startsWith("builtin-");
   let themeId = theme.id;
   let themeKey = theme.key;
   if (!theme.name) {
@@ -1813,14 +1820,19 @@ async function handleAdminThemeSubmit(event) {
   }
 
   if (sourceBuiltin) {
-    themeId = null;
+    themeId = sourceThemeIsVirtual ? null : sourceThemeId;
     if (!themeKey || THEME_CLASS_MAP[themeKey] || themeKey === sourceKey) {
       themeKey = slugifyThemeKey(`${theme.name}-custom`) || `${sourceKey || "theme"}-custom`;
     }
   }
 
+  const editingSourceTheme = Boolean(sourceKey && themeKey === sourceKey);
+  if (editingSourceTheme) {
+    themeId = sourceThemeIsVirtual ? null : sourceThemeId;
+  }
+
   const editingReservedTheme = Boolean(themeId && sourceKey && themeKey === sourceKey && THEME_CLASS_MAP[themeKey]);
-  if (THEME_CLASS_MAP[themeKey] && !editingReservedTheme) {
+  if (THEME_CLASS_MAP[themeKey] && !editingReservedTheme && !editingSourceTheme) {
     if (adminThemeMessage) {
       adminThemeMessage.textContent = sourceBuiltin
         ? "Built-in themes save as custom copies. Choose a custom key or keep editing and we will create one automatically."
@@ -1828,7 +1840,11 @@ async function handleAdminThemeSubmit(event) {
     }
     return;
   }
-  const existing = getThemeLibrary().find((entry) => entry.key === themeKey && entry.id !== themeId);
+  const existing = getThemeLibrary().find((entry) => {
+    if (entry.key !== themeKey) return false;
+    if (editingSourceTheme && entry.key === sourceKey) return false;
+    return entry.id !== themeId;
+  });
   if (existing) {
     if (adminThemeMessage) {
       adminThemeMessage.textContent = "That theme key already exists.";
@@ -1837,7 +1853,11 @@ async function handleAdminThemeSubmit(event) {
   }
   const normalizedName = theme.name.trim().toLowerCase();
   const existingName = getThemeLibrary().find(
-    (entry) => entry.id !== themeId && String(entry.name || "").trim().toLowerCase() === normalizedName
+    (entry) => {
+      if (String(entry.name || "").trim().toLowerCase() !== normalizedName) return false;
+      if (editingSourceTheme && entry.key === sourceKey) return false;
+      return entry.id !== themeId;
+    }
   );
   if (existingName) {
     if (adminThemeMessage) {
@@ -1856,12 +1876,14 @@ async function handleAdminThemeSubmit(event) {
   };
 
   try {
-    const query = themeId
-      ? supabase.from("themes").update(payload).eq("id", themeId)
-      : supabase.from("themes").insert(payload);
+    const query = editingSourceTheme && sourceThemeIsVirtual
+      ? supabase.from("themes").upsert(payload, { onConflict: "key" })
+      : themeId
+        ? supabase.from("themes").update(payload).eq("id", themeId)
+        : supabase.from("themes").insert(payload);
     const { error } = await query;
     if (error) throw error;
-    showToast(themeId ? "Theme updated" : "Theme created", "success");
+    showToast(themeId || editingSourceTheme ? "Theme updated" : "Theme created", "success");
     themeLibraryCache = [];
     adminThemesLoaded = false;
     await loadThemeLibrary(true);
@@ -2912,7 +2934,13 @@ async function ensureProfileSynced({ force = false } = {}) {
     currentUser = { ...GUEST_USER };
   }
   const now = Date.now();
-  if (!force && currentProfile && now - lastProfileSync < PROFILE_SYNC_INTERVAL) {
+  const currentUserId = currentUser?.id || GUEST_USER.id;
+  const profileUserId = currentProfile?.id || null;
+  const currentProfileMatchesUser =
+    currentUserId === GUEST_USER.id
+      ? profileUserId === GUEST_USER.id || profileUserId == null
+      : profileUserId === currentUserId;
+  if (!force && currentProfile && currentProfileMatchesUser && now - lastProfileSync < PROFILE_SYNC_INTERVAL) {
     return currentProfile;
   }
 
@@ -9690,7 +9718,7 @@ function syncAdminThemeOverrideForCurrentUser() {
 
   const storedKey = loadStoredAdminThemeOverride(userId);
   adminThemeOverrideStoredKey = storedKey;
-  adminThemeOverrideTheme = storedKey ? getThemeRecord(storedKey) : null;
+  adminThemeOverrideTheme = storedKey || null;
 }
 
 function getResolvedThemeRecord() {

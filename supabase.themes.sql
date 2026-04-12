@@ -43,6 +43,23 @@ before update on public.themes
 for each row
 execute function public.set_updated_at_timestamp();
 
+alter table public.themes enable row level security;
+
+drop policy if exists "Authenticated users can view themes" on public.themes;
+create policy "Authenticated users can view themes"
+on public.themes
+for select
+to authenticated
+using (true);
+
+drop policy if exists "Admin can manage themes" on public.themes;
+create policy "Admin can manage themes"
+on public.themes
+for all
+to authenticated
+using ((auth.jwt() ->> 'email') = 'carterwarrenhurst@gmail.com')
+with check ((auth.jwt() ->> 'email') = 'carterwarrenhurst@gmail.com');
+
 insert into public.themes (key, name, base_theme, palette, settings, is_builtin)
 values
   ('blue', 'Blue', 'blue', '{}'::jsonb, '{}'::jsonb, true),
