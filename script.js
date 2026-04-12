@@ -1189,8 +1189,29 @@ function resetAdminThemeForm(theme = null) {
   if (adminThemeSaveButton) {
     adminThemeSaveButton.textContent = theme && !record.is_builtin ? "Save theme" : "Save theme";
   }
+  if (adminThemeModalTitle) {
+    adminThemeModalTitle.textContent = theme ? "Edit theme" : "Create theme";
+  }
   applyPreviewTheme(record);
   updateAdminThemeOverrideUI();
+}
+
+function openAdminThemeModal(theme = null) {
+  if (!adminThemeModal) return;
+  resetAdminThemeForm(theme);
+  adminThemeModal.hidden = false;
+  document.body.classList.add("modal-open");
+  const nameField = adminThemeForm?.elements.namedItem("themeName");
+  if (nameField instanceof HTMLInputElement) {
+    window.setTimeout(() => nameField.focus(), 0);
+  }
+}
+
+function closeAdminThemeModal() {
+  if (!adminThemeModal) return;
+  adminThemeModal.hidden = true;
+  document.body.classList.remove("modal-open");
+  resetAdminThemeForm();
 }
 
 function buildThemeCardPreviewMarkup(theme) {
@@ -1244,9 +1265,9 @@ function renderAdminThemeRow(theme) {
   `;
   applyPreviewTheme(theme, item.querySelector(".admin-theme-preview-swatch"));
   const buttons = item.querySelectorAll("button");
-  buttons[0]?.addEventListener("click", () => resetAdminThemeForm(theme));
+  buttons[0]?.addEventListener("click", () => openAdminThemeModal(theme));
   buttons[1]?.addEventListener("click", () => {
-    resetAdminThemeForm(createDuplicateThemeDraft(theme));
+    openAdminThemeModal(createDuplicateThemeDraft(theme));
   });
   buttons[2]?.addEventListener("click", () => {
     setAdminThemeOverride(theme, { persist: true });
@@ -1301,7 +1322,7 @@ async function handleAdminThemeDelete(theme) {
     await loadAdminThemes(true);
     await loadAdminRanks(true);
     await refreshCurrentRankState({ force: true });
-    resetAdminThemeForm();
+    closeAdminThemeModal();
     updateAdminThemeOverrideUI();
   } catch (error) {
     console.error("[RTN] handleAdminThemeDelete error", error);
@@ -1383,7 +1404,7 @@ async function handleAdminThemeSubmit(event) {
     populateAdminRankThemeOptions(themeKey);
     await loadAdminRanks(true);
     await refreshCurrentRankState({ force: true });
-    resetAdminThemeForm();
+    closeAdminThemeModal();
     updateAdminThemeOverrideUI();
   } catch (error) {
     console.error("[RTN] handleAdminThemeSubmit error", error);
@@ -9685,7 +9706,11 @@ const adminThemeListEl = document.getElementById("admin-theme-list");
 const adminThemeMessage = document.getElementById("admin-theme-message");
 const adminThemePreviewEl = document.getElementById("admin-theme-preview");
 const adminThemeOverrideStatus = document.getElementById("admin-theme-override-status");
-const adminThemeResetButton = document.getElementById("admin-theme-reset");
+const adminThemeCreateButton = document.getElementById("admin-theme-create-button");
+const adminThemeModal = document.getElementById("admin-theme-modal");
+const adminThemeModalTitle = document.getElementById("admin-theme-modal-title");
+const adminThemeCloseButton = document.getElementById("admin-theme-close");
+const adminThemeCancelButton = document.getElementById("admin-theme-cancel");
 const adminThemeSaveButton = document.getElementById("admin-theme-save");
 const adminThemeTryOnButton = document.getElementById("admin-theme-try-on");
 const adminThemeClearOverrideButton = document.getElementById("admin-theme-clear-override");
@@ -14987,9 +15012,29 @@ if (adminThemeForm) {
   });
 }
 
-if (adminThemeResetButton) {
-  adminThemeResetButton.addEventListener("click", () => {
-    resetAdminThemeForm();
+if (adminThemeCreateButton) {
+  adminThemeCreateButton.addEventListener("click", () => {
+    openAdminThemeModal();
+  });
+}
+
+if (adminThemeCloseButton) {
+  adminThemeCloseButton.addEventListener("click", () => {
+    closeAdminThemeModal();
+  });
+}
+
+if (adminThemeCancelButton) {
+  adminThemeCancelButton.addEventListener("click", () => {
+    closeAdminThemeModal();
+  });
+}
+
+if (adminThemeModal) {
+  adminThemeModal.addEventListener("click", (event) => {
+    if (event.target === adminThemeModal) {
+      closeAdminThemeModal();
+    }
   });
 }
 
@@ -16882,6 +16927,11 @@ document.addEventListener("keydown", (event) => {
     }
     if (adminContestModal && !adminContestModal.hidden) {
       closeAdminContestModal({ resetFields: true, restoreFocus: true });
+      event.preventDefault();
+      return;
+    }
+    if (adminThemeModal && !adminThemeModal.hidden) {
+      closeAdminThemeModal();
       event.preventDefault();
       return;
     }

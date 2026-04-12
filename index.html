@@ -2041,161 +2041,10 @@
                 <div class="admin-listing-header">
                   <div>
                     <h2>Color Theme Builder</h2>
-                    <p class="route-subheading">Create rank-ready themes with a live app preview.</p>
+                    <p class="route-subheading">Create rank-ready themes with a homepage-accurate live preview.</p>
                     <p id="admin-theme-override-status" class="route-subheading design-override-status"></p>
                   </div>
-                </div>
-                <div class="design-builder-layout">
-                  <form id="admin-theme-form" class="admin-form design-builder-form">
-                    <input type="hidden" name="themeId" />
-                    <input type="hidden" name="themeSourceKey" />
-                    <input type="hidden" name="themeSourceBuiltin" value="0" />
-                    <label class="admin-field">
-                      <span>Theme Name</span>
-                      <input type="text" name="themeName" placeholder="Midnight Arcade" required />
-                    </label>
-                    <label class="admin-field">
-                      <span>Theme Key</span>
-                      <input type="text" name="themeKey" placeholder="midnight-arcade" />
-                      <span class="admin-hint">Leave blank to auto-generate from the name.</span>
-                    </label>
-                    <label class="admin-field">
-                      <span>Base Theme</span>
-                      <select name="baseTheme" id="admin-theme-base-select" required></select>
-                    </label>
-                    <div class="design-color-grid">
-                      <label class="admin-field">
-                        <span>Primary Accent</span>
-                        <input type="color" name="accentColor" value="#63f0ff" />
-                      </label>
-                      <label class="admin-field">
-                        <span>Secondary Accent</span>
-                        <input type="color" name="accentSecondaryColor" value="#f857c1" />
-                      </label>
-                      <label class="admin-field">
-                        <span>Tertiary Accent</span>
-                        <input type="color" name="accentTertiaryColor" value="#8b80ff" />
-                      </label>
-                      <label class="admin-field">
-                        <span>Hero Button</span>
-                        <input type="color" name="heroButtonColor" value="#f7bfdc" />
-                      </label>
-                      <label class="admin-field">
-                        <span>Gold / Highlight</span>
-                        <input type="color" name="goldColor" value="#ffd166" />
-                      </label>
-                      <label class="admin-field">
-                        <span>Muted Text</span>
-                        <input type="color" name="mutedColor" value="#bfd5ff" />
-                      </label>
-                      <label class="admin-field">
-                        <span>Success</span>
-                        <input type="color" name="successColor" value="#5af78e" />
-                      </label>
-                      <label class="admin-field">
-                        <span>Danger</span>
-                        <input type="color" name="dangerColor" value="#ff5c8a" />
-                      </label>
-                      <label class="admin-field">
-                        <span>Page Background Start</span>
-                        <input type="color" name="bgStartColor" value="#08142d" />
-                      </label>
-                      <label class="admin-field">
-                        <span>Page Background End</span>
-                        <input type="color" name="bgEndColor" value="#050913" />
-                      </label>
-                      <label class="admin-field">
-                        <span>Panel Start</span>
-                        <input type="color" name="panelStartColor" value="#0e2c63" />
-                      </label>
-                      <label class="admin-field">
-                        <span>Panel End</span>
-                        <input type="color" name="panelEndColor" value="#08142d" />
-                      </label>
-                      <label class="admin-field">
-                        <span>Header Start</span>
-                        <input type="color" name="headerStartColor" value="#15386d" />
-                      </label>
-                      <label class="admin-field">
-                        <span>Header End</span>
-                        <input type="color" name="headerEndColor" value="#0b1b3d" />
-                      </label>
-                    </div>
-                    <div class="design-settings-grid">
-                      <label class="admin-field">
-                        <span>Glow Strength</span>
-                        <input type="range" name="glowStrength" min="0" max="100" step="1" value="48" />
-                      </label>
-                      <label class="admin-field">
-                        <span>Surface Contrast</span>
-                        <input type="range" name="surfaceContrast" min="0" max="100" step="1" value="58" />
-                      </label>
-                      <label class="admin-field">
-                        <span>Roundness</span>
-                        <input type="range" name="radiusScale" min="0" max="100" step="1" value="72" />
-                      </label>
-                      <label class="admin-field admin-toggle-field design-toggle-field">
-                        <span>Surface Style</span>
-                        <span class="admin-toggle-control">
-                          <input type="checkbox" name="flatSurfaces" />
-                          <span>Use flat surfaces instead of gradients.</span>
-                        </span>
-                      </label>
-                    </div>
-                    <div class="modal-actions admin-form-actions">
-                      <button type="button" class="secondary" id="admin-theme-try-on">Try On Theme</button>
-                      <button type="button" class="secondary" id="admin-theme-clear-override">Use Rank Theme</button>
-                      <button type="button" class="secondary" id="admin-theme-reset">Reset</button>
-                      <button type="submit" class="primary" id="admin-theme-save">Save theme</button>
-                    </div>
-                    <p id="admin-theme-message" class="admin-message" role="status" aria-live="polite"></p>
-                  </form>
-                  <aside class="design-preview-panel">
-                    <div class="design-preview-header">
-                      <h3>Live Preview</h3>
-                      <p>See how the app shell reacts as you tune the theme.</p>
-                    </div>
-                    <div id="admin-theme-preview" class="design-preview-shell">
-                      <div class="design-preview-app">
-                        <div class="design-preview-topbar">
-                          <div class="design-preview-logo">RUN THE NUMBERS</div>
-                          <div class="design-preview-actions">
-                            <span class="design-preview-pill">Tier Theme</span>
-                            <span class="design-preview-pill design-preview-pill-solid">1,240</span>
-                          </div>
-                        </div>
-                        <div class="design-preview-hero">
-                          <div class="design-preview-stat-card">
-                            <span>Bankroll</span>
-                            <strong>1,240</strong>
-                          </div>
-                          <div class="design-preview-stat-card">
-                            <span>Carter Cash</span>
-                            <strong>18</strong>
-                          </div>
-                        </div>
-                        <div class="design-preview-main-card">
-                          <div class="design-preview-main-header">
-                            <div>
-                              <h4>Guess 10</h4>
-                              <p>Build your wager, choose a prediction, then draw.</p>
-                            </div>
-                            <span class="design-preview-chip">2x</span>
-                          </div>
-                          <div class="design-preview-buttons">
-                            <button type="button" class="design-preview-btn">Rebet</button>
-                            <button type="button" class="design-preview-btn design-preview-btn-primary">Draw</button>
-                          </div>
-                          <div class="design-preview-chips">
-                            <span>5</span>
-                            <span>10</span>
-                            <span>25</span>
-                            <span>100</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </aside>
+                  <button type="button" class="primary" id="admin-theme-create-button">Create New</button>
                 </div>
                 <div class="design-theme-library">
                   <div class="admin-listing-header">
@@ -2979,6 +2828,200 @@
         </div>
         <div class="modal-actions">
           <button type="button" id="rank-ladder-ok" class="primary">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal"
+      id="admin-theme-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="admin-theme-modal-title"
+      hidden
+    >
+      <div class="modal-content admin-modal admin-theme-modal-content">
+        <div class="modal-header">
+          <h2 id="admin-theme-modal-title">Create theme</h2>
+          <button type="button" class="modal-close" id="admin-theme-close" aria-label="Close theme builder">×</button>
+        </div>
+        <div class="admin-theme-modal-layout">
+          <form id="admin-theme-form" class="admin-form design-builder-form">
+            <input type="hidden" name="themeId" />
+            <input type="hidden" name="themeSourceKey" />
+            <input type="hidden" name="themeSourceBuiltin" value="0" />
+            <label class="admin-field">
+              <span>Theme Name</span>
+              <input type="text" name="themeName" placeholder="Midnight Arcade" required />
+            </label>
+            <label class="admin-field">
+              <span>Theme Key</span>
+              <input type="text" name="themeKey" placeholder="midnight-arcade" />
+              <span class="admin-hint">Leave blank to auto-generate from the name.</span>
+            </label>
+            <label class="admin-field">
+              <span>Base Theme</span>
+              <select name="baseTheme" id="admin-theme-base-select" required></select>
+            </label>
+            <div class="design-color-grid">
+              <label class="admin-field">
+                <span>Primary Accent</span>
+                <input type="color" name="accentColor" value="#63f0ff" />
+              </label>
+              <label class="admin-field">
+                <span>Secondary Accent</span>
+                <input type="color" name="accentSecondaryColor" value="#f857c1" />
+              </label>
+              <label class="admin-field">
+                <span>Tertiary Accent</span>
+                <input type="color" name="accentTertiaryColor" value="#8b80ff" />
+              </label>
+              <label class="admin-field">
+                <span>Hero Button</span>
+                <input type="color" name="heroButtonColor" value="#f7bfdc" />
+              </label>
+              <label class="admin-field">
+                <span>Gold / Highlight</span>
+                <input type="color" name="goldColor" value="#ffd166" />
+              </label>
+              <label class="admin-field">
+                <span>Muted Text</span>
+                <input type="color" name="mutedColor" value="#bfd5ff" />
+              </label>
+              <label class="admin-field">
+                <span>Success</span>
+                <input type="color" name="successColor" value="#5af78e" />
+              </label>
+              <label class="admin-field">
+                <span>Danger</span>
+                <input type="color" name="dangerColor" value="#ff5c8a" />
+              </label>
+              <label class="admin-field">
+                <span>Page Background Start</span>
+                <input type="color" name="bgStartColor" value="#08142d" />
+              </label>
+              <label class="admin-field">
+                <span>Page Background End</span>
+                <input type="color" name="bgEndColor" value="#050913" />
+              </label>
+              <label class="admin-field">
+                <span>Panel Start</span>
+                <input type="color" name="panelStartColor" value="#0e2c63" />
+              </label>
+              <label class="admin-field">
+                <span>Panel End</span>
+                <input type="color" name="panelEndColor" value="#08142d" />
+              </label>
+              <label class="admin-field">
+                <span>Header Start</span>
+                <input type="color" name="headerStartColor" value="#15386d" />
+              </label>
+              <label class="admin-field">
+                <span>Header End</span>
+                <input type="color" name="headerEndColor" value="#0b1b3d" />
+              </label>
+            </div>
+            <div class="design-settings-grid">
+              <label class="admin-field">
+                <span>Glow Strength</span>
+                <input type="range" name="glowStrength" min="0" max="100" step="1" value="48" />
+              </label>
+              <label class="admin-field">
+                <span>Surface Contrast</span>
+                <input type="range" name="surfaceContrast" min="0" max="100" step="1" value="58" />
+              </label>
+              <label class="admin-field">
+                <span>Roundness</span>
+                <input type="range" name="radiusScale" min="0" max="100" step="1" value="72" />
+              </label>
+              <label class="admin-field admin-toggle-field design-toggle-field">
+                <span>Surface Style</span>
+                <span class="admin-toggle-control">
+                  <input type="checkbox" name="flatSurfaces" />
+                  <span>Use flat surfaces instead of gradients.</span>
+                </span>
+              </label>
+            </div>
+            <div class="modal-actions admin-form-actions">
+              <button type="button" class="secondary" id="admin-theme-cancel">Cancel</button>
+              <button type="button" class="secondary" id="admin-theme-clear-override">Use Rank Theme</button>
+              <button type="button" class="secondary" id="admin-theme-try-on">Try On Theme</button>
+              <button type="submit" class="primary" id="admin-theme-save">Save theme</button>
+            </div>
+            <p id="admin-theme-message" class="admin-message" role="status" aria-live="polite"></p>
+          </form>
+          <aside class="design-preview-panel">
+            <div class="design-preview-header">
+              <h3>Homepage Preview</h3>
+              <p>See the exact home page composition as you tune the theme.</p>
+            </div>
+            <div id="admin-theme-preview" class="design-preview-shell design-home-preview-shell">
+              <div class="design-home-preview-app">
+                <div class="design-home-preview-header">
+                  <div class="design-home-preview-bank">BANK: 1,240 UNITS</div>
+                  <div class="design-home-preview-header-actions">
+                    <span class="design-home-preview-mode">NORMAL MODE</span>
+                    <span class="design-home-preview-icon"></span>
+                    <span class="design-home-preview-icon design-home-preview-icon-menu"></span>
+                  </div>
+                </div>
+                <div class="design-home-preview-hero">
+                  <h3 class="design-home-preview-title">WELCOME TO THE<br />CASINO FLOOR</h3>
+                  <p class="design-home-preview-subtitle">Track your rank, jump into live contests, and head to Play when you're ready to pick a table.</p>
+                  <button type="button" class="design-home-preview-play">PLAY</button>
+                  <p class="design-home-preview-typing">Analyst Carter Hurst, you're on. Review the numbers and report your position.</p>
+                  <section class="design-home-preview-rank">
+                    <div class="design-home-preview-rank-header">
+                      <div>
+                        <p class="design-home-preview-eyebrow">Current Rank</p>
+                        <div class="design-home-preview-rank-title-row">
+                          <span class="design-home-preview-rank-icon">2</span>
+                          <h4>Analyst</h4>
+                        </div>
+                      </div>
+                      <span class="design-home-preview-link">Rank Ladder</span>
+                    </div>
+                    <div class="design-home-preview-progress-grid">
+                      <div class="design-home-preview-progress-card">
+                        <div class="design-home-preview-progress-labels">
+                          <span>Hands Played</span>
+                          <span>1,240 / 2,000</span>
+                        </div>
+                        <span class="design-home-preview-progress-track"><span class="design-home-preview-progress-fill"></span></span>
+                      </div>
+                      <div class="design-home-preview-progress-card">
+                        <div class="design-home-preview-progress-labels">
+                          <span>Contest Victories</span>
+                          <span>1 / 2</span>
+                        </div>
+                        <span class="design-home-preview-progress-track"><span class="design-home-preview-progress-fill design-home-preview-progress-fill-alt"></span></span>
+                      </div>
+                    </div>
+                  </section>
+                  <section class="design-home-preview-contests">
+                    <div class="design-home-preview-contests-header">
+                      <h4>Contest Spotlight</h4>
+                      <span class="design-home-preview-link">See All Contests</span>
+                    </div>
+                    <article class="design-home-preview-contest-card">
+                      <div class="design-home-preview-contest-top">
+                        <div>
+                          <h5>Weekly Bankroll Sprint</h5>
+                          <p>Ends Sunday at 10 PM</p>
+                        </div>
+                        <span class="design-home-preview-fee">25 Units</span>
+                      </div>
+                      <p class="design-home-preview-prize">$250 Prize Pool</p>
+                      <div class="design-home-preview-threshold">
+                        <span class="design-home-preview-threshold-title">Boost unlock at 50 players</span>
+                        <span class="design-home-preview-threshold-bar"><span class="design-home-preview-threshold-fill"></span></span>
+                      </div>
+                    </article>
+                  </section>
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
     </div>
