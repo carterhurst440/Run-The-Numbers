@@ -1964,8 +1964,8 @@ function closeRankUpModal() {
 
 async function renderRankLadderModal() {
   if (!rankLadderListEl) return;
-  await loadThemeLibrary();
-  const ladder = await loadRankLadder();
+  await loadThemeLibrary(true);
+  const ladder = await loadRankLadder(true);
   let playerCounts = new Map();
 
   try {
