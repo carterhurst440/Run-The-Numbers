@@ -954,7 +954,7 @@ async function refreshCurrentRankState({ force = false } = {}) {
   renderDrawerRankSummary(currentRankState.currentRank);
   typeHomeRankWelcome(interpolateRankWelcome(currentRankState.currentRank));
   renderHomeRankPanel();
-  renderRankLadderModal();
+  void renderRankLadderModal();
   await renderHomeContestPromos();
   if (playerLiveContestListEl && playerEndedContestListEl) {
     await loadPlayerContestList(false);
@@ -1962,10 +1962,28 @@ function closeRankUpModal() {
   document.body.classList.remove("modal-open");
 }
 
-function renderRankLadderModal() {
+async function renderRankLadderModal() {
   if (!rankLadderListEl) return;
+  await loadThemeLibrary();
+  const ladder = await loadRankLadder();
+  let playerCounts = new Map();
+
+  try {
+    const players = await loadAdminRankPlayerSummaries();
+    playerCounts = players.reduce((map, player) => {
+      const playerRankState = resolveRankState(player.handsPlayed, player.contestWins, ladder);
+      const rankId = playerRankState.currentRank?.id || `tier-${playerRankState.currentRank?.tier || 1}`;
+      map.set(rankId, (map.get(rankId) || 0) + 1);
+      return map;
+    }, new Map());
+  } catch (error) {
+    console.warn("[RTN] unable to load rank ladder player counts", error);
+  }
+
   rankLadderListEl.innerHTML = "";
-  getRankLadder().forEach((rank) => {
+  ladder.forEach((rank) => {
+    const rankKey = rank.id || `tier-${rank.tier}`;
+    const playerCount = playerCounts.get(rankKey) || 0;
     const item = document.createElement("li");
     item.className = "rank-ladder-item";
     item.dataset.theme = rank.theme_key || "blue";
@@ -1977,6 +1995,7 @@ function renderRankLadderModal() {
           <span class="rank-theme-pill">${getRankThemeLabel(rank.theme_key)}</span>
         </div>
         <p class="rank-ladder-requirements">${buildRankRequirementsCopy(rank)}</p>
+        <p class="rank-ladder-player-count">${playerCount} player${playerCount === 1 ? "" : "s"} in this rank</p>
       </div>
     `;
     const scopedThemeVariables = getThemeCssVariables(getThemeRecord(rank.theme_key || "blue"));
@@ -1987,9 +2006,9 @@ function renderRankLadderModal() {
   });
 }
 
-function openRankLadderModal() {
+async function openRankLadderModal() {
   if (!rankLadderModal) return;
-  renderRankLadderModal();
+  await renderRankLadderModal();
   rankLadderModal.hidden = false;
   document.body.classList.add("modal-open");
 }
@@ -15377,7 +15396,7 @@ if (contestEmailOptInInput) {
 
 if (homeRankLadderButton) {
   homeRankLadderButton.addEventListener("click", () => {
-    openRankLadderModal();
+    void openRankLadderModal();
   });
 }
 
