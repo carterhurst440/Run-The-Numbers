@@ -1646,9 +1646,7 @@ function resetAdminThemeForm(theme = null) {
   setValue("radiusScale", String(record.settings.radiusScale));
   setValue("flatSurfaces", record.settings.flatSurfaces);
   if (adminThemeMessage) {
-    adminThemeMessage.textContent = isProtectedBuiltin
-      ? "Built-in themes load as editable starting points. Saving will create a custom copy."
-      : "";
+    adminThemeMessage.textContent = "";
   }
   if (adminThemeSaveButton) {
     adminThemeSaveButton.textContent = theme && !record.is_builtin ? "Save theme" : "Save theme";
@@ -1721,11 +1719,11 @@ function renderAdminThemeRow(theme) {
         <h3>${escapeAssistantHtml(theme.name)}</h3>
         <p class="admin-theme-meta">${escapeAssistantHtml(theme.key)} · Base ${escapeAssistantHtml(getRankThemeLabel(theme.base_theme))}</p>
       </div>
-      <span class="rank-theme-pill">${isProtectedBuiltin ? "Built-in" : "Saved"}</span>
+      <span class="rank-theme-pill">Theme</span>
     </div>
     <div class="admin-theme-preview-swatch">${buildThemeCardPreviewMarkup(theme)}</div>
     <div class="admin-theme-actions">
-      <button type="button" class="secondary">${isProtectedBuiltin ? "Customize" : "Edit Theme"}</button>
+      <button type="button" class="secondary">Edit Theme</button>
       <button type="button" class="secondary">Duplicate</button>
       <button type="button" class="secondary" data-admin-theme-try-on-key="${escapeAssistantHtml(theme.key)}">Try On</button>
       ${isProtectedBuiltin ? "" : '<button type="button" class="secondary">Delete Theme</button>'}
