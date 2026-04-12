@@ -1291,23 +1291,27 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
                     <p class="beta-game-panel-kicker">Controls</p>
                     <h2>Wager &amp; Pot</h2>
                     <div class="beta-action-group beta-action-group-wager">
-                      <div class="beta-wager-inline-labels">
+                      <div class="beta-wager-primary">
                         <p class="beta-control-label">Wager</p>
-                        <p class="beta-control-label">Pot Size</p>
-                        <p class="beta-control-label">Next Pot Size</p>
-                      </div>
-                      <div class="beta-wager-inline-row">
                         <div class="beta-bet-spot-wrap">
                           <div class="beta-bet-spot beta-bet-spot-circle is-empty">
                             <span class="beta-bet-empty-label">Place Bets Here</span>
                           </div>
                         </div>
+                      </div>
+                      <div class="beta-wager-secondary-row">
+                        <div class="beta-wager-secondary-item">
+                          <p class="beta-control-label">Current Pot</p>
                         <div class="beta-bet-spot beta-bet-spot-circle beta-pot-spot">
                           <span class="beta-bet-spot-total">0</span>
                           <span class="beta-pot-commission-preview">(-0)</span>
                         </div>
+                        </div>
+                        <div class="beta-wager-secondary-item">
+                          <p class="beta-control-label">Next Pot</p>
                         <div class="beta-bet-spot beta-bet-spot-circle beta-pot-spot beta-next-pot-spot">
                           <span class="beta-bet-spot-total">0</span>
+                        </div>
                         </div>
                       </div>
                     </div>
