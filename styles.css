@@ -4988,7 +4988,7 @@ body.theme-angelic {
   display: block;
   width: 20px;
   height: 2px;
-  background: var(--neon-cyan);
+  background: var(--text-light);
   border-radius: 999px;
   position: relative;
   transition: transform 0.2s ease;
