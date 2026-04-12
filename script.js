@@ -11962,6 +11962,10 @@ async function finalizeGuess10Hand({
   result
 }) {
   try {
+    stats.hands += 1;
+    stats.wagered += completedBet;
+    stats.paid += totalReturn;
+    updateStatsUI();
     animateBankrollOutcome(net);
     recordBankrollHistoryPoint();
     applyPlaythrough(completedBet);
