@@ -11673,6 +11673,7 @@ function handleGuess10BetSpotPress() {
   if (redBlackHandActive || redBlackSettlementPending) return;
   if (redBlackSelectedChip > bankroll) {
     setRedBlackStatus(`Not enough bankroll for a ${formatCurrency(redBlackSelectedChip)} unit chip.`);
+    showToast("Not enough funds", "error");
     return;
   }
   bankroll = roundCurrencyValue(bankroll - redBlackSelectedChip);
