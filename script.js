@@ -1288,7 +1288,6 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
               <section class="beta-game-panel beta-table-panel beta-control-panel">
                 <div class="beta-table-header">
                   <div class="beta-control-heading">
-                    <p class="beta-game-panel-kicker">Controls</p>
                     <h2>Wager &amp; Pot</h2>
                     <div class="beta-action-group beta-action-group-wager">
                       <div class="beta-wager-primary">
