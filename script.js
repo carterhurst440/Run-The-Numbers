@@ -9660,6 +9660,53 @@ function applyTheme(theme) {
   }
 }
 
+function loadStoredResolvedTheme() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return null;
+  }
+  try {
+    const raw = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || !parsed.theme) {
+      return null;
+    }
+    return normalizeThemeRecord(parsed.theme);
+  } catch (error) {
+    console.warn("[RTN] unable to load stored resolved theme", error);
+    return null;
+  }
+}
+
+function persistResolvedTheme(theme, userId = currentUser?.id) {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  if (!userId || userId === GUEST_USER.id) {
+    return;
+  }
+  try {
+    const record = normalizeThemeRecord(theme);
+    window.localStorage.setItem(
+      THEME_STORAGE_KEY,
+      JSON.stringify({
+        userId,
+        theme: {
+          id: record.id,
+          key: record.key,
+          name: record.name,
+          base_theme: record.base_theme,
+          palette: record.palette,
+          settings: record.settings,
+          is_builtin: record.is_builtin
+        }
+      })
+    );
+  } catch (error) {
+    console.warn("[RTN] unable to persist resolved theme", error);
+  }
+}
+
 function getAdminThemeOverrideStorageKey(userId = currentUser?.id) {
   if (!userId || userId === GUEST_USER.id) {
     return null;
@@ -9772,7 +9819,11 @@ function updateAdminThemeOverrideUI() {
 }
 
 function applyResolvedTheme() {
-  applyTheme(getResolvedThemeRecord());
+  const resolvedTheme = getResolvedThemeRecord();
+  applyTheme(resolvedTheme);
+  if (currentUser?.id && currentUser.id !== GUEST_USER.id) {
+    persistResolvedTheme(resolvedTheme, currentUser.id);
+  }
   updateAdminThemeOverrideUI();
 }
 
@@ -9797,6 +9848,11 @@ function setAdminThemeOverride(theme, { persist = false } = {}) {
 }
 
 function initTheme() {
+  const storedTheme = loadStoredResolvedTheme();
+  if (storedTheme) {
+    applyTheme(storedTheme);
+    return;
+  }
   applyResolvedTheme();
 }
 
