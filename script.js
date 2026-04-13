@@ -10282,6 +10282,7 @@ const rankLadderOkButton = document.getElementById("rank-ladder-ok");
 const playAssistantToggle = document.getElementById("play-assistant-toggle");
 const playAssistantPanel = document.getElementById("play-assistant-panel");
 const playAssistantCloseButton = document.getElementById("play-assistant-close");
+const playAssistantTitleEl = document.getElementById("play-assistant-title");
 const playAssistantContextEl = document.getElementById("play-assistant-context");
 const playAssistantThreadEl = document.getElementById("play-assistant-thread");
 const playAssistantQuickActionsEl = document.getElementById("play-assistant-quick-actions");
@@ -10617,11 +10618,13 @@ let dashboardProfileRetryTimer = null;
 let resetModalTrigger = null;
 let playAssistantOpen = false;
 let playAssistantThread = [];
+let playAssistantThreadGameKey = null;
 let playAssistantRiskTolerance = "balanced";
 let playAssistantPendingPlan = null;
 let playAssistantRequestInFlight = false;
 let playAssistantHistoryCache = {
   userId: null,
+  gameKey: null,
   fetchedAt: 0,
   insights: null
 };
@@ -10647,15 +10650,65 @@ const PLAY_ASSISTANT_MAX_HISTORY = 12;
 const PLAY_ASSISTANT_HISTORY_LIMIT = 100;
 const PLAY_ASSISTANT_HISTORY_CACHE_MS = 60 * 1000;
 const PLAY_ASSISTANT_REQUEST_TIMEOUT_MS = 25000;
-const PLAY_ASSISTANT_RULES_SUMMARY = [
-  "Run the Numbers uses a fresh 53-card deck every hand.",
-  "Ace and number cards 2 through 10 keep the hand alive.",
-  "Any Jack, Queen, King, or the Joker stops the hand immediately.",
-  "Number bets on Ace through 10 must be placed before the hand starts and can hit multiple times until a stopper appears.",
-  "Specific-card bets pay when the exact rank and suit appears.",
-  "Card-count bets are based on the total cards dealt, including the final bust card.",
-  "The assistant may suggest bets and, with consent, place chips on the felt, but it must never start the hand."
-].join(" ");
+const PLAY_ASSISTANT_CONFIG = {
+  [GAME_KEYS.RUN_THE_NUMBERS]: {
+    title: "Bankroll Coach",
+    rulesSummary: [
+      "Run the Numbers uses a fresh 53-card deck every hand.",
+      "Ace and number cards 2 through 10 keep the hand alive.",
+      "Any Jack, Queen, King, or the Joker stops the hand immediately.",
+      "Number bets on Ace through 10 must be placed before the hand starts and can hit multiple times until a stopper appears.",
+      "Specific-card bets pay when the exact rank and suit appears.",
+      "Card-count bets are based on the total cards dealt, including the final bust card.",
+      "The assistant may suggest bets and, with consent, place chips on the felt, but it must never start the hand."
+    ].join(" "),
+    greeting:
+      "I can explain the rules, talk through the current table state, and draft a betting layout if you want one. Tell me what you want to understand or propose.",
+    quickActions: [
+      {
+        label: "How do I play?",
+        prompt: "Explain how Run the Numbers works in simple terms."
+      },
+      {
+        label: "Beginner plan",
+        prompt: "Give me a beginner-friendly strategy for my bankroll."
+      },
+      {
+        label: "Size my bets",
+        prompt: "Help me choose bet sizing based on my bankroll."
+      }
+    ]
+  },
+  [GAME_KEYS.GUESS_10]: {
+    title: "Bankroll Coach",
+    rulesSummary: [
+      "Guess 10 uses a fresh 52-card deck with no Joker.",
+      "You place one wager, choose a prediction category, and keep drawing as long as each new card matches your current prediction.",
+      "Color picks exactly 1 color and pays 2x on each hit.",
+      "Suit picks 1 to 3 suits and pays 4 divided by the number of selected suits on each hit.",
+      "Rank picks 1 to 12 ranks and pays 13 divided by the number of selected ranks on each hit.",
+      "After each hit you may change your prediction, draw again, or cash out.",
+      "Commission only applies when you cash out, and the commission rate drops as the streak gets longer.",
+      "A miss ends the hand immediately and loses the current pot."
+    ].join(" "),
+    greeting:
+      "I can explain Guess 10, talk through your live prediction and pot, and help you think through draw-versus-cash-out decisions. Tell me what you want to understand.",
+    quickActions: [
+      {
+        label: "How do I play?",
+        prompt: "Explain how Guess 10 works in simple terms."
+      },
+      {
+        label: "Cash out?",
+        prompt: "Help me think through when to cash out in Guess 10."
+      },
+      {
+        label: "My odds",
+        prompt: "Explain how the Guess 10 multipliers and commission work."
+      }
+    ]
+  }
+};
 const PLAY_ASSISTANT_RISK_LABELS = {
   cautious: "Cautious",
   balanced: "Balanced",
@@ -13152,6 +13205,27 @@ function setPlayAssistantRiskTolerance(risk, { announce = false } = {}) {
   }
 }
 
+function getCurrentPlayAssistantGameKey() {
+  return getGameKeyForRoute(currentRoute) || GAME_KEYS.RUN_THE_NUMBERS;
+}
+
+function getPlayAssistantConfig(gameKey = getCurrentPlayAssistantGameKey()) {
+  return PLAY_ASSISTANT_CONFIG[resolveGameKey(gameKey)] || PLAY_ASSISTANT_CONFIG[GAME_KEYS.RUN_THE_NUMBERS];
+}
+
+function updatePlayAssistantUiContent() {
+  const config = getPlayAssistantConfig();
+  if (playAssistantTitleEl) {
+    playAssistantTitleEl.textContent = config.title || "Bankroll Coach";
+  }
+  playAssistantQuickActionButtons.forEach((button, index) => {
+    const action = config.quickActions?.[index];
+    if (!action) return;
+    button.textContent = action.label || button.textContent;
+    button.dataset.playAssistantPrompt = action.prompt || "";
+  });
+}
+
 function getPlayAssistantBetCatalog() {
   return Array.from(betDefinitions.values()).map((definition) => ({
     key: definition.key,
@@ -13309,6 +13383,46 @@ function getPlayAssistantBetReference() {
   };
 }
 
+function getGuess10AssistantReference() {
+  return {
+    deck: {
+      totalCards: 52,
+      liveCards: 52,
+      stopperCards: 0
+    },
+    predictionCategories: [
+      { key: "color", picksAllowed: "exactly 1", multiplierFormula: "2x" },
+      { key: "suit", picksAllowed: "1 to 3", multiplierFormula: "4 / selectedSuits" },
+      { key: "rank", picksAllowed: "1 to 12", multiplierFormula: "13 / selectedRanks" }
+    ],
+    commissionByRung: Array.from({ length: RED_BLACK_MAX_RUNGS }, (_, index) => {
+      const rung = index + 1;
+      return {
+        rung,
+        commissionPercent: Number((((RED_BLACK_COMMISSION_BY_RUNG[rung] ?? 0) * 100)).toFixed(2))
+      };
+    })
+  };
+}
+
+function getGuess10AssistantTableState() {
+  const handStarted = redBlackHandActive || redBlackRung > 0;
+  return {
+    wagerUnits: redBlackBet,
+    currentPotUnits: handStarted ? redBlackCurrentPot : redBlackBet,
+    rung: redBlackRung,
+    handActive: redBlackHandActive,
+    settlementPending: redBlackSettlementPending,
+    category: redBlackCategory,
+    selectedValues: [...redBlackSelectedValues],
+    selectionLabel: getGuess10SelectionLabel(),
+    multiplier: Number(getRedBlackPreviewMultiplier().toFixed(2)),
+    commissionPercent: Number((getGuess10CommissionRate() * 100).toFixed(2)),
+    canDraw: !redBlackSettlementPending && redBlackBet > 0 && isRedBlackSelectionValid(),
+    canCashOut: !redBlackSettlementPending && redBlackHandActive && redBlackRung > 0 && redBlackCurrentPot > 0
+  };
+}
+
 function buildPlayAssistantHandHistoryInsights(records = []) {
   const safeRecords = Array.isArray(records) ? records : [];
   const summarize = (rows) => {
@@ -13459,7 +13573,10 @@ async function fetchBetPlayRecords({ userId, limit = 1000 } = {}) {
   return allRecords.slice(0, limit);
 }
 
-async function loadPlayAssistantHandHistoryInsights({ force = false } = {}) {
+async function loadPlayAssistantHandHistoryInsights({
+  force = false,
+  gameKey = getCurrentPlayAssistantGameKey()
+} = {}) {
   if (!currentUser?.id || currentUser.id === GUEST_USER.id || !supabase) {
     return null;
   }
@@ -13468,6 +13585,7 @@ async function loadPlayAssistantHandHistoryInsights({ force = false } = {}) {
   if (
     !force &&
     playAssistantHistoryCache.userId === currentUser.id &&
+    playAssistantHistoryCache.gameKey === gameKey &&
     playAssistantHistoryCache.insights &&
     now - playAssistantHistoryCache.fetchedAt < PLAY_ASSISTANT_HISTORY_CACHE_MS
   ) {
@@ -13479,30 +13597,35 @@ async function loadPlayAssistantHandHistoryInsights({ force = false } = {}) {
       userIds: [currentUser.id],
       fields: ["id", "user_id", "created_at", "game_id", "total_cards", "stopper_label", "stopper_suit", "total_wager", "total_paid", "net"]
     });
-    const rtnRecords = records.filter((row) => resolveGameKey(row?.game_id) === GAME_KEYS.RUN_THE_NUMBERS);
-    const handHistory = buildPlayAssistantHandHistoryInsights(rtnRecords);
-    const handMap = new Map(rtnRecords.map((row) => [String(row?.id || ""), row]));
-    const betRecords = await fetchBetPlayRecords({ userId: currentUser.id, limit: 2000 });
-    const enrichedBetRecords = betRecords
-      .map((row) => {
-        const hand = handMap.get(String(row?.hand_id || ""));
-        if (!hand) return null;
-        return {
-          ...row,
-          hand_total_cards: hand?.total_cards ?? null,
-          hand_stopper_label: hand?.stopper_label ?? null,
-          hand_stopper_suit: hand?.stopper_suit ?? null,
-          hand_net: hand?.net ?? null,
-          created_at: hand?.created_at ?? null
-        };
-      })
-      .filter(Boolean);
-    const insights = {
-      ...handHistory,
-      betHistory: buildPlayAssistantBetHistoryInsights(enrichedBetRecords)
-    };
+    const gameRecords = records.filter((row) => resolveGameKey(row?.game_id) === gameKey);
+    const handHistory = buildPlayAssistantHandHistoryInsights(gameRecords);
+    let insights = handHistory;
+
+    if (gameKey === GAME_KEYS.RUN_THE_NUMBERS) {
+      const handMap = new Map(gameRecords.map((row) => [String(row?.id || ""), row]));
+      const betRecords = await fetchBetPlayRecords({ userId: currentUser.id, limit: 2000 });
+      const enrichedBetRecords = betRecords
+        .map((row) => {
+          const hand = handMap.get(String(row?.hand_id || ""));
+          if (!hand) return null;
+          return {
+            ...row,
+            hand_total_cards: hand?.total_cards ?? null,
+            hand_stopper_label: hand?.stopper_label ?? null,
+            hand_stopper_suit: hand?.stopper_suit ?? null,
+            hand_net: hand?.net ?? null,
+            created_at: hand?.created_at ?? null
+          };
+        })
+        .filter(Boolean);
+      insights = {
+        ...handHistory,
+        betHistory: buildPlayAssistantBetHistoryInsights(enrichedBetRecords)
+      };
+    }
     playAssistantHistoryCache = {
       userId: currentUser.id,
+      gameKey,
       fetchedAt: now,
       insights
     };
@@ -13514,9 +13637,56 @@ async function loadPlayAssistantHandHistoryInsights({ force = false } = {}) {
 }
 
 async function getPlayAssistantState() {
+  const gameKey = getCurrentPlayAssistantGameKey();
+  const config = getPlayAssistantConfig(gameKey);
+  const handHistory = await loadPlayAssistantHandHistoryInsights({ gameKey });
+
+  if (gameKey === GAME_KEYS.GUESS_10) {
+    const outstanding = Math.max(0, Number(redBlackBet || 0));
+    return {
+      gameKey,
+      gameLabel: getGameLabel(gameKey),
+      bankroll,
+      carterCash,
+      riskTolerance: playAssistantRiskTolerance,
+      accountMode: {
+        key: getAccountModeValue(),
+        label: getAccountModeLabel(),
+        contest: isContestAccountMode()
+          ? {
+              id: currentAccountMode.contestId,
+              title: getModeContest()?.title ?? "Contest Mode"
+            }
+          : null
+      },
+      betting: {
+        canPlaceBets: !redBlackSettlementPending,
+        dealing: redBlackSettlementPending,
+        outstandingUnits: outstanding,
+        availableUnits: bankroll,
+        totalExposureUnits: bankroll + outstanding,
+        currentBets: outstanding > 0
+          ? [{
+              key: `guess10-${redBlackCategory}`,
+              label: `${getGuess10SelectionLabel()} (${redBlackCategory})`,
+              units: outstanding,
+              type: redBlackCategory
+            }]
+          : []
+      },
+      stats: null,
+      rulesSummary: config.rulesSummary,
+      betCatalog: [],
+      gameReference: getGuess10AssistantReference(),
+      tableState: getGuess10AssistantTableState(),
+      handHistory
+    };
+  }
+
   const outstanding = bets.reduce((sum, bet) => sum + Math.max(0, Number(bet.units ?? 0)), 0);
-  const handHistory = await loadPlayAssistantHandHistoryInsights();
   return {
+    gameKey,
+    gameLabel: getGameLabel(gameKey),
     bankroll,
     carterCash,
     riskTolerance: playAssistantRiskTolerance,
@@ -13554,9 +13724,10 @@ async function getPlayAssistantState() {
       wagered: stats.wagered,
       paid: stats.paid
     },
-    rulesSummary: PLAY_ASSISTANT_RULES_SUMMARY,
+    rulesSummary: config.rulesSummary,
     betCatalog: getPlayAssistantBetCatalog(),
     gameReference: getPlayAssistantBetReference(),
+    tableState: null,
     handHistory
   };
 }
@@ -13564,6 +13735,7 @@ async function getPlayAssistantState() {
 function updatePlayAssistantContext() {
   if (!playAssistantContextEl) return;
   playAssistantContextEl.textContent = "";
+  updatePlayAssistantUiContent();
 }
 
 function escapeAssistantHtml(value) {
@@ -13729,7 +13901,8 @@ function togglePlayAssistant(open = !playAssistantOpen) {
     playAssistantPanel.setAttribute("aria-hidden", String(!playAssistantOpen));
   }
   if (playAssistantToggle) {
-    playAssistantToggle.hidden = currentRoute !== "run-the-numbers" || playAssistantOpen;
+    playAssistantToggle.hidden =
+      !["run-the-numbers", "red-black"].includes(currentRoute) || playAssistantOpen;
     playAssistantToggle.setAttribute("aria-expanded", String(playAssistantOpen));
   }
   if (playAssistantOpen && playAssistantInput) {
@@ -13738,7 +13911,11 @@ function togglePlayAssistant(open = !playAssistantOpen) {
 }
 
 function updatePlayAssistantVisibility() {
-  const shouldShow = currentRoute === "run-the-numbers";
+  updatePlayAssistantUiContent();
+  const shouldShow = currentRoute === "run-the-numbers" || currentRoute === "red-black";
+  if (shouldShow) {
+    ensurePlayAssistantThreadMatchesCurrentGame();
+  }
   if (playAssistantToggle) {
     playAssistantToggle.hidden = !shouldShow || playAssistantOpen;
   }
@@ -13750,6 +13927,16 @@ function updatePlayAssistantVisibility() {
 function resetPlayAssistantDraft() {
   if (!playAssistantInput) return;
   playAssistantInput.value = "";
+}
+
+function ensurePlayAssistantThreadMatchesCurrentGame() {
+  const gameKey = getCurrentPlayAssistantGameKey();
+  if (playAssistantThreadGameKey && playAssistantThreadGameKey !== gameKey) {
+    playAssistantThread = [];
+    playAssistantPendingPlan = null;
+    renderPlayAssistantThread();
+  }
+  playAssistantThreadGameKey = gameKey;
 }
 
 function serializePlayAssistantMessages() {
@@ -13781,6 +13968,9 @@ function buildAssistantChipBreakdown(units) {
 }
 
 function normalizeAssistantPlan(plan) {
+  if (getCurrentPlayAssistantGameKey() !== GAME_KEYS.RUN_THE_NUMBERS) {
+    return null;
+  }
   if (!plan || !Array.isArray(plan.bets) || !plan.bets.length) {
     return null;
   }
@@ -14081,8 +14271,9 @@ function parseAssistantClearDirective(message) {
 }
 
 async function requestPlayAssistantResponse(userMessage) {
+  const gameKey = getCurrentPlayAssistantGameKey();
   const state = await getPlayAssistantState();
-  if (parseAssistantClearDirective(userMessage)) {
+  if (gameKey === GAME_KEYS.RUN_THE_NUMBERS && parseAssistantClearDirective(userMessage)) {
     return {
       reply: "Understood. Confirm if you want me to clear all current bets from the felt.",
       riskTolerance: state.riskTolerance,
@@ -14121,6 +14312,15 @@ async function requestPlayAssistantResponse(userMessage) {
     }
   } catch (error) {
     console.warn("[RTN] play assistant fallback", error);
+  }
+
+  if (gameKey !== GAME_KEYS.RUN_THE_NUMBERS) {
+    return {
+      reply:
+        "I can help explain Guess 10, your current prediction, and cash-out decisions, but I can't auto-stage Guess 10 actions yet.",
+      riskTolerance: state.riskTolerance,
+      plan: null
+    };
   }
 
   const explicitDirective = parseAssistantDirective(userMessage, state);
@@ -14335,13 +14535,15 @@ async function sendPlayAssistantMessage(rawMessage) {
 }
 
 function seedPlayAssistant() {
+  ensurePlayAssistantThreadMatchesCurrentGame();
   if (playAssistantThread.length > 0) {
     return;
   }
   updatePlayAssistantContext();
+  const config = getPlayAssistantConfig();
   pushPlayAssistantMessage({
     role: "assistant",
-    text: "I can explain the rules, talk through the current table state, and draft a betting layout if you want one. Tell me what you want to understand or propose."
+    text: config.greeting
   });
 }
 

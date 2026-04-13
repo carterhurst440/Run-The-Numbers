@@ -25,6 +25,15 @@ type GameReference = {
     liveCards?: number;
     stopperCards?: number;
   };
+  predictionCategories?: Array<{
+    key?: string;
+    picksAllowed?: string;
+    multiplierFormula?: string;
+  }>;
+  commissionByRung?: Array<{
+    rung?: number;
+    commissionPercent?: number;
+  }>;
   activePaytable?: {
     id?: string;
     name?: string;
@@ -104,6 +113,8 @@ type HandHistoryInsights = {
 };
 
 type AssistantState = {
+  gameKey?: string;
+  gameLabel?: string;
   bankroll?: number;
   carterCash?: number;
   riskTolerance?: string;
@@ -140,6 +151,7 @@ type AssistantState = {
   rulesSummary?: string;
   betCatalog?: BetCatalogEntry[];
   gameReference?: GameReference;
+  tableState?: Record<string, unknown> | null;
   handHistory?: HandHistoryInsights | null;
 };
 
@@ -157,7 +169,42 @@ type DraftBetPlanArgs = {
 const DEFAULT_MODEL = Deno.env.get("OPENAI_MODEL") || "gpt-5-mini";
 const RESPONSES_API_TIMEOUT_MS = 20000;
 
-const SYSTEM_PROMPT = `
+function buildSystemPrompt(state: AssistantState) {
+  const gameKey = String(state.gameKey || "").trim().toLowerCase();
+  const isGuess10 = gameKey === "game_002";
+  if (isGuess10) {
+    return `
+You are the Guess 10 PLAY assistant.
+
+Responsibilities:
+- Explain Guess 10 clearly and accurately.
+- Answer the player's question using Guess 10 rules, live table state, and Guess 10 hand history only.
+- Respect the player's requested or inferred risk tolerance: cautious, balanced, or aggressive.
+- Help with draw-versus-cash-out decisions, prediction changes, pot management, and bankroll framing.
+- Never use Run the Numbers rules, paytables, house-edge math, or hand-history data when coaching Guess 10.
+- Do not imply that you can place, draw, cash out, or otherwise execute Guess 10 actions for the player unless the supplied tools explicitly support that action.
+
+Game facts:
+- Guess 10 uses a fresh 52-card deck.
+- The player makes one wager, chooses a prediction category, and keeps drawing while cards continue to match the current prediction.
+- Color picks exactly 1 color and pays 2x on each hit.
+- Suit picks 1 to 3 suits and pays 4 divided by the number of selected suits on each hit.
+- Rank picks 1 to 12 ranks and pays 13 divided by the number of selected ranks on each hit.
+- The player may change the prediction after each successful hit.
+- A miss ends the hand immediately and loses the current pot.
+- Commission applies only when the player cashes out, and the commission rate decreases as the streak gets longer.
+
+Behavior:
+- Use get_table_context whenever rules, bankroll, live pot, prediction, streak, or recent hand history matter.
+- When get_table_context includes player hand-history summaries, use those summaries to answer Guess 10 player-specific trend questions.
+- When profitable-hand counts or percentages are present in hand-history summaries, answer profitability questions from those exact figures instead of inferring from average net.
+- If the supplied context is missing the exact figure needed, say what is available and do not invent unsupported numbers.
+- Keep answers concise, practical, and confident.
+- Do not invent Run the Numbers bet layouts, paytable math, or RTN-specific terminology.
+`.trim();
+  }
+
+  return `
 You are the Run the Numbers PLAY assistant.
 
 Responsibilities:
@@ -195,6 +242,7 @@ Behavior:
 - Keep answers concise, practical, and confident.
 - Do not invent a default playbook or preset betting pattern when the user has not asked for one.
 `.trim();
+}
 
 function safeNumber(value: unknown, fallback = 0) {
   const numeric = Number(value);
@@ -493,16 +541,20 @@ function parseExplicitBetDirective(message: string, state: AssistantState) {
 function sanitizeState(input: unknown): AssistantState {
   const raw = input && typeof input === "object" ? (input as AssistantState) : {};
   return {
+    gameKey: String(raw.gameKey || "game_001"),
+    gameLabel: String(raw.gameLabel || "Run the Numbers"),
     bankroll: Math.max(0, Math.round(safeNumber(raw.bankroll))),
     carterCash: Math.max(0, Math.round(safeNumber(raw.carterCash))),
     riskTolerance: normalizeRiskTolerance(raw.riskTolerance),
-    activePaytable: {
-      id: raw.activePaytable?.id || "paytable-1",
-      name: raw.activePaytable?.name || "Paytable 1",
-      steps: Array.isArray(raw.activePaytable?.steps)
-        ? raw.activePaytable?.steps.map((step) => Math.max(0, Math.round(safeNumber(step))))
-        : [3, 4, 15, 50]
-    },
+    activePaytable: raw.activePaytable && typeof raw.activePaytable === "object"
+      ? {
+          id: String(raw.activePaytable.id || ""),
+          name: String(raw.activePaytable.name || ""),
+          steps: Array.isArray(raw.activePaytable.steps)
+            ? raw.activePaytable.steps.map((step) => Math.max(0, Math.round(safeNumber(step))))
+            : []
+        }
+      : undefined,
     accountMode: {
       label: raw.accountMode?.label || "Normal Mode",
       contest: raw.accountMode?.contest
@@ -554,6 +606,19 @@ function sanitizeState(input: unknown): AssistantState {
                 stopperCards: Math.max(0, Math.round(safeNumber(raw.gameReference.deck.stopperCards)))
               }
             : undefined,
+          predictionCategories: Array.isArray(raw.gameReference.predictionCategories)
+            ? raw.gameReference.predictionCategories.map((entry) => ({
+                key: String(entry?.key || ""),
+                picksAllowed: String(entry?.picksAllowed || ""),
+                multiplierFormula: String(entry?.multiplierFormula || "")
+              }))
+            : [],
+          commissionByRung: Array.isArray(raw.gameReference.commissionByRung)
+            ? raw.gameReference.commissionByRung.map((entry) => ({
+                rung: Math.max(0, Math.round(safeNumber(entry?.rung))),
+                commissionPercent: safeNumber(entry?.commissionPercent)
+              }))
+            : [],
           activePaytable: raw.gameReference.activePaytable && typeof raw.gameReference.activePaytable === "object"
             ? {
                 id: String(raw.gameReference.activePaytable.id || ""),
@@ -600,6 +665,9 @@ function sanitizeState(input: unknown): AssistantState {
             : []
         }
       : undefined,
+    tableState: raw.tableState && typeof raw.tableState === "object"
+      ? Object.fromEntries(Object.entries(raw.tableState).map(([key, value]) => [String(key), value]))
+      : null,
     handHistory: raw.handHistory && typeof raw.handHistory === "object"
       ? {
           allTime: raw.handHistory.allTime && typeof raw.handHistory.allTime === "object"
@@ -773,6 +841,8 @@ function draftBetPlan(args: DraftBetPlanArgs, state: AssistantState) {
 
 function getTableContext(state: AssistantState) {
   return {
+    gameKey: state.gameKey,
+    gameLabel: state.gameLabel,
     bankroll: state.bankroll,
     carterCash: state.carterCash,
     riskTolerance: state.riskTolerance,
@@ -783,6 +853,7 @@ function getTableContext(state: AssistantState) {
     rulesSummary: state.rulesSummary,
     betCatalog: state.betCatalog,
     gameReference: state.gameReference,
+    tableState: state.tableState,
     handHistory: state.handHistory
   };
 }
@@ -863,8 +934,10 @@ Deno.serve(async (request) => {
 
     const state = sanitizeState(body?.state);
     const messages = Array.isArray(body?.messages) ? (body.messages as AssistantMessage[]) : [];
+    const supportsDraftPlan = state.gameKey === "game_001";
     console.info("[play-assistant] request", {
       latestMessage,
+      gameKey: state.gameKey,
       priorMessageCount: messages.length,
       bankroll: state.bankroll,
       riskTolerance: state.riskTolerance,
@@ -872,7 +945,7 @@ Deno.serve(async (request) => {
       currentBetCount: state.betting?.currentBets?.length ?? 0
     });
 
-    const randomSpreadDirective = parseRandomSpreadDirective(latestMessage, state);
+    const randomSpreadDirective = supportsDraftPlan ? parseRandomSpreadDirective(latestMessage, state) : null;
     if (randomSpreadDirective) {
       const totalRequestedUnits = randomSpreadDirective.selectedCount * randomSpreadDirective.perBetUnits;
       if (!randomSpreadDirective.bets.length) {
@@ -923,7 +996,7 @@ Deno.serve(async (request) => {
       );
     }
 
-    const explicitDirective = parseExplicitBetDirective(latestMessage, state);
+    const explicitDirective = supportsDraftPlan ? parseExplicitBetDirective(latestMessage, state) : null;
     if (explicitDirective) {
       const { requestedUnits, targetText, bets, availableUnits } = explicitDirective;
       const totalRequestedUnits =
@@ -1016,7 +1089,9 @@ Deno.serve(async (request) => {
           additionalProperties: false
         }
       },
-      {
+    ];
+    if (supportsDraftPlan) {
+      tools.push({
         type: "function",
         name: "draft_bet_plan",
         description: "Create a consent-gated betting layout in whole-number units that the client can place on the felt.",
@@ -1045,13 +1120,13 @@ Deno.serve(async (request) => {
           },
           additionalProperties: false
         }
-      }
-    ];
+      });
+    }
 
     let draftedPlan: ReturnType<typeof draftBetPlan> | null = null;
     let response = await callResponsesApi({
       model: DEFAULT_MODEL,
-      instructions: SYSTEM_PROMPT,
+      instructions: buildSystemPrompt(state),
       input,
       tools
     });
