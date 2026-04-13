@@ -11825,6 +11825,7 @@ function renderRedBlackValueSelector() {
     button.dataset.redBlackValue = item.key;
     button.textContent = item.short;
     button.dataset.category = redBlackCategory;
+    button.dataset.valueKey = item.key;
     const isSelected = redBlackSelectedValues.includes(item.key);
     button.classList.toggle("active", isSelected);
     button.setAttribute("aria-pressed", String(isSelected));

@@ -2434,6 +2434,32 @@ body[data-app-state="loading"] #app-shell {
   transform: translateY(-1px) scale(1.01);
 }
 
+.secondary.beta-value-button[data-category="color"][data-value-key="red"] {
+  background: linear-gradient(135deg, #ff786d, #b90f1f);
+  border-color: rgba(255, 196, 196, 0.82);
+  box-shadow: 0 12px 24px rgba(124, 0, 20, 0.22);
+  color: #fff8f8;
+}
+
+.secondary.beta-value-button[data-category="color"][data-value-key="red"].active {
+  background: linear-gradient(135deg, #ff9a8b, #d41527);
+  border-color: rgba(255, 229, 229, 0.96);
+  box-shadow: 0 14px 28px rgba(124, 0, 20, 0.3);
+}
+
+.secondary.beta-value-button[data-category="color"][data-value-key="black"] {
+  background: linear-gradient(135deg, #575b66, #111722);
+  border-color: rgba(214, 224, 240, 0.72);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.24);
+  color: #f7fbff;
+}
+
+.secondary.beta-value-button[data-category="color"][data-value-key="black"].active {
+  background: linear-gradient(135deg, #6e7482, #171f2d);
+  border-color: rgba(244, 248, 255, 0.94);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.32);
+}
+
 .beta-button-row {
   display: flex;
   flex-wrap: wrap;
