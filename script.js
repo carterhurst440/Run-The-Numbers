@@ -1353,18 +1353,10 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
                     <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">7%</span></span>
                   </div>
                 </div>
-                <div class="beta-draw-area">
-                  <div class="dealer-header">
-                    <div class="dealer-title-group">
-                      <h3 class="draws-title">Revealed Cards</h3>
-                      <p class="beta-draw-subcopy">Every card dealt from a fresh 52 card deck.</p>
-                    </div>
-                  </div>
-                  <div class="draws beta-draws">
-                    <div class="card"><div class="card-face">Q</div></div>
-                    <div class="card"><div class="card-face">6</div></div>
-                    <div class="card"><div class="card-face">A</div></div>
-                  </div>
+                <div class="draws beta-draws">
+                  <div class="card"><div class="card-face">Q</div></div>
+                  <div class="card"><div class="card-face">6</div></div>
+                  <div class="card"><div class="card-face">A</div></div>
                 </div>
                 <p class="beta-status beta-status-inline">Build one base wager, choose COLOR, SUIT, or RANK, make your selection, then draw.</p>
               </section>
