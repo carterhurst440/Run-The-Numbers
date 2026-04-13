@@ -2290,6 +2290,7 @@ body[data-app-state="loading"] #app-shell {
   right: 0.42rem;
   top: 50%;
   transform: translateY(-50%);
+  z-index: 2;
   width: 1.2rem;
   height: 1.2rem;
   display: inline-flex;
