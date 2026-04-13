@@ -1358,7 +1358,6 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
                   <div class="card"><div class="card-face">6</div></div>
                   <div class="card"><div class="card-face">A</div></div>
                 </div>
-                <p class="beta-status beta-status-inline">Build one base wager, choose COLOR, SUIT, or RANK, make your selection, then draw.</p>
               </section>
               <section class="beta-game-panel beta-table-panel beta-control-panel">
                 <div class="beta-table-header">
