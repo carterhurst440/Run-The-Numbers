@@ -1124,9 +1124,10 @@ Deno.serve(async (request) => {
     }
 
     let draftedPlan: ReturnType<typeof draftBetPlan> | null = null;
+    const systemPrompt = buildSystemPrompt(state);
     let response = await callResponsesApi({
       model: DEFAULT_MODEL,
-      instructions: buildSystemPrompt(state),
+      instructions: systemPrompt,
       input,
       tools
     });
@@ -1189,7 +1190,7 @@ Deno.serve(async (request) => {
 
       response = await callResponsesApi({
         model: DEFAULT_MODEL,
-        instructions: SYSTEM_PROMPT,
+        instructions: systemPrompt,
         previous_response_id: response.id,
         input: toolOutputs,
         tools
