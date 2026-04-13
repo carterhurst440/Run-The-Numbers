@@ -756,6 +756,7 @@ function getThemeCssVariables(theme) {
     "--assistant-fab-shadow": `0 18px 34px ${rgba("#000000", 0.42)}, 0 0 0 1px ${rgba(palette.accent, 0.22)}, 0 0 24px ${rgba(palette.accent, 0.16 + glow * 0.08)}`,
     "--assistant-fab-shadow-hover": `0 24px 42px ${rgba("#000000", 0.48)}, 0 0 30px ${rgba(palette.accent, 0.22 + glow * 0.1)}`,
     "--assistant-panel-flat-bg": rgba(palette.panelStart, 0.98),
+    "--assistant-response-bg": rgba(palette.panelEnd, 0.96),
     "--hero-button-bg": heroButtonSurface,
     "--hero-button-border": colorMix(palette.heroButton, 0.34, "#ffffff"),
     "--hero-button-shadow": `0 18px 36px ${rgba(colorMix(palette.heroButton, 0.34, "#000000"), 0.34)}, 0 0 0 1px ${rgba("#ffffff", 0.08)}, 0 0 28px ${rgba(palette.heroButton, 0.22 + glow * 0.08)}`,

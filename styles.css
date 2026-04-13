@@ -338,6 +338,7 @@
     radial-gradient(circle at top right, color-mix(in srgb, var(--neon-cyan) 12%, transparent), transparent 28%),
     linear-gradient(180deg, color-mix(in srgb, var(--header-gradient) 92%, transparent), color-mix(in srgb, var(--menu-bg) 98%, black 2%));
   --assistant-panel-flat-bg: rgba(4, 14, 38, 0.98);
+  --assistant-response-bg: rgba(10, 24, 64, 0.96);
   --assistant-panel-shadow: 0 30px 70px rgba(0, 0, 0, 0.54);
   --assistant-message-bg: color-mix(in srgb, white 4%, transparent);
   --assistant-message-border: color-mix(in srgb, white 8%, transparent);
@@ -6587,6 +6588,7 @@ body.play-assistant-open .play-assistant-fab {
 
 .play-assistant-message[data-role="assistant"] {
   margin-right: 1rem;
+  background: var(--assistant-response-bg);
 }
 
 .play-assistant-message[data-role="system"] {
@@ -6745,6 +6747,10 @@ body.play-assistant-open .play-assistant-fab {
 .play-assistant-form textarea:focus-visible {
   outline: 2px solid rgba(160, 248, 255, 0.48);
   outline-offset: 2px;
+}
+
+.play-assistant-form textarea::placeholder {
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .play-assistant-send {
