@@ -2435,29 +2435,33 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .secondary.beta-value-button[data-category="color"][data-value-key="red"] {
-  background: linear-gradient(135deg, #ff786d, #b90f1f);
-  border-color: rgba(255, 196, 196, 0.82);
-  box-shadow: 0 12px 24px rgba(124, 0, 20, 0.22);
-  color: #fff8f8;
+  background: linear-gradient(135deg, #a9494f, #691019);
+  border-color: rgba(255, 173, 173, 0.54);
+  box-shadow: 0 8px 18px rgba(124, 0, 20, 0.14);
+  color: rgba(255, 244, 244, 0.82);
 }
 
 .secondary.beta-value-button[data-category="color"][data-value-key="red"].active {
   background: linear-gradient(135deg, #ff9a8b, #d41527);
-  border-color: rgba(255, 229, 229, 0.96);
-  box-shadow: 0 14px 28px rgba(124, 0, 20, 0.3);
+  border-color: rgba(255, 238, 238, 1);
+  box-shadow: 0 16px 32px rgba(124, 0, 20, 0.34), 0 0 22px rgba(255, 121, 109, 0.24);
+  color: #fffdfd;
+  transform: translateY(-2px) scale(1.02);
 }
 
 .secondary.beta-value-button[data-category="color"][data-value-key="black"] {
-  background: linear-gradient(135deg, #575b66, #111722);
-  border-color: rgba(214, 224, 240, 0.72);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.24);
-  color: #f7fbff;
+  background: linear-gradient(135deg, #383c45, #0b1018);
+  border-color: rgba(193, 204, 222, 0.5);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+  color: rgba(247, 251, 255, 0.82);
 }
 
 .secondary.beta-value-button[data-category="color"][data-value-key="black"].active {
   background: linear-gradient(135deg, #6e7482, #171f2d);
-  border-color: rgba(244, 248, 255, 0.94);
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.32);
+  border-color: rgba(247, 250, 255, 1);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.36), 0 0 22px rgba(177, 191, 220, 0.2);
+  color: #ffffff;
+  transform: translateY(-2px) scale(1.02);
 }
 
 .beta-button-row {
