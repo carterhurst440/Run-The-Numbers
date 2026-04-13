@@ -337,6 +337,7 @@
   --assistant-panel-bg:
     radial-gradient(circle at top right, color-mix(in srgb, var(--neon-cyan) 12%, transparent), transparent 28%),
     linear-gradient(180deg, color-mix(in srgb, var(--header-gradient) 92%, transparent), color-mix(in srgb, var(--menu-bg) 98%, black 2%));
+  --assistant-panel-flat-bg: rgba(4, 14, 38, 0.98);
   --assistant-panel-shadow: 0 30px 70px rgba(0, 0, 0, 0.54);
   --assistant-message-bg: color-mix(in srgb, white 4%, transparent);
   --assistant-message-border: color-mix(in srgb, white 8%, transparent);
@@ -6842,10 +6843,7 @@ body.play-assistant-open .play-assistant-fab {
     min-height: min(26rem, 68dvh);
     padding: 0.8rem 0.9rem calc(0.8rem + env(safe-area-inset-bottom));
     gap: 0.65rem;
-    background-color: color-mix(in srgb, var(--modal-bg) 94%, black 6%);
-    background-image:
-      radial-gradient(circle at top right, color-mix(in srgb, var(--neon-cyan) 12%, transparent), transparent 30%),
-      linear-gradient(180deg, color-mix(in srgb, var(--modal-bg) 94%, black 6%), color-mix(in srgb, var(--menu-bg) 94%, black 6%));
+    background: var(--assistant-panel-flat-bg);
     box-shadow:
       0 -18px 44px rgba(0, 0, 0, 0.44),
       inset 0 0 0 1px rgba(255, 255, 255, 0.08);
@@ -6942,9 +6940,7 @@ body.play-assistant-open .play-assistant-fab {
     bottom: calc(-0.8rem - env(safe-area-inset-bottom));
     margin: 0 -0.9rem calc(-0.8rem - env(safe-area-inset-bottom));
     padding: 0.7rem 0.9rem calc(0.8rem + env(safe-area-inset-bottom));
-    background-color: color-mix(in srgb, var(--menu-bg) 96%, black 4%);
-    background-image:
-      linear-gradient(180deg, transparent, color-mix(in srgb, var(--modal-bg) 82%, black 18%) 18%, color-mix(in srgb, var(--menu-bg) 96%, black 4%) 42%);
+    background: var(--assistant-panel-flat-bg);
     border-top: 1px solid rgba(255, 255, 255, 0.06);
   }
 
