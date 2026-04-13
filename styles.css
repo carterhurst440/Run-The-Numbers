@@ -2348,6 +2348,10 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .beta-category-button {
+  background: var(--secondary-button-disabled-bg);
+  border-color: var(--secondary-button-disabled-border);
+  box-shadow: var(--secondary-button-disabled-shadow);
+  color: var(--secondary-button-disabled-text);
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
@@ -2357,14 +2361,10 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .beta-category-button.active {
-  border-color: rgba(255, 230, 120, 0.76);
-  background: linear-gradient(135deg, rgba(255, 230, 120, 0.24), rgba(255, 121, 222, 0.18));
-  color: #fff8de;
-  box-shadow:
-    0 0 0 2px rgba(255, 230, 120, 0.18),
-    0 0 24px rgba(255, 196, 112, 0.18),
-    inset 0 0 24px rgba(255, 170, 235, 0.12),
-    0 16px 28px rgba(8, 18, 44, 0.26);
+  border-color: var(--secondary-button-border);
+  background: var(--secondary-button-bg);
+  color: var(--secondary-button-text);
+  box-shadow: var(--secondary-button-shadow);
   transform: translateY(-2px) scale(1.01);
 }
 
@@ -2410,55 +2410,18 @@ body[data-app-state="loading"] #app-shell {
   min-width: 0;
   padding: 0.7rem 0.85rem;
   border-radius: 1rem;
-  background: rgba(4, 18, 44, 0.72);
-  border: 1px solid rgba(63, 240, 255, 0.18);
-  color: var(--text-light);
-}
-
-.beta-value-button[data-category="color"] {
-  border-color: rgba(255, 157, 180, 0.26);
-}
-
-.beta-value-button[data-category="color"][data-red-black-value="red"] {
-  background: linear-gradient(135deg, rgba(233, 63, 103, 0.26), rgba(139, 13, 46, 0.7));
-  border-color: rgba(255, 197, 212, 0.4);
-  color: #fff7f9;
-}
-
-.beta-value-button[data-category="color"][data-red-black-value="black"] {
-  background: linear-gradient(135deg, rgba(35, 42, 51, 0.96), rgba(5, 7, 12, 0.96));
-  border-color: rgba(211, 226, 234, 0.3);
-  color: #f6fbff;
-}
-
-.beta-value-button[data-category="suit"] {
-  border-color: rgba(183, 208, 223, 0.22);
-}
-
-.beta-value-button[data-category="rank"] {
-  border-color: rgba(255, 230, 120, 0.22);
+  background: var(--secondary-button-disabled-bg);
+  border: 1px solid var(--secondary-button-disabled-border);
+  box-shadow: var(--secondary-button-disabled-shadow);
+  color: var(--secondary-button-disabled-text);
 }
 
 .beta-value-button.active {
-  border-color: rgba(255, 230, 120, 0.72);
-  background: linear-gradient(135deg, rgba(255, 230, 120, 0.24), rgba(63, 240, 255, 0.12));
-  color: #fff8de;
-  box-shadow:
-    0 0 0 2px rgba(255, 230, 120, 0.16),
-    0 0 22px rgba(255, 230, 120, 0.14),
-    inset 0 0 18px rgba(255, 255, 255, 0.04),
-    0 12px 20px rgba(8, 18, 44, 0.24);
+  border-color: var(--secondary-button-border);
+  background: var(--secondary-button-bg);
+  color: var(--secondary-button-text);
+  box-shadow: var(--secondary-button-shadow);
   transform: translateY(-1px) scale(1.01);
-}
-
-.beta-value-button[data-category="color"].active[data-red-black-value="red"] {
-  border-color: rgba(255, 225, 232, 0.92);
-  box-shadow: 0 0 0 2px rgba(255, 157, 180, 0.22), 0 0 26px rgba(255, 157, 180, 0.22), 0 12px 20px rgba(176, 22, 60, 0.24);
-}
-
-.beta-value-button[data-category="color"].active[data-red-black-value="black"] {
-  border-color: rgba(240, 248, 252, 0.88);
-  box-shadow: 0 0 0 2px rgba(223, 232, 239, 0.16), 0 0 22px rgba(223, 232, 239, 0.16), 0 12px 20px rgba(0, 0, 0, 0.3);
 }
 
 .beta-button-row {
@@ -6416,10 +6379,14 @@ button:disabled {
   min-width: 0;
 }
 
-.chip-actions .clear-bets {
-  padding: 0.42rem 0.9rem;
-  font-size: 0.74rem;
-  letter-spacing: 0.08rem;
+#run-the-numbers-view .chip-actions button {
+  min-height: 2.95rem;
+  padding: 0.42rem 1rem;
+  font-size: 0.86rem;
+  letter-spacing: 0.06rem;
+}
+
+#run-the-numbers-view .chip-actions .clear-bets {
   text-transform: uppercase;
 }
 
@@ -6875,7 +6842,10 @@ body.play-assistant-open .play-assistant-fab {
     min-height: min(26rem, 68dvh);
     padding: 0.8rem 0.9rem calc(0.8rem + env(safe-area-inset-bottom));
     gap: 0.65rem;
-    background: var(--assistant-panel-bg);
+    background-color: color-mix(in srgb, var(--modal-bg) 94%, black 6%);
+    background-image:
+      radial-gradient(circle at top right, color-mix(in srgb, var(--neon-cyan) 12%, transparent), transparent 30%),
+      linear-gradient(180deg, color-mix(in srgb, var(--modal-bg) 94%, black 6%), color-mix(in srgb, var(--menu-bg) 94%, black 6%));
     box-shadow:
       0 -18px 44px rgba(0, 0, 0, 0.44),
       inset 0 0 0 1px rgba(255, 255, 255, 0.08);
@@ -6972,7 +6942,9 @@ body.play-assistant-open .play-assistant-fab {
     bottom: calc(-0.8rem - env(safe-area-inset-bottom));
     margin: 0 -0.9rem calc(-0.8rem - env(safe-area-inset-bottom));
     padding: 0.7rem 0.9rem calc(0.8rem + env(safe-area-inset-bottom));
-    background: var(--assistant-panel-bg);
+    background-color: color-mix(in srgb, var(--menu-bg) 96%, black 4%);
+    background-image:
+      linear-gradient(180deg, transparent, color-mix(in srgb, var(--modal-bg) 82%, black 18%) 18%, color-mix(in srgb, var(--menu-bg) 96%, black 4%) 42%);
     border-top: 1px solid rgba(255, 255, 255, 0.06);
   }
 
