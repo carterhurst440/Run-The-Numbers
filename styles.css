@@ -1625,7 +1625,8 @@ body[data-app-state="loading"] #app-shell {
 
 .game-card .home-button {
   width: 100%;
-  min-height: 5.75rem;
+  min-height: 4.3rem;
+  padding-block: 0.9rem;
   align-self: end;
   justify-self: stretch;
 }
