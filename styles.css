@@ -6434,7 +6434,7 @@ button:disabled {
   position: fixed;
   right: clamp(1rem, 2.5vw, 1.6rem);
   bottom: calc(env(safe-area-inset-bottom) + 8.1rem);
-  z-index: 9;
+  z-index: 40;
   overflow: hidden;
   width: 3rem;
   height: 3rem;
