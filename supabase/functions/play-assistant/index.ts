@@ -61,6 +61,12 @@ type HandHistorySummary = {
   averageWager?: number;
   averageReturn?: number;
   averageNet?: number;
+  profitableHandsCount?: number;
+  profitableHandsPercent?: number;
+  losingHandsCount?: number;
+  losingHandsPercent?: number;
+  breakEvenHandsCount?: number;
+  breakEvenHandsPercent?: number;
   over8CardsCount?: number;
   over8CardsPercent?: number;
   handLengthDistribution?: Record<string, number>;
@@ -78,6 +84,23 @@ type HandHistoryInsights = {
     totalPaid?: number;
     net?: number;
   }>;
+  betHistory?: {
+    totalBets?: number;
+    recentBets?: Array<{
+      createdAt?: string | null;
+      handId?: string | null;
+      betKey?: string;
+      label?: string;
+      type?: string | null;
+      amountWagered?: number;
+      amountPaid?: number;
+      net?: number;
+      outcome?: string;
+      handNet?: number;
+      handTotalCards?: number;
+      stopper?: string;
+    }>;
+  } | null;
 };
 
 type AssistantState = {
@@ -164,6 +187,8 @@ Behavior:
 - Use get_table_context whenever rules, bankroll, table state, or current wagers matter.
 - When get_table_context includes RTN payout and house-edge reference data, use it for bet math questions instead of guessing.
 - When get_table_context includes player hand-history summaries, use those summaries to answer player-specific trend questions such as average hand length or counts in the last 100 hands.
+- When profitable-hand counts or percentages are present in hand-history summaries, answer profitability questions from those exact figures instead of inferring from average net.
+- When detailed bet-history records are present, reason from those records directly for questions about specific wagers, largest bets, outcomes, or bet patterns instead of inventing summaries.
 - If the supplied context is missing the exact figure needed, say what is available and do not invent unsupported house-edge or player-history numbers.
 - Do not claim that bets were cleared, placed, or changed unless you are returning a concrete consent-gated action for the client to execute.
 - Ask at most one focused follow-up when necessary.
@@ -584,6 +609,12 @@ function sanitizeState(input: unknown): AssistantState {
                 averageWager: safeNumber(raw.handHistory.allTime.averageWager),
                 averageReturn: safeNumber(raw.handHistory.allTime.averageReturn),
                 averageNet: safeNumber(raw.handHistory.allTime.averageNet),
+                profitableHandsCount: Math.max(0, Math.round(safeNumber(raw.handHistory.allTime.profitableHandsCount))),
+                profitableHandsPercent: safeNumber(raw.handHistory.allTime.profitableHandsPercent),
+                losingHandsCount: Math.max(0, Math.round(safeNumber(raw.handHistory.allTime.losingHandsCount))),
+                losingHandsPercent: safeNumber(raw.handHistory.allTime.losingHandsPercent),
+                breakEvenHandsCount: Math.max(0, Math.round(safeNumber(raw.handHistory.allTime.breakEvenHandsCount))),
+                breakEvenHandsPercent: safeNumber(raw.handHistory.allTime.breakEvenHandsPercent),
                 over8CardsCount: Math.max(0, Math.round(safeNumber(raw.handHistory.allTime.over8CardsCount))),
                 over8CardsPercent: safeNumber(raw.handHistory.allTime.over8CardsPercent),
                 handLengthDistribution:
@@ -615,6 +646,12 @@ function sanitizeState(input: unknown): AssistantState {
                 averageWager: safeNumber(raw.handHistory.last100.averageWager),
                 averageReturn: safeNumber(raw.handHistory.last100.averageReturn),
                 averageNet: safeNumber(raw.handHistory.last100.averageNet),
+                profitableHandsCount: Math.max(0, Math.round(safeNumber(raw.handHistory.last100.profitableHandsCount))),
+                profitableHandsPercent: safeNumber(raw.handHistory.last100.profitableHandsPercent),
+                losingHandsCount: Math.max(0, Math.round(safeNumber(raw.handHistory.last100.losingHandsCount))),
+                losingHandsPercent: safeNumber(raw.handHistory.last100.losingHandsPercent),
+                breakEvenHandsCount: Math.max(0, Math.round(safeNumber(raw.handHistory.last100.breakEvenHandsCount))),
+                breakEvenHandsPercent: safeNumber(raw.handHistory.last100.breakEvenHandsPercent),
                 over8CardsCount: Math.max(0, Math.round(safeNumber(raw.handHistory.last100.over8CardsCount))),
                 over8CardsPercent: safeNumber(raw.handHistory.last100.over8CardsPercent),
                 handLengthDistribution:
@@ -648,7 +685,28 @@ function sanitizeState(input: unknown): AssistantState {
                 totalPaid: safeNumber(hand?.totalPaid),
                 net: safeNumber(hand?.net)
               }))
-            : []
+            : [],
+          betHistory: raw.handHistory.betHistory && typeof raw.handHistory.betHistory === "object"
+            ? {
+                totalBets: Math.max(0, Math.round(safeNumber(raw.handHistory.betHistory.totalBets))),
+                recentBets: Array.isArray(raw.handHistory.betHistory.recentBets)
+                  ? raw.handHistory.betHistory.recentBets.map((bet) => ({
+                      createdAt: bet?.createdAt == null ? null : String(bet.createdAt),
+                      handId: bet?.handId == null ? null : String(bet.handId),
+                      betKey: String(bet?.betKey || ""),
+                      label: String(bet?.label || ""),
+                      type: bet?.type == null ? null : String(bet.type),
+                      amountWagered: safeNumber(bet?.amountWagered),
+                      amountPaid: safeNumber(bet?.amountPaid),
+                      net: safeNumber(bet?.net),
+                      outcome: String(bet?.outcome || ""),
+                      handNet: safeNumber(bet?.handNet),
+                      handTotalCards: Math.max(0, Math.round(safeNumber(bet?.handTotalCards))),
+                      stopper: String(bet?.stopper || "")
+                    }))
+                  : []
+              }
+            : null
         }
       : null
   };

@@ -2357,7 +2357,7 @@ body[data-app-state="loading"] #app-shell {
   gap: 0.7rem;
 }
 
-.beta-category-button {
+.secondary.beta-category-button {
   background: var(--secondary-button-disabled-bg);
   border-color: var(--secondary-button-disabled-border);
   box-shadow: var(--secondary-button-disabled-shadow);
@@ -2370,7 +2370,7 @@ body[data-app-state="loading"] #app-shell {
     color 0.2s ease;
 }
 
-.beta-category-button.active {
+.secondary.beta-category-button.active {
   border-color: var(--secondary-button-border);
   background: var(--secondary-button-bg);
   color: var(--secondary-button-text);
@@ -2416,7 +2416,7 @@ body[data-app-state="loading"] #app-shell {
   pointer-events: none;
 }
 
-.beta-value-button {
+.secondary.beta-value-button {
   min-width: 0;
   padding: 0.7rem 0.85rem;
   border-radius: 1rem;
@@ -2426,7 +2426,7 @@ body[data-app-state="loading"] #app-shell {
   color: var(--secondary-button-disabled-text);
 }
 
-.beta-value-button.active {
+.secondary.beta-value-button.active {
   border-color: var(--secondary-button-border);
   background: var(--secondary-button-bg);
   color: var(--secondary-button-text);

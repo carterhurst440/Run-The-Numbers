@@ -13326,6 +13326,13 @@ function buildPlayAssistantHandHistoryInsights(records = []) {
         acc.totalWager += wager;
         acc.totalPaid += paid;
         acc.totalNet += net;
+        if (net > 0) {
+          acc.profitable += 1;
+        } else if (net < 0) {
+          acc.unprofitable += 1;
+        } else {
+          acc.breakEven += 1;
+        }
         if (cards > 8) {
           acc.over8 += 1;
         }
@@ -13342,6 +13349,9 @@ function buildPlayAssistantHandHistoryInsights(records = []) {
         totalWager: 0,
         totalPaid: 0,
         totalNet: 0,
+        profitable: 0,
+        unprofitable: 0,
+        breakEven: 0,
         over8: 0,
         distribution: {},
         stopperBreakdown: {}
@@ -13354,6 +13364,12 @@ function buildPlayAssistantHandHistoryInsights(records = []) {
       averageWager: handCount ? Number((totals.totalWager / handCount).toFixed(2)) : 0,
       averageReturn: handCount ? Number((totals.totalPaid / handCount).toFixed(2)) : 0,
       averageNet: handCount ? Number((totals.totalNet / handCount).toFixed(2)) : 0,
+      profitableHandsCount: totals.profitable,
+      profitableHandsPercent: handCount ? Number(((totals.profitable / handCount) * 100).toFixed(2)) : 0,
+      losingHandsCount: totals.unprofitable,
+      losingHandsPercent: handCount ? Number(((totals.unprofitable / handCount) * 100).toFixed(2)) : 0,
+      breakEvenHandsCount: totals.breakEven,
+      breakEvenHandsPercent: handCount ? Number(((totals.breakEven / handCount) * 100).toFixed(2)) : 0,
       over8CardsCount: totals.over8,
       over8CardsPercent: handCount ? Number(((totals.over8 / handCount) * 100).toFixed(2)) : 0,
       handLengthDistribution: totals.distribution,
@@ -13381,6 +13397,68 @@ function buildPlayAssistantHandHistoryInsights(records = []) {
   };
 }
 
+function buildPlayAssistantBetHistoryInsights(records = []) {
+  const safeRecords = Array.isArray(records) ? records : [];
+  const normalized = safeRecords
+    .map((row) => {
+      const raw = row?.raw && typeof row.raw === "object" ? row.raw : {};
+      const amountWagered = safeNumber(row?.amount_wagered);
+      const amountPaid = safeNumber(row?.amount_paid);
+      const net = safeNumber(row?.net, amountPaid - amountWagered);
+      return {
+        createdAt: row?.placed_at || row?.created_at || null,
+        handId: row?.hand_id || null,
+        betKey: row?.bet_key || raw?.key || "",
+        label: raw?.label || row?.bet_key || "Unknown Bet",
+        type: raw?.type || null,
+        amountWagered,
+        amountPaid,
+        net,
+        outcome: row?.outcome || (amountPaid > 0 ? "W" : amountPaid < amountWagered ? "L" : "P"),
+        handNet: safeNumber(row?.hand_net),
+        handTotalCards: Math.max(0, Math.round(safeNumber(row?.hand_total_cards))),
+        stopper: row?.hand_stopper_label === "Joker"
+          ? "Joker"
+          : [row?.hand_stopper_label, row?.hand_stopper_suit].filter(Boolean).join(" "),
+        raw
+      };
+    })
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+  return {
+    totalBets: normalized.length,
+    recentBets: normalized.slice(0, 100)
+  };
+}
+
+async function fetchBetPlayRecords({ userId, limit = 1000 } = {}) {
+  if (!userId || !supabase) return [];
+  const allRecords = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore && allRecords.length < limit) {
+    const { data, error } = await supabase
+      .from("bet_plays")
+      .select("user_id, hand_id, bet_key, amount_wagered, amount_paid, outcome, net, raw, placed_at")
+      .eq("user_id", userId)
+      .order("placed_at", { ascending: false })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    allRecords.push(...rows);
+    hasMore = rows.length === pageSize && allRecords.length < limit;
+    page += 1;
+  }
+
+  return allRecords.slice(0, limit);
+}
+
 async function loadPlayAssistantHandHistoryInsights({ force = false } = {}) {
   if (!currentUser?.id || currentUser.id === GUEST_USER.id || !supabase) {
     return null;
@@ -13399,10 +13477,30 @@ async function loadPlayAssistantHandHistoryInsights({ force = false } = {}) {
   try {
     const records = await fetchGameHandsRecords({
       userIds: [currentUser.id],
-      fields: ["user_id", "created_at", "game_id", "total_cards", "stopper_label", "stopper_suit", "total_wager", "total_paid", "net"]
+      fields: ["id", "user_id", "created_at", "game_id", "total_cards", "stopper_label", "stopper_suit", "total_wager", "total_paid", "net"]
     });
     const rtnRecords = records.filter((row) => resolveGameKey(row?.game_id) === GAME_KEYS.RUN_THE_NUMBERS);
-    const insights = buildPlayAssistantHandHistoryInsights(rtnRecords);
+    const handHistory = buildPlayAssistantHandHistoryInsights(rtnRecords);
+    const handMap = new Map(rtnRecords.map((row) => [String(row?.id || ""), row]));
+    const betRecords = await fetchBetPlayRecords({ userId: currentUser.id, limit: 2000 });
+    const enrichedBetRecords = betRecords
+      .map((row) => {
+        const hand = handMap.get(String(row?.hand_id || ""));
+        if (!hand) return null;
+        return {
+          ...row,
+          hand_total_cards: hand?.total_cards ?? null,
+          hand_stopper_label: hand?.stopper_label ?? null,
+          hand_stopper_suit: hand?.stopper_suit ?? null,
+          hand_net: hand?.net ?? null,
+          created_at: hand?.created_at ?? null
+        };
+      })
+      .filter(Boolean);
+    const insights = {
+      ...handHistory,
+      betHistory: buildPlayAssistantBetHistoryInsights(enrichedBetRecords)
+    };
     playAssistantHistoryCache = {
       userId: currentUser.id,
       fetchedAt: now,
