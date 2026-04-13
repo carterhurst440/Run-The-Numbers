@@ -6456,6 +6456,10 @@ button:disabled {
   flex: 0 0 auto;
 }
 
+.play-assistant-fab[hidden] {
+  display: none !important;
+}
+
 .play-assistant-fab::before {
   content: "";
   position: absolute;
