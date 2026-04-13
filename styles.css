@@ -2632,21 +2632,6 @@ body[data-app-state="loading"] #app-shell {
   min-width: clamp(7.2rem, 12vw, 8.4rem);
 }
 
-.beta-chip-actions .secondary:not(:disabled),
-.beta-chip-actions .deal:not(:disabled) {
-  background: var(--footer-deal-bg);
-  color: var(--deal-button-text);
-  border: 1px solid var(--primary-button-border);
-  box-shadow: var(--footer-deal-shadow);
-}
-
-.beta-chip-actions .secondary:hover:not(:disabled),
-.beta-chip-actions .secondary:focus-visible:not(:disabled),
-.beta-chip-actions .deal:hover:not(:disabled),
-.beta-chip-actions .deal:focus-visible:not(:disabled) {
-  box-shadow: var(--footer-deal-shadow-hover);
-}
-
 .beta-paytable-row.is-complete {
   border-color: rgba(125, 255, 138, 0.34);
   background: linear-gradient(135deg, rgba(125, 255, 138, 0.14), rgba(4, 18, 44, 0.64));
@@ -4434,6 +4419,11 @@ body.theme-angelic {
 .rank-up-modal {
   width: min(520px, calc(100vw - 2rem));
   overflow: hidden;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--neon-cyan) 12%, transparent), transparent 32%),
+    linear-gradient(180deg, color-mix(in srgb, var(--modal-bg) 92%, black 8%), color-mix(in srgb, var(--menu-bg) 88%, black 12%));
+  border-color: var(--modal-border);
+  box-shadow: var(--modal-shadow);
 }
 
 .rank-up-body {
@@ -4447,12 +4437,12 @@ body.theme-angelic {
   width: 92px;
   height: 92px;
   border-radius: 1.4rem;
-  border: 1px solid rgba(63, 240, 255, 0.26);
-  background: linear-gradient(145deg, rgba(10, 24, 64, 0.9), rgba(16, 18, 56, 0.9));
+  border: 1px solid color-mix(in srgb, var(--betting-panel-border) 78%, transparent);
+  background: color-mix(in srgb, var(--active-paytable-bg) 84%, var(--menu-bg) 16%);
   display: grid;
   place-items: center;
   overflow: hidden;
-  box-shadow: 0 14px 30px rgba(63, 240, 255, 0.12);
+  box-shadow: inset 0 0 22px color-mix(in srgb, var(--neon-cyan) 10%, transparent);
 }
 
 .rank-up-icon {
@@ -4489,7 +4479,7 @@ body.theme-angelic {
   height: 22px;
   margin-left: -5px;
   border-radius: 999px;
-  background: linear-gradient(180deg, var(--gold), var(--neon-magenta));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 82%, white 18%), color-mix(in srgb, var(--neon-cyan) 20%, var(--neon-magenta) 80%));
   opacity: 0;
   transform-origin: 50% 160px;
   --burst-rotate: 0deg;
@@ -6407,6 +6397,7 @@ button:disabled {
   outline: none;
 }
 
+.chip-bar .primary,
 .chip-bar .secondary,
 .chip-bar .deal {
   padding: 0.42rem 0.9rem;
@@ -6414,9 +6405,15 @@ button:disabled {
   letter-spacing: 0.06rem;
 }
 
+.chip-bar .primary,
 .chip-bar .deal {
   font-size: 0.86rem;
   padding-inline: clamp(1rem, 3vw, 1.3rem);
+}
+
+#rebet-button {
+  padding-inline: 0.98rem;
+  min-width: 0;
 }
 
 .chip-actions .clear-bets {
@@ -7568,10 +7565,15 @@ body.play-assistant-open .play-assistant-fab {
     gap: 0.5rem;
   }
 
+  .chip-bar .primary,
   .chip-bar .secondary,
   .chip-bar .deal {
     padding: 0.42rem 0.7rem;
     font-size: 0.72rem;
+  }
+
+  #rebet-button {
+    padding-inline: 0.8rem;
   }
 
   .chip-actions {

@@ -1430,9 +1430,9 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
               </div>
             </div>
             <div class="chip-actions beta-chip-actions">
-              <button type="button" class="secondary">Rebet</button>
-              <button type="button" class="deal">Draw</button>
-              <button type="button" class="secondary">Cash Out</button>
+              <button type="button" class="primary">Rebet</button>
+              <button type="button" class="primary">Draw</button>
+              <button type="button" class="primary">Cash Out</button>
             </div>
           </div>
           <button type="button" class="play-assistant-fab" aria-hidden="true" tabindex="-1">
@@ -1491,7 +1491,7 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
                     <h2 class="game-card-title">RUN THE NUMBERS</h2>
                   </div>
                   <p class="game-card-copy">Build your wager board, fade the bust card, and press number hits across the active paytable.</p>
-                  <button type="button" class="home-button home-primary home-cta-button">Play Run the Numbers</button>
+                  <button type="button" class="home-button home-cta-button">Play Run the Numbers</button>
                 </article>
                 <article class="game-card game-card-beta">
                   <div class="game-card-head">
@@ -1502,7 +1502,7 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
                     </div>
                   </div>
                   <p class="game-card-copy">Predict by color, suit, or rank, multiply the live pot on every hit, and cash out before the deck turns on you.</p>
-                  <button type="button" class="home-button home-secondary">Play GUESS 10</button>
+                  <button type="button" class="home-button home-cta-button">Play GUESS 10</button>
                 </article>
               </section>
             </div>
