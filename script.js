@@ -13492,13 +13492,24 @@ function buildPlayAssistantHandHistoryInsights(records = []) {
     };
   };
 
-  const recent = [...safeRecords]
-    .sort((a, b) => new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime())
-    .slice(0, PLAY_ASSISTANT_HISTORY_LIMIT);
+  const sortedHands = [...safeRecords]
+    .sort((a, b) => new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime());
+  const recent = sortedHands.slice(0, PLAY_ASSISTANT_HISTORY_LIMIT);
 
   return {
     allTime: summarize(safeRecords),
     last100: summarize(recent),
+    indexedHands: sortedHands.map((row, index) => ({
+      handsAgo: index,
+      createdAt: row?.created_at || null,
+      totalCards: Math.max(0, Math.round(safeNumber(row?.total_cards))),
+      stopper: row?.stopper_label === "Joker"
+        ? "Joker"
+        : [row?.stopper_label, row?.stopper_suit].filter(Boolean).join(" "),
+      totalWager: safeNumber(row?.total_wager),
+      totalPaid: safeNumber(row?.total_paid),
+      net: safeNumber(row?.net)
+    })),
     recentHands: recent.slice(0, 20).map((row) => ({
       createdAt: row?.created_at || null,
       totalCards: Math.max(0, Math.round(safeNumber(row?.total_cards))),

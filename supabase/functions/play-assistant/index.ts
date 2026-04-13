@@ -85,6 +85,15 @@ type HandHistorySummary = {
 type HandHistoryInsights = {
   allTime?: HandHistorySummary | null;
   last100?: HandHistorySummary | null;
+  indexedHands?: Array<{
+    handsAgo?: number;
+    createdAt?: string | null;
+    totalCards?: number;
+    stopper?: string;
+    totalWager?: number;
+    totalPaid?: number;
+    net?: number;
+  }>;
   recentHands?: Array<{
     createdAt?: string | null;
     totalCards?: number;
@@ -234,6 +243,7 @@ Behavior:
 - Use get_table_context whenever rules, bankroll, table state, or current wagers matter.
 - When get_table_context includes RTN payout and house-edge reference data, use it for bet math questions instead of guessing.
 - When get_table_context includes player hand-history summaries, use those summaries to answer player-specific trend questions such as average hand length or counts in the last 100 hands.
+- When indexed hand records are present, answer exact lookup questions such as "what was my hand 10 hands ago?" from those records, where handsAgo 0 is the most recent completed hand.
 - When profitable-hand counts or percentages are present in hand-history summaries, answer profitability questions from those exact figures instead of inferring from average net.
 - When detailed bet-history records are present, reason from those records directly for questions about specific wagers, largest bets, outcomes, or bet patterns instead of inventing summaries.
 - If the supplied context is missing the exact figure needed, say what is available and do not invent unsupported house-edge or player-history numbers.
@@ -744,6 +754,17 @@ function sanitizeState(input: unknown): AssistantState {
                     : {}
               }
             : null,
+          indexedHands: Array.isArray(raw.handHistory.indexedHands)
+            ? raw.handHistory.indexedHands.map((hand) => ({
+                handsAgo: Math.max(0, Math.round(safeNumber(hand?.handsAgo))),
+                createdAt: hand?.createdAt == null ? null : String(hand.createdAt),
+                totalCards: Math.max(0, Math.round(safeNumber(hand?.totalCards))),
+                stopper: String(hand?.stopper || ""),
+                totalWager: safeNumber(hand?.totalWager),
+                totalPaid: safeNumber(hand?.totalPaid),
+                net: safeNumber(hand?.net)
+              }))
+            : [],
           recentHands: Array.isArray(raw.handHistory.recentHands)
             ? raw.handHistory.recentHands.map((hand) => ({
                 createdAt: hand?.createdAt == null ? null : String(hand.createdAt),

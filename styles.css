@@ -6422,8 +6422,9 @@ button:disabled {
 }
 
 #run-the-numbers-view .chip-actions button {
-  min-height: 2.95rem;
-  padding: 0.42rem 1rem;
+  min-width: clamp(7.2rem, 12vw, 8.4rem);
+  min-height: 0;
+  padding: 0.42rem 0.9rem;
   font-size: 0.86rem;
   letter-spacing: 0.06rem;
 }
