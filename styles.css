@@ -1558,6 +1558,7 @@ body[data-app-state="loading"] #app-shell {
 
 .game-card {
   display: grid;
+  grid-template-rows: auto auto 1fr auto;
   gap: 1rem;
   text-align: left;
   padding: clamp(1.1rem, 2.2vw, 1.5rem);
@@ -1620,6 +1621,13 @@ body[data-app-state="loading"] #app-shell {
   margin: 0;
   color: rgba(224, 244, 255, 0.82);
   line-height: 1.6;
+}
+
+.game-card .home-button {
+  width: 100%;
+  min-height: 5.75rem;
+  align-self: end;
+  justify-self: stretch;
 }
 
 .game-beta-pill {

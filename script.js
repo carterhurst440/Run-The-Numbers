@@ -13211,13 +13211,13 @@ function calculateRunTheNumbersHouseEdge(definition, paytable = activePaytable) 
       winProbability = 1 / 53;
       break;
     case "bust-suit":
-      winProbability = 3 / 53;
+      winProbability = 3 / 13;
       break;
     case "bust-rank":
-      winProbability = 4 / 53;
+      winProbability = 4 / 13;
       break;
     case "bust-joker":
-      winProbability = 1 / 53;
+      winProbability = 1 / 13;
       break;
     case "suit-pattern":
       if (definition.metadata?.pattern === "none") {
@@ -13282,7 +13282,14 @@ function getPlayAssistantBetReference() {
         label: definition.label,
         payout: definition.payout ?? null,
         payoutDisplay: definition.payoutDisplay ?? null,
-        metadata: definition.metadata ?? {}
+        metadata: definition.metadata ?? {},
+        payoutDependsOnPaytable: definition.type === "number",
+        resolutionPool:
+          definition.type === "specific-card"
+            ? "full-deck"
+            : definition.type === "bust-suit" || definition.type === "bust-rank" || definition.type === "bust-joker"
+              ? "bust-card-only"
+              : null
       };
       if (definition.type === "number") {
         return {

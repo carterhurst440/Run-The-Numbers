@@ -15,6 +15,8 @@ type BetCatalogEntry = {
   payout?: number | null;
   payoutDisplay?: string | null;
   metadata?: Record<string, unknown>;
+  payoutDependsOnPaytable?: boolean;
+  resolutionPool?: string | null;
 };
 
 type GameReference = {
@@ -42,6 +44,8 @@ type GameReference = {
     payout?: number | null;
     payoutDisplay?: string | null;
     metadata?: Record<string, unknown>;
+    payoutDependsOnPaytable?: boolean;
+    resolutionPool?: string | null;
     houseEdgePercent?: number | null;
     houseEdgeByPaytable?: Array<{
       id?: string;
@@ -148,9 +152,12 @@ Game facts:
 - Ace and number cards 2 through 10 keep the hand alive.
 - Any Jack, Queen, King, or the Joker ends the hand immediately.
 - Number bets can hit repeatedly before the stopper arrives.
+- Only number bets depend on the selected paytable.
 - Specific-card bets win only on the exact card.
+- Specific-card bets are fixed 12:1 bets and do not vary by paytable.
 - Suit bets can target whether a suit never appears, appears at least once, or is the very first suit drawn.
 - Card-count bets include the final bust card.
+- Bust bets resolve against the final bust card only, which comes from the 13 stopper cards.
 - Keep draft_bet_plan wagers as whole-number units.
 
 Behavior:
@@ -508,7 +515,9 @@ function sanitizeState(input: unknown): AssistantState {
           label: String(entry?.label || entry?.key || ""),
           payout: entry?.payout == null ? null : safeNumber(entry.payout),
           payoutDisplay: entry?.payoutDisplay == null ? null : String(entry.payoutDisplay),
-          metadata: entry?.metadata && typeof entry.metadata === "object" ? entry.metadata : {}
+          metadata: entry?.metadata && typeof entry.metadata === "object" ? entry.metadata : {},
+          payoutDependsOnPaytable: Boolean(entry?.payoutDependsOnPaytable),
+          resolutionPool: entry?.resolutionPool == null ? null : String(entry.resolutionPool)
         }))
       : [],
     gameReference: raw.gameReference && typeof raw.gameReference === "object"
@@ -552,6 +561,8 @@ function sanitizeState(input: unknown): AssistantState {
                 payout: bet?.payout == null ? null : safeNumber(bet.payout),
                 payoutDisplay: bet?.payoutDisplay == null ? null : String(bet.payoutDisplay),
                 metadata: bet?.metadata && typeof bet.metadata === "object" ? bet.metadata : {},
+                payoutDependsOnPaytable: Boolean(bet?.payoutDependsOnPaytable),
+                resolutionPool: bet?.resolutionPool == null ? null : String(bet.resolutionPool),
                 houseEdgePercent: bet?.houseEdgePercent == null ? null : safeNumber(bet.houseEdgePercent),
                 houseEdgeByPaytable: Array.isArray(bet?.houseEdgeByPaytable)
                   ? bet.houseEdgeByPaytable.map((entry) => ({
