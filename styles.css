@@ -5829,7 +5829,7 @@ body.theme-angelic {
 .suit-bet-group-title,
 .suit-bet-group-odds {
   margin: 0;
-  font-size: clamp(0.56rem, 1.4vw, 0.68rem);
+  font-size: clamp(0.64rem, 1.55vw, 0.8rem);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -5854,7 +5854,7 @@ body.theme-angelic {
 .suit-bet,
 .count-bet {
   aspect-ratio: unset;
-  min-height: clamp(88px, 8vw, 108px);
+  min-height: clamp(82px, 7.2vw, 96px);
   width: 100%;
   justify-content: space-between;
   gap: 0.16rem;
@@ -5864,7 +5864,7 @@ body.theme-angelic {
 .bust-bet .bet-label,
 .suit-bet .bet-label,
 .count-bet .bet-label {
-  font-size: clamp(0.6rem, 1.6vw, 0.78rem);
+  font-size: clamp(0.58rem, 1.45vw, 0.74rem);
   letter-spacing: 0.05em;
 }
 
@@ -5931,7 +5931,7 @@ body.theme-angelic {
   border: 1px solid rgba(140, 223, 255, 0.4);
   color: rgba(244, 248, 255, 0.96);
   transition: transform 0.18s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-  min-height: clamp(88px, 8vw, 108px);
+  min-height: clamp(82px, 7.2vw, 96px);
 }
 
 .bust-bet:hover,
