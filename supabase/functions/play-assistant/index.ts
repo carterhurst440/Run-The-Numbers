@@ -121,6 +121,16 @@ type HandHistoryInsights = {
   } | null;
 };
 
+type AssistantChart = {
+  type?: "line" | "bar";
+  title?: string;
+  subtitle?: string;
+  labels?: string[];
+  values?: number[];
+  xLabel?: string;
+  yLabel?: string;
+};
+
 type AssistantState = {
   gameKey?: string;
   gameLabel?: string;
@@ -270,6 +280,83 @@ function normalizeRiskTolerance(value: unknown) {
 function clampToWholeUnits(value: number) {
   if (!Number.isFinite(value) || value <= 0) return 0;
   return Math.max(1, Math.round(value));
+}
+
+function parseRequestedHandCount(message: string, fallback = 20) {
+  const normalized = String(message || "").toLowerCase();
+  const match = normalized.match(/\blast\s+(\d+)\s+hands?\b/);
+  if (match) {
+    const parsed = Number(match[1]);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return Math.max(1, Math.min(200, Math.round(parsed)));
+    }
+  }
+  return fallback;
+}
+
+function buildHandLengthChartResponse(message: string, state: AssistantState) {
+  const normalized = String(message || "").toLowerCase();
+  const wantsChart = /\b(graph|chart|plot|visuali[sz]e)\b/.test(normalized);
+  const mentionsHandLength =
+    /\b(hand lengths?|length of each hand|each hand length|cards dealt|total cards)\b/.test(normalized);
+  if (!wantsChart || !mentionsHandLength) {
+    return null;
+  }
+
+  const indexedHands = Array.isArray(state.handHistory?.indexedHands)
+    ? state.handHistory.indexedHands
+    : [];
+  if (!indexedHands.length) {
+    return {
+      reply: "I don't have any completed hands available to chart yet.",
+      chart: null
+    };
+  }
+
+  const requestedCount = parseRequestedHandCount(message, 20);
+  const selectedHands = indexedHands.slice(0, requestedCount);
+  if (!selectedHands.length) {
+    return {
+      reply: `I couldn't find any completed hands in the last ${requestedCount} to chart.`,
+      chart: null
+    };
+  }
+
+  const wantsDistribution = /\b(distribution|histogram|frequency|breakdown)\b/.test(normalized);
+  if (wantsDistribution) {
+    const counts = new Map<number, number>();
+    selectedHands.forEach((hand) => {
+      const totalCards = Math.max(0, Math.round(safeNumber(hand?.totalCards)));
+      counts.set(totalCards, (counts.get(totalCards) || 0) + 1);
+    });
+    const sortedEntries = Array.from(counts.entries()).sort((a, b) => a[0] - b[0]);
+    return {
+      reply: `Here is a bar chart of hand-length frequency across your last ${selectedHands.length} completed hands.`,
+      chart: {
+        type: "bar",
+        title: `Hand-Length Distribution (${selectedHands.length} Hands)`,
+        subtitle: "Counts by total cards dealt",
+        labels: sortedEntries.map(([value]) => `${value}`),
+        values: sortedEntries.map(([, count]) => count),
+        xLabel: "Total cards dealt",
+        yLabel: "Hands"
+      } satisfies AssistantChart
+    };
+  }
+
+  const orderedHands = [...selectedHands].reverse();
+  return {
+    reply: `Here is a ${/\bbar chart\b/.test(normalized) ? "bar" : "line"} chart of total cards dealt for your last ${orderedHands.length} completed hands, ordered from oldest to newest.`,
+    chart: {
+      type: /\bbar chart\b/.test(normalized) ? "bar" : "line",
+      title: `Hand Lengths Over Last ${orderedHands.length} Hands`,
+      subtitle: "Oldest to newest completed hands",
+      labels: orderedHands.map((_, index) => `${index + 1}`),
+      values: orderedHands.map((hand) => Math.max(0, Math.round(safeNumber(hand?.totalCards)))),
+      xLabel: "Hand sequence",
+      yLabel: "Cards dealt"
+    } satisfies AssistantChart
+  };
 }
 
 function normalizeBetPhrase(value: unknown) {
@@ -1098,6 +1185,25 @@ Deno.serve(async (request) => {
       }
     }
 
+    const chartResponse = buildHandLengthChartResponse(latestMessage, state);
+    if (chartResponse) {
+      return new Response(
+        JSON.stringify({
+          reply: chartResponse.reply,
+          riskTolerance: state.riskTolerance,
+          plan: null,
+          chart: chartResponse.chart
+        }),
+        {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+
     const input = buildResponsesInput(messages, latestMessage);
     const tools = [
       {
@@ -1235,7 +1341,8 @@ Deno.serve(async (request) => {
       JSON.stringify({
         reply,
         riskTolerance: draftedPlan?.riskTolerance || state.riskTolerance,
-        plan: draftedPlan
+        plan: draftedPlan,
+        chart: null
       }),
       {
         status: 200,

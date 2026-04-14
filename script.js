@@ -13785,12 +13785,37 @@ function createPlayAssistantMessageId() {
   return `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function normalizeAssistantChart(chart) {
+  if (!chart || typeof chart !== "object") {
+    return null;
+  }
+  const labels = Array.isArray(chart.labels)
+    ? chart.labels.map((label) => String(label ?? ""))
+    : [];
+  const values = Array.isArray(chart.values)
+    ? chart.values.map((value) => Number(value ?? 0))
+    : [];
+  if (!labels.length || !values.length || labels.length !== values.length || values.some((value) => !Number.isFinite(value))) {
+    return null;
+  }
+  return {
+    type: chart.type === "bar" ? "bar" : "line",
+    title: String(chart.title || "").trim(),
+    subtitle: String(chart.subtitle || "").trim(),
+    labels,
+    values,
+    xLabel: String(chart.xLabel || "").trim(),
+    yLabel: String(chart.yLabel || "").trim()
+  };
+}
+
 function pushPlayAssistantMessage(message) {
   playAssistantThread.push({
     id: message.id || createPlayAssistantMessageId(),
     role: message.role || "assistant",
     text: message.text || "",
     plan: message.plan ? { ...message.plan } : null,
+    chart: normalizeAssistantChart(message.chart),
     loading: Boolean(message.loading),
     timestamp: Date.now()
   });
@@ -13840,6 +13865,174 @@ function updatePlayAssistantQuickActionsVisibility() {
   playAssistantQuickActionsEl.hidden = hasStartedConversation;
   playAssistantQuickActionsEl.classList.toggle("is-hidden", hasStartedConversation);
   playAssistantQuickActionsEl.setAttribute("aria-hidden", String(hasStartedConversation));
+}
+
+function drawPlayAssistantChart(canvas, chart) {
+  if (!(canvas instanceof HTMLCanvasElement) || !chart) {
+    return;
+  }
+
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) {
+    return;
+  }
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return;
+  }
+
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.scale(dpr, dpr);
+
+  const width = rect.width;
+  const height = rect.height;
+  const padding = { top: 18, right: 14, bottom: 28, left: 34 };
+  const chartWidth = Math.max(1, width - padding.left - padding.right);
+  const chartHeight = Math.max(1, height - padding.top - padding.bottom);
+  const baseY = padding.top + chartHeight;
+  const values = chart.values;
+  const labels = chart.labels;
+  const maxVal = Math.max(...values, 1);
+  const minVal = chart.type === "bar" ? 0 : Math.min(...values);
+  const range = Math.max(1, maxVal - minVal);
+
+  const bodyStyles = getComputedStyle(document.body);
+  const rootStyles = getComputedStyle(document.documentElement);
+  const cssVar = (name, fallback) => {
+    const raw = bodyStyles.getPropertyValue(name) || rootStyles.getPropertyValue(name);
+    return raw && raw.trim() ? raw.trim() : fallback;
+  };
+
+  const chartBackground = cssVar("--chart-background", "rgba(6, 8, 26, 0.92)");
+  const chartBgStart = cssVar("--chart-background-gradient-start", "rgba(255, 99, 224, 0.18)");
+  const chartBgEnd = cssVar("--chart-background-gradient-end", "rgba(31, 241, 255, 0.16)");
+  const chartGridColor = cssVar("--chart-grid-color", "rgba(31, 241, 255, 0.18)");
+  const chartFillColor = cssVar("--chart-fill-color", "rgba(31, 241, 255, 0.18)");
+  const chartFillFade = cssVar("--chart-fill-fade", "rgba(31, 241, 255, 0)");
+  const chartLineColor = cssVar("--chart-line-color", "#1ff1ff");
+  const chartLineShadow = cssVar("--chart-line-shadow", "rgba(139, 109, 255, 0.45)");
+  const chartMarkerColor = cssVar("--chart-marker-color", "#ff63e0");
+  const chartMarkerStroke = cssVar("--chart-marker-stroke", "rgba(248, 249, 255, 0.85)");
+  const chartMarkerShadow = cssVar("--chart-marker-shadow", "rgba(255, 99, 224, 0.6)");
+  const chartBaseLine = cssVar("--chart-base-line", "rgba(31, 241, 255, 0.35)");
+  const chartAxisColor = cssVar("--chart-axis-color", "rgba(248, 249, 255, 0.85)");
+
+  ctx.fillStyle = chartBackground;
+  ctx.fillRect(0, 0, width, height);
+  const backgroundGradient = ctx.createLinearGradient(0, 0, width, height);
+  backgroundGradient.addColorStop(0, chartBgStart);
+  backgroundGradient.addColorStop(1, chartBgEnd);
+  ctx.fillStyle = backgroundGradient;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.strokeStyle = chartGridColor;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 8]);
+  for (let i = 0; i <= 4; i += 1) {
+    const y = padding.top + (chartHeight * i) / 4;
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(width - padding.right, y);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  const points = values.map((value, index) => {
+    const x =
+      values.length === 1
+        ? padding.left + chartWidth / 2
+        : padding.left + (chartWidth * index) / Math.max(1, values.length - 1);
+    const y = padding.top + chartHeight * (1 - (value - minVal) / range);
+    return { x, y };
+  });
+
+  if (chart.type === "bar") {
+    const barWidth = Math.max(10, Math.min(28, chartWidth / Math.max(1, values.length * 1.5)));
+    const fillGradient = ctx.createLinearGradient(0, padding.top, 0, baseY);
+    fillGradient.addColorStop(0, chartFillColor);
+    fillGradient.addColorStop(1, chartFillFade);
+    points.forEach((point) => {
+      const barHeight = Math.max(2, baseY - point.y);
+      ctx.fillStyle = fillGradient;
+      ctx.fillRect(point.x - barWidth / 2, point.y, barWidth, barHeight);
+      ctx.strokeStyle = chartLineColor;
+      ctx.lineWidth = 1.4;
+      ctx.strokeRect(point.x - barWidth / 2, point.y, barWidth, barHeight);
+    });
+  } else if (points.length >= 2) {
+    const fillGradient = ctx.createLinearGradient(0, padding.top, 0, baseY);
+    fillGradient.addColorStop(0, chartFillColor);
+    fillGradient.addColorStop(1, chartFillFade);
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i += 1) {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
+    ctx.lineTo(points[points.length - 1].x, baseY);
+    ctx.lineTo(points[0].x, baseY);
+    ctx.closePath();
+    ctx.fillStyle = fillGradient;
+    ctx.fill();
+
+    ctx.beginPath();
+    points.forEach((point, index) => {
+      if (index === 0) {
+        ctx.moveTo(point.x, point.y);
+      } else {
+        ctx.lineTo(point.x, point.y);
+      }
+    });
+    ctx.strokeStyle = chartLineColor;
+    ctx.lineWidth = 2.2;
+    ctx.shadowColor = chartLineShadow;
+    ctx.shadowBlur = 12;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  points.forEach((point) => {
+    ctx.beginPath();
+    ctx.fillStyle = chartMarkerColor;
+    ctx.strokeStyle = chartMarkerStroke;
+    ctx.lineWidth = 1.4;
+    ctx.shadowColor = chartMarkerShadow;
+    ctx.shadowBlur = 8;
+    ctx.arc(point.x, point.y, 3.25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  });
+
+  ctx.strokeStyle = chartBaseLine;
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(padding.left, baseY);
+  ctx.lineTo(width - padding.right, baseY);
+  ctx.stroke();
+
+  ctx.font = "600 11px 'Play', 'Segoe UI', sans-serif";
+  ctx.fillStyle = chartAxisColor;
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (let i = 0; i <= 4; i += 1) {
+    const y = padding.top + (chartHeight * i) / 4;
+    const valueLabel = minVal + (range * (4 - i)) / 4;
+    ctx.fillText(String(Math.round(valueLabel * 10) / 10), padding.left - 8, y);
+  }
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  const tickStep = Math.max(1, Math.ceil(labels.length / 6));
+  points.forEach((point, index) => {
+    if (index % tickStep === 0 || index === labels.length - 1) {
+      ctx.fillText(labels[index], point.x, baseY + 6);
+    }
+  });
 }
 
 function renderPlayAssistantThread() {
@@ -13893,6 +14086,25 @@ function renderPlayAssistantThread() {
         </div>
       `;
       article.appendChild(planWrap);
+    }
+
+    if (message.chart?.labels?.length && message.chart?.values?.length) {
+      const chartWrap = document.createElement("div");
+      chartWrap.className = "play-assistant-chart";
+      chartWrap.innerHTML = `
+        <div class="play-assistant-chart-head">
+          <strong>${escapeAssistantHtml(message.chart.title || "Chart")}</strong>
+          ${message.chart.subtitle ? `<span>${escapeAssistantHtml(message.chart.subtitle)}</span>` : ""}
+        </div>
+        <canvas class="play-assistant-chart-canvas" aria-label="${escapeAssistantHtml(message.chart.title || "Assistant chart")}"></canvas>
+        <div class="play-assistant-chart-meta">
+          <span>${escapeAssistantHtml(message.chart.xLabel || "")}</span>
+          <span>${escapeAssistantHtml(message.chart.yLabel || "")}</span>
+        </div>
+      `;
+      article.appendChild(chartWrap);
+      const canvas = chartWrap.querySelector(".play-assistant-chart-canvas");
+      requestAnimationFrame(() => drawPlayAssistantChart(canvas, message.chart));
     }
 
     playAssistantThreadEl.appendChild(article);
@@ -14282,9 +14494,80 @@ function parseAssistantClearDirective(message) {
     /\b(?:bets|bet|table|layout|board|felt|all)\b/.test(normalized);
 }
 
+function parseAssistantRequestedHandCount(message, fallback = 20) {
+  const normalized = String(message || "").toLowerCase();
+  const match = normalized.match(/\blast\s+(\d+)\s+hands?\b/);
+  if (!match) {
+    return fallback;
+  }
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.max(1, Math.min(200, Math.round(parsed))) : fallback;
+}
+
+function buildLocalAssistantChartResponse(userMessage, state) {
+  const normalized = String(userMessage || "").toLowerCase();
+  const wantsChart = /\b(graph|chart|plot|visuali[sz]e)\b/.test(normalized);
+  const mentionsHandLength =
+    /\b(hand lengths?|length of each hand|each hand length|cards dealt|total cards)\b/.test(normalized);
+  const indexedHands = Array.isArray(state?.handHistory?.indexedHands) ? state.handHistory.indexedHands : [];
+  if (!wantsChart || !mentionsHandLength || !indexedHands.length) {
+    return null;
+  }
+
+  const requestedCount = parseAssistantRequestedHandCount(userMessage, 20);
+  const selectedHands = indexedHands.slice(0, requestedCount);
+  if (!selectedHands.length) {
+    return null;
+  }
+
+  const wantsDistribution = /\b(distribution|histogram|frequency|breakdown)\b/.test(normalized);
+  if (wantsDistribution) {
+    const counts = new Map();
+    selectedHands.forEach((hand) => {
+      const totalCards = Math.max(0, Math.round(Number(hand?.totalCards || 0)));
+      counts.set(totalCards, (counts.get(totalCards) || 0) + 1);
+    });
+    const sortedEntries = Array.from(counts.entries()).sort((a, b) => a[0] - b[0]);
+    return {
+      reply: `Here is a bar chart of hand-length frequency across your last ${selectedHands.length} completed hands.`,
+      chart: normalizeAssistantChart({
+        type: "bar",
+        title: `Hand-Length Distribution (${selectedHands.length} Hands)`,
+        subtitle: "Counts by total cards dealt",
+        labels: sortedEntries.map(([value]) => `${value}`),
+        values: sortedEntries.map(([, count]) => count),
+        xLabel: "Total cards dealt",
+        yLabel: "Hands"
+      }),
+      riskTolerance: state.riskTolerance,
+      plan: null
+    };
+  }
+
+  const orderedHands = [...selectedHands].reverse();
+  return {
+    reply: `Here is a ${/\bbar chart\b/.test(normalized) ? "bar" : "line"} chart of total cards dealt for your last ${orderedHands.length} completed hands, ordered from oldest to newest.`,
+    chart: normalizeAssistantChart({
+      type: /\bbar chart\b/.test(normalized) ? "bar" : "line",
+      title: `Hand Lengths Over Last ${orderedHands.length} Hands`,
+      subtitle: "Oldest to newest completed hands",
+      labels: orderedHands.map((_, index) => `${index + 1}`),
+      values: orderedHands.map((hand) => Math.max(0, Math.round(Number(hand?.totalCards || 0)))),
+      xLabel: "Hand sequence",
+      yLabel: "Cards dealt"
+    }),
+    riskTolerance: state.riskTolerance,
+    plan: null
+  };
+}
+
 async function requestPlayAssistantResponse(userMessage) {
   const gameKey = getCurrentPlayAssistantGameKey();
   const state = await getPlayAssistantState();
+  const localChartResponse = buildLocalAssistantChartResponse(userMessage, state);
+  if (localChartResponse) {
+    return localChartResponse;
+  }
   if (gameKey === GAME_KEYS.RUN_THE_NUMBERS && parseAssistantClearDirective(userMessage)) {
     return {
       reply: "Understood. Confirm if you want me to clear all current bets from the felt.",
@@ -14319,7 +14602,8 @@ async function requestPlayAssistantResponse(userMessage) {
       return {
         reply: String(data.reply),
         riskTolerance: data.riskTolerance || state.riskTolerance,
-        plan: normalizeAssistantPlan(data.plan)
+        plan: normalizeAssistantPlan(data.plan),
+        chart: normalizeAssistantChart(data.chart)
       };
     }
   } catch (error) {
@@ -14331,7 +14615,8 @@ async function requestPlayAssistantResponse(userMessage) {
       reply:
         "I can help explain Guess 10, your current prediction, and cash-out decisions, but I can't auto-stage Guess 10 actions yet.",
       riskTolerance: state.riskTolerance,
-      plan: null
+      plan: null,
+      chart: null
     };
   }
 
@@ -14347,6 +14632,7 @@ async function requestPlayAssistantResponse(userMessage) {
       return {
         reply: `Understood. I made a best-guess random draft of ${randomSpreadDirective.selectedCount} bet${randomSpreadDirective.selectedCount === 1 ? "" : "s"} at ${randomSpreadDirective.perBetUnits} unit${randomSpreadDirective.perBetUnits === 1 ? "" : "s"} each for ${totalRequestedUnits} total units.${adjustedCopy} Confirm if you want me to place it on the felt.`,
         riskTolerance: state.riskTolerance,
+        chart: null,
         plan: normalizeAssistantPlan({
           summary: "Best-guess random layout captured. Confirm and I will stage it on the felt.",
           replaceExisting: true,
@@ -14375,6 +14661,7 @@ async function requestPlayAssistantResponse(userMessage) {
             ? `Understood. I drafted exactly ${requestedUnits} units on ${definitions[0].label}. Confirm if you want me to place it on the felt.`
             : `Understood. I made a best-guess draft of ${requestedUnits} units on each target in ${summaryTarget} for ${totalRequestedUnits} units total. Confirm if you want me to place it on the felt.`,
         riskTolerance: state.riskTolerance,
+        chart: null,
         plan: normalizeAssistantPlan({
           summary:
             definitions.length === 1
@@ -14395,7 +14682,8 @@ async function requestPlayAssistantResponse(userMessage) {
             ? `I can't place ${requestedUnits} units on ${targetLabel} because only ${availableUnits} units are available right now.`
             : `I can't place ${requestedUnits} units on each target in ${targetLabel} because that needs ${totalRequestedUnits} units and only ${availableUnits} are available right now.`,
         riskTolerance: state.riskTolerance,
-        plan: null
+        plan: null,
+        chart: null
       };
     }
 
@@ -14404,7 +14692,8 @@ async function requestPlayAssistantResponse(userMessage) {
   return {
     reply: "The assistant is temporarily unavailable. Try again in a moment.",
     riskTolerance: state.riskTolerance,
-    plan: null
+    plan: null,
+    chart: null
   };
 }
 
@@ -14542,7 +14831,8 @@ async function sendPlayAssistantMessage(rawMessage) {
   pushPlayAssistantMessage({
     role: "assistant",
     text: response?.reply || "I hit a snag. Please try again in a moment.",
-    plan: response?.plan || null
+    plan: response?.plan || null,
+    chart: response?.chart || null
   });
 }
 
