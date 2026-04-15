@@ -56,6 +56,11 @@ function isMissingColumnError(error, columnName) {
   return message.includes(columnName) && message.includes("does not exist");
 }
 
+function isMissingRelationError(error, relationName) {
+  const message = String(error?.message || error?.details || error?.hint || "");
+  return message.includes(relationName) && message.includes("does not exist");
+}
+
 function normalizeContestAllowedGameIds(value) {
   const values = Array.isArray(value) ? value : [];
   const normalized = values
@@ -2598,7 +2603,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     updateRedBlackPaytableHighlight();
   }
 
-  if (resolvedRoute === "run-the-numbers") {
+  if (PLAY_ASSISTANT_ROUTES.has(resolvedRoute)) {
     schedulePlayAreaHeightUpdate();
   } else {
     clearPlayAreaHeight();
@@ -9495,6 +9500,7 @@ export async function logGameRun(score, metadata = {}) {
   }
   const enrichedMetadata = {
     ...metadata,
+    game_id: resolveGameKey(metadata?.game_id || metadata?.gameKey || metadata?.game_key),
     recorded_score: roundCurrencyValue(score),
     ending_bankroll: endingBankrollSnapshot,
     ending_carter_cash: endingCarterCashSnapshot,
@@ -9531,6 +9537,90 @@ export async function logGameRun(score, metadata = {}) {
     });
     drawBankrollChart();
   }
+}
+
+function sanitizeGuess10AssistantCard(card = null) {
+  if (!card || typeof card !== "object") {
+    return null;
+  }
+  return {
+    label: card.label ?? null,
+    suit: card.suit ?? null,
+    suitName: card.suitName ?? null,
+    color: card.color ?? null
+  };
+}
+
+function buildGuess10DrawPlayRows(handHistory = [], {
+  result = null,
+  totalPaid = 0,
+  commissionKept = 0,
+  netHandProfit = 0
+} = {}) {
+  if (!Array.isArray(handHistory)) {
+    return [];
+  }
+  const normalizedResult = String(result || "").trim().toLowerCase();
+  return handHistory.map((entry, index) => {
+    const isLastDraw = index === handHistory.length - 1;
+    const wagerAmount = roundCurrencyValue(Number(entry?.wagerAmount || 0));
+    const explicitCashoutPayout = roundCurrencyValue(Number(entry?.cashoutPayout || 0));
+    const explicitCommissionKept = roundCurrencyValue(Number(entry?.commissionKept || 0));
+    const explicitNetHandProfit = roundCurrencyValue(Number(entry?.netHandProfit || 0));
+    const settledEndingPot =
+      normalizedResult === "cashout" && isLastDraw
+        ? roundCurrencyValue(explicitCashoutPayout || Number(totalPaid || 0))
+        : roundCurrencyValue(Number(entry?.potAfter || 0));
+    const computedNetHandProfit =
+      normalizedResult === "cashout" && isLastDraw
+        ? roundCurrencyValue(explicitNetHandProfit || (settledEndingPot - wagerAmount))
+        : isLastDraw
+          ? roundCurrencyValue(Number(netHandProfit || 0))
+          : 0;
+    return {
+      draw_index: index + 1,
+      placed_at: entry?.placedAt || new Date().toISOString(),
+      wager_amount: wagerAmount,
+      prediction_category: String(entry?.category || ""),
+      prediction_values: Array.isArray(entry?.selectedValues)
+        ? entry.selectedValues.map((value) => String(value ?? ""))
+        : [],
+      selection_label: String(entry?.selectionLabel || ""),
+      multiplier: Number.isFinite(Number(entry?.multiplier)) ? Number(entry.multiplier) : 0,
+      drawn_card_label: entry?.card?.label ?? null,
+      drawn_card_suit: entry?.card?.suit ?? null,
+      drawn_card_suit_name: entry?.card?.suitName ?? null,
+      drawn_card_color: entry?.card?.color ?? null,
+      was_correct: Boolean(entry?.matched),
+      starting_pot: roundCurrencyValue(Number(entry?.startingPot || 0)),
+      ending_pot: settledEndingPot,
+      hand_result: normalizedResult || null,
+      cashout_payout: normalizedResult === "cashout" && isLastDraw
+        ? roundCurrencyValue(explicitCashoutPayout || Number(totalPaid || 0))
+        : 0,
+      commission_kept: normalizedResult === "cashout" && isLastDraw
+        ? roundCurrencyValue(explicitCommissionKept || Number(commissionKept || 0))
+        : 0,
+      net_hand_profit: computedNetHandProfit
+    };
+  });
+}
+
+async function insertGuess10DrawPlayRecords(rows = []) {
+  if (!Array.isArray(rows) || !rows.length) {
+    return true;
+  }
+
+  const { error } = await supabase.from("guess10_draw_plays").insert(rows);
+  if (error) {
+    if (isMissingRelationError(error, "guess10_draw_plays")) {
+      console.warn("[RTN] guess10_draw_plays table missing; skipping Guess 10 draw persistence");
+      return false;
+    }
+    throw error;
+  }
+
+  return true;
 }
 
 async function insertGameHandRecord(handPayload, betRows = []) {
@@ -9581,7 +9671,8 @@ async function logStandaloneGameHand({
   totalWager = 0,
   totalPaid = 0,
   net = 0,
-  commissionKept = 0
+  commissionKept = 0,
+  handHistory = []
 } = {}) {
   try {
     const { data: userResponse, error: logHandUserError } = await supabase.auth.getUser();
@@ -9590,10 +9681,10 @@ async function logStandaloneGameHand({
     }
     const sessionUser = userResponse?.user ?? null;
     if (!sessionUser) {
-      return;
+      return null;
     }
 
-    await insertGameHandRecord({
+    const hand = await insertGameHandRecord({
       user_id: sessionUser.id,
       game_id: resolveGameKey(gameKey),
       stopper_label: stopperCard?.label ?? null,
@@ -9604,16 +9695,34 @@ async function logStandaloneGameHand({
       net,
       commission_kept: commissionKept
     });
+
+    if (resolveGameKey(gameKey) === GAME_KEYS.GUESS_10) {
+      const drawRows = buildGuess10DrawPlayRows(handHistory, {
+        result: net > 0 ? "cashout" : "loss",
+        totalPaid,
+        commissionKept,
+        netHandProfit: net
+      }).map((row) => ({
+        ...row,
+        hand_id: hand.id,
+        user_id: sessionUser.id,
+        game_id: GAME_KEYS.GUESS_10
+      }));
+      await insertGuess10DrawPlayRecords(drawRows);
+    }
+
+    return hand;
   } catch (error) {
     console.error("Failed to log standalone game hand", error);
+    return null;
   }
 }
 
-async function logHandAndBets(stopperCard, context, betSnapshots, netThisHand, options = {}) {
+async function logRunTheNumbersHandAndBets(stopperCard, context, betSnapshots, netThisHand, options = {}) {
   try {
     const { data: userResponse, error: logHandUserError } = await supabase.auth.getUser();
     if (logHandUserError) {
-      console.error("[RTN] logHandAndBets getUser error", logHandUserError);
+      console.error("[RTN] logRunTheNumbersHandAndBets getUser error", logHandUserError);
     }
     const sessionUser = userResponse?.user ?? null;
 
@@ -9638,6 +9747,8 @@ async function logHandAndBets(stopperCard, context, betSnapshots, netThisHand, o
       commission_kept: 0
     };
 
+    const hand = await insertGameHandRecord(handPayload);
+
     const betRows = safeBets.map((bet) => {
       const amountWagered = bet.units ?? 0;
       const amountPaid = bet.paid ?? 0;
@@ -9656,11 +9767,16 @@ async function logHandAndBets(stopperCard, context, betSnapshots, netThisHand, o
       };
     });
 
-    await insertGameHandRecord(handPayload, betRows);
+    if (betRows.length) {
+      const { error: betsError } = await supabase.from("bet_plays").insert(betRows);
+      if (betsError) {
+        throw betsError;
+      }
+    }
   } catch (error) {
     console.error("Failed to log hand and bets", error);
   }
-  // end logHandAndBets
+  // end logRunTheNumbersHandAndBets
 }
 
 function applyTheme(theme) {
@@ -10292,6 +10408,9 @@ const playAssistantQuickActionButtons = Array.from(
 const playAssistantForm = document.getElementById("play-assistant-form");
 const playAssistantInput = document.getElementById("play-assistant-input");
 const playAssistantSendButton = document.getElementById("play-assistant-send");
+if (playAssistantPanel && appShell && playAssistantPanel.parentElement !== appShell) {
+  appShell.appendChild(playAssistantPanel);
+}
 const chipEditorModal = document.getElementById("chip-editor-modal");
 const chipEditorForm = document.getElementById("chip-editor-form");
 const chipEditorInputs = [1, 2, 3, 4]
@@ -10650,6 +10769,7 @@ const PLAY_ASSISTANT_MAX_HISTORY = 12;
 const PLAY_ASSISTANT_HISTORY_LIMIT = 100;
 const PLAY_ASSISTANT_HISTORY_CACHE_MS = 60 * 1000;
 const PLAY_ASSISTANT_REQUEST_TIMEOUT_MS = 25000;
+const PLAY_ASSISTANT_ROUTES = new Set(["run-the-numbers", "red-black"]);
 const PLAY_ASSISTANT_CONFIG = {
   [GAME_KEYS.RUN_THE_NUMBERS]: {
     title: "Bankroll Coach",
@@ -10760,12 +10880,19 @@ function getViewportMetrics() {
   };
 }
 
+function getActivePlayAssistantChipBar() {
+  if (currentRoute === "red-black") {
+    return redBlackChipBarEl;
+  }
+  return chipBarEl;
+}
+
 function updatePlayAreaHeight() {
   if (!playLayout) {
     return;
   }
 
-  if (currentRoute !== "run-the-numbers") {
+  if (!PLAY_ASSISTANT_ROUTES.has(currentRoute)) {
     clearPlayAreaHeight();
     return;
   }
@@ -10776,7 +10903,8 @@ function updatePlayAreaHeight() {
   }
 
   const headerHeight = headerEl ? headerEl.offsetHeight : 0;
-  const chipBarHeight = chipBarEl ? chipBarEl.offsetHeight : 0;
+  const activeChipBar = getActivePlayAssistantChipBar();
+  const chipBarHeight = activeChipBar ? activeChipBar.offsetHeight : 0;
   const available = Math.max(viewportHeight - headerHeight - chipBarHeight, 0);
   playLayout.style.setProperty("--play-area-height", `${available}px`);
   updatePlayAssistantBounds();
@@ -10802,7 +10930,8 @@ function updatePlayAssistantBounds() {
 
   const { height: viewportHeight, offsetTop } = getViewportMetrics();
   const headerHeight = headerEl ? headerEl.offsetHeight : 0;
-  const chipBarHeight = chipBarEl ? chipBarEl.offsetHeight : 0;
+  const activeChipBar = getActivePlayAssistantChipBar();
+  const chipBarHeight = activeChipBar ? activeChipBar.offsetHeight : 0;
   const isMobileViewport =
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&
@@ -11719,7 +11848,17 @@ function clearRedBlackHistory() {
   redBlackHandHistoryEntries = [];
 }
 
-function appendRedBlackHistoryEntry({ card, matched, multiplier, selectionLabel, potAfter = 0 }) {
+function appendRedBlackHistoryEntry({
+  card,
+  matched,
+  multiplier,
+  selectionLabel,
+  category,
+  selectedValues = [],
+  wagerAmount = 0,
+  startingPot = 0,
+  potAfter = 0
+}) {
   if (!redBlackHistoryEl) return;
   const item = document.createElement("li");
   const cardLabel = `${card?.label || ""}${card?.suit || ""}`;
@@ -11730,6 +11869,11 @@ function appendRedBlackHistoryEntry({ card, matched, multiplier, selectionLabel,
     matched: Boolean(matched),
     multiplier,
     selectionLabel,
+    category: String(category || ""),
+    selectedValues: Array.isArray(selectedValues) ? [...selectedValues] : [],
+    wagerAmount: roundCurrencyValue(Number(wagerAmount || 0)),
+    startingPot: roundCurrencyValue(Number(startingPot || 0)),
+    placedAt: new Date().toISOString(),
     potAfter: roundCurrencyValue(potAfter)
   });
 }
@@ -11985,7 +12129,8 @@ async function finalizeGuess10Hand({
       totalWager: completedBet,
       totalPaid: totalReturn,
       net,
-      commissionKept
+      commissionKept,
+      handHistory
     });
     await logGameRun(net, {
       gameKey: GAME_KEYS.GUESS_10,
@@ -12033,10 +12178,23 @@ async function dealGuess10Card() {
   const cardEl = appendRedBlackCard(nextCard);
   const multiplier = getRedBlackMultiplier();
   const selectionLabel = getGuess10SelectionLabel();
+  const selectionCategory = redBlackCategory;
+  const selectionValues = [...redBlackSelectedValues];
+  const startingPot = redBlackCurrentPot;
 
   const matched = doesGuess10CardMatch(nextCard);
   const nextPot = matched ? roundCurrencyValue(redBlackCurrentPot * multiplier) : 0;
-  appendRedBlackHistoryEntry({ card: nextCard, matched, multiplier, selectionLabel, potAfter: nextPot });
+  appendRedBlackHistoryEntry({
+    card: nextCard,
+    matched,
+    multiplier,
+    selectionLabel,
+    category: selectionCategory,
+    selectedValues: selectionValues,
+    wagerAmount: redBlackBet,
+    startingPot,
+    potAfter: nextPot
+  });
 
   if (!matched) {
     const completedBet = redBlackBet;
@@ -12122,6 +12280,13 @@ async function withdrawGuess10Hand() {
     ...entry,
     card: entry.card ? { ...entry.card } : null
   }));
+  const finalDraw = handHistory[handHistory.length - 1];
+  if (finalDraw) {
+    finalDraw.handResult = "cashout";
+    finalDraw.cashoutPayout = payout;
+    finalDraw.commissionKept = commission;
+    finalDraw.netHandProfit = roundCurrencyValue(payout - completedBet);
+  }
   const drawnCards = handHistory.map((entry) => entry.card).filter(Boolean);
   bankroll = roundCurrencyValue(bankroll + payout);
   handleBankrollChanged();
@@ -13402,7 +13567,21 @@ function getGuess10AssistantReference() {
         rung,
         commissionPercent: Number((((RED_BLACK_COMMISSION_BY_RUNG[rung] ?? 0) * 100)).toFixed(2))
       };
-    })
+    }),
+    historicalDrawPlayFields: [
+      "handId",
+      "drawIndex",
+      "placedAt",
+      "wagerAmount",
+      "category",
+      "selectedValues",
+      "selectionLabel",
+      "multiplier",
+      "card",
+      "matched",
+      "startingPot",
+      "potAfter"
+    ]
   };
 }
 
@@ -13523,7 +13702,7 @@ function buildPlayAssistantHandHistoryInsights(records = []) {
   };
 }
 
-function buildPlayAssistantBetHistoryInsights(records = []) {
+function buildRunTheNumbersBetPlayHistoryInsights(records = []) {
   const safeRecords = Array.isArray(records) ? records : [];
   const normalized = safeRecords
     .map((row) => {
@@ -13557,7 +13736,7 @@ function buildPlayAssistantBetHistoryInsights(records = []) {
   };
 }
 
-async function fetchBetPlayRecords({ userId, limit = 1000 } = {}) {
+async function fetchRunTheNumbersBetPlayRecords({ userId, limit = 1000 } = {}) {
   if (!userId || !supabase) return [];
   const allRecords = [];
   const pageSize = 1000;
@@ -13583,6 +13762,40 @@ async function fetchBetPlayRecords({ userId, limit = 1000 } = {}) {
   }
 
   return allRecords.slice(0, limit);
+}
+
+async function fetchGuess10DrawPlayRecords({ handIds = [] } = {}) {
+  if (!supabase || !Array.isArray(handIds) || !handIds.length) {
+    return [];
+  }
+
+  const allRows = [];
+  const chunkSize = 50;
+
+  for (let index = 0; index < handIds.length; index += chunkSize) {
+    const chunk = handIds.slice(index, index + chunkSize).map((handId) => String(handId || "")).filter(Boolean);
+    if (!chunk.length) {
+      continue;
+    }
+
+    const { data, error } = await supabase
+      .from("guess10_draw_plays")
+      .select("hand_id, user_id, game_id, draw_index, placed_at, wager_amount, prediction_category, prediction_values, selection_label, multiplier, drawn_card_label, drawn_card_suit, drawn_card_suit_name, drawn_card_color, was_correct, starting_pot, ending_pot, hand_result, cashout_payout, commission_kept, net_hand_profit")
+      .in("hand_id", chunk)
+      .order("draw_index", { ascending: true });
+
+    if (error) {
+      if (isMissingRelationError(error, "guess10_draw_plays")) {
+        console.warn("[RTN] guess10_draw_plays table missing; Guess 10 assistant draw history unavailable");
+        return [];
+      }
+      throw error;
+    }
+
+    allRows.push(...(Array.isArray(data) ? data : []));
+  }
+
+  return allRows;
 }
 
 async function loadPlayAssistantHandHistoryInsights({
@@ -13615,7 +13828,7 @@ async function loadPlayAssistantHandHistoryInsights({
 
     if (gameKey === GAME_KEYS.RUN_THE_NUMBERS) {
       const handMap = new Map(gameRecords.map((row) => [String(row?.id || ""), row]));
-      const betRecords = await fetchBetPlayRecords({ userId: currentUser.id, limit: 2000 });
+      const betRecords = await fetchRunTheNumbersBetPlayRecords({ userId: currentUser.id, limit: 2000 });
       const enrichedBetRecords = betRecords
         .map((row) => {
           const hand = handMap.get(String(row?.hand_id || ""));
@@ -13632,7 +13845,67 @@ async function loadPlayAssistantHandHistoryInsights({
         .filter(Boolean);
       insights = {
         ...handHistory,
-        betHistory: buildPlayAssistantBetHistoryInsights(enrichedBetRecords)
+        betHistory: buildRunTheNumbersBetPlayHistoryInsights(enrichedBetRecords)
+      };
+    } else if (gameKey === GAME_KEYS.GUESS_10) {
+      const orderedHands = [...gameRecords]
+        .sort((a, b) => new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime())
+        .slice(0, PLAY_ASSISTANT_HISTORY_LIMIT);
+      const drawRecords = await fetchGuess10DrawPlayRecords({
+        handIds: orderedHands.map((row) => row?.id).filter(Boolean)
+      });
+      const drawRecordsByHand = new Map();
+      drawRecords.forEach((row) => {
+        const key = String(row?.hand_id || "");
+        if (!key) return;
+        const list = drawRecordsByHand.get(key) || [];
+        list.push({
+          drawIndex: Math.max(1, Math.round(Number(row?.draw_index || list.length + 1))),
+          placedAt: row?.placed_at || null,
+          wagerAmount: safeNumber(row?.wager_amount),
+          category: String(row?.prediction_category || ""),
+          selectedValues: Array.isArray(row?.prediction_values)
+            ? row.prediction_values.map((value) => String(value ?? ""))
+            : [],
+          selectionLabel: String(row?.selection_label || ""),
+          multiplier: safeNumber(row?.multiplier),
+          matched: Boolean(row?.was_correct),
+          startingPot: safeNumber(row?.starting_pot),
+          potAfter: safeNumber(row?.ending_pot),
+          handResult: String(row?.hand_result || "").trim().toLowerCase() || null,
+          cashoutPayout: safeNumber(row?.cashout_payout),
+          commissionKept: safeNumber(row?.commission_kept),
+          netHandProfit: safeNumber(row?.net_hand_profit),
+          card: sanitizeGuess10AssistantCard({
+            label: row?.drawn_card_label,
+            suit: row?.drawn_card_suit,
+            suitName: row?.drawn_card_suit_name,
+            color: row?.drawn_card_color
+          })
+        });
+        drawRecordsByHand.set(key, list);
+      });
+      const detailedHands = orderedHands.map((row) => {
+        const handId = String(row?.id || "");
+        const drawPlays = (drawRecordsByHand.get(handId) || []).sort((a, b) => a.drawIndex - b.drawIndex);
+        return {
+          handId,
+          createdAt: row?.created_at || null,
+          totalCards: Math.max(0, Math.round(safeNumber(row?.total_cards))),
+          totalWager: safeNumber(row?.total_wager),
+          totalPaid: safeNumber(row?.total_paid),
+          net: safeNumber(row?.net),
+          stopper: row?.stopper_label === "Joker"
+            ? "Joker"
+            : [row?.stopper_label, row?.stopper_suit].filter(Boolean).join(" "),
+          result: safeNumber(row?.total_paid) > 0 ? "cashout" : "loss",
+          drawPlays
+        };
+      });
+      insights = {
+        ...handHistory,
+        detailedHands,
+        recentDetailedHands: detailedHands.slice(0, 20)
       };
     }
     playAssistantHistoryCache = {
@@ -14125,8 +14398,7 @@ function togglePlayAssistant(open = !playAssistantOpen) {
     playAssistantPanel.setAttribute("aria-hidden", String(!playAssistantOpen));
   }
   if (playAssistantToggle) {
-    playAssistantToggle.hidden =
-      !["run-the-numbers", "red-black"].includes(currentRoute) || playAssistantOpen;
+    playAssistantToggle.hidden = !PLAY_ASSISTANT_ROUTES.has(currentRoute) || playAssistantOpen;
     playAssistantToggle.setAttribute("aria-expanded", String(playAssistantOpen));
   }
   if (playAssistantOpen && playAssistantInput) {
@@ -14136,9 +14408,10 @@ function togglePlayAssistant(open = !playAssistantOpen) {
 
 function updatePlayAssistantVisibility() {
   updatePlayAssistantUiContent();
-  const shouldShow = currentRoute === "run-the-numbers" || currentRoute === "red-black";
+  const shouldShow = PLAY_ASSISTANT_ROUTES.has(currentRoute);
   if (shouldShow) {
     ensurePlayAssistantThreadMatchesCurrentGame();
+    seedPlayAssistant();
   }
   if (playAssistantToggle) {
     playAssistantToggle.hidden = !shouldShow || playAssistantOpen;
@@ -14561,12 +14834,120 @@ function buildLocalAssistantChartResponse(userMessage, state) {
   };
 }
 
+function buildLocalGuess10HistoryResponse(userMessage, state) {
+  const normalized = String(userMessage || "").toLowerCase();
+  const detailedHands = Array.isArray(state?.handHistory?.detailedHands) ? state.handHistory.detailedHands : [];
+  const indexedHands = Array.isArray(state?.handHistory?.indexedHands) ? state.handHistory.indexedHands : [];
+  if (!detailedHands.length && !indexedHands.length) {
+    return null;
+  }
+
+  const asksAboutGuess10History =
+    /\b(last|recent)\b/.test(normalized) &&
+    /\bhands?\b/.test(normalized) &&
+    /\bguess(?:\s|-)?10\b/.test(normalized);
+  const asksAboutCorrectGuesses =
+    /\bcorrect guesses?\b/.test(normalized) ||
+    /\bhow many\b/.test(normalized) && /\b(before busting|before cashing|before cashing out|hits?)\b/.test(normalized);
+  const asksAboutOutcome =
+    /\bbust(?:ing|ed)?\b/.test(normalized) ||
+    /\bcash(?:ing)? out\b/.test(normalized) ||
+    /\bcashed out\b/.test(normalized);
+
+  if (!asksAboutGuess10History || !asksAboutCorrectGuesses || !asksAboutOutcome) {
+    return null;
+  }
+
+  const requestedCount = parseAssistantRequestedHandCount(userMessage, 10);
+  const selectedHands = detailedHands.length ? detailedHands.slice(0, requestedCount) : indexedHands.slice(0, requestedCount);
+  if (!selectedHands.length) {
+    return null;
+  }
+
+  const lines = selectedHands.map((hand, index) => {
+    const drawPlays = Array.isArray(hand?.drawPlays) ? hand.drawPlays : [];
+    const cashedOut =
+      String(hand?.result || "").toLowerCase() === "cashout" ||
+      Number(hand?.totalPaid || 0) > 0;
+    const correctGuesses = drawPlays.length
+      ? drawPlays.filter((entry) => entry?.matched).length
+      : Math.max(0, Math.round(Number(hand?.totalCards || 0)) - (cashedOut ? 0 : 1));
+    const outcome = cashedOut ? "cashed out" : "busted";
+    return `- Hand ${index + 1}: ${correctGuesses} correct guess${correctGuesses === 1 ? "" : "es"} before ${outcome}.`;
+  });
+
+  return {
+    reply: `Here are your last ${selectedHands.length} Guess 10 hands, newest first:\n${lines.join("\n")}`,
+    riskTolerance: state.riskTolerance,
+    plan: null,
+    chart: null
+  };
+}
+
+function buildLocalGuess10PredictionSequenceResponse(userMessage, state) {
+  const normalized = String(userMessage || "").toLowerCase();
+  const detailedHands = Array.isArray(state?.handHistory?.detailedHands) ? state.handHistory.detailedHands : [];
+  if (!detailedHands.length) {
+    return null;
+  }
+
+  const asksForPredictionSequence =
+    /\bprediction/.test(normalized) &&
+    /\b(each card|every card|each draw|draw by draw)\b/.test(normalized);
+  if (!asksForPredictionSequence) {
+    return null;
+  }
+
+  let targetHand = null;
+  if (/\blongest hand\b|\bthat hand\b|\b63\b/.test(normalized)) {
+    targetHand = [...detailedHands].sort((a, b) => {
+      const aHits = Array.isArray(a?.drawPlays) ? a.drawPlays.filter((entry) => entry?.matched).length : 0;
+      const bHits = Array.isArray(b?.drawPlays) ? b.drawPlays.filter((entry) => entry?.matched).length : 0;
+      if (bHits !== aHits) return bHits - aHits;
+      return new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime();
+    })[0] || null;
+  } else if (/\blast hand\b|\bmost recent hand\b|\brecent hand\b/.test(normalized)) {
+    targetHand = detailedHands[0] || null;
+  }
+
+  if (!targetHand || !Array.isArray(targetHand.drawPlays) || !targetHand.drawPlays.length) {
+    return null;
+  }
+
+  const lines = targetHand.drawPlays.map((entry) => {
+    const cardLabel = entry?.card ? `${entry.card.label || ""}${entry.card.suit || ""}` : "—";
+    const categoryLabel = String(entry?.category || "").toUpperCase() || "UNKNOWN";
+    const valuesLabel = Array.isArray(entry?.selectedValues) && entry.selectedValues.length
+      ? entry.selectedValues.join(", ")
+      : "none";
+    const resultLabel = entry?.matched ? "hit" : "miss";
+    return `- Draw ${entry.drawIndex}: ${categoryLabel} [${valuesLabel}] -> ${cardLabel} (${resultLabel}), pot ${formatCurrency(entry.startingPot || 0)} to ${formatCurrency(entry.potAfter || 0)}.`;
+  });
+
+  return {
+    reply: `Here is the full prediction sequence for that Guess 10 hand:\n${lines.join("\n")}`,
+    riskTolerance: state.riskTolerance,
+    plan: null,
+    chart: null
+  };
+}
+
 async function requestPlayAssistantResponse(userMessage) {
   const gameKey = getCurrentPlayAssistantGameKey();
   const state = await getPlayAssistantState();
   const localChartResponse = buildLocalAssistantChartResponse(userMessage, state);
   if (localChartResponse) {
     return localChartResponse;
+  }
+  const localGuess10HistoryResponse =
+    gameKey === GAME_KEYS.GUESS_10 ? buildLocalGuess10HistoryResponse(userMessage, state) : null;
+  if (localGuess10HistoryResponse) {
+    return localGuess10HistoryResponse;
+  }
+  const localGuess10PredictionSequenceResponse =
+    gameKey === GAME_KEYS.GUESS_10 ? buildLocalGuess10PredictionSequenceResponse(userMessage, state) : null;
+  if (localGuess10PredictionSequenceResponse) {
+    return localGuess10PredictionSequenceResponse;
   }
   if (gameKey === GAME_KEYS.RUN_THE_NUMBERS && parseAssistantClearDirective(userMessage)) {
     return {
@@ -15386,7 +15767,7 @@ async function endHand(stopperCard, context = {}) {
   });
   await incrementProfileHandProgress(1);
   await ensureProfileSynced({ force: true });
-  await logHandAndBets(stopperCard, context, betSnapshots, netThisHand, {
+  await logRunTheNumbersHandAndBets(stopperCard, context, betSnapshots, netThisHand, {
     gameKey: GAME_KEYS.RUN_THE_NUMBERS
   });
   const metadata = {
