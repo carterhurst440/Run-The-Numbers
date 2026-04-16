@@ -119,6 +119,70 @@ type HandHistoryInsights = {
       stopper?: string;
     }>;
   } | null;
+  detailedHands?: Array<{
+    handId?: string | null;
+    createdAt?: string | null;
+    totalCards?: number;
+    totalWager?: number;
+    totalPaid?: number;
+    net?: number;
+    stopper?: string;
+    result?: string | null;
+    drawPlays?: Array<{
+      drawIndex?: number;
+      placedAt?: string | null;
+      wagerAmount?: number;
+      category?: string;
+      selectedValues?: string[];
+      selectionLabel?: string;
+      multiplier?: number;
+      matched?: boolean;
+      startingPot?: number;
+      potAfter?: number;
+      handResult?: string | null;
+      cashoutPayout?: number;
+      commissionKept?: number;
+      netHandProfit?: number;
+      card?: {
+        label?: string | null;
+        suit?: string | null;
+        suitName?: string | null;
+        color?: string | null;
+      } | null;
+    }>;
+  }>;
+  recentDetailedHands?: Array<{
+    handId?: string | null;
+    createdAt?: string | null;
+    totalCards?: number;
+    totalWager?: number;
+    totalPaid?: number;
+    net?: number;
+    stopper?: string;
+    result?: string | null;
+    drawPlays?: Array<{
+      drawIndex?: number;
+      placedAt?: string | null;
+      wagerAmount?: number;
+      category?: string;
+      selectedValues?: string[];
+      selectionLabel?: string;
+      multiplier?: number;
+      matched?: boolean;
+      startingPot?: number;
+      potAfter?: number;
+      handResult?: string | null;
+      cashoutPayout?: number;
+      commissionKept?: number;
+      netHandProfit?: number;
+      card?: {
+        label?: string | null;
+        suit?: string | null;
+        suitName?: string | null;
+        color?: string | null;
+      } | null;
+    }>;
+  }>;
 };
 
 type AssistantChart = {
@@ -216,6 +280,7 @@ Game facts:
 Behavior:
 - Use get_table_context whenever rules, bankroll, live pot, prediction, streak, or recent hand history matter.
 - When get_table_context includes player hand-history summaries, use those summaries to answer Guess 10 player-specific trend questions.
+- When get_table_context includes detailed Guess 10 hands with drawPlays, use those exact per-draw records for questions about predictions, color/suit/rank choices, switching patterns, pot changes, cash-outs, and the exact sequence within a hand.
 - When profitable-hand counts or percentages are present in hand-history summaries, answer profitability questions from those exact figures instead of inferring from average net.
 - If the supplied context is missing the exact figure needed, say what is available and do not invent unsupported numbers.
 - Keep answers concise, practical, and confident.
@@ -882,7 +947,87 @@ function sanitizeState(input: unknown): AssistantState {
                     }))
                   : []
               }
-            : null
+            : null,
+          detailedHands: Array.isArray(raw.handHistory.detailedHands)
+            ? raw.handHistory.detailedHands.map((hand) => ({
+                handId: hand?.handId == null ? null : String(hand.handId),
+                createdAt: hand?.createdAt == null ? null : String(hand.createdAt),
+                totalCards: Math.max(0, Math.round(safeNumber(hand?.totalCards))),
+                totalWager: safeNumber(hand?.totalWager),
+                totalPaid: safeNumber(hand?.totalPaid),
+                net: safeNumber(hand?.net),
+                stopper: String(hand?.stopper || ""),
+                result: hand?.result == null ? null : String(hand.result),
+                drawPlays: Array.isArray(hand?.drawPlays)
+                  ? hand.drawPlays.map((draw) => ({
+                      drawIndex: Math.max(0, Math.round(safeNumber(draw?.drawIndex))),
+                      placedAt: draw?.placedAt == null ? null : String(draw.placedAt),
+                      wagerAmount: safeNumber(draw?.wagerAmount),
+                      category: String(draw?.category || ""),
+                      selectedValues: Array.isArray(draw?.selectedValues)
+                        ? draw.selectedValues.map((value: unknown) => String(value ?? ""))
+                        : [],
+                      selectionLabel: String(draw?.selectionLabel || ""),
+                      multiplier: safeNumber(draw?.multiplier),
+                      matched: Boolean(draw?.matched),
+                      startingPot: safeNumber(draw?.startingPot),
+                      potAfter: safeNumber(draw?.potAfter),
+                      handResult: draw?.handResult == null ? null : String(draw.handResult),
+                      cashoutPayout: safeNumber(draw?.cashoutPayout),
+                      commissionKept: safeNumber(draw?.commissionKept),
+                      netHandProfit: safeNumber(draw?.netHandProfit),
+                      card: draw?.card && typeof draw.card === "object"
+                        ? {
+                            label: draw.card.label == null ? null : String(draw.card.label),
+                            suit: draw.card.suit == null ? null : String(draw.card.suit),
+                            suitName: draw.card.suitName == null ? null : String(draw.card.suitName),
+                            color: draw.card.color == null ? null : String(draw.card.color)
+                          }
+                        : null
+                    }))
+                  : []
+              }))
+            : [],
+          recentDetailedHands: Array.isArray(raw.handHistory.recentDetailedHands)
+            ? raw.handHistory.recentDetailedHands.map((hand) => ({
+                handId: hand?.handId == null ? null : String(hand.handId),
+                createdAt: hand?.createdAt == null ? null : String(hand.createdAt),
+                totalCards: Math.max(0, Math.round(safeNumber(hand?.totalCards))),
+                totalWager: safeNumber(hand?.totalWager),
+                totalPaid: safeNumber(hand?.totalPaid),
+                net: safeNumber(hand?.net),
+                stopper: String(hand?.stopper || ""),
+                result: hand?.result == null ? null : String(hand.result),
+                drawPlays: Array.isArray(hand?.drawPlays)
+                  ? hand.drawPlays.map((draw) => ({
+                      drawIndex: Math.max(0, Math.round(safeNumber(draw?.drawIndex))),
+                      placedAt: draw?.placedAt == null ? null : String(draw.placedAt),
+                      wagerAmount: safeNumber(draw?.wagerAmount),
+                      category: String(draw?.category || ""),
+                      selectedValues: Array.isArray(draw?.selectedValues)
+                        ? draw.selectedValues.map((value: unknown) => String(value ?? ""))
+                        : [],
+                      selectionLabel: String(draw?.selectionLabel || ""),
+                      multiplier: safeNumber(draw?.multiplier),
+                      matched: Boolean(draw?.matched),
+                      startingPot: safeNumber(draw?.startingPot),
+                      potAfter: safeNumber(draw?.potAfter),
+                      handResult: draw?.handResult == null ? null : String(draw.handResult),
+                      cashoutPayout: safeNumber(draw?.cashoutPayout),
+                      commissionKept: safeNumber(draw?.commissionKept),
+                      netHandProfit: safeNumber(draw?.netHandProfit),
+                      card: draw?.card && typeof draw.card === "object"
+                        ? {
+                            label: draw.card.label == null ? null : String(draw.card.label),
+                            suit: draw.card.suit == null ? null : String(draw.card.suit),
+                            suitName: draw.card.suitName == null ? null : String(draw.card.suitName),
+                            color: draw.card.color == null ? null : String(draw.card.color)
+                          }
+                        : null
+                    }))
+                  : []
+              }))
+            : []
         }
       : null
   };

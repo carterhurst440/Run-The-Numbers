@@ -9539,6 +9539,14 @@ export async function logGameRun(score, metadata = {}) {
   }
 }
 
+function getHandModeTypeSnapshot(mode = currentAccountMode) {
+  return isContestAccountMode(mode) ? "contest" : "normal";
+}
+
+function getHandContestIdSnapshot(mode = currentAccountMode) {
+  return isContestAccountMode(mode) ? mode.contestId : null;
+}
+
 function sanitizeGuess10AssistantCard(card = null) {
   if (!card || typeof card !== "object") {
     return null;
@@ -9633,11 +9641,18 @@ async function insertGameHandRecord(handPayload, betRows = []) {
 
   if (
     handError &&
-    (isMissingColumnError(handError, "game_id") || isMissingColumnError(handError, "commission_kept"))
+    (
+      isMissingColumnError(handError, "game_id")
+      || isMissingColumnError(handError, "commission_kept")
+      || isMissingColumnError(handError, "mode_type")
+      || isMissingColumnError(handError, "contest_id")
+    )
   ) {
     const {
       game_id: _gameId,
       commission_kept: _commissionKept,
+      mode_type: _modeType,
+      contest_id: _contestId,
       ...fallbackPayload
     } = payload;
     payload = fallbackPayload;
@@ -9687,6 +9702,8 @@ async function logStandaloneGameHand({
     const hand = await insertGameHandRecord({
       user_id: sessionUser.id,
       game_id: resolveGameKey(gameKey),
+      mode_type: getHandModeTypeSnapshot(),
+      contest_id: getHandContestIdSnapshot(),
       stopper_label: stopperCard?.label ?? null,
       stopper_suit: stopperCard?.suitName ?? stopperCard?.suit ?? null,
       total_cards: totalCards,
@@ -9738,6 +9755,8 @@ async function logRunTheNumbersHandAndBets(stopperCard, context, betSnapshots, n
     const handPayload = {
       user_id: sessionUser.id,
       game_id: resolveGameKey(options.gameKey),
+      mode_type: getHandModeTypeSnapshot(),
+      contest_id: getHandContestIdSnapshot(),
       stopper_label: stopperCard?.label ?? null,
       stopper_suit: stopperCard?.suitName ?? null,
       total_cards: context?.totalCards ?? null,
@@ -12441,6 +12460,7 @@ function createRedBlackDeck() {
       deck.push({
         label,
         suit: suit.symbol,
+        suitName: suit.name,
         color: suit.color,
         stopper: false,
         isJoker: false
