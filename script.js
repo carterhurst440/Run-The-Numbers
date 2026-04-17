@@ -3205,6 +3205,68 @@ function mapShapeTraderTradeRowToActivity(row) {
   };
 }
 
+async function loadShapeTraderActivityPage({ offset = 0, append = false } = {}) {
+  if (!supabase || !currentUser?.id || !shapeTradersTradePersistenceAvailable) {
+    shapeTradersActivityHasMore = false;
+    shapeTradersActivityLoadingMore = false;
+    return;
+  }
+
+  const contestId = getShapeTraderCurrentContestId();
+
+  if (append) {
+    shapeTradersActivityLoadingMore = true;
+    renderShapeTradersActivity();
+  }
+
+  try {
+    const query = applyShapeTraderAccountScopeFilter(
+      supabase
+        .from("shape_trader_trades")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .order("executed_at", { ascending: false })
+        .range(offset, offset + SHAPE_TRADERS_ACTIVITY_PAGE_SIZE - 1),
+      contestId
+    );
+
+    const { data: tradeRows, error: tradesError } = await query;
+
+    if (tradesError) {
+      if (isMissingRelationError(tradesError, "shape_trader_trades")) {
+        shapeTradersTradePersistenceAvailable = false;
+        shapeTradersActivityHasMore = false;
+        if (!append) {
+          shapeTradersActivity = [];
+          shapeTradersActivityLoadedCount = 0;
+        }
+        return;
+      }
+      throw tradesError;
+    }
+
+    const mappedRows = (Array.isArray(tradeRows) ? tradeRows : []).map(mapShapeTraderTradeRowToActivity);
+    if (append) {
+      const existingIds = new Set(shapeTradersActivity.map((entry) => entry.id));
+      mappedRows.forEach((entry) => {
+        if (!existingIds.has(entry.id)) {
+          shapeTradersActivity.push(entry);
+        }
+      });
+    } else {
+      shapeTradersActivity = mappedRows;
+    }
+    shapeTradersActivityLoadedCount = shapeTradersActivity.length;
+    shapeTradersActivityHasMore = mappedRows.length === SHAPE_TRADERS_ACTIVITY_PAGE_SIZE;
+  } catch (error) {
+    console.error("[RTN] Unable to load Shape Traders activity", error);
+    shapeTradersActivityHasMore = false;
+  } finally {
+    shapeTradersActivityLoadingMore = false;
+    renderShapeTradersActivity();
+  }
+}
+
 async function loadShapeTraderPortfolioFromBackend() {
   if (!supabase || !currentUser?.id || !shapeTradersStatePersistenceAvailable) {
     return;
@@ -3258,22 +3320,7 @@ async function loadShapeTraderPortfolioFromBackend() {
     });
     shapeTradersHoldings = nextHoldings;
 
-    const { data: tradeRows, error: tradesError } = await applyShapeTraderAccountScopeFilter(supabase
-      .from("shape_trader_trades")
-      .select("*")
-      .eq("user_id", currentUser.id)
-      .order("executed_at", { ascending: false })
-      .limit(SHAPE_TRADERS_MAX_ACTIVITY), contestId);
-
-    if (tradesError) {
-      if (isMissingRelationError(tradesError, "shape_trader_trades")) {
-        shapeTradersTradePersistenceAvailable = false;
-      } else {
-        throw tradesError;
-      }
-    } else {
-      shapeTradersActivity = (Array.isArray(tradeRows) ? tradeRows : []).map(mapShapeTraderTradeRowToActivity);
-    }
+    await loadShapeTraderActivityPage({ offset: 0, append: false });
   } catch (error) {
     console.error("[RTN] Unable to load Shape Traders portfolio", error);
   }
@@ -3822,7 +3869,7 @@ async function reconcileShapeTraderMarketCurrent() {
 async function appendShapeTraderActivity(entry) {
   if (!entry) return;
   shapeTradersActivity.unshift(entry);
-  shapeTradersActivity = shapeTradersActivity.slice(0, SHAPE_TRADERS_MAX_ACTIVITY);
+  shapeTradersActivityLoadedCount = shapeTradersActivity.length;
   renderShapeTradersActivity();
   await recordShapeTraderTrade(entry);
 }
@@ -4044,6 +4091,7 @@ function renderShapeTradersActivity() {
       <span>Total</span>
       <span>Move</span>
       <span>P/L</span>
+      <span>Time</span>
     </div>
   `;
   shapeTradersActivity.forEach((entry) => {
@@ -4055,6 +4103,14 @@ function renderShapeTradersActivity() {
     const percentMarkup = entry.netProfit === null || !entry.totalValue
       ? '<span class="shape-traders-activity-percent muted">--</span>'
       : `<span class="shape-traders-activity-percent">${entry.netProfit >= 0 ? "+" : ""}${Math.round((entry.netProfit / Math.max(1, entry.totalValue - entry.netProfit || entry.totalValue)) * 100)}%</span>`;
+    const timestamp = entry.createdAt
+      ? new Date(entry.createdAt).toLocaleString([], {
+          month: "numeric",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit"
+        })
+      : "--";
     item.className = `shape-traders-activity-item ${sideClass}`;
     item.innerHTML = `
       <span class="shape-traders-activity-side">${entry.side.toUpperCase()}</span>
@@ -4064,9 +4120,32 @@ function renderShapeTradersActivity() {
       <span class="shape-traders-activity-total">${formatCurrency(entry.totalValue)}</span>
       ${percentMarkup}
       ${profitMarkup}
+      <span class="shape-traders-activity-time">${timestamp}</span>
     `;
     shapeTradersActivityListEl.appendChild(item);
   });
+
+  if (shapeTradersActivityHasMore || shapeTradersActivityLoadingMore) {
+    const footer = document.createElement("div");
+    footer.className = "shape-traders-activity-footer";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "secondary shape-traders-activity-load-more";
+    button.textContent = shapeTradersActivityLoadingMore ? "Loading..." : "Load More";
+    button.disabled = shapeTradersActivityLoadingMore;
+    button.setAttribute("aria-label", "Load more trade history");
+    button.addEventListener("click", () => {
+      if (shapeTradersActivityLoadingMore) return;
+      void loadShapeTraderActivityPage({
+        offset: shapeTradersActivityLoadedCount,
+        append: true
+      });
+    });
+
+    footer.appendChild(button);
+    shapeTradersActivityListEl.appendChild(footer);
+  }
 }
 
 function renderShapeTradersAssetSelector() {
@@ -4981,6 +5060,9 @@ async function resetShapeTraderMarketPrices() {
     shapeTradersCurrentPrices = createInitialShapeTraderPrices();
     shapeTradersHoldings = createEmptyShapeTraderHoldings();
     shapeTradersActivity = [];
+    shapeTradersActivityLoadedCount = 0;
+    shapeTradersActivityHasMore = false;
+    shapeTradersActivityLoadingMore = false;
     shapeTradersRecentDrawRows = [];
     shapeTradersProcessedWindowIndex = -1;
     shapeTradersProcessedVisibleCount = 0;
@@ -14280,7 +14362,7 @@ const SHAPE_TRADERS_START_PRICE = 100;
 const SHAPE_TRADERS_SPLIT_THRESHOLD = 1000;
 const SHAPE_TRADERS_SPLIT_FACTOR = 10;
 const SHAPE_TRADERS_SPLIT_FLASH_MS = 5000;
-const SHAPE_TRADERS_MAX_ACTIVITY = 30;
+const SHAPE_TRADERS_ACTIVITY_PAGE_SIZE = 100;
 const SHAPE_TRADERS_GLOBAL_SYNC_MS = 5000;
 const SHAPE_TRADERS_HEARTBEAT_MS = 30000;
 const SHAPE_TRADERS_ASSETS = [
@@ -14342,6 +14424,9 @@ let shapeTradersChartVisibleCount = 100;
 let shapeTradersChartTouchZoomDistance = null;
 let shapeTradersTradeSheetCollapsed = null;
 let shapeTradersTradeSheetTouchStartY = null;
+let shapeTradersActivityHasMore = false;
+let shapeTradersActivityLoadingMore = false;
+let shapeTradersActivityLoadedCount = 0;
 let shapeTradersGlobalSnapshot = {
   activeTraderCount: 0,
   marketCapByAsset: createEmptyShapeTraderMarketCap()
