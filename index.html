@@ -2208,6 +2208,88 @@
                 <p id="admin-game-message" class="admin-message" role="status" aria-live="polite"></p>
               </section>
             </section>
+            <div
+              class="modal"
+              id="admin-game-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="admin-game-modal-title"
+              hidden
+            >
+              <div class="modal-content admin-modal admin-game-modal-content">
+                <div class="modal-header">
+                  <h2 id="admin-game-modal-title">Edit game</h2>
+                  <button type="button" class="modal-close" id="admin-game-close" aria-label="Close game editor">×</button>
+                </div>
+                <div class="admin-game-modal-layout">
+                  <form id="admin-game-form" class="admin-form admin-game-editor-form">
+                    <label class="admin-field">
+                      <span>Logo URL</span>
+                      <input type="url" id="admin-game-logo-url" name="logoUrl" placeholder="https://..." />
+                    </label>
+                    <div class="admin-game-upload-row">
+                      <input type="file" id="admin-game-logo-file" name="logoFile" accept="image/*,.svg" />
+                      <button type="button" class="secondary" id="admin-game-logo-upload">Upload logo</button>
+                    </div>
+                    <label class="admin-field">
+                      <span>Game Description</span>
+                      <textarea id="admin-game-description" name="cardDescription" rows="4" placeholder="Short card copy for the Play hub."></textarea>
+                    </label>
+                    <div class="admin-game-style-grid">
+                      <label class="admin-field">
+                        <span>Background Color</span>
+                        <div class="admin-game-color-input-row">
+                          <input type="color" id="admin-game-background-picker" name="cardBackgroundColorPicker" value="#253b63" aria-label="Choose background color" />
+                          <input type="text" id="admin-game-background-color" name="cardBackgroundColor" placeholder="#1d3159 or rgb(...)" />
+                        </div>
+                      </label>
+                      <label class="admin-field">
+                        <span>Game Button Color</span>
+                        <div class="admin-game-color-input-row">
+                          <input type="color" id="admin-game-button-picker" name="buttonColorPicker" value="#ff4f9d" aria-label="Choose game button color" />
+                          <input type="text" id="admin-game-button-color" name="buttonColor" placeholder="#ff4f9d or rgb(...)" />
+                        </div>
+                      </label>
+                      <label class="admin-field">
+                        <span>Button Text Color</span>
+                        <div class="admin-game-color-input-row">
+                          <input type="color" id="admin-game-button-text-picker" name="buttonTextColorPicker" value="#ffffff" aria-label="Choose game button text color" />
+                          <input type="text" id="admin-game-button-text-color" name="buttonTextColor" placeholder="#ffffff or rgb(...)" />
+                        </div>
+                      </label>
+                    </div>
+                  </form>
+                  <section class="design-preview-panel admin-game-preview-panel" aria-label="Game card preview">
+                    <div class="design-preview-header">
+                      <h3>Preview</h3>
+                      <p class="section-sub">Live view of the Games page card while you edit.</p>
+                    </div>
+                    <div class="admin-game-preview-wrap">
+                      <article id="admin-game-preview-card" class="game-card game-card-primary">
+                        <div class="game-card-head">
+                          <div class="game-card-kicker-row">
+                            <p class="game-card-kicker" id="admin-game-preview-kicker">Original Game</p>
+                            <span class="game-beta-pill" id="admin-game-preview-pill" hidden>Beta</span>
+                          </div>
+                          <div class="game-card-title-row">
+                            <img id="admin-game-preview-logo" class="game-card-logo game-card-logo-inline" src="/assets/game-logos/run-the-numbers.svg" alt="Game logo preview" />
+                            <h2 id="admin-game-preview-title" class="game-card-title">RUN THE NUMBERS</h2>
+                          </div>
+                        </div>
+                        <p id="admin-game-preview-description" class="game-card-copy">Build your wager board, fade the bust card, and press number hits across the active paytable.</p>
+                        <button type="button" id="admin-game-preview-button" class="home-button home-cta-button">Play Run the Numbers</button>
+                      </article>
+                    </div>
+                  </section>
+                </div>
+                <div class="modal-actions">
+                  <button type="button" class="secondary" id="admin-game-reset-default">Reset default</button>
+                  <button type="button" class="secondary" id="admin-game-cancel">Cancel</button>
+                  <button type="button" class="primary" id="admin-game-save">Save game assets</button>
+                </div>
+                <p id="admin-game-modal-message" class="admin-message" role="status" aria-live="polite"></p>
+              </div>
+            </div>
             <section class="admin-tab-content" id="admin-analytics-content" hidden>
               <section class="route-section analytics-section">
                 <h2>Betting Analytics</h2>

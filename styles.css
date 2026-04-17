@@ -2976,6 +2976,18 @@ body[data-app-state="loading"] #app-shell {
   color: inherit;
   cursor: pointer;
   text-transform: uppercase;
+  -webkit-tap-highlight-color: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  user-select: none;
+}
+
+.shape-traders-trade-sheet-toggle:focus,
+.shape-traders-trade-sheet-toggle:active,
+.shape-traders-trade-sheet-toggle:focus-visible {
+  outline: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .shape-traders-trade-sheet-grabber {
@@ -3061,6 +3073,13 @@ body[data-app-state="loading"] #app-shell {
   padding: 0.42rem 0.9rem;
   font-size: 0.78rem;
   letter-spacing: 0.06rem;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.shape-traders-trade-bar .shape-traders-trade-actions button.is-unavailable {
+  opacity: 0.88;
+  filter: saturate(0.82);
 }
 
 .shape-traders-trade-bar.is-collapsed {
@@ -4959,6 +4978,8 @@ body[data-app-state="loading"] #app-shell {
 
   .shape-traders-trade-sheet-toggle {
     width: 100%;
+    min-height: 2.8rem;
+    padding: 0.35rem 0.1rem;
   }
 
   .shape-traders-trade-sheet-hint {
