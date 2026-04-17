@@ -4530,11 +4530,14 @@ async function liquidateShapeTraderAsset(
 
   bankroll = roundCurrencyValue(bankroll + totalValue);
   handleBankrollChanged();
-  showShapeTraderTradeToast(totalValue);
   shapeTradersHoldings[assetId] = {
     quantity: 0,
     averagePrice: 0
   };
+  await persistBankroll({
+    contestCreditsValue: getShapeTraderAccountValue()
+  });
+  showShapeTraderTradeToast(totalValue);
 
   const entry = createShapeTraderActivityEntry({
     side: "sell",
@@ -4681,11 +4684,14 @@ async function buyShapeTraderAsset() {
 
   bankroll = roundCurrencyValue(bankroll - totalValue);
   handleBankrollChanged();
-  showShapeTraderTradeToast(-totalValue);
   shapeTradersHoldings[assetId] = {
     quantity: nextQuantity,
     averagePrice: nextAveragePrice
   };
+  await persistBankroll({
+    contestCreditsValue: getShapeTraderAccountValue()
+  });
+  showShapeTraderTradeToast(-totalValue);
 
   const entry = createShapeTraderActivityEntry({
     side: "buy",
@@ -4731,12 +4737,15 @@ async function sellShapeTraderAsset() {
 
   bankroll = roundCurrencyValue(bankroll + totalValue);
   handleBankrollChanged();
-  showShapeTraderTradeToast(totalValue);
   const nextQuantity = holding.quantity - quantity;
   shapeTradersHoldings[assetId] = {
     quantity: nextQuantity,
     averagePrice: nextQuantity > 0 ? holding.averagePrice : 0
   };
+  await persistBankroll({
+    contestCreditsValue: getShapeTraderAccountValue()
+  });
+  showShapeTraderTradeToast(totalValue);
 
   const entry = createShapeTraderActivityEntry({
     side: "sell",
