@@ -3014,29 +3014,6 @@ async function loadShapeTraderPortfolioFromBackend() {
       throw accountError;
     }
 
-    const cashBalance = Number(accountRow?.cash_balance);
-    const normalizedCashBalance = Number.isFinite(cashBalance)
-      ? normalizeStoredCreditValue(cashBalance)
-      : null;
-    const shouldRepairProfileCredits =
-      normalizedCashBalance !== null &&
-      !isContestAccountMode() &&
-      normalizedCashBalance !== normalizeStoredCreditValue(currentProfile?.credits);
-
-    if (normalizedCashBalance !== null) {
-      bankroll = normalizedCashBalance;
-      handleBankrollChanged();
-      if (currentProfile && !isContestAccountMode()) {
-        currentProfile.credits = bankroll;
-      }
-      if (currentContestEntry && isContestAccountMode()) {
-        currentContestEntry.current_credits = bankroll;
-      }
-      if (!shouldRepairProfileCredits) {
-        lastSyncedBankroll = bankroll;
-      }
-    }
-
     const lastActiveAt = accountRow?.last_active_at ? new Date(accountRow.last_active_at).getTime() : NaN;
     if (Number.isFinite(lastActiveAt) && lastActiveAt > 0) {
       shapeTradersLastInteractionAt = lastActiveAt;
@@ -3081,24 +3058,6 @@ async function loadShapeTraderPortfolioFromBackend() {
       }
     } else {
       shapeTradersActivity = (Array.isArray(tradeRows) ? tradeRows : []).map(mapShapeTraderTradeRowToActivity);
-    }
-
-    if (shouldRepairProfileCredits) {
-      const { data: repairedProfile, error: repairedProfileError } = await supabase
-        .from("profiles")
-        .update({ credits: bankroll })
-        .eq("id", currentUser.id)
-        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
-        .maybeSingle();
-
-      if (repairedProfileError) {
-        throw repairedProfileError;
-      }
-
-      if (repairedProfile) {
-        applyProfileCredits(repairedProfile);
-        lastSyncedBankroll = normalizeStoredCreditValue(repairedProfile.credits);
-      }
     }
   } catch (error) {
     console.error("[RTN] Unable to load Shape Traders portfolio", error);
@@ -3793,10 +3752,11 @@ function renderShapeTraderMarket() {
 }
 
 function renderShapeTradersBalances() {
+  const displayedCashBalance = roundCurrencyValue(getDisplayedHeaderBankrollValue());
   const holdingsValue = roundCurrencyValue(getShapeTraderHoldingsValue());
-  const accountValue = roundCurrencyValue(bankroll + holdingsValue);
+  const accountValue = roundCurrencyValue(displayedCashBalance + holdingsValue);
   if (shapeTradersCashEl) {
-    shapeTradersCashEl.textContent = formatCurrency(bankroll);
+    shapeTradersCashEl.textContent = formatCurrency(displayedCashBalance);
   }
   if (shapeTradersHoldingsValueEl) {
     shapeTradersHoldingsValueEl.textContent = formatCurrency(holdingsValue);
@@ -4113,6 +4073,24 @@ function updateShapeTradersQuantity(nextValue) {
   renderShapeTradersControls();
 }
 
+function handleShapeTradersQuantityInputChange(nextValue) {
+  if (!shapeTradersQuantityInput) {
+    return;
+  }
+  const rawValue = String(nextValue ?? "").trim();
+  if (rawValue === "") {
+    shapeTradersQuantityInput.value = "";
+    renderShapeTradersControls();
+    return;
+  }
+  if (!Number.isFinite(Number(rawValue))) {
+    return;
+  }
+  shapeTradersQuantityInput.value = rawValue;
+  markShapeTraderInteraction();
+  renderShapeTradersControls();
+}
+
 function renderShapeTraders() {
   renderShapeTraderMarket();
   renderShapeTradersBalances();
@@ -4141,8 +4119,7 @@ function renderShapeTraderOpenChart() {
     return;
   }
   const asset = getShapeTraderAssetConfig(shapeTradersOpenChartAssetId);
-  const normalizedSeries = normalizeShapeTraderChartSeries(shapeTradersOpenChartSeries);
-  const visibleSeries = getShapeTraderVisibleSeries(normalizedSeries);
+  const visibleSeries = getShapeTraderVisibleSeries(shapeTradersOpenChartSeries);
   const visibleCount = visibleSeries.length;
   shapeTradersChartSubtitleEl.textContent = `${asset.label} price movement measured by draw. Showing the last ${visibleCount} move${visibleCount === 1 ? "" : "s"}. Pinch or trackpad-pinch to zoom.`;
   shapeTradersChartSurfaceEl.innerHTML = renderShapeTraderChartSvg(asset.id, visibleSeries);
@@ -4168,8 +4145,14 @@ function appendShapeTraderChartPoint(drawRow, transitions = []) {
     draw: Number(drawRow.draw_id),
     price: roundCurrencyValue(Number(transition.newPrice || SHAPE_TRADERS_START_PRICE)),
     splitTriggered: Boolean(transition.splitTriggered),
+    bankruptcyTriggered: Boolean(transition.bankruptcyTriggered),
     label: getShapeTraderAssetConfig(shapeTradersOpenChartAssetId).label
   };
+  if (nextPoint.splitTriggered || nextPoint.bankruptcyTriggered) {
+    shapeTradersOpenChartSeries = [nextPoint];
+    renderShapeTraderOpenChart();
+    return;
+  }
   const existingIndex = shapeTradersOpenChartSeries.findIndex((point) => Number(point.draw || 0) === nextPoint.draw);
   if (existingIndex >= 0) {
     shapeTradersOpenChartSeries[existingIndex] = nextPoint;
@@ -4189,8 +4172,8 @@ async function loadShapeTraderPriceSeries(assetId) {
         .from("shape_trader_price_history")
         .select("*")
         .eq("shape", assetId)
-        .order("draw_id", { ascending: true })
-        .limit(600);
+        .order("draw_id", { ascending: false })
+        .limit(100);
       if (response?.error) {
         if (isMissingRelationError(response.error, "shape_trader_price_history")) {
           shapeTradersPriceHistoryPersistenceAvailable = false;
@@ -4198,7 +4181,7 @@ async function loadShapeTraderPriceSeries(assetId) {
           throw response.error;
         }
       } else {
-        rows = Array.isArray(response?.data) ? response.data : [];
+        rows = Array.isArray(response?.data) ? [...response.data].reverse() : [];
       }
     } catch (error) {
       console.error("[RTN] Unable to load Shape Traders price history", error);
@@ -4213,12 +4196,22 @@ async function loadShapeTraderPriceSeries(assetId) {
     }];
   }
 
-  return rows.map((row, index) => ({
+  const mappedRows = rows.map((row, index) => ({
     draw: Number(row.draw_id || index + 1),
     price: roundCurrencyValue(Number(row.new_price || SHAPE_TRADERS_START_PRICE)),
     splitTriggered: Boolean(row.split_triggered),
+    bankruptcyTriggered: Boolean(row.bankruptcy_triggered),
     label: asset.label
   }));
+
+  let lastResetIndex = -1;
+  for (let index = mappedRows.length - 1; index >= 0; index -= 1) {
+    if (mappedRows[index].splitTriggered || mappedRows[index].bankruptcyTriggered) {
+      lastResetIndex = index;
+      break;
+    }
+  }
+  return lastResetIndex >= 0 ? mappedRows.slice(lastResetIndex) : mappedRows;
 }
 
 function getShapeTraderVisibleSeries(series) {
@@ -4227,28 +4220,6 @@ function getShapeTraderVisibleSeries(series) {
   }
   const normalizedVisibleCount = Math.max(1, Math.min(series.length, Math.round(Number(shapeTradersChartVisibleCount) || 100)));
   return series.slice(-normalizedVisibleCount);
-}
-
-function normalizeShapeTraderChartSeries(series) {
-  if (!Array.isArray(series) || !series.length) {
-    return [];
-  }
-
-  let carryFactor = 1;
-  const normalized = new Array(series.length);
-
-  for (let index = series.length - 1; index >= 0; index -= 1) {
-    const point = series[index];
-    normalized[index] = {
-      ...point,
-      price: roundCurrencyValue(Number(point?.price || 0) * carryFactor)
-    };
-    if (point?.splitTriggered) {
-      carryFactor /= SHAPE_TRADERS_SPLIT_FACTOR;
-    }
-  }
-
-  return normalized;
 }
 
 function setShapeTraderChartVisibleCount(nextCount) {
@@ -4514,7 +4485,12 @@ function closeShapeTraderDeck() {
 async function liquidateShapeTraderAsset(
   assetId,
   reason = "Manual liquidation",
-  { syncState = true, priceOverride = null } = {}
+  {
+    syncState = true,
+    priceOverride = null,
+    persistAccount = true,
+    persistContestHistory = true
+  } = {}
 ) {
   const holding = shapeTradersHoldings[assetId];
   if (!holding || holding.quantity <= 0) return;
@@ -4527,6 +4503,13 @@ async function liquidateShapeTraderAsset(
   const quantity = holding.quantity;
   const totalValue = roundCurrencyValue(quantity * currentPrice);
   const netProfit = roundCurrencyValue((currentPrice - holding.averagePrice) * quantity);
+  const previousBankroll = bankroll;
+  const previousHolding = {
+    quantity: Number(holding.quantity || 0),
+    averagePrice: roundCurrencyValue(Number(holding.averagePrice || 0))
+  };
+  const previousCarterCash = carterCash;
+  const previousCarterCashProgress = carterCashProgress;
 
   bankroll = roundCurrencyValue(bankroll + totalValue);
   handleBankrollChanged();
@@ -4534,9 +4517,26 @@ async function liquidateShapeTraderAsset(
     quantity: 0,
     averagePrice: 0
   };
-  await persistBankroll({
-    contestCreditsValue: getShapeTraderAccountValue()
-  });
+  applyShapeTraderCarterCashProgress(netProfit);
+  if (persistAccount) {
+    try {
+      await persistBankroll({
+        recordContestHistory: persistContestHistory && isContestAccountMode(),
+        contestHistoryLabel: "Trade",
+        contestCreditsValue: getShapeTraderAccountValue(),
+        throwOnError: true
+      });
+    } catch (error) {
+      bankroll = previousBankroll;
+      handleBankrollChanged();
+      shapeTradersHoldings[assetId] = previousHolding;
+      carterCash = previousCarterCash;
+      carterCashProgress = previousCarterCashProgress;
+      handleCarterCashChanged();
+      renderShapeTraders();
+      throw error;
+    }
+  }
   showShapeTraderTradeToast(totalValue);
 
   const entry = createShapeTraderActivityEntry({
@@ -4548,24 +4548,95 @@ async function liquidateShapeTraderAsset(
     netProfit,
     reason
   });
-  await appendShapeTraderActivity(entry);
-  applyShapeTraderCarterCashProgress(netProfit);
-  await persistBankroll({
-    recordContestHistory: isContestAccountMode(),
-    contestHistoryLabel: "Trade",
-    contestCreditsValue: getShapeTraderAccountValue()
-  });
+  try {
+    await appendShapeTraderActivity(entry);
+  } catch (error) {
+    console.warn("[RTN] Unable to append Shape Traders liquidation activity", error);
+  }
   if (syncState) {
-    await syncShapeTraderCurrentState();
+    try {
+      await syncShapeTraderCurrentState();
+    } catch (error) {
+      console.warn("[RTN] Unable to sync Shape Traders state after liquidation", error);
+    }
   }
 }
 
+function createShapeTraderTradeStateSnapshot() {
+  return {
+    bankroll,
+    holdings: JSON.parse(JSON.stringify(shapeTradersHoldings)),
+    activity: shapeTradersActivity.slice(),
+    carterCash,
+    carterCashProgress
+  };
+}
+
+function restoreShapeTraderTradeStateSnapshot(snapshot) {
+  if (!snapshot) return;
+  bankroll = snapshot.bankroll;
+  handleBankrollChanged();
+  shapeTradersHoldings = JSON.parse(JSON.stringify(snapshot.holdings));
+  shapeTradersActivity = snapshot.activity.slice();
+  carterCash = snapshot.carterCash;
+  carterCashProgress = snapshot.carterCashProgress;
+  handleCarterCashChanged();
+}
+
+async function commitShapeTraderAccountBalance({ contestHistoryLabel = "Trade" } = {}) {
+  return persistBankroll({
+    recordContestHistory: isContestAccountMode(),
+    contestHistoryLabel,
+    contestCreditsValue: getShapeTraderAccountValue(),
+    throwOnError: true
+  });
+}
+
 async function liquidateAllShapeTraderHoldings(reason = "Manual liquidation") {
-  for (const asset of SHAPE_TRADERS_ASSETS) {
-    await liquidateShapeTraderAsset(asset.id, reason, { syncState: false });
+  if (shapeTradersTradeActionInFlight) {
+    return;
   }
-  await syncShapeTraderCurrentState();
-  renderShapeTraders();
+  shapeTradersTradeActionInFlight = true;
+  renderShapeTradersControls();
+  try {
+    await waitForShapeTraderSyncIdle();
+    const previousState = createShapeTraderTradeStateSnapshot();
+
+    let liquidatedAnyPosition = false;
+    for (const asset of SHAPE_TRADERS_ASSETS) {
+      const quantity = Number(shapeTradersHoldings[asset.id]?.quantity || 0);
+      if (quantity <= 0) {
+        continue;
+      }
+      liquidatedAnyPosition = true;
+      await liquidateShapeTraderAsset(asset.id, reason, {
+        syncState: false,
+        persistAccount: false,
+        persistContestHistory: false
+      });
+    }
+    if (liquidatedAnyPosition) {
+      try {
+        await commitShapeTraderAccountBalance();
+      } catch (error) {
+        restoreShapeTraderTradeStateSnapshot(previousState);
+        renderShapeTraders();
+        throw error;
+      }
+    }
+    try {
+      await syncShapeTraderCurrentState();
+    } catch (error) {
+      console.warn("[RTN] Unable to sync Shape Traders state after batch liquidation", error);
+    }
+    renderShapeTraders();
+  } catch (error) {
+    console.error("[RTN] Liquidate all failed", error);
+    setShapeTraderStatus("Unable to sync liquidation to your account. No changes were saved.");
+  } finally {
+    shapeTradersTradeActionInFlight = false;
+    renderShapeTradersControls();
+  }
 }
 
 async function waitForShapeTraderSyncIdle(timeoutMs = 4000) {
@@ -4681,6 +4752,11 @@ async function buyShapeTraderAsset() {
   const nextAveragePrice = nextQuantity > 0
     ? roundCurrencyValue((existingCostBasis + totalValue) / nextQuantity)
     : 0;
+  const previousBankroll = bankroll;
+  const previousHolding = {
+    quantity: existingQuantity,
+    averagePrice: roundCurrencyValue(Number(holding?.averagePrice || 0))
+  };
 
   bankroll = roundCurrencyValue(bankroll - totalValue);
   handleBankrollChanged();
@@ -4688,9 +4764,15 @@ async function buyShapeTraderAsset() {
     quantity: nextQuantity,
     averagePrice: nextAveragePrice
   };
-  await persistBankroll({
-    contestCreditsValue: getShapeTraderAccountValue()
-  });
+  try {
+    await commitShapeTraderAccountBalance();
+  } catch (error) {
+    bankroll = previousBankroll;
+    handleBankrollChanged();
+    shapeTradersHoldings[assetId] = previousHolding;
+    renderShapeTraders();
+    throw error;
+  }
   showShapeTraderTradeToast(-totalValue);
 
   const entry = createShapeTraderActivityEntry({
@@ -4700,16 +4782,22 @@ async function buyShapeTraderAsset() {
     totalValue,
     price
   });
-  await appendShapeTraderActivity(entry);
-  await persistBankroll({
-    recordContestHistory: isContestAccountMode(),
-    contestHistoryLabel: "Trade",
-    contestCreditsValue: getShapeTraderAccountValue()
-  });
-  await syncShapeTraderCurrentState();
+  try {
+    await appendShapeTraderActivity(entry);
+  } catch (error) {
+    console.warn("[RTN] Unable to append Shape Traders buy activity", error);
+  }
+  try {
+    await syncShapeTraderCurrentState();
+  } catch (error) {
+    console.warn("[RTN] Unable to sync Shape Traders state after buy", error);
+  }
   markShapeTraderInteraction();
   renderShapeTraders();
   setShapeTraderStatus(`Bought ${quantity} ${getShapeTraderAssetConfig(assetId).label.toLowerCase()} at ${formatCurrency(price)}.`);
+  } catch (error) {
+    console.error("[RTN] Shape Traders buy failed", error);
+    setShapeTraderStatus("Unable to sync that buy to your account. The trade was canceled.");
   } finally {
     shapeTradersTradeActionInFlight = false;
     renderShapeTradersControls();
@@ -4734,6 +4822,11 @@ async function sellShapeTraderAsset() {
   const price = Number(shapeTradersCurrentPrices[assetId] || 0);
   const totalValue = roundCurrencyValue(quantity * price);
   const netProfit = roundCurrencyValue((price - holding.averagePrice) * quantity);
+  const previousState = createShapeTraderTradeStateSnapshot();
+  const previousHolding = {
+    quantity: Number(holding.quantity || 0),
+    averagePrice: roundCurrencyValue(Number(holding.averagePrice || 0))
+  };
 
   bankroll = roundCurrencyValue(bankroll + totalValue);
   handleBankrollChanged();
@@ -4742,9 +4835,15 @@ async function sellShapeTraderAsset() {
     quantity: nextQuantity,
     averagePrice: nextQuantity > 0 ? holding.averagePrice : 0
   };
-  await persistBankroll({
-    contestCreditsValue: getShapeTraderAccountValue()
-  });
+  applyShapeTraderCarterCashProgress(netProfit);
+  try {
+    await commitShapeTraderAccountBalance();
+  } catch (error) {
+    restoreShapeTraderTradeStateSnapshot(previousState);
+    shapeTradersHoldings[assetId] = previousHolding;
+    renderShapeTraders();
+    throw error;
+  }
   showShapeTraderTradeToast(totalValue);
 
   const entry = createShapeTraderActivityEntry({
@@ -4755,17 +4854,22 @@ async function sellShapeTraderAsset() {
     price,
     netProfit
   });
-  await appendShapeTraderActivity(entry);
-  applyShapeTraderCarterCashProgress(netProfit);
-  await persistBankroll({
-    recordContestHistory: isContestAccountMode(),
-    contestHistoryLabel: "Trade",
-    contestCreditsValue: getShapeTraderAccountValue()
-  });
-  await syncShapeTraderCurrentState();
+  try {
+    await appendShapeTraderActivity(entry);
+  } catch (error) {
+    console.warn("[RTN] Unable to append Shape Traders sell activity", error);
+  }
+  try {
+    await syncShapeTraderCurrentState();
+  } catch (error) {
+    console.warn("[RTN] Unable to sync Shape Traders state after sell", error);
+  }
   markShapeTraderInteraction();
   renderShapeTraders();
   setShapeTraderStatus(`Sold ${quantity} ${getShapeTraderAssetConfig(assetId).label.toLowerCase()} at ${formatCurrency(price)}.`);
+  } catch (error) {
+    console.error("[RTN] Shape Traders sell failed", error);
+    setShapeTraderStatus("Unable to sync that sale to your account. The trade was canceled.");
   } finally {
     shapeTradersTradeActionInFlight = false;
     renderShapeTradersControls();
@@ -4790,7 +4894,12 @@ async function maybeHandleShapeTraderExit(nextRoute) {
 }
 
 async function synchronizeShapeTraders(now = Date.now()) {
-  if (shapeTradersSyncInFlight || shapeTradersResetInFlight || shapeTradersLocalResetMode) {
+  if (
+    shapeTradersSyncInFlight ||
+    shapeTradersResetInFlight ||
+    shapeTradersLocalResetMode ||
+    shapeTradersTradeActionInFlight
+  ) {
     return;
   }
   shapeTradersSyncInFlight = true;
@@ -8459,9 +8568,8 @@ function syncCurrentModeShadowState() {
     if (!entry) return;
     const updatedEntry = {
       ...entry,
-      current_credits: bankroll,
       current_carter_cash: carterCash,
-      current_carter_cash_progress: carterCashProgress,
+      current_carter_cash_progress: normalizeCarterCashProgressValue(carterCashProgress),
       display_name: getContestDisplayName(currentProfile, currentUser?.id),
       participant_email: currentUser?.email || ""
     };
@@ -8476,9 +8584,8 @@ function syncCurrentModeShadowState() {
   }
 
   if (currentProfile) {
-    currentProfile.credits = bankroll;
     currentProfile.carter_cash = carterCash;
-    currentProfile.carter_cash_progress = carterCashProgress;
+    currentProfile.carter_cash_progress = normalizeCarterCashProgressValue(carterCashProgress);
   }
 }
 
@@ -8491,7 +8598,7 @@ function applyAccountSnapshot(snapshot, { resetHistory = false } = {}) {
   const nextCarterCash = Number.isFinite(numericCarter) ? Math.round(numericCarter) : 0;
   const numericProgress = Number(snapshot.carter_cash_progress);
   const nextProgress =
-    Number.isFinite(numericProgress) && numericProgress >= 0 ? Number(numericProgress) : 0;
+    normalizeCarterCashProgressValue(numericProgress);
 
   bankroll = nextBankroll;
   lastSyncedBankroll = bankroll;
@@ -14147,11 +14254,34 @@ function shuffle(deck) {
   }
 }
 
+function getDisplayedHeaderBankrollValue() {
+  if (shouldDisplayLocalBankroll()) {
+    return normalizeStoredCreditValue(bankroll);
+  }
+  const accountSnapshot = getCurrentAccountSnapshot(currentAccountMode);
+  const snapshotCredits = Number(accountSnapshot?.credits);
+  if (Number.isFinite(snapshotCredits)) {
+    return normalizeStoredCreditValue(snapshotCredits);
+  }
+  return bankroll;
+}
+
+function shouldDisplayLocalBankroll() {
+  const hasRunTheNumbersExposure = bets.length > 0 || dealing;
+  const hasGuess10Exposure =
+    redBlackBet > 0 ||
+    redBlackHandActive ||
+    redBlackSettlementPending ||
+    redBlackAwaitingDecision;
+
+  return hasRunTheNumbersExposure || hasGuess10Exposure;
+}
+
 function updateBankroll() {
   if (bankrollAnimating) {
     stopBankrollAnimation();
   }
-  bankrollEl.textContent = formatCurrency(bankroll);
+  bankrollEl.textContent = formatCurrency(getDisplayedHeaderBankrollValue());
 }
 
 function updateDashboardCarterDisplay(value = carterCash) {
@@ -14198,12 +14328,46 @@ function updateDashboardCreditsDisplay(value = bankroll) {
   }
 }
 
+function normalizeCarterCashProgressValue(value) {
+  if (!Number.isFinite(Number(value))) {
+    return 0;
+  }
+  return Math.max(0, Math.round(Number(value)));
+}
+
+function applyAuthoritativeAccountSnapshotForMode(
+  mode,
+  { normalProfile = null, contestEntry = null, resetHistory = false } = {}
+) {
+  if (isContestAccountMode(mode)) {
+    const nextEntry = contestEntry || getModeContestEntry(mode);
+    if (!nextEntry) return null;
+    contestEntryMap.set(nextEntry.contest_id, nextEntry);
+    userContestEntries = userContestEntries.map((entry) =>
+      entry.contest_id === nextEntry.contest_id ? nextEntry : entry
+    );
+    if (currentContest?.id === nextEntry.contest_id) {
+      currentContestEntry = nextEntry;
+    }
+    const snapshot = getContestAccountSnapshot(nextEntry);
+    applyAccountSnapshot(snapshot, { resetHistory });
+    return snapshot;
+  }
+
+  const nextProfile = normalProfile || currentProfile;
+  if (!nextProfile) return null;
+  applyProfileCredits(nextProfile, { resetHistory });
+  return getCurrentAccountSnapshot(mode);
+}
+
 async function persistBankroll({
   recordContestHistory = false,
   contestHistoryLabel = "Hand",
-  contestCreditsValue = null
+  contestCreditsValue = null,
+  throwOnError = false,
+  mode = currentAccountMode
 } = {}) {
-  if (!currentUser) return;
+  if (!currentUser) return null;
   const normalizedBankroll = normalizeStoredCreditValue(bankroll);
 
   const updates = {};
@@ -14213,21 +14377,22 @@ async function persistBankroll({
   if (Number.isFinite(carterCash) && carterCash !== lastSyncedCarterCash) {
     updates.carter_cash = carterCash;
   }
+  const normalizedCarterCashProgress = normalizeCarterCashProgressValue(carterCashProgress);
   if (
-    Number.isFinite(carterCashProgress) &&
-    carterCashProgress !== lastSyncedCarterProgress
+    Number.isFinite(normalizedCarterCashProgress) &&
+    normalizedCarterCashProgress !== lastSyncedCarterProgress
   ) {
-    updates.carter_cash_progress = carterCashProgress;
+    updates.carter_cash_progress = normalizedCarterCashProgress;
   }
 
   if (Object.keys(updates).length === 0) {
-    return;
+    return getCurrentAccountSnapshot(mode);
   }
 
   try {
-    if (isContestAccountMode()) {
-      const activeContest = getModeContest();
-      const activeEntry = getModeContestEntry();
+    if (isContestAccountMode(mode)) {
+      const activeContest = getModeContest(mode);
+      const activeEntry = getModeContestEntry(mode);
       if (!activeContest || !activeEntry) {
         throw new Error("Contest mode is unavailable.");
       }
@@ -14239,101 +14404,84 @@ async function persistBankroll({
       const contestSnapshot = {
         current_credits: Number.isFinite(contestCredits) ? contestCredits : 0,
         current_carter_cash: Number.isFinite(carterCash) ? carterCash : 0,
-        current_carter_cash_progress: Number.isFinite(carterCashProgress) ? carterCashProgress : 0,
+        current_carter_cash_progress: normalizedCarterCashProgress,
         contest_history: recordContestHistory
           ? buildContestHistory(activeEntry.contest_history, contestCredits, contestHistoryLabel)
           : activeEntry.contest_history,
         display_name: getContestDisplayName(currentProfile, currentUser.id),
         participant_email: currentUser.email || ""
       };
-      const { error: contestEntryError } = await supabase
+      const contestSelectFields = [
+        "contest_id",
+        "user_id",
+        "starting_credits",
+        "starting_carter_cash",
+        "current_credits",
+        "current_carter_cash",
+        "current_carter_cash_progress",
+        "contest_history",
+        "display_name",
+        "participant_email"
+      ].join(", ");
+      const { data: updatedContestEntry, error: contestEntryError } = await supabase
         .from("contest_entries")
         .update(contestSnapshot)
         .eq("contest_id", activeContest.id)
-        .eq("user_id", currentUser.id);
+        .eq("user_id", currentUser.id)
+        .select(contestSelectFields)
+        .maybeSingle();
       if (contestEntryError) {
         throw contestEntryError;
       }
 
-      lastSyncedBankroll = contestSnapshot.current_credits;
-      lastSyncedCarterCash = contestSnapshot.current_carter_cash;
-      lastSyncedCarterProgress = contestSnapshot.current_carter_cash_progress;
-
-      const updatedEntry = {
+      const persistedContestEntry = updatedContestEntry ? {
+        ...activeEntry,
+        ...updatedContestEntry
+      } : {
         ...activeEntry,
         ...contestSnapshot
       };
-      contestEntryMap.set(updatedEntry.contest_id, updatedEntry);
-      userContestEntries = userContestEntries.map((entry) =>
-        entry.contest_id === updatedEntry.contest_id ? updatedEntry : entry
+      const appliedSnapshot = applyAuthoritativeAccountSnapshotForMode(mode, {
+        contestEntry: persistedContestEntry
+      });
+      lastSyncedBankroll = normalizeStoredCreditValue(persistedContestEntry.current_credits);
+      lastSyncedCarterCash = Math.round(Number(persistedContestEntry.current_carter_cash || 0));
+      lastSyncedCarterProgress = normalizeCarterCashProgressValue(
+        persistedContestEntry.current_carter_cash_progress
       );
-      if (currentContest?.id === updatedEntry.contest_id) {
-        currentContestEntry = updatedEntry;
-      }
+      lastProfileSync = Date.now();
+      return appliedSnapshot;
     } else {
       const profileSelectFields =
         "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, updated_at";
-      const profileVersion = currentProfile?.updated_at ?? null;
-      let profileUpdateQuery = supabase
+      let { data, error } = await supabase
         .from("profiles")
         .update(updates)
-        .eq("id", currentUser.id);
-
-      if (profileVersion) {
-        profileUpdateQuery = profileUpdateQuery.eq("updated_at", profileVersion);
-      }
-
-      let { data, error } = await profileUpdateQuery
+        .eq("id", currentUser.id)
         .select(profileSelectFields)
         .maybeSingle();
-
-      if (!error && !data && profileVersion) {
-        console.warn("[RTN] Profile bankroll sync hit stale updated_at; retrying without version guard");
-        ({ data, error } = await supabase
-          .from("profiles")
-          .update(updates)
-          .eq("id", currentUser.id)
-          .select(profileSelectFields)
-          .maybeSingle());
-      }
 
       if (error) {
         throw error;
       }
 
       if (data) {
-        const nextCredits = Number.isFinite(Number(data.credits))
-          ? normalizeStoredCreditValue(data.credits)
-          : normalizedBankroll;
-        const nextCarterCash = Number.isFinite(Number(data.carter_cash))
-          ? Math.round(Number(data.carter_cash))
-          : carterCash;
-        const nextProgress = Number.isFinite(Number(data.carter_cash_progress))
-          ? Number(data.carter_cash_progress)
-          : carterCashProgress;
-
-        lastSyncedBankroll = nextCredits;
-        lastSyncedCarterCash = nextCarterCash;
-        lastSyncedCarterProgress = nextProgress;
-
-        if (bankroll !== nextCredits) {
-          bankroll = nextCredits;
-          handleBankrollChanged();
-        }
-
-        if (carterCash !== nextCarterCash) {
-          carterCash = nextCarterCash;
-          handleCarterCashChanged();
-        }
-
-        carterCashProgress = nextProgress;
-
-        if (currentProfile) {
-          currentProfile.credits = nextCredits;
-          currentProfile.carter_cash = nextCarterCash;
-          currentProfile.carter_cash_progress = nextProgress;
-          currentProfile.updated_at = data.updated_at ?? currentProfile.updated_at;
-        }
+        const persistedProfile = currentProfile
+          ? {
+              ...currentProfile,
+              ...data
+            }
+          : data;
+        const appliedSnapshot = applyAuthoritativeAccountSnapshotForMode(mode, {
+          normalProfile: persistedProfile
+        });
+        lastSyncedBankroll = normalizeStoredCreditValue(persistedProfile.credits);
+        lastSyncedCarterCash = Math.round(Number(persistedProfile.carter_cash || 0));
+        lastSyncedCarterProgress = normalizeCarterCashProgressValue(
+          persistedProfile.carter_cash_progress
+        );
+        lastProfileSync = Date.now();
+        return appliedSnapshot;
       } else {
         const latestProfile = await fetchProfileWithRetries(currentUser.id, {
           attempts: PROFILE_ATTEMPT_MAX,
@@ -14341,17 +14489,27 @@ async function persistBankroll({
           timeoutMs: PROFILE_FETCH_TIMEOUT_MS
         });
         if (latestProfile) {
-          applyProfileCredits(latestProfile);
+          const appliedSnapshot = applyAuthoritativeAccountSnapshotForMode(mode, {
+            normalProfile: latestProfile
+          });
           void loadPersistentBankrollHistory({ force: true });
-          return;
+          lastSyncedBankroll = normalizeStoredCreditValue(latestProfile.credits);
+          lastSyncedCarterCash = Math.round(Number(latestProfile.carter_cash || 0));
+          lastSyncedCarterProgress = normalizeCarterCashProgressValue(
+            latestProfile.carter_cash_progress
+          );
+          lastProfileSync = Date.now();
+          return appliedSnapshot;
         }
       }
     }
-
-    lastProfileSync = Date.now();
   } catch (error) {
     console.error("Unable to sync bankroll", error);
+    if (throwOnError) {
+      throw error;
+    }
   }
+  return getCurrentAccountSnapshot(mode);
 }
 
 function handleBankrollChanged() {
@@ -16103,7 +16261,7 @@ function stopBankrollAnimation(restoreDisplay = true) {
       "bankroll-pulse"
     );
     if (restoreDisplay) {
-      bankrollEl.textContent = formatCurrency(bankroll);
+      bankrollEl.textContent = formatCurrency(getDisplayedHeaderBankrollValue());
     }
   }
 }
@@ -16159,9 +16317,10 @@ function animateBankrollOutcome(delta) {
   if (!bankrollEl) return;
 
   stopBankrollAnimation(false);
+  const displayedValue = roundCurrencyValue(getDisplayedHeaderBankrollValue());
 
   if (!Number.isFinite(delta)) {
-    bankrollEl.textContent = formatCurrency(bankroll);
+    bankrollEl.textContent = formatCurrency(displayedValue);
     return;
   }
 
@@ -16171,10 +16330,11 @@ function animateBankrollOutcome(delta) {
     bankrollAnimating = true;
     bankrollEl.classList.remove("bankroll-positive", "bankroll-negative");
     bankrollEl.classList.add("bankroll-neutral", "bankroll-pulse");
+    bankrollEl.textContent = formatCurrency(displayedValue);
     bankrollDeltaTimeout = window.setTimeout(() => {
       if (bankrollEl) {
         bankrollEl.classList.remove("bankroll-neutral", "bankroll-pulse");
-        bankrollEl.textContent = formatCurrency(bankroll);
+        bankrollEl.textContent = formatCurrency(getDisplayedHeaderBankrollValue());
       }
       bankrollAnimating = false;
       bankrollDeltaTimeout = null;
@@ -16182,8 +16342,6 @@ function animateBankrollOutcome(delta) {
     return;
   }
 
-  const finalValue = bankroll;
-  const startValue = finalValue - delta;
   const directionClass = delta > 0 ? "bankroll-positive" : "bankroll-negative";
 
   bankrollAnimating = true;
@@ -16192,33 +16350,15 @@ function animateBankrollOutcome(delta) {
     "bankroll-neutral"
   );
   bankrollEl.classList.add(directionClass, "bankroll-pulse");
-  bankrollEl.textContent = formatCurrency(startValue);
-
-  const duration = 900;
-  const startTime = performance.now();
-
-  function step(timestamp) {
-    const elapsed = timestamp - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-    const eased = easeOutCubic(progress);
-    const currentValue = Math.round(startValue + (finalValue - startValue) * eased);
-    bankrollEl.textContent = formatCurrency(currentValue);
-    if (progress < 1) {
-      bankrollAnimationFrame = requestAnimationFrame(step);
-    } else {
-      bankrollEl.textContent = formatCurrency(finalValue);
-      bankrollAnimationFrame = null;
-      bankrollAnimating = false;
-      bankrollDeltaTimeout = window.setTimeout(() => {
-        if (bankrollEl) {
-          bankrollEl.classList.remove(directionClass, "bankroll-pulse");
-        }
-        bankrollDeltaTimeout = null;
-      }, 1400);
+  bankrollEl.textContent = formatCurrency(displayedValue);
+  bankrollDeltaTimeout = window.setTimeout(() => {
+    if (bankrollEl) {
+      bankrollEl.classList.remove(directionClass, "bankroll-pulse");
+      bankrollEl.textContent = formatCurrency(getDisplayedHeaderBankrollValue());
     }
-  }
-
-  bankrollAnimationFrame = requestAnimationFrame(step);
+    bankrollAnimating = false;
+    bankrollDeltaTimeout = null;
+  }, 1400);
 }
 
 function updateStatsUI() {
@@ -18622,10 +18762,7 @@ function applyPlaythrough(amount) {
     return;
   }
 
-  const previousCash = carterCash;
-  const previousProgress = carterCashProgress;
-
-  carterCashProgress += amount;
+  carterCashProgress = normalizeCarterCashProgressValue(carterCashProgress + amount);
   const earned = Math.floor(carterCashProgress / 1000);
   if (earned > 0) {
     carterCash += earned;
@@ -21486,6 +21623,10 @@ if (redBlackWithdrawButton) {
 
 if (shapeTradersQuantityInput) {
   shapeTradersQuantityInput.addEventListener("input", () => {
+    handleShapeTradersQuantityInputChange(shapeTradersQuantityInput.value);
+  });
+
+  shapeTradersQuantityInput.addEventListener("blur", () => {
     updateShapeTradersQuantity(shapeTradersQuantityInput.value);
   });
 }
