@@ -12431,6 +12431,13 @@ body.modal-open {
   }
 }
 
+@media (max-width: 768px) {
+  .home-games {
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-prize-edit,
 .admin-prize-delete {
   font-size: 0.78rem;
