@@ -3103,7 +3103,7 @@ function shapeTradersHasOpenHoldings() {
 
 function setShapeTraderStatus(message) {
   if (shapeTradersStatusEl) {
-    shapeTradersStatusEl.textContent = message;
+    shapeTradersStatusEl.textContent = String(message || "");
   }
 }
 
@@ -4456,7 +4456,6 @@ function attemptShapeTraderTrade(side) {
 
   if (normalizedSide === "buy") {
     if (bankroll < totalCost) {
-      setShapeTraderStatus(`Not enough cash to buy ${quantity} ${getShapeTraderAssetConfig(assetId).label.toLowerCase()}.`);
       return;
     }
     void buyShapeTraderAsset();
@@ -4464,7 +4463,6 @@ function attemptShapeTraderTrade(side) {
   }
 
   if ((selectedHolding?.quantity || 0) < quantity) {
-    setShapeTraderStatus(`You do not own enough ${getShapeTraderAssetConfig(assetId).label.toLowerCase()} to sell ${quantity}.`);
     return;
   }
   void sellShapeTraderAsset();
@@ -5206,7 +5204,6 @@ async function buyShapeTraderAsset() {
   const price = Number(shapeTradersCurrentPrices[assetId] || 0);
   const totalValue = roundCurrencyValue(quantity * price);
   if (bankroll < totalValue) {
-    setShapeTraderStatus("Not enough cash to execute that buy.");
     return;
   }
 
@@ -5248,7 +5245,6 @@ async function buyShapeTraderAsset() {
   }
   markShapeTraderInteraction();
   renderShapeTraders();
-  setShapeTraderStatus(`Bought ${quantity} ${getShapeTraderAssetConfig(assetId).label.toLowerCase()} at ${formatCurrency(price)}.`);
   } catch (error) {
     console.error("[RTN] Shape Traders buy failed", error);
     setShapeTraderStatus("Unable to sync that buy to your account. The trade was canceled.");
@@ -5269,7 +5265,6 @@ async function sellShapeTraderAsset() {
   const assetId = shapeTradersSelectedAsset;
   const holding = shapeTradersHoldings[assetId];
   if (!holding || holding.quantity < quantity) {
-    setShapeTraderStatus("You do not own enough of that shape to sell.");
     return;
   }
 
@@ -5310,7 +5305,6 @@ async function sellShapeTraderAsset() {
   }
   markShapeTraderInteraction();
   renderShapeTraders();
-  setShapeTraderStatus(`Sold ${quantity} ${getShapeTraderAssetConfig(assetId).label.toLowerCase()} at ${formatCurrency(price)}.`);
   } catch (error) {
     console.error("[RTN] Shape Traders sell failed", error);
     setShapeTraderStatus("Unable to sync that sale to your account. The trade was canceled.");
@@ -5462,7 +5456,7 @@ async function initializeShapeTraders() {
   await syncShapeTraderCurrentState();
   await refreshShapeTraderGlobalSnapshot();
   renderShapeTradersAssetSelector();
-  setShapeTraderStatus("Select a shape and quantity to place a trade.");
+  setShapeTraderStatus("");
   await synchronizeShapeTraders();
   applyShapeTradersTradeSheetState();
   startShapeTradersClock();

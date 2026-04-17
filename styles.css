@@ -5022,35 +5022,45 @@ body[data-app-state="loading"] #app-shell {
 
   .shape-traders-trade-sheet-toggle {
     width: 100%;
-    max-width: 14rem;
-    justify-self: center;
-    min-height: 3.15rem;
-    padding: 0.95rem 0.1rem 0.35rem;
+    max-width: none;
+    justify-self: stretch;
+    min-height: 3.45rem;
+    padding: 0.45rem 0 0.35rem;
     position: relative;
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
     align-items: center;
-    justify-content: center;
     gap: 0;
   }
 
   .shape-traders-trade-sheet-grabber {
-    position: absolute;
-    top: 0.2rem;
-    left: 50%;
-    transform: translateX(-50%);
+    position: static;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: center;
+    transform: none;
   }
 
   .shape-traders-trade-bar-title {
-    text-align: center;
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    justify-self: start;
+    align-self: center;
+    text-align: left;
   }
 
   .shape-traders-trade-sheet-hint {
     display: inline;
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: center;
+    align-self: start;
     margin-left: 0;
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-10%);
+    position: static;
+    transform: none;
+    text-align: center;
+    white-space: nowrap;
   }
 
   .shape-traders-trade-bar .shape-traders-status {
@@ -5060,6 +5070,7 @@ body[data-app-state="loading"] #app-shell {
   .shape-traders-trade-bar .shape-traders-status {
     max-width: none;
     justify-self: stretch;
+    pointer-events: none;
   }
 
   .shape-traders-trade-bar-body {
