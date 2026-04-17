@@ -62,6 +62,13 @@ const DEFAULT_GAME_ASSET_LIBRARY = {
   }
 };
 
+function getDefaultGameStatus(gameKey) {
+  const resolvedGameKey = resolveGameKey(gameKey);
+  if (resolvedGameKey === GAME_KEYS.GUESS_10) return "beta";
+  if (resolvedGameKey === GAME_KEYS.SHAPE_TRADERS) return "admin";
+  return "active";
+}
+
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function normalizeGameKey(value) {
@@ -197,6 +204,96 @@ function hydrateGameAssetLibrary() {
     return next;
   }, {});
   return gameAssetLibraryCache;
+}
+
+function applyBackendGameAssetRows(rows = []) {
+  let applied = false;
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    const gameKey = normalizeGameKey(row?.id);
+    if (!gameKey || !DEFAULT_GAME_ASSET_LIBRARY[gameKey]) return;
+    const defaults = DEFAULT_GAME_ASSET_LIBRARY[gameKey];
+    const existing = gameAssetLibraryCache[gameKey] || defaults;
+    gameAssetLibraryCache[gameKey] = {
+      ...existing,
+      key: gameKey,
+      label: defaults.label,
+      route: defaults.route,
+      description: defaults.description,
+      logo_url: String(row?.logo_url || existing.logo_url || defaults.logo_url || "").trim() || defaults.logo_url,
+      card_description: String(row?.card_description || existing.card_description || defaults.card_description || "").trim() || defaults.card_description,
+      card_background_color: sanitizeGameAssetColor(row?.card_background_color),
+      button_color: sanitizeGameAssetColor(row?.button_color),
+      button_text_color: sanitizeGameAssetColor(row?.button_text_color)
+    };
+    applied = true;
+  });
+  if (applied) {
+    persistGameAssetLibrary();
+    renderGameLogoTargets();
+  }
+  return applied;
+}
+
+async function refreshGameAssetsFromBackend() {
+  if (!supabase || !currentUser?.id) {
+    return false;
+  }
+  try {
+    const { data, error } = await supabase
+      .from("games")
+      .select("id, name, status, logo_url, card_description, card_background_color, button_color, button_text_color")
+      .order("id", { ascending: true });
+    if (error) {
+      if (isMissingRelationError(error, "games") || isMissingColumnError(error, "logo_url")) {
+        console.warn("[RTN] games branding columns unavailable; using local game asset cache");
+        return false;
+      }
+      throw error;
+    }
+    return applyBackendGameAssetRows(data);
+  } catch (error) {
+    console.error("[RTN] Unable to refresh game assets from backend", error);
+    return false;
+  }
+}
+
+async function persistGameAssetRecordToBackend(gameKey) {
+  if (!supabase || !currentUser?.id || !gameKey) {
+    return false;
+  }
+  const record = getGameAssetRecord(gameKey) || DEFAULT_GAME_ASSET_LIBRARY[gameKey];
+  if (!record) return false;
+  const payload = {
+    id: gameKey,
+    name: DEFAULT_GAME_ASSET_LIBRARY[gameKey].label,
+    status: getDefaultGameStatus(gameKey),
+    logo_url: String(record.logo_url || DEFAULT_GAME_ASSET_LIBRARY[gameKey].logo_url || "").trim() || DEFAULT_GAME_ASSET_LIBRARY[gameKey].logo_url,
+    card_description: String(record.card_description || DEFAULT_GAME_ASSET_LIBRARY[gameKey].card_description || "").trim() || DEFAULT_GAME_ASSET_LIBRARY[gameKey].card_description,
+    card_background_color: sanitizeGameAssetColor(record.card_background_color) || null,
+    button_color: sanitizeGameAssetColor(record.button_color) || null,
+    button_text_color: sanitizeGameAssetColor(record.button_text_color) || null
+  };
+  try {
+    const { data, error } = await supabase
+      .from("games")
+      .upsert(payload, { onConflict: "id" })
+      .select("id, name, status, logo_url, card_description, card_background_color, button_color, button_text_color")
+      .maybeSingle();
+    if (error) {
+      if (isMissingRelationError(error, "games") || isMissingColumnError(error, "logo_url")) {
+        console.warn("[RTN] games branding columns unavailable; saved game assets locally only");
+        return false;
+      }
+      throw error;
+    }
+    if (data) {
+      applyBackendGameAssetRows([data]);
+    }
+    return true;
+  } catch (error) {
+    console.error("[RTN] Unable to persist game assets to backend", error);
+    throw error;
+  }
 }
 
 function persistGameAssetLibrary() {
@@ -8835,6 +8932,9 @@ function renderAdminGameAssetRow(gameKey) {
     };
     persistGameAssetLibrary();
     renderGameLogoTargets();
+    void persistGameAssetRecordToBackend(gameKey).catch((error) => {
+      console.error(error);
+    });
     adminGameAssetsLoaded = false;
     void loadAdminGameAssets(true);
     if (adminGameMessage) {
@@ -9015,6 +9115,15 @@ async function saveAdminGameModal() {
   };
   persistGameAssetLibrary();
   renderGameLogoTargets();
+  try {
+    await persistGameAssetRecordToBackend(adminEditingGameKey);
+  } catch (error) {
+    const message = error?.message || "Unable to sync game assets to backend";
+    if (adminGameModalMessage) {
+      adminGameModalMessage.textContent = message;
+    }
+    showToast(message, "error");
+  }
   adminGameAssetsLoaded = false;
   await loadAdminGameAssets(true);
   if (adminGameMessage) {
@@ -9030,6 +9139,7 @@ async function saveAdminGameModal() {
 async function loadAdminGameAssets(force = false) {
   hydrateGameAssetLibrary();
   renderGameLogoTargets();
+  await refreshGameAssetsFromBackend();
   if (!adminGameListEl) return;
   if (adminGameAssetsLoaded && !force) return;
   adminGameAssetsLoaded = true;
@@ -19488,6 +19598,7 @@ async function endHand(stopperCard, context = {}) {
   });
   await incrementProfileHandProgress(1);
   await ensureProfileSynced({ force: true });
+  await refreshGameAssetsFromBackend().catch((err) => console.warn("[RTN] Game asset sync error:", err));
   await logRunTheNumbersHandAndBets(stopperCard, context, betSnapshots, netThisHand, {
     gameKey: GAME_KEYS.RUN_THE_NUMBERS
   });
@@ -22963,15 +23074,18 @@ function setupAuthListener() {
                 const savedRoute = currentRoute;
                 currentRoute = ""; // Clear so profile sync happens
                 await ensureProfileSynced({ force: true }).catch((err) => console.warn("[RTN] Profile sync error:", err));
+                await refreshGameAssetsFromBackend().catch((err) => console.warn("[RTN] Game asset sync error:", err));
                 currentRoute = savedRoute; // Restore so setRoute knows we're coming from callback
                 setRoute(isRecoveryFlow ? "reset-password" : "home").catch(() => {});
               } else if (currentRoute === "auth" || currentRoute === "signup") {
                 // For normal auth flows, sync profile and navigate
                 await ensureProfileSynced({ force: true }).catch((err) => console.warn("[RTN] Profile sync error:", err));
+                await refreshGameAssetsFromBackend().catch((err) => console.warn("[RTN] Game asset sync error:", err));
                 setRoute("home").catch(() => {});
               } else {
                 // For token refresh or other updates, just sync profile
                 await ensureProfileSynced({ force: true }).catch((err) => console.warn("[RTN] Profile sync error:", err));
+                await refreshGameAssetsFromBackend().catch((err) => console.warn("[RTN] Game asset sync error:", err));
               }
             }
           } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
