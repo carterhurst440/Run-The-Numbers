@@ -2803,6 +2803,22 @@ body[data-app-state="loading"] #app-shell {
   gap: 0.4rem;
 }
 
+.shape-traders-qty-stepper {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.shape-traders-qty-button {
+  min-width: 2.8rem;
+  min-height: 3rem;
+  padding: 0;
+  border-radius: 0.95rem;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
 .shape-traders-selector-field {
   display: grid;
   gap: 0.4rem;
@@ -2966,10 +2982,15 @@ body[data-app-state="loading"] #app-shell {
   width: min(9rem, 100%);
 }
 
+.shape-traders-trade-bar .shape-traders-qty-stepper {
+  width: 100%;
+}
+
 .shape-traders-trade-bar .shape-traders-qty-field input {
   min-height: 2.5rem;
   padding: 0 0.8rem;
   font-size: 0.94rem;
+  text-align: center;
 }
 
 .shape-traders-trade-bar .shape-traders-trade-actions {
@@ -6639,6 +6660,26 @@ body.theme-angelic {
     gap: 0.4rem;
   }
 
+  .shape-traders-qty-field {
+    justify-items: center;
+  }
+
+  .shape-traders-qty-field > span {
+    text-align: center;
+  }
+
+  .shape-traders-qty-stepper {
+    width: 100%;
+    max-width: 16rem;
+    gap: 0.45rem;
+  }
+
+  .shape-traders-qty-button {
+    min-width: 2.6rem;
+    min-height: 2.6rem;
+    font-size: 1.05rem;
+  }
+
   .shape-traders-asset-button {
     min-height: 2.45rem;
     padding: 0.35rem 0.2rem;
@@ -6654,6 +6695,16 @@ body.theme-angelic {
   .shape-traders-asset-button .shape-traders-shape-icon.shape-triangle {
     width: 1.25rem;
     height: 1.05rem;
+  }
+
+  .shape-traders-trade-actions {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .shape-traders-trade-actions button {
+    width: 100%;
+    min-width: 0;
   }
 
   .shape-traders-activity-values {

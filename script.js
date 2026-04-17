@@ -4103,6 +4103,16 @@ function toggleShapeTradersTradeSheet() {
   setShapeTradersTradeSheetCollapsed(!shapeTradersTradeSheetCollapsed);
 }
 
+function updateShapeTradersQuantity(nextValue) {
+  if (!shapeTradersQuantityInput) {
+    return;
+  }
+  const normalized = Math.max(1, Math.round(Number(nextValue || 1)));
+  shapeTradersQuantityInput.value = String(normalized);
+  markShapeTraderInteraction();
+  renderShapeTradersControls();
+}
+
 function renderShapeTraders() {
   renderShapeTraderMarket();
   renderShapeTradersBalances();
@@ -12862,6 +12872,8 @@ const shapeTradersHoldingsListEl = document.getElementById("shape-traders-holdin
 const shapeTradersActivityListEl = document.getElementById("shape-traders-activity-list");
 const shapeTradersAssetSelectorEl = document.getElementById("shape-traders-asset-selector");
 const shapeTradersQuantityInput = document.getElementById("shape-traders-quantity");
+const shapeTradersQuantityDecreaseButton = document.getElementById("shape-traders-quantity-decrease");
+const shapeTradersQuantityIncreaseButton = document.getElementById("shape-traders-quantity-increase");
 const shapeTradersTradeValueEl = document.getElementById("shape-traders-trade-value");
 const shapeTradersBuyButton = document.getElementById("shape-traders-buy-button");
 const shapeTradersSellButton = document.getElementById("shape-traders-sell-button");
@@ -21465,10 +21477,19 @@ if (redBlackWithdrawButton) {
 
 if (shapeTradersQuantityInput) {
   shapeTradersQuantityInput.addEventListener("input", () => {
-    const normalized = Math.max(1, Math.round(Number(shapeTradersQuantityInput.value || 1)));
-    shapeTradersQuantityInput.value = String(normalized);
-    markShapeTraderInteraction();
-    renderShapeTradersControls();
+    updateShapeTradersQuantity(shapeTradersQuantityInput.value);
+  });
+}
+
+if (shapeTradersQuantityDecreaseButton) {
+  shapeTradersQuantityDecreaseButton.addEventListener("click", () => {
+    updateShapeTradersQuantity(Number(shapeTradersQuantityInput?.value || 1) - 1);
+  });
+}
+
+if (shapeTradersQuantityIncreaseButton) {
+  shapeTradersQuantityIncreaseButton.addEventListener("click", () => {
+    updateShapeTradersQuantity(Number(shapeTradersQuantityInput?.value || 1) + 1);
   });
 }
 

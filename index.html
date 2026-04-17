@@ -874,14 +874,32 @@
                 </div>
                 <label class="shape-traders-qty-field" for="shape-traders-quantity">
                   <span>Quantity</span>
-                  <input
-                    type="number"
-                    id="shape-traders-quantity"
-                    min="1"
-                    step="1"
-                    value="1"
-                    inputmode="numeric"
-                  />
+                  <div class="shape-traders-qty-stepper">
+                    <button
+                      type="button"
+                      id="shape-traders-quantity-decrease"
+                      class="secondary shape-traders-qty-button"
+                      aria-label="Decrease quantity"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      id="shape-traders-quantity"
+                      min="1"
+                      step="1"
+                      value="1"
+                      inputmode="numeric"
+                    />
+                    <button
+                      type="button"
+                      id="shape-traders-quantity-increase"
+                      class="secondary shape-traders-qty-button"
+                      aria-label="Increase quantity"
+                    >
+                      +
+                    </button>
+                  </div>
                 </label>
                 <div class="shape-traders-total-field" aria-live="polite">
                   <span>Total</span>
