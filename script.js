@@ -4517,6 +4517,18 @@ function toggleShapeTradersTradeSheet() {
   setShapeTradersTradeSheetCollapsed(!shapeTradersTradeSheetCollapsed);
 }
 
+function pulseShapeTraderTradeButton(button) {
+  if (!(button instanceof HTMLElement)) {
+    return;
+  }
+  button.classList.remove("is-pressing");
+  void button.offsetWidth;
+  button.classList.add("is-pressing");
+  window.setTimeout(() => {
+    button.classList.remove("is-pressing");
+  }, 180);
+}
+
 function updateShapeTradersQuantity(nextValue) {
   if (!shapeTradersQuantityInput) {
     return;
@@ -22661,6 +22673,7 @@ if (shapeTradersTradePanelEl) {
 if (shapeTradersBuyButton) {
   shapeTradersBuyButton.addEventListener("pointerdown", (event) => {
     event.preventDefault();
+    pulseShapeTraderTradeButton(shapeTradersBuyButton);
     attemptShapeTraderTrade("buy");
   });
   shapeTradersBuyButton.addEventListener("click", (event) => {
@@ -22672,6 +22685,7 @@ if (shapeTradersBuyButton) {
 if (shapeTradersSellButton) {
   shapeTradersSellButton.addEventListener("pointerdown", (event) => {
     event.preventDefault();
+    pulseShapeTraderTradeButton(shapeTradersSellButton);
     attemptShapeTraderTrade("sell");
   });
   shapeTradersSellButton.addEventListener("click", (event) => {

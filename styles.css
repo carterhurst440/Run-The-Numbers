@@ -3115,6 +3115,14 @@ body[data-app-state="loading"] #app-shell {
   touch-action: manipulation;
 }
 
+.shape-traders-trade-bar .shape-traders-trade-actions button.is-pressing {
+  transform: scale(0.96);
+  filter: brightness(1.08);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, white 20%, transparent),
+    0 10px 22px color-mix(in srgb, var(--gold) 18%, transparent);
+}
+
 .shape-traders-trade-bar .shape-traders-trade-actions button.is-unavailable,
 .shape-traders-trade-bar .shape-traders-trade-actions button[aria-disabled="true"]:not(:disabled) {
   opacity: 1;
@@ -6713,13 +6721,13 @@ body.theme-angelic {
   }
 
   .shape-traders-deck-row {
-    grid-template-columns: minmax(82px, 98px) minmax(0, 1fr) minmax(0, 1fr);
-    gap: 0.16rem;
+    grid-template-columns: minmax(86px, 102px) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.1rem;
     align-items: start;
   }
 
   .shape-traders-countdown-ring {
-    width: min(100%, 98px);
+    width: min(100%, 102px);
     align-self: start;
     margin-top: 1.25rem;
   }
