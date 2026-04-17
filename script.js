@@ -16,12 +16,47 @@ const GAME_KEYS = {
   SHAPE_TRADERS: "game_003"
 };
 
-const CONTEST_GAME_KEYS = [GAME_KEYS.RUN_THE_NUMBERS, GAME_KEYS.GUESS_10];
+const CONTEST_GAME_KEYS = [GAME_KEYS.RUN_THE_NUMBERS, GAME_KEYS.GUESS_10, GAME_KEYS.SHAPE_TRADERS];
 
 const GAME_LABELS = {
   [GAME_KEYS.RUN_THE_NUMBERS]: "Run the Numbers",
   [GAME_KEYS.GUESS_10]: "Guess 10",
   [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders"
+};
+
+const GAME_ASSET_STORAGE_KEY = "rtn:game-assets";
+
+const DEFAULT_GAME_ASSET_LIBRARY = {
+  [GAME_KEYS.RUN_THE_NUMBERS]: {
+    key: GAME_KEYS.RUN_THE_NUMBERS,
+    label: GAME_LABELS[GAME_KEYS.RUN_THE_NUMBERS],
+    route: "run-the-numbers",
+    logo_url: "/assets/game-logos/run-the-numbers.svg",
+    description: "Original card game table",
+    card_description: "Build your wager board, fade the bust card, and press number hits across the active paytable.",
+    card_background_color: "",
+    button_color: ""
+  },
+  [GAME_KEYS.GUESS_10]: {
+    key: GAME_KEYS.GUESS_10,
+    label: GAME_LABELS[GAME_KEYS.GUESS_10],
+    route: "red-black",
+    logo_url: "/assets/game-logos/guess-10.svg",
+    description: "Beta prediction and cash-out table",
+    card_description: "Predict by color, suit, or rank, multiply the live pot on every hit, and cash out before the deck turns on you.",
+    card_background_color: "",
+    button_color: ""
+  },
+  [GAME_KEYS.SHAPE_TRADERS]: {
+    key: GAME_KEYS.SHAPE_TRADERS,
+    label: GAME_LABELS[GAME_KEYS.SHAPE_TRADERS],
+    route: "shape-traders",
+    logo_url: "/assets/game-logos/shape-traders.svg",
+    description: "Shared live market trading table",
+    card_description: "Trade Circles, Squares, and Triangles against a shared live card-driven market with timed data dumps and isolated game accounting.",
+    card_background_color: "",
+    button_color: ""
+  }
 };
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -61,6 +96,132 @@ function resolveGameKey(value) {
 
 function getGameLabel(value) {
   return GAME_LABELS[resolveGameKey(value)] || "Run the Numbers";
+}
+
+function getGameAssetRecord(gameKey) {
+  const resolvedGameKey = resolveGameKey(gameKey);
+  const record = gameAssetLibraryCache[resolvedGameKey] || DEFAULT_GAME_ASSET_LIBRARY[resolvedGameKey];
+  return record ? { ...record } : null;
+}
+
+function sanitizeGameAssetColor(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return "";
+  }
+  if (typeof CSS !== "undefined" && typeof CSS.supports === "function" && CSS.supports("color", normalized)) {
+    return normalized;
+  }
+  return "";
+}
+
+function escapeGameAssetField(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function loadStoredGameAssetLibrary() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return {};
+  }
+  try {
+    const raw = window.localStorage.getItem(GAME_ASSET_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    console.warn("[RTN] Unable to parse stored game assets", error);
+    return {};
+  }
+}
+
+function hydrateGameAssetLibrary() {
+  const overrides = loadStoredGameAssetLibrary();
+  gameAssetLibraryCache = Object.values(GAME_KEYS).reduce((next, gameKey) => {
+    const defaults = DEFAULT_GAME_ASSET_LIBRARY[gameKey];
+    const override = overrides?.[gameKey];
+    next[gameKey] = {
+      ...defaults,
+      ...(override && typeof override === "object" ? override : {}),
+      key: gameKey,
+      label: defaults.label,
+      route: defaults.route,
+      description: defaults.description,
+      card_description: String(override?.card_description || defaults.card_description || "").trim() || defaults.card_description,
+      card_background_color: sanitizeGameAssetColor(override?.card_background_color),
+      button_color: sanitizeGameAssetColor(override?.button_color)
+    };
+    return next;
+  }, {});
+  return gameAssetLibraryCache;
+}
+
+function persistGameAssetLibrary() {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  try {
+    const payload = Object.values(GAME_KEYS).reduce((next, gameKey) => {
+      const record = gameAssetLibraryCache[gameKey] || DEFAULT_GAME_ASSET_LIBRARY[gameKey];
+      next[gameKey] = {
+        logo_url: record.logo_url || DEFAULT_GAME_ASSET_LIBRARY[gameKey].logo_url,
+        card_description: String(record.card_description || DEFAULT_GAME_ASSET_LIBRARY[gameKey].card_description || "").trim(),
+        card_background_color: sanitizeGameAssetColor(record.card_background_color),
+        button_color: sanitizeGameAssetColor(record.button_color)
+      };
+      return next;
+    }, {});
+    window.localStorage.setItem(GAME_ASSET_STORAGE_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.warn("[RTN] Unable to persist game assets", error);
+  }
+}
+
+function renderGameLogoTargets() {
+  document.querySelectorAll("[data-game-logo-for]").forEach((node) => {
+    if (!(node instanceof HTMLImageElement)) return;
+    const gameKey = resolveGameKey(node.dataset.gameLogoFor || "");
+    const record = getGameAssetRecord(gameKey);
+    if (!record) return;
+    node.src = record.logo_url || DEFAULT_GAME_ASSET_LIBRARY[gameKey].logo_url;
+    node.alt = `${record.label} logo`;
+  });
+
+  document.querySelectorAll("[data-game-description-for]").forEach((node) => {
+    const gameKey = resolveGameKey(node.dataset.gameDescriptionFor || "");
+    const record = getGameAssetRecord(gameKey);
+    if (!record) return;
+    node.textContent = String(record.card_description || DEFAULT_GAME_ASSET_LIBRARY[gameKey].card_description || "").trim();
+  });
+
+  document.querySelectorAll("[data-game-card]").forEach((node) => {
+    const gameKey = resolveGameKey(node.dataset.gameCard || "");
+    const record = getGameAssetRecord(gameKey);
+    if (!record) return;
+    const customBackground = sanitizeGameAssetColor(record.card_background_color);
+    if (customBackground) {
+      node.style.setProperty("--game-card-bg-override", customBackground);
+      node.dataset.hasCustomBackground = "true";
+    } else {
+      node.style.removeProperty("--game-card-bg-override");
+      node.dataset.hasCustomBackground = "false";
+    }
+  });
+
+  document.querySelectorAll("[data-game-button-for]").forEach((node) => {
+    if (!(node instanceof HTMLElement)) return;
+    const gameKey = resolveGameKey(node.dataset.gameButtonFor || "");
+    const record = getGameAssetRecord(gameKey);
+    if (!record) return;
+    const customButtonColor = sanitizeGameAssetColor(record.button_color);
+    if (customButtonColor) {
+      node.style.setProperty("--game-card-button-override", customButtonColor);
+      node.dataset.hasCustomButtonColor = "true";
+    } else {
+      node.style.removeProperty("--game-card-button-override");
+      node.dataset.hasCustomButtonColor = "false";
+    }
+  });
 }
 
 function isMissingColumnError(error, columnName) {
@@ -426,6 +587,10 @@ async function uploadPrizeImage(file) {
 }
 
 async function uploadRankIcon(file) {
+  return uploadPrizeImage(file);
+}
+
+async function uploadGameLogo(file) {
   return uploadPrizeImage(file);
 }
 
@@ -4895,6 +5060,7 @@ async function maybeHandleShapeTraderExit(nextRoute) {
 
 async function synchronizeShapeTraders(now = Date.now()) {
   if (
+    currentRoute !== "shape-traders" ||
     shapeTradersSyncInFlight ||
     shapeTradersResetInFlight ||
     shapeTradersLocalResetMode ||
@@ -5462,6 +5628,9 @@ async function setRoute(route, { replaceHash = false } = {}) {
     updateRedBlackPaytableHighlight();
   }
 
+  currentRoute = resolvedRoute;
+  updatePlayAssistantVisibility();
+
   if (resolvedRoute === "shape-traders") {
     markShapeTraderInteraction();
     await initializeShapeTraders();
@@ -5473,9 +5642,6 @@ async function setRoute(route, { replaceHash = false } = {}) {
   } else {
     clearPlayAreaHeight();
   }
-
-  currentRoute = resolvedRoute;
-  updatePlayAssistantVisibility();
 
   if (resolvedRoute === "contests") {
     await loadPlayerContestList(true);
@@ -8424,6 +8590,173 @@ async function loadAdminPrizeList(force = false) {
     adminPrizeListEl.appendChild(errorItem);
     showToast("Unable to load prize listings", "error");
   }
+}
+
+function renderAdminGameAssetRow(gameKey) {
+  const record = getGameAssetRecord(gameKey);
+  if (!record) return null;
+
+  const item = document.createElement("li");
+  item.className = "admin-game-item";
+
+  const main = document.createElement("div");
+  main.className = "admin-game-main";
+
+  const logoFrame = document.createElement("div");
+  logoFrame.className = "admin-game-logo-frame";
+  const img = document.createElement("img");
+  img.src = record.logo_url || DEFAULT_GAME_ASSET_LIBRARY[gameKey].logo_url;
+  img.alt = `${record.label} logo`;
+  logoFrame.appendChild(img);
+
+  const info = document.createElement("div");
+  info.className = "admin-game-info";
+  const name = document.createElement("h3");
+  name.className = "admin-game-name";
+  name.textContent = record.label;
+  const meta = document.createElement("p");
+  meta.className = "admin-game-meta";
+  meta.textContent = `${record.description} • Route: /#/${record.route}`;
+  info.append(name, meta);
+  main.append(logoFrame, info);
+
+  const form = document.createElement("form");
+  form.className = "admin-game-asset-form";
+  form.innerHTML = `
+    <label class="admin-field">
+      <span>Logo URL</span>
+      <input type="url" name="logoUrl" value="${escapeGameAssetField(record.logo_url || "")}" placeholder="https://..." />
+    </label>
+    <label class="admin-field">
+      <span>Game Description</span>
+      <textarea name="cardDescription" rows="4" placeholder="Short card copy for the Play hub.">${escapeGameAssetField(record.card_description || "")}</textarea>
+    </label>
+    <div class="admin-game-style-grid">
+      <label class="admin-field">
+        <span>Background Color</span>
+        <input type="text" name="cardBackgroundColor" value="${escapeGameAssetField(record.card_background_color || "")}" placeholder="#1d3159 or rgb(...)" />
+      </label>
+      <label class="admin-field">
+        <span>Game Button Color</span>
+        <input type="text" name="buttonColor" value="${escapeGameAssetField(record.button_color || "")}" placeholder="#ff4f9d or rgb(...)" />
+      </label>
+    </div>
+    <div class="admin-game-upload-row">
+      <input type="file" name="logoFile" accept="image/*,.svg" />
+      <button type="button" class="secondary" data-admin-game-upload="${gameKey}">Upload logo</button>
+    </div>
+    <div class="admin-game-action-row">
+      <button type="submit" class="primary">Save game assets</button>
+      <button type="button" class="secondary" data-admin-game-reset="${gameKey}">Reset default</button>
+    </div>
+  `;
+
+  const urlInput = form.querySelector('input[name="logoUrl"]');
+  const descriptionInput = form.querySelector('textarea[name="cardDescription"]');
+  const backgroundColorInput = form.querySelector('input[name="cardBackgroundColor"]');
+  const buttonColorInput = form.querySelector('input[name="buttonColor"]');
+  const fileInput = form.querySelector('input[name="logoFile"]');
+  const uploadButton = form.querySelector(`[data-admin-game-upload="${gameKey}"]`);
+  const resetButton = form.querySelector(`[data-admin-game-reset="${gameKey}"]`);
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const nextUrl = String(urlInput?.value || "").trim() || DEFAULT_GAME_ASSET_LIBRARY[gameKey].logo_url;
+    const nextDescription = String(descriptionInput?.value || "").trim() || DEFAULT_GAME_ASSET_LIBRARY[gameKey].card_description;
+    const rawBackgroundColor = String(backgroundColorInput?.value || "").trim();
+    const rawButtonColor = String(buttonColorInput?.value || "").trim();
+    const nextBackgroundColor = sanitizeGameAssetColor(rawBackgroundColor);
+    const nextButtonColor = sanitizeGameAssetColor(rawButtonColor);
+    if (rawBackgroundColor && !nextBackgroundColor) {
+      showToast("Enter a valid CSS color for the card background", "error");
+      return;
+    }
+    if (rawButtonColor && !nextButtonColor) {
+      showToast("Enter a valid CSS color for the game button", "error");
+      return;
+    }
+    gameAssetLibraryCache[gameKey] = {
+      ...DEFAULT_GAME_ASSET_LIBRARY[gameKey],
+      ...(gameAssetLibraryCache[gameKey] || {}),
+      logo_url: nextUrl,
+      card_description: nextDescription,
+      card_background_color: nextBackgroundColor,
+      button_color: nextButtonColor
+    };
+    persistGameAssetLibrary();
+    renderGameLogoTargets();
+    adminGameAssetsLoaded = false;
+    void loadAdminGameAssets(true);
+    if (adminGameMessage) {
+      adminGameMessage.textContent = `${record.label} game assets saved.`;
+    }
+    showToast(`${record.label} game assets updated`, "success");
+  });
+
+  uploadButton?.addEventListener("click", async () => {
+    if (!fileInput?.files?.[0]) {
+      showToast("Choose a logo file first", "error");
+      return;
+    }
+    uploadButton.disabled = true;
+    if (adminGameMessage) {
+      adminGameMessage.textContent = `Uploading ${record.label} logo...`;
+    }
+    try {
+      const publicUrl = await uploadGameLogo(fileInput.files[0]);
+      if (urlInput) {
+        urlInput.value = publicUrl;
+      }
+      if (adminGameMessage) {
+        adminGameMessage.textContent = `${record.label} logo uploaded. Save to apply it.`;
+      }
+      showToast("Logo uploaded", "success");
+    } catch (error) {
+      console.error(error);
+      const message = error?.message || "Unable to upload logo";
+      if (adminGameMessage) {
+        adminGameMessage.textContent = `${record.label} logo upload failed: ${message}`;
+      }
+      showToast(message, "error");
+    } finally {
+      uploadButton.disabled = false;
+      if (fileInput) {
+        fileInput.value = "";
+      }
+    }
+  });
+
+  resetButton?.addEventListener("click", () => {
+    gameAssetLibraryCache[gameKey] = {
+      ...DEFAULT_GAME_ASSET_LIBRARY[gameKey]
+    };
+    persistGameAssetLibrary();
+    renderGameLogoTargets();
+    adminGameAssetsLoaded = false;
+    void loadAdminGameAssets(true);
+    if (adminGameMessage) {
+      adminGameMessage.textContent = `${record.label} game assets reset to default.`;
+    }
+    showToast(`${record.label} game assets reset`, "success");
+  });
+
+  item.append(main, form);
+  return item;
+}
+
+async function loadAdminGameAssets(force = false) {
+  hydrateGameAssetLibrary();
+  renderGameLogoTargets();
+  if (!adminGameListEl) return;
+  if (adminGameAssetsLoaded && !force) return;
+  adminGameAssetsLoaded = true;
+  adminGameListEl.innerHTML = "";
+  Object.values(GAME_KEYS).forEach((gameKey) => {
+    const item = renderAdminGameAssetRow(gameKey);
+    if (item) {
+      adminGameListEl.appendChild(item);
+    }
+  });
 }
 
 // ===========================
@@ -13298,10 +13631,13 @@ const playerModeBreakdownOk = document.getElementById("player-mode-breakdown-ok"
 const playerBreakdownFilterButtons = Array.from(document.querySelectorAll("[data-player-breakdown-period]"));
 const adminTabButtons = document.querySelectorAll(".admin-tab");
 const adminPrizesContent = document.getElementById("admin-prizes-content");
+const adminGamesContent = document.getElementById("admin-games-content");
 const adminAnalyticsContent = document.getElementById("admin-analytics-content");
 const adminContestsContent = document.getElementById("admin-contests-content");
 const adminDesignContent = document.getElementById("admin-design-content");
 const adminRanksContent = document.getElementById("admin-ranks-content");
+const adminGameListEl = document.getElementById("admin-game-list");
+const adminGameMessage = document.getElementById("admin-game-message");
 const adminThemeForm = document.getElementById("admin-theme-form");
 const adminThemeListEl = document.getElementById("admin-theme-list");
 const adminThemeMessage = document.getElementById("admin-theme-message");
@@ -13629,6 +13965,7 @@ let currentTheme = "blue";
 let dashboardLoaded = false;
 let prizesLoaded = false;
 let adminPrizesLoaded = false;
+let adminGameAssetsLoaded = false;
 let adminContestsLoaded = false;
 let currentAdminContestTab = "upcoming";
 let adminRanksLoaded = false;
@@ -13646,6 +13983,7 @@ let adminPrizeCache = [];
 let rankLadderCache = [];
 let themeLibraryCache = [];
 let themeLibraryHydrated = false;
+let gameAssetLibraryCache = {};
 let currentRankState = null;
 let reconciledHandsPlayedUserId = null;
 let rankWelcomeTypingTimer = null;
@@ -13663,6 +14001,8 @@ let currentAccountMode = {
   type: "normal",
   contestId: null
 };
+hydrateGameAssetLibrary();
+renderGameLogoTargets();
 let currentProfile = null;
 let suppressHash = false;
 let dashboardProfileRetryTimer = null;
@@ -20141,12 +20481,22 @@ adminTabButtons.forEach(button => {
     // Show/hide content
     if (targetTab === "prizes") {
       adminPrizesContent.hidden = false;
+      if (adminGamesContent) adminGamesContent.hidden = true;
       adminAnalyticsContent.hidden = true;
       if (adminContestsContent) adminContestsContent.hidden = true;
       if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
+    } else if (targetTab === "games") {
+      adminPrizesContent.hidden = true;
+      if (adminGamesContent) adminGamesContent.hidden = false;
+      adminAnalyticsContent.hidden = true;
+      if (adminContestsContent) adminContestsContent.hidden = true;
+      if (adminDesignContent) adminDesignContent.hidden = true;
+      if (adminRanksContent) adminRanksContent.hidden = true;
+      void loadAdminGameAssets(true);
     } else if (targetTab === "analytics") {
       adminPrizesContent.hidden = true;
+      if (adminGamesContent) adminGamesContent.hidden = true;
       adminAnalyticsContent.hidden = false;
       if (adminContestsContent) adminContestsContent.hidden = true;
       if (adminDesignContent) adminDesignContent.hidden = true;
@@ -20158,6 +20508,7 @@ adminTabButtons.forEach(button => {
       loadMostActiveThisWeek();
     } else if (targetTab === "contests") {
       adminPrizesContent.hidden = true;
+      if (adminGamesContent) adminGamesContent.hidden = true;
       adminAnalyticsContent.hidden = true;
       if (adminContestsContent) adminContestsContent.hidden = false;
       if (adminDesignContent) adminDesignContent.hidden = true;
@@ -20165,6 +20516,7 @@ adminTabButtons.forEach(button => {
       loadAdminContestList(true);
     } else if (targetTab === "design") {
       adminPrizesContent.hidden = true;
+      if (adminGamesContent) adminGamesContent.hidden = true;
       adminAnalyticsContent.hidden = true;
       if (adminContestsContent) adminContestsContent.hidden = true;
       if (adminDesignContent) adminDesignContent.hidden = false;
@@ -20172,6 +20524,7 @@ adminTabButtons.forEach(button => {
       void loadAdminThemes(true);
     } else if (targetTab === "ranks") {
       adminPrizesContent.hidden = true;
+      if (adminGamesContent) adminGamesContent.hidden = true;
       adminAnalyticsContent.hidden = true;
       if (adminContestsContent) adminContestsContent.hidden = true;
       if (adminDesignContent) adminDesignContent.hidden = true;

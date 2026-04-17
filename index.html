@@ -635,35 +635,55 @@
             <h1 id="play-title" class="home-title">PLAY</h1>
             <p class="home-subtitle">Choose a game to jump straight to the table.</p>
             <section class="home-games" aria-label="Available games">
-              <article class="game-card game-card-primary">
+              <article class="game-card game-card-primary" data-game-card="game_001">
                 <div class="game-card-head">
                   <p class="game-card-kicker">Original Game</p>
                   <h2 class="game-card-title">RUN THE NUMBERS</h2>
                 </div>
-                <p class="game-card-copy">Build your wager board, fade the bust card, and press number hits across the active paytable.</p>
+                <div class="game-card-logo-wrap">
+                  <img
+                    class="game-card-logo"
+                    data-game-logo-for="game_001"
+                    src="/assets/game-logos/run-the-numbers.svg"
+                    alt="Run the Numbers logo"
+                  />
+                </div>
+                <p class="game-card-copy" data-game-description-for="game_001">Build your wager board, fade the bust card, and press number hits across the active paytable.</p>
                 <button
                   type="button"
                   class="home-button home-cta-button"
                   data-route-target="run-the-numbers"
                   data-game-id="game_001"
+                  data-game-button-for="game_001"
                 >
                   Play Run the Numbers
                 </button>
               </article>
-              <article class="game-card game-card-beta">
+              <article class="game-card game-card-beta" data-game-card="game_002">
                 <div class="game-card-head">
-                  <p class="game-card-kicker">New Beta Game</p>
-                  <div class="game-card-title-row">
-                    <h2 class="game-card-title">GUESS 10</h2>
+                  <div class="game-card-kicker-row">
+                    <p class="game-card-kicker">New Beta Game</p>
                     <span class="game-beta-pill">Beta</span>
                   </div>
+                  <div class="game-card-title-row">
+                    <h2 class="game-card-title">GUESS 10</h2>
+                  </div>
                 </div>
-                <p class="game-card-copy">Predict by color, suit, or rank, multiply the live pot on every hit, and cash out before the deck turns on you.</p>
+                <div class="game-card-logo-wrap">
+                  <img
+                    class="game-card-logo"
+                    data-game-logo-for="game_002"
+                    src="/assets/game-logos/guess-10.svg"
+                    alt="Guess 10 logo"
+                  />
+                </div>
+                <p class="game-card-copy" data-game-description-for="game_002">Predict by color, suit, or rank, multiply the live pot on every hit, and cash out before the deck turns on you.</p>
                 <button
                   type="button"
                   class="home-button home-cta-button"
                   data-route-target="red-black"
                   data-game-id="game_002"
+                  data-game-button-for="game_002"
                 >
                   Play GUESS 10
                 </button>
@@ -671,21 +691,33 @@
               <article
                 id="shape-traders-play-card"
                 class="game-card game-card-shape-traders"
+                data-game-card="game_003"
                 hidden
               >
                 <div class="game-card-head">
-                  <p class="game-card-kicker">Admin Preview</p>
-                  <div class="game-card-title-row">
-                    <h2 class="game-card-title">SHAPE TRADERS</h2>
+                  <div class="game-card-kicker-row">
+                    <p class="game-card-kicker">Admin Preview</p>
                     <span class="game-beta-pill">Admin</span>
                   </div>
+                  <div class="game-card-title-row">
+                    <h2 class="game-card-title">SHAPE TRADERS</h2>
+                  </div>
                 </div>
-                <p class="game-card-copy">Trade Circles, Squares, and Triangles against a shared live card-driven market with timed data dumps and isolated game accounting.</p>
+                <div class="game-card-logo-wrap">
+                  <img
+                    class="game-card-logo"
+                    data-game-logo-for="game_003"
+                    src="/assets/game-logos/shape-traders.svg"
+                    alt="Shape Traders logo"
+                  />
+                </div>
+                <p class="game-card-copy" data-game-description-for="game_003">Trade Circles, Squares, and Triangles against a shared live card-driven market with timed data dumps and isolated game accounting.</p>
                 <button
                   type="button"
                   class="home-button home-cta-button"
                   data-route-target="shape-traders"
                   data-game-id="game_003"
+                  data-game-button-for="game_003"
                 >
                   Open SHAPE TRADERS
                 </button>
@@ -2153,6 +2185,7 @@
             </header>
             <div class="admin-tabs">
               <button type="button" class="admin-tab active" data-admin-tab="prizes">Prizes</button>
+              <button type="button" class="admin-tab" data-admin-tab="games">Games</button>
               <button type="button" class="admin-tab" data-admin-tab="analytics">Analytics</button>
               <button type="button" class="admin-tab" data-admin-tab="contests">Contests</button>
               <button type="button" class="admin-tab" data-admin-tab="design">Design</button>
@@ -2165,6 +2198,18 @@
                   <button type="button" class="primary" id="admin-add-button">Add new listing</button>
                 </div>
                 <ul id="admin-prize-list" class="admin-prize-list" aria-live="polite"></ul>
+              </section>
+            </section>
+            <section class="admin-tab-content" id="admin-games-content" hidden>
+              <section class="route-section admin-list-section">
+                <div class="admin-listing-header">
+                  <div>
+                    <h2>Games</h2>
+                    <p class="route-subheading">Manage game branding assets. Logo overrides are stored in this browser for now.</p>
+                  </div>
+                </div>
+                <ul id="admin-game-list" class="admin-prize-list admin-game-list" aria-live="polite"></ul>
+                <p id="admin-game-message" class="admin-message" role="status" aria-live="polite"></p>
               </section>
             </section>
             <section class="admin-tab-content" id="admin-analytics-content" hidden>
@@ -3072,6 +3117,10 @@
                 <label class="admin-checkbox">
                   <input type="checkbox" name="contestGameIds" value="game_002" checked />
                   <span>Guess 10</span>
+                </label>
+                <label class="admin-checkbox">
+                  <input type="checkbox" name="contestGameIds" value="game_003" checked />
+                  <span>Shape Traders</span>
                 </label>
               </fieldset>
             </div>

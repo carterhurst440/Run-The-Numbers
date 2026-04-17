@@ -826,7 +826,7 @@ body[data-app-state="loading"] #app-shell {
   align-items: center;
   justify-content: center;
   gap: clamp(0.55rem, 1.8vw, 1rem);
-  width: min(100%, 980px);
+  width: min(100%, 1340px);
   min-height: min(100%, calc(100vh - 132px));
 }
 
@@ -1552,16 +1552,16 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .home-games {
-  width: min(100%, 920px);
+  width: min(100%, 1320px);
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(1rem, 2vw, 1.4rem);
   margin-top: clamp(1rem, 3vw, 1.8rem);
 }
 
 .game-card {
   display: grid;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: auto auto auto 1fr auto;
   gap: 1rem;
   text-align: left;
   padding: clamp(1.1rem, 2.2vw, 1.5rem);
@@ -1569,6 +1569,8 @@ body[data-app-state="loading"] #app-shell {
   border: 1px solid var(--betting-panel-border);
   background: var(--betting-panel-bg);
   box-shadow: var(--betting-panel-shadow);
+  min-height: 100%;
+  overflow: hidden;
 }
 
 .game-card-primary {
@@ -1594,9 +1596,37 @@ body[data-app-state="loading"] #app-shell {
   border-color: rgba(255, 230, 120, 0.34);
 }
 
+.game-card[data-has-custom-background="true"] {
+  background: var(--game-card-bg-override);
+  border-color: color-mix(in srgb, var(--game-card-bg-override) 74%, white 26%);
+}
+
 .game-card-head {
   display: grid;
   gap: 0.45rem;
+}
+
+.game-card-kicker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.game-card-logo-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 5.5rem;
+}
+
+.game-card-logo {
+  width: auto;
+  max-width: min(100%, 9rem);
+  max-height: 5rem;
+  object-fit: contain;
+  filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.08));
 }
 
 .game-card-kicker,
@@ -1642,6 +1672,18 @@ body[data-app-state="loading"] #app-shell {
   border-radius: 2rem;
   align-self: end;
   justify-self: stretch;
+}
+
+.game-card .home-button[data-has-custom-button-color="true"] {
+  background: var(--game-card-button-override);
+  border-color: color-mix(in srgb, var(--game-card-button-override) 72%, white 28%);
+  box-shadow: 0 18px 36px color-mix(in srgb, var(--game-card-button-override) 34%, transparent);
+}
+
+.game-card .home-button[data-has-custom-button-color="true"]:hover,
+.game-card .home-button[data-has-custom-button-color="true"]:focus-visible {
+  border-color: color-mix(in srgb, var(--game-card-button-override) 56%, white 44%);
+  box-shadow: 0 22px 42px color-mix(in srgb, var(--game-card-button-override) 42%, transparent);
 }
 
 .game-beta-pill {
@@ -1790,6 +1832,8 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .shape-traders-panel {
+  position: relative;
+  isolation: isolate;
   display: grid;
   gap: 0.95rem;
   min-height: 100%;
@@ -1798,6 +1842,7 @@ body[data-app-state="loading"] #app-shell {
   border: 1px solid var(--betting-panel-border);
   background: var(--betting-panel-bg);
   box-shadow: var(--betting-panel-shadow);
+  overflow: hidden;
 }
 
 .shape-traders-panel-heading {
@@ -12287,6 +12332,103 @@ body.modal-open {
   gap: 0.5rem;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.admin-game-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
+  gap: 1rem;
+  padding: 1.25rem 1.4rem;
+  border-radius: 1.1rem;
+  border: 1px solid var(--betting-panel-border);
+  background: var(--betting-panel-bg);
+  box-shadow: var(--betting-panel-shadow);
+}
+
+.admin-game-main {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.admin-game-logo-frame {
+  width: 92px;
+  aspect-ratio: 1;
+  border-radius: 1rem;
+  border: 1px solid var(--betting-panel-border);
+  background: var(--active-paytable-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.admin-game-logo-frame img {
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
+}
+
+.admin-game-info {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.admin-game-name {
+  margin: 0;
+  color: var(--text-light);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 1rem;
+}
+
+.admin-game-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.admin-game-asset-form {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+
+.admin-game-style-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.admin-game-upload-row,
+.admin-game-action-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.admin-game-upload-row input[type="file"] {
+  max-width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .home-games {
+    width: min(100%, 920px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-game-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-game-style-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .admin-prize-edit,
