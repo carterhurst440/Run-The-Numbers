@@ -4717,11 +4717,34 @@ body[data-app-state="loading"] #app-shell {
     min-height: auto;
     max-height: none;
     overflow: visible;
+    width: 100%;
+  }
+
+  .shape-traders-market-panel {
+    order: 1;
+  }
+
+  .shape-traders-deck-panel {
+    order: 2;
+  }
+
+  .shape-traders-global-panel {
+    order: 3;
+  }
+
+  .shape-traders-holdings-panel {
+    order: 4;
+  }
+
+  .shape-traders-activity-panel {
+    order: 5;
+    gap: 0.5rem;
   }
 
   .shape-traders-market-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     min-height: 0;
+    width: 100%;
   }
 
   .shape-traders-market-card {
@@ -4782,9 +4805,10 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .shape-traders-deck-row {
-    grid-template-columns: 1fr;
-    justify-items: center;
+    grid-template-columns: minmax(96px, 120px) minmax(0, 1fr) minmax(0, 1fr);
+    justify-items: stretch;
     gap: 0.8rem;
+    align-items: start;
   }
 
   .shape-traders-card-stack {
@@ -4792,9 +4816,7 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .shape-traders-card-group {
-    width: 100%;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.6rem;
+    display: contents;
   }
 
   .shape-traders-card-label {
@@ -4820,8 +4842,13 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .shape-traders-activity-list {
+    display: block;
+    height: auto;
+    min-height: 0;
     max-height: none;
     padding-right: 0;
+    padding-bottom: 0;
+    margin-top: 0;
   }
 
   .shape-traders-trade-bar {
@@ -6467,16 +6494,70 @@ body.theme-angelic {
     display: none;
   }
 
+  .shape-traders-deck-row {
+    grid-template-columns: minmax(78px, 92px) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.45rem;
+    align-items: start;
+  }
+
   .shape-traders-countdown-ring {
-    width: min(100%, 148px);
+    width: min(100%, 92px);
   }
 
   .shape-traders-card-group {
-    grid-template-columns: 1fr;
+    display: contents;
+  }
+
+  .shape-traders-card-stack {
+    gap: 0.3rem;
   }
 
   .shape-traders-draw-card {
-    width: min(100%, 9.2rem);
+    width: 100%;
+  }
+
+  .shape-traders-card-label {
+    gap: 0.28rem;
+    font-size: 0.48rem;
+    letter-spacing: 0.08em;
+  }
+
+  .shape-traders-recent-button {
+    min-height: 1.2rem;
+    padding: 0.14rem 0.28rem;
+    font-size: 0.44rem;
+  }
+
+  .shape-traders-draw-card-face {
+    padding: 0.45rem 0.32rem;
+    border-radius: 0.9rem;
+  }
+
+  .shape-traders-draw-card-value {
+    font-size: 0.74rem;
+  }
+
+  .shape-traders-draw-card-title {
+    font-size: 0.58rem;
+    max-width: 3.8rem;
+  }
+
+  .shape-traders-card-symbol-group {
+    gap: 0.35rem;
+    min-height: 2rem;
+  }
+
+  .shape-traders-draw-card .shape-traders-shape-icon.shape-square,
+  .shape-traders-draw-card .shape-traders-shape-icon.shape-circle {
+    width: 1rem;
+    height: 1rem;
+    border-width: 2.4px;
+  }
+
+  .shape-traders-draw-card .shape-traders-shape-icon.shape-triangle {
+    width: 1.12rem;
+    height: 0.98rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 30'%3E%3Cpath d='M17 3 L31 27 H3 Z' fill='none' stroke='%23ff4ad3' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E");
   }
 
   .shape-traders-dump-track {
@@ -6485,6 +6566,7 @@ body.theme-angelic {
 
   .shape-traders-market-grid {
     gap: 0.45rem;
+    width: 100%;
   }
 
   .shape-traders-market-card {
@@ -6522,6 +6604,10 @@ body.theme-angelic {
   .shape-traders-activity-panel,
   .shape-traders-global-panel {
     overflow: hidden;
+  }
+
+  .shape-traders-activity-panel {
+    gap: 0.35rem;
   }
 
   .shape-traders-trade-bar {
