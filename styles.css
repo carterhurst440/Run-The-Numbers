@@ -5070,7 +5070,8 @@ body[data-app-state="loading"] #app-shell {
     grid-column: 1;
     grid-row: 1 / span 2;
     justify-self: start;
-    align-self: center;
+    align-self: start;
+    padding-top: 0.18rem;
     text-align: left;
   }
 
