@@ -4256,7 +4256,6 @@ function renderShapeTradersAssetSelector() {
       markShapeTraderInteraction();
       renderShapeTradersAssetSelector();
       renderShapeTradersControls();
-      setShapeTraderStatus(`${asset.label} selected. Quantity and execution buttons are ready.`);
     };
     button.type = "button";
     button.className = `secondary shape-traders-asset-button ${shapeTradersSelectedAsset === asset.id ? "active" : ""}`;
@@ -9152,6 +9151,49 @@ async function loadAdminGameAssets(force = false) {
   });
 }
 
+async function migrateGameAssetsToBackend() {
+  if (!currentUser?.id) {
+    showToast("Sign in to migrate game assets", "error");
+    return;
+  }
+
+  hydrateGameAssetLibrary();
+  renderGameLogoTargets();
+
+  if (adminGamesMigrateButton) {
+    adminGamesMigrateButton.disabled = true;
+    adminGamesMigrateButton.textContent = "Migrating...";
+  }
+  if (adminGameMessage) {
+    adminGameMessage.textContent = "Migrating current browser game assets to backend...";
+  }
+
+  try {
+    for (const gameKey of Object.values(GAME_KEYS)) {
+      await persistGameAssetRecordToBackend(gameKey);
+    }
+    await refreshGameAssetsFromBackend();
+    adminGameAssetsLoaded = false;
+    await loadAdminGameAssets(true);
+    if (adminGameMessage) {
+      adminGameMessage.textContent = "Game assets migrated to backend.";
+    }
+    showToast("Game assets migrated", "success");
+  } catch (error) {
+    console.error(error);
+    const message = error?.message || "Unable to migrate game assets";
+    if (adminGameMessage) {
+      adminGameMessage.textContent = message;
+    }
+    showToast(message, "error");
+  } finally {
+    if (adminGamesMigrateButton) {
+      adminGamesMigrateButton.disabled = false;
+      adminGamesMigrateButton.textContent = "Migrate To Backend";
+    }
+  }
+}
+
 // ===========================
 // Contest Management
 // ===========================
@@ -14031,6 +14073,7 @@ const adminDesignContent = document.getElementById("admin-design-content");
 const adminRanksContent = document.getElementById("admin-ranks-content");
 const adminGameListEl = document.getElementById("admin-game-list");
 const adminGameMessage = document.getElementById("admin-game-message");
+const adminGamesMigrateButton = document.getElementById("admin-games-migrate-button");
 const adminGameModal = document.getElementById("admin-game-modal");
 const adminGameForm = document.getElementById("admin-game-form");
 const adminGameModalTitle = document.getElementById("admin-game-modal-title");
@@ -16104,6 +16147,7 @@ function rebetGuess10Hand() {
   handleBankrollChanged();
   redBlackBet = redBlackLastBet;
   redBlackCurrentPot = 0;
+  handleBankrollChanged();
   renderRedBlackSummary();
   updateRedBlackActionState();
   setRedBlackStatus(`Rebet loaded for ${formatCurrency(redBlackBet)}. Choose your prediction and draw.`);
@@ -19876,6 +19920,7 @@ rebetButton.addEventListener("click", () => {
 
   rebetButton.disabled = true;
   applyBetLayout(lastBetLayout);
+  handleBankrollChanged();
   statusEl.textContent = "Previous wagers restored. Adjust or add bets, then deal when ready.";
   rebetButton.disabled = false;
   updateRebetButtonState();
@@ -20667,6 +20712,12 @@ if (adminGameModal) {
     if (event.target === adminGameModal) {
       closeAdminGameModal({ restoreFocus: true });
     }
+  });
+}
+
+if (adminGamesMigrateButton) {
+  adminGamesMigrateButton.addEventListener("click", () => {
+    void migrateGameAssetsToBackend();
   });
 }
 
