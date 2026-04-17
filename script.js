@@ -129,6 +129,10 @@ if (typeof window !== "undefined") {
     const reason = event?.reason ?? "Unknown promise rejection";
     console.error("[RTN] Unhandled rejection", reason);
   });
+
+  window.addEventListener("resize", () => {
+    applyShapeTradersTradeSheetState();
+  });
 }
 
 function stripSupabaseRedirectHash() {
@@ -4050,6 +4054,55 @@ function renderShapeTradersControls(now = Date.now()) {
   }
 }
 
+function isShapeTradersTradeSheetMobile() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 800px)").matches;
+}
+
+function applyShapeTradersTradeSheetState() {
+  if (!shapeTradersTradePanelEl || !shapeTradersTradeToggleButton) {
+    return;
+  }
+
+  const isMobile = isShapeTradersTradeSheetMobile();
+  if (!isMobile) {
+    shapeTradersTradeSheetCollapsed = false;
+  } else if (shapeTradersTradeSheetCollapsed === null) {
+    shapeTradersTradeSheetCollapsed = true;
+  }
+
+  const isCollapsed = Boolean(isMobile && shapeTradersTradeSheetCollapsed);
+  shapeTradersTradePanelEl.classList.toggle("is-collapsed", isCollapsed);
+  shapeTradersTradePanelEl.dataset.tradeSheetState = isCollapsed ? "collapsed" : "expanded";
+  shapeTradersTradeToggleButton.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
+  shapeTradersTradeToggleButton.setAttribute(
+    "aria-label",
+    isCollapsed ? "Expand trade panel" : "Collapse trade panel"
+  );
+
+  if (shapeTradersTradeBodyEl) {
+    shapeTradersTradeBodyEl.setAttribute("aria-hidden", isCollapsed ? "true" : "false");
+  }
+  if (shapeTradersTradeHintEl) {
+    shapeTradersTradeHintEl.textContent = isCollapsed ? "Tap or swipe up" : "Tap or swipe down";
+  }
+}
+
+function setShapeTradersTradeSheetCollapsed(nextCollapsed) {
+  if (!isShapeTradersTradeSheetMobile()) {
+    shapeTradersTradeSheetCollapsed = false;
+  } else {
+    shapeTradersTradeSheetCollapsed = Boolean(nextCollapsed);
+  }
+  applyShapeTradersTradeSheetState();
+}
+
+function toggleShapeTradersTradeSheet() {
+  if (!isShapeTradersTradeSheetMobile()) {
+    return;
+  }
+  setShapeTradersTradeSheetCollapsed(!shapeTradersTradeSheetCollapsed);
+}
+
 function renderShapeTraders() {
   renderShapeTraderMarket();
   renderShapeTradersBalances();
@@ -4803,6 +4856,7 @@ function startShapeTradersClock() {
 
 async function initializeShapeTraders() {
   bindShapeTraderWindowActivityListeners();
+  applyShapeTradersTradeSheetState();
   if (shapeTradersInitialized) {
     if (!shapeTradersTimerId) {
       startShapeTradersClock();
@@ -4837,6 +4891,7 @@ async function initializeShapeTraders() {
   renderShapeTradersAssetSelector();
   setShapeTraderStatus("Select a shape and quantity to place a trade.");
   await synchronizeShapeTraders();
+  applyShapeTradersTradeSheetState();
   startShapeTradersClock();
 }
 
@@ -12810,6 +12865,10 @@ const shapeTradersQuantityInput = document.getElementById("shape-traders-quantit
 const shapeTradersTradeValueEl = document.getElementById("shape-traders-trade-value");
 const shapeTradersBuyButton = document.getElementById("shape-traders-buy-button");
 const shapeTradersSellButton = document.getElementById("shape-traders-sell-button");
+const shapeTradersTradePanelEl = document.getElementById("shape-traders-trade-panel");
+const shapeTradersTradeToggleButton = document.getElementById("shape-traders-trade-toggle");
+const shapeTradersTradeBodyEl = document.getElementById("shape-traders-trade-body");
+const shapeTradersTradeHintEl = document.querySelector(".shape-traders-trade-sheet-hint");
 const shapeTradersLiquidateButton = document.getElementById("shape-traders-liquidate-nav");
 const shapeTradersMarketResetButton = document.getElementById("shape-traders-market-reset");
 const shapeTradersStatusEl = document.getElementById("shape-traders-status");
@@ -13585,6 +13644,8 @@ let shapeTradersOpenChartAssetId = null;
 let shapeTradersOpenChartSeries = [];
 let shapeTradersChartVisibleCount = 100;
 let shapeTradersChartTouchZoomDistance = null;
+let shapeTradersTradeSheetCollapsed = null;
+let shapeTradersTradeSheetTouchStartY = null;
 let shapeTradersGlobalSnapshot = {
   activeTraderCount: 0,
   marketCapByAsset: createEmptyShapeTraderMarketCap()
@@ -21409,6 +21470,56 @@ if (shapeTradersQuantityInput) {
     markShapeTraderInteraction();
     renderShapeTradersControls();
   });
+}
+
+if (shapeTradersTradeToggleButton) {
+  shapeTradersTradeToggleButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    toggleShapeTradersTradeSheet();
+  });
+}
+
+if (shapeTradersTradePanelEl) {
+  shapeTradersTradePanelEl.addEventListener("click", (event) => {
+    if (!isShapeTradersTradeSheetMobile() || !shapeTradersTradeSheetCollapsed) {
+      return;
+    }
+    if (event.target instanceof Element && event.target.closest(".shape-traders-trade-sheet-toggle")) {
+      return;
+    }
+    setShapeTradersTradeSheetCollapsed(false);
+  });
+
+  shapeTradersTradePanelEl.addEventListener("touchstart", (event) => {
+    if (!isShapeTradersTradeSheetMobile() || event.touches.length !== 1) {
+      shapeTradersTradeSheetTouchStartY = null;
+      return;
+    }
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target?.closest(".shape-traders-trade-bar-heading")) {
+      shapeTradersTradeSheetTouchStartY = null;
+      return;
+    }
+    shapeTradersTradeSheetTouchStartY = event.touches[0].clientY;
+  }, { passive: true });
+
+  shapeTradersTradePanelEl.addEventListener("touchend", (event) => {
+    if (!isShapeTradersTradeSheetMobile() || !Number.isFinite(shapeTradersTradeSheetTouchStartY) || !event.changedTouches.length) {
+      shapeTradersTradeSheetTouchStartY = null;
+      return;
+    }
+    const deltaY = event.changedTouches[0].clientY - shapeTradersTradeSheetTouchStartY;
+    if (deltaY <= -28) {
+      setShapeTradersTradeSheetCollapsed(false);
+    } else if (deltaY >= 36) {
+      setShapeTradersTradeSheetCollapsed(true);
+    }
+    shapeTradersTradeSheetTouchStartY = null;
+  }, { passive: true });
+
+  shapeTradersTradePanelEl.addEventListener("touchcancel", () => {
+    shapeTradersTradeSheetTouchStartY = null;
+  }, { passive: true });
 }
 
 if (shapeTradersBuyButton) {

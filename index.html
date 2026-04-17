@@ -733,7 +733,7 @@
                   </button>
                   <button
                     type="button"
-                    class="secondary shape-traders-header-button"
+                    class="secondary shape-traders-header-button shape-traders-header-back-button"
                     data-route-target="play"
                   >
                     Back to Play
@@ -847,12 +847,27 @@
 
             </div>
 
-            <section class="shape-traders-panel shape-traders-trade-panel shape-traders-trade-bar" aria-labelledby="shape-traders-trade-title">
+            <section
+              id="shape-traders-trade-panel"
+              class="shape-traders-panel shape-traders-trade-panel shape-traders-trade-bar"
+              aria-labelledby="shape-traders-trade-title"
+              data-trade-sheet-state="expanded"
+            >
               <div class="shape-traders-trade-bar-heading">
-                <p class="shape-traders-trade-bar-title" id="shape-traders-trade-title">Trade</p>
+                <button
+                  type="button"
+                  id="shape-traders-trade-toggle"
+                  class="shape-traders-trade-sheet-toggle"
+                  aria-expanded="true"
+                  aria-controls="shape-traders-trade-body"
+                >
+                  <span class="shape-traders-trade-sheet-grabber" aria-hidden="true"></span>
+                  <span class="shape-traders-trade-bar-title" id="shape-traders-trade-title">Trade</span>
+                  <span class="shape-traders-trade-sheet-hint">Tap or swipe up</span>
+                </button>
                 <p id="shape-traders-status" class="shape-traders-status" aria-live="polite">Select a shape and quantity to place a trade.</p>
               </div>
-              <div class="shape-traders-trade-bar-body">
+              <div id="shape-traders-trade-body" class="shape-traders-trade-bar-body">
                 <div class="shape-traders-selector-field">
                   <span>Select Shape</span>
                   <div id="shape-traders-asset-selector" class="shape-traders-asset-selector" role="radiogroup" aria-label="Select asset"></div>
