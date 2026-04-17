@@ -14574,6 +14574,7 @@ let shapeTradersChartVisibleCount = 100;
 let shapeTradersChartTouchZoomDistance = null;
 let shapeTradersTradeSheetCollapsed = null;
 let shapeTradersTradeSheetTouchStartY = null;
+let shapeTradersTradeSheetLastTogglePointerUpAt = 0;
 let shapeTradersActivityHasMore = false;
 let shapeTradersActivityLoadingMore = false;
 let shapeTradersActivityLoadedCount = 0;
@@ -22583,7 +22584,20 @@ if (shapeTradersQuantityIncreaseButton) {
 }
 
 if (shapeTradersTradeToggleButton) {
+  shapeTradersTradeToggleButton.addEventListener("pointerup", (event) => {
+    if (!isShapeTradersTradeSheetMobile()) {
+      return;
+    }
+    event.preventDefault();
+    shapeTradersTradeSheetLastTogglePointerUpAt = Date.now();
+    toggleShapeTradersTradeSheet();
+  });
+
   shapeTradersTradeToggleButton.addEventListener("click", (event) => {
+    if (Date.now() - shapeTradersTradeSheetLastTogglePointerUpAt < 450) {
+      event.preventDefault();
+      return;
+    }
     event.preventDefault();
     toggleShapeTradersTradeSheet();
   });
