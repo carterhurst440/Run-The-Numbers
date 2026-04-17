@@ -4837,6 +4837,8 @@ body[data-app-state="loading"] #app-shell {
   .shape-traders-activity-panel {
     order: 5;
     gap: 0.5rem;
+    max-height: calc(5.75rem + (10 * 2.35rem));
+    overflow: hidden;
   }
 
   .shape-traders-market-grid {
@@ -4906,7 +4908,7 @@ body[data-app-state="loading"] #app-shell {
     grid-template-columns: minmax(96px, 120px) minmax(0, 1fr) minmax(0, 1fr);
     justify-items: stretch;
     gap: 0.8rem;
-    align-items: start;
+    align-items: center;
   }
 
   .shape-traders-card-stack {
@@ -4936,16 +4938,16 @@ body[data-app-state="loading"] #app-shell {
   .shape-traders-activity-list {
     max-width: 100%;
     overflow-x: auto;
-    overflow-y: visible;
+    overflow-y: auto;
   }
 
   .shape-traders-activity-list {
     display: block;
-    height: auto;
+    height: 100%;
     min-height: 0;
-    max-height: none;
-    padding-right: 0;
-    padding-bottom: 0;
+    max-height: calc(2.25rem + (10 * 2.35rem));
+    padding-right: 0.2rem;
+    padding-bottom: 0.2rem;
     margin-top: 0;
   }
 
@@ -12433,6 +12435,23 @@ body.modal-open {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
+}
+
+.admin-game-color-input-row {
+  display: grid;
+  grid-template-columns: 3.2rem minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.admin-game-color-input-row input[type="color"] {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.2rem;
+  border-radius: 0.8rem;
+  border: 1px solid var(--betting-panel-border);
+  background: transparent;
+  cursor: pointer;
 }
 
 .admin-game-upload-row,

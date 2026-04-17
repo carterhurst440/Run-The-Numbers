@@ -123,6 +123,17 @@ function escapeGameAssetField(value) {
     .replaceAll('"', "&quot;");
 }
 
+function getGameAssetPickerColor(value, fallback = "#ffffff") {
+  const normalized = String(value || "").trim();
+  if (/^#(?:[0-9a-fA-F]{6})$/.test(normalized)) {
+    return normalized;
+  }
+  if (/^#(?:[0-9a-fA-F]{3})$/.test(normalized)) {
+    return `#${normalized[1]}${normalized[1]}${normalized[2]}${normalized[2]}${normalized[3]}${normalized[3]}`;
+  }
+  return fallback;
+}
+
 function loadStoredGameAssetLibrary() {
   if (typeof window === "undefined" || !window.localStorage) {
     return {};
@@ -4213,7 +4224,7 @@ function applyShapeTradersTradeSheetState() {
     shapeTradersTradeBodyEl.setAttribute("aria-hidden", isCollapsed ? "true" : "false");
   }
   if (shapeTradersTradeHintEl) {
-    shapeTradersTradeHintEl.textContent = isCollapsed ? "Tap or swipe up" : "Tap or swipe down";
+    shapeTradersTradeHintEl.textContent = isCollapsed ? "Tap to open" : "Tap to close";
   }
 }
 
@@ -8624,11 +8635,17 @@ function renderAdminGameAssetRow(gameKey) {
     <div class="admin-game-style-grid">
       <label class="admin-field">
         <span>Background Color</span>
-        <input type="text" name="cardBackgroundColor" value="${escapeGameAssetField(record.card_background_color || "")}" placeholder="#1d3159 or rgb(...)" />
+        <div class="admin-game-color-input-row">
+          <input type="color" name="cardBackgroundColorPicker" value="${getGameAssetPickerColor(record.card_background_color, "#253b63")}" aria-label="Choose background color" />
+          <input type="text" name="cardBackgroundColor" value="${escapeGameAssetField(record.card_background_color || "")}" placeholder="#1d3159 or rgb(...)" />
+        </div>
       </label>
       <label class="admin-field">
         <span>Game Button Color</span>
-        <input type="text" name="buttonColor" value="${escapeGameAssetField(record.button_color || "")}" placeholder="#ff4f9d or rgb(...)" />
+        <div class="admin-game-color-input-row">
+          <input type="color" name="buttonColorPicker" value="${getGameAssetPickerColor(record.button_color, "#ff4f9d")}" aria-label="Choose game button color" />
+          <input type="text" name="buttonColor" value="${escapeGameAssetField(record.button_color || "")}" placeholder="#ff4f9d or rgb(...)" />
+        </div>
       </label>
     </div>
     <div class="admin-game-upload-row">
@@ -8644,10 +8661,38 @@ function renderAdminGameAssetRow(gameKey) {
   const urlInput = form.querySelector('input[name="logoUrl"]');
   const descriptionInput = form.querySelector('textarea[name="cardDescription"]');
   const backgroundColorInput = form.querySelector('input[name="cardBackgroundColor"]');
+  const backgroundColorPicker = form.querySelector('input[name="cardBackgroundColorPicker"]');
   const buttonColorInput = form.querySelector('input[name="buttonColor"]');
+  const buttonColorPicker = form.querySelector('input[name="buttonColorPicker"]');
   const fileInput = form.querySelector('input[name="logoFile"]');
   const uploadButton = form.querySelector(`[data-admin-game-upload="${gameKey}"]`);
   const resetButton = form.querySelector(`[data-admin-game-reset="${gameKey}"]`);
+
+  backgroundColorPicker?.addEventListener("input", () => {
+    if (backgroundColorInput) {
+      backgroundColorInput.value = backgroundColorPicker.value;
+    }
+  });
+
+  buttonColorPicker?.addEventListener("input", () => {
+    if (buttonColorInput) {
+      buttonColorInput.value = buttonColorPicker.value;
+    }
+  });
+
+  backgroundColorInput?.addEventListener("input", () => {
+    const normalized = String(backgroundColorInput.value || "").trim();
+    if (/^#(?:[0-9a-fA-F]{6})$/.test(normalized) && backgroundColorPicker) {
+      backgroundColorPicker.value = normalized;
+    }
+  });
+
+  buttonColorInput?.addEventListener("input", () => {
+    const normalized = String(buttonColorInput.value || "").trim();
+    if (/^#(?:[0-9a-fA-F]{6})$/.test(normalized) && buttonColorPicker) {
+      buttonColorPicker.value = normalized;
+    }
+  });
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
