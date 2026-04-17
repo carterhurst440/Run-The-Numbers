@@ -5079,7 +5079,7 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .shape-traders-trade-bar.is-collapsed {
-    transform: translateY(calc(100% - 3.25rem - env(safe-area-inset-bottom)));
+    transform: translateY(calc(100% - 3.8rem - env(safe-area-inset-bottom)));
   }
 
   .shape-traders-trade-bar.is-collapsed .shape-traders-status,

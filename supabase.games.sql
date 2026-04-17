@@ -88,3 +88,20 @@ create trigger games_set_updated_at
 before update on public.games
 for each row
 execute function public.set_updated_at_timestamp();
+
+alter table public.games enable row level security;
+
+drop policy if exists "Authenticated users can view games" on public.games;
+create policy "Authenticated users can view games"
+on public.games
+for select
+to authenticated
+using (true);
+
+drop policy if exists "Admin can manage games" on public.games;
+create policy "Admin can manage games"
+on public.games
+for all
+to authenticated
+using ((auth.jwt() ->> 'email') = 'carterwarrenhurst@gmail.com')
+with check ((auth.jwt() ->> 'email') = 'carterwarrenhurst@gmail.com');
