@@ -12,12 +12,16 @@ let authBootstrapFallbackShown = false;
 
 const GAME_KEYS = {
   RUN_THE_NUMBERS: "game_001",
-  GUESS_10: "game_002"
+  GUESS_10: "game_002",
+  SHAPE_TRADERS: "game_003"
 };
+
+const CONTEST_GAME_KEYS = [GAME_KEYS.RUN_THE_NUMBERS, GAME_KEYS.GUESS_10];
 
 const GAME_LABELS = {
   [GAME_KEYS.RUN_THE_NUMBERS]: "Run the Numbers",
-  [GAME_KEYS.GUESS_10]: "Guess 10"
+  [GAME_KEYS.GUESS_10]: "Guess 10",
+  [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders"
 };
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -39,6 +43,14 @@ function normalizeGameKey(value) {
     normalized === "guess10"
   ) {
     return GAME_KEYS.GUESS_10;
+  }
+  if (
+    normalized === GAME_KEYS.SHAPE_TRADERS ||
+    normalized === "shape-traders" ||
+    normalized === "shape_traders" ||
+    normalized === "shapetraders"
+  ) {
+    return GAME_KEYS.SHAPE_TRADERS;
   }
   return null;
 }
@@ -66,7 +78,7 @@ function normalizeContestAllowedGameIds(value) {
   const normalized = values
     .map((entry) => normalizeGameKey(entry))
     .filter(Boolean);
-  return normalized.length ? Array.from(new Set(normalized)) : Object.values(GAME_KEYS);
+  return normalized.length ? Array.from(new Set(normalized)) : [...CONTEST_GAME_KEYS];
 }
 
 function contestAllowsGame(contest, gameKey) {
@@ -76,7 +88,7 @@ function contestAllowsGame(contest, gameKey) {
 
 function getContestGamesLabel(contest) {
   const allowed = normalizeContestAllowedGameIds(contest?.allowed_game_ids);
-  if (allowed.length === Object.values(GAME_KEYS).length) {
+  if (allowed.length === CONTEST_GAME_KEYS.length) {
     return "All games";
   }
   return allowed.map((gameId) => getGameLabel(gameId)).join(" • ");
@@ -85,6 +97,7 @@ function getContestGamesLabel(contest) {
 function getGameKeyForRoute(route) {
   if (route === "run-the-numbers") return GAME_KEYS.RUN_THE_NUMBERS;
   if (route === "red-black") return GAME_KEYS.GUESS_10;
+  if (route === "shape-traders") return GAME_KEYS.SHAPE_TRADERS;
   return null;
 }
 
@@ -433,12 +446,14 @@ function safeNumber(value, fallback = 0) {
 }
 
 function normalizeThemePalette(palette = {}) {
+  const resolvedPrimaryButton = String(palette.primaryButton || DEFAULT_CUSTOM_THEME_PALETTE.primaryButton);
   return {
     accent: String(palette.accent || DEFAULT_CUSTOM_THEME_PALETTE.accent),
     accentSecondary: String(palette.accentSecondary || DEFAULT_CUSTOM_THEME_PALETTE.accentSecondary),
     accentTertiary: String(palette.accentTertiary || DEFAULT_CUSTOM_THEME_PALETTE.accentTertiary),
     heroButton: String(palette.heroButton || DEFAULT_CUSTOM_THEME_PALETTE.heroButton),
-    primaryButton: String(palette.primaryButton || DEFAULT_CUSTOM_THEME_PALETTE.primaryButton),
+    primaryButton: resolvedPrimaryButton,
+    actionColor: String(palette.actionColor || resolvedPrimaryButton || DEFAULT_CUSTOM_THEME_PALETTE.actionColor),
     primaryButtonDisabled: String(palette.primaryButtonDisabled || DEFAULT_CUSTOM_THEME_PALETTE.primaryButtonDisabled),
     secondaryButton: String(palette.secondaryButton || DEFAULT_CUSTOM_THEME_PALETTE.secondaryButton),
     secondaryButtonDisabled: String(
@@ -551,23 +566,79 @@ async function loadThemeLibrary(force = false) {
   return themeLibraryCache;
 }
 
-function hexToRgb(hex) {
-  const value = String(hex || "").replace("#", "").trim();
-  if (![3, 6].includes(value.length)) return null;
-  const expanded = value.length === 3 ? value.split("").map((part) => `${part}${part}`).join("") : value;
-  const numeric = Number.parseInt(expanded, 16);
-  if (!Number.isFinite(numeric)) return null;
+function parseCssColor(color) {
+  const value = String(color || "").trim();
+  if (!value) return null;
+
+  if (value.startsWith("#")) {
+    const hex = value.slice(1);
+    if (![3, 4, 6, 8].includes(hex.length)) return null;
+    const expanded = hex.length <= 4
+      ? hex.split("").map((part) => `${part}${part}`).join("")
+      : hex;
+    const hasAlpha = expanded.length === 8;
+    const numeric = Number.parseInt(expanded, 16);
+    if (!Number.isFinite(numeric)) return null;
+    return {
+      r: hasAlpha ? (numeric >> 24) & 255 : (numeric >> 16) & 255,
+      g: hasAlpha ? (numeric >> 16) & 255 : (numeric >> 8) & 255,
+      b: hasAlpha ? (numeric >> 8) & 255 : numeric & 255,
+      a: hasAlpha ? Math.round(((numeric & 255) / 255) * 1000) / 1000 : 1
+    };
+  }
+
+  const rgbMatch = value.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/i);
+  if (!rgbMatch) return null;
   return {
-    r: (numeric >> 16) & 255,
-    g: (numeric >> 8) & 255,
-    b: numeric & 255
+    r: Math.max(0, Math.min(255, Math.round(Number(rgbMatch[1]) || 0))),
+    g: Math.max(0, Math.min(255, Math.round(Number(rgbMatch[2]) || 0))),
+    b: Math.max(0, Math.min(255, Math.round(Number(rgbMatch[3]) || 0))),
+    a: Math.max(0, Math.min(1, Number(rgbMatch[4]) || 1))
   };
 }
 
+function hexToRgb(hex) {
+  const parsed = parseCssColor(hex);
+  if (!parsed) return null;
+  return {
+    r: parsed.r,
+    g: parsed.g,
+    b: parsed.b
+  };
+}
+
+function toHexChannel(value) {
+  return Math.max(0, Math.min(255, Math.round(Number(value) || 0))).toString(16).padStart(2, "0");
+}
+
+function getOpaqueHexColor(color, fallback = "#000000") {
+  const parsed = parseCssColor(color);
+  if (!parsed) return fallback;
+  return `#${toHexChannel(parsed.r)}${toHexChannel(parsed.g)}${toHexChannel(parsed.b)}`;
+}
+
+function getColorAlphaPercent(color, fallback = 100) {
+  const parsed = parseCssColor(color);
+  if (!parsed) return fallback;
+  return Math.max(0, Math.min(100, Math.round((parsed.a ?? 1) * 100)));
+}
+
+function applyAlphaToColor(color, alphaPercent = 100) {
+  const parsed = parseCssColor(color);
+  if (!parsed) return color;
+  const normalizedAlpha = Math.max(0, Math.min(1, (Number(alphaPercent) || 0) / 100));
+  if (normalizedAlpha >= 0.999) {
+    return `#${toHexChannel(parsed.r)}${toHexChannel(parsed.g)}${toHexChannel(parsed.b)}`;
+  }
+  return `rgba(${parsed.r}, ${parsed.g}, ${parsed.b}, ${normalizedAlpha.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")})`;
+}
+
 function rgba(hex, alpha = 1) {
-  const rgb = hexToRgb(hex);
-  if (!rgb) return hex;
-  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${Math.max(0, Math.min(1, Number(alpha)) || 0)})`;
+  const parsed = parseCssColor(hex);
+  if (!parsed) return hex;
+  const baseAlpha = parsed.a ?? 1;
+  const nextAlpha = Math.max(0, Math.min(1, (Number(alpha) || 0) * baseAlpha));
+  return `rgba(${parsed.r}, ${parsed.g}, ${parsed.b}, ${nextAlpha})`;
 }
 
 function colorMix(color, amount = 0.5, fallback = "#000000") {
@@ -653,6 +724,7 @@ function getThemeCssVariables(theme) {
     ? rgba(colorMix(palette.panelStart, 0.1, "#000000"), 0.94)
     : `linear-gradient(135deg, ${rgba(palette.panelStart, 0.92)}, ${rgba(palette.panelEnd, 0.94)})`;
   return {
+    "--accent": palette.accent,
     "--neon-cyan": palette.accent,
     "--neon-magenta": palette.accentSecondary,
     "--neon-violet": palette.accentTertiary,
@@ -751,6 +823,7 @@ function getThemeCssVariables(theme) {
     "--secondary-button-shadow": `0 12px 28px ${rgba(colorMix(palette.secondaryButton, 0.28, "#000000"), 0.24)}`,
     "--secondary-button-shadow-hover": `0 14px 26px ${rgba(colorMix(palette.secondaryButton, 0.34, "#000000"), 0.3)}`,
     "--secondary-button-text": "#f7fbff",
+    "--theme-action-color": palette.actionColor,
     "--secondary-button-disabled-bg": secondaryButtonDisabledSurface,
     "--secondary-button-disabled-border": rgba(colorMix(palette.secondaryButtonDisabled, 0.22, "#ffffff"), 0.78),
     "--secondary-button-disabled-shadow": `0 10px 22px ${rgba(colorMix(palette.secondaryButtonDisabled, 0.18, "#000000"), 0.16)}`,
@@ -762,6 +835,8 @@ function getThemeCssVariables(theme) {
     "--assistant-fab-shadow-hover": `0 24px 42px ${rgba("#000000", 0.48)}, 0 0 30px ${rgba(palette.accent, 0.22 + glow * 0.1)}`,
     "--assistant-panel-flat-bg": rgba(palette.panelStart, 0.98),
     "--assistant-response-bg": rgba(palette.panelEnd, 0.96),
+    "--panel-start": palette.panelStart,
+    "--panel-end": palette.panelEnd,
     "--hero-button-bg": heroButtonSurface,
     "--hero-button-border": colorMix(palette.heroButton, 0.34, "#ffffff"),
     "--hero-button-shadow": `0 18px 36px ${rgba(colorMix(palette.heroButton, 0.34, "#000000"), 0.34)}, 0 0 0 1px ${rgba("#ffffff", 0.08)}, 0 0 28px ${rgba(palette.heroButton, 0.22 + glow * 0.08)}`,
@@ -1161,6 +1236,7 @@ function getThemeFormState() {
       accentTertiary: formData.get("accentTertiaryColor"),
       heroButton: formData.get("heroButtonColor"),
       primaryButton: formData.get("primaryButtonColor"),
+      actionColor: formData.get("actionColor"),
       primaryButtonDisabled: formData.get("primaryButtonDisabledColor"),
       secondaryButton: formData.get("secondaryButtonColor"),
       secondaryButtonDisabled: formData.get("secondaryButtonDisabledColor"),
@@ -1693,26 +1769,27 @@ function resetAdminThemeForm(theme = null) {
   setValue("themeKey", theme?.key || "");
   populateAdminThemeBaseOptions(record.base_theme || "blue");
   setValue("baseTheme", record.base_theme || "blue");
-  setValue("accentColor", record.palette.accent);
-  setValue("accentSecondaryColor", record.palette.accentSecondary);
-  setValue("accentTertiaryColor", record.palette.accentTertiary);
-  setValue("heroButtonColor", record.palette.heroButton);
-  setValue("primaryButtonColor", record.palette.primaryButton);
-  setValue("primaryButtonDisabledColor", record.palette.primaryButtonDisabled);
-  setValue("secondaryButtonColor", record.palette.secondaryButton);
-  setValue("secondaryButtonDisabledColor", record.palette.secondaryButtonDisabled);
-  setValue("progressStartColor", record.palette.progressStart);
-  setValue("progressEndColor", record.palette.progressEnd);
-  setValue("goldColor", record.palette.gold);
-  setValue("mutedColor", record.palette.muted);
-  setValue("successColor", record.palette.success);
-  setValue("dangerColor", record.palette.danger);
-  setValue("bgStartColor", record.palette.bgStart);
-  setValue("bgEndColor", record.palette.bgEnd);
-  setValue("panelStartColor", record.palette.panelStart);
-  setValue("panelEndColor", record.palette.panelEnd);
-  setValue("headerStartColor", record.palette.headerStart);
-  setValue("headerEndColor", record.palette.headerEnd);
+  setValue("accentColor", getOpaqueHexColor(record.palette.accent));
+  setValue("accentSecondaryColor", getOpaqueHexColor(record.palette.accentSecondary));
+  setValue("accentTertiaryColor", getOpaqueHexColor(record.palette.accentTertiary));
+  setValue("heroButtonColor", getOpaqueHexColor(record.palette.heroButton));
+  setValue("primaryButtonColor", getOpaqueHexColor(record.palette.primaryButton));
+  setValue("actionColor", getOpaqueHexColor(record.palette.actionColor));
+  setValue("primaryButtonDisabledColor", getOpaqueHexColor(record.palette.primaryButtonDisabled));
+  setValue("secondaryButtonColor", getOpaqueHexColor(record.palette.secondaryButton));
+  setValue("secondaryButtonDisabledColor", getOpaqueHexColor(record.palette.secondaryButtonDisabled));
+  setValue("progressStartColor", getOpaqueHexColor(record.palette.progressStart));
+  setValue("progressEndColor", getOpaqueHexColor(record.palette.progressEnd));
+  setValue("goldColor", getOpaqueHexColor(record.palette.gold));
+  setValue("mutedColor", getOpaqueHexColor(record.palette.muted));
+  setValue("successColor", getOpaqueHexColor(record.palette.success));
+  setValue("dangerColor", getOpaqueHexColor(record.palette.danger));
+  setValue("bgStartColor", getOpaqueHexColor(record.palette.bgStart));
+  setValue("bgEndColor", getOpaqueHexColor(record.palette.bgEnd));
+  setValue("panelStartColor", getOpaqueHexColor(record.palette.panelStart));
+  setValue("panelEndColor", getOpaqueHexColor(record.palette.panelEnd));
+  setValue("headerStartColor", getOpaqueHexColor(record.palette.headerStart));
+  setValue("headerEndColor", getOpaqueHexColor(record.palette.headerEnd));
   setValue("glowStrength", String(record.settings.glowStrength));
   setValue("surfaceContrast", String(record.settings.surfaceContrast));
   setValue("radiusScale", String(record.settings.radiusScale));
@@ -2239,6 +2316,2530 @@ function renderAdminRankRow(rank, players = []) {
   return item;
 }
 
+function createEmptyShapeTraderHoldings() {
+  return SHAPE_TRADERS_ASSETS.reduce((accumulator, asset) => {
+    accumulator[asset.id] = {
+      quantity: 0,
+      averagePrice: 0
+    };
+    return accumulator;
+  }, {});
+}
+
+function createInitialShapeTraderPrices() {
+  return SHAPE_TRADERS_ASSETS.reduce((accumulator, asset) => {
+    accumulator[asset.id] = SHAPE_TRADERS_START_PRICE;
+    return accumulator;
+  }, {});
+}
+
+function createEmptyShapeTraderMarketCap() {
+  return SHAPE_TRADERS_ASSETS.reduce((accumulator, asset) => {
+    accumulator[asset.id] = 0;
+    return accumulator;
+  }, {});
+}
+
+function createInitialShapeTraderMarketCurrentRows() {
+  return SHAPE_TRADERS_ASSETS.map((asset) => ({
+    shape: asset.id,
+    game_id: GAME_KEYS.SHAPE_TRADERS,
+    current_price: SHAPE_TRADERS_START_PRICE,
+    last_draw_id: null,
+    last_window_index: null,
+    last_sequence_in_window: null,
+    last_card_label: null,
+    last_percentage: null,
+    last_event_type: null,
+    bankruptcy_triggered: false,
+    updated_at: new Date().toISOString()
+  }));
+}
+
+function createShapeTraderPriceHistoryRows(drawRow, transitions = []) {
+  if (!drawRow || !Array.isArray(transitions) || !transitions.length) {
+    return [];
+  }
+
+  return transitions.map((transition) => ({
+    draw_id: Number(drawRow.draw_id),
+    game_id: GAME_KEYS.SHAPE_TRADERS,
+    shape: transition.assetId,
+    recorded_at: drawRow.drawn_at,
+    previous_price: roundCurrencyValue(Number(transition.previousPrice || 0)),
+    percentage_applied: Number(transition.percentageApplied || 0),
+    new_price: roundCurrencyValue(Number(transition.newPrice || 0)),
+    event_type: drawRow.card_kind === "macro" ? "macro_card" : "asset_card",
+    split_triggered: Boolean(transition.splitTriggered),
+    bankruptcy_triggered: Boolean(transition.bankruptcyTriggered)
+  }));
+}
+
+function createShapeTraderMarketCurrentRows(drawRow, transitions = [], { eventTypeOverride = null } = {}) {
+  if (!Array.isArray(transitions) || !transitions.length) {
+    return [];
+  }
+
+  const eventType = eventTypeOverride || (drawRow?.card_kind === "macro" ? "macro_card" : "asset_card");
+  return transitions.map((transition) => ({
+    shape: transition.assetId,
+    game_id: GAME_KEYS.SHAPE_TRADERS,
+    current_price: roundCurrencyValue(Number(transition.newPrice || SHAPE_TRADERS_START_PRICE)),
+    last_draw_id: drawRow?.draw_id === undefined || drawRow?.draw_id === null ? null : Number(drawRow.draw_id),
+    last_window_index:
+      drawRow?.window_index === undefined || drawRow?.window_index === null ? null : Math.floor(Number(drawRow.window_index || 0)),
+    last_sequence_in_window:
+      drawRow?.sequence_in_window === undefined || drawRow?.sequence_in_window === null ? null : Math.floor(Number(drawRow.sequence_in_window || 1)),
+    last_card_label: drawRow?.card_label || null,
+    last_percentage:
+      drawRow?.percentage === undefined || drawRow?.percentage === null ? null : Number(drawRow.percentage || 0),
+    last_event_type: eventType,
+    bankruptcy_triggered: Boolean(transition.bankruptcyTriggered),
+    updated_at: drawRow?.drawn_at || new Date().toISOString()
+  }));
+}
+
+function buildShapeTraderDeck() {
+  const assetCards = SHAPE_TRADERS_ASSETS.flatMap((asset) =>
+    SHAPE_TRADERS_MOVEMENTS.map((percentage) => ({
+      kind: "asset",
+      assetId: asset.id,
+      assetLabel: asset.label,
+      percentage,
+      label: `${asset.label} ${percentage > 0 ? "+" : ""}${percentage}%`
+    }))
+  );
+  return [...assetCards, ...SHAPE_TRADERS_MACRO_CARDS];
+}
+
+function hashShapeTraderSeed(input) {
+  let hash = 1779033703 ^ String(input || "").length;
+  for (let index = 0; index < String(input || "").length; index += 1) {
+    hash = Math.imul(hash ^ String(input).charCodeAt(index), 3432918353);
+    hash = (hash << 13) | (hash >>> 19);
+  }
+  return () => {
+    hash = Math.imul(hash ^ (hash >>> 16), 2246822507);
+    hash = Math.imul(hash ^ (hash >>> 13), 3266489909);
+    hash ^= hash >>> 16;
+    return hash >>> 0;
+  };
+}
+
+function shapeTraderRandom(seed) {
+  let value = hashShapeTraderSeed(seed)();
+  return () => {
+    value += 0x6d2b79f5;
+    let result = Math.imul(value ^ (value >>> 15), 1 | value);
+    result ^= result + Math.imul(result ^ (result >>> 7), 61 | result);
+    return ((result ^ (result >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffleShapeTraderDeck(seed) {
+  const deck = buildShapeTraderDeck().map((card) => ({ ...card }));
+  const random = shapeTraderRandom(seed);
+  for (let index = deck.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [deck[index], deck[swapIndex]] = [deck[swapIndex], deck[index]];
+  }
+  return deck;
+}
+
+function getShapeTraderTimelineEpochMs() {
+  return shapeTradersTimelineEpochMs || SHAPE_TRADERS_EPOCH_MS;
+}
+
+function isShapeTraderDataDumpWindow(windowIndex) {
+  return (Math.max(0, Math.floor(Number(windowIndex) || 0)) + 1) % 10 === 0;
+}
+
+function getShapeTraderDumpRevealExtensionMs() {
+  return SHAPE_TRADERS_DUMP_ACTIVE_MS - SHAPE_TRADERS_DRAW_INTERVAL_MS;
+}
+
+function getShapeTraderCompletedDumpCountBeforeWindow(windowIndex) {
+  const safeWindowIndex = Math.max(0, Math.floor(Number(windowIndex) || 0));
+  if (safeWindowIndex <= 0) return 0;
+  return Math.floor(safeWindowIndex / 10);
+}
+
+function getShapeTraderWindowStartMs(windowIndex) {
+  const safeWindowIndex = Math.max(0, Math.floor(Number(windowIndex) || 0));
+  return getShapeTraderTimelineEpochMs()
+    + safeWindowIndex * SHAPE_TRADERS_DRAW_INTERVAL_MS
+    + getShapeTraderCompletedDumpCountBeforeWindow(safeWindowIndex) * getShapeTraderDumpRevealExtensionMs();
+}
+
+function getShapeTraderWindowEndMs(windowIndex) {
+  const safeWindowIndex = Math.max(0, Math.floor(Number(windowIndex) || 0));
+  const baseDuration = SHAPE_TRADERS_DRAW_INTERVAL_MS;
+  const dumpExtension = isShapeTraderDataDumpWindow(safeWindowIndex) ? getShapeTraderDumpRevealExtensionMs() : 0;
+  return getShapeTraderWindowStartMs(safeWindowIndex) + baseDuration + dumpExtension;
+}
+
+function getShapeTraderWindowState(windowIndex, now = Date.now()) {
+  const epochMs = getShapeTraderTimelineEpochMs();
+  const numericWindowIndex = Math.floor(Number(windowIndex));
+  const safeWindowIndex = Number.isFinite(numericWindowIndex) ? numericWindowIndex : 0;
+  if (safeWindowIndex < 0 || now < epochMs) {
+    return {
+      windowIndex: -1,
+      isDataDump: false,
+      cards: [],
+      visibleCount: 0,
+      tradeLocked: false,
+      currentCard: null,
+      elapsedInWindow: 0,
+      timeRemainingMs: Math.max(0, epochMs - now)
+    };
+  }
+  const windowStart = getShapeTraderWindowStartMs(safeWindowIndex);
+  const elapsedInWindow = Math.max(0, now - windowStart);
+  const isDataDump = isShapeTraderDataDumpWindow(safeWindowIndex);
+  const deck = shuffleShapeTraderDeck(`shape-traders:${safeWindowIndex}`);
+  const cards = isDataDump
+    ? deck.slice(0, SHAPE_TRADERS_DUMP_CARDS)
+    : deck.slice(0, 1);
+  const visibleCount = isDataDump
+    ? Math.min(cards.length, Math.max(0, Math.floor(elapsedInWindow / SHAPE_TRADERS_DUMP_CARD_INTERVAL_MS) + 1))
+    : cards.length;
+  const tradeLocked = isDataDump
+    ? elapsedInWindow < SHAPE_TRADERS_DUMP_ACTIVE_MS
+    : elapsedInWindow < SHAPE_TRADERS_SINGLE_DRAW_LOCK_MS;
+  const currentCard = visibleCount > 0 ? cards[Math.min(visibleCount - 1, cards.length - 1)] : null;
+  const timeRemainingMs = isDataDump && tradeLocked
+    ? Math.max(0, SHAPE_TRADERS_DUMP_CARD_INTERVAL_MS - (elapsedInWindow % SHAPE_TRADERS_DUMP_CARD_INTERVAL_MS || 0))
+    : Math.max(0, getShapeTraderWindowEndMs(safeWindowIndex) - now);
+
+  return {
+    windowIndex: safeWindowIndex,
+    isDataDump,
+    cards,
+    visibleCount,
+    tradeLocked,
+    currentCard,
+    elapsedInWindow,
+    timeRemainingMs
+  };
+}
+
+function getShapeTraderDrawId(windowIndex, sequenceInWindow = 1) {
+  const safeWindowIndex = Math.max(0, Math.floor(Number(windowIndex) || 0));
+  const safeSequence = Math.max(1, Math.floor(Number(sequenceInWindow) || 1));
+  return safeWindowIndex * 10 + safeSequence;
+}
+
+function getShapeTraderCardForDraw(windowIndex, sequenceInWindow = 1) {
+  const windowState = getShapeTraderWindowState(windowIndex);
+  const safeSequence = Math.max(1, Math.floor(Number(sequenceInWindow) || 1));
+  return windowState.cards[safeSequence - 1] || null;
+}
+
+function buildShapeTraderDrawRow(windowIndex, sequenceInWindow = 1) {
+  const card = getShapeTraderCardForDraw(windowIndex, sequenceInWindow);
+  if (!card) return null;
+  const safeWindowIndex = Math.max(0, Math.floor(Number(windowIndex) || 0));
+  const safeSequence = Math.max(1, Math.floor(Number(sequenceInWindow) || 1));
+  const windowStart = getShapeTraderWindowStartMs(safeWindowIndex);
+  const sequenceOffsetMs = isShapeTraderDataDumpWindow(safeWindowIndex)
+    ? (safeSequence - 1) * SHAPE_TRADERS_DUMP_CARD_INTERVAL_MS
+    : 0;
+  return {
+    draw_id: getShapeTraderDrawId(safeWindowIndex, safeSequence),
+    game_id: GAME_KEYS.SHAPE_TRADERS,
+    window_index: safeWindowIndex,
+    sequence_in_window: safeSequence,
+    is_data_dump: isShapeTraderDataDumpWindow(safeWindowIndex),
+    card_kind: card.kind,
+    shape: card.assetId,
+    percentage: Number(card.percentage || 0),
+    card_label: card.label,
+    drawn_at: new Date(windowStart + sequenceOffsetMs).toISOString()
+  };
+}
+
+function getShapeTraderTimelineEpochFromRow(row) {
+  if (!row?.drawn_at) return SHAPE_TRADERS_EPOCH_MS;
+  const windowIndex = Math.max(0, Math.floor(Number(row.window_index || 0)));
+  const sequenceInWindow = Math.max(1, Math.floor(Number(row.sequence_in_window || 1)));
+  const sequenceOffsetMs = row.is_data_dump
+    ? (sequenceInWindow - 1) * SHAPE_TRADERS_DUMP_CARD_INTERVAL_MS
+    : 0;
+  const drawnAtMs = Date.parse(row.drawn_at);
+  if (!Number.isFinite(drawnAtMs)) return SHAPE_TRADERS_EPOCH_MS;
+  return drawnAtMs
+    - (windowIndex * SHAPE_TRADERS_DRAW_INTERVAL_MS)
+    - (getShapeTraderCompletedDumpCountBeforeWindow(windowIndex) * getShapeTraderDumpRevealExtensionMs())
+    - sequenceOffsetMs;
+}
+
+function mapShapeTraderDrawRowToCard(row) {
+  if (!row) return null;
+  return {
+    kind: row.card_kind,
+    assetId: row.shape || null,
+    assetLabel: row.shape ? getShapeTraderAssetConfig(row.shape).label : null,
+    percentage: Number(row.percentage || 0),
+    label: row.card_label
+  };
+}
+
+function getShapeTraderCurrentWindowIndex(now = Date.now()) {
+  const epochMs = getShapeTraderTimelineEpochMs();
+  if (now < epochMs) {
+    return -1;
+  }
+
+  let windowIndex = 0;
+  while (now >= getShapeTraderWindowEndMs(windowIndex)) {
+    windowIndex += 1;
+    if (windowIndex > 100000) {
+      break;
+    }
+  }
+  return windowIndex;
+}
+
+function formatShapeTraderCard(card) {
+  if (!card) return "Waiting…";
+  return card.label;
+}
+
+function getShapeTraderCardTone(card) {
+  if (!card) return "neutral";
+  return Number(card.percentage || 0) >= 0 ? "positive" : "negative";
+}
+
+function getShapeTraderCardMovementLabel(card) {
+  if (!card) return "WAIT";
+  const percentage = Number(card.percentage || 0);
+  return `${percentage >= 0 ? "+" : ""}${percentage}%`;
+}
+
+function getShapeTraderCardMetaLabel(card) {
+  if (!card) return "Awaiting next draw";
+  if (card.kind === "macro") {
+    return card.label.replace(/\s*[+-]?\d+%$/, "").trim() || "Macro";
+  }
+  return card.assetLabel || getShapeTraderAssetConfig(card.assetId).label;
+}
+
+function getShapeTraderCardHeadline(card, windowIndex = 0) {
+  if (!card) {
+    return "Waiting on the next market signal.";
+  }
+
+  if (card.kind === "macro") {
+    const positiveMacroHeadlines = [
+      "Risk appetite is back across the market.",
+      "A broad relief rally is lifting all shapes.",
+      "Macro tailwinds are pushing the whole board higher.",
+      "Buyers are stepping in across every desk."
+    ];
+    const negativeMacroHeadlines = [
+      "Markets are in turmoil after a fresh supply shock.",
+      "Macro pressure is dragging the whole board lower.",
+      "Risk is coming off fast across the market.",
+      "A market-wide flush just hit every shape."
+    ];
+    const headlines = Number(card.percentage || 0) >= 0 ? positiveMacroHeadlines : negativeMacroHeadlines;
+    return headlines[Math.abs(Math.floor(windowIndex)) % headlines.length];
+  }
+
+  const asset = getShapeTraderAssetConfig(card.assetId);
+  const positiveAssetHeadlines = {
+    square: [
+      "Blockbuster earnings report for Square.",
+      "Square is hot right now.",
+      "Momentum keeps building behind Square.",
+      "Traders are piling into Square."
+    ],
+    triangle: [
+      "Big move for Triangle.",
+      "Triangle is catching a strong bid.",
+      "Triangle is running hot right now.",
+      "Triangle bulls are pressing the trade."
+    ],
+    circle: [
+      "Circle is hot right now.",
+      "Circle is seeing heavy upside momentum.",
+      "Circle buyers are taking control.",
+      "A fresh breakout is forming in Circle."
+    ]
+  };
+  const negativeAssetHeadlines = {
+    square: [
+      "Square just got hit with a rough outlook.",
+      "Sellers are leaning hard on Square.",
+      "Square is taking a sharp leg lower.",
+      "A risk-off wave just smacked Square."
+    ],
+    triangle: [
+      "Triangle just took a heavy hit.",
+      "Triangle is under pressure right now.",
+      "A sharp reversal just clipped Triangle.",
+      "Triangle traders are bailing fast."
+    ],
+    circle: [
+      "Circle just lost momentum in a hurry.",
+      "Circle is under serious pressure.",
+      "A fast selloff just hit Circle.",
+      "Circle traders are heading for the exits."
+    ]
+  };
+  const headlineSet = Number(card.percentage || 0) >= 0 ? positiveAssetHeadlines : negativeAssetHeadlines;
+  const headlines = headlineSet[asset.id] || [`${asset.label} is moving.`];
+  return headlines[Math.abs(Math.floor(windowIndex)) % headlines.length];
+}
+
+function buildShapeTraderCardSymbolsMarkup(card) {
+  if (!card) {
+    return '<span class="shape-traders-card-symbol-stack is-empty">--</span>';
+  }
+
+  if (card.kind === "macro") {
+    return `
+      <div class="shape-traders-card-symbol-group is-macro" aria-hidden="true">
+        <span class="shape-traders-shape-icon shape-square"></span>
+        <span class="shape-traders-shape-icon shape-triangle"></span>
+        <span class="shape-traders-shape-icon shape-circle"></span>
+      </div>
+    `;
+  }
+
+  const asset = getShapeTraderAssetConfig(card.assetId);
+  return `
+    <div class="shape-traders-card-symbol-group" aria-hidden="true">
+      <span class="shape-traders-shape-icon shape-${asset.icon}"></span>
+    </div>
+  `;
+}
+
+function buildShapeTraderDeckCardMarkup(card, { muted = false } = {}) {
+  const tone = getShapeTraderCardTone(card);
+  const cardClasses = [
+    "shape-traders-draw-card-face",
+    `is-${tone}`,
+    muted ? "is-muted" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const movementLabel = getShapeTraderCardMovementLabel(card);
+  const metaLabel = getShapeTraderCardMetaLabel(card);
+  return `
+    <div class="${cardClasses}">
+      <div class="shape-traders-draw-card-center">
+        <div class="shape-traders-draw-card-value">${escapeAssistantHtml(movementLabel)}</div>
+        ${buildShapeTraderCardSymbolsMarkup(card)}
+        <div class="shape-traders-draw-card-title">${escapeAssistantHtml(metaLabel)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderShapeTraderDeckCard(target, card, { muted = false, flip = false, drawKey = "waiting" } = {}) {
+  if (!target) return;
+  const nextMarkup = buildShapeTraderDeckCardMarkup(card, { muted });
+  if (target.dataset.drawKey === String(drawKey) && target.dataset.muted === String(Boolean(muted))) {
+    return;
+  }
+  target.dataset.drawKey = String(drawKey);
+  target.dataset.muted = String(Boolean(muted));
+  target.innerHTML = nextMarkup;
+  if (flip) {
+    target.classList.remove("is-flipping");
+    void target.offsetWidth;
+    target.classList.add("is-flipping");
+  }
+}
+
+function getShapeTraderAssetConfig(assetId) {
+  return SHAPE_TRADERS_ASSETS.find((asset) => asset.id === assetId) || SHAPE_TRADERS_ASSETS[0];
+}
+
+function shapeTraderPriceImpact(price, percentage) {
+  return roundCurrencyValue(price * (1 + percentage / 100));
+}
+
+function getShapeTraderHoldingsValue() {
+  return SHAPE_TRADERS_ASSETS.reduce((sum, asset) => {
+    const holding = shapeTradersHoldings[asset.id];
+    const currentPrice = Number(shapeTradersCurrentPrices[asset.id] || 0);
+    return sum + (holding?.quantity || 0) * currentPrice;
+  }, 0);
+}
+
+function getShapeTraderAccountValue() {
+  return roundCurrencyValue(bankroll + getShapeTraderHoldingsValue());
+}
+
+function getShapeTraderOpenQuantity() {
+  return SHAPE_TRADERS_ASSETS.reduce(
+    (sum, asset) => sum + Number(shapeTradersHoldings[asset.id]?.quantity || 0),
+    0
+  );
+}
+
+function shapeTradersHasOpenHoldings() {
+  return getShapeTraderOpenQuantity() > 0;
+}
+
+function setShapeTraderStatus(message) {
+  if (shapeTradersStatusEl) {
+    shapeTradersStatusEl.textContent = message;
+  }
+}
+
+function setShapeTraderResetProgress(message, { buttonLabel = "RESET", disableControls = false } = {}) {
+  setShapeTraderStatus(message);
+  if (shapeTradersMarketResetButton) {
+    shapeTradersMarketResetButton.textContent = buttonLabel;
+    shapeTradersMarketResetButton.disabled = disableControls;
+  }
+  if (shapeTradersBuyButton) {
+    shapeTradersBuyButton.disabled = disableControls || shapeTradersBuyButton.disabled;
+  }
+  if (shapeTradersSellButton) {
+    shapeTradersSellButton.disabled = disableControls || shapeTradersSellButton.disabled;
+  }
+  if (shapeTradersLiquidateButton) {
+    shapeTradersLiquidateButton.disabled = disableControls;
+  }
+  if (shapeTradersQuantityInput) {
+    shapeTradersQuantityInput.disabled = disableControls;
+  }
+}
+
+function clearShapeTraderResetProgress() {
+  if (shapeTradersMarketResetButton) {
+    shapeTradersMarketResetButton.textContent = "RESET";
+    shapeTradersMarketResetButton.disabled = false;
+  }
+  if (shapeTradersLiquidateButton) {
+    shapeTradersLiquidateButton.disabled = false;
+  }
+  if (shapeTradersQuantityInput) {
+    shapeTradersQuantityInput.disabled = false;
+  }
+}
+
+function markShapeTraderInteraction() {
+  shapeTradersLastInteractionAt = Date.now();
+}
+
+function isShapeTraderWindowCurrentlyActive() {
+  if (typeof document === "undefined") {
+    return true;
+  }
+  const isVisible = document.visibilityState !== "hidden";
+  const hasFocus = typeof document.hasFocus === "function" ? document.hasFocus() : true;
+  return isVisible && hasFocus;
+}
+
+function isShapeTraderWindowActive() {
+  return shapeTradersWindowActive;
+}
+
+function getShapeTraderCurrentContestId() {
+  return isContestAccountMode() ? getModeContest()?.id || null : null;
+}
+
+function getShapeTraderAccountScope(mode = currentAccountMode) {
+  if (isContestAccountMode(mode)) {
+    const contestId = getModeContest(mode)?.id || null;
+    return contestId ? `contest:${contestId}` : "contest:unknown";
+  }
+  return "normal";
+}
+
+function applyShapeTraderAccountScopeFilter(query, contestId = getShapeTraderCurrentContestId()) {
+  if (!query) return query;
+  if (contestId) {
+    return query.eq("contest_id", contestId);
+  }
+  return query.is("contest_id", null);
+}
+
+function updateShapeTraderWindowActivityState() {
+  const isActive = isShapeTraderWindowCurrentlyActive();
+  if (isActive === shapeTradersWindowActive) {
+    return;
+  }
+  shapeTradersWindowActive = isActive;
+  shapeTradersLastBecameInactiveAt = isActive ? null : Date.now();
+  if (isActive) {
+    shapeTradersLastHeartbeatAt = 0;
+  }
+}
+
+function bindShapeTraderWindowActivityListeners() {
+  if (shapeTradersWindowActivityListenersBound || typeof window === "undefined" || typeof document === "undefined") {
+    return;
+  }
+  const handleActivityChange = () => {
+    updateShapeTraderWindowActivityState();
+    if (currentRoute === "shape-traders") {
+      renderShapeTradersControls();
+    }
+  };
+  window.addEventListener("focus", handleActivityChange);
+  window.addEventListener("blur", handleActivityChange);
+  document.addEventListener("visibilitychange", handleActivityChange);
+  shapeTradersWindowActivityListenersBound = true;
+}
+
+function createShapeTraderActivityEntry({
+  side,
+  assetId,
+  quantity,
+  totalValue,
+  price,
+  netProfit = null,
+  reason = ""
+}) {
+  const asset = getShapeTraderAssetConfig(assetId);
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    side,
+    assetId,
+    assetLabel: asset.label,
+    quantity,
+    totalValue: roundCurrencyValue(totalValue),
+    price: roundCurrencyValue(price),
+    netProfit: netProfit === null ? null : roundCurrencyValue(netProfit),
+    accountValue: getShapeTraderAccountValue(),
+    contestId: isContestAccountMode() ? getModeContest()?.id || null : null,
+    reason,
+    createdAt: new Date().toISOString()
+  };
+}
+
+function getShapeTraderSplitNotice(assetId, now = Date.now()) {
+  const notice = shapeTradersSplitNoticeByAsset[assetId];
+  if (!notice) return null;
+  if (notice.expiresAt <= now) {
+    delete shapeTradersSplitNoticeByAsset[assetId];
+    return null;
+  }
+  return notice;
+}
+
+function markShapeTraderSplitNotice(assetId, previousPrice, splitPrice) {
+  shapeTradersSplitNoticeByAsset[assetId] = {
+    label: "10:1 ASSET SPLIT",
+    previousPrice: roundCurrencyValue(previousPrice),
+    splitPrice: roundCurrencyValue(splitPrice),
+    expiresAt: Date.now() + SHAPE_TRADERS_SPLIT_FLASH_MS
+  };
+}
+
+async function recordShapeTraderTrade(entry) {
+  if (!supabase || !currentUser?.id || !shapeTradersTradePersistenceAvailable || !entry) {
+    return;
+  }
+
+  const payload = {
+    user_id: currentUser.id,
+    game_id: GAME_KEYS.SHAPE_TRADERS,
+    contest_id: entry.contestId || null,
+    shape: entry.assetId,
+    shape_price: roundCurrencyValue(entry.price),
+    executed_at: entry.createdAt,
+    trade_side: entry.side,
+    quantity: entry.quantity,
+    total_value: roundCurrencyValue(entry.totalValue),
+    net_profit: entry.netProfit === null ? null : roundCurrencyValue(entry.netProfit),
+    new_account_value: roundCurrencyValue(entry.accountValue)
+  };
+
+  try {
+    const { error } = await supabase.from("shape_trader_trades").insert(payload);
+    if (error) {
+      if (isMissingRelationError(error, "shape_trader_trades")) {
+        shapeTradersTradePersistenceAvailable = false;
+        console.warn("[RTN] shape_trader_trades table missing; skipping persistence until SQL is applied");
+        return;
+      }
+      throw error;
+    }
+  } catch (error) {
+    console.error("[RTN] Unable to record shape trader trade", error);
+  }
+}
+
+function mapShapeTraderTradeRowToActivity(row) {
+  const asset = getShapeTraderAssetConfig(row?.shape);
+  return {
+    id: row?.id || `${row?.executed_at || Date.now()}`,
+    side: String(row?.trade_side || "buy").toLowerCase(),
+    assetId: row?.shape || asset.id,
+    assetLabel: asset.label,
+    quantity: Number(row?.quantity || 0),
+    totalValue: roundCurrencyValue(Number(row?.total_value || 0)),
+    price: roundCurrencyValue(Number(row?.shape_price || 0)),
+    netProfit: row?.net_profit === null || row?.net_profit === undefined ? null : roundCurrencyValue(Number(row.net_profit || 0)),
+    accountValue: roundCurrencyValue(Number(row?.new_account_value || 0)),
+    contestId: row?.contest_id || null,
+    reason: "",
+    createdAt: row?.executed_at || row?.created_at || new Date().toISOString()
+  };
+}
+
+async function loadShapeTraderPortfolioFromBackend() {
+  if (!supabase || !currentUser?.id || !shapeTradersStatePersistenceAvailable) {
+    return;
+  }
+
+  try {
+    const accountScope = getShapeTraderAccountScope();
+    const contestId = getShapeTraderCurrentContestId();
+
+    const { data: accountRow, error: accountError } = await applyShapeTraderAccountScopeFilter(supabase
+      .from("shape_trader_accounts_current")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .eq("account_scope", accountScope), contestId)
+      .maybeSingle();
+
+    if (accountError) {
+      if (isMissingRelationError(accountError, "shape_trader_accounts_current")) {
+        shapeTradersStatePersistenceAvailable = false;
+        return;
+      }
+      throw accountError;
+    }
+
+    const cashBalance = Number(accountRow?.cash_balance);
+    const normalizedCashBalance = Number.isFinite(cashBalance)
+      ? normalizeStoredCreditValue(cashBalance)
+      : null;
+    const shouldRepairProfileCredits =
+      normalizedCashBalance !== null &&
+      !isContestAccountMode() &&
+      normalizedCashBalance !== normalizeStoredCreditValue(currentProfile?.credits);
+
+    if (normalizedCashBalance !== null) {
+      bankroll = normalizedCashBalance;
+      handleBankrollChanged();
+      if (currentProfile && !isContestAccountMode()) {
+        currentProfile.credits = bankroll;
+      }
+      if (currentContestEntry && isContestAccountMode()) {
+        currentContestEntry.current_credits = bankroll;
+      }
+      if (!shouldRepairProfileCredits) {
+        lastSyncedBankroll = bankroll;
+      }
+    }
+
+    const lastActiveAt = accountRow?.last_active_at ? new Date(accountRow.last_active_at).getTime() : NaN;
+    if (Number.isFinite(lastActiveAt) && lastActiveAt > 0) {
+      shapeTradersLastInteractionAt = lastActiveAt;
+    }
+
+    const { data: positionRows, error: positionsError } = await applyShapeTraderAccountScopeFilter(supabase
+      .from("shape_trader_positions_current")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .eq("account_scope", accountScope), contestId);
+
+    if (positionsError) {
+      if (isMissingRelationError(positionsError, "shape_trader_positions_current")) {
+        shapeTradersStatePersistenceAvailable = false;
+        return;
+      }
+      throw positionsError;
+    }
+
+    const nextHoldings = createEmptyShapeTraderHoldings();
+    (Array.isArray(positionRows) ? positionRows : []).forEach((row) => {
+      if (!row?.shape) return;
+      nextHoldings[row.shape] = {
+        quantity: Math.max(0, Math.round(Number(row.quantity || 0))),
+        averagePrice: roundCurrencyValue(Number(row.average_price || 0))
+      };
+    });
+    shapeTradersHoldings = nextHoldings;
+
+    const { data: tradeRows, error: tradesError } = await applyShapeTraderAccountScopeFilter(supabase
+      .from("shape_trader_trades")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .order("executed_at", { ascending: false })
+      .limit(SHAPE_TRADERS_MAX_ACTIVITY), contestId);
+
+    if (tradesError) {
+      if (isMissingRelationError(tradesError, "shape_trader_trades")) {
+        shapeTradersTradePersistenceAvailable = false;
+      } else {
+        throw tradesError;
+      }
+    } else {
+      shapeTradersActivity = (Array.isArray(tradeRows) ? tradeRows : []).map(mapShapeTraderTradeRowToActivity);
+    }
+
+    if (shouldRepairProfileCredits) {
+      const { data: repairedProfile, error: repairedProfileError } = await supabase
+        .from("profiles")
+        .update({ credits: bankroll })
+        .eq("id", currentUser.id)
+        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
+        .maybeSingle();
+
+      if (repairedProfileError) {
+        throw repairedProfileError;
+      }
+
+      if (repairedProfile) {
+        applyProfileCredits(repairedProfile);
+        lastSyncedBankroll = normalizeStoredCreditValue(repairedProfile.credits);
+      }
+    }
+  } catch (error) {
+    console.error("[RTN] Unable to load Shape Traders portfolio", error);
+  }
+}
+
+async function syncShapeTraderCurrentState({ heartbeatOnly = false } = {}) {
+  if (!supabase || !currentUser?.id || !shapeTradersStatePersistenceAvailable) {
+    return;
+  }
+
+  const contestId = getShapeTraderCurrentContestId();
+  const accountScope = getShapeTraderAccountScope();
+  const accountPayload = {
+    user_id: currentUser.id,
+    game_id: GAME_KEYS.SHAPE_TRADERS,
+    contest_id: contestId,
+    account_scope: accountScope,
+    cash_balance: roundCurrencyValue(bankroll),
+    holdings_value: roundCurrencyValue(getShapeTraderHoldingsValue()),
+    account_value: roundCurrencyValue(getShapeTraderAccountValue()),
+    last_active_at: new Date(
+      shapeTradersWindowActive
+        ? Date.now()
+        : (shapeTradersLastBecameInactiveAt || shapeTradersLastInteractionAt)
+    ).toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  try {
+    await supabase
+      .from("shape_trader_accounts_current")
+      .upsert(accountPayload, { onConflict: "user_id,account_scope" });
+
+    if (!heartbeatOnly) {
+      const positionPayload = SHAPE_TRADERS_ASSETS.map((asset) => ({
+        user_id: currentUser.id,
+        game_id: GAME_KEYS.SHAPE_TRADERS,
+        contest_id: contestId,
+        account_scope: accountScope,
+        shape: asset.id,
+        quantity: Math.max(0, Math.round(Number(shapeTradersHoldings[asset.id]?.quantity || 0))),
+        average_price: roundCurrencyValue(Number(shapeTradersHoldings[asset.id]?.averagePrice || 0)),
+        updated_at: new Date().toISOString()
+      }));
+      await supabase
+        .from("shape_trader_positions_current")
+        .upsert(positionPayload, { onConflict: "user_id,account_scope,shape" });
+    }
+
+    shapeTradersLastHeartbeatAt = Date.now();
+    shapeTradersLastGlobalSyncAt = 0;
+  } catch (error) {
+    if (
+      isMissingRelationError(error, "shape_trader_accounts_current") ||
+      isMissingRelationError(error, "shape_trader_positions_current")
+    ) {
+      shapeTradersStatePersistenceAvailable = false;
+      console.warn("[RTN] Shape Traders current-state tables missing; skipping shared sync until SQL is applied");
+      return;
+    }
+    console.error("[RTN] Unable to sync Shape Traders current state", error);
+  }
+}
+
+async function refreshShapeTraderGlobalSnapshot() {
+  if (!supabase || !shapeTradersStatePersistenceAvailable) {
+    return;
+  }
+
+  try {
+    const { data: accountRows, error: accountsError } = await supabase
+      .from("shape_trader_accounts_current")
+      .select("*");
+
+    if (accountsError) {
+      if (isMissingRelationError(accountsError, "shape_trader_accounts_current")) {
+        shapeTradersStatePersistenceAvailable = false;
+        return;
+      }
+      throw accountsError;
+    }
+
+    const { data: positionRows, error: positionsError } = await supabase
+      .from("shape_trader_positions_current")
+      .select("*");
+
+    if (positionsError) {
+      if (isMissingRelationError(positionsError, "shape_trader_positions_current")) {
+        shapeTradersStatePersistenceAvailable = false;
+        return;
+      }
+      throw positionsError;
+    }
+
+    const cutoffTime = Date.now() - SHAPE_TRADERS_INACTIVITY_MS;
+    const activeTraderIds = new Set(
+      (Array.isArray(accountRows) ? accountRows : [])
+        .filter((row) => row?.last_active_at && new Date(row.last_active_at).getTime() >= cutoffTime)
+        .map((row) => row.user_id)
+    );
+
+    const marketCapByAsset = createEmptyShapeTraderMarketCap();
+    (Array.isArray(positionRows) ? positionRows : []).forEach((row) => {
+      if (!row?.shape || !activeTraderIds.has(row.user_id)) return;
+      const price = Number(shapeTradersCurrentPrices[row.shape] || 0);
+      const quantity = Math.max(0, Math.round(Number(row.quantity || 0)));
+      marketCapByAsset[row.shape] = roundCurrencyValue(
+        Number(marketCapByAsset[row.shape] || 0) + quantity * price
+      );
+    });
+
+    shapeTradersGlobalSnapshot = {
+      activeTraderCount: activeTraderIds.size,
+      marketCapByAsset
+    };
+    shapeTradersLastGlobalSyncAt = Date.now();
+  } catch (error) {
+    console.error("[RTN] Unable to refresh Shape Traders global snapshot", error);
+  }
+}
+
+async function persistShapeTraderDrawRow(windowIndex, sequenceInWindow = 1) {
+  if (shapeTradersLocalResetMode || !supabase || !shapeTradersDrawPersistenceAvailable) {
+    return buildShapeTraderDrawRow(windowIndex, sequenceInWindow);
+  }
+
+  const payload = buildShapeTraderDrawRow(windowIndex, sequenceInWindow);
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    await supabase
+      .from("shape_trader_draws")
+      .upsert(payload, { onConflict: "draw_id" });
+    return payload;
+  } catch (error) {
+    if (isMissingRelationError(error, "shape_trader_draws")) {
+      shapeTradersDrawPersistenceAvailable = false;
+      console.warn("[RTN] shape_trader_draws table missing; falling back to local draw derivation");
+      return payload;
+    }
+    console.error("[RTN] Unable to persist Shape Traders draw row", error);
+    return payload;
+  }
+}
+
+async function persistShapeTraderPriceHistory(drawRow, transitions) {
+  const rows = createShapeTraderPriceHistoryRows(drawRow, transitions);
+  if (!rows.length || !supabase || !shapeTradersPriceHistoryPersistenceAvailable) {
+    return rows;
+  }
+
+  try {
+    await supabase
+      .from("shape_trader_price_history")
+      .upsert(rows, { onConflict: "draw_id,shape" });
+  } catch (error) {
+    if (isMissingColumnError(error, "split_triggered")) {
+      try {
+        await supabase
+          .from("shape_trader_price_history")
+          .upsert(
+            rows.map(({ split_triggered, ...row }) => row),
+            { onConflict: "draw_id,shape" }
+          );
+        return rows;
+      } catch (retryError) {
+        console.error("[RTN] Unable to persist Shape Traders price history without split_triggered fallback", retryError);
+      }
+    }
+    if (isMissingRelationError(error, "shape_trader_price_history")) {
+      shapeTradersPriceHistoryPersistenceAvailable = false;
+      console.warn("[RTN] shape_trader_price_history table missing; skipping price-history persistence until SQL is applied");
+      return rows;
+    }
+    console.error("[RTN] Unable to persist Shape Traders price history", error);
+  }
+
+  return rows;
+}
+
+async function persistShapeTraderMarketCurrent(drawRow, transitions, options = {}) {
+  const rows = createShapeTraderMarketCurrentRows(drawRow, transitions, options);
+  if (!rows.length || !supabase || !shapeTradersMarketPersistenceAvailable) {
+    return rows;
+  }
+
+  try {
+    await supabase
+      .from("shape_trader_market_current")
+      .upsert(rows, { onConflict: "shape" });
+  } catch (error) {
+    if (isMissingRelationError(error, "shape_trader_market_current")) {
+      shapeTradersMarketPersistenceAvailable = false;
+      console.warn("[RTN] shape_trader_market_current table missing; skipping live market persistence until SQL is applied");
+      return rows;
+    }
+    console.error("[RTN] Unable to persist Shape Traders market current rows", error);
+  }
+
+  return rows;
+}
+
+async function resetShapeTraderMarketCurrentRows() {
+  const rows = createInitialShapeTraderMarketCurrentRows();
+  if (!supabase || !shapeTradersMarketPersistenceAvailable) {
+    applyShapeTraderMarketCurrentRows(rows);
+    return rows;
+  }
+
+  try {
+    await supabase
+      .from("shape_trader_market_current")
+      .upsert(rows, { onConflict: "shape" });
+  } catch (error) {
+    if (isMissingRelationError(error, "shape_trader_market_current")) {
+      shapeTradersMarketPersistenceAvailable = false;
+      applyShapeTraderMarketCurrentRows(rows);
+      return rows;
+    }
+    console.error("[RTN] Unable to reset Shape Traders market current rows", error);
+  }
+
+  applyShapeTraderMarketCurrentRows(rows);
+  return rows;
+}
+
+function applyShapeTraderMarketCurrentRows(rows) {
+  if (!Array.isArray(rows) || !rows.length) {
+    return false;
+  }
+
+  let applied = false;
+  rows.forEach((row) => {
+    if (!row?.shape) return;
+    shapeTradersCurrentPrices[row.shape] = roundCurrencyValue(Number(row.current_price || SHAPE_TRADERS_START_PRICE));
+    applied = true;
+  });
+  return applied;
+}
+
+async function loadShapeTraderMarketCurrentRows() {
+  if (!supabase || !shapeTradersMarketPersistenceAvailable) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("shape_trader_market_current")
+      .select("*")
+      .order("shape", { ascending: true });
+
+    if (error) {
+      if (isMissingRelationError(error, "shape_trader_market_current")) {
+        shapeTradersMarketPersistenceAvailable = false;
+        return [];
+      }
+      throw error;
+    }
+
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error("[RTN] Unable to load Shape Traders market current rows", error);
+    return [];
+  }
+}
+
+async function loadShapeTraderLatestPricesFromHistory() {
+  if (!supabase || !shapeTradersPriceHistoryPersistenceAvailable) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("shape_trader_price_history")
+      .select("*")
+      .order("recorded_at", { ascending: false })
+      .limit(120);
+
+    if (error) {
+      if (isMissingRelationError(error, "shape_trader_price_history")) {
+        shapeTradersPriceHistoryPersistenceAvailable = false;
+        return [];
+      }
+      throw error;
+    }
+
+    const latestByShape = new Map();
+    (Array.isArray(data) ? data : []).forEach((row) => {
+      if (row?.shape && !latestByShape.has(row.shape)) {
+        latestByShape.set(row.shape, row);
+      }
+    });
+
+    return SHAPE_TRADERS_ASSETS
+      .map((asset) => latestByShape.get(asset.id))
+      .filter(Boolean)
+      .map((row) => ({
+        shape: row.shape,
+        current_price: row.new_price
+      }));
+  } catch (error) {
+    console.error("[RTN] Unable to load Shape Traders latest prices from history", error);
+    return [];
+  }
+}
+
+async function deleteShapeTraderTableRows(table, keyField) {
+  if (!supabase) return;
+
+  try {
+    while (true) {
+      const { data, error } = await supabase
+        .from(table)
+        .select(keyField)
+        .order(keyField, { ascending: true })
+        .limit(500);
+
+      if (error) {
+        if (isMissingRelationError(error, table)) {
+          if (table === "shape_trader_draws") shapeTradersDrawPersistenceAvailable = false;
+          if (table === "shape_trader_price_history") shapeTradersPriceHistoryPersistenceAvailable = false;
+          if (table === "shape_trader_trades") shapeTradersTradePersistenceAvailable = false;
+          if (table === "shape_trader_accounts_current" || table === "shape_trader_positions_current") {
+            shapeTradersStatePersistenceAvailable = false;
+          }
+          if (table === "shape_trader_market_current") shapeTradersMarketPersistenceAvailable = false;
+          return;
+        }
+        throw error;
+      }
+
+      const values = [...new Set((Array.isArray(data) ? data : [])
+        .map((row) => row?.[keyField])
+        .filter((value) => value !== undefined && value !== null))];
+
+      if (!values.length) {
+        break;
+      }
+
+      for (const value of values) {
+        const { error: deleteError } = await supabase
+          .from(table)
+          .delete()
+          .eq(keyField, value);
+
+        if (deleteError) {
+          if (isMissingRelationError(deleteError, table)) {
+            if (table === "shape_trader_draws") shapeTradersDrawPersistenceAvailable = false;
+            if (table === "shape_trader_price_history") shapeTradersPriceHistoryPersistenceAvailable = false;
+            if (table === "shape_trader_trades") shapeTradersTradePersistenceAvailable = false;
+            if (table === "shape_trader_accounts_current" || table === "shape_trader_positions_current") {
+              shapeTradersStatePersistenceAvailable = false;
+            }
+            if (table === "shape_trader_market_current") shapeTradersMarketPersistenceAvailable = false;
+            return;
+          }
+          throw deleteError;
+        }
+      }
+    }
+  } catch (error) {
+    console.error(`[RTN] Unable to clear Shape Traders table ${table}`, error);
+  }
+}
+
+function isMissingShapeTraderResetRpcError(error) {
+  const message = String(error?.message || error?.details || "");
+  return /admin_reset_shape_traders/i.test(message) && (
+    /does not exist/i.test(message) ||
+    /not found/i.test(message) ||
+    /could not find/i.test(message) ||
+    /42883/.test(String(error?.code || ""))
+  );
+}
+
+async function runShapeTraderAdminReset() {
+  if (!supabase) {
+    return { ok: false, mode: "none", error: null };
+  }
+
+  try {
+    const response = await supabase.rpc("admin_reset_shape_traders");
+    if (response?.error) {
+      throw response.error;
+    }
+    return { ok: true, mode: "rpc", error: null };
+  } catch (error) {
+    if (isMissingShapeTraderResetRpcError(error)) {
+      console.warn("[RTN] Shape Traders admin reset RPC unavailable; falling back to client-side deletes", error);
+      return { ok: false, mode: "fallback", error };
+    }
+    console.error("[RTN] Shape Traders admin reset RPC failed", error);
+    return { ok: false, mode: "rpc_failed", error };
+  }
+}
+
+async function wipeShapeTraderTestingData() {
+  const resetResult = await runShapeTraderAdminReset();
+  if (resetResult.ok) {
+    return "rpc";
+  }
+  if (resetResult.mode === "rpc_failed") {
+    throw resetResult.error || new Error("Shape Traders admin reset RPC failed.");
+  }
+  if (resetResult.mode === "fallback") {
+    await deleteShapeTraderTableRows("shape_trader_price_history", "id");
+    await deleteShapeTraderTableRows("shape_trader_draws", "draw_id");
+    await deleteShapeTraderTableRows("shape_trader_trades", "id");
+    await deleteShapeTraderTableRows("shape_trader_positions_current", "user_id");
+    await deleteShapeTraderTableRows("shape_trader_accounts_current", "user_id");
+    await resetShapeTraderMarketCurrentRows();
+    return "fallback";
+  }
+  return "none";
+}
+
+function resetShapeTradersDerivedState() {
+  shapeTradersCurrentPrices = createInitialShapeTraderPrices();
+  shapeTradersProcessedWindowIndex = -1;
+  shapeTradersProcessedVisibleCount = 0;
+  shapeTradersCurrentCard = null;
+  shapeTradersPreviousCard = null;
+  shapeTradersSplitNoticeByAsset = {};
+}
+
+async function applyShapeTraderDrawRow(row) {
+  const card = mapShapeTraderDrawRowToCard(row);
+  if (!card) return;
+  if (row?.draw_id !== undefined && row?.draw_id !== null) {
+    const nextDrawId = Number(row.draw_id);
+    const existingRows = Array.isArray(shapeTradersRecentDrawRows) ? shapeTradersRecentDrawRows : [];
+    shapeTradersRecentDrawRows = [
+      row,
+      ...existingRows.filter((entry) => Number(entry?.draw_id || 0) !== nextDrawId)
+    ].slice(0, 60);
+  }
+  const transitions = await applyShapeTraderCard(card);
+  await persistShapeTraderPriceHistory(row, transitions);
+  await persistShapeTraderMarketCurrent(row, transitions);
+  appendShapeTraderChartPoint(row, transitions);
+  const rowWindowIndex = Math.floor(Number(row?.window_index || 0));
+  const rowSequence = Math.floor(Number(row?.sequence_in_window || 0));
+  if (rowWindowIndex > shapeTradersProcessedWindowIndex) {
+    shapeTradersProcessedWindowIndex = rowWindowIndex;
+    shapeTradersProcessedVisibleCount = rowSequence;
+  } else if (rowWindowIndex === shapeTradersProcessedWindowIndex) {
+    shapeTradersProcessedVisibleCount = Math.max(shapeTradersProcessedVisibleCount, rowSequence);
+  }
+}
+
+async function hydrateShapeTradersFromDrawTable(now = Date.now()) {
+  resetShapeTradersDerivedState();
+  if (shapeTradersLocalResetMode) {
+    return;
+  }
+
+  const marketRows = await loadShapeTraderMarketCurrentRows();
+  let hasCanonicalMarketPrices = applyShapeTraderMarketCurrentRows(marketRows);
+  if (!hasCanonicalMarketPrices) {
+    const historyRows = await loadShapeTraderLatestPricesFromHistory();
+    hasCanonicalMarketPrices = applyShapeTraderMarketCurrentRows(historyRows);
+  }
+
+  if (!supabase || !shapeTradersDrawPersistenceAvailable) {
+    shapeTradersTimelineEpochMs = now + SHAPE_TRADERS_DRAW_INTERVAL_MS;
+    shapeTradersRecentDrawRows = [];
+    return;
+  }
+
+  try {
+    const { data: persistedRows, error } = await supabase
+      .from("shape_trader_draws")
+      .select("*")
+      .order("draw_id", { ascending: false })
+      .limit(60);
+
+    if (error) {
+      if (isMissingRelationError(error, "shape_trader_draws")) {
+        shapeTradersDrawPersistenceAvailable = false;
+        shapeTradersTimelineEpochMs = now + SHAPE_TRADERS_DRAW_INTERVAL_MS;
+        return;
+      }
+      throw error;
+    }
+
+    const rows = Array.isArray(persistedRows) ? persistedRows : [];
+    if (!rows.length) {
+      shapeTradersTimelineEpochMs = now + SHAPE_TRADERS_DRAW_INTERVAL_MS;
+      shapeTradersRecentDrawRows = [];
+      if (!hasCanonicalMarketPrices) {
+        shapeTradersCurrentPrices = createInitialShapeTraderPrices();
+      }
+      return;
+    }
+
+    const latestRow = rows[0];
+    shapeTradersRecentDrawRows = rows;
+    shapeTradersTimelineEpochMs = getShapeTraderTimelineEpochFromRow(latestRow);
+
+    if (!hasCanonicalMarketPrices) {
+      const historyRows = await loadShapeTraderLatestPricesFromHistory();
+      hasCanonicalMarketPrices = applyShapeTraderMarketCurrentRows(historyRows);
+    }
+    if (!hasCanonicalMarketPrices) {
+      shapeTradersCurrentPrices = createInitialShapeTraderPrices();
+    }
+
+    shapeTradersCurrentCard = mapShapeTraderDrawRowToCard(latestRow);
+    shapeTradersPreviousCard = rows[1] ? mapShapeTraderDrawRowToCard(rows[1]) : null;
+    shapeTradersProcessedWindowIndex = Math.floor(Number(latestRow.window_index || -1));
+    shapeTradersProcessedVisibleCount = Math.floor(Number(latestRow.sequence_in_window || 0));
+  } catch (error) {
+    console.error("[RTN] Unable to hydrate Shape Traders draw state", error);
+  }
+}
+
+async function reconcileShapeTraderMarketCurrent() {
+  if (shapeTradersLocalResetMode) {
+    return false;
+  }
+
+  const rows = await loadShapeTraderMarketCurrentRows();
+  if (!rows.length) {
+    return false;
+  }
+
+  let corrected = false;
+  rows.forEach((row) => {
+    if (!row?.shape) return;
+    const canonicalPrice = roundCurrencyValue(Number(row.current_price || SHAPE_TRADERS_START_PRICE));
+    if (roundCurrencyValue(Number(shapeTradersCurrentPrices[row.shape] || SHAPE_TRADERS_START_PRICE)) !== canonicalPrice) {
+      shapeTradersCurrentPrices[row.shape] = canonicalPrice;
+      corrected = true;
+    }
+  });
+  return corrected;
+}
+
+async function appendShapeTraderActivity(entry) {
+  if (!entry) return;
+  shapeTradersActivity.unshift(entry);
+  shapeTradersActivity = shapeTradersActivity.slice(0, SHAPE_TRADERS_MAX_ACTIVITY);
+  renderShapeTradersActivity();
+  await recordShapeTraderTrade(entry);
+}
+
+async function executeShapeTraderAssetSplit(assetId, preSplitPrice) {
+  const asset = getShapeTraderAssetConfig(assetId);
+  const splitPrice = roundCurrencyValue(Number(preSplitPrice || 0) / SHAPE_TRADERS_SPLIT_FACTOR);
+  const holding = shapeTradersHoldings[assetId];
+
+  markShapeTraderSplitNotice(assetId, preSplitPrice, splitPrice);
+
+  if (!holding || holding.quantity <= 0) {
+    shapeTradersCurrentPrices[assetId] = splitPrice;
+    setShapeTraderStatus(`${asset.label} triggered a 10:1 asset split at ${formatCurrency(preSplitPrice)} and reopened at ${formatCurrency(splitPrice)}.`);
+    return splitPrice;
+  }
+
+  const preSplitQuantity = Math.max(0, Math.round(Number(holding.quantity || 0)));
+  const preSplitAveragePrice = roundCurrencyValue(Number(holding.averagePrice || 0));
+  const postSplitQuantity = preSplitQuantity * SHAPE_TRADERS_SPLIT_FACTOR;
+  const postSplitAveragePrice = roundCurrencyValue(preSplitAveragePrice / SHAPE_TRADERS_SPLIT_FACTOR);
+  const sellTotalValue = roundCurrencyValue(preSplitQuantity * preSplitPrice);
+  const buyTotalValue = roundCurrencyValue(postSplitQuantity * splitPrice);
+
+  shapeTradersCurrentPrices[assetId] = preSplitPrice;
+  const sellEntry = createShapeTraderActivityEntry({
+    side: "sell",
+    assetId,
+    quantity: preSplitQuantity,
+    totalValue: sellTotalValue,
+    price: preSplitPrice,
+    // Splits are structural position adjustments, not realized gains.
+    netProfit: null,
+    reason: "10:1 asset split"
+  });
+  await appendShapeTraderActivity(sellEntry);
+
+  shapeTradersCurrentPrices[assetId] = splitPrice;
+  shapeTradersHoldings[assetId] = {
+    quantity: postSplitQuantity,
+    averagePrice: postSplitAveragePrice
+  };
+  const buyEntry = createShapeTraderActivityEntry({
+    side: "buy",
+    assetId,
+    quantity: postSplitQuantity,
+    totalValue: buyTotalValue,
+    price: splitPrice,
+    reason: "10:1 asset split"
+  });
+  await appendShapeTraderActivity(buyEntry);
+  await syncShapeTraderCurrentState();
+  setShapeTraderStatus(`${asset.label} triggered a 10:1 asset split at ${formatCurrency(preSplitPrice)} and reopened at ${formatCurrency(splitPrice)}.`);
+  return splitPrice;
+}
+
+async function applyShapeTraderCard(card) {
+  if (!card) return [];
+  const affectedAssets = card.kind === "asset"
+    ? [card.assetId]
+    : SHAPE_TRADERS_ASSETS.map((asset) => asset.id);
+  const transitions = [];
+
+  for (const assetId of affectedAssets) {
+    const previousPrice = roundCurrencyValue(Number(shapeTradersCurrentPrices[assetId] || SHAPE_TRADERS_START_PRICE));
+    const nextPrice = shapeTraderPriceImpact(shapeTradersCurrentPrices[assetId], card.percentage);
+    const splitTriggered = nextPrice >= SHAPE_TRADERS_SPLIT_THRESHOLD;
+    const bankruptcyTriggered = nextPrice < 1;
+    let resolvedPrice = roundCurrencyValue(nextPrice);
+
+    if (splitTriggered) {
+      resolvedPrice = await executeShapeTraderAssetSplit(assetId, nextPrice);
+    } else {
+      shapeTradersCurrentPrices[assetId] = bankruptcyTriggered ? SHAPE_TRADERS_START_PRICE : nextPrice;
+      resolvedPrice = bankruptcyTriggered ? SHAPE_TRADERS_START_PRICE : roundCurrencyValue(nextPrice);
+    }
+
+    transitions.push({
+      assetId,
+      previousPrice,
+      percentageApplied: Number(card.percentage || 0),
+      newPrice: resolvedPrice,
+      bankruptcyTriggered,
+      splitTriggered
+    });
+  }
+
+  shapeTradersPreviousCard = shapeTradersCurrentCard;
+  shapeTradersCurrentCard = card;
+
+  affectedAssets.forEach((assetId) => {
+    if (shapeTradersCurrentPrices[assetId] >= 1) {
+      return;
+    }
+
+    void liquidateShapeTraderAsset(assetId, "Bankruptcy reset", {
+      syncState: false,
+      priceOverride: 0
+    });
+  });
+
+  return transitions;
+}
+
+function renderShapeTraderMarket() {
+  if (!shapeTradersMarketGridEl) return;
+  shapeTradersMarketGridEl.innerHTML = "";
+
+  SHAPE_TRADERS_ASSETS.forEach((asset) => {
+    const currentPrice = roundCurrencyValue(shapeTradersCurrentPrices[asset.id] || SHAPE_TRADERS_START_PRICE);
+    const holding = shapeTradersHoldings[asset.id];
+    const splitNotice = getShapeTraderSplitNotice(asset.id);
+    const card =
+      shapeTradersCurrentCard?.assetId === asset.id || shapeTradersCurrentCard?.kind === "macro"
+        ? shapeTradersCurrentCard
+        : null;
+    const cardLabel = card ? escapeAssistantHtml(formatShapeTraderCard(card)) : "";
+    const item = document.createElement("article");
+    item.className = `shape-traders-market-card is-${asset.accent}`;
+    item.innerHTML = `
+      <div class="shape-traders-market-card-head">
+        <div class="shape-traders-market-card-title">
+          <div>
+            <h3>${asset.label}</h3>
+            <p>${cardLabel}</p>
+          </div>
+        </div>
+        <button type="button" class="secondary shape-traders-chart-button" data-shape-trader-chart="${asset.id}" aria-label="Open ${asset.label} price chart" title="Open ${asset.label} price chart">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none">
+            <path d="M4 18h16" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+            <path d="M6 15l4-4 3 2 5-6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+      ${splitNotice ? `<div class="shape-traders-market-card-split">${escapeAssistantHtml(splitNotice.label)}</div>` : ""}
+      <div class="shape-traders-market-card-hero">
+        <span class="shape-traders-shape-icon shape-${asset.icon}"></span>
+      </div>
+      <div class="shape-traders-market-card-price">${formatCurrency(currentPrice)}</div>
+      <div class="shape-traders-market-card-meta">
+        <span>Owned: ${formatCurrency(holding?.quantity || 0)}</span>
+        <span>Avg: ${formatCurrency(holding?.averagePrice || 0)}</span>
+      </div>
+    `;
+    shapeTradersMarketGridEl.appendChild(item);
+  });
+}
+
+function renderShapeTradersBalances() {
+  const holdingsValue = roundCurrencyValue(getShapeTraderHoldingsValue());
+  const accountValue = roundCurrencyValue(bankroll + holdingsValue);
+  if (shapeTradersCashEl) {
+    shapeTradersCashEl.textContent = formatCurrency(bankroll);
+  }
+  if (shapeTradersHoldingsValueEl) {
+    shapeTradersHoldingsValueEl.textContent = formatCurrency(holdingsValue);
+  }
+  if (shapeTradersAccountTotalEl) {
+    shapeTradersAccountTotalEl.textContent = formatCurrency(accountValue);
+  }
+}
+
+function renderShapeTradersHoldings() {
+  if (!shapeTradersHoldingsListEl) return;
+  const holdingsTitle = document.getElementById("shape-traders-holdings-title");
+  if (holdingsTitle) {
+    holdingsTitle.textContent = `Positions (${formatCurrency(roundCurrencyValue(getShapeTraderHoldingsValue()))})`;
+  }
+  const openHoldings = SHAPE_TRADERS_ASSETS.filter((asset) => (shapeTradersHoldings[asset.id]?.quantity || 0) > 0);
+
+  if (!openHoldings.length) {
+    shapeTradersHoldingsListEl.innerHTML = '<div class="shape-traders-empty-state">No open positions.</div>';
+    return;
+  }
+
+  shapeTradersHoldingsListEl.innerHTML = `
+    <div class="shape-traders-holdings-header">
+      <span>Shape</span>
+      <span>Qty</span>
+      <span>Current Price</span>
+      <span>Total Value</span>
+      <span>Avg Price</span>
+    </div>
+  `;
+  openHoldings.forEach((asset) => {
+    const holding = shapeTradersHoldings[asset.id];
+    const currentPrice = Number(shapeTradersCurrentPrices[asset.id] || 0);
+    const marketValue = roundCurrencyValue((holding?.quantity || 0) * currentPrice);
+    const item = document.createElement("article");
+    item.className = `shape-traders-holding-card is-${asset.accent}`;
+    item.innerHTML = `
+      <div class="shape-traders-holding-card-main">
+        <span class="shape-traders-shape-icon shape-${asset.icon}"></span>
+        <strong>${asset.label}</strong>
+      </div>
+      <span class="shape-traders-holding-card-qty">${formatCurrency(holding.quantity || 0)}</span>
+      <span class="shape-traders-holding-card-price">${formatCurrency(currentPrice)}</span>
+      <span class="shape-traders-holding-card-value">${formatCurrency(marketValue)}</span>
+      <span class="shape-traders-holding-card-avg">${formatCurrency(holding.averagePrice || 0)}</span>
+    `;
+    shapeTradersHoldingsListEl.appendChild(item);
+  });
+}
+
+function renderShapeTradersActivity() {
+  if (!shapeTradersActivityListEl) return;
+  if (!shapeTradersActivity.length) {
+    shapeTradersActivityListEl.innerHTML = '<div class="shape-traders-empty-state">No trades yet.</div>';
+    return;
+  }
+
+  shapeTradersActivityListEl.innerHTML = `
+    <div class="shape-traders-activity-header">
+      <span>Side</span>
+      <span></span>
+      <span>Price</span>
+      <span>Qty</span>
+      <span>Total</span>
+      <span>Move</span>
+      <span>P/L</span>
+    </div>
+  `;
+  shapeTradersActivity.forEach((entry) => {
+    const item = document.createElement("article");
+    const sideClass = entry.side === "buy" ? "is-buy" : "is-sell";
+    const profitMarkup = entry.netProfit === null
+      ? '<span class="shape-traders-activity-profit muted">--</span>'
+      : `<span class="shape-traders-activity-profit ${entry.netProfit >= 0 ? "gain" : "loss"}">${entry.netProfit >= 0 ? "+" : ""}${formatCurrency(entry.netProfit)}</span>`;
+    const percentMarkup = entry.netProfit === null || !entry.totalValue
+      ? '<span class="shape-traders-activity-percent muted">--</span>'
+      : `<span class="shape-traders-activity-percent">${entry.netProfit >= 0 ? "+" : ""}${Math.round((entry.netProfit / Math.max(1, entry.totalValue - entry.netProfit || entry.totalValue)) * 100)}%</span>`;
+    item.className = `shape-traders-activity-item ${sideClass}`;
+    item.innerHTML = `
+      <span class="shape-traders-activity-side">${entry.side.toUpperCase()}</span>
+      <span class="shape-traders-shape-icon shape-${getShapeTraderAssetConfig(entry.assetId).icon}"></span>
+      <span class="shape-traders-activity-price">${formatCurrency(entry.price)}</span>
+      <span class="shape-traders-activity-qty">x${formatCurrency(entry.quantity)}</span>
+      <span class="shape-traders-activity-total">${formatCurrency(entry.totalValue)}</span>
+      ${percentMarkup}
+      ${profitMarkup}
+    `;
+    shapeTradersActivityListEl.appendChild(item);
+  });
+}
+
+function renderShapeTradersAssetSelector() {
+  if (!shapeTradersAssetSelectorEl) return;
+  shapeTradersAssetSelectorEl.innerHTML = "";
+  SHAPE_TRADERS_ASSETS.forEach((asset) => {
+    const button = document.createElement("button");
+    const selectAsset = () => {
+      if (shapeTradersSelectedAsset === asset.id) return;
+      shapeTradersSelectedAsset = asset.id;
+      markShapeTraderInteraction();
+      renderShapeTradersAssetSelector();
+      renderShapeTradersControls();
+      setShapeTraderStatus(`${asset.label} selected. Quantity and execution buttons are ready.`);
+    };
+    button.type = "button";
+    button.className = `secondary shape-traders-asset-button ${shapeTradersSelectedAsset === asset.id ? "active" : ""}`;
+    button.dataset.shapeTraderAsset = asset.id;
+    button.setAttribute("aria-pressed", shapeTradersSelectedAsset === asset.id ? "true" : "false");
+    button.setAttribute("aria-label", asset.label);
+    button.setAttribute("title", asset.label);
+    button.innerHTML = `<span class="shape-traders-shape-icon shape-${asset.icon}"></span>`;
+    button.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      selectAsset();
+    });
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      selectAsset();
+    });
+    shapeTradersAssetSelectorEl.appendChild(button);
+  });
+}
+
+function renderShapeTraderMarketCap() {
+  if (!shapeTradersMarketCapBarsEl) return;
+  const marketCapByAsset = shapeTradersGlobalSnapshot?.marketCapByAsset || createEmptyShapeTraderMarketCap();
+  const totalMarketValue = Object.values(marketCapByAsset).reduce(
+    (sum, value) => sum + Number(value || 0),
+    0
+  );
+  if (shapeTradersActiveTradersEl) {
+    shapeTradersActiveTradersEl.textContent = String(shapeTradersGlobalSnapshot?.activeTraderCount || 0);
+  }
+  shapeTradersMarketCapBarsEl.innerHTML = "";
+  SHAPE_TRADERS_ASSETS.forEach((asset) => {
+    const value = roundCurrencyValue(Number(marketCapByAsset[asset.id] || 0));
+    const ratio = totalMarketValue > 0 ? Math.max(6, Math.round((value / totalMarketValue) * 100)) : 6;
+    const bar = document.createElement("div");
+    bar.className = `shape-traders-market-cap-bar is-${asset.accent}`;
+    bar.innerHTML = `
+      <div class="shape-traders-market-cap-label">
+        <span>${asset.label}</span>
+        <span>${formatCurrency(value)}</span>
+      </div>
+      <div class="shape-traders-market-cap-track">
+        <span style="width:${value > 0 ? ratio : 0}%"></span>
+      </div>
+    `;
+    shapeTradersMarketCapBarsEl.appendChild(bar);
+  });
+}
+
+function renderShapeTradersDeck(now = Date.now()) {
+  const windowState = getShapeTraderWindowState(getShapeTraderCurrentWindowIndex(now), now);
+  const isDumpReveal = windowState.isDataDump && windowState.tradeLocked;
+  const secondsRemaining = Math.ceil(windowState.timeRemainingMs / 1000);
+  const minutes = Math.floor(secondsRemaining / 60);
+  const seconds = String(secondsRemaining % 60).padStart(2, "0");
+  const progressRatio = Math.min(1, Math.max(0, windowState.elapsedInWindow / SHAPE_TRADERS_DRAW_INTERVAL_MS));
+  const countdownProgress = isDumpReveal ? 1 : Math.max(0.04, 1 - progressRatio);
+
+  if (shapeTradersCountdownEl) {
+    shapeTradersCountdownEl.textContent = isDumpReveal
+      ? "DATA DUMP"
+      : `${minutes}:${seconds}`;
+    shapeTradersCountdownEl.classList.toggle("is-data-dump", isDumpReveal);
+    shapeTradersCountdownEl.parentElement?.classList.toggle("is-paused", isDumpReveal);
+    shapeTradersCountdownEl.parentElement?.style.setProperty("--shape-traders-countdown-progress", String(countdownProgress));
+  }
+  if (shapeTradersCurrentCardEl) {
+    const currentDrawKey = windowState.currentCard
+      ? `${windowState.windowIndex}:${windowState.visibleCount}:${windowState.currentCard.label}`
+      : `waiting:${windowState.windowIndex}:${windowState.visibleCount}`;
+    renderShapeTraderDeckCard(shapeTradersCurrentCardEl, windowState.currentCard, {
+      drawKey: currentDrawKey,
+      flip: shapeTradersCurrentCardEl.dataset.drawKey !== currentDrawKey
+    });
+  }
+  if (shapeTradersLastCardEl) {
+    const lastDrawKey = shapeTradersPreviousCard ? `last:${shapeTradersPreviousCard.label}` : "last:none";
+    renderShapeTraderDeckCard(shapeTradersLastCardEl, shapeTradersPreviousCard, {
+      muted: true,
+      drawKey: lastDrawKey
+    });
+  }
+  if (shapeTradersDrawMetaEl) {
+    shapeTradersDrawMetaEl.textContent = windowState.isDataDump
+      ? `Data dump live. ${windowState.cards.length} rapid cards share this window.`
+      : getShapeTraderCardHeadline(windowState.currentCard, windowState.windowIndex);
+  }
+  if (shapeTradersDumpLabelEl) {
+    const cardsUntilDump = (9 - (windowState.windowIndex % 10) + 10) % 10;
+    shapeTradersDumpLabelEl.textContent = windowState.isDataDump
+      ? `Dump ${windowState.visibleCount}/${windowState.cards.length} live`
+      : `${cardsUntilDump || 10} card${cardsUntilDump === 1 ? "" : "s"} until data dump`;
+  }
+  if (shapeTradersDumpTrackEl) {
+    shapeTradersDumpTrackEl.innerHTML = "";
+    for (let index = 0; index < 10; index += 1) {
+      const pip = document.createElement("span");
+      const isActive = index === (windowState.windowIndex % 10);
+      const isDumpSlot = index === 9;
+      const dumpProgress = isDumpReveal && isDumpSlot
+        ? Math.min(windowState.cards.length, Math.max(1, windowState.visibleCount))
+        : 0;
+      pip.className = `shape-traders-dump-pip${isActive ? " active" : ""}${isDumpSlot ? " dump-slot" : ""}${isDumpReveal && isDumpSlot ? " is-revealing" : ""}`;
+      if (dumpProgress > 0) {
+        pip.style.setProperty("--shape-traders-dump-progress", String(dumpProgress));
+      }
+      shapeTradersDumpTrackEl.appendChild(pip);
+    }
+  }
+}
+
+function renderShapeTradersControls(now = Date.now()) {
+  const windowState = getShapeTraderWindowState(getShapeTraderCurrentWindowIndex(now), now);
+  const selectedHolding = shapeTradersHoldings[shapeTradersSelectedAsset];
+  const quantity = Math.max(1, Math.round(Number(shapeTradersQuantityInput?.value || 1)));
+  const currentPrice = Number(shapeTradersCurrentPrices[shapeTradersSelectedAsset] || 0);
+  const totalCost = roundCurrencyValue(currentPrice * quantity);
+
+  if (shapeTradersTradeValueEl) {
+    shapeTradersTradeValueEl.textContent = formatCurrency(totalCost);
+  }
+
+  if (shapeTradersBuyButton) {
+    shapeTradersBuyButton.disabled = shapeTradersTradeActionInFlight || windowState.tradeLocked || bankroll < totalCost;
+  }
+  if (shapeTradersSellButton) {
+    shapeTradersSellButton.disabled =
+      shapeTradersTradeActionInFlight || windowState.tradeLocked || (selectedHolding?.quantity || 0) < quantity;
+  }
+  if (shapeTradersLiquidateButton) {
+    shapeTradersLiquidateButton.disabled = shapeTradersTradeActionInFlight || !shapeTradersHasOpenHoldings();
+  }
+  if (shapeTradersInactivityEl) {
+    const hasOpenHoldings = shapeTradersHasOpenHoldings();
+    if (shapeTradersWindowActive) {
+      shapeTradersInactivityEl.textContent = hasOpenHoldings
+        ? "5-minute liquidation timer starts only after this tab/window becomes inactive."
+        : "5-minute liquidation timer starts only after this tab/window becomes inactive.";
+    } else {
+      const inactiveStartedAt = shapeTradersLastBecameInactiveAt || Date.now();
+      const secondsUntilLiquidation = Math.max(
+        0,
+        Math.ceil((SHAPE_TRADERS_INACTIVITY_MS - (Date.now() - inactiveStartedAt)) / 1000)
+      );
+      const minutes = Math.floor(secondsUntilLiquidation / 60);
+      const seconds = String(secondsUntilLiquidation % 60).padStart(2, "0");
+      shapeTradersInactivityEl.textContent = hasOpenHoldings
+        ? `Tab inactive. Liquidation in ${minutes}:${seconds}.`
+        : "Tab inactive. 5-minute liquidation window is armed when you hold positions.";
+    }
+  }
+}
+
+function renderShapeTraders() {
+  renderShapeTraderMarket();
+  renderShapeTradersBalances();
+  renderShapeTradersHoldings();
+  renderShapeTradersActivity();
+  renderShapeTraderMarketCap();
+  renderShapeTradersDeck();
+  if (shapeTradersRecentModal && !shapeTradersRecentModal.hidden) {
+    renderShapeTraderRecentDraws();
+  }
+  if (shapeTradersDeckModal && !shapeTradersDeckModal.hidden) {
+    renderShapeTraderDeckList();
+  }
+  renderShapeTradersAssetSelector();
+  renderShapeTradersControls();
+}
+
+function renderShapeTraderOpenChart() {
+  if (
+    !shapeTradersOpenChartAssetId ||
+    !shapeTradersChartModal ||
+    shapeTradersChartModal.hidden ||
+    !shapeTradersChartSurfaceEl ||
+    !shapeTradersChartSubtitleEl
+  ) {
+    return;
+  }
+  const asset = getShapeTraderAssetConfig(shapeTradersOpenChartAssetId);
+  const normalizedSeries = normalizeShapeTraderChartSeries(shapeTradersOpenChartSeries);
+  const visibleSeries = getShapeTraderVisibleSeries(normalizedSeries);
+  const visibleCount = visibleSeries.length;
+  shapeTradersChartSubtitleEl.textContent = `${asset.label} price movement measured by draw. Showing the last ${visibleCount} move${visibleCount === 1 ? "" : "s"}. Pinch or trackpad-pinch to zoom.`;
+  shapeTradersChartSurfaceEl.innerHTML = renderShapeTraderChartSvg(asset.id, visibleSeries);
+  if (shapeTradersChartZoomInButton) {
+    shapeTradersChartZoomInButton.disabled = visibleCount >= shapeTradersOpenChartSeries.length;
+  }
+  if (shapeTradersChartZoomOutButton) {
+    shapeTradersChartZoomOutButton.disabled = visibleCount <= 1;
+  }
+}
+
+function appendShapeTraderChartPoint(drawRow, transitions = []) {
+  if (!shapeTradersOpenChartAssetId || !Array.isArray(transitions) || !transitions.length) {
+    return;
+  }
+
+  const transition = transitions.find((entry) => entry.assetId === shapeTradersOpenChartAssetId);
+  if (!transition || !drawRow?.draw_id) {
+    return;
+  }
+
+  const nextPoint = {
+    draw: Number(drawRow.draw_id),
+    price: roundCurrencyValue(Number(transition.newPrice || SHAPE_TRADERS_START_PRICE)),
+    splitTriggered: Boolean(transition.splitTriggered),
+    label: getShapeTraderAssetConfig(shapeTradersOpenChartAssetId).label
+  };
+  const existingIndex = shapeTradersOpenChartSeries.findIndex((point) => Number(point.draw || 0) === nextPoint.draw);
+  if (existingIndex >= 0) {
+    shapeTradersOpenChartSeries[existingIndex] = nextPoint;
+  } else {
+    shapeTradersOpenChartSeries = [...shapeTradersOpenChartSeries, nextPoint].sort((left, right) => left.draw - right.draw).slice(-240);
+  }
+  renderShapeTraderOpenChart();
+}
+
+async function loadShapeTraderPriceSeries(assetId) {
+  const asset = getShapeTraderAssetConfig(assetId);
+  let rows = [];
+
+  if (supabase && shapeTradersPriceHistoryPersistenceAvailable) {
+    try {
+      const response = await supabase
+        .from("shape_trader_price_history")
+        .select("*")
+        .eq("shape", assetId)
+        .order("draw_id", { ascending: true })
+        .limit(600);
+      if (response?.error) {
+        if (isMissingRelationError(response.error, "shape_trader_price_history")) {
+          shapeTradersPriceHistoryPersistenceAvailable = false;
+        } else {
+          throw response.error;
+        }
+      } else {
+        rows = Array.isArray(response?.data) ? response.data : [];
+      }
+    } catch (error) {
+      console.error("[RTN] Unable to load Shape Traders price history", error);
+    }
+  }
+
+  if (!rows.length) {
+    rows = [{
+      draw_id: 0,
+      shape: assetId,
+      new_price: roundCurrencyValue(Number(shapeTradersCurrentPrices[assetId] || SHAPE_TRADERS_START_PRICE))
+    }];
+  }
+
+  return rows.map((row, index) => ({
+    draw: Number(row.draw_id || index + 1),
+    price: roundCurrencyValue(Number(row.new_price || SHAPE_TRADERS_START_PRICE)),
+    splitTriggered: Boolean(row.split_triggered),
+    label: asset.label
+  }));
+}
+
+function getShapeTraderVisibleSeries(series) {
+  if (!Array.isArray(series) || !series.length) {
+    return [];
+  }
+  const normalizedVisibleCount = Math.max(1, Math.min(series.length, Math.round(Number(shapeTradersChartVisibleCount) || 100)));
+  return series.slice(-normalizedVisibleCount);
+}
+
+function normalizeShapeTraderChartSeries(series) {
+  if (!Array.isArray(series) || !series.length) {
+    return [];
+  }
+
+  let carryFactor = 1;
+  const normalized = new Array(series.length);
+
+  for (let index = series.length - 1; index >= 0; index -= 1) {
+    const point = series[index];
+    normalized[index] = {
+      ...point,
+      price: roundCurrencyValue(Number(point?.price || 0) * carryFactor)
+    };
+    if (point?.splitTriggered) {
+      carryFactor /= SHAPE_TRADERS_SPLIT_FACTOR;
+    }
+  }
+
+  return normalized;
+}
+
+function setShapeTraderChartVisibleCount(nextCount) {
+  const maxCount = Math.max(1, Array.isArray(shapeTradersOpenChartSeries) ? shapeTradersOpenChartSeries.length : 1);
+  shapeTradersChartVisibleCount = Math.max(1, Math.min(maxCount, Math.round(Number(nextCount) || 100)));
+  renderShapeTraderOpenChart();
+}
+
+function adjustShapeTraderChartZoom(direction) {
+  const currentCount = Math.max(1, Math.round(Number(shapeTradersChartVisibleCount) || 100));
+  const factor = direction > 0 ? 1.25 : 0.8;
+  setShapeTraderChartVisibleCount(currentCount * factor);
+}
+
+function renderShapeTraderChartSvg(assetId, series) {
+  const asset = getShapeTraderAssetConfig(assetId);
+  if (!Array.isArray(series) || !series.length) {
+    return '<div class="shape-traders-chart-empty">No price history yet.</div>';
+  }
+
+  const width = 760;
+  const height = 288;
+  const padding = { top: 18, right: 28, bottom: 42, left: 82 };
+  const prices = series.map((point) => Number(point.price || 0));
+  const draws = series.map((point) => Number(point.draw || 0));
+  const minPrice = Math.min(...prices);
+  const maxPrice = Math.max(...prices);
+  const safeMin = minPrice === maxPrice ? Math.max(0, minPrice - 1) : minPrice;
+  const safeMax = minPrice === maxPrice ? maxPrice + 1 : maxPrice;
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const xForIndex = (index) => padding.left + (series.length === 1 ? chartWidth / 2 : (index / (series.length - 1)) * chartWidth);
+  const yForPrice = (price) => padding.top + (1 - ((price - safeMin) / Math.max(1, safeMax - safeMin))) * chartHeight;
+  const points = series.map((point, index) => ({
+    x: xForIndex(index),
+    y: yForPrice(point.price),
+    price: point.price,
+    draw: point.draw
+  }));
+  const linePath = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+  const yTicks = [safeMin, safeMin + ((safeMax - safeMin) / 2), safeMax].map((value) => roundCurrencyValue(value));
+  const accentClass = `is-${asset.accent}`;
+
+  return `
+    <svg class="shape-traders-chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${asset.label} price history by draw">
+      ${yTicks.map((value) => {
+        const y = yForPrice(value);
+        return `
+          <line class="shape-traders-chart-grid-line" x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}"></line>
+          <text class="shape-traders-chart-axis-label" x="${padding.left - 12}" y="${y + 5}" text-anchor="end">${formatCurrency(value)}</text>
+        `;
+      }).join("")}
+      <path class="shape-traders-chart-line ${accentClass}" d="${linePath}"></path>
+      ${points.map((point) => `
+        <circle class="shape-traders-chart-point ${accentClass}" cx="${point.x}" cy="${point.y}" r="4"></circle>
+      `).join("")}
+      <text class="shape-traders-chart-axis-label" x="${padding.left}" y="${height - 10}" text-anchor="start">Draw ${draws[0]}</text>
+      <text class="shape-traders-chart-axis-label" x="${width - padding.right}" y="${height - 10}" text-anchor="end">Draw ${draws[draws.length - 1]}</text>
+      <text class="shape-traders-chart-point-label" x="${points[points.length - 1].x}" y="${points[points.length - 1].y - 14}" text-anchor="middle">${formatCurrency(points[points.length - 1].price)}</text>
+    </svg>
+  `;
+}
+
+async function openShapeTraderChart(assetId) {
+  if (!shapeTradersChartModal || !shapeTradersChartSurfaceEl || !shapeTradersChartTitleEl || !shapeTradersChartSubtitleEl) {
+    return;
+  }
+
+  const asset = getShapeTraderAssetConfig(assetId);
+  shapeTradersOpenChartAssetId = assetId;
+  if (shapeTradersChartSymbolEl) {
+    shapeTradersChartSymbolEl.className = `shape-traders-shape-icon shape-${asset.icon}`;
+  }
+  shapeTradersChartTitleEl.classList.remove("is-cyan", "is-magenta", "is-gold");
+  shapeTradersChartTitleEl.classList.add(`is-${asset.accent}`);
+  shapeTradersChartTitleEl.textContent = `${asset.label} Price Chart`;
+  shapeTradersChartSubtitleEl.textContent = "Price movement measured in draws.";
+  shapeTradersChartSurfaceEl.innerHTML = '<div class="shape-traders-chart-empty">Loading chart…</div>';
+  shapeTradersChartVisibleCount = 100;
+  shapeTradersChartTouchZoomDistance = null;
+  shapeTradersChartModal.hidden = false;
+  shapeTradersChartModal.classList.add("is-open");
+  shapeTradersChartModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+
+  const series = await loadShapeTraderPriceSeries(assetId);
+  if (shapeTradersOpenChartAssetId !== assetId) {
+    return;
+  }
+  shapeTradersOpenChartSeries = series;
+  shapeTradersChartVisibleCount = Math.min(100, Math.max(1, series.length));
+  renderShapeTraderOpenChart();
+}
+
+function closeShapeTraderChart() {
+  if (!shapeTradersChartModal) return;
+  shapeTradersChartModal.classList.remove("is-open");
+  shapeTradersChartModal.setAttribute("aria-hidden", "true");
+  shapeTradersChartModal.hidden = true;
+  document.body.classList.remove("modal-open");
+  shapeTradersOpenChartAssetId = null;
+  shapeTradersOpenChartSeries = [];
+  shapeTradersChartTouchZoomDistance = null;
+}
+
+const SHAPE_TRADER_ASSET_DECK_PAIRS = [
+  [5, -5],
+  [10, -9],
+  [15, -13],
+  [20, -17],
+  [25, -20],
+  [30, -23],
+  [40, -30],
+  [50, -33],
+  [100, -50]
+];
+
+const SHAPE_TRADER_MACRO_DECK_PAIRS = [
+  [5, -5],
+  [10, -9],
+  [15, -13],
+  [20, -17],
+  [25, -20],
+  [50, -33]
+];
+
+function findShapeTraderDeckCard(cards, { assetId = null, percentage = 0, kind = "asset" } = {}) {
+  return cards.find((card) => (
+    card.kind === kind
+    && Number(card.percentage) === Number(percentage)
+    && (kind === "macro" || card.assetId === assetId)
+  )) || null;
+}
+
+function renderShapeTraderDeckPairRows(cards, pairSpec, { assetId = null, kind = "asset" } = {}) {
+  return pairSpec.map(([positivePercentage, negativePercentage]) => {
+    const positiveCard = findShapeTraderDeckCard(cards, {
+      assetId,
+      percentage: positivePercentage,
+      kind
+    });
+    const negativeCard = findShapeTraderDeckCard(cards, {
+      assetId,
+      percentage: negativePercentage,
+      kind
+    });
+    return `
+      <div class="shape-traders-deck-pair-row">
+        <div class="shape-traders-deck-pair-slot is-positive">
+          ${positiveCard ? buildShapeTraderDeckCardMarkup(positiveCard, { muted: false }) : ""}
+        </div>
+        <div class="shape-traders-deck-pair-slot is-negative">
+          ${negativeCard ? buildShapeTraderDeckCardMarkup(negativeCard, { muted: false }) : ""}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderShapeTraderRecentDraws() {
+  if (!shapeTradersRecentListEl) return;
+  const displayRows = shapeTradersRecentDrawRows.length > 1
+    ? shapeTradersRecentDrawRows.slice(1)
+    : shapeTradersRecentDrawRows;
+
+  if (!displayRows.length) {
+    shapeTradersRecentListEl.innerHTML = '<div class="shape-traders-chart-empty">No recent draws yet.</div>';
+    return;
+  }
+
+  shapeTradersRecentListEl.innerHTML = displayRows.map((row, index) => {
+    const card = mapShapeTraderDrawRowToCard(row);
+    return `
+      <article class="shape-traders-recent-item">
+        <div class="shape-traders-recent-info">
+          <span class="shape-traders-recent-index">${index === 0 ? "L" : `L-${index}`}</span>
+          <span class="shape-traders-recent-draw">Draw ${row.draw_id}</span>
+        </div>
+        <div class="shape-traders-recent-card">${buildShapeTraderDeckCardMarkup(card, { muted: false })}</div>
+      </article>
+    `;
+  }).join("");
+}
+
+function openShapeTraderRecentDraws() {
+  if (!shapeTradersRecentModal) return;
+  renderShapeTraderRecentDraws();
+  shapeTradersRecentModal.hidden = false;
+  shapeTradersRecentModal.classList.add("is-open");
+  shapeTradersRecentModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+
+function closeShapeTraderRecentDraws() {
+  if (!shapeTradersRecentModal) return;
+  shapeTradersRecentModal.classList.remove("is-open");
+  shapeTradersRecentModal.setAttribute("aria-hidden", "true");
+  shapeTradersRecentModal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+function renderShapeTraderDeckList() {
+  if (!shapeTradersDeckListEl) return;
+  const deck = buildShapeTraderDeck();
+  const assetCards = deck.filter((card) => card.kind === "asset");
+  const macroCards = deck.filter((card) => card.kind === "macro");
+
+  shapeTradersDeckListEl.innerHTML = `
+    <section class="shape-traders-deck-summary">
+      <span>Total: ${deck.length}</span>
+    </section>
+    <section class="shape-traders-deck-group">
+      <h3>Asset Cards (${assetCards.length})</h3>
+      <div class="shape-traders-deck-paired-groups">
+        ${SHAPE_TRADERS_ASSETS.map((asset) => `
+          <section class="shape-traders-deck-paired-group">
+            <h4>${asset.label}</h4>
+            <div class="shape-traders-deck-pair-head">
+              <span>Positive</span>
+              <span>Negative</span>
+            </div>
+            <div class="shape-traders-deck-pair-list">
+              ${renderShapeTraderDeckPairRows(assetCards, SHAPE_TRADER_ASSET_DECK_PAIRS, { assetId: asset.id, kind: "asset" })}
+            </div>
+          </section>
+        `).join("")}
+      </div>
+    </section>
+    <section class="shape-traders-deck-group">
+      <h3>Macro Cards (${macroCards.length})</h3>
+      <div class="shape-traders-deck-paired-groups">
+        <section class="shape-traders-deck-paired-group">
+          <div class="shape-traders-deck-pair-head">
+            <span>Positive</span>
+            <span>Negative</span>
+          </div>
+          <div class="shape-traders-deck-pair-list">
+            ${renderShapeTraderDeckPairRows(macroCards, SHAPE_TRADER_MACRO_DECK_PAIRS, { kind: "macro" })}
+          </div>
+        </section>
+      </div>
+    </section>
+  `;
+}
+
+function openShapeTraderDeck() {
+  if (!shapeTradersDeckModal) return;
+  renderShapeTraderDeckList();
+  shapeTradersDeckModal.hidden = false;
+  shapeTradersDeckModal.classList.add("is-open");
+  shapeTradersDeckModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+
+function closeShapeTraderDeck() {
+  if (!shapeTradersDeckModal) return;
+  shapeTradersDeckModal.classList.remove("is-open");
+  shapeTradersDeckModal.setAttribute("aria-hidden", "true");
+  shapeTradersDeckModal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+async function liquidateShapeTraderAsset(
+  assetId,
+  reason = "Manual liquidation",
+  { syncState = true, priceOverride = null } = {}
+) {
+  const holding = shapeTradersHoldings[assetId];
+  if (!holding || holding.quantity <= 0) return;
+
+  const currentPrice = roundCurrencyValue(
+    priceOverride === null
+      ? Number(shapeTradersCurrentPrices[assetId] || 0)
+      : Number(priceOverride || 0)
+  );
+  const quantity = holding.quantity;
+  const totalValue = roundCurrencyValue(quantity * currentPrice);
+  const netProfit = roundCurrencyValue((currentPrice - holding.averagePrice) * quantity);
+
+  bankroll = roundCurrencyValue(bankroll + totalValue);
+  handleBankrollChanged();
+  showShapeTraderTradeToast(totalValue);
+  shapeTradersHoldings[assetId] = {
+    quantity: 0,
+    averagePrice: 0
+  };
+
+  const entry = createShapeTraderActivityEntry({
+    side: "sell",
+    assetId,
+    quantity,
+    totalValue,
+    price: currentPrice,
+    netProfit,
+    reason
+  });
+  await appendShapeTraderActivity(entry);
+  applyShapeTraderCarterCashProgress(netProfit);
+  await persistBankroll({
+    recordContestHistory: isContestAccountMode(),
+    contestHistoryLabel: "Trade",
+    contestCreditsValue: getShapeTraderAccountValue()
+  });
+  if (syncState) {
+    await syncShapeTraderCurrentState();
+  }
+}
+
+async function liquidateAllShapeTraderHoldings(reason = "Manual liquidation") {
+  for (const asset of SHAPE_TRADERS_ASSETS) {
+    await liquidateShapeTraderAsset(asset.id, reason, { syncState: false });
+  }
+  await syncShapeTraderCurrentState();
+  renderShapeTraders();
+}
+
+async function waitForShapeTraderSyncIdle(timeoutMs = 4000) {
+  const startedAt = Date.now();
+  while (shapeTradersSyncInFlight) {
+    if (Date.now() - startedAt >= timeoutMs) {
+      break;
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 50));
+  }
+}
+
+async function resetShapeTraderMarketPrices() {
+  if (shapeTradersResetInFlight) {
+    return;
+  }
+
+  shapeTradersResetInFlight = true;
+  try {
+    setShapeTraderResetProgress("Resetting Shape Traders: pausing live sync…", {
+      buttonLabel: "RESETTING…",
+      disableControls: true
+    });
+    shapeTradersLocalResetMode = true;
+    if (shapeTradersTimerId) {
+      clearInterval(shapeTradersTimerId);
+      shapeTradersTimerId = null;
+    }
+    if (shapeTradersAnimationFrameId) {
+      cancelAnimationFrame(shapeTradersAnimationFrameId);
+      shapeTradersAnimationFrameId = null;
+    }
+    await waitForShapeTraderSyncIdle();
+
+    setShapeTraderResetProgress("Resetting Shape Traders: converting holdings back to cash…", {
+      buttonLabel: "RESETTING…",
+      disableControls: true
+    });
+    const resetAccountValue = roundCurrencyValue(getShapeTraderAccountValue());
+    bankroll = resetAccountValue;
+    handleBankrollChanged();
+    await persistBankroll();
+
+    setShapeTraderResetProgress("Resetting Shape Traders: clearing shared draw, trade, and price data…", {
+      buttonLabel: "CLEARING…",
+      disableControls: true
+    });
+    const resetMode = await wipeShapeTraderTestingData();
+
+    setShapeTraderResetProgress("Resetting Shape Traders: restoring market to 100 for all shapes…", {
+      buttonLabel: "RESEEDING…",
+      disableControls: true
+    });
+    shapeTradersTimelineEpochMs = Date.now() + SHAPE_TRADERS_DRAW_INTERVAL_MS;
+    shapeTradersCurrentPrices = createInitialShapeTraderPrices();
+    shapeTradersHoldings = createEmptyShapeTraderHoldings();
+    shapeTradersActivity = [];
+    shapeTradersRecentDrawRows = [];
+    shapeTradersProcessedWindowIndex = -1;
+    shapeTradersProcessedVisibleCount = 0;
+    shapeTradersCurrentCard = null;
+    shapeTradersPreviousCard = null;
+    shapeTradersLastHeartbeatAt = 0;
+    shapeTradersLastGlobalSyncAt = 0;
+    markShapeTraderInteraction();
+    shapeTradersLocalResetMode = false;
+
+    setShapeTraderResetProgress("Resetting Shape Traders: syncing clean state and restarting draw clock…", {
+      buttonLabel: "RESTARTING…",
+      disableControls: true
+    });
+    await syncShapeTraderCurrentState();
+    if (typeof window !== "undefined") {
+      startShapeTradersClock();
+    }
+    renderShapeTraders();
+    await refreshShapeTraderGlobalSnapshot();
+    setShapeTraderStatus(
+      resetMode === "rpc"
+        ? "Testing reset complete. Shape Traders tables were cleared by the database reset function, prices are back to 100, and the next draw starts from a fresh countdown."
+        : "Testing reset complete. Shape Traders tables were cleared, prices are back to 100, and the next draw starts from a fresh countdown."
+    );
+  } catch (error) {
+    console.error("[RTN] Shape Traders reset failed", error);
+    setShapeTraderStatus(`Shape Traders reset failed: ${error?.message || "unknown error"}`);
+  } finally {
+    shapeTradersLocalResetMode = false;
+    shapeTradersResetInFlight = false;
+    clearShapeTraderResetProgress();
+  }
+}
+
+async function buyShapeTraderAsset() {
+  if (shapeTradersTradeActionInFlight) {
+    return;
+  }
+  shapeTradersTradeActionInFlight = true;
+  renderShapeTradersControls();
+  try {
+  const quantity = Math.max(1, Math.round(Number(shapeTradersQuantityInput?.value || 1)));
+  const assetId = shapeTradersSelectedAsset;
+  const price = Number(shapeTradersCurrentPrices[assetId] || 0);
+  const totalValue = roundCurrencyValue(quantity * price);
+  if (bankroll < totalValue) {
+    setShapeTraderStatus("Not enough cash to execute that buy.");
+    return;
+  }
+
+  const holding = shapeTradersHoldings[assetId];
+  const existingQuantity = Number(holding?.quantity || 0);
+  const existingCostBasis = existingQuantity * Number(holding?.averagePrice || 0);
+  const nextQuantity = existingQuantity + quantity;
+  const nextAveragePrice = nextQuantity > 0
+    ? roundCurrencyValue((existingCostBasis + totalValue) / nextQuantity)
+    : 0;
+
+  bankroll = roundCurrencyValue(bankroll - totalValue);
+  handleBankrollChanged();
+  showShapeTraderTradeToast(-totalValue);
+  shapeTradersHoldings[assetId] = {
+    quantity: nextQuantity,
+    averagePrice: nextAveragePrice
+  };
+
+  const entry = createShapeTraderActivityEntry({
+    side: "buy",
+    assetId,
+    quantity,
+    totalValue,
+    price
+  });
+  await appendShapeTraderActivity(entry);
+  await persistBankroll({
+    recordContestHistory: isContestAccountMode(),
+    contestHistoryLabel: "Trade",
+    contestCreditsValue: getShapeTraderAccountValue()
+  });
+  await syncShapeTraderCurrentState();
+  markShapeTraderInteraction();
+  renderShapeTraders();
+  setShapeTraderStatus(`Bought ${quantity} ${getShapeTraderAssetConfig(assetId).label.toLowerCase()} at ${formatCurrency(price)}.`);
+  } finally {
+    shapeTradersTradeActionInFlight = false;
+    renderShapeTradersControls();
+  }
+}
+
+async function sellShapeTraderAsset() {
+  if (shapeTradersTradeActionInFlight) {
+    return;
+  }
+  shapeTradersTradeActionInFlight = true;
+  renderShapeTradersControls();
+  try {
+  const quantity = Math.max(1, Math.round(Number(shapeTradersQuantityInput?.value || 1)));
+  const assetId = shapeTradersSelectedAsset;
+  const holding = shapeTradersHoldings[assetId];
+  if (!holding || holding.quantity < quantity) {
+    setShapeTraderStatus("You do not own enough of that shape to sell.");
+    return;
+  }
+
+  const price = Number(shapeTradersCurrentPrices[assetId] || 0);
+  const totalValue = roundCurrencyValue(quantity * price);
+  const netProfit = roundCurrencyValue((price - holding.averagePrice) * quantity);
+
+  bankroll = roundCurrencyValue(bankroll + totalValue);
+  handleBankrollChanged();
+  showShapeTraderTradeToast(totalValue);
+  const nextQuantity = holding.quantity - quantity;
+  shapeTradersHoldings[assetId] = {
+    quantity: nextQuantity,
+    averagePrice: nextQuantity > 0 ? holding.averagePrice : 0
+  };
+
+  const entry = createShapeTraderActivityEntry({
+    side: "sell",
+    assetId,
+    quantity,
+    totalValue,
+    price,
+    netProfit
+  });
+  await appendShapeTraderActivity(entry);
+  applyShapeTraderCarterCashProgress(netProfit);
+  await persistBankroll({
+    recordContestHistory: isContestAccountMode(),
+    contestHistoryLabel: "Trade",
+    contestCreditsValue: getShapeTraderAccountValue()
+  });
+  await syncShapeTraderCurrentState();
+  markShapeTraderInteraction();
+  renderShapeTraders();
+  setShapeTraderStatus(`Sold ${quantity} ${getShapeTraderAssetConfig(assetId).label.toLowerCase()} at ${formatCurrency(price)}.`);
+  } finally {
+    shapeTradersTradeActionInFlight = false;
+    renderShapeTradersControls();
+  }
+}
+
+async function maybeHandleShapeTraderExit(nextRoute) {
+  if (currentRoute !== "shape-traders" || nextRoute === "shape-traders" || !shapeTradersHasOpenHoldings()) {
+    return true;
+  }
+
+  const confirmed = typeof window === "undefined"
+    ? true
+    : window.confirm("You still have Shape Traders holdings. Leaving will liquidate every position at the current market price. Continue?");
+  if (!confirmed) {
+    updateHash("shape-traders", { replace: true });
+    return false;
+  }
+
+  await liquidateAllShapeTraderHoldings("Navigation liquidation");
+  return true;
+}
+
+async function synchronizeShapeTraders(now = Date.now()) {
+  if (shapeTradersSyncInFlight || shapeTradersResetInFlight || shapeTradersLocalResetMode) {
+    return;
+  }
+  shapeTradersSyncInFlight = true;
+  try {
+    if (shapeTradersResetInFlight || shapeTradersLocalResetMode) {
+      return;
+    }
+    const currentWindowIndex = getShapeTraderCurrentWindowIndex(now);
+    const startingWindowIndex = Math.max(0, shapeTradersProcessedWindowIndex);
+    let processedAnyDraws = false;
+    for (let windowIndex = startingWindowIndex; windowIndex <= currentWindowIndex; windowIndex += 1) {
+      if (shapeTradersResetInFlight || shapeTradersLocalResetMode) {
+        return;
+      }
+      const windowState = getShapeTraderWindowState(windowIndex, now);
+      const targetCount = windowIndex < currentWindowIndex ? windowState.cards.length : windowState.visibleCount;
+      const startSequence =
+        windowIndex === shapeTradersProcessedWindowIndex ? shapeTradersProcessedVisibleCount + 1 : 1;
+      for (let sequenceInWindow = startSequence; sequenceInWindow <= targetCount; sequenceInWindow += 1) {
+        if (shapeTradersResetInFlight || shapeTradersLocalResetMode) {
+          return;
+        }
+        const drawRow = await persistShapeTraderDrawRow(windowIndex, sequenceInWindow);
+        await applyShapeTraderDrawRow(drawRow);
+        processedAnyDraws = true;
+      }
+    }
+
+    if (processedAnyDraws) {
+      await reconcileShapeTraderMarketCurrent();
+    }
+
+    if (
+      !shapeTradersWindowActive &&
+      shapeTradersHasOpenHoldings() &&
+      shapeTradersLastBecameInactiveAt &&
+      Date.now() - shapeTradersLastBecameInactiveAt >= SHAPE_TRADERS_INACTIVITY_MS
+    ) {
+      void liquidateAllShapeTraderHoldings("Inactivity liquidation");
+      markShapeTraderInteraction();
+      setShapeTraderStatus("Positions liquidated after 5 minutes with the tab/window inactive.");
+    }
+
+    if (currentRoute === "shape-traders" && shapeTradersWindowActive && now - shapeTradersLastHeartbeatAt >= SHAPE_TRADERS_HEARTBEAT_MS) {
+      void syncShapeTraderCurrentState({ heartbeatOnly: true });
+    }
+
+    if (now - shapeTradersLastGlobalSyncAt >= SHAPE_TRADERS_GLOBAL_SYNC_MS) {
+      void refreshShapeTraderGlobalSnapshot();
+    }
+
+    renderShapeTraders();
+  } finally {
+    shapeTradersSyncInFlight = false;
+  }
+}
+
+function startShapeTradersClock() {
+  if (shapeTradersTimerId) {
+    clearInterval(shapeTradersTimerId);
+  }
+  if (shapeTradersAnimationFrameId) {
+    cancelAnimationFrame(shapeTradersAnimationFrameId);
+    shapeTradersAnimationFrameId = null;
+  }
+  void synchronizeShapeTraders();
+  shapeTradersTimerId = window.setInterval(() => {
+    void synchronizeShapeTraders();
+  }, 250);
+  const animateShapeTradersClock = () => {
+    if (currentRoute !== "shape-traders" || shapeTradersLocalResetMode) {
+      shapeTradersAnimationFrameId = null;
+      return;
+    }
+    const now = Date.now();
+    renderShapeTradersDeck(now);
+    renderShapeTradersControls(now);
+    shapeTradersAnimationFrameId = window.requestAnimationFrame(animateShapeTradersClock);
+  };
+  shapeTradersAnimationFrameId = window.requestAnimationFrame(animateShapeTradersClock);
+}
+
+async function initializeShapeTraders() {
+  bindShapeTraderWindowActivityListeners();
+  if (shapeTradersInitialized) {
+    if (!shapeTradersTimerId) {
+      startShapeTradersClock();
+    }
+    await hydrateShapeTradersFromDrawTable();
+    await refreshShapeTraderGlobalSnapshot();
+    return;
+  }
+  shapeTradersInitialized = true;
+  updateShapeTraderWindowActivityState();
+  await loadShapeTraderPortfolioFromBackend();
+  const shouldLiquidateInactivePortfolio =
+    shapeTradersHasOpenHoldings() &&
+    !shapeTradersWindowActive &&
+    shapeTradersLastBecameInactiveAt &&
+    Date.now() - shapeTradersLastBecameInactiveAt >= SHAPE_TRADERS_INACTIVITY_MS;
+  const preservedHoldings = shouldLiquidateInactivePortfolio
+    ? JSON.parse(JSON.stringify(shapeTradersHoldings))
+    : null;
+  if (shouldLiquidateInactivePortfolio) {
+    shapeTradersHoldings = createEmptyShapeTraderHoldings();
+  }
+  await hydrateShapeTradersFromDrawTable();
+  if (shouldLiquidateInactivePortfolio && preservedHoldings) {
+    shapeTradersHoldings = preservedHoldings;
+    await liquidateAllShapeTraderHoldings("Inactivity liquidation");
+    markShapeTraderInteraction();
+    setShapeTraderStatus("Positions liquidated at the live market price after 5 minutes with the tab/window inactive.");
+  }
+  await syncShapeTraderCurrentState();
+  await refreshShapeTraderGlobalSnapshot();
+  renderShapeTradersAssetSelector();
+  setShapeTraderStatus("Select a shape and quantity to place a trade.");
+  await synchronizeShapeTraders();
+  startShapeTradersClock();
+}
+
 async function loadAdminRanks(force = false) {
   if (!isAdmin()) {
     if (adminRankListEl) adminRankListEl.innerHTML = "";
@@ -2372,6 +4973,62 @@ function showHandOutcomeToast(delta) {
   }, 2000);
 }
 
+function showAccountDeltaToast(delta, label = "Account") {
+  if (!handToastContainer) return;
+
+  const value = Math.abs(Number(delta || 0));
+  const tone = delta > 0 ? "positive" : delta < 0 ? "negative" : "neutral";
+  const prefix = delta > 0 ? "+" : delta < 0 ? "−" : "±";
+  const message = `${label} ${prefix}${formatCurrency(value)}`;
+
+  handToastContainer.querySelectorAll(".hand-toast").forEach((node) => node.remove());
+
+  const toast = document.createElement("div");
+  toast.className = `hand-toast hand-toast-${tone}`;
+  toast.textContent = message;
+  handToastContainer.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.add("visible");
+  });
+
+  const timeout = typeof window !== "undefined" ? window.setTimeout : setTimeout;
+  timeout(() => {
+    toast.classList.remove("visible");
+    timeout(() => {
+      toast.remove();
+    }, 260);
+  }, 2000);
+}
+
+function showShapeTraderTradeToast(delta) {
+  if (!handToastContainer) return;
+
+  const value = Math.abs(Number(delta || 0));
+  const tone = delta > 0 ? "positive" : delta < 0 ? "negative" : "neutral";
+  const prefix = delta > 0 ? "+" : delta < 0 ? "−" : "±";
+  const message = `Trade Total ${prefix}${formatCurrency(value)}`;
+
+  handToastContainer.querySelectorAll(".hand-toast").forEach((node) => node.remove());
+
+  const toast = document.createElement("div");
+  toast.className = `hand-toast hand-toast-${tone}`;
+  toast.textContent = message;
+  handToastContainer.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.add("visible");
+  });
+
+  const timeout = typeof window !== "undefined" ? window.setTimeout : setTimeout;
+  timeout(() => {
+    toast.classList.remove("visible");
+    timeout(() => {
+      toast.remove();
+    }, 260);
+  }, 2000);
+}
+
 function setViewVisibility(view, visible) {
   if (!view) return;
   if (visible) {
@@ -2388,11 +5045,16 @@ function hideAllRoutes() {
 }
 
 function updateAdminVisibility(user = currentUser) {
-  if (!adminNavButton) return;
-  if (isAdmin(user)) {
-    adminNavButton.removeAttribute("hidden");
-  } else {
-    adminNavButton.setAttribute("hidden", "");
+  const adminVisible = isAdmin(user);
+  if (adminNavButton) {
+    if (adminVisible) {
+      adminNavButton.removeAttribute("hidden");
+    } else {
+      adminNavButton.setAttribute("hidden", "");
+    }
+  }
+  if (shapeTradersPlayCard) {
+    shapeTradersPlayCard.hidden = !adminVisible;
   }
 }
 
@@ -2541,9 +5203,14 @@ async function setRoute(route, { replaceHash = false } = {}) {
     await syncContestState({ force: !contestCache.length });
   }
 
-  if (!isAuthRoute && nextRoute === "admin" && !isAdmin()) {
+  if (!isAuthRoute && (nextRoute === "admin" || nextRoute === "shape-traders") && !isAdmin()) {
     showToast("Admin access only", "error");
     nextRoute = "home";
+  }
+
+  const canLeaveShapeTraders = await maybeHandleShapeTraderExit(nextRoute);
+  if (!canLeaveShapeTraders) {
+    return;
   }
 
   const requestedGameKey = getGameKeyForRoute(nextRoute);
@@ -2596,11 +5263,26 @@ async function setRoute(route, { replaceHash = false } = {}) {
     redBlackChipBarEl.hidden = resolvedRoute !== "red-black";
   }
 
+  if (resolvedRoute !== "shape-traders" && shapeTradersTimerId) {
+    clearInterval(shapeTradersTimerId);
+    shapeTradersTimerId = null;
+  }
+  if (resolvedRoute !== "shape-traders" && shapeTradersAnimationFrameId) {
+    cancelAnimationFrame(shapeTradersAnimationFrameId);
+    shapeTradersAnimationFrameId = null;
+  }
+
   if (resolvedRoute === "red-black") {
     updateRedBlackMultiplierChip();
     renderRedBlackSummary();
     updateRedBlackActionState();
     updateRedBlackPaytableHighlight();
+  }
+
+  if (resolvedRoute === "shape-traders") {
+    markShapeTraderInteraction();
+    await initializeShapeTraders();
+    await synchronizeShapeTraders();
   }
 
   if (PLAY_ASSISTANT_ROUTES.has(resolvedRoute)) {
@@ -10107,6 +12789,45 @@ const redBlackClearBetButton = document.getElementById("red-black-clear-bet-inli
 const redBlackRebetButton = document.getElementById("red-black-rebet");
 const redBlackDealButton = document.getElementById("red-black-draw");
 const redBlackWithdrawButton = document.getElementById("red-black-withdraw");
+const shapeTradersMarketGridEl = document.getElementById("shape-traders-market-grid");
+const shapeTradersActiveTradersEl = document.getElementById("shape-traders-active-traders");
+const shapeTradersMarketCapBarsEl = document.getElementById("shape-traders-market-cap-bars");
+const shapeTradersCashEl = document.getElementById("shape-traders-cash");
+const shapeTradersHoldingsValueEl = document.getElementById("shape-traders-holdings-value");
+const shapeTradersAccountTotalEl = document.getElementById("shape-traders-account-total");
+const shapeTradersDrawMetaEl = document.getElementById("shape-traders-draw-meta");
+const shapeTradersCountdownEl = document.getElementById("shape-traders-countdown");
+const shapeTradersCurrentCardEl = document.getElementById("shape-traders-current-card");
+const shapeTradersLastCardEl = document.getElementById("shape-traders-last-card");
+const shapeTradersDeckButton = document.getElementById("shape-traders-deck-button");
+const shapeTradersRecentButton = document.getElementById("shape-traders-recent-button");
+const shapeTradersDumpTrackEl = document.getElementById("shape-traders-dump-track");
+const shapeTradersDumpLabelEl = document.getElementById("shape-traders-dump-label");
+const shapeTradersHoldingsListEl = document.getElementById("shape-traders-holdings-list");
+const shapeTradersActivityListEl = document.getElementById("shape-traders-activity-list");
+const shapeTradersAssetSelectorEl = document.getElementById("shape-traders-asset-selector");
+const shapeTradersQuantityInput = document.getElementById("shape-traders-quantity");
+const shapeTradersTradeValueEl = document.getElementById("shape-traders-trade-value");
+const shapeTradersBuyButton = document.getElementById("shape-traders-buy-button");
+const shapeTradersSellButton = document.getElementById("shape-traders-sell-button");
+const shapeTradersLiquidateButton = document.getElementById("shape-traders-liquidate-nav");
+const shapeTradersMarketResetButton = document.getElementById("shape-traders-market-reset");
+const shapeTradersStatusEl = document.getElementById("shape-traders-status");
+const shapeTradersInactivityEl = document.getElementById("shape-traders-inactivity");
+const shapeTradersChartModal = document.getElementById("shape-traders-chart-modal");
+const shapeTradersChartCloseButton = document.getElementById("shape-traders-chart-close");
+const shapeTradersChartSymbolEl = document.getElementById("shape-traders-chart-symbol");
+const shapeTradersChartTitleEl = document.getElementById("shape-traders-chart-title");
+const shapeTradersChartSubtitleEl = document.getElementById("shape-traders-chart-subtitle");
+const shapeTradersChartSurfaceEl = document.getElementById("shape-traders-chart-surface");
+const shapeTradersChartZoomInButton = document.getElementById("shape-traders-chart-zoom-in");
+const shapeTradersChartZoomOutButton = document.getElementById("shape-traders-chart-zoom-out");
+const shapeTradersRecentModal = document.getElementById("shape-traders-recent-modal");
+const shapeTradersRecentCloseButton = document.getElementById("shape-traders-recent-close");
+const shapeTradersRecentListEl = document.getElementById("shape-traders-recent-list");
+const shapeTradersDeckModal = document.getElementById("shape-traders-deck-modal");
+const shapeTradersDeckCloseButton = document.getElementById("shape-traders-deck-close");
+const shapeTradersDeckListEl = document.getElementById("shape-traders-deck-list");
 const resetAccountButton = document.getElementById("reset-account");
 const menuToggle = document.getElementById("menu-toggle");
 const utilityPanel = document.getElementById("utility-panel");
@@ -10177,6 +12898,8 @@ const resetPasswordForm = document.getElementById("reset-password-form");
 const appShell = document.getElementById("app-shell");
 const homeView = document.getElementById("home-view");
 const playView = document.getElementById("play-view");
+const shapeTradersPlayCard = document.getElementById("shape-traders-play-card");
+const shapeTradersView = document.getElementById("shape-traders-view");
 const runTheNumbersView = document.getElementById("run-the-numbers-view");
 const redBlackView = document.getElementById("red-black-view");
 const redBlackChipBarEl = document.getElementById("red-black-chip-bar");
@@ -10188,6 +12911,7 @@ const profileView = document.getElementById("profile-view");
 const routeViews = {
   home: homeView,
   play: playView,
+  "shape-traders": shapeTradersView,
   "run-the-numbers": runTheNumbersView,
   "red-black": redBlackView,
   contests: contestsView,
@@ -10200,7 +12924,7 @@ const headerEl = document.querySelector(".header");
 const chipBarEl = runTheNumbersView ? runTheNumbersView.querySelector(".chip-bar") : null;
 const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout") : null;
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
-const TABLE_ROUTES = new Set(["home", "play", "run-the-numbers", "red-black", "contests", "store", "admin"]);
+const TABLE_ROUTES = new Set(["home", "play", "shape-traders", "run-the-numbers", "red-black", "contests", "store", "admin"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
@@ -10457,6 +13181,7 @@ const DEFAULT_CUSTOM_THEME_PALETTE = {
   accentTertiary: "#8b80ff",
   heroButton: "#4f9bff",
   primaryButton: "#4f9bff",
+  actionColor: "#4f9bff",
   primaryButtonDisabled: "#7f9dc7",
   secondaryButton: "#2b6fd6",
   secondaryButtonDisabled: "#647da3",
@@ -10578,6 +13303,7 @@ const CUSTOM_THEME_VARIABLE_KEYS = [
   "--secondary-button-shadow",
   "--secondary-button-shadow-hover",
   "--secondary-button-text",
+  "--theme-action-color",
   "--secondary-button-disabled-bg",
   "--secondary-button-disabled-border",
   "--secondary-button-disabled-shadow",
@@ -10788,6 +13514,81 @@ const PLAY_ASSISTANT_MAX_HISTORY = 12;
 const PLAY_ASSISTANT_HISTORY_LIMIT = 100;
 const PLAY_ASSISTANT_HISTORY_CACHE_MS = 60 * 1000;
 const PLAY_ASSISTANT_REQUEST_TIMEOUT_MS = 25000;
+const SHAPE_TRADERS_EPOCH_MS = Date.parse("2026-04-16T00:00:00Z");
+const SHAPE_TRADERS_DRAW_INTERVAL_MS = 15000;
+const SHAPE_TRADERS_DUMP_CARDS = 5;
+const SHAPE_TRADERS_DUMP_CARD_INTERVAL_MS = 2000;
+const SHAPE_TRADERS_DUMP_ACTIVE_MS = SHAPE_TRADERS_DUMP_CARDS * SHAPE_TRADERS_DUMP_CARD_INTERVAL_MS;
+const SHAPE_TRADERS_SINGLE_DRAW_LOCK_MS = 1200;
+const SHAPE_TRADERS_INACTIVITY_MS = 5 * 60 * 1000;
+const SHAPE_TRADERS_START_PRICE = 100;
+const SHAPE_TRADERS_SPLIT_THRESHOLD = 1000;
+const SHAPE_TRADERS_SPLIT_FACTOR = 10;
+const SHAPE_TRADERS_SPLIT_FLASH_MS = 5000;
+const SHAPE_TRADERS_MAX_ACTIVITY = 30;
+const SHAPE_TRADERS_GLOBAL_SYNC_MS = 5000;
+const SHAPE_TRADERS_HEARTBEAT_MS = 30000;
+const SHAPE_TRADERS_ASSETS = [
+  { id: "square", label: "Square", accent: "cyan", icon: "square" },
+  { id: "triangle", label: "Triangle", accent: "magenta", icon: "triangle" },
+  { id: "circle", label: "Circle", accent: "gold", icon: "circle" }
+];
+const SHAPE_TRADERS_MOVEMENTS = [5, 10, 15, 20, 25, 30, 40, 50, 100, -5, -9, -13, -17, -20, -23, -30, -33, -50];
+const SHAPE_TRADERS_MACRO_CARDS = [
+  { label: "Macro +5%", percentage: 5 },
+  { label: "Macro +10%", percentage: 10 },
+  { label: "Macro +15%", percentage: 15 },
+  { label: "Macro +20%", percentage: 20 },
+  { label: "Macro +25%", percentage: 25 },
+  { label: "Macro -5%", percentage: -5 },
+  { label: "Macro -9%", percentage: -9 },
+  { label: "Macro -13%", percentage: -13 },
+  { label: "Macro -17%", percentage: -17 },
+  { label: "Macro -20%", percentage: -20 },
+  { label: "Animal Spirits +50%", percentage: 50 },
+  { label: "Market Panic -33%", percentage: -33 }
+].map((card) => ({
+  ...card,
+  kind: "macro",
+  assetId: null
+}));
+let shapeTradersSelectedAsset = SHAPE_TRADERS_ASSETS[0].id;
+let shapeTradersHoldings = createEmptyShapeTraderHoldings();
+let shapeTradersActivity = [];
+let shapeTradersCurrentPrices = createInitialShapeTraderPrices();
+let shapeTradersLastInteractionAt = Date.now();
+let shapeTradersProcessedWindowIndex = -1;
+let shapeTradersProcessedVisibleCount = 0;
+let shapeTradersCurrentCard = null;
+let shapeTradersPreviousCard = null;
+let shapeTradersTimerId = null;
+let shapeTradersAnimationFrameId = null;
+let shapeTradersInitialized = false;
+let shapeTradersTimelineEpochMs = SHAPE_TRADERS_EPOCH_MS;
+let shapeTradersLocalResetMode = false;
+let shapeTradersTradeActionInFlight = false;
+let shapeTradersTradePersistenceAvailable = true;
+let shapeTradersStatePersistenceAvailable = true;
+let shapeTradersDrawPersistenceAvailable = true;
+let shapeTradersMarketPersistenceAvailable = true;
+let shapeTradersPriceHistoryPersistenceAvailable = true;
+let shapeTradersLastGlobalSyncAt = 0;
+let shapeTradersLastHeartbeatAt = 0;
+let shapeTradersWindowActive = true;
+let shapeTradersLastBecameInactiveAt = null;
+let shapeTradersWindowActivityListenersBound = false;
+let shapeTradersRecentDrawRows = [];
+let shapeTradersSyncInFlight = false;
+let shapeTradersResetInFlight = false;
+let shapeTradersSplitNoticeByAsset = {};
+let shapeTradersOpenChartAssetId = null;
+let shapeTradersOpenChartSeries = [];
+let shapeTradersChartVisibleCount = 100;
+let shapeTradersChartTouchZoomDistance = null;
+let shapeTradersGlobalSnapshot = {
+  activeTraderCount: 0,
+  marketCapByAsset: createEmptyShapeTraderMarketCap()
+};
 const PLAY_ASSISTANT_ROUTES = new Set(["run-the-numbers", "red-black"]);
 const PLAY_ASSISTANT_CONFIG = {
   [GAME_KEYS.RUN_THE_NUMBERS]: {
@@ -11315,7 +14116,11 @@ function updateDashboardCreditsDisplay(value = bankroll) {
   }
 }
 
-async function persistBankroll({ recordContestHistory = false, contestHistoryLabel = "Hand" } = {}) {
+async function persistBankroll({
+  recordContestHistory = false,
+  contestHistoryLabel = "Hand",
+  contestCreditsValue = null
+} = {}) {
   if (!currentUser) return;
   const normalizedBankroll = normalizeStoredCreditValue(bankroll);
 
@@ -11345,12 +14150,16 @@ async function persistBankroll({ recordContestHistory = false, contestHistoryLab
         throw new Error("Contest mode is unavailable.");
       }
 
+      const contestCredits = Number.isFinite(Number(contestCreditsValue))
+        ? normalizeStoredCreditValue(contestCreditsValue)
+        : normalizedBankroll;
+
       const contestSnapshot = {
-        current_credits: Number.isFinite(normalizedBankroll) ? normalizedBankroll : 0,
+        current_credits: Number.isFinite(contestCredits) ? contestCredits : 0,
         current_carter_cash: Number.isFinite(carterCash) ? carterCash : 0,
         current_carter_cash_progress: Number.isFinite(carterCashProgress) ? carterCashProgress : 0,
         contest_history: recordContestHistory
-          ? buildContestHistory(activeEntry.contest_history, normalizedBankroll, contestHistoryLabel)
+          ? buildContestHistory(activeEntry.contest_history, contestCredits, contestHistoryLabel)
           : activeEntry.contest_history,
         display_name: getContestDisplayName(currentProfile, currentUser.id),
         participant_email: currentUser.email || ""
@@ -11380,6 +14189,8 @@ async function persistBankroll({ recordContestHistory = false, contestHistoryLab
         currentContestEntry = updatedEntry;
       }
     } else {
+      const profileSelectFields =
+        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, updated_at";
       const profileVersion = currentProfile?.updated_at ?? null;
       let profileUpdateQuery = supabase
         .from("profiles")
@@ -11390,9 +14201,19 @@ async function persistBankroll({ recordContestHistory = false, contestHistoryLab
         profileUpdateQuery = profileUpdateQuery.eq("updated_at", profileVersion);
       }
 
-      const { data, error } = await profileUpdateQuery
-        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, updated_at")
+      let { data, error } = await profileUpdateQuery
+        .select(profileSelectFields)
         .maybeSingle();
+
+      if (!error && !data && profileVersion) {
+        console.warn("[RTN] Profile bankroll sync hit stale updated_at; retrying without version guard");
+        ({ data, error } = await supabase
+          .from("profiles")
+          .update(updates)
+          .eq("id", currentUser.id)
+          .select(profileSelectFields)
+          .maybeSingle());
+      }
 
       if (error) {
         throw error;
@@ -15736,6 +18557,14 @@ function applyPlaythrough(amount) {
   syncCurrentModeShadowState();
 }
 
+function applyShapeTraderCarterCashProgress(netProfit) {
+  const realizedMove = Math.abs(Number(netProfit) || 0);
+  if (!Number.isFinite(realizedMove) || realizedMove <= 0) {
+    return;
+  }
+  applyPlaythrough(realizedMove);
+}
+
 async function endHand(stopperCard, context = {}) {
   setHandPaused(false);
   settleAdvancedBets(stopperCard, context);
@@ -18573,8 +21402,218 @@ if (redBlackWithdrawButton) {
   });
 }
 
+if (shapeTradersQuantityInput) {
+  shapeTradersQuantityInput.addEventListener("input", () => {
+    const normalized = Math.max(1, Math.round(Number(shapeTradersQuantityInput.value || 1)));
+    shapeTradersQuantityInput.value = String(normalized);
+    markShapeTraderInteraction();
+    renderShapeTradersControls();
+  });
+}
+
+if (shapeTradersBuyButton) {
+  shapeTradersBuyButton.addEventListener("click", () => {
+    if (shapeTradersResetInFlight) {
+      setShapeTraderStatus("Shape Traders is resetting. Please wait for the reset to finish.");
+      return;
+    }
+    const windowState = getShapeTraderWindowState(getShapeTraderCurrentWindowIndex());
+    if (windowState.tradeLocked) {
+      setShapeTraderStatus("Trading is locked while the market card is drawing.");
+      return;
+    }
+    void buyShapeTraderAsset();
+  });
+}
+
+if (shapeTradersSellButton) {
+  shapeTradersSellButton.addEventListener("click", () => {
+    if (shapeTradersResetInFlight) {
+      setShapeTraderStatus("Shape Traders is resetting. Please wait for the reset to finish.");
+      return;
+    }
+    const windowState = getShapeTraderWindowState(getShapeTraderCurrentWindowIndex());
+    if (windowState.tradeLocked) {
+      setShapeTraderStatus("Trading is locked while the market card is drawing.");
+      return;
+    }
+    void sellShapeTraderAsset();
+  });
+}
+
+if (shapeTradersLiquidateButton) {
+  shapeTradersLiquidateButton.addEventListener("click", () => {
+    if (shapeTradersResetInFlight) {
+      setShapeTraderStatus("Shape Traders is resetting. Please wait for the reset to finish.");
+      return;
+    }
+    markShapeTraderInteraction();
+    void liquidateAllShapeTraderHoldings();
+  });
+}
+
+if (shapeTradersMarketResetButton) {
+  shapeTradersMarketResetButton.addEventListener("click", () => {
+    if (shapeTradersResetInFlight) {
+      return;
+    }
+    resetShapeTraderMarketPrices().catch((error) => {
+      console.error("[RTN] Unhandled Shape Traders reset error", error);
+    });
+  });
+}
+
+if (shapeTradersChartCloseButton) {
+  shapeTradersChartCloseButton.addEventListener("click", () => {
+    closeShapeTraderChart();
+  });
+}
+
+if (shapeTradersChartZoomInButton) {
+  shapeTradersChartZoomInButton.addEventListener("click", () => {
+    if (!shapeTradersOpenChartAssetId || shapeTradersChartModal?.hidden) {
+      return;
+    }
+    adjustShapeTraderChartZoom(1);
+  });
+}
+
+if (shapeTradersChartZoomOutButton) {
+  shapeTradersChartZoomOutButton.addEventListener("click", () => {
+    if (!shapeTradersOpenChartAssetId || shapeTradersChartModal?.hidden) {
+      return;
+    }
+    adjustShapeTraderChartZoom(-1);
+  });
+}
+
+if (shapeTradersChartSurfaceEl) {
+  shapeTradersChartSurfaceEl.addEventListener("wheel", (event) => {
+    if (!shapeTradersOpenChartAssetId || shapeTradersChartModal?.hidden) {
+      return;
+    }
+    if (!event.ctrlKey) {
+      return;
+    }
+    event.preventDefault();
+    adjustShapeTraderChartZoom(event.deltaY < 0 ? -1 : 1);
+  }, { passive: false });
+
+  shapeTradersChartSurfaceEl.addEventListener("touchstart", (event) => {
+    if (event.touches.length !== 2) {
+      shapeTradersChartTouchZoomDistance = null;
+      return;
+    }
+    const [touchA, touchB] = event.touches;
+    shapeTradersChartTouchZoomDistance = Math.hypot(
+      touchA.clientX - touchB.clientX,
+      touchA.clientY - touchB.clientY
+    );
+  }, { passive: true });
+
+  shapeTradersChartSurfaceEl.addEventListener("touchmove", (event) => {
+    if (!shapeTradersOpenChartAssetId || shapeTradersChartModal?.hidden || event.touches.length !== 2) {
+      shapeTradersChartTouchZoomDistance = null;
+      return;
+    }
+    const [touchA, touchB] = event.touches;
+    const nextDistance = Math.hypot(
+      touchA.clientX - touchB.clientX,
+      touchA.clientY - touchB.clientY
+    );
+    if (!Number.isFinite(shapeTradersChartTouchZoomDistance) || !shapeTradersChartTouchZoomDistance) {
+      shapeTradersChartTouchZoomDistance = nextDistance;
+      return;
+    }
+    const distanceDelta = nextDistance - shapeTradersChartTouchZoomDistance;
+    if (Math.abs(distanceDelta) < 12) {
+      return;
+    }
+    event.preventDefault();
+    adjustShapeTraderChartZoom(distanceDelta > 0 ? -1 : 1);
+    shapeTradersChartTouchZoomDistance = nextDistance;
+  }, { passive: false });
+
+  shapeTradersChartSurfaceEl.addEventListener("touchend", () => {
+    shapeTradersChartTouchZoomDistance = null;
+  });
+
+  shapeTradersChartSurfaceEl.addEventListener("touchcancel", () => {
+    shapeTradersChartTouchZoomDistance = null;
+  });
+}
+
+if (shapeTradersMarketGridEl) {
+  const openChartFromMarketButton = (event) => {
+    const button = event.target instanceof Element
+      ? event.target.closest("[data-shape-trader-chart]")
+      : null;
+    if (!button) return;
+    event.preventDefault();
+    const assetId = button.getAttribute("data-shape-trader-chart");
+    if (!assetId) return;
+    void openShapeTraderChart(assetId);
+  };
+
+  shapeTradersMarketGridEl.addEventListener("pointerdown", openChartFromMarketButton);
+  shapeTradersMarketGridEl.addEventListener("click", openChartFromMarketButton);
+}
+
+if (shapeTradersDeckButton) {
+  shapeTradersDeckButton.addEventListener("click", () => {
+    openShapeTraderDeck();
+  });
+}
+
+if (shapeTradersRecentButton) {
+  shapeTradersRecentButton.addEventListener("click", () => {
+    openShapeTraderRecentDraws();
+  });
+}
+
+if (shapeTradersChartModal) {
+  shapeTradersChartModal.addEventListener("click", (event) => {
+    if (event.target === shapeTradersChartModal) {
+      closeShapeTraderChart();
+    }
+  });
+}
+
+if (shapeTradersRecentCloseButton) {
+  shapeTradersRecentCloseButton.addEventListener("click", () => {
+    closeShapeTraderRecentDraws();
+  });
+}
+
+if (shapeTradersDeckCloseButton) {
+  shapeTradersDeckCloseButton.addEventListener("click", () => {
+    closeShapeTraderDeck();
+  });
+}
+
+if (shapeTradersRecentModal) {
+  shapeTradersRecentModal.addEventListener("click", (event) => {
+    if (event.target === shapeTradersRecentModal) {
+      closeShapeTraderRecentDraws();
+    }
+  });
+}
+
+if (shapeTradersDeckModal) {
+  shapeTradersDeckModal.addEventListener("click", (event) => {
+    if (event.target === shapeTradersDeckModal) {
+      closeShapeTraderDeck();
+    }
+  });
+}
+
 if (typeof window !== "undefined") {
   window.addEventListener("hashchange", handleHashChange);
+  window.addEventListener("beforeunload", (event) => {
+    if (!shapeTradersHasOpenHoldings()) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
 }
 
 if (panelScrim) {
@@ -18946,10 +21985,6 @@ async function initializeApp() {
   // Ensure we are listening for auth state changes early so reloads and token
   // refreshes can rehydrate the session automatically.
   setupAuthListener();
-
-  if (appShell) {
-    appShell.removeAttribute("data-hidden");
-  }
 
   const initialRoute = getRouteFromHash();
   console.info(`[RTN] initializeApp initial route resolved to "${initialRoute}"`);

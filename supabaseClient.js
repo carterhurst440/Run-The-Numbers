@@ -118,6 +118,52 @@ const mockDatabase = {
   prizes: [],
   game_runs: [],
   bet_plays: [],
+  shape_trader_draws: [],
+  shape_trader_market_current: [
+    {
+      shape: "circle",
+      game_id: "game_003",
+      current_price: 100,
+      last_draw_id: null,
+      last_window_index: null,
+      last_sequence_in_window: null,
+      last_card_label: null,
+      last_percentage: null,
+      last_event_type: null,
+      bankruptcy_triggered: false,
+      updated_at: new Date().toISOString()
+    },
+    {
+      shape: "square",
+      game_id: "game_003",
+      current_price: 100,
+      last_draw_id: null,
+      last_window_index: null,
+      last_sequence_in_window: null,
+      last_card_label: null,
+      last_percentage: null,
+      last_event_type: null,
+      bankruptcy_triggered: false,
+      updated_at: new Date().toISOString()
+    },
+    {
+      shape: "triangle",
+      game_id: "game_003",
+      current_price: 100,
+      last_draw_id: null,
+      last_window_index: null,
+      last_sequence_in_window: null,
+      last_card_label: null,
+      last_percentage: null,
+      last_event_type: null,
+      bankruptcy_triggered: false,
+      updated_at: new Date().toISOString()
+    }
+  ],
+  shape_trader_price_history: [],
+  shape_trader_trades: [],
+  shape_trader_accounts_current: [],
+  shape_trader_positions_current: [],
   themes: [],
   contests: [],
   contest_entries: []
@@ -209,6 +255,52 @@ function createQuery(table) {
       // Return a thenable object that also supports chaining like
       // `.select(...).maybeSingle()` to mirror supabase-js behaviour in
       // offline stub mode.
+      const thenable = {
+        select() {
+          return {
+            maybeSingle: async () => ({ data: Array.isArray(result.data) ? result.data[0] : result.data, error: null }),
+            single: async () => ({ data: Array.isArray(result.data) ? result.data[0] : result.data, error: null }),
+            then: (resolve, reject) => Promise.resolve(result).then(resolve, reject)
+          };
+        },
+        maybeSingle: async () => ({ data: Array.isArray(result.data) ? result.data[0] : result.data, error: null }),
+        then: (resolve, reject) => Promise.resolve(result).then(resolve, reject)
+      };
+
+      return thenable;
+    },
+    upsert(payload, options = {}) {
+      const items = Array.isArray(payload) ? payload : [payload];
+      const tableRows = mockDatabase[table];
+      const conflictFields = String(options.onConflict || "id")
+        .split(",")
+        .map((field) => field.trim())
+        .filter(Boolean);
+
+      if (Array.isArray(tableRows)) {
+        for (const item of items) {
+          const nextItem = cloneRow(item);
+          const existingIndex = tableRows.findIndex((row) =>
+            conflictFields.every((field) => row && nextItem && row[field] === nextItem[field])
+          );
+          if (existingIndex >= 0) {
+            tableRows[existingIndex] = { ...tableRows[existingIndex], ...nextItem };
+          } else {
+            if (nextItem && typeof nextItem === "object" && !nextItem.id) {
+              nextItem.id = `mock-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+            }
+            tableRows.push(nextItem);
+          }
+        }
+      }
+
+      try {
+        saveMockDatabase();
+      } catch (e) {
+        /* ignore */
+      }
+
+      const result = { data: cloneRow(items), error: null };
       const thenable = {
         select() {
           return {

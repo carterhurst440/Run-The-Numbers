@@ -1,7 +1,8 @@
 insert into public.games (id, name, status)
 values
   ('game_001', 'Run the Numbers', 'active'),
-  ('game_002', 'Guess 10', 'beta')
+  ('game_002', 'Guess 10', 'beta'),
+  ('game_003', 'Shape Traders', 'admin')
 on conflict (id) do update
 set
   name = excluded.name,

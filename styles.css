@@ -195,6 +195,7 @@
   --chip-bar-shadow: 0 -26px 48px rgba(0, 0, 0, 0.7);
   --secondary-button-bg: linear-gradient(135deg, rgba(63, 240, 255, 0.3), rgba(6, 32, 96, 0.96));
   --secondary-button-border: rgba(63, 240, 255, 0.46);
+  --theme-action-color: #4f9bff;
   --deal-button-bg: linear-gradient(135deg, rgba(63, 240, 255, 0.9), rgba(122, 99, 255, 0.9));
   --deal-button-shadow: 0 22px 38px rgba(63, 240, 255, 0.32);
   --deal-button-shadow-hover: 0 24px 42px rgba(122, 99, 255, 0.36);
@@ -453,6 +454,7 @@ body.theme-pink {
   --chip-bar-shadow: 0 -26px 48px rgba(12, 0, 24, 0.72);
   --secondary-button-bg: linear-gradient(135deg, rgba(255, 170, 235, 0.32), rgba(64, 12, 90, 0.96));
   --secondary-button-border: rgba(255, 170, 235, 0.46);
+  --theme-action-color: #ff76df;
   --deal-button-bg: linear-gradient(135deg, rgba(255, 121, 222, 0.92), rgba(183, 139, 255, 0.9));
   --deal-button-shadow: 0 22px 38px rgba(255, 121, 222, 0.34);
   --deal-button-shadow-hover: 0 24px 42px rgba(183, 139, 255, 0.36);
@@ -580,6 +582,7 @@ body.theme-orange {
   --chip-bar-shadow: 0 -26px 48px rgba(18, 4, 0, 0.74);
   --secondary-button-bg: linear-gradient(135deg, rgba(255, 188, 120, 0.32), rgba(88, 28, 0, 0.96));
   --secondary-button-border: rgba(255, 173, 94, 0.48);
+  --theme-action-color: #ff9a3b;
   --deal-button-bg: linear-gradient(135deg, rgba(255, 173, 94, 0.92), rgba(255, 118, 43, 0.9));
   --deal-button-shadow: 0 22px 38px rgba(255, 173, 94, 0.34);
   --deal-button-shadow-hover: 0 24px 42px rgba(255, 118, 43, 0.36);
@@ -1582,6 +1585,15 @@ body[data-app-state="loading"] #app-shell {
   border-color: rgba(255, 79, 157, 0.36);
 }
 
+.game-card-shape-traders {
+  background:
+    radial-gradient(circle at top right, rgba(255, 230, 120, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(63, 240, 255, 0.08), transparent 38%),
+    linear-gradient(135deg, rgba(255, 79, 157, 0.12), transparent 60%),
+    var(--betting-panel-bg);
+  border-color: rgba(255, 230, 120, 0.34);
+}
+
 .game-card-head {
   display: grid;
   gap: 0.45rem;
@@ -1646,6 +1658,1631 @@ body[data-app-state="loading"] #app-shell {
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+}
+
+.shape-traders-view {
+  align-items: stretch;
+  justify-content: center;
+  padding: clamp(1rem, 2.5vw, 1.8rem);
+  padding-bottom: calc(9rem + env(safe-area-inset-bottom));
+}
+
+.shape-traders-shell {
+  width: min(100%, 1560px);
+  display: grid;
+  gap: 1rem;
+}
+
+.shape-traders-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.shape-traders-title {
+  margin: 0;
+  font-family: "Audiowide", "Play", system-ui, sans-serif;
+  font-size: 1.18rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.shape-traders-subtitle {
+  margin: 0.15rem 0 0;
+  max-width: 46rem;
+  color: color-mix(in srgb, var(--text-light) 78%, transparent);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.shape-traders-header-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.shape-traders-header-button {
+  min-width: 7.2rem;
+  min-height: 2.25rem;
+  padding: 0.42rem 0.9rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+
+.shape-traders-header-balance {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.7rem 0.9rem;
+  border-radius: 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--gold) 18%, var(--header-border-color) 82%);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--gold) 8%, transparent), transparent 48%),
+    color-mix(in srgb, var(--header-gradient) 88%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.shape-traders-header-balance-head {
+  flex: 0 0 auto;
+}
+
+.shape-traders-header-balance-head h2 {
+  margin: 0.15rem 0 0;
+  font-size: 0.92rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.shape-traders-header-balance .shape-traders-panel-kicker {
+  font-size: 0.64rem;
+}
+
+.shape-traders-header-balance .shape-traders-balance-list {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-left: 0;
+}
+
+.shape-traders-header-balance .shape-traders-balance-list div {
+  display: grid;
+  align-items: start;
+  gap: 0.18rem;
+  min-width: 0;
+  padding: 0.45rem 0.68rem;
+  border-radius: 0.85rem;
+}
+
+.shape-traders-header-balance .shape-traders-balance-list dt {
+  line-height: 1;
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+}
+
+.shape-traders-header-balance .shape-traders-balance-list dd {
+  font-size: 0.96rem;
+  line-height: 1.05;
+}
+
+.shape-traders-header-balance #shape-traders-account-total {
+  color: #78ff8d;
+}
+
+.shape-traders-header-balance-actions {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: nowrap;
+  margin-left: 0;
+}
+
+.shape-traders-layout {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.shape-traders-panel {
+  display: grid;
+  gap: 0.95rem;
+  min-height: 100%;
+  padding: clamp(1.05rem, 2.4vw, 1.45rem);
+  border-radius: 1.5rem;
+  border: 1px solid var(--betting-panel-border);
+  background: var(--betting-panel-bg);
+  box-shadow: var(--betting-panel-shadow);
+}
+
+.shape-traders-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.shape-traders-panel-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.shape-traders-panel-heading h2 {
+  margin: 0.15rem 0 0;
+  font-size: 1.18rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.shape-traders-panel-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--gold) 84%, var(--text-light) 16%);
+}
+
+.shape-traders-panel-meta {
+  margin: 0;
+  color: color-mix(in srgb, var(--text-light) 64%, transparent);
+  font-size: 0.82rem;
+  text-align: right;
+}
+
+.shape-traders-mini-button {
+  min-height: 2rem;
+  padding: 0.34rem 0.78rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+}
+
+.shape-traders-market-panel {
+  grid-column: 1 / 4;
+  grid-row: 1;
+  gap: 0.72rem;
+  padding-block: 0.9rem;
+  align-content: start;
+}
+
+.shape-traders-global-panel {
+  grid-column: 5 / 7;
+  grid-row: 2;
+}
+
+.shape-traders-deck-panel {
+  grid-column: 4 / 7;
+  grid-row: 1;
+  gap: 0.72rem;
+  padding-block: 0.9rem;
+}
+
+.shape-traders-holdings-panel {
+  grid-column: 1 / 3;
+  grid-row: 2;
+  align-content: start;
+}
+
+.shape-traders-activity-panel {
+  grid-column: 3 / 5;
+  grid-row: 2;
+  min-height: 0;
+  max-height: 33rem;
+  overflow: hidden;
+}
+
+.shape-traders-market-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+  align-items: stretch;
+  min-height: clamp(19rem, 34vh, 24rem);
+}
+
+.shape-traders-market-card,
+.shape-traders-holding-card {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border-radius: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--betting-panel-border) 72%, white 28%);
+}
+
+.shape-traders-market-card {
+  min-height: 100%;
+  background: linear-gradient(180deg, rgba(10, 10, 12, 0.98), rgba(20, 20, 24, 0.96));
+  grid-template-rows: auto auto auto auto;
+  align-content: stretch;
+  gap: 0.78rem;
+  padding: 0.95rem 0.95rem 1rem;
+}
+
+.shape-traders-market-card-head {
+  justify-content: space-between;
+}
+
+.shape-traders-market-card-title {
+  display: block;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.shape-traders-market-card-title > div {
+  display: grid;
+  grid-template-rows: auto minmax(1.7rem, auto);
+  align-content: start;
+}
+
+.shape-traders-market-card-hero {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 2.8rem;
+}
+
+.shape-traders-market-card-hero .shape-traders-shape-icon.shape-square {
+  width: 2.15rem;
+  height: 2.15rem;
+  border-width: 3.2px;
+}
+
+.shape-traders-market-card-hero .shape-traders-shape-icon.shape-triangle {
+  width: 2.5rem;
+  height: 2.2rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 30'%3E%3Cpath d='M17 3 L31 27 H3 Z' fill='none' stroke='%23ff4ad3' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.shape-traders-market-card-hero .shape-traders-shape-icon.shape-circle {
+  width: 2.15rem;
+  height: 2.15rem;
+  border-width: 3.2px;
+}
+
+.shape-traders-holding-card {
+  background: color-mix(in srgb, var(--betting-panel-bg) 92%, transparent);
+}
+
+.shape-traders-market-card.is-cyan,
+.shape-traders-holding-card.is-cyan {
+  box-shadow: inset 0 0 0 1px rgba(68, 157, 255, 0.28);
+}
+
+.shape-traders-market-card.is-magenta,
+.shape-traders-holding-card.is-magenta {
+  box-shadow: inset 0 0 0 1px rgba(255, 74, 211, 0.28);
+}
+
+.shape-traders-market-card.is-gold,
+.shape-traders-holding-card.is-gold {
+  box-shadow: inset 0 0 0 1px rgba(255, 225, 92, 0.3);
+}
+
+.shape-traders-market-card-head,
+.shape-traders-holding-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.shape-traders-chart-button {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(245, 247, 250, 0.86);
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.shape-traders-chart-button:hover,
+.shape-traders-chart-button:focus-visible {
+  background: transparent;
+  color: #ffffff;
+  box-shadow: none;
+  transform: none;
+}
+
+.shape-traders-chart-button svg {
+  width: 1.12rem;
+  height: 1.12rem;
+  pointer-events: none;
+}
+
+.shape-traders-market-card h3 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.shape-traders-market-card p {
+  margin: 0.15rem 0 0;
+  color: color-mix(in srgb, var(--text-light) 68%, transparent);
+  font-size: 0.72rem;
+  min-height: 1.7rem;
+  line-height: 1.18;
+}
+
+.shape-traders-market-card-split {
+  align-self: start;
+  justify-self: start;
+  padding: 0.28rem 0.58rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 24%, rgba(255, 255, 255, 0.06));
+  border: 1px solid color-mix(in srgb, var(--accent) 60%, white 12%);
+  color: #ffffff;
+  font-size: 0.64rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 700;
+  box-shadow: 0 0 0.9rem color-mix(in srgb, var(--accent) 28%, transparent);
+  animation: shapeTradersSplitPulse 900ms ease-in-out infinite alternate;
+}
+
+.shape-traders-market-card-price {
+  justify-self: center;
+  align-self: center;
+  font-size: clamp(1.2rem, 2.1vw, 1.82rem);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.02;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+@keyframes shapeTradersSplitPulse {
+  from {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.03);
+    opacity: 1;
+  }
+}
+
+.shape-traders-market-card-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+  color: color-mix(in srgb, var(--text-light) 78%, transparent);
+  font-size: 0.72rem;
+}
+
+.shape-traders-shape-icon {
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.shape-traders-shape-icon.shape-square {
+  width: 1.45rem;
+  height: 1.45rem;
+  border: 2px solid #4c9fff;
+  background: transparent;
+}
+
+.shape-traders-shape-icon.shape-triangle {
+  width: 1.7rem;
+  height: 1.5rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 30'%3E%3Cpath d='M17 3 L31 27 H3 Z' fill='none' stroke='%23ff4ad3' stroke-width='2.75' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+}
+
+.shape-traders-shape-icon.shape-circle {
+  width: 1.45rem;
+  height: 1.45rem;
+  border: 2px solid #ffe15c;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.shape-traders-active-traders-wrap {
+  display: grid;
+  place-items: center;
+  gap: 0.35rem;
+  padding-block: 0.6rem;
+}
+
+.shape-traders-active-traders {
+  font-size: clamp(2rem, 7vw, 3.4rem);
+  font-weight: 700;
+}
+
+.shape-traders-active-traders-label {
+  color: color-mix(in srgb, var(--text-light) 74%, transparent);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+}
+
+.shape-traders-market-cap-bars {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.shape-traders-market-cap-bar {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.shape-traders-market-cap-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+  font-size: 0.84rem;
+}
+
+.shape-traders-market-cap-track {
+  overflow: hidden;
+  height: 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chart-scroll-track) 72%, transparent);
+}
+
+.shape-traders-market-cap-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.shape-traders-market-cap-bar.is-cyan .shape-traders-market-cap-track span {
+  background: linear-gradient(90deg, #4c9fff, #2d7dff);
+}
+
+.shape-traders-market-cap-bar.is-magenta .shape-traders-market-cap-track span {
+  background: linear-gradient(90deg, #ff68f2, #ff4ad3);
+}
+
+.shape-traders-market-cap-bar.is-gold .shape-traders-market-cap-track span {
+  background: linear-gradient(90deg, #ffe15c, #ffc63b);
+}
+
+.shape-traders-balance-list {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0;
+}
+
+.shape-traders-balance-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 1.1rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--gold) 18%, var(--betting-panel-border) 82%);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--gold) 14%, transparent), transparent 55%),
+    color-mix(in srgb, var(--stat-bg) 82%, transparent);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 12px 24px rgba(0, 0, 0, 0.14);
+}
+
+.shape-traders-balance-list dt {
+  color: color-mix(in srgb, var(--gold) 52%, var(--text-light) 48%);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.shape-traders-balance-list dd {
+  margin: 0;
+  font-size: 1.28rem;
+  font-weight: 700;
+  text-shadow: 0 0 18px rgba(255, 214, 84, 0.12);
+}
+
+.shape-traders-deck-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 182px) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.shape-traders-countdown-ring {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  width: clamp(136px, 16vw, 172px);
+  aspect-ratio: 1 / 1;
+  border-radius: 999px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 35% 30%, color-mix(in srgb, white 10%, transparent), transparent 52%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--panel-start, var(--advanced-panel-bg)) 82%, white 18%),
+      color-mix(in srgb, var(--panel-end, var(--advanced-panel-bg)) 86%, black 14%)
+    ),
+    color-mix(in srgb, var(--panel-end, var(--advanced-panel-bg)) 88%, black 12%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, white 18%, transparent),
+    inset 0 18px 28px color-mix(in srgb, var(--accent) 10%, transparent),
+    0 12px 26px color-mix(in srgb, black 16%, transparent);
+}
+
+.shape-traders-countdown-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background: conic-gradient(
+    from -90deg,
+    color-mix(in srgb, var(--theme-action-color, var(--accent)) 84%, white 16%) calc(var(--shape-traders-countdown-progress, 1) * 1turn),
+    transparent 0
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 14px), #000 calc(100% - 13px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 14px), #000 calc(100% - 13px));
+  box-shadow:
+    0 0 22px color-mix(in srgb, var(--theme-action-color, var(--accent)) 24%, transparent);
+}
+
+.shape-traders-countdown-ring::after {
+  content: "";
+  position: absolute;
+  inset: 15px;
+  z-index: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 35% 30%, color-mix(in srgb, white 14%, transparent), transparent 46%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--panel-start, var(--advanced-panel-bg)) 68%, white 32%),
+      color-mix(in srgb, var(--panel-end, var(--advanced-panel-bg)) 82%, black 18%)
+    ),
+    color-mix(in srgb, var(--panel-end, var(--advanced-panel-bg)) 92%, black 8%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, white 12%, transparent),
+    inset 0 14px 22px color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.shape-traders-countdown-ring .shape-traders-countdown {
+  position: relative;
+  z-index: 2;
+}
+
+.shape-traders-countdown {
+  position: relative;
+  z-index: 2;
+  font-family: "Audiowide", "Play", system-ui, sans-serif;
+  font-size: clamp(1.42rem, 2.25vw, 1.9rem);
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.shape-traders-countdown-ring.is-paused {
+  background:
+    radial-gradient(circle at 35% 30%, color-mix(in srgb, white 8%, transparent), transparent 52%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--panel-start, var(--advanced-panel-bg)) 76%, white 24%),
+      color-mix(in srgb, var(--panel-end, var(--advanced-panel-bg)) 84%, black 16%)
+    ),
+    color-mix(in srgb, var(--panel-end, var(--advanced-panel-bg)) 90%, black 10%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, white 14%, transparent),
+    0 10px 22px color-mix(in srgb, black 14%, transparent);
+}
+
+.shape-traders-countdown-ring.is-paused::before {
+  background: transparent;
+  box-shadow: none;
+}
+
+.shape-traders-countdown-ring.is-paused::after {
+  inset: 15px;
+  background:
+    radial-gradient(circle at 35% 30%, color-mix(in srgb, white 10%, transparent), transparent 46%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--panel-start, var(--advanced-panel-bg)) 58%, white 42%),
+      color-mix(in srgb, var(--panel-end, var(--advanced-panel-bg)) 78%, black 22%)
+    ),
+    color-mix(in srgb, var(--panel-end, var(--advanced-panel-bg)) 94%, black 6%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, white 10%, transparent),
+    inset 0 12px 18px color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.shape-traders-countdown.is-data-dump {
+  font-size: clamp(0.92rem, 1.45vw, 1.08rem);
+  line-height: 1.08;
+  letter-spacing: 0.12em;
+  max-width: 4.8rem;
+  text-align: center;
+  text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.shape-traders-card-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(8.7rem, max-content));
+  justify-content: center;
+  gap: 0.7rem;
+  align-items: start;
+}
+
+.shape-traders-card-stack {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  justify-items: center;
+  align-content: start;
+}
+
+.shape-traders-card-label {
+  color: color-mix(in srgb, var(--text-light) 62%, transparent);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.shape-traders-recent-button {
+  min-height: 1.5rem;
+  padding: 0.18rem 0.45rem;
+  font-size: 0.52rem;
+  letter-spacing: 0.08em;
+}
+
+.shape-traders-draw-card {
+  width: min(100%, 8.7rem);
+  aspect-ratio: 0.68;
+  min-height: 0;
+  perspective: 1100px;
+}
+
+.shape-traders-draw-card.is-flipping .shape-traders-draw-card-face {
+  animation: shape-traders-card-flip 620ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.shape-traders-draw-card-face {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  width: 100%;
+  padding: 0.82rem 0.78rem;
+  border-radius: 1.15rem;
+  border: 0;
+  background: #f3f5f7;
+  box-shadow: 0 20px 30px rgba(0, 0, 0, 0.22);
+  color: #101218;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+.shape-traders-draw-card-face::after {
+  content: none;
+}
+
+.shape-traders-draw-card-face.is-positive {
+  background: #1d9a55;
+  color: #ffffff;
+}
+
+.shape-traders-draw-card-face.is-negative {
+  background: #c83d4f;
+  color: #ffffff;
+}
+
+.shape-traders-draw-card-face.is-neutral,
+.shape-traders-draw-card-face.is-muted {
+  background: #5e6670;
+  color: #2d3640;
+}
+
+.shape-traders-draw-card-face.is-muted {
+  opacity: 0.78;
+  color: rgba(244, 247, 250, 0.74);
+}
+
+.shape-traders-draw-card-corner {
+  display: none;
+}
+
+.shape-traders-draw-card-value {
+  font-family: "Audiowide", "Play", system-ui, sans-serif;
+  font-size: 0.98rem;
+  letter-spacing: 0.03em;
+  line-height: 1;
+}
+
+.shape-traders-draw-card-center {
+  display: grid;
+  align-content: space-between;
+  justify-items: center;
+  gap: 0.72rem;
+  min-height: 100%;
+  width: 100%;
+  padding-inline: 0.35rem;
+  text-align: center;
+}
+
+.shape-traders-card-symbol-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  min-height: 3.05rem;
+}
+
+.shape-traders-card-symbol-group.is-macro {
+  gap: 0.5rem;
+}
+
+.shape-traders-card-symbol-stack.is-empty {
+  color: rgba(45, 54, 64, 0.55);
+  font-size: 1.05rem;
+  letter-spacing: 0.18em;
+}
+
+.shape-traders-draw-card .shape-traders-shape-icon.shape-square {
+  width: 1.52rem;
+  height: 1.52rem;
+  border-width: 3.2px;
+}
+
+.shape-traders-draw-card .shape-traders-shape-icon.shape-triangle {
+  width: 1.74rem;
+  height: 1.5rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 30'%3E%3Cpath d='M17 3 L31 27 H3 Z' fill='none' stroke='%23ff4ad3' stroke-width='4.8' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.shape-traders-draw-card .shape-traders-shape-icon.shape-circle {
+  width: 1.52rem;
+  height: 1.52rem;
+  border-width: 3.2px;
+}
+
+.shape-traders-draw-card-title {
+  font-family: "Audiowide", "Play", system-ui, sans-serif;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.08;
+  max-width: 5.4rem;
+  overflow-wrap: anywhere;
+}
+
+.shape-traders-dump-section {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.shape-traders-dump-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+  color: rgba(224, 244, 255, 0.72);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  align-items: center;
+}
+
+.shape-traders-dump-track {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr)) minmax(0, 1.8fr);
+  gap: 0.35rem;
+}
+
+.shape-traders-dump-pip {
+  height: 0.42rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.shape-traders-dump-pip.dump-slot {
+  background: rgba(255, 230, 120, 0.16);
+}
+
+.shape-traders-dump-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.38rem;
+  margin-left: auto;
+  text-align: right;
+}
+
+.shape-traders-dump-tooltip {
+  position: relative;
+}
+
+.shape-traders-dump-tooltip summary {
+  list-style: none;
+  width: 1.05rem;
+  height: 1.05rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: rgba(255, 245, 224, 0.88);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.shape-traders-dump-tooltip summary::-webkit-details-marker {
+  display: none;
+}
+
+.shape-traders-dump-tooltip-body {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.45rem);
+  width: 15rem;
+  padding: 0.68rem 0.8rem;
+  border-radius: 0.85rem;
+  background: rgba(20, 20, 24, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.24);
+  color: rgba(244, 247, 250, 0.86);
+  font-size: 0.7rem;
+  line-height: 1.35;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.shape-traders-dump-pip.active {
+  background: linear-gradient(90deg, #67dfff, #ffe15c);
+  box-shadow: 0 0 12px rgba(255, 225, 92, 0.45);
+}
+
+.shape-traders-holdings-list,
+.shape-traders-activity-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.shape-traders-activity-list {
+  display: block;
+  min-height: 0;
+  height: 100%;
+  max-height: 24rem;
+  overflow-x: auto;
+  overflow-y: auto;
+  padding-right: 0.35rem;
+  padding-bottom: 0.35rem;
+}
+
+.shape-traders-holdings-list {
+  align-content: start;
+  align-self: start;
+  gap: 0;
+}
+
+.shape-traders-holdings-header {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1.3fr) minmax(2.4rem, 0.35fr) minmax(4.5rem, 0.68fr) minmax(5rem, 0.76fr) minmax(4.5rem, 0.68fr);
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0 0 0.38rem;
+  color: color-mix(in srgb, var(--text-light) 54%, transparent);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid color-mix(in srgb, var(--betting-panel-border) 36%, transparent);
+}
+
+.shape-traders-holdings-header span:not(:first-child) {
+  text-align: right;
+}
+
+.shape-traders-holding-card {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1.3fr) minmax(2.4rem, 0.35fr) minmax(4.5rem, 0.68fr) minmax(5rem, 0.76fr) minmax(4.5rem, 0.68fr);
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.62rem 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--betting-panel-border) 40%, transparent);
+}
+
+.shape-traders-holding-card-main {
+  display: flex;
+  align-items: center;
+  gap: 0.62rem;
+  min-width: 0;
+}
+
+.shape-traders-holding-card-main strong {
+  min-width: 0;
+  font-size: 0.82rem;
+}
+
+.shape-traders-holding-card-qty,
+.shape-traders-holding-card-price,
+.shape-traders-holding-card-value,
+.shape-traders-holding-card-avg {
+  color: color-mix(in srgb, var(--text-light) 78%, transparent);
+  font-size: 0.8rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.shape-traders-holding-card-qty {
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.shape-traders-activity-item {
+  display: grid;
+  grid-template-columns: 4rem 1.55rem minmax(3.5rem, 0.72fr) minmax(2.8rem, 0.5fr) minmax(4.2rem, 0.74fr) minmax(3rem, 0.62fr) minmax(4rem, 0.8fr);
+  align-items: center;
+  gap: 0.42rem;
+  min-width: 26rem;
+  padding: 0.58rem 0.08rem;
+  border-radius: 0;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--betting-panel-border) 42%, transparent);
+  background: transparent;
+}
+
+.shape-traders-activity-header {
+  display: grid;
+  grid-template-columns: 4rem 1.55rem minmax(3.5rem, 0.72fr) minmax(2.8rem, 0.5fr) minmax(4.2rem, 0.74fr) minmax(3rem, 0.62fr) minmax(4rem, 0.8fr);
+  align-items: center;
+  gap: 0.42rem;
+  min-width: 26rem;
+  padding: 0 0.08rem 0.34rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--betting-panel-border) 34%, transparent);
+  color: color-mix(in srgb, var(--text-light) 54%, transparent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.shape-traders-activity-header span:nth-child(n + 3) {
+  text-align: right;
+}
+
+.shape-traders-activity-item.is-buy {
+  box-shadow: none;
+}
+
+.shape-traders-activity-item.is-sell {
+  box-shadow: none;
+}
+
+.shape-traders-activity-side {
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+}
+
+.shape-traders-activity-price,
+.shape-traders-activity-qty,
+.shape-traders-activity-total,
+.shape-traders-activity-percent,
+.shape-traders-activity-profit {
+  color: color-mix(in srgb, var(--text-light) 68%, transparent);
+  font-size: 0.8rem;
+}
+
+.shape-traders-activity-price,
+.shape-traders-activity-qty,
+.shape-traders-activity-total,
+.shape-traders-activity-percent,
+.shape-traders-activity-profit {
+  text-align: right;
+}
+
+.shape-traders-activity-qty,
+.shape-traders-activity-total,
+.shape-traders-activity-percent {
+  color: color-mix(in srgb, var(--text-light) 58%, transparent);
+}
+
+.shape-traders-activity-profit.gain {
+  color: #78ff8d;
+}
+
+.shape-traders-activity-profit.loss {
+  color: #ff7b7b;
+}
+
+.shape-traders-activity-profit.muted {
+  color: rgba(224, 244, 255, 0.46);
+}
+
+.shape-traders-asset-selector {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.shape-traders-asset-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  min-height: 3.2rem;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.36) !important;
+  outline: 0;
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.42),
+    0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  appearance: none;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.shape-traders-asset-button .shape-traders-shape-icon.shape-square,
+.shape-traders-asset-button .shape-traders-shape-icon.shape-triangle,
+.shape-traders-asset-button .shape-traders-shape-icon.shape-circle {
+  filter: none;
+  opacity: 1;
+}
+
+.shape-traders-asset-button:hover,
+.shape-traders-asset-button:focus-visible {
+  border-color: rgba(255, 255, 255, 0.56) !important;
+  outline: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05)) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.38),
+    0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+}
+
+.shape-traders-asset-button.active {
+  background: linear-gradient(180deg, rgba(12, 12, 16, 0.98), rgba(2, 2, 5, 0.98)) !important;
+  color: #ffffff !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+}
+
+.shape-traders-asset-button.active .shape-traders-shape-icon.shape-square,
+.shape-traders-asset-button.active .shape-traders-shape-icon.shape-triangle,
+.shape-traders-asset-button.active .shape-traders-shape-icon.shape-circle {
+  filter: none;
+  opacity: 1;
+}
+
+.shape-traders-asset-button.active[data-shape-trader-asset="square"] .shape-traders-shape-icon.shape-square {
+  border-color: #4c9fff;
+}
+
+.shape-traders-asset-button.active[data-shape-trader-asset="triangle"] .shape-traders-shape-icon.shape-triangle {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 30'%3E%3Cpath d='M17 3 L31 27 H3 Z' fill='none' stroke='%23ff4ad3' stroke-width='2.75' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.shape-traders-asset-button.active[data-shape-trader-asset="circle"] .shape-traders-shape-icon.shape-circle {
+  border-color: #ffe15c;
+}
+
+.shape-traders-asset-button:not(.active) .shape-traders-shape-icon.shape-square {
+  border-color: rgba(255, 255, 255, 0.9);
+}
+
+.shape-traders-asset-button:not(.active) .shape-traders-shape-icon.shape-triangle {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 30'%3E%3Cpath d='M17 3 L31 27 H3 Z' fill='none' stroke='%23ffffff' stroke-width='2.75' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.shape-traders-asset-button:not(.active) .shape-traders-shape-icon.shape-circle {
+  border-color: rgba(255, 255, 255, 0.9);
+}
+
+.shape-traders-qty-field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.shape-traders-selector-field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.shape-traders-selector-field span,
+.shape-traders-qty-field span,
+.shape-traders-total-field span {
+  color: color-mix(in srgb, var(--text-light) 70%, transparent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.78rem;
+  font-weight: 400;
+}
+
+.shape-traders-total-field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.shape-traders-total-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.shape-traders-total-field strong {
+  font-size: 1rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.shape-traders-qty-field input {
+  width: 100%;
+  min-height: 3rem;
+  border-radius: 0.95rem;
+  border: 1px solid var(--betting-panel-border);
+  background: color-mix(in srgb, var(--advanced-panel-bg) 78%, transparent);
+  color: var(--text-light);
+  padding: 0 0.9rem;
+  font-size: 1rem;
+}
+
+.shape-traders-trade-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.shape-traders-status {
+  margin: 0;
+  min-height: 0;
+  color: color-mix(in srgb, var(--text-light) 76%, transparent);
+  line-height: 1.55;
+}
+
+.shape-traders-trade-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transform: none;
+  width: auto;
+  max-width: none;
+  min-height: auto;
+  margin: 0;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  padding:
+    clamp(0.3rem, 0.9vw, 0.45rem)
+    calc(clamp(1.1rem, 4vw, 1.9rem) + env(safe-area-inset-right))
+    calc(clamp(0.3rem, 0.9vw, 0.45rem) + env(safe-area-inset-bottom))
+    calc(clamp(1.1rem, 4vw, 1.9rem) + env(safe-area-inset-left));
+  border-radius: 0;
+  border: 0;
+  border-top: 2px solid color-mix(in srgb, var(--gold) 22%, var(--betting-panel-border) 78%);
+  background: var(--header-gradient);
+  backdrop-filter: blur(18px);
+  box-shadow:
+    0 -26px 48px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.shape-traders-trade-bar-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 1rem;
+}
+
+.shape-traders-trade-bar-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  flex-wrap: nowrap;
+}
+
+.shape-traders-trade-bar-title {
+  margin: 0;
+  color: color-mix(in srgb, var(--text-light) 82%, transparent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.shape-traders-trade-bar .shape-traders-panel-heading {
+  display: none;
+}
+
+.shape-traders-trade-bar .shape-traders-status {
+  max-width: 28rem;
+  text-align: right;
+  font-size: 0.74rem;
+  line-height: 1.2;
+}
+
+.shape-traders-trade-bar .shape-traders-asset-button {
+  min-height: 2.5rem;
+  padding: 0.42rem 0.9rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.06rem;
+}
+
+.shape-traders-trade-bar .shape-traders-qty-field {
+  align-self: auto;
+  width: min(9rem, 100%);
+}
+
+.shape-traders-trade-bar .shape-traders-qty-field input {
+  min-height: 2.5rem;
+  padding: 0 0.8rem;
+  font-size: 0.94rem;
+}
+
+.shape-traders-trade-bar .shape-traders-trade-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--chip-actions-gap);
+}
+
+.shape-traders-trade-bar .shape-traders-total-field {
+  align-self: auto;
+}
+
+.shape-traders-trade-bar .shape-traders-trade-actions button {
+  min-width: clamp(7.2rem, 12vw, 8.4rem);
+  padding: 0.42rem 0.9rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.06rem;
+}
+
+.shape-traders-empty-state {
+  padding: 1rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--advanced-panel-bg) 76%, transparent);
+  color: color-mix(in srgb, var(--text-light) 62%, transparent);
+  text-align: center;
+}
+
+.shape-traders-chart-modal-content {
+  width: min(54rem, calc(100vw - 2rem));
+}
+
+.shape-traders-chart-modal-body {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.shape-traders-chart-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.shape-traders-chart-title-row h2 {
+  margin: 0;
+}
+
+.shape-traders-chart-title-row .shape-traders-shape-icon {
+  width: 1.45rem;
+  height: 1.45rem;
+  order: 2;
+}
+
+#shape-traders-chart-title.is-cyan {
+  color: #4c9fff;
+}
+
+#shape-traders-chart-title.is-magenta {
+  color: #ff4ad3;
+}
+
+#shape-traders-chart-title.is-gold {
+  color: #ffe15c;
+}
+
+.shape-traders-chart-subtitle {
+  margin: 0;
+  color: color-mix(in srgb, var(--text-light) 72%, transparent);
+  font-size: 0.96rem;
+}
+
+.shape-traders-chart-surface {
+  min-height: 18rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--betting-panel-border) 52%, transparent);
+  background: color-mix(in srgb, var(--advanced-panel-bg) 70%, transparent);
+  touch-action: none;
+}
+
+.shape-traders-chart-zoom-bar {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  padding-top: 0.15rem;
+}
+
+.shape-traders-chart-zoom-button {
+  min-width: 4rem;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.9rem;
+  font-size: 1.15rem;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.shape-traders-chart-empty {
+  min-height: 16rem;
+  display: grid;
+  place-items: center;
+  color: color-mix(in srgb, var(--text-light) 62%, transparent);
+}
+
+.shape-traders-chart-svg {
+  width: 100%;
+  height: 18rem;
+  display: block;
+}
+
+.shape-traders-chart-grid-line {
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 1;
+}
+
+.shape-traders-chart-axis-label,
+.shape-traders-chart-point-label {
+  fill: rgba(240, 244, 250, 0.78);
+  font-size: 16px;
+  font-family: "Play", system-ui, sans-serif;
+}
+
+.shape-traders-chart-axis-label {
+  font-weight: 700;
+}
+
+.shape-traders-chart-point-label {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.shape-traders-chart-line {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.shape-traders-chart-line.is-cyan {
+  stroke: #4c9fff;
+}
+
+.shape-traders-chart-line.is-magenta {
+  stroke: #ff4ad3;
+}
+
+.shape-traders-chart-line.is-gold {
+  stroke: #ffe15c;
+}
+
+.shape-traders-chart-point.is-cyan {
+  fill: #4c9fff;
+}
+
+.shape-traders-chart-point.is-magenta {
+  fill: #ff4ad3;
+}
+
+.shape-traders-chart-point.is-gold {
+  fill: #ffe15c;
+}
+
+.shape-traders-recent-list {
+  display: grid;
+  gap: 0.6rem;
+  max-height: 24rem;
+  overflow: auto;
+}
+
+.shape-traders-deck-list {
+  display: grid;
+  gap: 0.9rem;
+  max-height: 24rem;
+  overflow: auto;
+}
+
+.shape-traders-deck-summary {
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text-light) 74%, transparent);
+}
+
+.shape-traders-deck-group {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.shape-traders-deck-group h3 {
+  margin: 0;
+  font-size: 0.86rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.shape-traders-recent-card {
+  width: min(100%, 6rem);
+}
+
+.shape-traders-recent-card .shape-traders-draw-card-face {
+  min-height: 8.6rem;
+}
+
+.shape-traders-recent-card .shape-traders-card-symbol-group {
+  gap: 0.42rem;
+  min-height: 2.05rem;
+}
+
+.shape-traders-recent-card .shape-traders-card-symbol-group.is-macro {
+  gap: 0.22rem;
+}
+
+.shape-traders-recent-card .shape-traders-shape-icon.shape-square {
+  width: 1rem;
+  height: 1rem;
+  border-width: 2.3px;
+}
+
+.shape-traders-recent-card .shape-traders-shape-icon.shape-triangle {
+  width: 1.12rem;
+  height: 0.98rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 30'%3E%3Cpath d='M17 3 L31 27 H3 Z' fill='none' stroke='%23ff4ad3' stroke-width='3.2' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.shape-traders-recent-card .shape-traders-shape-icon.shape-circle {
+  width: 1rem;
+  height: 1rem;
+  border-width: 2.3px;
+}
+
+.shape-traders-deck-paired-groups {
+  display: grid;
+  gap: 1rem;
+}
+
+.shape-traders-deck-paired-group {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.shape-traders-deck-paired-group h4 {
+  margin: 0;
+  font-size: 0.82rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.shape-traders-deck-pair-head,
+.shape-traders-deck-pair-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.shape-traders-deck-pair-head {
+  color: color-mix(in srgb, var(--text-light) 54%, transparent);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.shape-traders-deck-pair-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.shape-traders-deck-pair-slot {
+  display: flex;
+  justify-content: center;
+}
+
+.shape-traders-deck-pair-slot .shape-traders-draw-card-face {
+  width: min(100%, 6rem);
+  min-height: 8.6rem;
+}
+
+.shape-traders-deck-pair-slot .shape-traders-card-symbol-group {
+  gap: 0.42rem;
+  min-height: 2.05rem;
+}
+
+.shape-traders-deck-pair-slot .shape-traders-card-symbol-group.is-macro {
+  gap: 0.22rem;
+}
+
+.shape-traders-deck-pair-slot .shape-traders-shape-icon.shape-square {
+  width: 1rem;
+  height: 1rem;
+  border-width: 2.3px;
+}
+
+.shape-traders-deck-pair-slot .shape-traders-shape-icon.shape-triangle {
+  width: 1.12rem;
+  height: 0.98rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 30'%3E%3Cpath d='M17 3 L31 27 H3 Z' fill='none' stroke='%23ff4ad3' stroke-width='3.2' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.shape-traders-deck-pair-slot .shape-traders-shape-icon.shape-circle {
+  width: 1rem;
+  height: 1rem;
+  border-width: 2.3px;
+}
+
+.shape-traders-deck-stack-layer .shape-traders-draw-card-face {
+  min-height: 8.6rem;
+}
+
+.shape-traders-deck-stack-count {
+  position: absolute;
+  left: 0;
+  bottom: -1.15rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--text-light) 80%, transparent);
+}
+
+.shape-traders-recent-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.1rem;
+  align-items: center;
+  padding: 0.7rem 0.8rem 0.9rem;
+  border-radius: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--betting-panel-border) 52%, transparent);
+  background: color-mix(in srgb, var(--advanced-panel-bg) 70%, transparent);
+}
+
+.shape-traders-recent-info {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.shape-traders-recent-index {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: color-mix(in srgb, var(--text-light) 92%, transparent);
+}
+
+.shape-traders-recent-draw {
+  text-align: left;
+  font-size: 0.72rem;
+  color: color-mix(in srgb, var(--text-light) 72%, transparent);
 }
 
 .beta-game-view {
@@ -2965,6 +4602,134 @@ body[data-app-state="loading"] #app-shell {
     padding: 1rem;
   }
 
+  .shape-traders-view {
+    padding: 0.55rem 1rem 1.35rem;
+    padding-bottom: calc(15.5rem + env(safe-area-inset-bottom));
+  }
+
+  .shape-traders-header {
+    align-items: stretch;
+  }
+
+  .shape-traders-header-actions {
+    justify-content: stretch;
+  }
+
+  .shape-traders-header-balance {
+    min-width: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.7rem;
+  }
+
+  .shape-traders-header-balance .shape-traders-balance-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem;
+    width: 100%;
+  }
+
+  .shape-traders-header-balance .shape-traders-balance-list div {
+    width: 100%;
+  }
+
+  .shape-traders-header-balance-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+    width: 100%;
+  }
+
+  .shape-traders-panel-heading,
+  .shape-traders-panel-heading-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .shape-traders-panel-meta {
+    text-align: left;
+  }
+
+  .shape-traders-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+
+  .shape-traders-market-panel,
+  .shape-traders-global-panel,
+  .shape-traders-deck-panel,
+  .shape-traders-holdings-panel,
+  .shape-traders-activity-panel {
+    grid-column: auto;
+    grid-row: auto;
+    min-height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .shape-traders-market-grid {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .shape-traders-deck-row {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 0.8rem;
+  }
+
+  .shape-traders-card-stack {
+    width: 100%;
+  }
+
+  .shape-traders-card-group {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  .shape-traders-card-label {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .shape-traders-dump-heading {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .shape-traders-dump-info {
+    margin-left: 0;
+    text-align: left;
+  }
+
+  .shape-traders-holdings-list,
+  .shape-traders-activity-list {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
+  .shape-traders-activity-list {
+    max-height: none;
+    padding-right: 0;
+  }
+
+  .shape-traders-trade-bar {
+    padding: 0.85rem 1rem calc(0.85rem + env(safe-area-inset-bottom));
+  }
+
+  .shape-traders-trade-bar-heading,
+  .shape-traders-trade-bar .shape-traders-status {
+    text-align: left;
+  }
+
+  .shape-traders-trade-bar-body {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
   .beta-game-view {
     padding: 0.55rem 1rem 1.35rem;
   }
@@ -3612,6 +5377,7 @@ body.theme-retro {
   --chart-line-color: #ffd166;
   --chart-line-shadow: rgba(255, 209, 102, 0.48);
   --chart-fill-color: rgba(255, 209, 102, 0.2);
+  --theme-action-color: #ff7a59;
   --carter-green: #ffd166;
 }
 
@@ -3638,6 +5404,7 @@ body.theme-cotton-candy {
   --chart-line-color: #ff7fd8;
   --chart-line-shadow: rgba(255, 127, 216, 0.48);
   --chart-fill-color: rgba(255, 127, 216, 0.2);
+  --theme-action-color: #ff7fd8;
   --carter-green: #a8ffbf;
 }
 
@@ -3664,6 +5431,7 @@ body.theme-pastel {
   --chart-line-color: #9be7ff;
   --chart-line-shadow: rgba(155, 231, 255, 0.46);
   --chart-fill-color: rgba(155, 231, 255, 0.18);
+  --theme-action-color: #ffc1dc;
   --carter-green: #d7ff9b;
 }
 
@@ -3884,6 +5652,7 @@ body.theme-steel-black {
   --chip-bar-shadow: 0 -26px 48px rgba(0, 0, 0, 0.8);
   --secondary-button-bg: linear-gradient(135deg, rgba(183, 208, 223, 0.18), rgba(52, 58, 68, 0.96));
   --secondary-button-border: rgba(183, 208, 223, 0.34);
+  --theme-action-color: #dce5eb;
   --deal-button-bg: linear-gradient(135deg, rgba(223, 232, 239, 0.94), rgba(143, 156, 171, 0.92));
   --deal-button-shadow: 0 22px 38px rgba(183, 208, 223, 0.18);
   --deal-button-shadow-hover: 0 24px 42px rgba(223, 232, 239, 0.22);
@@ -4031,6 +5800,7 @@ body.theme-angelic {
   --chip-bar-shadow: 0 -26px 48px rgba(20, 34, 60, 0.56);
   --secondary-button-bg: linear-gradient(135deg, rgba(255, 215, 238, 0.26), rgba(84, 115, 164, 0.94));
   --secondary-button-border: rgba(200, 239, 255, 0.46);
+  --theme-action-color: #ffd7ee;
   --deal-button-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(255, 215, 238, 0.94));
   --deal-button-shadow: 0 22px 38px rgba(255, 215, 238, 0.26);
   --deal-button-shadow-hover: 0 24px 42px rgba(200, 239, 255, 0.28);
@@ -4511,6 +6281,79 @@ body.theme-angelic {
 }
 
 @media (max-width: 560px) {
+  .shape-traders-view {
+    padding: 0.5rem 0.8rem 1rem;
+    padding-bottom: calc(18.5rem + env(safe-area-inset-bottom));
+  }
+
+  .shape-traders-panel {
+    padding: 0.9rem;
+  }
+
+  .shape-traders-header-balance .shape-traders-balance-list,
+  .shape-traders-header-balance-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .shape-traders-header-actions,
+  .shape-traders-trade-actions,
+  .shape-traders-asset-selector,
+  .shape-traders-activity-main,
+  .shape-traders-activity-foot {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .shape-traders-header-button {
+    width: 100%;
+  }
+
+  .shape-traders-countdown-ring {
+    width: min(100%, 148px);
+  }
+
+  .shape-traders-card-group {
+    grid-template-columns: 1fr;
+  }
+
+  .shape-traders-draw-card {
+    width: min(100%, 9.2rem);
+  }
+
+  .shape-traders-dump-track {
+    gap: 0.25rem;
+  }
+
+  .shape-traders-holdings-panel,
+  .shape-traders-activity-panel,
+  .shape-traders-global-panel {
+    overflow: hidden;
+  }
+
+  .shape-traders-trade-bar {
+    gap: 0.5rem;
+    padding: 0.8rem 0.8rem calc(0.8rem + env(safe-area-inset-bottom));
+  }
+
+  .shape-traders-trade-bar .shape-traders-status {
+    max-width: none;
+  }
+
+  .shape-traders-total-actions-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+  }
+
+  .shape-traders-total-field strong {
+    white-space: normal;
+  }
+
+  .shape-traders-activity-values {
+    justify-items: start;
+    text-align: left;
+  }
+
   .home-rank-panel {
     padding: 1rem;
   }
@@ -4527,6 +6370,24 @@ body.theme-angelic {
   .home-rank-icon-wrap {
     width: 60px;
     height: 60px;
+  }
+}
+
+@keyframes shape-traders-card-flip {
+  0% {
+    transform: rotateY(0deg) scale(1);
+  }
+
+  45% {
+    transform: rotateY(92deg) scale(0.96);
+  }
+
+  55% {
+    transform: rotateY(-82deg) scale(0.96);
+  }
+
+  100% {
+    transform: rotateY(0deg) scale(1);
   }
 }
 

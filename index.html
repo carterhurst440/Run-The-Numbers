@@ -668,9 +668,296 @@
                   Play GUESS 10
                 </button>
               </article>
+              <article
+                id="shape-traders-play-card"
+                class="game-card game-card-shape-traders"
+                hidden
+              >
+                <div class="game-card-head">
+                  <p class="game-card-kicker">Admin Preview</p>
+                  <div class="game-card-title-row">
+                    <h2 class="game-card-title">SHAPE TRADERS</h2>
+                    <span class="game-beta-pill">Admin</span>
+                  </div>
+                </div>
+                <p class="game-card-copy">Trade Circles, Squares, and Triangles against a shared live card-driven market with timed data dumps and isolated game accounting.</p>
+                <button
+                  type="button"
+                  class="home-button home-cta-button"
+                  data-route-target="shape-traders"
+                  data-game-id="game_003"
+                >
+                  Open SHAPE TRADERS
+                </button>
+              </article>
             </section>
           </div>
         </section>
+
+        <section
+          id="shape-traders-view"
+          class="route-view app-page shape-traders-view"
+          hidden
+          aria-labelledby="shape-traders-title"
+        >
+          <div class="shape-traders-shell">
+            <div class="shape-traders-header">
+              <section class="shape-traders-header-balance" aria-labelledby="shape-traders-account-title">
+                <div class="shape-traders-header-balance-head">
+                  <div>
+                    <p class="shape-traders-panel-kicker">Shape Traders</p>
+                    <h1 id="shape-traders-account-title" class="shape-traders-title">Cash + Holdings</h1>
+                  </div>
+                </div>
+                <dl class="shape-traders-balance-list">
+                  <div>
+                    <dt>Cash</dt>
+                    <dd id="shape-traders-cash">$0</dd>
+                  </div>
+                  <div>
+                    <dt>Holdings</dt>
+                    <dd id="shape-traders-holdings-value">$0</dd>
+                  </div>
+                  <div>
+                    <dt>Account Balance</dt>
+                    <dd id="shape-traders-account-total">$0</dd>
+                  </div>
+                </dl>
+                <div class="shape-traders-header-balance-actions">
+                  <button
+                    type="button"
+                    class="secondary shape-traders-header-button"
+                    id="shape-traders-liquidate-nav"
+                  >
+                    Liquidate All
+                  </button>
+                  <button
+                    type="button"
+                    class="secondary shape-traders-header-button"
+                    data-route-target="play"
+                  >
+                    Back to Play
+                  </button>
+                </div>
+              </section>
+            </div>
+
+            <div class="shape-traders-layout">
+              <section class="shape-traders-panel shape-traders-market-panel" aria-labelledby="shape-traders-market-title">
+                <div class="shape-traders-panel-heading">
+                  <div>
+                    <p class="shape-traders-panel-kicker">Market</p>
+                    <h2 id="shape-traders-market-title">Live Asset Prices</h2>
+                  </div>
+                  <div class="shape-traders-panel-heading-actions">
+                    <p class="shape-traders-panel-meta">Reset to 100 after bankruptcy.</p>
+                    <button
+                      type="button"
+                      class="secondary shape-traders-mini-button"
+                      id="shape-traders-market-reset"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+                <div id="shape-traders-market-grid" class="shape-traders-market-grid"></div>
+              </section>
+
+              <section class="shape-traders-panel shape-traders-global-panel" aria-labelledby="shape-traders-global-title">
+                <div class="shape-traders-panel-heading">
+                  <div>
+                    <p class="shape-traders-panel-kicker">Activity</p>
+                    <h2 id="shape-traders-global-title">Market Cap</h2>
+                  </div>
+                  <p class="shape-traders-panel-meta">Live from active trader positions</p>
+                </div>
+                <div class="shape-traders-active-traders-wrap">
+                  <span id="shape-traders-active-traders" class="shape-traders-active-traders">1</span>
+                  <span class="shape-traders-active-traders-label">active trader</span>
+                </div>
+                <div id="shape-traders-market-cap-bars" class="shape-traders-market-cap-bars"></div>
+              </section>
+
+              <section class="shape-traders-panel shape-traders-deck-panel" aria-labelledby="shape-traders-deck-title">
+                <div class="shape-traders-panel-heading">
+                  <div>
+                    <p class="shape-traders-panel-kicker">Deck</p>
+                    <h2 id="shape-traders-deck-title">Draw Clock</h2>
+                  </div>
+                  <p id="shape-traders-draw-meta" class="shape-traders-panel-meta">Next draw in 15s.</p>
+                </div>
+                <div class="shape-traders-deck-row">
+                  <div class="shape-traders-countdown-ring">
+                    <div id="shape-traders-countdown" class="shape-traders-countdown">0:15</div>
+                  </div>
+                  <div class="shape-traders-card-group">
+                    <div class="shape-traders-card-stack">
+                      <div class="shape-traders-card-label">
+                        <span>Current Card</span>
+                        <button type="button" class="secondary shape-traders-recent-button" id="shape-traders-deck-button">View Deck</button>
+                      </div>
+                      <div id="shape-traders-current-card" class="shape-traders-draw-card">Waiting…</div>
+                    </div>
+                    <div class="shape-traders-card-stack">
+                      <div class="shape-traders-card-label">
+                        <span>Last Card</span>
+                        <button type="button" class="secondary shape-traders-recent-button" id="shape-traders-recent-button">View Recent</button>
+                      </div>
+                      <div id="shape-traders-last-card" class="shape-traders-draw-card shape-traders-draw-card-muted">None</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="shape-traders-dump-section">
+                  <div class="shape-traders-dump-heading">
+                    <span id="shape-traders-dump-label">2 cards until data dump</span>
+                    <div class="shape-traders-dump-info">
+                      <span>Data Dump</span>
+                      <details class="shape-traders-dump-tooltip">
+                        <summary aria-label="What is a data dump?">i</summary>
+                        <div class="shape-traders-dump-tooltip-body">
+                          Every 10th draw reveals 5 cards in rapid sequence. Trading is locked during the reveal, and each card updates prices immediately.
+                        </div>
+                      </details>
+                    </div>
+                  </div>
+                  <div id="shape-traders-dump-track" class="shape-traders-dump-track" aria-hidden="true"></div>
+                </div>
+              </section>
+
+              <section class="shape-traders-panel shape-traders-holdings-panel" aria-labelledby="shape-traders-holdings-title">
+                <div class="shape-traders-panel-heading">
+                  <div>
+                    <p class="shape-traders-panel-kicker">Holdings</p>
+                    <h2 id="shape-traders-holdings-title">Positions</h2>
+                  </div>
+                  <p id="shape-traders-inactivity" class="shape-traders-panel-meta">Liquidates after 15 minutes inactive.</p>
+                </div>
+                <div id="shape-traders-holdings-list" class="shape-traders-holdings-list"></div>
+              </section>
+
+              <section class="shape-traders-panel shape-traders-activity-panel" aria-labelledby="shape-traders-activity-title">
+                <div class="shape-traders-panel-heading">
+                  <div>
+                    <p class="shape-traders-panel-kicker">Activity</p>
+                    <h2 id="shape-traders-activity-title">Trade Log</h2>
+                  </div>
+                </div>
+                <div id="shape-traders-activity-list" class="shape-traders-activity-list"></div>
+              </section>
+
+            </div>
+
+            <section class="shape-traders-panel shape-traders-trade-panel shape-traders-trade-bar" aria-labelledby="shape-traders-trade-title">
+              <div class="shape-traders-trade-bar-heading">
+                <p class="shape-traders-trade-bar-title" id="shape-traders-trade-title">Trade</p>
+                <p id="shape-traders-status" class="shape-traders-status" aria-live="polite">Select a shape and quantity to place a trade.</p>
+              </div>
+              <div class="shape-traders-trade-bar-body">
+                <div class="shape-traders-selector-field">
+                  <span>Select Shape</span>
+                  <div id="shape-traders-asset-selector" class="shape-traders-asset-selector" role="radiogroup" aria-label="Select asset"></div>
+                </div>
+                <label class="shape-traders-qty-field" for="shape-traders-quantity">
+                  <span>Quantity</span>
+                  <input
+                    type="number"
+                    id="shape-traders-quantity"
+                    min="1"
+                    step="1"
+                    value="1"
+                    inputmode="numeric"
+                  />
+                </label>
+                <div class="shape-traders-total-field" aria-live="polite">
+                  <span>Total</span>
+                  <div class="shape-traders-total-actions-row">
+                    <strong id="shape-traders-trade-value">$0</strong>
+                    <div class="shape-traders-trade-actions">
+                      <button type="button" class="primary" id="shape-traders-buy-button">Buy</button>
+                      <button type="button" class="primary" id="shape-traders-sell-button">Sell</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <div
+          class="modal"
+          id="shape-traders-chart-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="shape-traders-chart-title"
+          hidden
+        >
+          <div class="modal-content shape-traders-chart-modal-content">
+            <div class="modal-header">
+              <div>
+                <p class="shape-traders-panel-kicker">Shape Traders</p>
+                <div class="shape-traders-chart-title-row">
+                  <span id="shape-traders-chart-symbol" class="shape-traders-shape-icon shape-circle" aria-hidden="true"></span>
+                  <h2 id="shape-traders-chart-title">Price Chart</h2>
+                </div>
+              </div>
+              <button type="button" class="modal-close" id="shape-traders-chart-close" aria-label="Close price chart">×</button>
+            </div>
+            <div class="modal-body shape-traders-chart-modal-body">
+              <p id="shape-traders-chart-subtitle" class="shape-traders-chart-subtitle">Price movement measured by draw.</p>
+              <div id="shape-traders-chart-surface" class="shape-traders-chart-surface"></div>
+              <div class="shape-traders-chart-zoom-bar" aria-label="Chart zoom controls">
+                <button type="button" class="secondary shape-traders-chart-zoom-button" id="shape-traders-chart-zoom-in" aria-label="Zoom in">-</button>
+                <button type="button" class="secondary shape-traders-chart-zoom-button" id="shape-traders-chart-zoom-out" aria-label="Zoom out">+</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="modal"
+          id="shape-traders-recent-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="shape-traders-recent-title"
+          hidden
+        >
+          <div class="modal-content shape-traders-chart-modal-content">
+            <div class="modal-header">
+              <div>
+                <p class="shape-traders-panel-kicker">Shape Traders</p>
+                <h2 id="shape-traders-recent-title">Recent Draws</h2>
+              </div>
+              <button type="button" class="modal-close" id="shape-traders-recent-close" aria-label="Close recent draws">×</button>
+            </div>
+            <div class="modal-body shape-traders-chart-modal-body">
+              <p class="shape-traders-chart-subtitle">Latest shared cards, newest first.</p>
+              <div id="shape-traders-recent-list" class="shape-traders-recent-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="modal"
+          id="shape-traders-deck-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="shape-traders-deck-modal-title"
+          hidden
+        >
+          <div class="modal-content shape-traders-chart-modal-content">
+            <div class="modal-header">
+              <div>
+                <p class="shape-traders-panel-kicker">Shape Traders</p>
+                <h2 id="shape-traders-deck-modal-title">Deck Composition</h2>
+              </div>
+              <button type="button" class="modal-close" id="shape-traders-deck-close" aria-label="Close deck view">×</button>
+            </div>
+            <div class="modal-body shape-traders-chart-modal-body">
+              <p class="shape-traders-chart-subtitle">Current shared deck contents for Shape Traders.</p>
+              <div id="shape-traders-deck-list" class="shape-traders-deck-list"></div>
+            </div>
+          </div>
+        </div>
 
         <section id="red-black-view" class="route-view app-page beta-game-view" hidden aria-labelledby="red-black-paytable-title">
           <div class="beta-game-shell">
@@ -2884,6 +3171,10 @@
               <label class="admin-field">
                 <span>Primary Button</span>
                 <input type="color" name="primaryButtonColor" value="#4f9bff" />
+              </label>
+              <label class="admin-field">
+                <span>Action Color</span>
+                <input type="color" name="actionColor" value="#4f9bff" />
               </label>
               <label class="admin-field">
                 <span>Primary Disabled</span>
