@@ -92,10 +92,11 @@ execute function public.set_updated_at_timestamp();
 alter table public.games enable row level security;
 
 drop policy if exists "Authenticated users can view games" on public.games;
-create policy "Authenticated users can view games"
+drop policy if exists "Public users can view games" on public.games;
+create policy "Public users can view games"
 on public.games
 for select
-to authenticated
+to anon, authenticated
 using (true);
 
 drop policy if exists "Admin can manage games" on public.games;

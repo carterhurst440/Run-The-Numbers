@@ -235,7 +235,7 @@ function applyBackendGameAssetRows(rows = []) {
 }
 
 async function refreshGameAssetsFromBackend() {
-  if (!supabase || !currentUser?.id) {
+  if (!supabase) {
     return false;
   }
   try {
@@ -14460,6 +14460,9 @@ let currentAccountMode = {
 };
 hydrateGameAssetLibrary();
 renderGameLogoTargets();
+Promise.resolve()
+  .then(() => refreshGameAssetsFromBackend())
+  .catch((err) => console.warn("[RTN] Initial game asset sync error:", err));
 let currentProfile = null;
 let suppressHash = false;
 let dashboardProfileRetryTimer = null;
