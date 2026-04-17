@@ -2780,7 +2780,7 @@ body[data-app-state="loading"] #app-shell {
   min-width: 32rem;
   padding: 0.7rem 0.08rem 0.1rem;
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .shape-traders-activity-load-more {
@@ -5013,8 +5013,17 @@ body[data-app-state="loading"] #app-shell {
     border-top-right-radius: 1.15rem;
   }
 
+  .shape-traders-trade-bar-heading {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+    gap: 0.2rem;
+  }
+
   .shape-traders-trade-sheet-toggle {
     width: 100%;
+    max-width: 14rem;
+    justify-self: center;
     min-height: 3.15rem;
     padding: 0.95rem 0.1rem 0.35rem;
     position: relative;
@@ -5044,9 +5053,13 @@ body[data-app-state="loading"] #app-shell {
     transform: translateY(-10%);
   }
 
-  .shape-traders-trade-bar-heading,
   .shape-traders-trade-bar .shape-traders-status {
-    text-align: left;
+    text-align: center;
+  }
+
+  .shape-traders-trade-bar .shape-traders-status {
+    max-width: none;
+    justify-self: stretch;
   }
 
   .shape-traders-trade-bar-body {
