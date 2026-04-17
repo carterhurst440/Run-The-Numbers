@@ -137,6 +137,32 @@ function getGameAssetPickerColor(value, fallback = "#ffffff") {
   return fallback;
 }
 
+function getGameAdminPresentation(gameKey) {
+  const resolvedGameKey = resolveGameKey(gameKey);
+  if (resolvedGameKey === GAME_KEYS.GUESS_10) {
+    return {
+      kicker: "New Beta Game",
+      pill: "Beta",
+      buttonLabel: "Play GUESS 10",
+      cardClass: "game-card-beta"
+    };
+  }
+  if (resolvedGameKey === GAME_KEYS.SHAPE_TRADERS) {
+    return {
+      kicker: "Admin Preview",
+      pill: "Admin",
+      buttonLabel: "Open SHAPE TRADERS",
+      cardClass: "game-card-shape-traders"
+    };
+  }
+  return {
+    kicker: "Original Game",
+    pill: "",
+    buttonLabel: "Play Run the Numbers",
+    cardClass: "game-card-primary"
+  };
+}
+
 function loadStoredGameAssetLibrary() {
   if (typeof window === "undefined" || !window.localStorage) {
     return {};
@@ -8670,6 +8696,7 @@ async function loadAdminPrizeList(force = false) {
 function renderAdminGameAssetRow(gameKey) {
   const record = getGameAssetRecord(gameKey);
   if (!record) return null;
+  const presentation = getGameAdminPresentation(gameKey);
 
   const item = document.createElement("li");
   item.className = "admin-game-item";
@@ -8692,150 +8719,35 @@ function renderAdminGameAssetRow(gameKey) {
   const meta = document.createElement("p");
   meta.className = "admin-game-meta";
   meta.textContent = `${record.description} • Route: /#/${record.route}`;
-  info.append(name, meta);
+  const copy = document.createElement("p");
+  copy.className = "admin-game-copy";
+  copy.textContent = record.card_description || DEFAULT_GAME_ASSET_LIBRARY[gameKey].card_description;
+  info.append(name, meta, copy);
   main.append(logoFrame, info);
 
-  const form = document.createElement("form");
-  form.className = "admin-game-asset-form";
-  form.innerHTML = `
-    <label class="admin-field">
-      <span>Logo URL</span>
-      <input type="url" name="logoUrl" value="${escapeGameAssetField(record.logo_url || "")}" placeholder="https://..." />
-    </label>
-    <label class="admin-field">
-      <span>Game Description</span>
-      <textarea name="cardDescription" rows="4" placeholder="Short card copy for the Play hub.">${escapeGameAssetField(record.card_description || "")}</textarea>
-    </label>
-    <div class="admin-game-style-grid">
-      <label class="admin-field">
-        <span>Background Color</span>
-        <div class="admin-game-color-input-row">
-          <input type="color" name="cardBackgroundColorPicker" value="${getGameAssetPickerColor(record.card_background_color, "#253b63")}" aria-label="Choose background color" />
-          <input type="text" name="cardBackgroundColor" value="${escapeGameAssetField(record.card_background_color || "")}" placeholder="#1d3159 or rgb(...)" />
-        </div>
-      </label>
-      <label class="admin-field">
-        <span>Game Button Color</span>
-        <div class="admin-game-color-input-row">
-          <input type="color" name="buttonColorPicker" value="${getGameAssetPickerColor(record.button_color, "#ff4f9d")}" aria-label="Choose game button color" />
-          <input type="text" name="buttonColor" value="${escapeGameAssetField(record.button_color || "")}" placeholder="#ff4f9d or rgb(...)" />
-        </div>
-      </label>
-    </div>
-    <div class="admin-game-upload-row">
-      <input type="file" name="logoFile" accept="image/*,.svg" />
-      <button type="button" class="secondary" data-admin-game-upload="${gameKey}">Upload logo</button>
-    </div>
-    <div class="admin-game-action-row">
-      <button type="submit" class="primary">Save game assets</button>
-      <button type="button" class="secondary" data-admin-game-reset="${gameKey}">Reset default</button>
-    </div>
-  `;
+  const previewMeta = document.createElement("p");
+  previewMeta.className = "admin-game-preview-meta";
+  previewMeta.textContent = [
+    presentation.kicker,
+    record.card_background_color ? `Card ${record.card_background_color}` : "",
+    record.button_color ? `Button ${record.button_color}` : ""
+  ].filter(Boolean).join(" • ");
+  info.appendChild(previewMeta);
 
-  const urlInput = form.querySelector('input[name="logoUrl"]');
-  const descriptionInput = form.querySelector('textarea[name="cardDescription"]');
-  const backgroundColorInput = form.querySelector('input[name="cardBackgroundColor"]');
-  const backgroundColorPicker = form.querySelector('input[name="cardBackgroundColorPicker"]');
-  const buttonColorInput = form.querySelector('input[name="buttonColor"]');
-  const buttonColorPicker = form.querySelector('input[name="buttonColorPicker"]');
-  const fileInput = form.querySelector('input[name="logoFile"]');
-  const uploadButton = form.querySelector(`[data-admin-game-upload="${gameKey}"]`);
-  const resetButton = form.querySelector(`[data-admin-game-reset="${gameKey}"]`);
+  const actions = document.createElement("div");
+  actions.className = "admin-game-actions";
 
-  backgroundColorPicker?.addEventListener("input", () => {
-    if (backgroundColorInput) {
-      backgroundColorInput.value = backgroundColorPicker.value;
-    }
-  });
+  const editButton = document.createElement("button");
+  editButton.type = "button";
+  editButton.className = "secondary";
+  editButton.textContent = "Edit";
+  editButton.addEventListener("click", () => openAdminGameModal(gameKey, editButton));
 
-  buttonColorPicker?.addEventListener("input", () => {
-    if (buttonColorInput) {
-      buttonColorInput.value = buttonColorPicker.value;
-    }
-  });
-
-  backgroundColorInput?.addEventListener("input", () => {
-    const normalized = String(backgroundColorInput.value || "").trim();
-    if (/^#(?:[0-9a-fA-F]{6})$/.test(normalized) && backgroundColorPicker) {
-      backgroundColorPicker.value = normalized;
-    }
-  });
-
-  buttonColorInput?.addEventListener("input", () => {
-    const normalized = String(buttonColorInput.value || "").trim();
-    if (/^#(?:[0-9a-fA-F]{6})$/.test(normalized) && buttonColorPicker) {
-      buttonColorPicker.value = normalized;
-    }
-  });
-
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const nextUrl = String(urlInput?.value || "").trim() || DEFAULT_GAME_ASSET_LIBRARY[gameKey].logo_url;
-    const nextDescription = String(descriptionInput?.value || "").trim() || DEFAULT_GAME_ASSET_LIBRARY[gameKey].card_description;
-    const rawBackgroundColor = String(backgroundColorInput?.value || "").trim();
-    const rawButtonColor = String(buttonColorInput?.value || "").trim();
-    const nextBackgroundColor = sanitizeGameAssetColor(rawBackgroundColor);
-    const nextButtonColor = sanitizeGameAssetColor(rawButtonColor);
-    if (rawBackgroundColor && !nextBackgroundColor) {
-      showToast("Enter a valid CSS color for the card background", "error");
-      return;
-    }
-    if (rawButtonColor && !nextButtonColor) {
-      showToast("Enter a valid CSS color for the game button", "error");
-      return;
-    }
-    gameAssetLibraryCache[gameKey] = {
-      ...DEFAULT_GAME_ASSET_LIBRARY[gameKey],
-      ...(gameAssetLibraryCache[gameKey] || {}),
-      logo_url: nextUrl,
-      card_description: nextDescription,
-      card_background_color: nextBackgroundColor,
-      button_color: nextButtonColor
-    };
-    persistGameAssetLibrary();
-    renderGameLogoTargets();
-    adminGameAssetsLoaded = false;
-    void loadAdminGameAssets(true);
-    if (adminGameMessage) {
-      adminGameMessage.textContent = `${record.label} game assets saved.`;
-    }
-    showToast(`${record.label} game assets updated`, "success");
-  });
-
-  uploadButton?.addEventListener("click", async () => {
-    if (!fileInput?.files?.[0]) {
-      showToast("Choose a logo file first", "error");
-      return;
-    }
-    uploadButton.disabled = true;
-    if (adminGameMessage) {
-      adminGameMessage.textContent = `Uploading ${record.label} logo...`;
-    }
-    try {
-      const publicUrl = await uploadGameLogo(fileInput.files[0]);
-      if (urlInput) {
-        urlInput.value = publicUrl;
-      }
-      if (adminGameMessage) {
-        adminGameMessage.textContent = `${record.label} logo uploaded. Save to apply it.`;
-      }
-      showToast("Logo uploaded", "success");
-    } catch (error) {
-      console.error(error);
-      const message = error?.message || "Unable to upload logo";
-      if (adminGameMessage) {
-        adminGameMessage.textContent = `${record.label} logo upload failed: ${message}`;
-      }
-      showToast(message, "error");
-    } finally {
-      uploadButton.disabled = false;
-      if (fileInput) {
-        fileInput.value = "";
-      }
-    }
-  });
-
-  resetButton?.addEventListener("click", () => {
+  const resetButton = document.createElement("button");
+  resetButton.type = "button";
+  resetButton.className = "secondary";
+  resetButton.textContent = "Reset";
+  resetButton.addEventListener("click", () => {
     gameAssetLibraryCache[gameKey] = {
       ...DEFAULT_GAME_ASSET_LIBRARY[gameKey]
     };
@@ -8849,8 +8761,188 @@ function renderAdminGameAssetRow(gameKey) {
     showToast(`${record.label} game assets reset`, "success");
   });
 
-  item.append(main, form);
+  actions.append(editButton, resetButton);
+
+  item.append(main, actions);
   return item;
+}
+
+function syncAdminGameColorControls(textInput, pickerInput, fallback) {
+  if (!(textInput instanceof HTMLInputElement) || !(pickerInput instanceof HTMLInputElement)) {
+    return;
+  }
+  pickerInput.addEventListener("input", () => {
+    textInput.value = pickerInput.value;
+    renderAdminGamePreview();
+  });
+  textInput.addEventListener("input", () => {
+    const normalized = String(textInput.value || "").trim();
+    pickerInput.value = getGameAssetPickerColor(normalized, fallback);
+    renderAdminGamePreview();
+  });
+}
+
+function getAdminGameDraft() {
+  if (!adminEditingGameKey) return null;
+  const baseRecord = getGameAssetRecord(adminEditingGameKey) || DEFAULT_GAME_ASSET_LIBRARY[adminEditingGameKey];
+  const logoUrl = String(adminGameLogoUrlInput?.value || "").trim() || baseRecord.logo_url || DEFAULT_GAME_ASSET_LIBRARY[adminEditingGameKey].logo_url;
+  return {
+    ...baseRecord,
+    logo_url: logoUrl,
+    card_description: String(adminGameDescriptionInput?.value || "").trim() || baseRecord.card_description,
+    card_background_color: sanitizeGameAssetColor(adminGameBackgroundColorInput?.value),
+    button_color: sanitizeGameAssetColor(adminGameButtonColorInput?.value),
+    button_text_color: sanitizeGameAssetColor(adminGameButtonTextColorInput?.value)
+  };
+}
+
+function renderAdminGamePreview() {
+  if (!adminEditingGameKey || !adminGamePreviewCard) return;
+  const draft = getAdminGameDraft();
+  if (!draft) return;
+  const presentation = getGameAdminPresentation(adminEditingGameKey);
+  adminGamePreviewCard.classList.remove("game-card-primary", "game-card-beta", "game-card-shape-traders");
+  adminGamePreviewCard.classList.add(presentation.cardClass);
+  adminGamePreviewCard.dataset.hasCustomBackground = draft.card_background_color ? "true" : "false";
+  if (draft.card_background_color) {
+    adminGamePreviewCard.style.setProperty("--game-card-bg-override", draft.card_background_color);
+  } else {
+    adminGamePreviewCard.style.removeProperty("--game-card-bg-override");
+  }
+  if (adminGamePreviewKicker) {
+    adminGamePreviewKicker.textContent = presentation.kicker;
+  }
+  if (adminGamePreviewPill) {
+    adminGamePreviewPill.hidden = !presentation.pill;
+    adminGamePreviewPill.textContent = presentation.pill || "";
+  }
+  if (adminGamePreviewLogo instanceof HTMLImageElement) {
+    adminGamePreviewLogo.src = draft.logo_url || DEFAULT_GAME_ASSET_LIBRARY[adminEditingGameKey].logo_url;
+    adminGamePreviewLogo.alt = `${draft.label} logo preview`;
+  }
+  if (adminGamePreviewTitle) {
+    adminGamePreviewTitle.textContent = String(draft.label || "").toUpperCase();
+  }
+  if (adminGamePreviewDescription) {
+    adminGamePreviewDescription.textContent = draft.card_description || DEFAULT_GAME_ASSET_LIBRARY[adminEditingGameKey].card_description;
+  }
+  if (adminGamePreviewButton) {
+    adminGamePreviewButton.textContent = presentation.buttonLabel;
+    adminGamePreviewButton.dataset.hasCustomButtonColor = draft.button_color ? "true" : "false";
+    adminGamePreviewButton.dataset.hasCustomButtonTextColor = draft.button_text_color ? "true" : "false";
+    if (draft.button_color) {
+      adminGamePreviewButton.style.setProperty("--game-card-button-override", draft.button_color);
+    } else {
+      adminGamePreviewButton.style.removeProperty("--game-card-button-override");
+    }
+    if (draft.button_text_color) {
+      adminGamePreviewButton.style.setProperty("--game-card-button-text-override", draft.button_text_color);
+    } else {
+      adminGamePreviewButton.style.removeProperty("--game-card-button-text-override");
+    }
+  }
+}
+
+function populateAdminGameModal(gameKey) {
+  const record = getGameAssetRecord(gameKey);
+  if (!record) return;
+  adminEditingGameKey = gameKey;
+  if (adminGameModalTitle) {
+    adminGameModalTitle.textContent = `Edit ${record.label}`;
+  }
+  if (adminGameLogoUrlInput) {
+    adminGameLogoUrlInput.value = record.logo_url || "";
+  }
+  if (adminGameDescriptionInput) {
+    adminGameDescriptionInput.value = record.card_description || "";
+  }
+  if (adminGameBackgroundColorInput) {
+    adminGameBackgroundColorInput.value = record.card_background_color || "";
+  }
+  if (adminGameBackgroundPicker) {
+    adminGameBackgroundPicker.value = getGameAssetPickerColor(record.card_background_color, "#253b63");
+  }
+  if (adminGameButtonColorInput) {
+    adminGameButtonColorInput.value = record.button_color || "";
+  }
+  if (adminGameButtonPicker) {
+    adminGameButtonPicker.value = getGameAssetPickerColor(record.button_color, "#ff4f9d");
+  }
+  if (adminGameButtonTextColorInput) {
+    adminGameButtonTextColorInput.value = record.button_text_color || "";
+  }
+  if (adminGameButtonTextPicker) {
+    adminGameButtonTextPicker.value = getGameAssetPickerColor(record.button_text_color, "#ffffff");
+  }
+  if (adminGameLogoFileInput) {
+    adminGameLogoFileInput.value = "";
+  }
+  if (adminGameModalMessage) {
+    adminGameModalMessage.textContent = "";
+  }
+  renderAdminGamePreview();
+}
+
+function openAdminGameModal(gameKey, trigger = null) {
+  if (!adminGameModal) return;
+  adminGameModalTrigger = trigger;
+  populateAdminGameModal(gameKey);
+  adminGameModal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closeAdminGameModal({ restoreFocus = true } = {}) {
+  if (!adminGameModal) return;
+  adminGameModal.hidden = true;
+  document.body.classList.remove("modal-open");
+  adminEditingGameKey = null;
+  if (restoreFocus) {
+    adminGameModalTrigger?.focus?.();
+  }
+  adminGameModalTrigger = null;
+}
+
+async function saveAdminGameModal() {
+  if (!adminEditingGameKey) return;
+  const baseRecord = getGameAssetRecord(adminEditingGameKey) || DEFAULT_GAME_ASSET_LIBRARY[adminEditingGameKey];
+  const draft = getAdminGameDraft();
+  if (!draft) return;
+  const rawBackgroundColor = String(adminGameBackgroundColorInput?.value || "").trim();
+  const rawButtonColor = String(adminGameButtonColorInput?.value || "").trim();
+  const rawButtonTextColor = String(adminGameButtonTextColorInput?.value || "").trim();
+  if (rawBackgroundColor && !draft.card_background_color) {
+    showToast("Enter a valid CSS color for the card background", "error");
+    return;
+  }
+  if (rawButtonColor && !draft.button_color) {
+    showToast("Enter a valid CSS color for the game button", "error");
+    return;
+  }
+  if (rawButtonTextColor && !draft.button_text_color) {
+    showToast("Enter a valid CSS color for the button text", "error");
+    return;
+  }
+  gameAssetLibraryCache[adminEditingGameKey] = {
+    ...DEFAULT_GAME_ASSET_LIBRARY[adminEditingGameKey],
+    ...(gameAssetLibraryCache[adminEditingGameKey] || {}),
+    logo_url: draft.logo_url || baseRecord.logo_url || DEFAULT_GAME_ASSET_LIBRARY[adminEditingGameKey].logo_url,
+    card_description: draft.card_description || baseRecord.card_description,
+    card_background_color: draft.card_background_color,
+    button_color: draft.button_color,
+    button_text_color: draft.button_text_color
+  };
+  persistGameAssetLibrary();
+  renderGameLogoTargets();
+  adminGameAssetsLoaded = false;
+  await loadAdminGameAssets(true);
+  if (adminGameMessage) {
+    adminGameMessage.textContent = `${baseRecord.label} game assets saved.`;
+  }
+  if (adminGameModalMessage) {
+    adminGameModalMessage.textContent = `${baseRecord.label} game assets saved.`;
+  }
+  showToast(`${baseRecord.label} game assets updated`, "success");
+  closeAdminGameModal();
 }
 
 async function loadAdminGameAssets(force = false) {
@@ -13747,6 +13839,31 @@ const adminDesignContent = document.getElementById("admin-design-content");
 const adminRanksContent = document.getElementById("admin-ranks-content");
 const adminGameListEl = document.getElementById("admin-game-list");
 const adminGameMessage = document.getElementById("admin-game-message");
+const adminGameModal = document.getElementById("admin-game-modal");
+const adminGameForm = document.getElementById("admin-game-form");
+const adminGameModalTitle = document.getElementById("admin-game-modal-title");
+const adminGameCloseButton = document.getElementById("admin-game-close");
+const adminGameCancelButton = document.getElementById("admin-game-cancel");
+const adminGameSaveButton = document.getElementById("admin-game-save");
+const adminGameResetDefaultButton = document.getElementById("admin-game-reset-default");
+const adminGameLogoUploadButton = document.getElementById("admin-game-logo-upload");
+const adminGameLogoUrlInput = document.getElementById("admin-game-logo-url");
+const adminGameLogoFileInput = document.getElementById("admin-game-logo-file");
+const adminGameDescriptionInput = document.getElementById("admin-game-description");
+const adminGameBackgroundPicker = document.getElementById("admin-game-background-picker");
+const adminGameBackgroundColorInput = document.getElementById("admin-game-background-color");
+const adminGameButtonPicker = document.getElementById("admin-game-button-picker");
+const adminGameButtonColorInput = document.getElementById("admin-game-button-color");
+const adminGameButtonTextPicker = document.getElementById("admin-game-button-text-picker");
+const adminGameButtonTextColorInput = document.getElementById("admin-game-button-text-color");
+const adminGamePreviewCard = document.getElementById("admin-game-preview-card");
+const adminGamePreviewKicker = document.getElementById("admin-game-preview-kicker");
+const adminGamePreviewPill = document.getElementById("admin-game-preview-pill");
+const adminGamePreviewLogo = document.getElementById("admin-game-preview-logo");
+const adminGamePreviewTitle = document.getElementById("admin-game-preview-title");
+const adminGamePreviewDescription = document.getElementById("admin-game-preview-description");
+const adminGamePreviewButton = document.getElementById("admin-game-preview-button");
+const adminGameModalMessage = document.getElementById("admin-game-modal-message");
 const adminThemeForm = document.getElementById("admin-theme-form");
 const adminThemeListEl = document.getElementById("admin-theme-list");
 const adminThemeMessage = document.getElementById("admin-theme-message");
@@ -14082,6 +14199,7 @@ let adminThemesLoaded = false;
 let adminEditingPrizeId = null;
 let adminEditingRankId = null;
 let adminEditingThemeId = null;
+let adminEditingGameKey = null;
 let adminEditingThemeSourceKey = null;
 let adminEditingThemeSourceBuiltin = false;
 let adminThemeOverrideTheme = null;
@@ -14106,6 +14224,7 @@ let contestEntryMap = new Map();
 let contestParticipantCounts = {};
 let contestJoinBoosts = new Map();
 let currentContestListTab = "live";
+let adminGameModalTrigger = null;
 let currentAccountMode = {
   type: "normal",
   contestId: null
@@ -20256,6 +20375,120 @@ if (adminThemeCreateButton) {
   });
 }
 
+syncAdminGameColorControls(adminGameBackgroundColorInput, adminGameBackgroundPicker, "#253b63");
+syncAdminGameColorControls(adminGameButtonColorInput, adminGameButtonPicker, "#ff4f9d");
+syncAdminGameColorControls(adminGameButtonTextColorInput, adminGameButtonTextPicker, "#ffffff");
+
+if (adminGameLogoUrlInput) {
+  adminGameLogoUrlInput.addEventListener("input", () => {
+    renderAdminGamePreview();
+  });
+}
+
+if (adminGameDescriptionInput) {
+  adminGameDescriptionInput.addEventListener("input", () => {
+    renderAdminGamePreview();
+  });
+}
+
+if (adminGameLogoUploadButton) {
+  adminGameLogoUploadButton.addEventListener("click", async () => {
+    if (!adminEditingGameKey) return;
+    if (!adminGameLogoFileInput?.files?.[0]) {
+      showToast("Choose a logo file first", "error");
+      return;
+    }
+    adminGameLogoUploadButton.disabled = true;
+    if (adminGameModalMessage) {
+      adminGameModalMessage.textContent = "Uploading logo...";
+    }
+    try {
+      const publicUrl = await uploadGameLogo(adminGameLogoFileInput.files[0]);
+      if (adminGameLogoUrlInput) {
+        adminGameLogoUrlInput.value = publicUrl;
+      }
+      renderAdminGamePreview();
+      if (adminGameModalMessage) {
+        adminGameModalMessage.textContent = "Logo uploaded. Save to apply it.";
+      }
+      showToast("Logo uploaded", "success");
+    } catch (error) {
+      console.error(error);
+      const message = error?.message || "Unable to upload logo";
+      if (adminGameModalMessage) {
+        adminGameModalMessage.textContent = message;
+      }
+      showToast(message, "error");
+    } finally {
+      adminGameLogoUploadButton.disabled = false;
+      if (adminGameLogoFileInput) {
+        adminGameLogoFileInput.value = "";
+      }
+    }
+  });
+}
+
+if (adminGameResetDefaultButton) {
+  adminGameResetDefaultButton.addEventListener("click", () => {
+    if (!adminEditingGameKey) return;
+    populateAdminGameModal(adminEditingGameKey);
+    const defaults = DEFAULT_GAME_ASSET_LIBRARY[adminEditingGameKey];
+    if (adminGameLogoUrlInput) adminGameLogoUrlInput.value = defaults.logo_url || "";
+    if (adminGameDescriptionInput) adminGameDescriptionInput.value = defaults.card_description || "";
+    if (adminGameBackgroundColorInput) adminGameBackgroundColorInput.value = defaults.card_background_color || "";
+    if (adminGameBackgroundPicker) adminGameBackgroundPicker.value = getGameAssetPickerColor(defaults.card_background_color, "#253b63");
+    if (adminGameButtonColorInput) adminGameButtonColorInput.value = defaults.button_color || "";
+    if (adminGameButtonPicker) adminGameButtonPicker.value = getGameAssetPickerColor(defaults.button_color, "#ff4f9d");
+    if (adminGameButtonTextColorInput) adminGameButtonTextColorInput.value = defaults.button_text_color || "";
+    if (adminGameButtonTextPicker) adminGameButtonTextPicker.value = getGameAssetPickerColor(defaults.button_text_color, "#ffffff");
+    if (adminGameModalMessage) {
+      adminGameModalMessage.textContent = "Preview reset to default values.";
+    }
+    renderAdminGamePreview();
+  });
+}
+
+if (adminGameSaveButton) {
+  adminGameSaveButton.addEventListener("click", () => {
+    void saveAdminGameModal();
+  });
+}
+
+if (adminGameCancelButton) {
+  adminGameCancelButton.addEventListener("click", () => {
+    closeAdminGameModal({ restoreFocus: true });
+  });
+}
+
+if (adminGameCloseButton) {
+  adminGameCloseButton.addEventListener("click", () => {
+    closeAdminGameModal({ restoreFocus: true });
+  });
+}
+
+if (adminGameModal) {
+  adminGameModal.addEventListener("click", (event) => {
+    if (event.target === adminGameModal) {
+      closeAdminGameModal({ restoreFocus: true });
+    }
+  });
+}
+
+if (adminGameForm) {
+  adminGameForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    void saveAdminGameModal();
+  });
+}
+
+if (typeof document !== "undefined") {
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && adminGameModal && !adminGameModal.hidden) {
+      closeAdminGameModal({ restoreFocus: true });
+    }
+  });
+}
+
 if (adminThemeCloseButton) {
   adminThemeCloseButton.addEventListener("click", () => {
     closeAdminThemeModal();
@@ -22114,12 +22347,24 @@ if (shapeTradersTradeToggleButton) {
 
 if (shapeTradersTradePanelEl) {
   shapeTradersTradePanelEl.addEventListener("click", (event) => {
-    if (!isShapeTradersTradeSheetMobile() || !shapeTradersTradeSheetCollapsed) {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!isShapeTradersTradeSheetMobile() || !target) {
       return;
     }
-    if (event.target instanceof Element && event.target.closest(".shape-traders-trade-sheet-toggle")) {
+
+    if (target.closest(".shape-traders-trade-sheet-toggle")) {
       return;
     }
+
+    if (target.closest(".shape-traders-trade-bar-heading")) {
+      toggleShapeTradersTradeSheet();
+      return;
+    }
+
+    if (!shapeTradersTradeSheetCollapsed) {
+      return;
+    }
+
     setShapeTradersTradeSheetCollapsed(false);
   });
 

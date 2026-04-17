@@ -1693,6 +1693,10 @@ body[data-app-state="loading"] #app-shell {
   box-shadow: 0 22px 42px color-mix(in srgb, var(--game-card-button-override) 42%, transparent);
 }
 
+.game-card .home-button[data-has-custom-button-text-color="true"] {
+  color: var(--game-card-button-text-override);
+}
+
 .game-beta-pill {
   display: inline-flex;
   align-items: center;
@@ -3078,8 +3082,19 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .shape-traders-trade-bar .shape-traders-trade-actions button.is-unavailable {
-  opacity: 0.88;
-  filter: saturate(0.82);
+  opacity: 1;
+  color: var(--primary-button-disabled-text, rgba(255, 255, 255, 0.98));
+  -webkit-text-fill-color: var(--primary-button-disabled-text, rgba(255, 255, 255, 0.98));
+  border-color: var(--primary-button-disabled-border, color-mix(in srgb, var(--gold) 34%, var(--secondary-button-border) 66%));
+  background: var(--primary-button-disabled-bg, linear-gradient(135deg, color-mix(in srgb, var(--gold) 28%, white 72%), color-mix(in srgb, var(--menu-bg) 14%, white 86%)));
+  box-shadow: var(--primary-button-disabled-shadow, inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 10px 24px rgba(0, 0, 0, 0.16));
+  filter: none;
+}
+
+.shape-traders-trade-bar .shape-traders-trade-actions button.is-unavailable:hover,
+.shape-traders-trade-bar .shape-traders-trade-actions button.is-unavailable:focus-visible {
+  transform: none;
+  box-shadow: var(--primary-button-disabled-shadow, inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 10px 24px rgba(0, 0, 0, 0.16));
 }
 
 .shape-traders-trade-bar.is-collapsed {
@@ -12446,10 +12461,44 @@ body.modal-open {
   line-height: 1.45;
 }
 
-.admin-game-asset-form {
+.admin-game-copy,
+.admin-game-preview-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.admin-game-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.admin-game-actions > * {
+  min-width: 6rem;
+}
+
+.admin-game-modal-content {
+  width: min(1160px, 96vw);
+  max-width: 1160px;
+  max-height: min(92vh, 980px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.admin-game-modal-layout {
   display: grid;
-  gap: 0.75rem;
-  align-content: start;
+  grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.05fr);
+  gap: 1rem;
+  min-height: 0;
+  align-items: start;
+}
+
+.admin-game-editor-form {
+  min-height: 0;
 }
 
 .admin-game-style-grid {
@@ -12487,6 +12536,19 @@ body.modal-open {
   max-width: 100%;
 }
 
+.admin-game-preview-panel {
+  min-height: 0;
+}
+
+.admin-game-preview-wrap {
+  display: grid;
+  place-items: start;
+}
+
+.admin-game-preview-wrap .game-card {
+  width: min(100%, 26rem);
+}
+
 @media (max-width: 1100px) {
   .home-games {
     width: min(100%, 920px);
@@ -12494,6 +12556,10 @@ body.modal-open {
   }
 
   .admin-game-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-game-modal-layout {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -12506,6 +12572,41 @@ body.modal-open {
   .home-games {
     width: 100%;
     grid-template-columns: 1fr;
+  }
+
+  .admin-game-item {
+    padding: 1rem;
+  }
+
+  .admin-game-main {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .admin-game-logo-frame {
+    width: 84px;
+  }
+
+  .admin-game-actions {
+    justify-content: stretch;
+  }
+
+  .admin-game-actions > * {
+    flex: 1 1 0;
+  }
+
+  .admin-game-modal-content {
+    width: min(96vw, 96vw);
+    max-height: min(94vh, 94dvh);
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+
+  .admin-game-modal-layout {
+    gap: 0.85rem;
+  }
+
+  .admin-game-preview-wrap .game-card {
+    width: 100%;
   }
 }
 
