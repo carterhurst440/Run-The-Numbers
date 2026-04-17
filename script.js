@@ -3229,9 +3229,9 @@ async function loadShapeTraderPortfolioFromBackend() {
   }
 }
 
-async function syncShapeTraderCurrentState({ heartbeatOnly = false } = {}) {
+async function syncShapeTraderCurrentState({ heartbeatOnly = false, throwOnError = false } = {}) {
   if (!supabase || !currentUser?.id || !shapeTradersStatePersistenceAvailable) {
-    return;
+    return false;
   }
 
   const contestId = getShapeTraderCurrentContestId();
@@ -3282,10 +3282,15 @@ async function syncShapeTraderCurrentState({ heartbeatOnly = false } = {}) {
     ) {
       shapeTradersStatePersistenceAvailable = false;
       console.warn("[RTN] Shape Traders current-state tables missing; skipping shared sync until SQL is applied");
-      return;
+      return false;
     }
     console.error("[RTN] Unable to sync Shape Traders current state", error);
+    if (throwOnError) {
+      throw error;
+    }
+    return false;
   }
+  return true;
 }
 
 async function refreshShapeTraderGlobalSnapshot() {
@@ -4757,6 +4762,17 @@ async function commitShapeTraderAccountBalance({ contestHistoryLabel = "Trade" }
   });
 }
 
+async function rollbackShapeTraderCommittedState(previousState) {
+  restoreShapeTraderTradeStateSnapshot(previousState);
+  await persistBankroll({
+    recordContestHistory: false,
+    contestCreditsValue: getShapeTraderAccountValue(),
+    throwOnError: true
+  });
+  await syncShapeTraderCurrentState({ throwOnError: true });
+  renderShapeTraders();
+}
+
 async function liquidateAllShapeTraderHoldings(reason = "Manual liquidation") {
   if (shapeTradersTradeActionInFlight) {
     return;
@@ -4783,16 +4799,11 @@ async function liquidateAllShapeTraderHoldings(reason = "Manual liquidation") {
     if (liquidatedAnyPosition) {
       try {
         await commitShapeTraderAccountBalance();
+        await syncShapeTraderCurrentState({ throwOnError: true });
       } catch (error) {
-        restoreShapeTraderTradeStateSnapshot(previousState);
-        renderShapeTraders();
+        await rollbackShapeTraderCommittedState(previousState);
         throw error;
       }
-    }
-    try {
-      await syncShapeTraderCurrentState();
-    } catch (error) {
-      console.warn("[RTN] Unable to sync Shape Traders state after batch liquidation", error);
     }
     renderShapeTraders();
   } catch (error) {
@@ -4917,11 +4928,7 @@ async function buyShapeTraderAsset() {
   const nextAveragePrice = nextQuantity > 0
     ? roundCurrencyValue((existingCostBasis + totalValue) / nextQuantity)
     : 0;
-  const previousBankroll = bankroll;
-  const previousHolding = {
-    quantity: existingQuantity,
-    averagePrice: roundCurrencyValue(Number(holding?.averagePrice || 0))
-  };
+  const previousState = createShapeTraderTradeStateSnapshot();
 
   bankroll = roundCurrencyValue(bankroll - totalValue);
   handleBankrollChanged();
@@ -4931,11 +4938,9 @@ async function buyShapeTraderAsset() {
   };
   try {
     await commitShapeTraderAccountBalance();
+    await syncShapeTraderCurrentState({ throwOnError: true });
   } catch (error) {
-    bankroll = previousBankroll;
-    handleBankrollChanged();
-    shapeTradersHoldings[assetId] = previousHolding;
-    renderShapeTraders();
+    await rollbackShapeTraderCommittedState(previousState);
     throw error;
   }
   showShapeTraderTradeToast(-totalValue);
@@ -4951,11 +4956,6 @@ async function buyShapeTraderAsset() {
     await appendShapeTraderActivity(entry);
   } catch (error) {
     console.warn("[RTN] Unable to append Shape Traders buy activity", error);
-  }
-  try {
-    await syncShapeTraderCurrentState();
-  } catch (error) {
-    console.warn("[RTN] Unable to sync Shape Traders state after buy", error);
   }
   markShapeTraderInteraction();
   renderShapeTraders();
@@ -4988,10 +4988,6 @@ async function sellShapeTraderAsset() {
   const totalValue = roundCurrencyValue(quantity * price);
   const netProfit = roundCurrencyValue((price - holding.averagePrice) * quantity);
   const previousState = createShapeTraderTradeStateSnapshot();
-  const previousHolding = {
-    quantity: Number(holding.quantity || 0),
-    averagePrice: roundCurrencyValue(Number(holding.averagePrice || 0))
-  };
 
   bankroll = roundCurrencyValue(bankroll + totalValue);
   handleBankrollChanged();
@@ -5003,10 +4999,9 @@ async function sellShapeTraderAsset() {
   applyShapeTraderCarterCashProgress(netProfit);
   try {
     await commitShapeTraderAccountBalance();
+    await syncShapeTraderCurrentState({ throwOnError: true });
   } catch (error) {
-    restoreShapeTraderTradeStateSnapshot(previousState);
-    shapeTradersHoldings[assetId] = previousHolding;
-    renderShapeTraders();
+    await rollbackShapeTraderCommittedState(previousState);
     throw error;
   }
   showShapeTraderTradeToast(totalValue);
@@ -5023,11 +5018,6 @@ async function sellShapeTraderAsset() {
     await appendShapeTraderActivity(entry);
   } catch (error) {
     console.warn("[RTN] Unable to append Shape Traders sell activity", error);
-  }
-  try {
-    await syncShapeTraderCurrentState();
-  } catch (error) {
-    console.warn("[RTN] Unable to sync Shape Traders state after sell", error);
   }
   markShapeTraderInteraction();
   renderShapeTraders();
