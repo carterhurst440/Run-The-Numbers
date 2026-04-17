@@ -7336,7 +7336,7 @@ body.theme-angelic {
   height: 8px;
   border-radius: 999px;
   background: #ffd84d;
-  box-shadow: 0 0 0 2px rgba(8, 20, 56, 0.9), 0 0 12px rgba(255, 216, 77, 0.8);
+  box-shadow: 0 0 12px rgba(255, 216, 77, 0.8);
 }
 
 .menu-icon,
