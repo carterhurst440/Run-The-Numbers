@@ -14510,6 +14510,8 @@ const playerBankrollModal = document.getElementById("player-bankroll-modal");
 const playerBankrollClose = document.getElementById("player-bankroll-close");
 const playerBankrollTitleEl = document.getElementById("player-bankroll-title");
 const playerBankrollSubheadEl = document.getElementById("player-bankroll-subhead");
+const playerBankrollTotalEl = document.getElementById("player-bankroll-total");
+const playerBankrollChangeEl = document.getElementById("player-bankroll-change");
 const playerHandsModal = document.getElementById("player-hands-modal");
 const playerHandsClose = document.getElementById("player-hands-close");
 const playerHandsTitleEl = document.getElementById("player-hands-title");
@@ -17399,6 +17401,50 @@ function getBankrollChartGameValue(point) {
     return roundCurrencyValue(Number(point.pnlShapeTraders || 0));
   }
   return roundCurrencyValue(Number(point.pnlTotal || 0));
+}
+
+function getPlayerBankrollChartGameValue(point) {
+  if (!point || typeof point !== "object") {
+    return 0;
+  }
+  if (playerBankrollGameFilter === GAME_KEYS.RUN_THE_NUMBERS) {
+    return roundCurrencyValue(Number(point.pnlRtn || 0));
+  }
+  if (playerBankrollGameFilter === GAME_KEYS.GUESS_10) {
+    return roundCurrencyValue(Number(point.pnlG10 || 0));
+  }
+  if (playerBankrollGameFilter === GAME_KEYS.SHAPE_TRADERS) {
+    return roundCurrencyValue(Number(point.pnlShapeTraders || 0));
+  }
+  return roundCurrencyValue(Number(point.pnlTotal || 0));
+}
+
+function getPlayerBankrollPeriodSummaryLabel(period = "year") {
+  const labels = {
+    hour: "Last hour",
+    day: "Last 24 hours",
+    week: "Last 7 days",
+    month: "Last 30 days",
+    "90days": "Last 90 days",
+    year: "Last year"
+  };
+  return labels[period] || labels.year;
+}
+
+function updatePlayerBankrollFilterUI() {
+  document.querySelectorAll("[data-player-bankroll-period]").forEach((button) => {
+    button.classList.toggle(
+      "active",
+      button instanceof HTMLElement && button.dataset.playerBankrollPeriod === playerBankrollPeriod
+    );
+  });
+  document.querySelectorAll("[data-player-bankroll-game]").forEach((button) => {
+    button.classList.toggle(
+      "active",
+      button instanceof HTMLElement &&
+        normalizeBankrollChartGameFilter(button.dataset.playerBankrollGame || "all") === playerBankrollGameFilter
+    );
+  });
 }
 
 function getFilteredBankrollHistoryPoints() {
@@ -22495,14 +22541,22 @@ document.querySelectorAll("[data-player-bankroll-period]").forEach((button) => {
   button.addEventListener("click", () => {
     const nextPeriod = button instanceof HTMLElement ? button.dataset.playerBankrollPeriod || "year" : "year";
     playerBankrollPeriod = nextPeriod;
-    document.querySelectorAll("[data-player-bankroll-period]").forEach((candidate) => {
-      candidate.classList.toggle(
-        "active",
-        candidate instanceof HTMLElement && candidate.dataset.playerBankrollPeriod === nextPeriod
-      );
-    });
+    updatePlayerBankrollFilterUI();
     if (activePlayerBankrollUserId) {
       void renderPlayerBankrollChart(activePlayerBankrollUserId, nextPeriod);
+    }
+  });
+});
+
+document.querySelectorAll("[data-player-bankroll-game]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const nextGame = button instanceof HTMLElement
+      ? normalizeBankrollChartGameFilter(button.dataset.playerBankrollGame || "all")
+      : "all";
+    playerBankrollGameFilter = nextGame;
+    updatePlayerBankrollFilterUI();
+    if (activePlayerBankrollUserId) {
+      void renderPlayerBankrollChart(activePlayerBankrollUserId, playerBankrollPeriod);
     }
   });
 });
@@ -22696,6 +22750,7 @@ let analyticsMostActiveEntries = [];
 let analyticsMostActiveVisibleCount = 10;
 let playerBankrollChartInstance = null;
 let playerBankrollPeriod = "year";
+let playerBankrollGameFilter = "all";
 let activePlayerBankrollUserId = null;
 let activePlayerBankrollName = "";
 let activePlayerBankrollSeriesMode = "pnl";
@@ -23284,15 +23339,27 @@ async function renderPlayerBankrollChart(userId, period = "year") {
     ? source.map((point) =>
         activePlayerBankrollSeriesMode === "legacy_bankroll"
           ? Number(point.value || 0)
-          : Number(point.pnlTotal || 0)
+          : Number(getPlayerBankrollChartGameValue(point) || 0)
       )
     : [0];
+  const hasFilterData = values.some((value) => Math.abs(Number(value || 0)) > 0.0001);
+  const totalRealizedValue = roundCurrencyValue(values.reduce((sum, value) => sum + Number(value || 0), 0));
+  const positiveBarColor = "rgba(22, 163, 74, 0.92)";
+  const negativeBarColor = "rgba(249, 115, 22, 0.92)";
+  const positiveFillColor = "rgba(22, 163, 74, 0.24)";
+  const negativeFillColor = "rgba(249, 115, 22, 0.24)";
   const barColors = values.map((value) =>
-    Number(value || 0) >= 0 ? "rgba(22, 163, 74, 0.92)" : "rgba(249, 115, 22, 0.92)"
+    Number(value || 0) >= 0 ? positiveBarColor : negativeBarColor
   );
   const fillColors = values.map((value) =>
-    Number(value || 0) >= 0 ? "rgba(22, 163, 74, 0.22)" : "rgba(249, 115, 22, 0.22)"
+    Number(value || 0) >= 0 ? positiveFillColor : negativeFillColor
   );
+  const gameLabels = {
+    all: "all games",
+    [GAME_KEYS.RUN_THE_NUMBERS]: "Run The Numbers",
+    [GAME_KEYS.GUESS_10]: "Guess 10",
+    [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders"
+  };
 
   playerBankrollChartInstance = new Chart(ctx, {
     type: activePlayerBankrollSeriesMode === "legacy_bankroll" ? "line" : "bar",
@@ -23302,9 +23369,11 @@ async function renderPlayerBankrollChart(userId, period = "year") {
         {
           label: activePlayerBankrollSeriesMode === "legacy_bankroll" ? "Bankroll" : "Daily Realized P&L",
           data: values,
-          borderColor: barColors,
+          borderColor: activePlayerBankrollSeriesMode === "legacy_bankroll"
+            ? "rgba(53, 255, 234, 1)"
+            : barColors,
           backgroundColor: fillColors,
-          borderWidth: 1.4,
+          borderWidth: activePlayerBankrollSeriesMode === "legacy_bankroll" ? 2 : 1.4,
           borderRadius: activePlayerBankrollSeriesMode === "legacy_bankroll" ? 0 : 8,
           borderSkipped: activePlayerBankrollSeriesMode === "legacy_bankroll" ? undefined : false,
           maxBarThickness: activePlayerBankrollSeriesMode === "legacy_bankroll" ? undefined : (period === "year" ? 10 : 18),
@@ -23325,9 +23394,9 @@ async function renderPlayerBankrollChart(userId, period = "year") {
           mode: "index",
           intersect: false,
           backgroundColor: "rgba(9, 18, 32, 0.95)",
-          titleColor: "rgba(53, 255, 234, 1)",
+          titleColor: "rgba(148, 255, 233, 0.96)",
           bodyColor: "rgba(226, 248, 255, 0.9)",
-          borderColor: "rgba(53, 255, 234, 0.5)",
+          borderColor: "rgba(12, 168, 138, 0.38)",
           borderWidth: 1,
           padding: 12,
           displayColors: false,
@@ -23343,7 +23412,7 @@ async function renderPlayerBankrollChart(userId, period = "year") {
       scales: {
         x: {
           grid: {
-            color: "rgba(53, 255, 234, 0.1)"
+            color: "rgba(148, 163, 184, 0.08)"
           },
           ticks: {
             color: "rgba(173, 225, 247, 0.75)",
@@ -23354,7 +23423,7 @@ async function renderPlayerBankrollChart(userId, period = "year") {
         y: {
           beginAtZero: true,
           grid: {
-            color: "rgba(53, 255, 234, 0.1)"
+            color: "rgba(148, 163, 184, 0.08)"
           },
           ticks: {
             color: "rgba(173, 225, 247, 0.75)",
@@ -23369,14 +23438,29 @@ async function renderPlayerBankrollChart(userId, period = "year") {
     }
   });
 
+  if (playerBankrollTotalEl) {
+    playerBankrollTotalEl.textContent = hasFilterData
+      ? formatSignedCurrency(totalRealizedValue)
+      : "—";
+  }
+  if (playerBankrollChangeEl) {
+    if (hasFilterData) {
+      playerBankrollChangeEl.textContent = `${totalRealizedValue >= 0 ? "▲" : "▼"} ${getPlayerBankrollPeriodSummaryLabel(period)} total`;
+      playerBankrollChangeEl.classList.toggle("is-negative", totalRealizedValue < 0);
+    } else {
+      playerBankrollChangeEl.textContent = `No realized P&L data for ${getPlayerBankrollPeriodSummaryLabel(period).toLowerCase()}.`;
+      playerBankrollChangeEl.classList.remove("is-negative");
+    }
+  }
+
   if (playerBankrollSubheadEl) {
     const labelsByPeriod = {
-      hour: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last hour.`,
-      day: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last 24 hours.`,
-      week: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last week.`,
-      month: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last month.`,
-      "90days": `Showing ${source.length.toLocaleString()} daily realized P&L points from the last 90 days.`,
-      year: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last year.`
+      hour: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last hour for ${gameLabels[playerBankrollGameFilter] || gameLabels.all}.`,
+      day: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last 24 hours for ${gameLabels[playerBankrollGameFilter] || gameLabels.all}.`,
+      week: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last week for ${gameLabels[playerBankrollGameFilter] || gameLabels.all}.`,
+      month: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last month for ${gameLabels[playerBankrollGameFilter] || gameLabels.all}.`,
+      "90days": `Showing ${source.length.toLocaleString()} daily realized P&L points from the last 90 days for ${gameLabels[playerBankrollGameFilter] || gameLabels.all}.`,
+      year: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last year for ${gameLabels[playerBankrollGameFilter] || gameLabels.all}.`
     };
     playerBankrollSubheadEl.textContent =
       activePlayerBankrollSeriesMode === "legacy_bankroll"
@@ -23393,17 +23477,13 @@ async function openPlayerBankrollModal(userId, playerName) {
   activePlayerBankrollUserId = userId;
   activePlayerBankrollName = playerName || "Player";
   playerBankrollPeriod = "year";
+  playerBankrollGameFilter = "all";
 
   if (playerBankrollTitleEl) {
     playerBankrollTitleEl.textContent = `${activePlayerBankrollName} View PnL`;
   }
 
-  document.querySelectorAll("[data-player-bankroll-period]").forEach((button) => {
-    button.classList.toggle(
-      "active",
-      button instanceof HTMLElement && button.dataset.playerBankrollPeriod === "year"
-    );
-  });
+  updatePlayerBankrollFilterUI();
 
   playerBankrollModal.hidden = false;
   playerBankrollModal.classList.add("is-open");
