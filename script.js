@@ -19448,6 +19448,7 @@ function mapShapeTraderTradeRowToActivityLogEntry(row) {
     gameLabel: getGameLabel(GAME_KEYS.SHAPE_TRADERS),
     createdAt: mapped.createdAt,
     side: mapped.side,
+    assetId: mapped.assetId,
     assetLabel: mapped.assetLabel,
     quantity: mapped.quantity,
     price: mapped.price,
