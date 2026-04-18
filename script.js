@@ -3932,7 +3932,6 @@ async function applyShapeTraderDrawRow(row) {
 }
 
 async function hydrateShapeTradersFromDrawTable(now = Date.now()) {
-  resetShapeTradersDerivedState();
   if (shapeTradersLocalResetMode) {
     return;
   }
@@ -5493,7 +5492,7 @@ function startShapeTradersClock() {
   void synchronizeShapeTraders();
   shapeTradersTimerId = window.setInterval(() => {
     void synchronizeShapeTraders();
-  }, 250);
+  }, SHAPE_TRADERS_SYNC_TICK_MS);
   const animateShapeTradersClock = () => {
     if (currentRoute !== "shape-traders" || shapeTradersLocalResetMode) {
       shapeTradersAnimationFrameId = null;
@@ -5508,6 +5507,10 @@ function startShapeTradersClock() {
 }
 
 async function initializeShapeTraders() {
+  if (shapeTradersInitializePromise) {
+    return shapeTradersInitializePromise;
+  }
+  shapeTradersInitializePromise = (async () => {
   bindShapeTraderWindowActivityListeners();
   applyShapeTradersTradeSheetState();
   if (shapeTradersInitialized) {
@@ -5546,6 +5549,12 @@ async function initializeShapeTraders() {
   await synchronizeShapeTraders();
   applyShapeTradersTradeSheetState();
   startShapeTradersClock();
+  })();
+  try {
+    return await shapeTradersInitializePromise;
+  } finally {
+    shapeTradersInitializePromise = null;
+  }
 }
 
 async function loadAdminRanks(force = false) {
@@ -5952,6 +5961,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
   if (!routeViews[resolvedRoute] && !isPublicAuthRoute) {
     resolvedRoute = "home";
   }
+  const previousRoute = currentRoute;
 
   const shouldShowAppShell = TABLE_ROUTES.has(resolvedRoute);
   if (appShell) {
@@ -5992,7 +6002,9 @@ async function setRoute(route, { replaceHash = false } = {}) {
 
   if (resolvedRoute === "shape-traders") {
     markShapeTraderInteraction();
-    await initializeShapeTraders();
+    if (previousRoute !== "shape-traders" || !shapeTradersInitialized || !shapeTradersTimerId) {
+      await initializeShapeTraders();
+    }
     await synchronizeShapeTraders();
   }
 
@@ -13898,7 +13910,7 @@ const utilityClose = document.getElementById("utility-close");
 const graphToggle = document.getElementById("graph-toggle");
 const chartPanel = document.getElementById("chart-panel");
 const chartClose = document.getElementById("chart-close");
-const bankrollChartFilterButtons = Array.from(document.querySelectorAll("[data-bankroll-period]"));
+const bankrollPeriodSelect = document.getElementById("bankroll-period-select");
 const bankrollChartGameFilterButtons = Array.from(document.querySelectorAll("[data-bankroll-game]"));
 const bankrollChartSubhead = document.getElementById("bankroll-chart-subhead");
 const activityFilterButtons = Array.from(document.querySelectorAll("[data-activity-period]"));
@@ -14490,7 +14502,7 @@ let bankrollDeltaTimeout = null;
 let bankrollHistory = [];
 let persistentBankrollHistory = [];
 let persistentBankrollUserId = null;
-let bankrollChartPeriod = "year";
+let bankrollChartPeriod = "month";
 let bankrollChartGameFilter = "all";
 let activityLeaderboardPeriod = "week";
 let activeUsersChartPeriod = "all";
@@ -14655,6 +14667,7 @@ const SHAPE_TRADERS_SPLIT_FLASH_MS = 5000;
 const SHAPE_TRADERS_ACTIVITY_PAGE_SIZE = 100;
 const SHAPE_TRADERS_GLOBAL_SYNC_MS = 5000;
 const SHAPE_TRADERS_HEARTBEAT_MS = 30000;
+const SHAPE_TRADERS_SYNC_TICK_MS = 1000;
 const SHAPE_TRADERS_MAX_CATCH_UP_WINDOWS = 12;
 const SHAPE_TRADERS_ASSETS = [
   { id: "square", label: "Square", accent: "cyan", icon: "square" },
@@ -14692,6 +14705,7 @@ let shapeTradersPreviousCard = null;
 let shapeTradersTimerId = null;
 let shapeTradersAnimationFrameId = null;
 let shapeTradersInitialized = false;
+let shapeTradersInitializePromise = null;
 let shapeTradersTimelineEpochMs = SHAPE_TRADERS_EPOCH_MS;
 let shapeTradersLocalResetMode = false;
 let shapeTradersTradeActionInFlight = false;
