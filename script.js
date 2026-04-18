@@ -213,17 +213,30 @@ function applyBackendGameAssetRows(rows = []) {
     if (!gameKey || !DEFAULT_GAME_ASSET_LIBRARY[gameKey]) return;
     const defaults = DEFAULT_GAME_ASSET_LIBRARY[gameKey];
     const existing = gameAssetLibraryCache[gameKey] || defaults;
+    const resolvedLogoUrl = String(row?.logo_url || existing.logo_url || defaults.logo_url || "").trim() || defaults.logo_url;
+    const resolvedCardDescription =
+      String(row?.card_description || existing.card_description || defaults.card_description || "").trim() ||
+      defaults.card_description;
+    const resolvedCardBackgroundColor =
+      sanitizeGameAssetColor(row?.card_background_color) ||
+      sanitizeGameAssetColor(existing.card_background_color);
+    const resolvedButtonColor =
+      sanitizeGameAssetColor(row?.button_color) ||
+      sanitizeGameAssetColor(existing.button_color);
+    const resolvedButtonTextColor =
+      sanitizeGameAssetColor(row?.button_text_color) ||
+      sanitizeGameAssetColor(existing.button_text_color);
     gameAssetLibraryCache[gameKey] = {
       ...existing,
       key: gameKey,
       label: defaults.label,
       route: defaults.route,
       description: defaults.description,
-      logo_url: String(row?.logo_url || existing.logo_url || defaults.logo_url || "").trim() || defaults.logo_url,
-      card_description: String(row?.card_description || existing.card_description || defaults.card_description || "").trim() || defaults.card_description,
-      card_background_color: sanitizeGameAssetColor(row?.card_background_color),
-      button_color: sanitizeGameAssetColor(row?.button_color),
-      button_text_color: sanitizeGameAssetColor(row?.button_text_color)
+      logo_url: resolvedLogoUrl,
+      card_description: resolvedCardDescription,
+      card_background_color: resolvedCardBackgroundColor,
+      button_color: resolvedButtonColor,
+      button_text_color: resolvedButtonTextColor
     };
     applied = true;
   });
@@ -3424,9 +3437,18 @@ async function loadShapeTraderPortfolioFromBackend() {
 }
 
 async function syncShapeTraderCurrentState({ heartbeatOnly = false, throwOnError = false } = {}) {
+  const waitStartedAt = Date.now();
+  while (shapeTradersStateSyncInFlight) {
+    if (Date.now() - waitStartedAt >= 4000) {
+      return false;
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 50));
+  }
+
   if (!supabase || !currentUser?.id || !shapeTradersStatePersistenceAvailable) {
     return false;
   }
+  shapeTradersStateSyncInFlight = true;
 
   const contestId = getShapeTraderCurrentContestId();
   const accountScope = getShapeTraderAccountScope();
@@ -3483,14 +3505,17 @@ async function syncShapeTraderCurrentState({ heartbeatOnly = false, throwOnError
       throw error;
     }
     return false;
+  } finally {
+    shapeTradersStateSyncInFlight = false;
   }
   return true;
 }
 
 async function refreshShapeTraderGlobalSnapshot() {
-  if (!supabase || !shapeTradersStatePersistenceAvailable) {
+  if (!supabase || !shapeTradersStatePersistenceAvailable || shapeTradersGlobalSyncInFlight) {
     return;
   }
+  shapeTradersGlobalSyncInFlight = true;
 
   try {
     const { data: accountRows, error: accountsError } = await supabase
@@ -3541,6 +3566,8 @@ async function refreshShapeTraderGlobalSnapshot() {
     shapeTradersLastGlobalSyncAt = Date.now();
   } catch (error) {
     console.error("[RTN] Unable to refresh Shape Traders global snapshot", error);
+  } finally {
+    shapeTradersGlobalSyncInFlight = false;
   }
 }
 
@@ -5360,6 +5387,15 @@ async function synchronizeShapeTraders(now = Date.now()) {
     }
     const currentWindowIndex = getShapeTraderCurrentWindowIndex(now);
     const startingWindowIndex = Math.max(0, shapeTradersProcessedWindowIndex);
+    const windowBacklog = Math.max(0, currentWindowIndex - startingWindowIndex);
+
+    if (windowBacklog > SHAPE_TRADERS_MAX_CATCH_UP_WINDOWS) {
+      await hydrateShapeTradersFromDrawTable(now);
+      await refreshShapeTraderGlobalSnapshot();
+      renderShapeTraders();
+      return;
+    }
+
     let processedAnyDraws = false;
     for (let windowIndex = startingWindowIndex; windowIndex <= currentWindowIndex; windowIndex += 1) {
       if (shapeTradersResetInFlight || shapeTradersLocalResetMode) {
@@ -5395,11 +5431,11 @@ async function synchronizeShapeTraders(now = Date.now()) {
     }
 
     if (currentRoute === "shape-traders" && shapeTradersWindowActive && now - shapeTradersLastHeartbeatAt >= SHAPE_TRADERS_HEARTBEAT_MS) {
-      void syncShapeTraderCurrentState({ heartbeatOnly: true });
+      await syncShapeTraderCurrentState({ heartbeatOnly: true });
     }
 
     if (now - shapeTradersLastGlobalSyncAt >= SHAPE_TRADERS_GLOBAL_SYNC_MS) {
-      void refreshShapeTraderGlobalSnapshot();
+      await refreshShapeTraderGlobalSnapshot();
     }
 
     renderShapeTraders();
@@ -14527,6 +14563,7 @@ const SHAPE_TRADERS_SPLIT_FLASH_MS = 5000;
 const SHAPE_TRADERS_ACTIVITY_PAGE_SIZE = 100;
 const SHAPE_TRADERS_GLOBAL_SYNC_MS = 5000;
 const SHAPE_TRADERS_HEARTBEAT_MS = 30000;
+const SHAPE_TRADERS_MAX_CATCH_UP_WINDOWS = 12;
 const SHAPE_TRADERS_ASSETS = [
   { id: "square", label: "Square", accent: "cyan", icon: "square" },
   { id: "triangle", label: "Triangle", accent: "magenta", icon: "triangle" },
@@ -14579,6 +14616,8 @@ let shapeTradersWindowActivityListenersBound = false;
 let shapeTradersRecentDrawRows = [];
 let shapeTradersSyncInFlight = false;
 let shapeTradersResetInFlight = false;
+let shapeTradersStateSyncInFlight = false;
+let shapeTradersGlobalSyncInFlight = false;
 let shapeTradersSplitNoticeByAsset = {};
 let shapeTradersOpenChartAssetId = null;
 let shapeTradersOpenChartSeries = [];
