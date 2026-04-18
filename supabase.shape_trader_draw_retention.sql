@@ -32,7 +32,7 @@ begin
   select jobid
   into existing_job_id
   from cron.job
-  where jobname = 'shape-trader-draw-retention-hourly';
+  where jobname = 'shape-trader-draw-retention-daily';
 
   if existing_job_id is not null then
     perform cron.unschedule(existing_job_id);
@@ -41,7 +41,7 @@ end;
 $$;
 
 select cron.schedule(
-  'shape-trader-draw-retention-hourly',
-  '0 * * * *',
+  'shape-trader-draw-retention-daily',
+  '0 0 * * *',
   $$select public.purge_old_shape_trader_draws();$$
 );
