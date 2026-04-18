@@ -3944,6 +3944,7 @@ async function applyShapeTraderDrawRow(row) {
 }
 
 async function hydrateShapeTradersFromDrawTable(now = Date.now()) {
+  resetShapeTradersDerivedState();
   if (shapeTradersLocalResetMode) {
     return;
   }
@@ -5504,7 +5505,7 @@ function startShapeTradersClock() {
   void synchronizeShapeTraders();
   shapeTradersTimerId = window.setInterval(() => {
     void synchronizeShapeTraders();
-  }, SHAPE_TRADERS_SYNC_TICK_MS);
+  }, 250);
   const animateShapeTradersClock = () => {
     if (currentRoute !== "shape-traders" || shapeTradersLocalResetMode) {
       shapeTradersAnimationFrameId = null;
