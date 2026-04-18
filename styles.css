@@ -6535,12 +6535,16 @@ body.theme-angelic {
 }
 
 .home-rank-progress-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
   gap: 0.85rem;
+  min-width: 0;
 }
 
 .rank-progress-card {
+  flex: 1 1 0;
+  min-width: 0;
   padding: 0.9rem 1rem;
   border-radius: 1rem;
   background: color-mix(in srgb, var(--active-paytable-bg) 72%, var(--menu-bg) 28%);
@@ -6818,10 +6822,6 @@ body.theme-angelic {
 .rank-up-burst span:nth-child(6) { --burst-rotate: 300deg; animation-delay: 0.4s; }
 
 @media (max-width: 800px) {
-  .home-rank-progress-grid {
-    grid-template-columns: 1fr;
-  }
-
   .rank-ladder-title-row,
   .admin-rank-header {
     flex-direction: column;
