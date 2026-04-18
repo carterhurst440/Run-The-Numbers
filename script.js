@@ -2753,6 +2753,69 @@ function createShapeTraderMarketCurrentRows(drawRow, transitions = [], { eventTy
   }));
 }
 
+function buildShapeTraderPriceSnapshotFromState(prices = shapeTradersCurrentPrices) {
+  return {
+    previous_square_price: roundCurrencyValue(Number(prices.square || SHAPE_TRADERS_START_PRICE)),
+    previous_triangle_price: roundCurrencyValue(Number(prices.triangle || SHAPE_TRADERS_START_PRICE)),
+    previous_circle_price: roundCurrencyValue(Number(prices.circle || SHAPE_TRADERS_START_PRICE))
+  };
+}
+
+function buildShapeTraderDrawRowOutcomePatch(transitions = [], nextPrices = shapeTradersCurrentPrices) {
+  const eventTags = transitions
+    .flatMap((transition) => {
+      const tags = [];
+      if (transition?.bankruptcyTriggered) {
+        tags.push(`${transition.assetId}_bankruptcy`);
+      }
+      if (transition?.splitTriggered) {
+        tags.push(`${transition.assetId}_split`);
+      }
+      return tags;
+    })
+    .filter(Boolean);
+
+  return {
+    new_square_price: roundCurrencyValue(Number(nextPrices.square || SHAPE_TRADERS_START_PRICE)),
+    new_triangle_price: roundCurrencyValue(Number(nextPrices.triangle || SHAPE_TRADERS_START_PRICE)),
+    new_circle_price: roundCurrencyValue(Number(nextPrices.circle || SHAPE_TRADERS_START_PRICE)),
+    bankruptcy_split: eventTags
+  };
+}
+
+function applyShapeTraderDrawRowPriceSnapshot(row) {
+  if (!row || typeof row !== "object") {
+    return false;
+  }
+  const nextPrices = {
+    square: Number(row.new_square_price),
+    triangle: Number(row.new_triangle_price),
+    circle: Number(row.new_circle_price)
+  };
+  const hasFullSnapshot = Object.values(nextPrices).every((value) => Number.isFinite(value));
+  if (!hasFullSnapshot) {
+    return false;
+  }
+  shapeTradersCurrentPrices.square = roundCurrencyValue(nextPrices.square);
+  shapeTradersCurrentPrices.triangle = roundCurrencyValue(nextPrices.triangle);
+  shapeTradersCurrentPrices.circle = roundCurrencyValue(nextPrices.circle);
+  return true;
+}
+
+function stripShapeTraderDrawSnapshotFields(payload = {}) {
+  const {
+    previous_square_price,
+    previous_triangle_price,
+    previous_circle_price,
+    new_square_price,
+    new_triangle_price,
+    new_circle_price,
+    bankruptcy_split,
+    ...legacyPayload
+  } = payload || {};
+  return legacyPayload;
+}
+
 function buildShapeTraderDeck() {
   const assetCards = SHAPE_TRADERS_ASSETS.flatMap((asset) =>
     SHAPE_TRADERS_MOVEMENTS.map((percentage) => ({
@@ -2899,6 +2962,7 @@ function buildShapeTraderDrawRow(windowIndex, sequenceInWindow = 1) {
   const sequenceOffsetMs = isShapeTraderDataDumpWindow(safeWindowIndex)
     ? (safeSequence - 1) * SHAPE_TRADERS_DUMP_CARD_INTERVAL_MS
     : 0;
+  const previousPrices = buildShapeTraderPriceSnapshotFromState();
   return {
     draw_id: getShapeTraderDrawId(safeWindowIndex, safeSequence),
     game_id: GAME_KEYS.SHAPE_TRADERS,
@@ -2909,7 +2973,12 @@ function buildShapeTraderDrawRow(windowIndex, sequenceInWindow = 1) {
     shape: card.assetId,
     percentage: Number(card.percentage || 0),
     card_label: card.label,
-    drawn_at: new Date(windowStart + sequenceOffsetMs).toISOString()
+    drawn_at: new Date(windowStart + sequenceOffsetMs).toISOString(),
+    ...previousPrices,
+    new_square_price: previousPrices.previous_square_price,
+    new_triangle_price: previousPrices.previous_triangle_price,
+    new_circle_price: previousPrices.previous_circle_price,
+    bankruptcy_split: []
   };
 }
 
@@ -3613,29 +3682,11 @@ async function refreshShapeTraderGlobalSnapshot() {
 }
 
 async function persistShapeTraderDrawRow(windowIndex, sequenceInWindow = 1) {
-  if (shapeTradersLocalResetMode || !supabase || !shapeTradersDrawPersistenceAvailable) {
-    return buildShapeTraderDrawRow(windowIndex, sequenceInWindow);
-  }
-
   const payload = buildShapeTraderDrawRow(windowIndex, sequenceInWindow);
   if (!payload) {
     return null;
   }
-
-  try {
-    await supabase
-      .from("shape_trader_draws")
-      .upsert(payload, { onConflict: "draw_id" });
-    return payload;
-  } catch (error) {
-    if (isMissingRelationError(error, "shape_trader_draws")) {
-      shapeTradersDrawPersistenceAvailable = false;
-      console.warn("[RTN] shape_trader_draws table missing; falling back to local draw derivation");
-      return payload;
-    }
-    console.error("[RTN] Unable to persist Shape Traders draw row", error);
-    return payload;
-  }
+  return payload;
 }
 
 async function persistShapeTraderPriceHistory(drawRow, transitions) {
@@ -3963,6 +4014,55 @@ function getShapeTraderEngineMismatchReason(now = Date.now()) {
   return null;
 }
 
+function realignShapeTraderEngineState(now = Date.now(), reason = "") {
+  const currentWindowIndex = Math.max(0, getShapeTraderCurrentWindowIndex(now));
+  const currentWindowState = getShapeTraderWindowState(currentWindowIndex, now);
+  const maxVisibleCount = Math.max(0, currentWindowState.visibleCount);
+
+  if (shapeTradersProcessedWindowIndex > currentWindowIndex) {
+    shapeTradersProcessedWindowIndex = currentWindowIndex;
+    shapeTradersProcessedVisibleCount = maxVisibleCount;
+  } else if (shapeTradersProcessedWindowIndex === currentWindowIndex) {
+    shapeTradersProcessedVisibleCount = Math.min(
+      Math.max(0, shapeTradersProcessedVisibleCount),
+      maxVisibleCount
+    );
+  }
+
+  if (Array.isArray(shapeTradersRecentDrawRows) && shapeTradersRecentDrawRows.length) {
+    shapeTradersRecentDrawRows = shapeTradersRecentDrawRows.filter((row) => {
+      const windowIndex = Math.floor(Number(row?.window_index || 0));
+      const sequenceInWindow = Math.floor(Number(row?.sequence_in_window || 0));
+      if (windowIndex < currentWindowIndex) {
+        return true;
+      }
+      if (windowIndex > currentWindowIndex) {
+        return false;
+      }
+      return sequenceInWindow <= maxVisibleCount;
+    });
+  }
+
+  const latestRow = Array.isArray(shapeTradersRecentDrawRows) ? shapeTradersRecentDrawRows[0] : null;
+  const previousRow = Array.isArray(shapeTradersRecentDrawRows) ? shapeTradersRecentDrawRows[1] : null;
+  shapeTradersCurrentCard = latestRow
+    ? mapShapeTraderDrawRowToCard(latestRow)
+    : currentWindowState.currentCard;
+  shapeTradersPreviousCard = previousRow
+    ? mapShapeTraderDrawRowToCard(previousRow)
+    : null;
+  shapeTradersMismatchTickCount = 0;
+  shapeTradersLastMismatchReason = "";
+
+  if (reason) {
+    console.warn("[RTN] Shape Traders drift detected; continuing with live engine state", {
+      reason,
+      currentWindowIndex,
+      maxVisibleCount
+    });
+  }
+}
+
 async function recoverShapeTraderEngineState(reason, now = Date.now()) {
   if (shapeTradersRecoveryInFlight) {
     return false;
@@ -3982,7 +4082,7 @@ async function recoverShapeTraderEngineState(reason, now = Date.now()) {
 
     await wipeShapeTraderSharedEngineData();
 
-    shapeTradersTimelineEpochMs = now + SHAPE_TRADERS_DRAW_INTERVAL_MS;
+    shapeTradersTimelineEpochMs = now;
     shapeTradersRecentDrawRows = [];
     shapeTradersOpenChartSeries = [];
     shapeTradersLastHeartbeatAt = 0;
@@ -4024,9 +4124,50 @@ async function applyShapeTraderDrawRow(row) {
     ].slice(0, 60);
   }
   const transitions = await applyShapeTraderCard(card);
-  await persistShapeTraderPriceHistory(row, transitions);
-  await persistShapeTraderMarketCurrent(row, transitions);
-  appendShapeTraderChartPoint(row, transitions);
+  const outcomePatch = buildShapeTraderDrawRowOutcomePatch(transitions);
+  const hydratedRow = {
+    ...row,
+    ...outcomePatch
+  };
+  if (!shapeTradersLocalResetMode && supabase && shapeTradersDrawPersistenceAvailable) {
+    try {
+      await supabase
+        .from("shape_trader_draws")
+        .upsert(hydratedRow, { onConflict: "draw_id" });
+    } catch (error) {
+      if (
+        isMissingColumnError(error, "previous_square_price") ||
+        isMissingColumnError(error, "previous_triangle_price") ||
+        isMissingColumnError(error, "previous_circle_price") ||
+        isMissingColumnError(error, "new_square_price") ||
+        isMissingColumnError(error, "new_triangle_price") ||
+        isMissingColumnError(error, "new_circle_price") ||
+        isMissingColumnError(error, "bankruptcy_split")
+      ) {
+        try {
+          await supabase
+            .from("shape_trader_draws")
+            .upsert(stripShapeTraderDrawSnapshotFields(hydratedRow), { onConflict: "draw_id" });
+        } catch (retryError) {
+          console.error("[RTN] Unable to backfill legacy Shape Traders draw row during enrichment", retryError);
+        }
+      } else if (isMissingRelationError(error, "shape_trader_draws")) {
+        shapeTradersDrawPersistenceAvailable = false;
+      } else {
+        console.error("[RTN] Unable to enrich Shape Traders draw row with price snapshots", error);
+      }
+    }
+  }
+  if (row?.draw_id !== undefined && row?.draw_id !== null) {
+    const nextDrawId = Number(row.draw_id);
+    shapeTradersRecentDrawRows = [
+      hydratedRow,
+      ...shapeTradersRecentDrawRows.filter((entry) => Number(entry?.draw_id || 0) !== nextDrawId)
+    ].slice(0, 60);
+  }
+  await persistShapeTraderPriceHistory(hydratedRow, transitions);
+  await persistShapeTraderMarketCurrent(hydratedRow, transitions);
+  appendShapeTraderChartPoint(hydratedRow, transitions);
   const rowWindowIndex = Math.floor(Number(row?.window_index || 0));
   const rowSequence = Math.floor(Number(row?.sequence_in_window || 0));
   if (rowWindowIndex > shapeTradersProcessedWindowIndex) {
@@ -4042,17 +4183,12 @@ async function hydrateShapeTradersFromDrawTable(now = Date.now()) {
   if (shapeTradersLocalResetMode) {
     return;
   }
-
-  const marketRows = await loadShapeTraderMarketCurrentRows();
-  let hasCanonicalMarketPrices = applyShapeTraderMarketCurrentRows(marketRows);
-  if (!hasCanonicalMarketPrices) {
-    const historyRows = await loadShapeTraderLatestPricesFromHistory();
-    hasCanonicalMarketPrices = applyShapeTraderMarketCurrentRows(historyRows);
-  }
+  let hasCanonicalMarketPrices = false;
 
   if (!supabase || !shapeTradersDrawPersistenceAvailable) {
-    shapeTradersTimelineEpochMs = now + SHAPE_TRADERS_DRAW_INTERVAL_MS;
+    shapeTradersTimelineEpochMs = now;
     shapeTradersRecentDrawRows = [];
+    shapeTradersCurrentPrices = createInitialShapeTraderPrices();
     return;
   }
 
@@ -4066,7 +4202,7 @@ async function hydrateShapeTradersFromDrawTable(now = Date.now()) {
     if (error) {
       if (isMissingRelationError(error, "shape_trader_draws")) {
         shapeTradersDrawPersistenceAvailable = false;
-        shapeTradersTimelineEpochMs = now + SHAPE_TRADERS_DRAW_INTERVAL_MS;
+        shapeTradersTimelineEpochMs = now;
         return;
       }
       throw error;
@@ -4074,11 +4210,9 @@ async function hydrateShapeTradersFromDrawTable(now = Date.now()) {
 
     const rows = Array.isArray(persistedRows) ? persistedRows : [];
     if (!rows.length) {
-      shapeTradersTimelineEpochMs = now + SHAPE_TRADERS_DRAW_INTERVAL_MS;
+      shapeTradersTimelineEpochMs = now;
       shapeTradersRecentDrawRows = [];
-      if (!hasCanonicalMarketPrices) {
-        shapeTradersCurrentPrices = createInitialShapeTraderPrices();
-      }
+      shapeTradersCurrentPrices = createInitialShapeTraderPrices();
       return;
     }
 
@@ -4086,10 +4220,7 @@ async function hydrateShapeTradersFromDrawTable(now = Date.now()) {
     shapeTradersRecentDrawRows = rows;
     shapeTradersTimelineEpochMs = getShapeTraderTimelineEpochFromRow(latestRow);
 
-    if (!hasCanonicalMarketPrices) {
-      const historyRows = await loadShapeTraderLatestPricesFromHistory();
-      hasCanonicalMarketPrices = applyShapeTraderMarketCurrentRows(historyRows);
-    }
+    hasCanonicalMarketPrices = applyShapeTraderDrawRowPriceSnapshot(latestRow);
     if (!hasCanonicalMarketPrices) {
       shapeTradersCurrentPrices = createInitialShapeTraderPrices();
     }
@@ -4104,25 +4235,7 @@ async function hydrateShapeTradersFromDrawTable(now = Date.now()) {
 }
 
 async function reconcileShapeTraderMarketCurrent() {
-  if (shapeTradersLocalResetMode) {
-    return false;
-  }
-
-  const rows = await loadShapeTraderMarketCurrentRows();
-  if (!rows.length) {
-    return false;
-  }
-
-  let corrected = false;
-  rows.forEach((row) => {
-    if (!row?.shape) return;
-    const canonicalPrice = roundCurrencyValue(Number(row.current_price || SHAPE_TRADERS_START_PRICE));
-    if (roundCurrencyValue(Number(shapeTradersCurrentPrices[row.shape] || SHAPE_TRADERS_START_PRICE)) !== canonicalPrice) {
-      shapeTradersCurrentPrices[row.shape] = canonicalPrice;
-      corrected = true;
-    }
-  });
-  return corrected;
+  return false;
 }
 
 async function appendShapeTraderActivity(entry) {
@@ -4794,25 +4907,65 @@ async function loadShapeTraderPriceSeries(assetId) {
   const asset = getShapeTraderAssetConfig(assetId);
   let rows = [];
 
-  if (supabase && shapeTradersPriceHistoryPersistenceAvailable) {
+  if (supabase && shapeTradersDrawPersistenceAvailable) {
     try {
       const response = await supabase
-        .from("shape_trader_price_history")
+        .from("shape_trader_draws")
         .select("*")
-        .eq("shape", assetId)
         .order("draw_id", { ascending: false })
         .limit(100);
       if (response?.error) {
-        if (isMissingRelationError(response.error, "shape_trader_price_history")) {
-          shapeTradersPriceHistoryPersistenceAvailable = false;
+        if (isMissingRelationError(response.error, "shape_trader_draws")) {
+          shapeTradersDrawPersistenceAvailable = false;
         } else {
           throw response.error;
         }
       } else {
-        rows = Array.isArray(response?.data) ? [...response.data].reverse() : [];
+        const drawRows = Array.isArray(response?.data) ? [...response.data].reverse() : [];
+        rows = drawRows
+          .map((row) => {
+            const nextFieldName =
+              assetId === "square"
+                ? "new_square_price"
+                : assetId === "triangle"
+                  ? "new_triangle_price"
+                  : "new_circle_price";
+            const previousFieldName =
+              assetId === "square"
+                ? "previous_square_price"
+                : assetId === "triangle"
+                  ? "previous_triangle_price"
+                  : "previous_circle_price";
+            const nextPrice = Number(row?.[nextFieldName]);
+            const previousPrice = Number(row?.[previousFieldName]);
+            if (!Number.isFinite(nextPrice)) {
+              return null;
+            }
+            return {
+              draw_id: Number(row.draw_id || 0),
+              shape: assetId,
+              previous_price: Number.isFinite(previousPrice)
+                ? roundCurrencyValue(previousPrice)
+                : null,
+              new_price: roundCurrencyValue(nextPrice),
+              split_triggered: Array.isArray(row?.bankruptcy_split) && row.bankruptcy_split.includes(`${assetId}_split`),
+              bankruptcy_triggered: Array.isArray(row?.bankruptcy_split) && row.bankruptcy_split.includes(`${assetId}_bankruptcy`)
+            };
+          })
+          .filter(Boolean);
+
+        if (rows.length > 1) {
+          rows = rows.filter((row, index, allRows) => {
+            const isLastRow = index === allRows.length - 1;
+            const changedPrice =
+              Number.isFinite(Number(row.previous_price)) &&
+              roundCurrencyValue(Number(row.previous_price)) !== roundCurrencyValue(Number(row.new_price));
+            return changedPrice || isLastRow;
+          });
+        }
       }
     } catch (error) {
-      console.error("[RTN] Unable to load Shape Traders price history", error);
+      console.error("[RTN] Unable to load Shape Traders draw-based price series", error);
     }
   }
 
@@ -5324,7 +5477,7 @@ async function resetShapeTraderMarketPrices() {
       buttonLabel: "RESEEDING…",
       disableControls: true
     });
-    shapeTradersTimelineEpochMs = Date.now() + SHAPE_TRADERS_DRAW_INTERVAL_MS;
+    shapeTradersTimelineEpochMs = Date.now();
     shapeTradersCurrentPrices = createInitialShapeTraderPrices();
     shapeTradersHoldings = createEmptyShapeTraderHoldings();
     shapeTradersActivity = [];
@@ -5530,23 +5683,14 @@ async function synchronizeShapeTraders(now = Date.now()) {
       return;
     }
 
-    const currentWindowIndex = getShapeTraderCurrentWindowIndex(now);
     const mismatchReason = getShapeTraderEngineMismatchReason(now);
     if (mismatchReason) {
-      if (mismatchReason === shapeTradersLastMismatchReason) {
-        shapeTradersMismatchTickCount += 1;
-      } else {
-        shapeTradersLastMismatchReason = mismatchReason;
-        shapeTradersMismatchTickCount = 1;
-      }
-      if (shapeTradersMismatchTickCount >= 4) {
-        await recoverShapeTraderEngineState(mismatchReason, now);
-        return;
-      }
+      realignShapeTraderEngineState(now, mismatchReason);
     } else {
       shapeTradersMismatchTickCount = 0;
       shapeTradersLastMismatchReason = "";
     }
+    const currentWindowIndex = getShapeTraderCurrentWindowIndex(now);
     const startingWindowIndex = Math.max(0, shapeTradersProcessedWindowIndex);
     const windowBacklog = Math.max(0, currentWindowIndex - startingWindowIndex);
 
@@ -7493,6 +7637,10 @@ async function renderOverviewChart(period = "year") {
             {
               borderColor: "rgba(255, 127, 216, 1)",
               backgroundColor: "rgba(255, 127, 216, 0.16)"
+            },
+            {
+              borderColor: "rgba(53, 255, 234, 1)",
+              backgroundColor: "rgba(53, 255, 234, 0.16)"
             }
           ];
           const colors = palette[index] || palette[0];
@@ -7555,7 +7703,7 @@ async function renderOverviewChart(period = "year") {
             },
             title: {
               display: true,
-              text: "Hands Played",
+              text: "Hands & Trades",
               color: "rgba(173, 225, 247, 0.75)"
             }
           }
@@ -16699,6 +16847,7 @@ async function fetchShapeTraderTradeRecords({
   startAt = null,
   endAt = null,
   userId = null,
+  userIds = null,
   fields = ["executed_at", "trade_side", "net_profit", "contest_id"]
 } = {}) {
   const allRecords = [];
@@ -16721,7 +16870,9 @@ async function fetchShapeTraderTradeRecords({
       query = query.lte("executed_at", endAt.toISOString());
     }
 
-    if (userId) {
+    if (Array.isArray(userIds) && userIds.length > 0) {
+      query = query.in("user_id", userIds);
+    } else if (userId) {
       query = query.eq("user_id", userId);
     }
 
@@ -16826,6 +16977,13 @@ async function buildHandsByGameSeries(period, {
   endAt = new Date(),
   userIds = null
 } = {}) {
+  const tradeRecords = await fetchShapeTraderTradeRecords({
+    startAt,
+    endAt,
+    userIds: Array.isArray(userIds) && userIds.length ? userIds : null,
+    fields: ["executed_at", "user_id"]
+  });
+
   try {
     const data = await invokeAdminAnalytics("hands_timeseries", {
       period,
@@ -16835,18 +16993,52 @@ async function buildHandsByGameSeries(period, {
     });
     const rows = Array.isArray(data?.rows) ? data.rows : [];
     if (rows.length) {
+      const effectiveStart =
+        startAt ||
+        (rows[0]?.bucketStart ? new Date(rows[0].bucketStart) : null) ||
+        (tradeRecords.length ? new Date(tradeRecords[0].executed_at) : null) ||
+        new Date(endAt.getTime() - 29 * 24 * 60 * 60 * 1000);
+      const buckets = buildHandsChartBuckets(period, effectiveStart, endAt);
+      const runTheNumbersHands = new Array(buckets.length).fill(0);
+      const guess10Hands = new Array(buckets.length).fill(0);
+      const shapeTraderTrades = new Array(buckets.length).fill(0);
+
+      rows.forEach((row) => {
+        const bucketStart = row?.bucketStart ? new Date(row.bucketStart) : null;
+        const bucketIndex = bucketStart
+          ? buckets.findIndex((bucket) => bucketStart >= bucket.start && bucketStart < bucket.end)
+          : -1;
+        if (bucketIndex < 0) {
+          return;
+        }
+        runTheNumbersHands[bucketIndex] = Number(row.runTheNumbersHands || 0);
+        guess10Hands[bucketIndex] = Number(row.guess10Hands || 0);
+      });
+
+      tradeRecords.forEach((record) => {
+        const executedAt = new Date(record.executed_at);
+        const bucketIndex = buckets.findIndex((bucket) => executedAt >= bucket.start && executedAt < bucket.end);
+        if (bucketIndex >= 0) {
+          shapeTraderTrades[bucketIndex] += 1;
+        }
+      });
       return {
-        labels: rows.map((row) => row.label || ""),
+        labels: buckets.map((bucket) => bucket.label),
         datasets: [
           {
             key: GAME_KEYS.RUN_THE_NUMBERS,
             label: getGameLabel(GAME_KEYS.RUN_THE_NUMBERS),
-            values: rows.map((row) => Number(row.runTheNumbersHands || 0))
+            values: runTheNumbersHands
           },
           {
             key: GAME_KEYS.GUESS_10,
             label: getGameLabel(GAME_KEYS.GUESS_10),
-            values: rows.map((row) => Number(row.guess10Hands || 0))
+            values: guess10Hands
+          },
+          {
+            key: `${GAME_KEYS.SHAPE_TRADERS}_trades`,
+            label: "Shape Traders Trades",
+            values: shapeTraderTrades
           }
         ]
       };
@@ -16867,7 +17059,7 @@ async function buildHandsByGameSeries(period, {
     (records.length > 0 ? new Date(records[0].created_at) : new Date(endAt.getTime() - 29 * 24 * 60 * 60 * 1000));
   const buckets = buildHandsChartBuckets(period, effectiveStart, endAt);
   const seriesMap = new Map(
-    Object.values(GAME_KEYS).map((gameKey) => [
+    [GAME_KEYS.RUN_THE_NUMBERS, GAME_KEYS.GUESS_10, GAME_KEYS.SHAPE_TRADERS].map((gameKey) => [
       gameKey,
       {
         key: gameKey,
@@ -16887,9 +17079,25 @@ async function buildHandsByGameSeries(period, {
     series.values[bucketIndex] += 1;
   });
 
+  const tradeSeries = {
+    key: `${GAME_KEYS.SHAPE_TRADERS}_trades`,
+    label: "Shape Traders Trades",
+    values: new Array(buckets.length).fill(0)
+  };
+  tradeRecords.forEach((record) => {
+    const executedAt = new Date(record.executed_at);
+    const bucketIndex = buckets.findIndex((bucket) => executedAt >= bucket.start && executedAt < bucket.end);
+    if (bucketIndex < 0) return;
+    tradeSeries.values[bucketIndex] += 1;
+  });
+
   return {
     labels: buckets.map((bucket) => bucket.label),
-    datasets: Array.from(seriesMap.values())
+    datasets: [
+      seriesMap.get(GAME_KEYS.RUN_THE_NUMBERS),
+      seriesMap.get(GAME_KEYS.GUESS_10),
+      tradeSeries
+    ].filter(Boolean)
   };
 }
 
@@ -16946,21 +17154,39 @@ function getBankrollChartBarWidth(period, barSpacing) {
   return Math.max(4, Math.min(maxWidth, barSpacing * widthScale));
 }
 
-function drawRoundedChartBar(ctx, x, y, width, height, radius) {
+function drawRoundedChartBar(ctx, x, y, width, height, radius, options = {}) {
   if (!ctx || width <= 0 || height <= 0) {
     return;
   }
   const effectiveRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
+  const roundTop = options.roundTop !== false;
+  const roundBottom = options.roundBottom !== false;
   ctx.beginPath();
-  ctx.moveTo(x + effectiveRadius, y);
-  ctx.lineTo(x + width - effectiveRadius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + effectiveRadius);
-  ctx.lineTo(x + width, y + height - effectiveRadius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - effectiveRadius, y + height);
-  ctx.lineTo(x + effectiveRadius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - effectiveRadius);
-  ctx.lineTo(x, y + effectiveRadius);
-  ctx.quadraticCurveTo(x, y, x + effectiveRadius, y);
+  ctx.moveTo(x + (roundTop ? effectiveRadius : 0), y);
+  ctx.lineTo(x + width - (roundTop ? effectiveRadius : 0), y);
+  if (roundTop) {
+    ctx.quadraticCurveTo(x + width, y, x + width, y + effectiveRadius);
+  } else {
+    ctx.lineTo(x + width, y);
+  }
+  ctx.lineTo(x + width, y + height - (roundBottom ? effectiveRadius : 0));
+  if (roundBottom) {
+    ctx.quadraticCurveTo(x + width, y + height, x + width - effectiveRadius, y + height);
+  } else {
+    ctx.lineTo(x + width, y + height);
+  }
+  ctx.lineTo(x + (roundBottom ? effectiveRadius : 0), y + height);
+  if (roundBottom) {
+    ctx.quadraticCurveTo(x, y + height, x, y + height - effectiveRadius);
+  } else {
+    ctx.lineTo(x, y + height);
+  }
+  ctx.lineTo(x, y + (roundTop ? effectiveRadius : 0));
+  if (roundTop) {
+    ctx.quadraticCurveTo(x, y, x + effectiveRadius, y);
+  } else {
+    ctx.lineTo(x, y);
+  }
   ctx.closePath();
   ctx.fill();
 }
@@ -17247,7 +17473,10 @@ function drawBankrollChart() {
     const x = padding.left + index * barSpacing + (barSpacing - barWidth) / 2;
     const y = value >= 0 ? zeroY - barHeight : zeroY;
     ctx.fillStyle = value >= 0 ? positiveColor : negativeColor;
-    drawRoundedChartBar(ctx, x, y, barWidth, barHeight, barRadius);
+    drawRoundedChartBar(ctx, x, y, barWidth, barHeight, barRadius, {
+      roundTop: value >= 0,
+      roundBottom: value < 0
+    });
     bankrollChartHoverBars.push({
       x,
       y,

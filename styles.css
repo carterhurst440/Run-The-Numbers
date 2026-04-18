@@ -9861,12 +9861,16 @@ body.play-assistant-open .play-assistant-fab {
   .account-chart-periods {
     width: 100%;
     justify-content: space-between;
+    gap: 0.18rem;
+    padding: 0.22rem;
   }
 
   .account-chart-period-btn {
     min-width: 0;
-    flex: 1 1 3.05rem;
-    padding-inline: 0.4rem;
+    flex: 1 1 2.5rem;
+    padding-inline: 0.22rem;
+    padding-block: 0.46rem;
+    font-size: 0.74rem;
   }
 
   .account-chart-games {
@@ -11252,8 +11256,15 @@ body.play-assistant-open .play-assistant-fab {
 
 .chart-filters {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.3rem;
   flex-wrap: wrap;
+  align-items: center;
+  padding: 0.28rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--menu-bg) 70%, black 30%);
+  border: 1px solid color-mix(in srgb, var(--betting-panel-border) 52%, transparent);
+  width: fit-content;
+  max-width: 100%;
 }
 
 .analytics-bet-filters-row {
@@ -11273,28 +11284,28 @@ body.play-assistant-open .play-assistant-fab {
 }
 
 .chart-filter-btn {
-  padding: 0.4rem 0.8rem;
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
+  min-width: 3rem;
+  padding: 0.48rem 0.8rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  background: color-mix(in srgb, var(--menu-bg) 74%, black 26%);
-  border: 1px solid color-mix(in srgb, var(--betting-panel-border) 72%, transparent);
-  border-radius: 6px;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
   color: color-mix(in srgb, var(--text-light) 72%, var(--muted) 28%);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .chart-filter-btn:hover {
-  background: color-mix(in srgb, var(--active-paytable-bg) 58%, transparent);
-  border-color: color-mix(in srgb, var(--neon-cyan) 44%, transparent);
+  background: color-mix(in srgb, var(--active-paytable-bg) 52%, transparent);
   color: color-mix(in srgb, var(--text-light) 92%, white 8%);
 }
 
 .chart-filter-btn.active {
   background: color-mix(in srgb, var(--active-paytable-bg) 88%, transparent);
-  border-color: color-mix(in srgb, var(--neon-cyan) 68%, transparent);
   color: color-mix(in srgb, white 90%, var(--text-light) 10%);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.18);
 }
 
 .chart-container {
