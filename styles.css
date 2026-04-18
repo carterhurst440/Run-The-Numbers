@@ -11344,72 +11344,40 @@ body.modal-open {
 }
 
 .activity-log-toolbar {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
+  display: grid;
+  gap: 0.45rem;
 }
 
 .activity-log-filters,
 .activity-log-subfilters,
 .activity-log-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: 1rem;
   flex-wrap: wrap;
   align-items: center;
-}
-
-.activity-log-toolbar-label {
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.activity-log-checkbox,
-.activity-log-select-field {
-  border: 1px solid color-mix(in srgb, var(--drawer-border) 72%, transparent);
-  background: color-mix(in srgb, var(--drawer-bg) 72%, black 28%);
-  color: var(--muted);
-  border-radius: 999px;
-  padding: 0.42rem 0.72rem;
 }
 
 .activity-log-checkbox {
   display: inline-flex;
   align-items: center;
-  gap: 0.42rem;
+  gap: 0.45rem;
   font: inherit;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 0.88rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  color: var(--text-light);
 }
 
-.activity-log-checkbox:hover,
-.activity-log-checkbox:focus-within,
-.activity-log-select-field:focus-within {
-  color: var(--text-light);
-  border-color: color-mix(in srgb, var(--neon-cyan) 64%, white 36%);
-  outline: none;
-  transform: translateY(-1px);
-}
-
-.activity-log-checkbox.is-active,
-.activity-log-select-field {
-  color: var(--text-light);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--neon-cyan) 28%, transparent), color-mix(in srgb, var(--neon-magenta) 22%, transparent));
-  border-color: color-mix(in srgb, var(--neon-cyan) 46%, white 54%);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--neon-cyan) 18%, transparent), inset 0 0 18px color-mix(in srgb, var(--neon-violet) 12%, transparent);
+.activity-log-filter-logo {
+  width: 1.15rem;
+  height: 1.15rem;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .activity-log-checkbox input {
-  width: 0.82rem;
-  height: 0.82rem;
+  width: 0.95rem;
+  height: 0.95rem;
   accent-color: color-mix(in srgb, var(--neon-cyan) 72%, white 28%);
 }
 
@@ -11417,23 +11385,24 @@ body.modal-open {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  color: var(--text-light);
 }
 
 .activity-log-select-field span {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .activity-log-select-field select {
-  border: 0;
-  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--drawer-border) 62%, transparent);
+  background: color-mix(in srgb, var(--drawer-bg) 78%, black 22%);
   color: var(--text-light);
   font: inherit;
-  font-weight: 700;
-  font-size: 0.78rem;
+  font-weight: 600;
+  font-size: 0.82rem;
   cursor: pointer;
+  border-radius: 10px;
+  padding: 0.35rem 0.55rem;
 }
 
 .activity-log-select-field select:disabled {
@@ -11551,15 +11520,11 @@ body.modal-open {
     width: 100%;
   }
 
-  .activity-log-toolbar {
-    align-items: stretch;
-  }
-
   .activity-log-checkbox,
   .activity-log-select-field,
   .activity-log-actions .link-button {
-    width: 100%;
-    justify-content: center;
+    width: auto;
+    justify-content: flex-start;
   }
 }
 

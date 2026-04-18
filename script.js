@@ -19504,6 +19504,14 @@ function getShapeTraderActivitySymbolMarkup(entry) {
   return `<span class="shape-traders-shape-icon shape-${asset.icon}" aria-hidden="true"></span>`;
 }
 
+function getActivityLogGameLogoMarkup(gameKey) {
+  const record = getGameAssetRecord(gameKey) || DEFAULT_GAME_ASSET_LIBRARY[resolveGameKey(gameKey)] || null;
+  if (!record?.logo_url) {
+    return "";
+  }
+  return `<img class="activity-log-game-logo" src="${escapeGameAssetField(record.logo_url)}" alt="${escapeAssistantHtml(record.label || getGameLabel(gameKey))} logo" />`;
+}
+
 function renderActivityLogPage() {
   if (!activityLogListEl) {
     return;
@@ -19549,7 +19557,10 @@ function renderActivityLogPage() {
                 <p class="activity-log-kicker">${escapeAssistantHtml(entry.gameLabel)}</p>
                 <h3 class="activity-log-title">${escapeAssistantHtml(entry.side === "sell" ? "Sell Executed" : "Buy Executed")}</h3>
               </div>
-              <span class="activity-log-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
+              <div class="activity-log-topline-side">
+                ${getActivityLogGameLogoMarkup(entry.gameKey)}
+                <span class="activity-log-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
+              </div>
             </div>
             <p class="activity-log-primary activity-log-primary-with-symbol">${getShapeTraderActivitySymbolMarkup(entry)}<span>${escapeAssistantHtml(`${formatCurrency(entry.quantity)} shares @ ${formatCurrency(entry.price)}`)}</span></p>
             <p class="activity-log-meta">${escapeAssistantHtml(`${formatCurrency(entry.totalValue)} total${netProfitMarkup}`)}</p>
@@ -19587,7 +19598,10 @@ function renderActivityLogPage() {
               <p class="activity-log-kicker">${escapeAssistantHtml(entry.gameLabel)}</p>
               <h3 class="activity-log-title">${escapeAssistantHtml(handDescriptor)}</h3>
             </div>
-            <span class="activity-log-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
+            <div class="activity-log-topline-side">
+              ${getActivityLogGameLogoMarkup(entry.gameKey)}
+              <span class="activity-log-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
+            </div>
           </div>
           <p class="activity-log-primary">${escapeAssistantHtml(extraBits.join(" · "))}</p>
           <p class="activity-log-cards">${escapeAssistantHtml(entry.sequenceLabel || "Card sequence unavailable for this hand.")}</p>
