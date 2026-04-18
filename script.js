@@ -9,6 +9,7 @@ if (typeof document !== "undefined" && document.body) {
 
 let appReady = false;
 let authBootstrapFallbackShown = false;
+let appReadyFallbackTimerId = null;
 
 const GAME_KEYS = {
   RUN_THE_NUMBERS: "game_001",
@@ -515,10 +516,21 @@ function markAppReady() {
 
   const { body } = document;
   if (body) {
+    if (appReadyFallbackTimerId) {
+      clearTimeout(appReadyFallbackTimerId);
+      appReadyFallbackTimerId = null;
+    }
     body.dataset.appState = "ready";
     console.info("[RTN] markAppReady called; UI now visible");
     appReady = true;
   }
+}
+
+if (typeof window !== "undefined") {
+  appReadyFallbackTimerId = window.setTimeout(() => {
+    console.warn("[RTN] App ready fallback timer fired; forcing UI visible");
+    markAppReady();
+  }, 2500);
 }
 
 const PAYTABLES = [
