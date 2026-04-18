@@ -4686,7 +4686,7 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .home-view:not(.has-contest-spotlight) {
-    padding-top: 1.28rem;
+    padding-top: 1.65rem;
   }
 
   .home-view:not(.has-contest-spotlight) .home-hero {
