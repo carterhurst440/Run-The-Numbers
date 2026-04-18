@@ -14045,7 +14045,8 @@ const redBlackChipStackEl = document.getElementById("red-black-chip-stack");
 const redBlackPotTotalEl = document.getElementById("red-black-pot-total");
 const redBlackPotCommissionEl = document.getElementById("red-black-pot-commission");
 const redBlackNextPotTotalEl = document.getElementById("red-black-next-pot-total");
-const redBlackChipButtons = Array.from(document.querySelectorAll("[data-red-black-chip]"));
+const redBlackChipSelectorEl = document.getElementById("red-black-chip-selector");
+const redBlackChipRackEditButton = document.getElementById("red-black-chip-rack-edit");
 const redBlackCategoryButtons = Array.from(document.querySelectorAll("[data-red-black-category]"));
 const redBlackValueSelectorEl = document.getElementById("red-black-value-selector");
 const redBlackSelectionHintEl = document.getElementById("red-black-selection-hint");
@@ -14678,7 +14679,7 @@ let dealing = false;
 let chipDenominations = loadStoredChipDenominations();
 let selectedChip = chipDenominations[0];
 let bettingOpen = true;
-let redBlackSelectedChip = 5;
+let redBlackSelectedChip = chipDenominations[0];
 let redBlackBet = 0;
 let redBlackRung = 0;
 let redBlackHandActive = false;
@@ -15258,7 +15259,9 @@ function syncChipEditorFormValues(values = chipDenominations) {
 function openChipEditorModal() {
   if (!chipEditorModal || !chipEditorModal.hidden) return;
   chipEditorModalTrigger =
-    document.activeElement instanceof HTMLElement ? document.activeElement : chipRackEditButton;
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : chipRackEditButton || redBlackChipRackEditButton;
   syncChipEditorFormValues(chipDenominations);
   chipEditorModal.hidden = false;
   chipEditorModal.classList.add("is-open");
@@ -15297,8 +15300,13 @@ function applyChipDenominations(values, { announce = true } = {}) {
   if (!chipDenominations.includes(selectedChip)) {
     selectedChip = chipDenominations[0];
   }
+  if (!chipDenominations.includes(redBlackSelectedChip)) {
+    redBlackSelectedChip = chipDenominations[0];
+  }
   renderChipSelector();
+  renderRedBlackChipRack();
   refreshBetControls();
+  updateRedBlackActionState();
   if (announce && statusEl && !dealing) {
     statusEl.textContent = `Chip rack updated to ${chipDenominations
       .map((value) => formatCurrency(value))
@@ -15824,6 +15832,11 @@ function refreshBetControls() {
     chipRackEditButton.disabled = dealing;
     chipRackEditButton.setAttribute("aria-disabled", String(dealing));
   }
+  if (redBlackChipRackEditButton) {
+    const editDisabled = redBlackHandActive || redBlackSettlementPending;
+    redBlackChipRackEditButton.disabled = editDisabled;
+    redBlackChipRackEditButton.setAttribute("aria-disabled", String(editDisabled));
+  }
 
   betSpotButtons.forEach((button) => {
     const key = button.dataset.betKey || button.dataset.rank;
@@ -15984,10 +15997,15 @@ function setRedBlackStatus(message) {
 function updateRedBlackActionState() {
   const selectionValid = isRedBlackSelectionValid();
   const handLocked = redBlackHandActive || redBlackSettlementPending;
+  const redBlackChipButtons = Array.from(redBlackChipSelectorEl?.querySelectorAll("[data-red-black-chip]") || []);
   redBlackChipButtons.forEach((button) => {
     button.disabled = handLocked;
     button.setAttribute("aria-disabled", String(handLocked));
   });
+  if (redBlackChipRackEditButton) {
+    redBlackChipRackEditButton.disabled = handLocked;
+    redBlackChipRackEditButton.setAttribute("aria-disabled", String(handLocked));
+  }
   if (redBlackBetSpotButton) {
     const canAddToBet = !handLocked;
     redBlackBetSpotButton.disabled = !canAddToBet;
@@ -16149,6 +16167,25 @@ function appendRedBlackCard(card) {
 }
 
 function renderRedBlackChipRack() {
+  if (redBlackChipSelectorEl) {
+    redBlackChipSelectorEl.innerHTML = chipDenominations
+      .map((value) => {
+        const isSelected = value === redBlackSelectedChip;
+        return `
+          <button
+            type="button"
+            class="chip-choice${isSelected ? " active" : ""}"
+            data-red-black-chip="${value}"
+            data-tone="${getChipToneIndex(value)}"
+            aria-pressed="${isSelected ? "true" : "false"}"
+          >
+            ${value}
+          </button>
+        `;
+      })
+      .join("");
+  }
+  const redBlackChipButtons = Array.from(redBlackChipSelectorEl?.querySelectorAll("[data-red-black-chip]") || []);
   redBlackChipButtons.forEach((button) => {
     const value = Number(button.dataset.redBlackChip || 0);
     const isSelected = value === redBlackSelectedChip;
@@ -19140,6 +19177,15 @@ function normalizeAssistantBetPhrase(value = "") {
     .trim();
 }
 
+function normalizeAssistantSuitName(value = "") {
+  const normalized = normalizeAssistantBetPhrase(value);
+  if (normalized === "heart" || normalized === "hearts") return "hearts";
+  if (normalized === "diamond" || normalized === "diamonds") return "diamonds";
+  if (normalized === "club" || normalized === "clubs") return "clubs";
+  if (normalized === "spade" || normalized === "spades") return "spades";
+  return "";
+}
+
 function parseAssistantUnits(value) {
   const raw = String(value || "").trim().toLowerCase().replace(/[$,\s]/g, "");
   if (!raw) return NaN;
@@ -19215,21 +19261,38 @@ function resolveAssistantBetTarget(targetText) {
   }
 
   const suitPatternChecks = [
-    { pattern: /\b(?:no|none)\s+(hearts|diamonds|clubs|spades)\b|\b(hearts|diamonds|clubs|spades)\s+(?:none|never)\b/, keyPrefix: "suit-none-" },
-    { pattern: /\bany\s+(hearts|diamonds|clubs|spades)\b|\b(hearts|diamonds|clubs|spades)\s+any\b/, keyPrefix: "suit-any-" },
-    { pattern: /\bfirst\s+(hearts|diamonds|clubs|spades)\b|\b(hearts|diamonds|clubs|spades)\s+first\b/, keyPrefix: "suit-first-" }
+    { pattern: /\b(?:no|none)\s+(hearts?|diamonds?|clubs?|spades?)\b|\b(hearts?|diamonds?|clubs?|spades?)\s+(?:none|never)\b/, keyPrefix: "suit-none-" },
+    { pattern: /\bany\s+(hearts?|diamonds?|clubs?|spades?)\b|\b(hearts?|diamonds?|clubs?|spades?)\s+any\b/, keyPrefix: "suit-any-" },
+    { pattern: /\bfirst\s+(hearts?|diamonds?|clubs?|spades?)\b|\b(hearts?|diamonds?|clubs?|spades?)\s+first\b/, keyPrefix: "suit-first-" }
   ];
   for (const { pattern, keyPrefix } of suitPatternChecks) {
     const match = normalized.match(pattern);
-    const suitName = match?.[1] || match?.[2];
+    const suitName = normalizeAssistantSuitName(match?.[1] || match?.[2] || "");
     if (suitName) {
       return getBetDefinition(`${keyPrefix}${suitName}`) || null;
     }
   }
 
-  const bustSuitMatch = normalized.match(/\b(?:bust|stop(?:per)?|end)\s+(?:on\s+)?(hearts|diamonds|clubs|spades)\b/);
+  const suitModifierMatch = normalized.match(/\b(no|none|never|any|first)\b/);
+  const suitNameMatch = normalized.match(/\b(hearts?|diamonds?|clubs?|spades?)\b/);
+  if (suitModifierMatch && suitNameMatch) {
+    const suitName = normalizeAssistantSuitName(suitNameMatch[1]);
+    const modifier = suitModifierMatch[1];
+    const keyPrefix =
+      modifier === "any"
+        ? "suit-any-"
+        : modifier === "first"
+          ? "suit-first-"
+          : "suit-none-";
+    if (suitName) {
+      return getBetDefinition(`${keyPrefix}${suitName}`) || null;
+    }
+  }
+
+  const bustSuitMatch = normalized.match(/\b(?:bust|stop(?:per)?|end)\s+(?:on\s+)?(hearts?|diamonds?|clubs?|spades?)\b/);
   if (bustSuitMatch) {
-    return getBetDefinition(`bust-${bustSuitMatch[1]}`) || null;
+    const suitName = normalizeAssistantSuitName(bustSuitMatch[1]);
+    return suitName ? getBetDefinition(`bust-${suitName}`) || null : null;
   }
 
   const bustRankMatch = normalized.match(/\b(?:bust|stop(?:per)?|end)\s+(jack|queen|king|joker)\b/);
@@ -23866,15 +23929,21 @@ signOutButtons.forEach((button) => {
   });
 });
 
-redBlackChipButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    if (redBlackHandActive || redBlackSettlementPending) return;
-    const value = Number(button.dataset.redBlackChip || 0);
-    if (!RED_BLACK_CHIPS.includes(value)) return;
-    redBlackSelectedChip = value;
-    renderRedBlackChipRack();
-    setRedBlackStatus(`Selected a ${formatCurrency(value)} unit chip. Tap the wager spot to add it to the hand.`);
-  });
+redBlackChipSelectorEl?.addEventListener("click", (event) => {
+  const button = event.target instanceof Element ? event.target.closest("[data-red-black-chip]") : null;
+  if (!(button instanceof HTMLButtonElement)) return;
+  if (redBlackHandActive || redBlackSettlementPending || button.disabled) return;
+  const value = Number(button.dataset.redBlackChip || 0);
+  if (!chipDenominations.includes(value)) return;
+  redBlackSelectedChip = value;
+  renderRedBlackChipRack();
+  updateRedBlackActionState();
+  setRedBlackStatus(`Selected a ${formatCurrency(value)} unit chip. Tap the wager spot to add it to the hand.`);
+});
+
+redBlackChipRackEditButton?.addEventListener("click", () => {
+  if (redBlackChipRackEditButton.disabled) return;
+  openChipEditorModal();
 });
 
 redBlackCategoryButtons.forEach((button) => {

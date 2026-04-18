@@ -4737,8 +4737,24 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .home-contest-card-top {
+    position: relative;
     align-items: flex-start;
     gap: 0.6rem;
+    min-height: 2.1rem;
+  }
+
+  .home-contest-title-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-right: 5.4rem;
+  }
+
+  .contest-status-meta {
+    position: absolute;
+    top: 0;
+    right: 0;
+    justify-content: flex-end;
+    max-width: 5rem;
   }
 
   .home-contest-card-title {
@@ -7135,7 +7151,7 @@ body.theme-angelic {
 .header-mode-select-wrap::after {
   content: "";
   position: absolute;
-  right: 0.82rem;
+  right: 0.9rem;
   top: 50%;
   width: 0.48rem;
   height: 0.48rem;
@@ -10196,9 +10212,13 @@ body.play-assistant-open .play-assistant-fab {
   }
 
   .header-mode-select {
-    padding: 0.38rem 1.7rem 0.38rem 0.65rem;
+    padding: 0.38rem 1.95rem 0.38rem 0.65rem;
     font-size: 0.63rem;
     letter-spacing: 0.05em;
+  }
+
+  .header-mode-select-wrap::after {
+    right: 0.72rem;
   }
 
   .icon-button,
@@ -10364,9 +10384,13 @@ body.play-assistant-open .play-assistant-fab {
   }
 
   .header-mode-select {
-    padding: 0.34rem 1.45rem 0.34rem 0.52rem;
+    padding: 0.34rem 1.7rem 0.34rem 0.52rem;
     font-size: 0.58rem;
     letter-spacing: 0.04em;
+  }
+
+  .header-mode-select-wrap::after {
+    right: 0.62rem;
   }
 
   .icon-button,
