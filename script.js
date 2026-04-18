@@ -5999,6 +5999,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
 
   currentRoute = resolvedRoute;
   updatePlayAssistantVisibility();
+  markAppReady();
 
   if (resolvedRoute === "shape-traders") {
     markShapeTraderInteraction();
@@ -23983,6 +23984,7 @@ async function bootstrapAuth(initialRoute) {
     currentUser = sessionUser;
     updateAdminVisibility(currentUser);
     updateResetButtonVisibility(currentUser);
+    markAppReady();
 
     // Ensure profile is loaded and applied
   await ensureProfileSynced({ force: true });
