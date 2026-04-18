@@ -2159,14 +2159,28 @@
                 <p class="section-sub">Most recent events appear first with the ending account value saved on each row.</p>
               </div>
               <div class="activity-log-filters" role="group" aria-label="Filter activity by game">
-                <button type="button" class="activity-log-filter is-active" data-activity-log-filter="game_001">Run The Numbers</button>
-                <button type="button" class="activity-log-filter is-active" data-activity-log-filter="game_002">Guess 10</button>
-                <button type="button" class="activity-log-filter is-active" data-activity-log-filter="game_003">Shape Traders</button>
+                <label class="activity-log-checkbox">
+                  <input type="checkbox" data-activity-log-filter="game_001" checked />
+                  <span>Run The Numbers</span>
+                </label>
+                <label class="activity-log-checkbox">
+                  <input type="checkbox" data-activity-log-filter="game_002" checked />
+                  <span>Guess 10</span>
+                </label>
+                <label class="activity-log-checkbox">
+                  <input type="checkbox" data-activity-log-filter="game_003" checked />
+                  <span>Shape Traders</span>
+                </label>
               </div>
-              <div class="activity-log-subfilters" role="group" aria-label="Filter Shape Traders trades by side">
-                <button type="button" class="activity-log-filter is-active" data-activity-log-trade-filter="all">All Trades</button>
-                <button type="button" class="activity-log-filter" data-activity-log-trade-filter="buy">Buys</button>
-                <button type="button" class="activity-log-filter" data-activity-log-trade-filter="sell">Sells</button>
+              <div class="activity-log-subfilters" aria-label="Filter Shape Traders trades by side">
+                <label class="activity-log-select-field" for="activity-log-trade-filter">
+                  <span>Type</span>
+                  <select id="activity-log-trade-filter">
+                    <option value="all">All</option>
+                    <option value="buy">Buys</option>
+                    <option value="sell">Sells</option>
+                  </select>
+                </label>
               </div>
               <ul id="activity-log-list" class="activity-log-list" aria-live="polite"></ul>
               <div class="activity-log-actions">

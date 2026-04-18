@@ -13253,6 +13253,15 @@ function sanitizeGuess10AssistantCard(card = null) {
   };
 }
 
+function sanitizeStoredDrawnCards(cards = []) {
+  if (!Array.isArray(cards)) {
+    return [];
+  }
+  return cards
+    .map((card) => sanitizeGuess10AssistantCard(card))
+    .filter(Boolean);
+}
+
 function buildGuess10DrawPlayRows(handHistory = [], {
   result = null,
   totalPaid = 0,
@@ -13341,6 +13350,7 @@ async function insertGameHandRecord(handPayload, betRows = []) {
       || isMissingColumnError(handError, "mode_type")
       || isMissingColumnError(handError, "contest_id")
       || isMissingColumnError(handError, "new_account_value")
+      || isMissingColumnError(handError, "drawn_cards")
     )
   ) {
     const {
@@ -13349,6 +13359,7 @@ async function insertGameHandRecord(handPayload, betRows = []) {
       mode_type: _modeType,
       contest_id: _contestId,
       new_account_value: _newAccountValue,
+      drawn_cards: _drawnCards,
       ...fallbackPayload
     } = payload;
     payload = fallbackPayload;
@@ -13407,7 +13418,8 @@ async function logStandaloneGameHand({
       total_paid: totalPaid,
       net,
       commission_kept: commissionKept,
-      new_account_value: roundCurrencyValue(bankroll)
+      new_account_value: roundCurrencyValue(bankroll),
+      drawn_cards: sanitizeStoredDrawnCards(handHistory.map((entry) => entry?.card))
     });
 
     if (resolveGameKey(gameKey) === GAME_KEYS.GUESS_10) {
@@ -13423,6 +13435,11 @@ async function logStandaloneGameHand({
         game_id: GAME_KEYS.GUESS_10
       }));
       await insertGuess10DrawPlayRecords(drawRows);
+    }
+
+    const latestReview = recentHandReviews[0];
+    if (latestReview && latestReview.id.startsWith("hand-review-")) {
+      latestReview.id = hand.id;
     }
 
     return hand;
@@ -13461,7 +13478,8 @@ async function logRunTheNumbersHandAndBets(stopperCard, context, betSnapshots, n
       total_paid: totalPaid,
       net: netThisHand,
       commission_kept: 0,
-      new_account_value: roundCurrencyValue(bankroll)
+      new_account_value: roundCurrencyValue(bankroll),
+      drawn_cards: sanitizeStoredDrawnCards(context?.drawnCards)
     };
 
     const hand = await insertGameHandRecord(handPayload);
@@ -13490,6 +13508,11 @@ async function logRunTheNumbersHandAndBets(stopperCard, context, betSnapshots, n
         throw betsError;
       }
     }
+    const latestReview = recentHandReviews[0];
+    if (latestReview && latestReview.gameKey === GAME_KEYS.RUN_THE_NUMBERS && latestReview.id.startsWith("hand-review-")) {
+      latestReview.id = hand.id;
+    }
+    return hand;
   } catch (error) {
     console.error("Failed to log hand and bets", error);
   }
@@ -14115,8 +14138,8 @@ const handReviewOkButton = document.getElementById("hand-review-ok");
 const activityLogListEl = document.getElementById("activity-log-list");
 const activityLogRefreshButton = document.getElementById("activity-log-refresh");
 const activityLogLoadMoreButton = document.getElementById("activity-log-load-more");
-const activityLogFilterButtons = Array.from(document.querySelectorAll("[data-activity-log-filter]"));
-const activityLogTradeFilterButtons = Array.from(document.querySelectorAll("[data-activity-log-trade-filter]"));
+const activityLogFilterInputs = Array.from(document.querySelectorAll("[data-activity-log-filter]"));
+const activityLogTradeFilterSelect = document.getElementById("activity-log-trade-filter");
 const outOfCreditsCopyEl = document.getElementById("out-of-credits-copy");
 const betAnalyticsModal = document.getElementById("bet-analytics-modal");
 const betAnalyticsClose = document.getElementById("bet-analytics-close");
@@ -19411,7 +19434,8 @@ function mapGameHandRowToActivityEntry(row) {
     totalReturn: roundCurrencyValue(Number(row?.total_paid || 0)),
     net: roundCurrencyValue(Number(row?.net || 0)),
     commissionKept: roundCurrencyValue(Number(row?.commission_kept || 0)),
-    newAccountValue: roundCurrencyValue(Number(row?.new_account_value || 0))
+    newAccountValue: roundCurrencyValue(Number(row?.new_account_value || 0)),
+    drawnCards: sanitizeStoredDrawnCards(row?.drawn_cards)
   };
 }
 
@@ -19448,22 +19472,35 @@ function getFilteredActivityLogEntries() {
   });
 }
 
-function updateActivityLogFilterButtons() {
-  activityLogFilterButtons.forEach((button) => {
-    if (!(button instanceof HTMLElement)) return;
-    const gameKey = button.dataset.activityLogFilter || "";
+function updateActivityLogFilterControls() {
+  activityLogFilterInputs.forEach((input) => {
+    if (!(input instanceof HTMLInputElement)) return;
+    const gameKey = input.dataset.activityLogFilter || "";
     const isActive = activityLogSelectedGames.has(gameKey);
-    button.classList.toggle("is-active", isActive);
-    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    input.checked = isActive;
+    input.closest(".activity-log-checkbox")?.classList.toggle("is-active", isActive);
   });
 
-  activityLogTradeFilterButtons.forEach((button) => {
-    if (!(button instanceof HTMLElement)) return;
-    const tradeFilter = button.dataset.activityLogTradeFilter || "all";
-    const isActive = activityLogTradeFilter === tradeFilter;
-    button.classList.toggle("is-active", isActive);
-    button.setAttribute("aria-pressed", isActive ? "true" : "false");
-  });
+  if (activityLogTradeFilterSelect) {
+    activityLogTradeFilterSelect.value = activityLogTradeFilter;
+    activityLogTradeFilterSelect.disabled = !activityLogSelectedGames.has(GAME_KEYS.SHAPE_TRADERS);
+  }
+}
+
+function formatCardSequence(cards = []) {
+  return cards
+    .map((card) => {
+      if (!card || typeof card !== "object") return "";
+      if (card.label === "Joker") return "Joker";
+      return `${card.label || ""}${card.suit || ""}`;
+    })
+    .filter(Boolean)
+    .join(", ");
+}
+
+function getShapeTraderActivitySymbolMarkup(entry) {
+  const asset = getShapeTraderAssetConfig(entry.assetId || "square");
+  return `<span class="shape-traders-shape-icon shape-${asset.icon}" aria-hidden="true"></span>`;
 }
 
 function renderActivityLogPage() {
@@ -19471,7 +19508,7 @@ function renderActivityLogPage() {
     return;
   }
 
-  updateActivityLogFilterButtons();
+  updateActivityLogFilterControls();
 
   if (activityLogLoading) {
     activityLogListEl.innerHTML = `
@@ -19513,7 +19550,7 @@ function renderActivityLogPage() {
               </div>
               <span class="activity-log-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
             </div>
-            <p class="activity-log-primary">${escapeAssistantHtml(`${entry.assetLabel} · ${formatCurrency(entry.quantity)} shares @ ${formatCurrency(entry.price)}`)}</p>
+            <p class="activity-log-primary activity-log-primary-with-symbol">${getShapeTraderActivitySymbolMarkup(entry)}<span>${escapeAssistantHtml(`${formatCurrency(entry.quantity)} shares @ ${formatCurrency(entry.price)}`)}</span></p>
             <p class="activity-log-meta">${escapeAssistantHtml(`${formatCurrency(entry.totalValue)} total${netProfitMarkup}`)}</p>
             <p class="activity-log-balance">Ending account value: ${escapeAssistantHtml(formatCurrency(entry.newAccountValue))}</p>
           </article>
@@ -19552,6 +19589,7 @@ function renderActivityLogPage() {
             <span class="activity-log-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
           </div>
           <p class="activity-log-primary">${escapeAssistantHtml(extraBits.join(" · "))}</p>
+          <p class="activity-log-cards">${escapeAssistantHtml(entry.sequenceLabel || "Card sequence unavailable for this hand.")}</p>
           <p class="activity-log-meta">${escapeAssistantHtml(secondaryBits.join(" · ") || "Completed hand recorded to your account history.")}</p>
           <div class="activity-log-footer">
             <p class="activity-log-balance">Ending account value: ${escapeAssistantHtml(formatCurrency(entry.newAccountValue))}</p>
@@ -19567,6 +19605,32 @@ function renderActivityLogPage() {
     activityLogLoadMoreButton.disabled = activityLogLoading;
     activityLogLoadMoreButton.textContent = activityLogLoading ? "Loading…" : "Load More";
   }
+}
+
+async function hydrateActivityLogEntrySequences(entries = []) {
+  if (!supabase || !Array.isArray(entries) || !entries.length) {
+    return entries;
+  }
+
+  return entries.map((entry) => {
+    if (entry.entryType !== "hand") {
+      return entry;
+    }
+    if (Array.isArray(entry.drawnCards) && entry.drawnCards.length) {
+      return {
+        ...entry,
+        sequenceLabel: formatCardSequence(entry.drawnCards)
+      };
+    }
+    return {
+      ...entry,
+      sequenceLabel: entry.stopperLabel
+        ? entry.stopperLabel === "Joker"
+          ? "Stopped on Joker"
+          : `Stopped on ${entry.stopperLabel}${entry.stopperSuit ? ` ${entry.stopperSuit}` : ""}`
+        : ""
+    };
+  });
 }
 
 async function loadActivityLogPage({ force = false, append = false } = {}) {
@@ -19604,7 +19668,7 @@ async function loadActivityLogPage({ force = false, append = false } = {}) {
   try {
     const handsQuery = supabase
       .from("game_hands")
-      .select("id, user_id, created_at, game_id, total_cards, stopper_label, stopper_suit, total_wager, total_paid, net, commission_kept, new_account_value")
+      .select("id, user_id, created_at, game_id, total_cards, stopper_label, stopper_suit, total_wager, total_paid, net, commission_kept, new_account_value, drawn_cards")
       .eq("user_id", currentUser.id)
       .order("created_at", { ascending: false })
       .limit(activityLogFetchLimit);
@@ -19636,9 +19700,10 @@ async function loadActivityLogPage({ force = false, append = false } = {}) {
 
     const normalizedHands = (Array.isArray(handRows) ? handRows : []).map(mapGameHandRowToActivityEntry);
     activityLogHasMore = normalizedHands.length >= activityLogFetchLimit || normalizedTrades.length >= activityLogFetchLimit;
-    activityLogEntries = [...normalizedHands, ...normalizedTrades]
+    const mergedEntries = [...normalizedHands, ...normalizedTrades]
       .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
       .slice(0, activityLogFetchLimit);
+    activityLogEntries = await hydrateActivityLogEntrySequences(mergedEntries);
     activityLogLoadedUserId = currentUser.id;
   } catch (error) {
     console.error("[RTN] Unable to load activity log", error);
@@ -19724,7 +19789,7 @@ async function fetchHandReviewEntry(reviewId) {
 
   const { data: handRow, error: handError } = await supabase
     .from("game_hands")
-    .select("id, user_id, created_at, game_id, total_cards, stopper_label, stopper_suit, total_wager, total_paid, net, commission_kept, new_account_value")
+    .select("id, user_id, created_at, game_id, total_cards, stopper_label, stopper_suit, total_wager, total_paid, net, commission_kept, new_account_value, drawn_cards")
     .eq("id", reviewId)
     .maybeSingle();
 
@@ -19746,7 +19811,7 @@ async function fetchHandReviewEntry(reviewId) {
     totalWager: roundCurrencyValue(Number(handRow?.total_wager || 0)),
     totalReturn: roundCurrencyValue(Number(handRow?.total_paid || 0)),
     net: roundCurrencyValue(Number(handRow?.net || 0)),
-    drawnCards: [],
+    drawnCards: sanitizeStoredDrawnCards(handRow?.drawn_cards),
     handHistory: [],
     bets: []
   };
@@ -19770,7 +19835,7 @@ async function fetchHandReviewEntry(reviewId) {
     return {
       ...baseEntry,
       handHistory,
-      drawnCards: handHistory.map((step) => step.card).filter(Boolean)
+      drawnCards: baseEntry.drawnCards.length ? baseEntry.drawnCards : handHistory.map((step) => step.card).filter(Boolean)
     };
   }
 
@@ -21387,9 +21452,9 @@ if (activityLogLoadMoreButton) {
   });
 }
 
-activityLogFilterButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    const gameKey = button instanceof HTMLElement ? button.dataset.activityLogFilter || "" : "";
+activityLogFilterInputs.forEach((input) => {
+  input.addEventListener("change", () => {
+    const gameKey = input instanceof HTMLInputElement ? input.dataset.activityLogFilter || "" : "";
     if (!gameKey) {
       return;
     }
@@ -21402,13 +21467,13 @@ activityLogFilterButtons.forEach((button) => {
   });
 });
 
-activityLogTradeFilterButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    const nextFilter = button instanceof HTMLElement ? button.dataset.activityLogTradeFilter || "all" : "all";
+if (activityLogTradeFilterSelect) {
+  activityLogTradeFilterSelect.addEventListener("change", () => {
+    const nextFilter = activityLogTradeFilterSelect.value || "all";
     activityLogTradeFilter = nextFilter;
     renderActivityLogPage();
   });
-});
+}
 
 if (handReviewCloseButton) {
   handReviewCloseButton.addEventListener("click", () => {
