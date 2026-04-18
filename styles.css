@@ -1815,22 +1815,33 @@ body[data-app-state="loading"] #app-shell {
 
 .shape-traders-header-balance .shape-traders-balance-list div {
   display: grid;
-  align-items: start;
-  gap: 0.18rem;
+  align-content: start;
+  gap: 0.28rem;
   min-width: 0;
-  padding: 0.45rem 0.68rem;
-  border-radius: 0.85rem;
+  padding: 0;
+  border-radius: 0;
 }
 
 .shape-traders-header-balance .shape-traders-balance-list dt {
   line-height: 1;
   font-size: 0.66rem;
   letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text-light) 64%, transparent);
 }
 
 .shape-traders-header-balance .shape-traders-balance-list dd {
+  display: grid;
+  place-items: center;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.68rem;
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--menu-bg) 72%, black 28%);
+  border: 1px solid color-mix(in srgb, var(--header-border-color) 68%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
   font-size: 0.96rem;
   line-height: 1.05;
+  text-align: center;
 }
 
 .shape-traders-header-balance #shape-traders-account-total {
@@ -4873,6 +4884,10 @@ body[data-app-state="loading"] #app-shell {
     flex: 1 1 0;
   }
 
+  .shape-traders-header-balance .shape-traders-balance-list dt {
+    text-align: center;
+  }
+
   .shape-traders-header-balance-actions {
     display: flex;
     gap: 0.6rem;
@@ -4956,12 +4971,21 @@ body[data-app-state="loading"] #app-shell {
 
   .shape-traders-market-card h3 {
     font-size: 0.68rem;
+    min-height: 0.9rem;
   }
 
   .shape-traders-market-card p {
-    min-height: 0;
+    min-height: 0.9rem;
     font-size: 0.56rem;
     line-height: 1.15;
+  }
+
+  .shape-traders-market-card-title > div {
+    grid-template-rows: 0.9rem 0.9rem;
+  }
+
+  .shape-traders-market-card p:empty {
+    visibility: hidden;
   }
 
   .shape-traders-market-card-hero {
