@@ -11492,6 +11492,11 @@ body.modal-open {
   justify-content: space-between;
 }
 
+.activity-log-topline {
+  position: relative;
+  padding-right: 3.4rem;
+}
+
 .activity-log-kicker {
   margin: 0 0 0.2rem;
   color: color-mix(in srgb, var(--neon-magenta) 82%, white 18%);
@@ -11554,9 +11559,13 @@ body.modal-open {
 }
 
 .activity-log-topline-side {
+  position: absolute;
+  top: 0;
+  right: 0;
   display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0;
 }
 
 .activity-log-game-logo {
@@ -11565,10 +11574,6 @@ body.modal-open {
   object-fit: contain;
   flex-shrink: 0;
   opacity: 0.9;
-}
-
-.activity-log-time-mobile {
-  display: none;
 }
 
 .activity-log-balance {
@@ -11587,7 +11592,6 @@ body.modal-open {
 
 @media (max-width: 768px) {
   .activity-log-topline {
-    position: relative;
     display: block;
     padding-right: 2.75rem;
   }
@@ -11611,13 +11615,7 @@ body.modal-open {
   }
 
   .activity-log-topline-side {
-    position: absolute;
-    top: 0;
-    right: 0;
-    display: inline-flex;
-    align-items: flex-start;
-    justify-content: flex-end;
-    gap: 0;
+    top: 0.05rem;
   }
 
   .activity-log-game-logo {
@@ -11625,18 +11623,10 @@ body.modal-open {
     height: 2.3rem;
   }
 
-  .activity-log-time-desktop {
-    display: none;
-  }
-
-  .activity-log-time-mobile {
-    display: block;
-    margin-top: 0.38rem;
-  }
-
   .activity-log-time {
     font-size: 0.78rem;
     text-align: left;
+    margin-top: 0.38rem;
   }
 }
 

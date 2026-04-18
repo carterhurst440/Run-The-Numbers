@@ -19942,10 +19942,9 @@ function renderActivityLogPage() {
                 <p class="activity-log-kicker">${escapeAssistantHtml(entry.gameLabel)}</p>
                 <h3 class="activity-log-title">${escapeAssistantHtml(entry.side === "sell" ? "Sell Executed" : "Buy Executed")}</h3>
                 <p class="activity-log-mode">${escapeAssistantHtml(getActivityEntryModeLabel(entry))}</p>
-                <p class="activity-log-time activity-log-time-mobile">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</p>
+                <p class="activity-log-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</p>
               </div>
               <div class="activity-log-topline-side">
-                <span class="activity-log-time activity-log-time-desktop">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
                 ${getActivityLogGameLogoMarkup(entry.gameKey)}
               </div>
             </div>
@@ -19980,15 +19979,14 @@ function renderActivityLogPage() {
     return `
       <li class="activity-log-item">
         <article class="activity-log-card">
-          <div class="activity-log-topline">
-            <div class="activity-log-topline-main">
+            <div class="activity-log-topline">
+              <div class="activity-log-topline-main">
               <p class="activity-log-kicker">${escapeAssistantHtml(entry.gameLabel)}</p>
               <h3 class="activity-log-title">${escapeAssistantHtml(handDescriptor)}</h3>
               <p class="activity-log-mode">${escapeAssistantHtml(getActivityEntryModeLabel(entry))}</p>
-              <p class="activity-log-time activity-log-time-mobile">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</p>
+              <p class="activity-log-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</p>
             </div>
             <div class="activity-log-topline-side">
-              <span class="activity-log-time activity-log-time-desktop">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
               ${getActivityLogGameLogoMarkup(entry.gameKey)}
             </div>
           </div>
