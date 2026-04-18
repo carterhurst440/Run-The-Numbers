@@ -3909,6 +3909,13 @@ async function wipeShapeTraderTestingData() {
   return "none";
 }
 
+async function wipeShapeTraderSharedEngineData() {
+  await deleteShapeTraderTableRows("shape_trader_price_history", "id");
+  await deleteShapeTraderTableRows("shape_trader_draws", "draw_id");
+  await deleteShapeTraderTableRows("shape_trader_market_current", "shape");
+  await resetShapeTraderMarketCurrentRows();
+}
+
 function resetShapeTradersDerivedState() {
   shapeTradersCurrentPrices = createInitialShapeTraderPrices();
   shapeTradersProcessedWindowIndex = -1;
@@ -3916,6 +3923,93 @@ function resetShapeTradersDerivedState() {
   shapeTradersCurrentCard = null;
   shapeTradersPreviousCard = null;
   shapeTradersSplitNoticeByAsset = {};
+}
+
+function getShapeTraderEngineMismatchReason(now = Date.now()) {
+  if (shapeTradersLocalResetMode || shapeTradersRecoveryInFlight) {
+    return null;
+  }
+
+  const currentWindowIndex = getShapeTraderCurrentWindowIndex(now);
+  if (currentWindowIndex < 0) {
+    return null;
+  }
+
+  const currentWindowState = getShapeTraderWindowState(currentWindowIndex, now);
+  const latestRow = Array.isArray(shapeTradersRecentDrawRows) ? shapeTradersRecentDrawRows[0] : null;
+  const latestWindowIndex = latestRow ? Math.floor(Number(latestRow.window_index || 0)) : null;
+  const latestSequence = latestRow ? Math.floor(Number(latestRow.sequence_in_window || 0)) : null;
+
+  if (latestWindowIndex !== null) {
+    if (latestWindowIndex > currentWindowIndex) {
+      return `Persisted draw window ${latestWindowIndex} is ahead of live window ${currentWindowIndex}.`;
+    }
+    if (latestWindowIndex === currentWindowIndex && latestSequence > currentWindowState.visibleCount) {
+      return `Persisted draw ${latestWindowIndex}:${latestSequence} is ahead of visible count ${currentWindowState.visibleCount}.`;
+    }
+  }
+
+  if (shapeTradersProcessedWindowIndex > currentWindowIndex) {
+    return `Processed window ${shapeTradersProcessedWindowIndex} is ahead of live window ${currentWindowIndex}.`;
+  }
+
+  if (
+    shapeTradersProcessedWindowIndex === currentWindowIndex &&
+    shapeTradersProcessedVisibleCount > currentWindowState.visibleCount
+  ) {
+    return `Processed draw count ${shapeTradersProcessedVisibleCount} is ahead of visible count ${currentWindowState.visibleCount} in window ${currentWindowIndex}.`;
+  }
+
+  return null;
+}
+
+async function recoverShapeTraderEngineState(reason, now = Date.now()) {
+  if (shapeTradersRecoveryInFlight) {
+    return false;
+  }
+
+  shapeTradersRecoveryInFlight = true;
+  shapeTradersResetInFlight = true;
+  renderShapeTradersControls(now);
+
+  try {
+    console.warn("[RTN] Shape Traders live engine mismatch detected; starting recovery", { reason });
+    setShapeTraderStatus("Live market resync in progress. Open positions will be liquidated at visible prices before restart.");
+
+    if (shapeTradersHasOpenHoldings()) {
+      await liquidateAllShapeTraderHoldings("System resync liquidation");
+    }
+
+    await wipeShapeTraderSharedEngineData();
+
+    shapeTradersTimelineEpochMs = now + SHAPE_TRADERS_DRAW_INTERVAL_MS;
+    shapeTradersRecentDrawRows = [];
+    shapeTradersOpenChartSeries = [];
+    shapeTradersLastHeartbeatAt = 0;
+    shapeTradersLastGlobalSyncAt = 0;
+    shapeTradersNeedsResumeHydration = false;
+    shapeTradersMismatchTickCount = 0;
+    shapeTradersLastMismatchReason = "";
+    resetShapeTradersDerivedState();
+    markShapeTraderInteraction();
+
+    await syncShapeTraderCurrentState();
+    await refreshShapeTraderGlobalSnapshot();
+    if (typeof window !== "undefined") {
+      startShapeTradersClock();
+    }
+    renderShapeTraders();
+    setShapeTraderStatus("Shape Traders resynced after a live market mismatch. Trading has resumed.");
+    return true;
+  } catch (error) {
+    console.error("[RTN] Shape Traders recovery failed", error);
+    setShapeTraderStatus(`Shape Traders resync failed: ${error?.message || "unknown error"}`);
+    return false;
+  } finally {
+    shapeTradersResetInFlight = false;
+    shapeTradersRecoveryInFlight = false;
+    renderShapeTradersControls();
+  }
 }
 
 async function applyShapeTraderDrawRow(row) {
@@ -4449,17 +4543,17 @@ function renderShapeTradersControls(now = Date.now()) {
   }
 
   if (shapeTradersBuyButton) {
-    shapeTradersBuyButton.disabled = windowState.tradeLocked || shapeTradersResetInFlight;
+    shapeTradersBuyButton.disabled = windowState.tradeLocked || shapeTradersResetInFlight || shapeTradersRecoveryInFlight;
     shapeTradersBuyButton.classList.toggle("is-unavailable", buyUnavailable);
-    shapeTradersBuyButton.setAttribute("aria-disabled", String(windowState.tradeLocked || shapeTradersResetInFlight || buyUnavailable));
+    shapeTradersBuyButton.setAttribute("aria-disabled", String(windowState.tradeLocked || shapeTradersResetInFlight || shapeTradersRecoveryInFlight || buyUnavailable));
   }
   if (shapeTradersSellButton) {
-    shapeTradersSellButton.disabled = windowState.tradeLocked || shapeTradersResetInFlight;
+    shapeTradersSellButton.disabled = windowState.tradeLocked || shapeTradersResetInFlight || shapeTradersRecoveryInFlight;
     shapeTradersSellButton.classList.toggle("is-unavailable", sellUnavailable);
-    shapeTradersSellButton.setAttribute("aria-disabled", String(windowState.tradeLocked || shapeTradersResetInFlight || sellUnavailable));
+    shapeTradersSellButton.setAttribute("aria-disabled", String(windowState.tradeLocked || shapeTradersResetInFlight || shapeTradersRecoveryInFlight || sellUnavailable));
   }
   if (shapeTradersLiquidateButton) {
-    shapeTradersLiquidateButton.disabled = shapeTradersTradeActionInFlight || !shapeTradersHasOpenHoldings();
+    shapeTradersLiquidateButton.disabled = shapeTradersTradeActionInFlight || shapeTradersRecoveryInFlight || !shapeTradersHasOpenHoldings();
   }
   if (shapeTradersInactivityEl) {
     const hasOpenHoldings = shapeTradersHasOpenHoldings();
@@ -4501,7 +4595,7 @@ function attemptShapeTraderTrade(side) {
     at: now
   };
 
-  if (shapeTradersResetInFlight) {
+  if (shapeTradersResetInFlight || shapeTradersRecoveryInFlight) {
     setShapeTraderStatus("Shape Traders is resetting. Please wait for the reset to finish.");
     return;
   }
@@ -5416,6 +5510,7 @@ async function synchronizeShapeTraders(now = Date.now()) {
     currentRoute !== "shape-traders" ||
     shapeTradersSyncInFlight ||
     shapeTradersResetInFlight ||
+    shapeTradersRecoveryInFlight ||
     shapeTradersLocalResetMode ||
     shapeTradersTradeActionInFlight
   ) {
@@ -5436,6 +5531,22 @@ async function synchronizeShapeTraders(now = Date.now()) {
     }
 
     const currentWindowIndex = getShapeTraderCurrentWindowIndex(now);
+    const mismatchReason = getShapeTraderEngineMismatchReason(now);
+    if (mismatchReason) {
+      if (mismatchReason === shapeTradersLastMismatchReason) {
+        shapeTradersMismatchTickCount += 1;
+      } else {
+        shapeTradersLastMismatchReason = mismatchReason;
+        shapeTradersMismatchTickCount = 1;
+      }
+      if (shapeTradersMismatchTickCount >= 4) {
+        await recoverShapeTraderEngineState(mismatchReason, now);
+        return;
+      }
+    } else {
+      shapeTradersMismatchTickCount = 0;
+      shapeTradersLastMismatchReason = "";
+    }
     const startingWindowIndex = Math.max(0, shapeTradersProcessedWindowIndex);
     const windowBacklog = Math.max(0, currentWindowIndex - startingWindowIndex);
 
@@ -14722,6 +14833,9 @@ let shapeTradersNeedsResumeHydration = false;
 let shapeTradersRecentDrawRows = [];
 let shapeTradersSyncInFlight = false;
 let shapeTradersResetInFlight = false;
+let shapeTradersRecoveryInFlight = false;
+let shapeTradersMismatchTickCount = 0;
+let shapeTradersLastMismatchReason = "";
 let shapeTradersStateSyncInFlight = false;
 let shapeTradersGlobalSyncInFlight = false;
 let shapeTradersSplitNoticeByAsset = {};
