@@ -4809,7 +4809,11 @@ function renderShapeTradersControls(now = Date.now()) {
     shapeTradersSellButton.setAttribute("aria-disabled", String(windowState.tradeLocked || shapeTradersResetInFlight || sellUnavailable));
   }
   if (shapeTradersLiquidateButton) {
-    shapeTradersLiquidateButton.disabled = shapeTradersTradeActionInFlight || !shapeTradersHasOpenHoldings();
+    shapeTradersLiquidateButton.disabled =
+      windowState.tradeLocked ||
+      shapeTradersResetInFlight ||
+      shapeTradersTradeActionInFlight ||
+      !shapeTradersHasOpenHoldings();
   }
   if (shapeTradersInactivityEl) {
     const hasOpenHoldings = shapeTradersHasOpenHoldings();
