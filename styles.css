@@ -9635,7 +9635,7 @@ body.play-assistant-open .play-assistant-fab {
 
 .bankroll-chart-wrapper {
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
   padding-bottom: clamp(0.35rem, 1.3vw, 0.6rem);
   position: relative;
 }
@@ -9671,6 +9671,8 @@ body.play-assistant-open .play-assistant-fab {
 }
 
 .account-chart-card {
+  width: 100%;
+  max-width: 100%;
   background:
     linear-gradient(180deg,
       color-mix(in srgb, var(--drawer-bg) 90%, rgba(255, 255, 255, 0.08)),
@@ -9684,6 +9686,7 @@ body.play-assistant-open .play-assistant-fab {
     0 20px 42px rgba(3, 8, 18, 0.22);
   display: grid;
   gap: 1rem;
+  min-width: 0;
 }
 
 .account-chart-toolbar {
@@ -9692,9 +9695,12 @@ body.play-assistant-open .play-assistant-fab {
   justify-content: space-between;
   gap: 0.9rem;
   flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .account-chart-visual {
+  width: 100%;
+  min-width: 0;
   padding: 0.85rem;
   padding-bottom: 0.85rem;
   border-radius: 20px;
@@ -9713,6 +9719,7 @@ body.play-assistant-open .play-assistant-fab {
   gap: 0.45rem;
   justify-content: flex-end;
   margin-left: auto;
+  flex: 0 0 auto;
 }
 
 .account-chart-periods {
@@ -9725,6 +9732,7 @@ body.play-assistant-open .play-assistant-fab {
 
 .account-chart-period-btn,
 .account-chart-game-btn {
+  box-sizing: border-box;
   border: none;
   background: transparent;
   color: color-mix(in srgb, var(--text-light) 62%, var(--muted) 38%);
@@ -9755,9 +9763,11 @@ body.play-assistant-open .play-assistant-fab {
 }
 
 .account-chart-game-btn {
+  min-width: 3.35rem;
   padding: 0.38rem 0.72rem;
   border-radius: 999px;
   background: color-mix(in srgb, var(--menu-bg) 64%, black 36%);
+  text-align: center;
 }
 
 .account-chart-game-btn:hover,
@@ -9775,6 +9785,7 @@ body.play-assistant-open .play-assistant-fab {
 .account-chart-summary {
   display: grid;
   gap: 0.22rem;
+  min-width: 0;
 }
 
 .account-chart-label {
@@ -9808,6 +9819,8 @@ body.play-assistant-open .play-assistant-fab {
   margin: 0.15rem 0 0;
   color: var(--muted);
   font-size: 0.85rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .account-chart-tooltip {
@@ -9861,25 +9874,29 @@ body.play-assistant-open .play-assistant-fab {
   .account-chart-periods {
     width: 100%;
     justify-content: space-between;
-    gap: 0.18rem;
-    padding: 0.22rem;
+    gap: 0.08rem;
+    padding: 0.16rem;
+    flex-wrap: nowrap;
   }
 
   .account-chart-period-btn {
     min-width: 0;
-    flex: 1 1 2.5rem;
-    padding-inline: 0.22rem;
-    padding-block: 0.46rem;
-    font-size: 0.74rem;
+    flex: 1 1 2.1rem;
+    padding-inline: 0.14rem;
+    padding-block: 0.42rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.01em;
   }
 
   .account-chart-games {
     justify-content: flex-start;
     margin-left: 0;
     gap: 0.32rem;
+    flex: 0 1 auto;
   }
 
   .account-chart-game-btn {
+    min-width: 3rem;
     padding: 0.34rem 0.62rem;
     font-size: 0.76rem;
   }
@@ -11583,12 +11600,15 @@ body.modal-open {
 
 .activity-log-shell {
   width: min(100%, 1040px);
+  max-width: 100%;
   display: grid;
   gap: 1rem;
 }
 
 .account-chart-route-section {
-  overflow: hidden;
+  overflow: visible;
+  width: 100%;
+  min-width: 0;
 }
 
 .activity-log-section {
