@@ -34,6 +34,7 @@ const DEFAULT_GAME_ASSET_LIBRARY = {
     route: "run-the-numbers",
     logo_url: "/assets/game-logos/run-the-numbers.svg",
     description: "Original card game table",
+    status: "active",
     card_description: "Build your wager board, fade the bust card, and press number hits across the active paytable.",
     card_background_color: "",
     button_color: "",
@@ -45,6 +46,7 @@ const DEFAULT_GAME_ASSET_LIBRARY = {
     route: "red-black",
     logo_url: "/assets/game-logos/guess-10.svg",
     description: "Beta prediction and cash-out table",
+    status: "beta",
     card_description: "Predict by color, suit, or rank, multiply the live pot on every hit, and cash out before the deck turns on you.",
     card_background_color: "",
     button_color: "",
@@ -56,6 +58,7 @@ const DEFAULT_GAME_ASSET_LIBRARY = {
     route: "shape-traders",
     logo_url: "/assets/game-logos/shape-traders.svg",
     description: "Shared live market trading table",
+    status: "admin",
     card_description: "Trade Circles, Squares, and Triangles against a shared live card-driven market with timed data dumps and isolated game accounting.",
     card_background_color: "",
     button_color: "",
@@ -68,6 +71,26 @@ function getDefaultGameStatus(gameKey) {
   if (resolvedGameKey === GAME_KEYS.GUESS_10) return "beta";
   if (resolvedGameKey === GAME_KEYS.SHAPE_TRADERS) return "admin";
   return "active";
+}
+
+function normalizeGameStatusForStorage(value, fallbackGameKey = null) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "beta") return "beta";
+  if (normalized === "admin") return "admin";
+  if (normalized === "released" || normalized === "active") return "active";
+  return getDefaultGameStatus(fallbackGameKey);
+}
+
+function normalizeGameStatusForDisplay(value, fallbackGameKey = null) {
+  const storedStatus = normalizeGameStatusForStorage(value, fallbackGameKey);
+  return storedStatus === "active" ? "released" : storedStatus;
+}
+
+function getGameStatusLabel(value, fallbackGameKey = null) {
+  const displayStatus = normalizeGameStatusForDisplay(value, fallbackGameKey);
+  if (displayStatus === "beta") return "Beta";
+  if (displayStatus === "admin") return "Admin Only";
+  return "Released";
 }
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -115,6 +138,17 @@ function getGameAssetRecord(gameKey) {
   return record ? { ...record } : null;
 }
 
+function getResolvedGameStatus(gameKey, user = currentUser) {
+  const resolvedGameKey = resolveGameKey(gameKey);
+  const record = gameAssetLibraryCache[resolvedGameKey] || DEFAULT_GAME_ASSET_LIBRARY[resolvedGameKey];
+  return normalizeGameStatusForStorage(record?.status, resolvedGameKey);
+}
+
+function isGameVisibleToUser(gameKey, user = currentUser) {
+  const status = getResolvedGameStatus(gameKey, user);
+  return status !== "admin" || isAdmin(user);
+}
+
 function sanitizeGameAssetColor(value) {
   const normalized = String(value || "").trim();
   if (!normalized) {
@@ -145,28 +179,29 @@ function getGameAssetPickerColor(value, fallback = "#ffffff") {
   return fallback;
 }
 
-function getGameAdminPresentation(gameKey) {
+function getGameAdminPresentation(gameKey, statusOverride = null) {
   const resolvedGameKey = resolveGameKey(gameKey);
-  if (resolvedGameKey === GAME_KEYS.GUESS_10) {
+  const status = normalizeGameStatusForStorage(statusOverride, resolvedGameKey) || getResolvedGameStatus(resolvedGameKey);
+  if (status === "beta") {
     return {
       kicker: "New Beta Game",
       pill: "Beta",
-      buttonLabel: "Play GUESS 10",
+      buttonLabel: `Play ${DEFAULT_GAME_ASSET_LIBRARY[resolvedGameKey].label}`,
       cardClass: "game-card-beta"
     };
   }
-  if (resolvedGameKey === GAME_KEYS.SHAPE_TRADERS) {
+  if (status === "admin") {
     return {
       kicker: "Admin Preview",
       pill: "Admin",
-      buttonLabel: "Open SHAPE TRADERS",
+      buttonLabel: `Open ${DEFAULT_GAME_ASSET_LIBRARY[resolvedGameKey].label}`,
       cardClass: "game-card-shape-traders"
     };
   }
   return {
     kicker: "Original Game",
     pill: "",
-    buttonLabel: "Play Run the Numbers",
+    buttonLabel: `Play ${DEFAULT_GAME_ASSET_LIBRARY[resolvedGameKey].label}`,
     cardClass: "game-card-primary"
   };
 }
@@ -194,6 +229,7 @@ function hydrateGameAssetLibrary() {
       ...defaults,
       ...(override && typeof override === "object" ? override : {}),
       key: gameKey,
+      status: normalizeGameStatusForStorage(override?.status, gameKey),
       label: defaults.label,
       route: defaults.route,
       description: defaults.description,
@@ -230,6 +266,7 @@ function applyBackendGameAssetRows(rows = []) {
     gameAssetLibraryCache[gameKey] = {
       ...existing,
       key: gameKey,
+      status: normalizeGameStatusForStorage(row?.status || existing.status, gameKey),
       label: defaults.label,
       route: defaults.route,
       description: defaults.description,
@@ -280,7 +317,7 @@ async function persistGameAssetRecordToBackend(gameKey) {
   const payload = {
     id: gameKey,
     name: DEFAULT_GAME_ASSET_LIBRARY[gameKey].label,
-    status: getDefaultGameStatus(gameKey),
+    status: normalizeGameStatusForStorage(record.status, gameKey),
     logo_url: String(record.logo_url || DEFAULT_GAME_ASSET_LIBRARY[gameKey].logo_url || "").trim() || DEFAULT_GAME_ASSET_LIBRARY[gameKey].logo_url,
     card_description: String(record.card_description || DEFAULT_GAME_ASSET_LIBRARY[gameKey].card_description || "").trim() || DEFAULT_GAME_ASSET_LIBRARY[gameKey].card_description,
     card_background_color: sanitizeGameAssetColor(record.card_background_color) || null,
@@ -355,9 +392,14 @@ function renderGameLogoTargets() {
   });
 
   document.querySelectorAll("[data-game-card]").forEach((node) => {
+    if (!(node instanceof HTMLElement)) return;
     const gameKey = resolveGameKey(node.dataset.gameCard || "");
     const record = getGameAssetRecord(gameKey);
     if (!record) return;
+    const presentation = getGameAdminPresentation(gameKey);
+    node.classList.remove("game-card-primary", "game-card-beta", "game-card-shape-traders");
+    node.classList.add(presentation.cardClass);
+    node.hidden = !isGameVisibleToUser(gameKey);
     const customBackground = sanitizeGameAssetColor(record.card_background_color);
     if (customBackground) {
       node.style.setProperty("--game-card-bg-override", customBackground);
@@ -368,11 +410,27 @@ function renderGameLogoTargets() {
     }
   });
 
+  document.querySelectorAll("[data-game-kicker-for]").forEach((node) => {
+    const gameKey = resolveGameKey(node.dataset.gameKickerFor || "");
+    const presentation = getGameAdminPresentation(gameKey);
+    node.textContent = presentation.kicker;
+  });
+
+  document.querySelectorAll("[data-game-pill-for]").forEach((node) => {
+    if (!(node instanceof HTMLElement)) return;
+    const gameKey = resolveGameKey(node.dataset.gamePillFor || "");
+    const presentation = getGameAdminPresentation(gameKey);
+    node.hidden = !presentation.pill;
+    node.textContent = presentation.pill || "";
+  });
+
   document.querySelectorAll("[data-game-button-for]").forEach((node) => {
     if (!(node instanceof HTMLElement)) return;
     const gameKey = resolveGameKey(node.dataset.gameButtonFor || "");
     const record = getGameAssetRecord(gameKey);
     if (!record) return;
+    const presentation = getGameAdminPresentation(gameKey);
+    node.textContent = presentation.buttonLabel;
     const customButtonColor = sanitizeGameAssetColor(record.button_color);
     if (customButtonColor) {
       node.style.setProperty("--game-card-button-override", customButtonColor);
@@ -6087,9 +6145,7 @@ function updateAdminVisibility(user = currentUser) {
       adminNavButton.setAttribute("hidden", "");
     }
   }
-  if (shapeTradersPlayCard) {
-    shapeTradersPlayCard.hidden = !adminVisible;
-  }
+  renderGameLogoTargets();
 }
 
 function updateResetButtonVisibility(user = currentUser) {
@@ -6237,7 +6293,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     await syncContestState({ force: !contestCache.length });
   }
 
-  if (!isAuthRoute && (nextRoute === "admin" || nextRoute === "shape-traders") && !isAdmin()) {
+  if (!isAuthRoute && nextRoute === "admin" && !isAdmin()) {
     showToast("Admin access only", "error");
     nextRoute = "home";
   }
@@ -6248,6 +6304,10 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
 
   const requestedGameKey = getGameKeyForRoute(nextRoute);
+  if (requestedGameKey && !isGameVisibleToUser(requestedGameKey, currentUser)) {
+    showToast("This game is currently admin only.", "error");
+    nextRoute = "play";
+  }
   if (requestedGameKey && isContestAccountMode(currentAccountMode)) {
     const modeContest = getModeContest(currentAccountMode);
     if (modeContest && !contestAllowsGame(modeContest, requestedGameKey)) {
@@ -9292,7 +9352,7 @@ async function loadAdminPrizeList(force = false) {
 function renderAdminGameAssetRow(gameKey) {
   const record = getGameAssetRecord(gameKey);
   if (!record) return null;
-  const presentation = getGameAdminPresentation(gameKey);
+  const presentation = getGameAdminPresentation(gameKey, record.status);
 
   const item = document.createElement("li");
   item.className = "admin-game-item";
@@ -9314,7 +9374,7 @@ function renderAdminGameAssetRow(gameKey) {
   name.textContent = record.label;
   const meta = document.createElement("p");
   meta.className = "admin-game-meta";
-  meta.textContent = `${record.description} • Route: /#/${record.route}`;
+  meta.textContent = `${record.description} • Route: /#/${record.route} • ${getGameStatusLabel(record.status, gameKey)}`;
   const copy = document.createElement("p");
   copy.className = "admin-game-copy";
   copy.textContent = record.card_description || DEFAULT_GAME_ASSET_LIBRARY[gameKey].card_description;
@@ -9325,6 +9385,7 @@ function renderAdminGameAssetRow(gameKey) {
   previewMeta.className = "admin-game-preview-meta";
   previewMeta.textContent = [
     presentation.kicker,
+    getGameStatusLabel(record.status, gameKey),
     record.card_background_color ? `Card ${record.card_background_color}` : "",
     record.button_color ? `Button ${record.button_color}` : ""
   ].filter(Boolean).join(" • ");
@@ -9387,6 +9448,7 @@ function getAdminGameDraft() {
   const logoUrl = String(adminGameLogoUrlInput?.value || "").trim() || baseRecord.logo_url || DEFAULT_GAME_ASSET_LIBRARY[adminEditingGameKey].logo_url;
   return {
     ...baseRecord,
+    status: normalizeGameStatusForStorage(adminGameStatusSelect?.value, adminEditingGameKey),
     logo_url: logoUrl,
     card_description: String(adminGameDescriptionInput?.value || "").trim() || baseRecord.card_description,
     card_background_color: sanitizeGameAssetColor(adminGameBackgroundColorInput?.value),
@@ -9399,7 +9461,7 @@ function renderAdminGamePreview() {
   if (!adminEditingGameKey || !adminGamePreviewCard) return;
   const draft = getAdminGameDraft();
   if (!draft) return;
-  const presentation = getGameAdminPresentation(adminEditingGameKey);
+  const presentation = getGameAdminPresentation(adminEditingGameKey, draft.status);
   adminGamePreviewCard.classList.remove("game-card-primary", "game-card-beta", "game-card-shape-traders");
   adminGamePreviewCard.classList.add(presentation.cardClass);
   adminGamePreviewCard.dataset.hasCustomBackground = draft.card_background_color ? "true" : "false";
@@ -9454,6 +9516,9 @@ function populateAdminGameModal(gameKey) {
   }
   if (adminGameDescriptionInput) {
     adminGameDescriptionInput.value = record.card_description || "";
+  }
+  if (adminGameStatusSelect) {
+    adminGameStatusSelect.value = normalizeGameStatusForDisplay(record.status, gameKey);
   }
   if (adminGameBackgroundColorInput) {
     adminGameBackgroundColorInput.value = record.card_background_color || "";
@@ -9524,6 +9589,7 @@ async function saveAdminGameModal() {
   gameAssetLibraryCache[adminEditingGameKey] = {
     ...DEFAULT_GAME_ASSET_LIBRARY[adminEditingGameKey],
     ...(gameAssetLibraryCache[adminEditingGameKey] || {}),
+    status: normalizeGameStatusForStorage(draft.status, adminEditingGameKey),
     logo_url: draft.logo_url || baseRecord.logo_url || DEFAULT_GAME_ASSET_LIBRARY[adminEditingGameKey].logo_url,
     card_description: draft.card_description || baseRecord.card_description,
     card_background_color: draft.card_background_color,
@@ -14551,6 +14617,7 @@ const adminGameLogoUploadButton = document.getElementById("admin-game-logo-uploa
 const adminGameLogoUrlInput = document.getElementById("admin-game-logo-url");
 const adminGameLogoFileInput = document.getElementById("admin-game-logo-file");
 const adminGameDescriptionInput = document.getElementById("admin-game-description");
+const adminGameStatusSelect = document.getElementById("admin-game-status");
 const adminGameBackgroundPicker = document.getElementById("admin-game-background-picker");
 const adminGameBackgroundColorInput = document.getElementById("admin-game-background-color");
 const adminGameButtonPicker = document.getElementById("admin-game-button-picker");
@@ -22173,6 +22240,12 @@ if (adminGameDescriptionInput) {
   });
 }
 
+if (adminGameStatusSelect) {
+  adminGameStatusSelect.addEventListener("change", () => {
+    renderAdminGamePreview();
+  });
+}
+
 if (adminGameLogoUploadButton) {
   adminGameLogoUploadButton.addEventListener("click", async () => {
     if (!adminEditingGameKey) return;
@@ -22217,6 +22290,7 @@ if (adminGameResetDefaultButton) {
     const defaults = DEFAULT_GAME_ASSET_LIBRARY[adminEditingGameKey];
     if (adminGameLogoUrlInput) adminGameLogoUrlInput.value = defaults.logo_url || "";
     if (adminGameDescriptionInput) adminGameDescriptionInput.value = defaults.card_description || "";
+    if (adminGameStatusSelect) adminGameStatusSelect.value = normalizeGameStatusForDisplay(defaults.status, adminEditingGameKey);
     if (adminGameBackgroundColorInput) adminGameBackgroundColorInput.value = defaults.card_background_color || "";
     if (adminGameBackgroundPicker) adminGameBackgroundPicker.value = getGameAssetPickerColor(defaults.card_background_color, "#253b63");
     if (adminGameButtonColorInput) adminGameButtonColorInput.value = defaults.button_color || "";

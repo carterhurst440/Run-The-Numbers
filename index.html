@@ -573,7 +573,10 @@
             <section class="home-games" aria-label="Available games">
               <article class="game-card game-card-primary" data-game-card="game_001">
                 <div class="game-card-head">
-                  <p class="game-card-kicker">Original Game</p>
+                  <div class="game-card-kicker-row">
+                    <p class="game-card-kicker" data-game-kicker-for="game_001">Original Game</p>
+                    <span class="game-beta-pill" data-game-pill-for="game_001" hidden>Beta</span>
+                  </div>
                   <div class="game-card-title-row">
                     <img
                       class="game-card-logo game-card-logo-inline"
@@ -598,8 +601,8 @@
               <article class="game-card game-card-beta" data-game-card="game_002">
                 <div class="game-card-head">
                   <div class="game-card-kicker-row">
-                    <p class="game-card-kicker">New Beta Game</p>
-                    <span class="game-beta-pill">Beta</span>
+                    <p class="game-card-kicker" data-game-kicker-for="game_002">New Beta Game</p>
+                    <span class="game-beta-pill" data-game-pill-for="game_002">Beta</span>
                   </div>
                   <div class="game-card-title-row">
                     <img
@@ -630,8 +633,8 @@
               >
                 <div class="game-card-head">
                   <div class="game-card-kicker-row">
-                    <p class="game-card-kicker">Admin Preview</p>
-                    <span class="game-beta-pill">Admin</span>
+                    <p class="game-card-kicker" data-game-kicker-for="game_003">Admin Preview</p>
+                    <span class="game-beta-pill" data-game-pill-for="game_003">Admin</span>
                   </div>
                   <div class="game-card-title-row">
                     <img
@@ -2263,6 +2266,14 @@
                     <label class="admin-field">
                       <span>Game Description</span>
                       <textarea id="admin-game-description" name="cardDescription" rows="4" placeholder="Short card copy for the Play hub."></textarea>
+                    </label>
+                    <label class="admin-field">
+                      <span>Visibility Status</span>
+                      <select id="admin-game-status" name="status">
+                        <option value="released">Released</option>
+                        <option value="beta">Beta</option>
+                        <option value="admin">Admin Only</option>
+                      </select>
                     </label>
                     <div class="admin-game-style-grid">
                       <label class="admin-field">
