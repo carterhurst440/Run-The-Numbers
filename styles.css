@@ -4685,14 +4685,13 @@ body[data-app-state="loading"] #app-shell {
     font-size: 0.9rem;
   }
 
-  .home-view:not(.has-contest-spotlight) {
-    padding-top: 1.65rem;
+  #home-view {
+    padding-top: 1.3rem;
   }
 
-  .home-view:not(.has-contest-spotlight) .home-hero {
+  #home-view .home-hero {
+    padding-top: 0.8rem;
     gap: 1.15rem;
-    justify-content: center;
-    min-height: min(100%, calc(100vh - 170px));
   }
 
   .home-contests-panel {
