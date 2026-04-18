@@ -5033,13 +5033,13 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .shape-traders-market-card h3 {
-    font-size: 0.68rem;
+    font-size: 0.74rem;
     min-height: 0.9rem;
   }
 
   .shape-traders-market-card p {
     min-height: 0.9rem;
-    font-size: 0.56rem;
+    font-size: 0.6rem;
     line-height: 1.15;
   }
 
@@ -7004,20 +7004,24 @@ body.theme-angelic {
   }
 
   .shape-traders-market-card h3 {
-    font-size: 0.6rem;
+    font-size: 0.65rem;
   }
 
   .shape-traders-market-card p {
-    font-size: 0.5rem;
+    font-size: 0.54rem;
   }
 
   .shape-traders-market-card-price {
-    font-size: 0.82rem;
+    font-size: 0.88rem;
   }
 
   .shape-traders-market-card-meta {
-    font-size: 0.5rem;
-    gap: 0.2rem;
+    font-size: 0.56rem;
+    gap: 0.24rem;
+  }
+
+  .shape-traders-market-card-meta span {
+    white-space: nowrap;
   }
 
   .shape-traders-market-card-split {
