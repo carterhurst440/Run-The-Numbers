@@ -5050,7 +5050,9 @@ function appendShapeTraderChartPoint(drawRow, transitions = []) {
   if (existingIndex >= 0) {
     shapeTradersOpenChartSeries[existingIndex] = nextPoint;
   } else {
-    shapeTradersOpenChartSeries = [...shapeTradersOpenChartSeries, nextPoint].sort((left, right) => left.draw - right.draw).slice(-240);
+    shapeTradersOpenChartSeries = [...shapeTradersOpenChartSeries, nextPoint]
+      .sort((left, right) => left.draw - right.draw)
+      .slice(-SHAPE_TRADERS_CHART_HISTORY_LIMIT);
   }
   renderShapeTraderOpenChart();
 }
@@ -5065,7 +5067,7 @@ async function loadShapeTraderPriceSeries(assetId) {
         .from("shape_trader_draws")
         .select("*")
         .order("draw_id", { ascending: false })
-        .limit(100);
+        .limit(SHAPE_TRADERS_CHART_HISTORY_LIMIT);
       if (response?.error) {
         if (isMissingRelationError(response.error, "shape_trader_draws")) {
           shapeTradersDrawPersistenceAvailable = false;
@@ -5151,18 +5153,27 @@ function getShapeTraderVisibleSeries(series) {
   if (!Array.isArray(series) || !series.length) {
     return [];
   }
-  const normalizedVisibleCount = Math.max(1, Math.min(series.length, Math.round(Number(shapeTradersChartVisibleCount) || 100)));
+  const normalizedVisibleCount = Math.max(
+    1,
+    Math.min(series.length, Math.round(Number(shapeTradersChartVisibleCount) || SHAPE_TRADERS_CHART_DEFAULT_VISIBLE_COUNT))
+  );
   return series.slice(-normalizedVisibleCount);
 }
 
 function setShapeTraderChartVisibleCount(nextCount) {
   const maxCount = Math.max(1, Array.isArray(shapeTradersOpenChartSeries) ? shapeTradersOpenChartSeries.length : 1);
-  shapeTradersChartVisibleCount = Math.max(1, Math.min(maxCount, Math.round(Number(nextCount) || 100)));
+  shapeTradersChartVisibleCount = Math.max(
+    1,
+    Math.min(maxCount, Math.round(Number(nextCount) || SHAPE_TRADERS_CHART_DEFAULT_VISIBLE_COUNT))
+  );
   renderShapeTraderOpenChart();
 }
 
 function adjustShapeTraderChartZoom(direction) {
-  const currentCount = Math.max(1, Math.round(Number(shapeTradersChartVisibleCount) || 100));
+  const currentCount = Math.max(
+    1,
+    Math.round(Number(shapeTradersChartVisibleCount) || SHAPE_TRADERS_CHART_DEFAULT_VISIBLE_COUNT)
+  );
   const factor = direction > 0 ? 1.25 : 0.8;
   setShapeTraderChartVisibleCount(currentCount * factor);
 }
@@ -5231,7 +5242,7 @@ async function openShapeTraderChart(assetId) {
   shapeTradersChartTitleEl.textContent = `${asset.label} Price Chart`;
   shapeTradersChartSubtitleEl.textContent = "Price movement measured in draws.";
   shapeTradersChartSurfaceEl.innerHTML = '<div class="shape-traders-chart-empty">Loading chart…</div>';
-  shapeTradersChartVisibleCount = 100;
+  shapeTradersChartVisibleCount = SHAPE_TRADERS_CHART_DEFAULT_VISIBLE_COUNT;
   shapeTradersChartTouchZoomDistance = null;
   shapeTradersChartModal.hidden = false;
   shapeTradersChartModal.classList.add("is-open");
@@ -5243,7 +5254,10 @@ async function openShapeTraderChart(assetId) {
     return;
   }
   shapeTradersOpenChartSeries = series;
-  shapeTradersChartVisibleCount = Math.min(100, Math.max(1, series.length));
+  shapeTradersChartVisibleCount = Math.min(
+    SHAPE_TRADERS_CHART_DEFAULT_VISIBLE_COUNT,
+    Math.max(1, series.length)
+  );
   renderShapeTraderOpenChart();
 }
 
@@ -15096,6 +15110,8 @@ const SHAPE_TRADERS_START_PRICE = 100;
 const SHAPE_TRADERS_SPLIT_THRESHOLD = 1000;
 const SHAPE_TRADERS_SPLIT_FACTOR = 10;
 const SHAPE_TRADERS_SPLIT_FLASH_MS = 5000;
+const SHAPE_TRADERS_CHART_DEFAULT_VISIBLE_COUNT = 100;
+const SHAPE_TRADERS_CHART_HISTORY_LIMIT = 1000;
 const SHAPE_TRADERS_ACTIVITY_PAGE_SIZE = 100;
 const SHAPE_TRADERS_GLOBAL_SYNC_MS = 5000;
 const SHAPE_TRADERS_HEARTBEAT_MS = 30000;
@@ -15158,7 +15174,7 @@ let shapeTradersGlobalSyncInFlight = false;
 let shapeTradersSplitNoticeByAsset = {};
 let shapeTradersOpenChartAssetId = null;
 let shapeTradersOpenChartSeries = [];
-let shapeTradersChartVisibleCount = 100;
+let shapeTradersChartVisibleCount = SHAPE_TRADERS_CHART_DEFAULT_VISIBLE_COUNT;
 let shapeTradersChartTouchZoomDistance = null;
 let shapeTradersTradeSheetCollapsed = null;
 let shapeTradersTradeSheetTouchStartY = null;
