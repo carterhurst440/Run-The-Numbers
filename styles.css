@@ -11335,6 +11335,100 @@ body.modal-open {
   outline: none;
 }
 
+.activity-log-shell {
+  width: min(100%, 980px);
+}
+
+.activity-log-section {
+  overflow: hidden;
+}
+
+.activity-log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.activity-log-item {
+  margin: 0;
+}
+
+.activity-log-card {
+  display: grid;
+  gap: 0.6rem;
+  padding: 1rem 1.1rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--drawer-border) 72%, transparent);
+  background: color-mix(in srgb, var(--drawer-bg) 84%, black 16%);
+  box-shadow: inset 0 0 18px color-mix(in srgb, var(--neon-violet) 10%, transparent);
+}
+
+.activity-log-topline,
+.activity-log-footer {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.activity-log-kicker {
+  margin: 0 0 0.2rem;
+  color: color-mix(in srgb, var(--neon-magenta) 82%, white 18%);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.activity-log-title,
+.activity-log-primary,
+.activity-log-meta,
+.activity-log-balance,
+.activity-log-time,
+.activity-log-item-empty p {
+  margin: 0;
+}
+
+.activity-log-title {
+  color: var(--text-light);
+  font-size: 1rem;
+}
+
+.activity-log-primary {
+  color: var(--text-light);
+  line-height: 1.5;
+}
+
+.activity-log-meta,
+.activity-log-time {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.activity-log-balance {
+  color: color-mix(in srgb, var(--neon-cyan) 72%, white 28%);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.activity-log-item-empty {
+  padding: 1rem 1.1rem;
+  border-radius: 1rem;
+  border: 1px dashed color-mix(in srgb, var(--drawer-border) 68%, transparent);
+  background: color-mix(in srgb, var(--drawer-bg) 72%, black 28%);
+  color: var(--muted);
+}
+
+@media (max-width: 768px) {
+  .activity-log-topline,
+  .activity-log-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
 .hand-review-modal {
   width: min(760px, 94vw);
   max-height: min(720px, 92vh);

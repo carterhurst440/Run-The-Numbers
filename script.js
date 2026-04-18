@@ -5985,6 +5985,10 @@ async function setRoute(route, { replaceHash = false } = {}) {
     await loadPlayerContestList(true);
   }
 
+  if (resolvedRoute === "activity-log") {
+    await loadActivityLogPage({ force: true });
+  }
+
   if (isAuthRoute || isPublicAuthRoute) {
     // Show the specific auth view
     if (nextRoute === "signup") {
@@ -13336,6 +13340,7 @@ async function insertGameHandRecord(handPayload, betRows = []) {
       || isMissingColumnError(handError, "commission_kept")
       || isMissingColumnError(handError, "mode_type")
       || isMissingColumnError(handError, "contest_id")
+      || isMissingColumnError(handError, "new_account_value")
     )
   ) {
     const {
@@ -13343,6 +13348,7 @@ async function insertGameHandRecord(handPayload, betRows = []) {
       commission_kept: _commissionKept,
       mode_type: _modeType,
       contest_id: _contestId,
+      new_account_value: _newAccountValue,
       ...fallbackPayload
     } = payload;
     payload = fallbackPayload;
@@ -13400,7 +13406,8 @@ async function logStandaloneGameHand({
       total_wager: totalWager,
       total_paid: totalPaid,
       net,
-      commission_kept: commissionKept
+      commission_kept: commissionKept,
+      new_account_value: roundCurrencyValue(bankroll)
     });
 
     if (resolveGameKey(gameKey) === GAME_KEYS.GUESS_10) {
@@ -13453,7 +13460,8 @@ async function logRunTheNumbersHandAndBets(stopperCard, context, betSnapshots, n
       total_wager: totalWager,
       total_paid: totalPaid,
       net: netThisHand,
-      commission_kept: 0
+      commission_kept: 0,
+      new_account_value: roundCurrencyValue(bankroll)
     };
 
     const hand = await insertGameHandRecord(handPayload);
@@ -13916,6 +13924,7 @@ const shapeTradersPlayCard = document.getElementById("shape-traders-play-card");
 const shapeTradersView = document.getElementById("shape-traders-view");
 const runTheNumbersView = document.getElementById("run-the-numbers-view");
 const redBlackView = document.getElementById("red-black-view");
+const activityLogView = document.getElementById("activity-log-view");
 const redBlackChipBarEl = document.getElementById("red-black-chip-bar");
 const contestsView = document.getElementById("contests-view");
 const storeView = document.getElementById("store-view");
@@ -13928,6 +13937,7 @@ const routeViews = {
   "shape-traders": shapeTradersView,
   "run-the-numbers": runTheNumbersView,
   "red-black": redBlackView,
+  "activity-log": activityLogView,
   contests: contestsView,
   store: storeView,
   dashboard: dashboardView,
@@ -13938,7 +13948,7 @@ const headerEl = document.querySelector(".header");
 const chipBarEl = runTheNumbersView ? runTheNumbersView.querySelector(".chip-bar") : null;
 const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout") : null;
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
-const TABLE_ROUTES = new Set(["home", "play", "shape-traders", "run-the-numbers", "red-black", "contests", "store", "admin"]);
+const TABLE_ROUTES = new Set(["home", "play", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
@@ -14102,6 +14112,8 @@ const handReviewTotalReturnEl = document.getElementById("hand-review-total-retur
 const handReviewTotalNetEl = document.getElementById("hand-review-total-net");
 const handReviewCloseButton = document.getElementById("hand-review-close");
 const handReviewOkButton = document.getElementById("hand-review-ok");
+const activityLogListEl = document.getElementById("activity-log-list");
+const activityLogRefreshButton = document.getElementById("activity-log-refresh");
 const outOfCreditsCopyEl = document.getElementById("out-of-credits-copy");
 const betAnalyticsModal = document.getElementById("bet-analytics-modal");
 const betAnalyticsClose = document.getElementById("bet-analytics-close");
@@ -14550,7 +14562,11 @@ let playAssistantHistoryCache = {
   insights: null
 };
 let recentHandReviews = [];
+let activityLogEntries = [];
+let activityLogLoadedUserId = null;
+let activityLogLoading = false;
 let handReviewModalTrigger = null;
+let handReviewRequestToken = 0;
 let chipEditorModalTrigger = null;
 
 let shippingModalTrigger = null;
@@ -17706,6 +17722,36 @@ async function fetchRunTheNumbersBetPlayRecords({ userId, limit = 1000 } = {}) {
   return allRecords.slice(0, limit);
 }
 
+async function fetchRunTheNumbersBetPlayRecordsByHandIds({ handIds = [] } = {}) {
+  if (!supabase || !Array.isArray(handIds) || !handIds.length) {
+    return [];
+  }
+
+  const allRows = [];
+  const chunkSize = 50;
+
+  for (let index = 0; index < handIds.length; index += chunkSize) {
+    const chunk = handIds.slice(index, index + chunkSize).map((handId) => String(handId || "")).filter(Boolean);
+    if (!chunk.length) {
+      continue;
+    }
+
+    const { data, error } = await supabase
+      .from("bet_plays")
+      .select("user_id, hand_id, bet_key, amount_wagered, amount_paid, outcome, net, raw, placed_at")
+      .in("hand_id", chunk)
+      .order("placed_at", { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    allRows.push(...(Array.isArray(data) ? data : []));
+  }
+
+  return allRows;
+}
+
 async function fetchGuess10DrawPlayRecords({ handIds = [] } = {}) {
   if (!supabase || !Array.isArray(handIds) || !handIds.length) {
     return [];
@@ -19207,45 +19253,18 @@ function addHistoryEntry(result) {
   if (recentHandReviews.length > 8) {
     recentHandReviews = recentHandReviews.slice(0, 8);
   }
-  renderRecentHandHistory();
+  if (currentRoute === "activity-log") {
+    void loadActivityLogPage({ force: true });
+  }
 }
 
 function clearRecentHandHistory() {
   recentHandReviews = [];
-  if (historyList) {
-    historyList.innerHTML = "";
-  }
   closeHandReviewModal();
 }
 
 function renderRecentHandHistory() {
-  if (!historyList) {
-    return;
-  }
-
-  historyList.innerHTML = "";
-  recentHandReviews.forEach((entry) => {
-    const item = document.createElement("li");
-    const gameLabel = entry.gameLabel || getGameLabel(entry.gameKey || GAME_KEYS.RUN_THE_NUMBERS);
-    const cardsList = (entry.drawnCards || [])
-      .map((card) => {
-        if (card.label === "Joker") {
-          return "Joker";
-        }
-        return `${card.label}${card.suit || ""}`;
-      })
-      .join(", ");
-    const totalCards = Array.isArray(entry.drawnCards) ? entry.drawnCards.length : 0;
-    const metaLine = `${formatCurrency(entry.totalWager)} wagered · ${formatCurrency(entry.totalReturn)} returned`;
-
-    item.innerHTML = `
-      <div class="history-hand-game">${escapeAssistantHtml(gameLabel)}</div>
-      <div class="history-hand-cards">${cardsList}</div>
-      <div class="history-hand-meta">${metaLine} · ${totalCards} card${totalCards === 1 ? "" : "s"}</div>
-      <button type="button" class="history-review-button" data-hand-review-id="${escapeAssistantHtml(entry.id)}">Hand Review</button>
-    `;
-    historyList.appendChild(item);
-  });
+  // Legacy session-only hand history is intentionally hidden now that Activity Log is its own page.
 }
 
 function closeHandReviewModal({ restoreFocus = false } = {}) {
@@ -19354,34 +19373,243 @@ function renderClassicHandReviewCards(entry) {
     .join("");
 }
 
-function openHandReviewModal(reviewId, trigger = null) {
+function formatActivityLogTimestamp(value) {
+  if (!value) return "";
+  return formatAnalyticsDate(value, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+function mapGameHandRowToActivityEntry(row) {
+  const gameKey = resolveGameKey(row?.game_id);
+  const fallbackId = row?.created_at || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return {
+    id: `hand:${row?.id || fallbackId}`,
+    entryType: "hand",
+    handId: String(row?.id || ""),
+    gameKey,
+    gameLabel: getGameLabel(gameKey),
+    createdAt: row?.created_at || new Date().toISOString(),
+    totalCards: Math.max(0, Math.round(Number(row?.total_cards || 0))),
+    stopperLabel: row?.stopper_label || null,
+    stopperSuit: row?.stopper_suit || null,
+    totalWager: roundCurrencyValue(Number(row?.total_wager || 0)),
+    totalReturn: roundCurrencyValue(Number(row?.total_paid || 0)),
+    net: roundCurrencyValue(Number(row?.net || 0)),
+    commissionKept: roundCurrencyValue(Number(row?.commission_kept || 0)),
+    newAccountValue: roundCurrencyValue(Number(row?.new_account_value || 0))
+  };
+}
+
+function mapShapeTraderTradeRowToActivityLogEntry(row) {
+  const mapped = mapShapeTraderTradeRowToActivity(row);
+  return {
+    id: `trade:${mapped.id}`,
+    entryType: "trade",
+    gameKey: GAME_KEYS.SHAPE_TRADERS,
+    gameLabel: getGameLabel(GAME_KEYS.SHAPE_TRADERS),
+    createdAt: mapped.createdAt,
+    side: mapped.side,
+    assetLabel: mapped.assetLabel,
+    quantity: mapped.quantity,
+    price: mapped.price,
+    totalValue: mapped.totalValue,
+    netProfit: mapped.netProfit,
+    newAccountValue: mapped.accountValue
+  };
+}
+
+function renderActivityLogPage() {
+  if (!activityLogListEl) {
+    return;
+  }
+
+  if (activityLogLoading) {
+    activityLogListEl.innerHTML = `
+      <li class="activity-log-item activity-log-item-empty">
+        <p>Loading activity…</p>
+      </li>
+    `;
+    return;
+  }
+
+  if (!activityLogEntries.length) {
+    activityLogListEl.innerHTML = `
+      <li class="activity-log-item activity-log-item-empty">
+        <p>No activity yet. Play a hand or make a trade to start the log.</p>
+      </li>
+    `;
+    return;
+  }
+
+  activityLogListEl.innerHTML = activityLogEntries.map((entry) => {
+    if (entry.entryType === "trade") {
+      const netProfitMarkup = entry.netProfit === null || entry.netProfit === undefined
+        ? ""
+        : ` · ${escapeAssistantHtml(formatSignedCurrency(entry.netProfit))} P/L`;
+      return `
+        <li class="activity-log-item">
+          <article class="activity-log-card">
+            <div class="activity-log-topline">
+              <div>
+                <p class="activity-log-kicker">${escapeAssistantHtml(entry.gameLabel)}</p>
+                <h3 class="activity-log-title">${escapeAssistantHtml(entry.side === "sell" ? "Sell Executed" : "Buy Executed")}</h3>
+              </div>
+              <span class="activity-log-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
+            </div>
+            <p class="activity-log-primary">${escapeAssistantHtml(`${entry.assetLabel} · ${formatCurrency(entry.quantity)} shares @ ${formatCurrency(entry.price)}`)}</p>
+            <p class="activity-log-meta">${escapeAssistantHtml(`${formatCurrency(entry.totalValue)} total${netProfitMarkup}`)}</p>
+            <p class="activity-log-balance">Ending account value: ${escapeAssistantHtml(formatCurrency(entry.newAccountValue))}</p>
+          </article>
+        </li>
+      `;
+    }
+
+    const handDescriptor = entry.gameKey === GAME_KEYS.GUESS_10 ? "Hand Played" : "Hand Played";
+    const extraBits = [
+      `${formatCurrency(entry.totalWager)} wagered`,
+      `${formatCurrency(entry.totalReturn)} returned`,
+      `${formatSignedCurrency(entry.net)} net`
+    ];
+    if (entry.gameKey === GAME_KEYS.GUESS_10 && entry.commissionKept > 0) {
+      extraBits.push(`${formatCurrency(entry.commissionKept)} commission`);
+    }
+    const secondaryBits = [];
+    if (entry.totalCards > 0) {
+      secondaryBits.push(`${entry.totalCards} card${entry.totalCards === 1 ? "" : "s"}`);
+    }
+    if (entry.stopperLabel) {
+      secondaryBits.push(
+        entry.stopperLabel === "Joker"
+          ? "Stopped on Joker"
+          : `Stopped on ${entry.stopperLabel}${entry.stopperSuit ? ` ${entry.stopperSuit}` : ""}`
+      );
+    }
+    return `
+      <li class="activity-log-item">
+        <article class="activity-log-card">
+          <div class="activity-log-topline">
+            <div>
+              <p class="activity-log-kicker">${escapeAssistantHtml(entry.gameLabel)}</p>
+              <h3 class="activity-log-title">${escapeAssistantHtml(handDescriptor)}</h3>
+            </div>
+            <span class="activity-log-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
+          </div>
+          <p class="activity-log-primary">${escapeAssistantHtml(extraBits.join(" · "))}</p>
+          <p class="activity-log-meta">${escapeAssistantHtml(secondaryBits.join(" · ") || "Completed hand recorded to your account history.")}</p>
+          <div class="activity-log-footer">
+            <p class="activity-log-balance">Ending account value: ${escapeAssistantHtml(formatCurrency(entry.newAccountValue))}</p>
+            <button type="button" class="history-review-button" data-hand-review-id="${escapeAssistantHtml(entry.handId)}">Review Hand</button>
+          </div>
+        </article>
+      </li>
+    `;
+  }).join("");
+}
+
+async function loadActivityLogPage({ force = false } = {}) {
+  if (!activityLogListEl) {
+    return;
+  }
+
+  if (!currentUser?.id || currentUser.id === GUEST_USER.id || !supabase) {
+    activityLogEntries = [];
+    activityLogLoadedUserId = currentUser?.id || null;
+    activityLogLoading = false;
+    renderActivityLogPage();
+    return;
+  }
+
+  if (activityLogLoading) {
+    return;
+  }
+
+  if (!force && activityLogLoadedUserId === currentUser.id && activityLogEntries.length) {
+    renderActivityLogPage();
+    return;
+  }
+
+  activityLogLoading = true;
+  renderActivityLogPage();
+
+  try {
+    const handsQuery = supabase
+      .from("game_hands")
+      .select("id, user_id, created_at, game_id, total_cards, stopper_label, stopper_suit, total_wager, total_paid, net, commission_kept, new_account_value")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(150);
+
+    const tradesQuery = supabase
+      .from("shape_trader_trades")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .order("executed_at", { ascending: false })
+      .limit(150);
+
+    const [
+      { data: handRows, error: handError },
+      { data: tradeRows, error: tradeError }
+    ] = await Promise.all([handsQuery, tradesQuery]);
+
+    if (handError) {
+      throw handError;
+    }
+
+    let normalizedTrades = [];
+    if (tradeError) {
+      if (!isMissingRelationError(tradeError, "shape_trader_trades")) {
+        throw tradeError;
+      }
+    } else {
+      normalizedTrades = (Array.isArray(tradeRows) ? tradeRows : []).map(mapShapeTraderTradeRowToActivityLogEntry);
+    }
+
+    const normalizedHands = (Array.isArray(handRows) ? handRows : []).map(mapGameHandRowToActivityEntry);
+    activityLogEntries = [...normalizedHands, ...normalizedTrades]
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+      .slice(0, 200);
+    activityLogLoadedUserId = currentUser.id;
+  } catch (error) {
+    console.error("[RTN] Unable to load activity log", error);
+    showToast("Unable to load activity log", "error");
+    activityLogEntries = [];
+  } finally {
+    activityLogLoading = false;
+    renderActivityLogPage();
+  }
+}
+
+function openHandReviewModalShell(trigger = null) {
   if (!handReviewModal || !handReviewListEl) {
     return;
   }
 
-  const entry = recentHandReviews.find((candidate) => candidate.id === reviewId);
-  if (!entry) {
-    showToast("That hand review is no longer available.", "error");
+  handReviewModalTrigger = trigger instanceof HTMLElement ? trigger : document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  handReviewModal.hidden = false;
+  handReviewModal.classList.add("is-open");
+  handReviewModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+
+function renderHandReviewModalEntry(entry) {
+  if (!handReviewModal || !handReviewListEl) {
     return;
   }
 
-  handReviewModalTrigger = trigger instanceof HTMLElement ? trigger : document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  handReviewListEl.innerHTML = "";
   const isGuess10 = (entry.gameKey || "") === GAME_KEYS.GUESS_10;
+  const handLength = Math.max(0, Number(entry.totalCards || (Array.isArray(entry.drawnCards) ? entry.drawnCards.length : 0)));
 
   if (handReviewSummaryEl) {
     handReviewSummaryEl.textContent = isGuess10
-      ? `${entry.gameLabel || "Guess 10"} · ${entry.drawnCards.length} cards · ${formatCurrency(entry.totalWager)} wagered · ${formatCurrency(entry.totalReturn)} returned · ${formatSignedCurrency(entry.net)} net · ${formatCurrency(entry.commissionKept || 0)} commission kept.`
-      : `Hand length ${entry.drawnCards.length}. Total return ${formatCurrency(
-          entry.totalReturn
-        )} units on ${formatCurrency(entry.totalWager)} wagered.`;
+      ? `${entry.gameLabel || "Guess 10"} · ${handLength} cards · ${formatCurrency(entry.totalWager)} wagered · ${formatCurrency(entry.totalReturn)} returned · ${formatSignedCurrency(entry.net)} net · ${formatCurrency(entry.commissionKept || 0)} commission kept.`
+      : `Hand length ${handLength}. Total return ${formatCurrency(entry.totalReturn)} units on ${formatCurrency(entry.totalWager)} wagered.`;
   }
 
-  if (isGuess10) {
-    handReviewListEl.innerHTML = renderGuess10ReviewCards(entry);
-  } else {
-    handReviewListEl.innerHTML = renderClassicHandReviewCards(entry);
-  }
+  handReviewListEl.innerHTML = isGuess10 ? renderGuess10ReviewCards(entry) : renderClassicHandReviewCards(entry);
 
   if (handReviewTotalWagerEl) {
     handReviewTotalWagerEl.textContent = formatCurrency(entry.totalWager);
@@ -19395,12 +19623,138 @@ function openHandReviewModal(reviewId, trigger = null) {
       entry.net > 0 ? "review-hand-positive" : entry.net < 0 ? "review-hand-negative" : "review-hand-neutral"
     }`;
   }
+}
 
-  handReviewModal.hidden = false;
-  handReviewModal.classList.add("is-open");
-  handReviewModal.setAttribute("aria-hidden", "false");
-  document.body.classList.add("modal-open");
-  handReviewOkButton?.focus();
+function renderHandReviewLoadingState(trigger = null) {
+  openHandReviewModalShell(trigger);
+  if (handReviewSummaryEl) {
+    handReviewSummaryEl.textContent = "Loading hand review…";
+  }
+  if (handReviewListEl) {
+    handReviewListEl.innerHTML = `
+      <article class="review-hand-card review-hand-card-empty">
+        <p>Loading wager details from the database…</p>
+      </article>
+    `;
+  }
+  if (handReviewTotalWagerEl) {
+    handReviewTotalWagerEl.textContent = "—";
+  }
+  if (handReviewTotalReturnEl) {
+    handReviewTotalReturnEl.textContent = "—";
+  }
+  if (handReviewTotalNetEl) {
+    handReviewTotalNetEl.textContent = "—";
+    handReviewTotalNetEl.className = "review-hand-total-value review-hand-neutral";
+  }
+}
+
+async function fetchHandReviewEntry(reviewId) {
+  if (!reviewId || !supabase) {
+    return recentHandReviews.find((candidate) => candidate.id === reviewId) || null;
+  }
+
+  const { data: handRow, error: handError } = await supabase
+    .from("game_hands")
+    .select("id, user_id, created_at, game_id, total_cards, stopper_label, stopper_suit, total_wager, total_paid, net, commission_kept, new_account_value")
+    .eq("id", reviewId)
+    .maybeSingle();
+
+  if (handError) {
+    throw handError;
+  }
+
+  if (!handRow) {
+    return recentHandReviews.find((candidate) => candidate.id === reviewId) || null;
+  }
+
+  const gameKey = resolveGameKey(handRow?.game_id);
+  const baseEntry = {
+    id: String(handRow?.id || reviewId),
+    gameKey,
+    gameLabel: getGameLabel(gameKey),
+    totalCards: Math.max(0, Math.round(Number(handRow?.total_cards || 0))),
+    commissionKept: roundCurrencyValue(Number(handRow?.commission_kept || 0)),
+    totalWager: roundCurrencyValue(Number(handRow?.total_wager || 0)),
+    totalReturn: roundCurrencyValue(Number(handRow?.total_paid || 0)),
+    net: roundCurrencyValue(Number(handRow?.net || 0)),
+    drawnCards: [],
+    handHistory: [],
+    bets: []
+  };
+
+  if (gameKey === GAME_KEYS.GUESS_10) {
+    const drawRows = await fetchGuess10DrawPlayRecords({ handIds: [reviewId] });
+    const handHistory = drawRows
+      .sort((a, b) => Number(a?.draw_index || 0) - Number(b?.draw_index || 0))
+      .map((row) => ({
+        selectionLabel: String(row?.selection_label || ""),
+        multiplier: roundCurrencyValue(Number(row?.multiplier || 0)),
+        matched: Boolean(row?.was_correct),
+        potAfter: roundCurrencyValue(Number(row?.ending_pot || 0)),
+        card: sanitizeGuess10AssistantCard({
+          label: row?.drawn_card_label,
+          suit: row?.drawn_card_suit,
+          suitName: row?.drawn_card_suit_name,
+          color: row?.drawn_card_color
+        })
+      }));
+    return {
+      ...baseEntry,
+      handHistory,
+      drawnCards: handHistory.map((step) => step.card).filter(Boolean)
+    };
+  }
+
+  const betRows = await fetchRunTheNumbersBetPlayRecordsByHandIds({ handIds: [reviewId] });
+  return {
+    ...baseEntry,
+    bets: betRows.map((row) => {
+      const raw = row?.raw && typeof row.raw === "object" ? row.raw : {};
+      return {
+        key: row?.bet_key || "",
+        label: raw?.label || row?.bet_key || "Bet",
+        units: roundCurrencyValue(Number(row?.amount_wagered || 0)),
+        paid: roundCurrencyValue(Number(row?.amount_paid || 0))
+      };
+    })
+  };
+}
+
+async function openHandReviewModal(reviewId, trigger = null) {
+  if (!handReviewModal || !handReviewListEl) {
+    return;
+  }
+
+  const requestToken = ++handReviewRequestToken;
+  const cachedEntry = recentHandReviews.find((candidate) => candidate.id === reviewId);
+  if (cachedEntry) {
+    openHandReviewModalShell(trigger);
+    renderHandReviewModalEntry(cachedEntry);
+  } else {
+    renderHandReviewLoadingState(trigger);
+  }
+
+  try {
+    const entry = await fetchHandReviewEntry(reviewId);
+    if (requestToken !== handReviewRequestToken) {
+      return;
+    }
+    if (!entry) {
+      closeHandReviewModal();
+      showToast("That hand review is no longer available.", "error");
+      return;
+    }
+    openHandReviewModalShell(trigger);
+    renderHandReviewModalEntry(entry);
+    handReviewOkButton?.focus();
+  } catch (error) {
+    console.error("[RTN] Unable to load hand review", error);
+    if (!cachedEntry) {
+      closeHandReviewModal();
+    }
+    showToast("Unable to load hand review", "error");
+  }
 }
 
 function resetTable(
@@ -20939,7 +21293,23 @@ if (historyList) {
     if (!(button instanceof HTMLElement)) {
       return;
     }
-    openHandReviewModal(button.dataset.handReviewId || "", button);
+    void openHandReviewModal(button.dataset.handReviewId || "", button);
+  });
+}
+
+if (activityLogListEl) {
+  activityLogListEl.addEventListener("click", (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest("[data-hand-review-id]") : null;
+    if (!(button instanceof HTMLElement)) {
+      return;
+    }
+    void openHandReviewModal(button.dataset.handReviewId || "", button);
+  });
+}
+
+if (activityLogRefreshButton) {
+  activityLogRefreshButton.addEventListener("click", () => {
+    void loadActivityLogPage({ force: true });
   });
 }
 

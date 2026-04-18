@@ -289,6 +289,7 @@
           <div class="drawer-nav">
             <button type="button" data-route-target="home" class="drawer-link">Home</button>
             <button type="button" data-route-target="play" class="drawer-link">Play</button>
+            <button type="button" data-route-target="activity-log" class="drawer-link">Activity Log</button>
             <button type="button" data-route-target="store" class="drawer-link">Store</button>
             <button type="button" data-route-target="profile" class="drawer-link">Profile</button>
             <button type="button" data-route-target="contests" id="drawer-contest-link" class="drawer-link drawer-contest-link" hidden>
@@ -315,14 +316,6 @@
             </button>
           </div>
         </section>
-        <section class="drawer-section" aria-labelledby="recent-hands-title">
-          <div class="section-heading">
-            <h3 id="recent-hands-title">Recent Hands</h3>
-            <p class="section-sub">Most recent results appear first.</p>
-          </div>
-          <ul id="history-list" class="history-list" aria-live="polite"></ul>
-        </section>
-
       </aside>
 
       <aside
@@ -2144,6 +2137,28 @@
               <div id="contest-panel-ended" class="contest-list-panel" role="tabpanel" aria-labelledby="contest-tab-ended" hidden>
                 <ul id="player-ended-contest-list" class="admin-prize-list" aria-live="polite"></ul>
               </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="activity-log-view" class="route-view app-page activity-log-view" hidden aria-labelledby="activity-log-title">
+          <div class="route-shell activity-log-shell">
+            <header class="route-header">
+              <div>
+                <h1 id="activity-log-title">Activity Log</h1>
+                <p class="route-subheading">Your RTN hands, Guess 10 hands, and Shape Traders trades in one timeline.</p>
+              </div>
+              <div class="route-actions">
+                <button type="button" id="activity-log-refresh" class="link-button">Refresh</button>
+                <button type="button" data-route-target="home" class="link-button">Back to home</button>
+              </div>
+            </header>
+            <section class="route-section activity-log-section" aria-labelledby="activity-log-list-title">
+              <div class="section-heading">
+                <h2 id="activity-log-list-title">Latest Activity</h2>
+                <p class="section-sub">Most recent events appear first with the ending account value saved on each row.</p>
+              </div>
+              <ul id="activity-log-list" class="activity-log-list" aria-live="polite"></ul>
             </section>
           </div>
         </section>
