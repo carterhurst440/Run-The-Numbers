@@ -303,7 +303,7 @@
               aria-expanded="false"
               aria-controls="chart-panel"
             >
-              Bankroll Analytics
+              Account Chart
             </button>
             <button type="button" data-route-target="admin" class="drawer-link" id="admin-nav" hidden>
               Admin
@@ -350,31 +350,39 @@
         aria-labelledby="chart-title"
       >
         <div class="drawer-header">
-          <h2 id="chart-title">Bankroll &amp; Analytics</h2>
+          <h2 id="chart-title">Account Chart &amp; Analytics</h2>
           <button type="button" class="drawer-close" id="chart-close">
-            <span class="sr-only">Close bankroll analytics</span>
+            <span class="sr-only">Close account chart</span>
             <span aria-hidden="true">×</span>
           </button>
         </div>
         <div class="drawer-section">
           <div class="overview-chart-header">
-            <h3 class="chart-title">Lifetime Bankroll History</h3>
-            <div class="chart-filters bankroll-history-filters">
-              <button type="button" class="chart-filter-btn" data-bankroll-period="hour">Last Hour</button>
-              <button type="button" class="chart-filter-btn" data-bankroll-period="day">Last 24 Hours</button>
-              <button type="button" class="chart-filter-btn" data-bankroll-period="week">Last Week</button>
-              <button type="button" class="chart-filter-btn" data-bankroll-period="month">Last Month</button>
-              <button type="button" class="chart-filter-btn" data-bankroll-period="90days">Last 3 Months</button>
-              <button type="button" class="chart-filter-btn active" data-bankroll-period="year">Last Year</button>
+            <h3 class="chart-title">Realized P&amp;L</h3>
+            <div class="chart-filter-stack">
+              <div class="chart-filters bankroll-history-filters">
+                <button type="button" class="chart-filter-btn" data-bankroll-period="hour">Last Hour</button>
+                <button type="button" class="chart-filter-btn" data-bankroll-period="day">Last 24 Hours</button>
+                <button type="button" class="chart-filter-btn" data-bankroll-period="week">Last Week</button>
+                <button type="button" class="chart-filter-btn" data-bankroll-period="month">Last Month</button>
+                <button type="button" class="chart-filter-btn" data-bankroll-period="90days">Last 3 Months</button>
+                <button type="button" class="chart-filter-btn active" data-bankroll-period="year">Last Year</button>
+              </div>
+              <div class="chart-filters bankroll-game-filters">
+                <button type="button" class="chart-filter-btn active" data-bankroll-game="all">All Games</button>
+                <button type="button" class="chart-filter-btn" data-bankroll-game="game_001">Run The Numbers</button>
+                <button type="button" class="chart-filter-btn" data-bankroll-game="game_002">Guess 10</button>
+                <button type="button" class="chart-filter-btn" data-bankroll-game="shape_traders">Shape Traders</button>
+              </div>
             </div>
           </div>
-          <p class="drawer-subhead" id="bankroll-chart-subhead">Line chart showing bankroll after each completed hand.</p>
+          <p class="drawer-subhead" id="bankroll-chart-subhead">Daily realized P&amp;L across all games.</p>
           <div class="bankroll-chart-wrapper" id="bankroll-chart-wrapper" role="presentation">
             <canvas
               id="bankroll-chart"
               class="bankroll-chart"
               role="img"
-              aria-label="Line chart showing bankroll value after each hand"
+              aria-label="Line chart showing daily realized profit and loss"
             ></canvas>
           </div>
         </div>

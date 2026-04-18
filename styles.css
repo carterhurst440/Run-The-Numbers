@@ -10631,6 +10631,16 @@ body.play-assistant-open .play-assistant-fab {
   justify-content: flex-end;
 }
 
+.chart-filter-stack {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: end;
+}
+
+.bankroll-game-filters {
+  justify-content: flex-end;
+}
+
 .analytics-activity-card {
   margin-bottom: 2rem;
   padding: 1.5rem;
@@ -11450,6 +11460,7 @@ body.modal-open {
 }
 
 .activity-log-title,
+.activity-log-mode,
 .activity-log-primary,
 .activity-log-meta,
 .activity-log-balance,
@@ -11461,6 +11472,13 @@ body.modal-open {
 .activity-log-title {
   color: var(--text-light);
   font-size: 1rem;
+}
+
+.activity-log-mode {
+  color: color-mix(in srgb, var(--gold) 72%, white 28%);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .activity-log-primary {
@@ -11491,6 +11509,20 @@ body.modal-open {
 .activity-log-time {
   color: var(--muted);
   font-size: 0.84rem;
+}
+
+.activity-log-topline-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.activity-log-game-logo {
+  width: 0.72rem;
+  height: 0.72rem;
+  object-fit: contain;
+  flex-shrink: 0;
+  opacity: 0.85;
 }
 
 .activity-log-balance {
@@ -13786,11 +13818,16 @@ body.modal-open {
   }
 
   .overview-chart-controls,
+  .chart-filter-stack,
   .chart-filters,
   .bet-grid-filters,
   .activity-filters {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .chart-filter-stack {
+    justify-items: stretch;
   }
 
   .chart-filter-btn {

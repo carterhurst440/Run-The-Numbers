@@ -401,6 +401,12 @@ function isMissingRelationError(error, relationName) {
   return message.includes(relationName) && message.includes("does not exist");
 }
 
+function isPermissionDeniedError(error) {
+  const code = String(error?.code || "");
+  const message = String(error?.message || error?.details || error?.hint || "").toLowerCase();
+  return code === "42501" || message.includes("permission denied") || message.includes("row-level security");
+}
+
 function normalizeContestAllowedGameIds(value) {
   const values = Array.isArray(value) ? value : [];
   const normalized = values
@@ -3300,6 +3306,7 @@ async function recordShapeTraderTrade(entry) {
       }
       throw error;
     }
+    invalidateAccountChartHistory();
   } catch (error) {
     console.error("[RTN] Unable to record shape trader trade", error);
   }
@@ -3535,6 +3542,13 @@ async function refreshShapeTraderGlobalSnapshot() {
         shapeTradersStatePersistenceAvailable = false;
         return;
       }
+      if (isPermissionDeniedError(accountsError)) {
+        shapeTradersGlobalSnapshot = {
+          activeTraderCount: 0,
+          marketCapByAsset: createEmptyShapeTraderMarketCap()
+        };
+        return;
+      }
       throw accountsError;
     }
 
@@ -3545,6 +3559,13 @@ async function refreshShapeTraderGlobalSnapshot() {
     if (positionsError) {
       if (isMissingRelationError(positionsError, "shape_trader_positions_current")) {
         shapeTradersStatePersistenceAvailable = false;
+        return;
+      }
+      if (isPermissionDeniedError(positionsError)) {
+        shapeTradersGlobalSnapshot = {
+          activeTraderCount: 0,
+          marketCapByAsset: createEmptyShapeTraderMarketCap()
+        };
         return;
       }
       throw positionsError;
@@ -13223,13 +13244,7 @@ export async function logGameRun(score, metadata = {}) {
   }
 
   if (sessionUser.id === currentUser?.id) {
-    persistentBankrollUserId = sessionUser.id;
-    persistentBankrollHistory.push({
-      value: endingBankrollSnapshot,
-      created_at: resolvedAtSnapshot,
-      fallbackIndex: persistentBankrollHistory.length
-    });
-    drawBankrollChart();
+    invalidateAccountChartHistory();
   }
 }
 
@@ -13442,6 +13457,8 @@ async function logStandaloneGameHand({
       latestReview.id = hand.id;
     }
 
+    invalidateAccountChartHistory();
+
     return hand;
   } catch (error) {
     console.error("Failed to log standalone game hand", error);
@@ -13512,6 +13529,7 @@ async function logRunTheNumbersHandAndBets(stopperCard, context, betSnapshots, n
     if (latestReview && latestReview.gameKey === GAME_KEYS.RUN_THE_NUMBERS && latestReview.id.startsWith("hand-review-")) {
       latestReview.id = hand.id;
     }
+    invalidateAccountChartHistory();
     return hand;
   } catch (error) {
     console.error("Failed to log hand and bets", error);
@@ -13881,6 +13899,7 @@ const graphToggle = document.getElementById("graph-toggle");
 const chartPanel = document.getElementById("chart-panel");
 const chartClose = document.getElementById("chart-close");
 const bankrollChartFilterButtons = Array.from(document.querySelectorAll("[data-bankroll-period]"));
+const bankrollChartGameFilterButtons = Array.from(document.querySelectorAll("[data-bankroll-game]"));
 const bankrollChartSubhead = document.getElementById("bankroll-chart-subhead");
 const activityFilterButtons = Array.from(document.querySelectorAll("[data-activity-period]"));
 const activeUsersFilterButtons = Array.from(document.querySelectorAll("[data-active-users-period]"));
@@ -14472,6 +14491,7 @@ let bankrollHistory = [];
 let persistentBankrollHistory = [];
 let persistentBankrollUserId = null;
 let bankrollChartPeriod = "year";
+let bankrollChartGameFilter = "all";
 let activityLeaderboardPeriod = "week";
 let activeUsersChartPeriod = "all";
 let autoDealEnabled = true;
@@ -16535,6 +16555,80 @@ async function fetchGameHandsRecords({
   return allRecords;
 }
 
+async function fetchShapeTraderTradeRecords({
+  startAt = null,
+  endAt = null,
+  userId = null,
+  fields = ["executed_at", "trade_side", "net_profit", "contest_id"]
+} = {}) {
+  const allRecords = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = supabase
+      .from("shape_trader_trades")
+      .select(fields.join(", "))
+      .order("executed_at", { ascending: true })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (startAt) {
+      query = query.gte("executed_at", startAt.toISOString());
+    }
+
+    if (endAt) {
+      query = query.lte("executed_at", endAt.toISOString());
+    }
+
+    if (userId) {
+      query = query.eq("user_id", userId);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      throw error;
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    allRecords.push(...rows);
+    hasMore = rows.length === pageSize;
+    page += 1;
+  }
+
+  return allRecords;
+}
+
+async function fetchDailyProfitLossRows(userId) {
+  const allRows = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from("daily_profit_loss")
+      .select("profit_date, pnl_total, pnl_rtn, pnl_g10, pnl_shape_traders")
+      .eq("user_id", userId)
+      .order("profit_date", { ascending: true })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (error) {
+      if (isMissingRelationError(error, "daily_profit_loss")) {
+        return null;
+      }
+      throw error;
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    allRows.push(...rows);
+    hasMore = rows.length === pageSize;
+    page += 1;
+  }
+
+  return allRows;
+}
+
 function buildHandsChartBuckets(period, startDate, endDate = new Date()) {
   const start = new Date(startDate || endDate);
   const end = new Date(endDate);
@@ -16660,69 +16754,102 @@ async function buildHandsByGameSeries(period, {
 }
 
 function formatBankrollTickLabel(point, fallbackIndex, period = "all") {
-  if (point?.created_at) {
-    const date = new Date(point.created_at);
+  if (point?.dayKey) {
+    const [year, month, day] = String(point.dayKey).split("-").map((value) => Number(value || 0));
+    const date = new Date(year, Math.max(0, month - 1), day || 1, 12, 0, 0, 0);
     if (!Number.isNaN(date.getTime())) {
-      if (period === "hour") {
-        return formatAnalyticsDate(date, {
-          hour: "numeric",
-          minute: "2-digit"
-        });
-      }
-      if (period === "day") {
-        return formatAnalyticsDate(date, {
-          month: "short",
-          day: "numeric",
-          hour: "numeric"
-        });
-      }
-      return formatAnalyticsDate(date, {
-        month: "short",
-        day: "numeric"
-      });
+      return formatAnalyticsDate(date, { month: "short", day: "numeric" });
     }
   }
   return String(fallbackIndex + 1);
 }
 
+function getBankrollChartGameValue(point) {
+  if (!point || typeof point !== "object") {
+    return 0;
+  }
+  if (bankrollChartGameFilter === GAME_KEYS.RUN_THE_NUMBERS) {
+    return roundCurrencyValue(Number(point.pnlRtn || 0));
+  }
+  if (bankrollChartGameFilter === GAME_KEYS.GUESS_10) {
+    return roundCurrencyValue(Number(point.pnlG10 || 0));
+  }
+  if (bankrollChartGameFilter === GAME_KEYS.SHAPE_TRADERS) {
+    return roundCurrencyValue(Number(point.pnlShapeTraders || 0));
+  }
+  return roundCurrencyValue(Number(point.pnlTotal || 0));
+}
+
 function getFilteredBankrollHistoryPoints() {
-  let source = persistentBankrollHistory.length
+  const fallbackDayKey = formatAnalyticsDateKey(new Date());
+  const source = persistentBankrollHistory.length
     ? persistentBankrollHistory
-    : bankrollHistory.map((value, index) => ({
-        value,
-        created_at: null,
-        fallbackIndex: index
-      }));
+    : [{
+        dayKey: fallbackDayKey,
+        created_at: new Date().toISOString(),
+        pnlTotal: 0,
+        pnlRtn: 0,
+        pnlG10: 0,
+        pnlShapeTraders: 0,
+        fallbackIndex: 0
+      }];
 
   const startDate = getAnalyticsPeriodStart(bankrollChartPeriod);
-  const filtered = startDate
-    ? source.filter((point) => {
-        if (!point?.created_at) return true;
-        const createdAt = new Date(point.created_at);
-        return !Number.isNaN(createdAt.getTime()) && createdAt >= startDate;
-      })
+  const startDayKey = startDate ? formatAnalyticsDateKey(startDate) : null;
+  const filtered = startDayKey
+    ? source.filter((point) => !point?.dayKey || point.dayKey >= startDayKey)
     : source;
+  const effective = filtered.length
+    ? filtered
+    : [{
+        dayKey: fallbackDayKey,
+        created_at: new Date().toISOString(),
+        pnlTotal: 0,
+        pnlRtn: 0,
+        pnlG10: 0,
+        pnlShapeTraders: 0,
+        fallbackIndex: 0
+      }];
 
-  return filtered.length ? filtered : source.slice(-1);
+  let runningTotal = 0;
+  return effective.map((point, index) => {
+    const dailyNet = getBankrollChartGameValue(point);
+    runningTotal = roundCurrencyValue(runningTotal + dailyNet);
+    return {
+      ...point,
+      dayNet: dailyNet,
+      value: runningTotal,
+      fallbackIndex: Number(point?.fallbackIndex ?? index)
+    };
+  });
 }
 
 function updateBankrollChartFilterUI() {
   bankrollChartFilterButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.bankrollPeriod === bankrollChartPeriod);
   });
+  bankrollChartGameFilterButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.bankrollGame === bankrollChartGameFilter);
+  });
 
   if (!bankrollChartSubhead) return;
 
-  const labels = {
-    hour: "Showing normal-mode account value snapshots from the last hour.",
-    day: "Showing normal-mode account value snapshots from the last 24 hours.",
-    week: "Showing normal-mode bankroll history for the last week.",
-    month: "Showing normal-mode bankroll history for the last month.",
-    "90days": "Showing normal-mode bankroll history for the last 3 months.",
-    year: "Showing normal-mode bankroll history for the last year."
+  const periodLabels = {
+    hour: "the last hour",
+    day: "the last 24 hours",
+    week: "the last week",
+    month: "the last month",
+    "90days": "the last 3 months",
+    year: "the last year"
+  };
+  const gameLabels = {
+    all: "all games",
+    [GAME_KEYS.RUN_THE_NUMBERS]: "Run The Numbers",
+    [GAME_KEYS.GUESS_10]: "Guess 10",
+    [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders"
   };
 
-  bankrollChartSubhead.textContent = labels[bankrollChartPeriod] || labels.year;
+  bankrollChartSubhead.textContent = `Showing daily realized P&L for ${gameLabels[bankrollChartGameFilter] || gameLabels.all} over ${periodLabels[bankrollChartPeriod] || periodLabels.year}. Historical days use saved daily snapshots and today stays live.`;
 }
 
 function updateActivityFilterUI() {
@@ -16782,8 +16909,8 @@ function drawBankrollChart() {
 
   const historyPoints = getFilteredBankrollHistoryPoints();
   const values = historyPoints.length
-    ? historyPoints.map((point) => Number(point?.value ?? bankroll))
-    : [bankroll];
+    ? historyPoints.map((point) => Number(point?.value ?? 0))
+    : [0];
   const padding = {
     top: 28,
     right: 48,
@@ -16820,7 +16947,10 @@ function drawBankrollChart() {
 
   const maxVal = Math.max(...values);
   const minVal = Math.min(...values);
-  const range = maxVal - minVal || 1;
+  const finalValue = Number(values[values.length - 1] || 0);
+  const safeMax = Math.max(maxVal, 0);
+  const safeMin = Math.min(minVal, 0);
+  const range = safeMax - safeMin || 1;
 
   const bodyStyles = getComputedStyle(document.body);
   const rootStyles = getComputedStyle(document.documentElement);
@@ -16829,17 +16959,22 @@ function drawBankrollChart() {
     return raw && raw.trim() ? raw.trim() : fallback;
   };
   const chartBackground = cssVar("--chart-background", "rgba(6, 8, 26, 0.92)");
-  const chartBgStart = cssVar("--chart-background-gradient-start", "rgba(255, 99, 224, 0.18)");
-  const chartBgEnd = cssVar("--chart-background-gradient-end", "rgba(31, 241, 255, 0.16)");
+  const positiveTrend = finalValue >= 0;
+  const chartBgStart = positiveTrend
+    ? "rgba(49, 211, 129, 0.16)"
+    : "rgba(255, 99, 132, 0.18)";
+  const chartBgEnd = positiveTrend
+    ? "rgba(34, 197, 94, 0.06)"
+    : "rgba(239, 68, 68, 0.08)";
   const chartGridColor = cssVar("--chart-grid-color", "rgba(31, 241, 255, 0.18)");
-  const chartFillColor = cssVar("--chart-fill-color", "rgba(31, 241, 255, 0.18)");
-  const chartFillFade = cssVar("--chart-fill-fade", "rgba(31, 241, 255, 0)");
-  const chartLineColor = cssVar("--chart-line-color", "#1ff1ff");
-  const chartLineShadow = cssVar("--chart-line-shadow", "rgba(139, 109, 255, 0.45)");
-  const chartMarkerColor = cssVar("--chart-marker-color", "#ff63e0");
+  const chartFillColor = positiveTrend ? "rgba(34, 197, 94, 0.22)" : "rgba(239, 68, 68, 0.2)";
+  const chartFillFade = positiveTrend ? "rgba(34, 197, 94, 0)" : "rgba(239, 68, 68, 0)";
+  const chartLineColor = positiveTrend ? "#22c55e" : "#f87171";
+  const chartLineShadow = positiveTrend ? "rgba(34, 197, 94, 0.35)" : "rgba(248, 113, 113, 0.35)";
+  const chartMarkerColor = positiveTrend ? "#86efac" : "#fca5a5";
   const chartMarkerStroke = cssVar("--chart-marker-stroke", "rgba(248, 249, 255, 0.85)");
-  const chartMarkerShadow = cssVar("--chart-marker-shadow", "rgba(255, 99, 224, 0.6)");
-  const chartBaseLine = cssVar("--chart-base-line", "rgba(31, 241, 255, 0.35)");
+  const chartMarkerShadow = positiveTrend ? "rgba(34, 197, 94, 0.45)" : "rgba(248, 113, 113, 0.45)";
+  const chartBaseLine = "rgba(226, 232, 240, 0.18)";
   const chartAxisColor = cssVar("--chart-axis-color", "rgba(248, 249, 255, 0.85)");
 
   ctx.fillStyle = chartBackground;
@@ -16868,7 +17003,7 @@ function drawBankrollChart() {
       values.length === 1
         ? padding.left + chartWidth / 2
         : padding.left + (chartWidth * index) / (values.length - 1);
-    const y = padding.top + chartHeight * (1 - (value - minVal) / range);
+    const y = padding.top + chartHeight * (1 - (value - safeMin) / range);
     return { x, y };
   });
 
@@ -16940,8 +17075,8 @@ function drawBankrollChart() {
   ctx.textBaseline = "middle";
   for (let i = 0; i <= 4; i += 1) {
     const y = padding.top + (chartHeight * i) / 4;
-    const valueLabel = minVal + (range * (4 - i)) / 4;
-    ctx.fillText(formatCurrency(Math.round(valueLabel)), padding.left - 12, y);
+    const valueLabel = safeMin + (range * (4 - i)) / 4;
+    ctx.fillText(formatSignedCurrency(valueLabel), padding.left - 12, y);
   }
 
   ctx.textAlign = "center";
@@ -16966,7 +17101,9 @@ function drawBankrollChart() {
 
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  ctx.fillText(`Hands tracked: ${Math.max(0, values.length)}`, padding.left, padding.top + 6);
+  const totalRealized = formatSignedCurrency(finalValue);
+  const dayCount = Math.max(0, historyPoints.length);
+  ctx.fillText(`Realized P&L ${totalRealized} • ${dayCount} day${dayCount === 1 ? "" : "s"}`, padding.left, padding.top + 6);
 }
 
 function recordBankrollHistoryPoint() {
@@ -16980,6 +17117,14 @@ function recordBankrollHistoryPoint() {
 function resetBankrollHistory() {
   bankrollHistory = [bankroll];
   drawBankrollChart();
+}
+
+function invalidateAccountChartHistory() {
+  persistentBankrollHistory = [];
+  persistentBankrollUserId = null;
+  if (chartPanel?.classList.contains("is-open")) {
+    void loadPersistentBankrollHistory({ force: true });
+  }
 }
 
 async function loadPersistentBankrollHistory({ force = false } = {}) {
@@ -16997,56 +17142,151 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
     return;
   }
 
-  const allRuns = [];
-  const pageSize = 1000;
-  let page = 0;
-  let hasMore = true;
+  const todayKey = formatAnalyticsDateKey(new Date());
+  const rawWindowStart = new Date(Date.now() - 48 * 60 * 60 * 1000);
 
-  while (hasMore) {
-    const { data, error } = await supabase
-      .from("game_runs")
-      .select("score, created_at, metadata")
-      .eq("user_id", currentUser.id)
-      .order("created_at", { ascending: true })
-      .range(page * pageSize, (page + 1) * pageSize - 1);
+  try {
+    const snapshotRows = await fetchDailyProfitLossRows(currentUser.id);
+    const hasSnapshots = Array.isArray(snapshotRows) && snapshotRows.length > 0;
 
-    if (error) {
-      console.error("[RTN] loadPersistentBankrollHistory error", error);
-      return;
-    }
+    if (hasSnapshots) {
+      const [todayHands, todayTrades] = await Promise.all([
+        fetchGameHandsRecords({
+          startAt: rawWindowStart,
+          userIds: [currentUser.id],
+          fields: ["user_id", "created_at", "game_id", "net", "mode_type", "contest_id"]
+        }),
+        fetchShapeTraderTradeRecords({
+          startAt: rawWindowStart,
+          userId: currentUser.id,
+          fields: ["executed_at", "trade_side", "net_profit", "contest_id"]
+        })
+      ]);
 
-    if (Array.isArray(data) && data.length) {
-      allRuns.push(...data);
-      hasMore = data.length === pageSize;
-      page += 1;
+      const liveToday = {
+        pnlTotal: 0,
+        pnlRtn: 0,
+        pnlG10: 0,
+        pnlShapeTraders: 0
+      };
+
+      todayHands.forEach((row) => {
+        const dayKey = formatAnalyticsDateKey(row?.created_at);
+        const modeType = String(row?.mode_type || "").trim().toLowerCase();
+        if (dayKey !== todayKey || row?.contest_id || (modeType && modeType !== "normal")) {
+          return;
+        }
+        const net = roundCurrencyValue(Number(row?.net || 0));
+        const gameKey = resolveGameKey(row?.game_id);
+        if (gameKey === GAME_KEYS.RUN_THE_NUMBERS) {
+          liveToday.pnlRtn = roundCurrencyValue(liveToday.pnlRtn + net);
+        } else if (gameKey === GAME_KEYS.GUESS_10) {
+          liveToday.pnlG10 = roundCurrencyValue(liveToday.pnlG10 + net);
+        }
+      });
+
+      todayTrades.forEach((row) => {
+        const dayKey = formatAnalyticsDateKey(row?.executed_at);
+        const tradeSide = String(row?.trade_side || "").trim().toLowerCase();
+        if (dayKey !== todayKey || row?.contest_id || tradeSide !== "sell") {
+          return;
+        }
+        const pnl = roundCurrencyValue(Number(row?.net_profit || 0));
+        liveToday.pnlShapeTraders = roundCurrencyValue(liveToday.pnlShapeTraders + pnl);
+      });
+
+      liveToday.pnlTotal = roundCurrencyValue(
+        liveToday.pnlRtn + liveToday.pnlG10 + liveToday.pnlShapeTraders
+      );
+
+      const historicalRows = snapshotRows
+        .filter((row) => String(row?.profit_date || "") !== todayKey)
+        .map((row, index) => ({
+          dayKey: String(row?.profit_date || ""),
+          created_at: `${row?.profit_date || todayKey}T12:00:00`,
+          pnlTotal: roundCurrencyValue(Number(row?.pnl_total || 0)),
+          pnlRtn: roundCurrencyValue(Number(row?.pnl_rtn || 0)),
+          pnlG10: roundCurrencyValue(Number(row?.pnl_g10 || 0)),
+          pnlShapeTraders: roundCurrencyValue(Number(row?.pnl_shape_traders || 0)),
+          fallbackIndex: index
+        }))
+        .filter((row) => row.dayKey);
+
+      const hasTodayActivity = Object.values(liveToday).some((value) => Math.abs(Number(value || 0)) > 0);
+      persistentBankrollHistory = hasTodayActivity
+        ? [...historicalRows, {
+            dayKey: todayKey,
+            created_at: new Date().toISOString(),
+            ...liveToday,
+            fallbackIndex: historicalRows.length
+          }]
+        : historicalRows;
     } else {
-      hasMore = false;
+      const [allHands, allTrades] = await Promise.all([
+        fetchGameHandsRecords({
+          userIds: [currentUser.id],
+          fields: ["user_id", "created_at", "game_id", "net", "mode_type", "contest_id"]
+        }),
+        fetchShapeTraderTradeRecords({
+          userId: currentUser.id,
+          fields: ["executed_at", "trade_side", "net_profit", "contest_id"]
+        })
+      ]);
+
+      const dailyTotals = new Map();
+      const ensureDay = (dayKey, createdAt) => {
+        if (!dailyTotals.has(dayKey)) {
+          dailyTotals.set(dayKey, {
+            dayKey,
+            created_at: createdAt,
+            pnlTotal: 0,
+            pnlRtn: 0,
+            pnlG10: 0,
+            pnlShapeTraders: 0
+          });
+        }
+        return dailyTotals.get(dayKey);
+      };
+
+      allHands.forEach((row) => {
+        const modeType = String(row?.mode_type || "").trim().toLowerCase();
+        if (row?.contest_id || (modeType && modeType !== "normal")) {
+          return;
+        }
+        const dayKey = formatAnalyticsDateKey(row?.created_at);
+        const bucket = ensureDay(dayKey, row?.created_at || `${dayKey}T12:00:00`);
+        const net = roundCurrencyValue(Number(row?.net || 0));
+        const gameKey = resolveGameKey(row?.game_id);
+        if (gameKey === GAME_KEYS.RUN_THE_NUMBERS) {
+          bucket.pnlRtn = roundCurrencyValue(bucket.pnlRtn + net);
+        } else if (gameKey === GAME_KEYS.GUESS_10) {
+          bucket.pnlG10 = roundCurrencyValue(bucket.pnlG10 + net);
+        }
+      });
+
+      allTrades.forEach((row) => {
+        const tradeSide = String(row?.trade_side || "").trim().toLowerCase();
+        if (row?.contest_id || tradeSide !== "sell") {
+          return;
+        }
+        const dayKey = formatAnalyticsDateKey(row?.executed_at);
+        const bucket = ensureDay(dayKey, row?.executed_at || `${dayKey}T12:00:00`);
+        const pnl = roundCurrencyValue(Number(row?.net_profit || 0));
+        bucket.pnlShapeTraders = roundCurrencyValue(bucket.pnlShapeTraders + pnl);
+      });
+
+      persistentBankrollHistory = Array.from(dailyTotals.values())
+        .map((row, index) => ({
+          ...row,
+          pnlTotal: roundCurrencyValue(row.pnlRtn + row.pnlG10 + row.pnlShapeTraders),
+          fallbackIndex: index
+        }))
+        .sort((left, right) => String(left.dayKey).localeCompare(String(right.dayKey)));
     }
+  } catch (error) {
+    console.error("[RTN] loadPersistentBankrollHistory error", error);
+    return;
   }
-
-  const normalModeRuns = allRuns.filter((run) => {
-    const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
-    const accountMode = String(metadata?.account_mode || "").trim().toLowerCase();
-    const contestId = metadata?.contest_id;
-    const hasExplicitContestMode = accountMode === "contest";
-    const isContestLinked = Boolean(contestId);
-    const isNormalOrLegacyRun = !accountMode || accountMode === "normal";
-    return isNormalOrLegacyRun && !isContestLinked && !hasExplicitContestMode;
-  }).sort(compareRunsByResolvedAt);
-
-  persistentBankrollHistory = normalModeRuns.map((run, index) => {
-    const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
-    const endingBankroll = Number(metadata?.ending_bankroll);
-    if (!Number.isFinite(endingBankroll)) {
-      return null;
-    }
-
-    return {
-      value: Number(endingBankroll.toFixed(2)),
-      created_at: getRunResolvedAt(run),
-      fallbackIndex: index
-    };
-  }).filter(Boolean);
 
   persistentBankrollUserId = currentUser.id;
   updateBankrollChartFilterUI();
@@ -19420,6 +19660,7 @@ function formatActivityLogTimestamp(value) {
 function mapGameHandRowToActivityEntry(row) {
   const gameKey = resolveGameKey(row?.game_id);
   const fallbackId = row?.created_at || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const modeType = String(row?.mode_type || "").trim().toLowerCase();
   return {
     id: `hand:${row?.id || fallbackId}`,
     entryType: "hand",
@@ -19427,6 +19668,8 @@ function mapGameHandRowToActivityEntry(row) {
     gameKey,
     gameLabel: getGameLabel(gameKey),
     createdAt: row?.created_at || new Date().toISOString(),
+    modeType: modeType || "normal",
+    contestId: row?.contest_id || null,
     totalCards: Math.max(0, Math.round(Number(row?.total_cards || 0))),
     stopperLabel: row?.stopper_label || null,
     stopperSuit: row?.stopper_suit || null,
@@ -19447,6 +19690,8 @@ function mapShapeTraderTradeRowToActivityLogEntry(row) {
     gameKey: GAME_KEYS.SHAPE_TRADERS,
     gameLabel: getGameLabel(GAME_KEYS.SHAPE_TRADERS),
     createdAt: mapped.createdAt,
+    modeType: mapped.contestId ? "contest" : "normal",
+    contestId: mapped.contestId || null,
     side: mapped.side,
     assetId: mapped.assetId,
     assetLabel: mapped.assetLabel,
@@ -19456,6 +19701,15 @@ function mapShapeTraderTradeRowToActivityLogEntry(row) {
     netProfit: mapped.netProfit,
     newAccountValue: mapped.accountValue
   };
+}
+
+function getActivityEntryModeLabel(entry) {
+  if (!entry?.contestId) {
+    return "Normal Mode";
+  }
+  const contest = typeof getContestById === "function" ? getContestById(entry.contestId) : null;
+  const contestTitle = String(contest?.title || "").trim();
+  return contestTitle ? contestTitle : "Contest Mode";
 }
 
 function getFilteredActivityLogEntries() {
@@ -19556,6 +19810,7 @@ function renderActivityLogPage() {
               <div>
                 <p class="activity-log-kicker">${escapeAssistantHtml(entry.gameLabel)}</p>
                 <h3 class="activity-log-title">${escapeAssistantHtml(entry.side === "sell" ? "Sell Executed" : "Buy Executed")}</h3>
+                <p class="activity-log-mode">${escapeAssistantHtml(getActivityEntryModeLabel(entry))}</p>
               </div>
               <div class="activity-log-topline-side">
                 ${getActivityLogGameLogoMarkup(entry.gameKey)}
@@ -19597,6 +19852,7 @@ function renderActivityLogPage() {
             <div>
               <p class="activity-log-kicker">${escapeAssistantHtml(entry.gameLabel)}</p>
               <h3 class="activity-log-title">${escapeAssistantHtml(handDescriptor)}</h3>
+              <p class="activity-log-mode">${escapeAssistantHtml(getActivityEntryModeLabel(entry))}</p>
             </div>
             <div class="activity-log-topline-side">
               ${getActivityLogGameLogoMarkup(entry.gameKey)}
@@ -19683,7 +19939,7 @@ async function loadActivityLogPage({ force = false, append = false } = {}) {
   try {
     const handsQuery = supabase
       .from("game_hands")
-      .select("id, user_id, created_at, game_id, total_cards, stopper_label, stopper_suit, total_wager, total_paid, net, commission_kept, new_account_value, drawn_cards")
+      .select("id, user_id, created_at, game_id, mode_type, contest_id, total_cards, stopper_label, stopper_suit, total_wager, total_paid, net, commission_kept, new_account_value, drawn_cards")
       .eq("user_id", currentUser.id)
       .order("created_at", { ascending: false })
       .limit(activityLogFetchLimit);
@@ -19714,6 +19970,26 @@ async function loadActivityLogPage({ force = false, append = false } = {}) {
     }
 
     const normalizedHands = (Array.isArray(handRows) ? handRows : []).map(mapGameHandRowToActivityEntry);
+    const contestIds = [...new Set(
+      [...normalizedHands, ...normalizedTrades]
+        .map((entry) => String(entry?.contestId || "").trim())
+        .filter(Boolean)
+    )];
+    if (contestIds.length) {
+      const { data: contestRows, error: contestError } = await supabase
+        .from("contests")
+        .select("id, title")
+        .in("id", contestIds);
+      if (!contestError && Array.isArray(contestRows)) {
+        contestRows.forEach((contest) => {
+          if (!contest?.id) return;
+          const existing = getContestById(contest.id);
+          if (!existing) {
+            contestCache.push(contest);
+          }
+        });
+      }
+    }
     activityLogHasMore = normalizedHands.length >= activityLogFetchLimit || normalizedTrades.length >= activityLogFetchLimit;
     const mergedEntries = [...normalizedHands, ...normalizedTrades]
       .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
@@ -20776,6 +21052,14 @@ if (drawerGraphLink && chartPanel && chartClose) {
 bankrollChartFilterButtons.forEach((button) => {
   button.addEventListener("click", () => {
     bankrollChartPeriod = button.dataset.bankrollPeriod || "year";
+    updateBankrollChartFilterUI();
+    drawBankrollChart();
+  });
+});
+
+bankrollChartGameFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    bankrollChartGameFilter = button.dataset.bankrollGame || "all";
     updateBankrollChartFilterUI();
     drawBankrollChart();
   });
