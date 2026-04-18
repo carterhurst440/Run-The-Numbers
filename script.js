@@ -3199,6 +3199,7 @@ function updateShapeTraderWindowActivityState() {
   shapeTradersLastBecameInactiveAt = isActive ? null : Date.now();
   if (isActive) {
     shapeTradersLastHeartbeatAt = 0;
+    shapeTradersNeedsResumeHydration = true;
   }
 }
 
@@ -5385,6 +5386,15 @@ async function synchronizeShapeTraders(now = Date.now()) {
     if (shapeTradersResetInFlight || shapeTradersLocalResetMode) {
       return;
     }
+
+    if (shapeTradersWindowActive && shapeTradersNeedsResumeHydration) {
+      shapeTradersNeedsResumeHydration = false;
+      await hydrateShapeTradersFromDrawTable(now);
+      await refreshShapeTraderGlobalSnapshot();
+      renderShapeTraders();
+      return;
+    }
+
     const currentWindowIndex = getShapeTraderCurrentWindowIndex(now);
     const startingWindowIndex = Math.max(0, shapeTradersProcessedWindowIndex);
     const windowBacklog = Math.max(0, currentWindowIndex - startingWindowIndex);
@@ -14613,6 +14623,7 @@ let shapeTradersLastHeartbeatAt = 0;
 let shapeTradersWindowActive = true;
 let shapeTradersLastBecameInactiveAt = null;
 let shapeTradersWindowActivityListenersBound = false;
+let shapeTradersNeedsResumeHydration = false;
 let shapeTradersRecentDrawRows = [];
 let shapeTradersSyncInFlight = false;
 let shapeTradersResetInFlight = false;
