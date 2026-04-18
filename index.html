@@ -289,25 +289,16 @@
           <div class="drawer-nav">
             <button type="button" data-route-target="home" class="drawer-link">Home</button>
             <button type="button" data-route-target="play" class="drawer-link">Play</button>
-            <button type="button" data-route-target="activity-log" class="drawer-link">Activity Log</button>
-            <button type="button" data-route-target="store" class="drawer-link">Store</button>
-            <button type="button" data-route-target="profile" class="drawer-link">Profile</button>
             <button type="button" data-route-target="contests" id="drawer-contest-link" class="drawer-link drawer-contest-link" hidden>
               <span>Contests</span>
               <span id="drawer-contest-timer" class="drawer-contest-timer">Details</span>
             </button>
-            <button
-              type="button"
-              id="drawer-graph-link"
-              class="drawer-link"
-              aria-expanded="false"
-              aria-controls="chart-panel"
-            >
-              Account Chart
-            </button>
+            <button type="button" data-route-target="activity-log" class="drawer-link">Account Chart &amp; Logs</button>
+            <button type="button" data-route-target="store" class="drawer-link">Store</button>
             <button type="button" data-route-target="admin" class="drawer-link" id="admin-nav" hidden>
               Admin
             </button>
+            <button type="button" data-route-target="profile" class="drawer-link">Profile</button>
             <button type="button" data-action="sign-out" class="drawer-link">Sign out</button>
           </div>
           <div class="drawer-admin-actions">
@@ -340,76 +331,6 @@
             <p class="section-sub">Open a notification to review standings and winners.</p>
           </div>
           <ul id="notifications-list" class="notifications-list" aria-live="polite"></ul>
-        </section>
-      </aside>
-
-      <aside
-        class="drawer chart-panel"
-        id="chart-panel"
-        aria-hidden="true"
-        aria-labelledby="chart-title"
-      >
-        <div class="drawer-header">
-          <h2 id="chart-title">Account Chart &amp; Analytics</h2>
-          <button type="button" class="drawer-close" id="chart-close">
-            <span class="sr-only">Close account chart</span>
-            <span aria-hidden="true">×</span>
-          </button>
-        </div>
-        <div class="drawer-section">
-          <div class="overview-chart-header">
-            <h3 class="chart-title">Realized P&amp;L</h3>
-            <div class="chart-filter-stack">
-              <div class="chart-filters bankroll-history-filters">
-                <button type="button" class="chart-filter-btn" data-bankroll-period="hour">Last Hour</button>
-                <button type="button" class="chart-filter-btn" data-bankroll-period="day">Last 24 Hours</button>
-                <button type="button" class="chart-filter-btn" data-bankroll-period="week">Last Week</button>
-                <button type="button" class="chart-filter-btn" data-bankroll-period="month">Last Month</button>
-                <button type="button" class="chart-filter-btn" data-bankroll-period="90days">Last 3 Months</button>
-                <button type="button" class="chart-filter-btn active" data-bankroll-period="year">Last Year</button>
-              </div>
-              <div class="chart-filters bankroll-game-filters">
-                <button type="button" class="chart-filter-btn active" data-bankroll-game="all">All Games</button>
-                <button type="button" class="chart-filter-btn" data-bankroll-game="game_001">Run The Numbers</button>
-                <button type="button" class="chart-filter-btn" data-bankroll-game="game_002">Guess 10</button>
-                <button type="button" class="chart-filter-btn" data-bankroll-game="shape_traders">Shape Traders</button>
-              </div>
-            </div>
-          </div>
-          <p class="drawer-subhead" id="bankroll-chart-subhead">Daily realized P&amp;L across all games.</p>
-          <div class="bankroll-chart-wrapper" id="bankroll-chart-wrapper" role="presentation">
-            <canvas
-              id="bankroll-chart"
-              class="bankroll-chart"
-              role="img"
-              aria-label="Line chart showing daily realized profit and loss"
-            ></canvas>
-          </div>
-        </div>
-        <section class="drawer-section">
-          <h3 class="drawer-subhead">Session analytics</h3>
-          <div class="stats-strip" aria-label="Game statistics">
-            <div class="stat">
-              <span class="label">Hands Played</span>
-              <span id="hands-played" class="value">0</span>
-            </div>
-            <div class="stat">
-              <span class="label">Total Wagered</span>
-              <span id="total-wagered" class="value">0</span>
-            </div>
-            <div class="stat">
-              <span class="label">Total Paid</span>
-              <span id="total-paid" class="value">0</span>
-            </div>
-            <div class="stat">
-              <span class="label">Hold</span>
-              <span id="hold" class="value">0</span>
-            </div>
-            <div class="stat">
-              <span class="label">House Edge</span>
-              <span id="house-edge" class="value">0%</span>
-            </div>
-          </div>
         </section>
       </aside>
 
@@ -2153,14 +2074,56 @@
           <div class="route-shell activity-log-shell">
             <header class="route-header">
               <div>
-                <h1 id="activity-log-title">Activity Log</h1>
-                <p class="route-subheading">Your RTN hands, Guess 10 hands, and Shape Traders trades in one timeline.</p>
+                <h1 id="activity-log-title">Account Chart &amp; Logs</h1>
+                <p class="route-subheading">Daily realized P&amp;L at the top, then your RTN hands, Guess 10 hands, and Shape Traders trades in one timeline.</p>
               </div>
               <div class="route-actions">
                 <button type="button" id="activity-log-refresh" class="link-button">Refresh</button>
                 <button type="button" data-route-target="home" class="link-button">Back to home</button>
               </div>
             </header>
+            <section class="route-section account-chart-route-section" aria-labelledby="account-chart-section-title">
+              <div class="section-heading">
+                <h2 id="account-chart-section-title">Account Chart</h2>
+                <p class="section-sub">Daily realized P&amp;L across all games or one game at a time.</p>
+              </div>
+              <div class="account-chart-card">
+                <div class="account-chart-toolbar">
+                  <div class="account-chart-periods chart-filters">
+                    <button type="button" class="account-chart-period-btn active" data-bankroll-period="week">1W</button>
+                    <button type="button" class="account-chart-period-btn" data-bankroll-period="month">1M</button>
+                    <button type="button" class="account-chart-period-btn" data-bankroll-period="90days">3M</button>
+                    <button type="button" class="account-chart-period-btn" data-bankroll-period="ytd">YTD</button>
+                    <button type="button" class="account-chart-period-btn" data-bankroll-period="year">1Y</button>
+                    <button type="button" class="account-chart-period-btn" data-bankroll-period="all">ALL</button>
+                  </div>
+                  <div class="account-chart-games chart-filters bankroll-game-filters">
+                    <button type="button" class="account-chart-game-btn active" data-bankroll-game="all">All</button>
+                    <button type="button" class="account-chart-game-btn" data-bankroll-game="game_001">RTN</button>
+                    <button type="button" class="account-chart-game-btn" data-bankroll-game="game_002">G10</button>
+                    <button type="button" class="account-chart-game-btn" data-bankroll-game="shape_traders">ST</button>
+                  </div>
+                </div>
+                <div class="account-chart-summary">
+                  <p class="account-chart-label">Realized profit &amp; loss</p>
+                  <p class="account-chart-total" id="bankroll-chart-total">+$0.00</p>
+                  <p class="account-chart-change" id="bankroll-chart-change">▲ 0.00% Last 30 days</p>
+                  <p class="account-chart-description drawer-subhead" id="bankroll-chart-subhead">Daily realized P&amp;L across all games.</p>
+                </div>
+                <div class="bankroll-chart-wrapper account-chart-visual" id="bankroll-chart-wrapper" role="presentation">
+                  <canvas
+                    id="bankroll-chart"
+                    class="bankroll-chart"
+                    role="img"
+                    aria-label="Bar chart showing daily realized profit and loss"
+                  ></canvas>
+                  <div class="account-chart-tooltip" id="bankroll-chart-tooltip" hidden>
+                    <p class="account-chart-tooltip-date" id="bankroll-chart-tooltip-date">Apr 17</p>
+                    <p class="account-chart-tooltip-value" id="bankroll-chart-tooltip-value">+$0.00</p>
+                  </div>
+                </div>
+              </div>
+            </section>
             <section class="route-section activity-log-section" aria-labelledby="activity-log-list-title">
               <div class="section-heading">
                 <h2 id="activity-log-list-title">Latest Activity</h2>

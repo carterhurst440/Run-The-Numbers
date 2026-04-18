@@ -9637,6 +9637,7 @@ body.play-assistant-open .play-assistant-fab {
   width: 100%;
   overflow: hidden;
   padding-bottom: clamp(0.35rem, 1.3vw, 0.6rem);
+  position: relative;
 }
 
 .bankroll-chart-wrapper::-webkit-scrollbar {
@@ -9658,11 +9659,235 @@ body.play-assistant-open .play-assistant-fab {
   min-width: 100%;
   height: clamp(200px, 32vw, 280px);
   border-radius: 16px;
-  background: rgba(3, 18, 24, 0.82);
-  border: 1px solid rgba(12, 168, 138, 0.26);
-  box-shadow: inset 0 0 35px rgba(12, 168, 138, 0.22);
+  background: transparent;
+  border: none;
+  box-shadow: none;
   display: block;
   max-width: none;
+}
+
+.account-chart-section {
+  padding-top: 0.35rem;
+}
+
+.account-chart-card {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--drawer-bg) 90%, rgba(255, 255, 255, 0.08)),
+      color-mix(in srgb, var(--drawer-bg) 82%, black 18%)
+    );
+  border: 1px solid color-mix(in srgb, var(--drawer-border) 76%, transparent);
+  border-radius: 24px;
+  padding: clamp(1rem, 3vw, 1.4rem);
+  box-shadow:
+    inset 0 0 32px color-mix(in srgb, var(--neon-cyan) 10%, transparent),
+    0 20px 42px rgba(3, 8, 18, 0.22);
+  display: grid;
+  gap: 1rem;
+}
+
+.account-chart-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  flex-wrap: nowrap;
+}
+
+.account-chart-visual {
+  padding: 0.85rem;
+  padding-bottom: 0.85rem;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(5, 7, 12, 0.96), rgba(9, 12, 18, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    inset 0 16px 36px rgba(255, 255, 255, 0.02);
+}
+
+.account-chart-games {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.account-chart-periods {
+  padding: 0.28rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--menu-bg) 70%, black 30%);
+  border: 1px solid color-mix(in srgb, var(--drawer-border) 50%, transparent);
+  width: fit-content;
+}
+
+.account-chart-period-btn,
+.account-chart-game-btn {
+  border: none;
+  background: transparent;
+  color: color-mix(in srgb, var(--text-light) 62%, var(--muted) 38%);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.account-chart-period-btn {
+  min-width: 3.05rem;
+  padding: 0.52rem 0.8rem;
+  border-radius: 999px;
+}
+
+.account-chart-period-btn:hover,
+.account-chart-period-btn:focus-visible {
+  color: var(--text-light);
+  outline: none;
+}
+
+.account-chart-period-btn.active {
+  background: color-mix(in srgb, var(--active-paytable-bg) 88%, rgba(255, 255, 255, 0.08));
+  color: color-mix(in srgb, white 90%, var(--text-light) 10%);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.18);
+}
+
+.account-chart-game-btn {
+  padding: 0.38rem 0.72rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--menu-bg) 64%, black 36%);
+}
+
+.account-chart-game-btn:hover,
+.account-chart-game-btn:focus-visible {
+  color: var(--text-light);
+  background: color-mix(in srgb, var(--active-paytable-bg) 42%, transparent);
+  outline: none;
+}
+
+.account-chart-game-btn.active {
+  background: color-mix(in srgb, var(--active-paytable-bg) 82%, transparent);
+  color: color-mix(in srgb, white 90%, var(--text-light) 10%);
+}
+
+.account-chart-summary {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.account-chart-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.account-chart-total {
+  margin: 0;
+  color: var(--text-light);
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 0.98;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.account-chart-change {
+  margin: 0;
+  color: #16a34a;
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.account-chart-change.is-negative {
+  color: #f97316;
+}
+
+.account-chart-description {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.account-chart-tooltip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, calc(-100% - 10px));
+  min-width: 7rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--menu-bg) 86%, black 14%);
+  border: 1px solid color-mix(in srgb, var(--drawer-border) 72%, transparent);
+  box-shadow: 0 12px 26px rgba(3, 8, 18, 0.26);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.account-chart-tooltip-date,
+.account-chart-tooltip-value {
+  margin: 0;
+}
+
+.account-chart-tooltip-date {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.account-chart-tooltip-value {
+  color: var(--text-light);
+  font-size: 0.9rem;
+  font-weight: 800;
+  margin-top: 0.14rem;
+}
+
+.account-chart-tooltip-value.is-negative {
+  color: #f97316;
+}
+
+@media (max-width: 768px) {
+  .account-chart-card {
+    padding: 0.95rem;
+    border-radius: 20px;
+  }
+
+  .account-chart-toolbar {
+    display: grid;
+    gap: 0.7rem;
+  }
+
+  .account-chart-periods {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .account-chart-period-btn {
+    min-width: 0;
+    flex: 1 1 3.05rem;
+    padding-inline: 0.4rem;
+  }
+
+  .account-chart-games {
+    justify-content: flex-start;
+    margin-left: 0;
+    gap: 0.32rem;
+  }
+
+  .account-chart-game-btn {
+    padding: 0.34rem 0.62rem;
+    font-size: 0.76rem;
+  }
+
+  .account-chart-total {
+    font-size: 2.35rem;
+  }
+
+  .account-chart-change,
+  .account-chart-description {
+    font-size: 0.84rem;
+  }
 }
 
 .card {
@@ -11346,7 +11571,13 @@ body.modal-open {
 }
 
 .activity-log-shell {
-  width: min(100%, 980px);
+  width: min(100%, 1040px);
+  display: grid;
+  gap: 1rem;
+}
+
+.account-chart-route-section {
+  overflow: hidden;
 }
 
 .activity-log-section {

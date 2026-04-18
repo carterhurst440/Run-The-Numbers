@@ -6131,7 +6131,10 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
 
   if (resolvedRoute === "activity-log") {
-    await loadActivityLogPage({ force: true });
+    await Promise.all([
+      loadPersistentBankrollHistory({ force: true }),
+      loadActivityLogPage({ force: true })
+    ]);
   }
 
   if (isAuthRoute || isPublicAuthRoute) {
@@ -14022,9 +14025,14 @@ const utilityClose = document.getElementById("utility-close");
 const graphToggle = document.getElementById("graph-toggle");
 const chartPanel = document.getElementById("chart-panel");
 const chartClose = document.getElementById("chart-close");
-const bankrollPeriodSelect = document.getElementById("bankroll-period-select");
+const bankrollChartFilterButtons = Array.from(document.querySelectorAll("[data-bankroll-period]"));
 const bankrollChartGameFilterButtons = Array.from(document.querySelectorAll("[data-bankroll-game]"));
 const bankrollChartSubhead = document.getElementById("bankroll-chart-subhead");
+const bankrollChartTotalEl = document.getElementById("bankroll-chart-total");
+const bankrollChartChangeEl = document.getElementById("bankroll-chart-change");
+const bankrollChartTooltip = document.getElementById("bankroll-chart-tooltip");
+const bankrollChartTooltipDateEl = document.getElementById("bankroll-chart-tooltip-date");
+const bankrollChartTooltipValueEl = document.getElementById("bankroll-chart-tooltip-value");
 const activityFilterButtons = Array.from(document.querySelectorAll("[data-activity-period]"));
 const activeUsersFilterButtons = Array.from(document.querySelectorAll("[data-active-users-period]"));
 const activeUsersSubheadEl = document.getElementById("active-users-subhead");
@@ -14616,6 +14624,7 @@ let persistentBankrollHistory = [];
 let persistentBankrollUserId = null;
 let bankrollChartPeriod = "month";
 let bankrollChartGameFilter = "all";
+let bankrollChartHoverBars = [];
 let activityLeaderboardPeriod = "week";
 let activeUsersChartPeriod = "all";
 let autoDealEnabled = true;
@@ -16895,6 +16904,99 @@ function formatBankrollTickLabel(point, fallbackIndex, period = "all") {
   return String(fallbackIndex + 1);
 }
 
+function getBankrollPeriodSummaryLabel(period = "month") {
+  const labels = {
+    week: "Last 7 days",
+    month: "Last 30 days",
+    "90days": "Last 90 days",
+    ytd: "Year to date",
+    year: "Last 365 days",
+    all: "All time"
+  };
+  return labels[period] || labels.month;
+}
+
+function normalizeBankrollChartGameFilter(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized || normalized === "all") {
+    return "all";
+  }
+  return normalizeGameKey(normalized) || "all";
+}
+
+function getBankrollChartBarWidth(period, barSpacing) {
+  const widthScaleByPeriod = {
+    week: 0.72,
+    month: 0.58,
+    "90days": 0.46,
+    ytd: 0.4,
+    year: 0.34,
+    all: 0.28
+  };
+  const maxWidthByPeriod = {
+    week: 26,
+    month: 18,
+    "90days": 14,
+    ytd: 12,
+    year: 10,
+    all: 8
+  };
+  const widthScale = widthScaleByPeriod[period] || widthScaleByPeriod.month;
+  const maxWidth = maxWidthByPeriod[period] || maxWidthByPeriod.month;
+  return Math.max(4, Math.min(maxWidth, barSpacing * widthScale));
+}
+
+function drawRoundedChartBar(ctx, x, y, width, height, radius) {
+  if (!ctx || width <= 0 || height <= 0) {
+    return;
+  }
+  const effectiveRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + effectiveRadius, y);
+  ctx.lineTo(x + width - effectiveRadius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + effectiveRadius);
+  ctx.lineTo(x + width, y + height - effectiveRadius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - effectiveRadius, y + height);
+  ctx.lineTo(x + effectiveRadius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - effectiveRadius);
+  ctx.lineTo(x, y + effectiveRadius);
+  ctx.quadraticCurveTo(x, y, x + effectiveRadius, y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function hideBankrollChartTooltip() {
+  if (bankrollChartTooltip) {
+    bankrollChartTooltip.hidden = true;
+  }
+}
+
+function showBankrollChartTooltip(bar) {
+  if (!bankrollChartTooltip || !bankrollChartTooltipDateEl || !bankrollChartTooltipValueEl || !bar) {
+    return;
+  }
+
+  bankrollChartTooltipDateEl.textContent = bar.label;
+  bankrollChartTooltipValueEl.textContent = formatSignedCurrency(bar.value);
+  bankrollChartTooltipValueEl.classList.toggle("is-negative", Number(bar.value || 0) < 0);
+
+  const wrapperRect = bankrollChartWrapper?.getBoundingClientRect();
+  if (!wrapperRect) {
+    bankrollChartTooltip.hidden = false;
+    return;
+  }
+
+  bankrollChartTooltip.hidden = false;
+  const tooltipWidth = bankrollChartTooltip.offsetWidth || 112;
+  const horizontalPadding = 10;
+  const minLeft = tooltipWidth / 2 + horizontalPadding;
+  const maxLeft = wrapperRect.width - tooltipWidth / 2 - horizontalPadding;
+  const left = Math.max(minLeft, Math.min(maxLeft, bar.centerX));
+  const top = Math.max(8, bar.anchorY);
+  bankrollChartTooltip.style.left = `${left}px`;
+  bankrollChartTooltip.style.top = `${top}px`;
+}
+
 function getBankrollChartGameValue(point) {
   if (!point || typeof point !== "object") {
     return 0;
@@ -16955,19 +17057,23 @@ function getFilteredBankrollHistoryPoints() {
   });
 }
 
+function bankrolChartFilterHasData(points = []) {
+  return points.some((point) => Math.abs(Number(point?.dayNet || 0)) > 0.0001);
+}
+
 function updateBankrollChartFilterUI() {
-  if (bankrollPeriodSelect) {
-    bankrollPeriodSelect.value = bankrollChartPeriod;
-  }
+  bankrollChartFilterButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.bankrollPeriod === bankrollChartPeriod);
+  });
   bankrollChartGameFilterButtons.forEach((button) => {
-    button.classList.toggle("active", button.dataset.bankrollGame === bankrollChartGameFilter);
+    button.classList.toggle("active", normalizeBankrollChartGameFilter(button.dataset.bankrollGame || "all") === bankrollChartGameFilter);
   });
 
   if (!bankrollChartSubhead) return;
 
   const periodLabels = {
     week: "the last 7 days",
-    month: "the last month",
+    month: "the last 30 days",
     "90days": "the last 3 months",
     ytd: "year to date",
     year: "the last 365 days",
@@ -16980,7 +17086,7 @@ function updateBankrollChartFilterUI() {
     [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders"
   };
 
-  bankrollChartSubhead.textContent = `Showing daily realized P&L for ${gameLabels[bankrollChartGameFilter] || gameLabels.all} over ${periodLabels[bankrollChartPeriod] || periodLabels.year}. Historical days use saved daily snapshots and today stays live.`;
+  bankrollChartSubhead.textContent = `${gameLabels[bankrollChartGameFilter] || gameLabels.all} · ${periodLabels[bankrollChartPeriod] || periodLabels.year} · daily realized P&L`;
 }
 
 function updateActivityFilterUI() {
@@ -17039,14 +17145,17 @@ function drawBankrollChart() {
   if (!bankrollChartCanvas || !bankrollChartCtx) return;
 
   const historyPoints = getFilteredBankrollHistoryPoints();
+  const hasFilterData = bankrolChartFilterHasData(historyPoints);
+  bankrollChartHoverBars = [];
+  hideBankrollChartTooltip();
   const values = historyPoints.length
-    ? historyPoints.map((point) => Number(point?.value ?? 0))
+    ? historyPoints.map((point) => Number(point?.dayNet ?? 0))
     : [0];
   const padding = {
-    top: 28,
-    right: 48,
-    bottom: 64,
-    left: 84
+    top: 12,
+    right: 12,
+    bottom: 18,
+    left: 12
   };
   const minCanvasWidth = 240;
 
@@ -17074,167 +17183,82 @@ function drawBankrollChart() {
   const height = rect.height;
   const chartWidth = Math.max(1, width - padding.left - padding.right);
   const chartHeight = Math.max(1, height - padding.top - padding.bottom);
-  const baseY = padding.top + chartHeight;
+  const maxAbs = Math.max(...values.map((value) => Math.abs(value)), 1);
+  const zeroY = padding.top + chartHeight / 2;
+  const totalRealizedValue = roundCurrencyValue(values.reduce((sum, value) => sum + Number(value || 0), 0));
+  const summaryBasis = Math.max(1, Math.abs(roundCurrencyValue(bankroll - totalRealizedValue)));
+  const summaryPct = (totalRealizedValue / summaryBasis) * 100;
+  const isPositive = totalRealizedValue >= 0;
+  const positiveColor = "#16a34a";
+  const negativeColor = "#f97316";
+  const baselineColor = "rgba(148, 163, 184, 0.45)";
+  const minorColor = "rgba(148, 163, 184, 0.16)";
 
-  const maxVal = Math.max(...values);
-  const minVal = Math.min(...values);
-  const finalValue = Number(values[values.length - 1] || 0);
-  const safeMax = Math.max(maxVal, 0);
-  const safeMin = Math.min(minVal, 0);
-  const range = safeMax - safeMin || 1;
-
-  const bodyStyles = getComputedStyle(document.body);
-  const rootStyles = getComputedStyle(document.documentElement);
-  const cssVar = (name, fallback) => {
-    const raw = bodyStyles.getPropertyValue(name) || rootStyles.getPropertyValue(name);
-    return raw && raw.trim() ? raw.trim() : fallback;
-  };
-  const chartBackground = cssVar("--chart-background", "rgba(6, 8, 26, 0.92)");
-  const positiveTrend = finalValue >= 0;
-  const chartBgStart = positiveTrend
-    ? "rgba(49, 211, 129, 0.16)"
-    : "rgba(255, 99, 132, 0.18)";
-  const chartBgEnd = positiveTrend
-    ? "rgba(34, 197, 94, 0.06)"
-    : "rgba(239, 68, 68, 0.08)";
-  const chartGridColor = cssVar("--chart-grid-color", "rgba(31, 241, 255, 0.18)");
-  const chartFillColor = positiveTrend ? "rgba(34, 197, 94, 0.22)" : "rgba(239, 68, 68, 0.2)";
-  const chartFillFade = positiveTrend ? "rgba(34, 197, 94, 0)" : "rgba(239, 68, 68, 0)";
-  const chartLineColor = positiveTrend ? "#22c55e" : "#f87171";
-  const chartLineShadow = positiveTrend ? "rgba(34, 197, 94, 0.35)" : "rgba(248, 113, 113, 0.35)";
-  const chartMarkerColor = positiveTrend ? "#86efac" : "#fca5a5";
-  const chartMarkerStroke = cssVar("--chart-marker-stroke", "rgba(248, 249, 255, 0.85)");
-  const chartMarkerShadow = positiveTrend ? "rgba(34, 197, 94, 0.45)" : "rgba(248, 113, 113, 0.45)";
-  const chartBaseLine = "rgba(226, 232, 240, 0.18)";
-  const chartAxisColor = cssVar("--chart-axis-color", "rgba(248, 249, 255, 0.85)");
-
-  ctx.fillStyle = chartBackground;
-  ctx.fillRect(0, 0, width, height);
-
-  const backgroundGradient = ctx.createLinearGradient(0, 0, width, height);
-  backgroundGradient.addColorStop(0, chartBgStart);
-  backgroundGradient.addColorStop(1, chartBgEnd);
-  ctx.fillStyle = backgroundGradient;
-  ctx.fillRect(0, 0, width, height);
-
-  ctx.strokeStyle = chartGridColor;
-  ctx.lineWidth = 1;
-  ctx.setLineDash([6, 10]);
-  for (let i = 0; i <= 4; i += 1) {
-    const y = padding.top + (chartHeight * i) / 4;
-    ctx.beginPath();
-    ctx.moveTo(padding.left, y);
-    ctx.lineTo(width - padding.right, y);
-    ctx.stroke();
+  if (bankrollChartTotalEl) {
+    bankrollChartTotalEl.textContent = hasFilterData ? formatSignedCurrency(totalRealizedValue) : "—";
   }
-  ctx.setLineDash([]);
-
-  const points = values.map((value, index) => {
-    const x =
-      values.length === 1
-        ? padding.left + chartWidth / 2
-        : padding.left + (chartWidth * index) / (values.length - 1);
-    const y = padding.top + chartHeight * (1 - (value - safeMin) / range);
-    return { x, y };
-  });
-
-  if (points.length >= 2) {
-    const fillGradient = ctx.createLinearGradient(0, padding.top, 0, baseY);
-    fillGradient.addColorStop(0, chartFillColor);
-    fillGradient.addColorStop(1, chartFillFade);
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i += 1) {
-      ctx.lineTo(points[i].x, points[i].y);
+  if (bankrollChartChangeEl) {
+    if (hasFilterData) {
+      const arrow = totalRealizedValue >= 0 ? "▲" : "▼";
+      bankrollChartChangeEl.textContent = `${arrow} ${Math.abs(summaryPct).toFixed(2)}% ${getBankrollPeriodSummaryLabel(bankrollChartPeriod)}`;
+      bankrollChartChangeEl.classList.toggle("is-negative", !isPositive);
+    } else {
+      bankrollChartChangeEl.textContent = `No realized P&L data for ${getBankrollPeriodSummaryLabel(bankrollChartPeriod)}`;
+      bankrollChartChangeEl.classList.remove("is-negative");
     }
-    ctx.lineTo(points[points.length - 1].x, baseY);
-    ctx.lineTo(points[0].x, baseY);
-    ctx.closePath();
-    ctx.fillStyle = fillGradient;
-    ctx.fill();
+  }
+  if (bankrollChartSubhead && !hasFilterData) {
+    const gameLabels = {
+      all: "all games",
+      [GAME_KEYS.RUN_THE_NUMBERS]: "Run The Numbers",
+      [GAME_KEYS.GUESS_10]: "Guess 10",
+      [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders"
+    };
+    bankrollChartSubhead.textContent = `No daily realized P&L recorded for ${gameLabels[bankrollChartGameFilter] || gameLabels.all} in this range.`;
   }
 
+  ctx.strokeStyle = minorColor;
+  ctx.lineWidth = 1;
   ctx.beginPath();
-  if (points.length === 1) {
-    const point = points[0];
-    ctx.fillStyle = chartLineColor;
-    ctx.shadowColor = chartLineShadow;
-    ctx.shadowBlur = 12;
-    ctx.arc(point.x, point.y, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-  } else {
-    points.forEach((point, index) => {
-      if (index === 0) {
-        ctx.moveTo(point.x, point.y);
-      } else {
-        ctx.lineTo(point.x, point.y);
-      }
-    });
-    ctx.strokeStyle = chartLineColor;
-    ctx.lineWidth = 2.8;
-    ctx.shadowColor = chartLineShadow;
-    ctx.shadowBlur = 16;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-  }
-
-  if (points.length > 0) {
-    const lastPoint = points[points.length - 1];
-    ctx.beginPath();
-    ctx.fillStyle = chartMarkerColor;
-    ctx.strokeStyle = chartMarkerStroke;
-    ctx.lineWidth = 2.2;
-    ctx.shadowColor = chartMarkerShadow;
-    ctx.shadowBlur = 12;
-    ctx.arc(lastPoint.x, lastPoint.y, 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-  }
-
-  ctx.strokeStyle = chartBaseLine;
-  ctx.lineWidth = 1.6;
-  ctx.beginPath();
-  ctx.moveTo(padding.left, baseY);
-  ctx.lineTo(width - padding.right, baseY);
+  ctx.moveTo(padding.left, padding.top + chartHeight * 0.2);
+  ctx.lineTo(width - padding.right, padding.top + chartHeight * 0.2);
+  ctx.moveTo(padding.left, padding.top + chartHeight * 0.8);
+  ctx.lineTo(width - padding.right, padding.top + chartHeight * 0.8);
   ctx.stroke();
 
-  ctx.font = "600 12px 'Play', 'Segoe UI', sans-serif";
-  ctx.fillStyle = chartAxisColor;
-  ctx.textAlign = "right";
-  ctx.textBaseline = "middle";
-  for (let i = 0; i <= 4; i += 1) {
-    const y = padding.top + (chartHeight * i) / 4;
-    const valueLabel = safeMin + (range * (4 - i)) / 4;
-    ctx.fillText(formatSignedCurrency(valueLabel), padding.left - 12, y);
+  ctx.strokeStyle = baselineColor;
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(padding.left, zeroY);
+  ctx.lineTo(width - padding.right, zeroY);
+  ctx.stroke();
+
+  if (!hasFilterData) {
+    return;
   }
 
-  ctx.textAlign = "center";
-  ctx.textBaseline = "top";
-  if (points.length > 0) {
-    const tickIndices = [];
-    const minSpacing = 48;
-    let lastX = -Infinity;
-    points.forEach((point, index) => {
-      const isEdge = index === 0 || index === points.length - 1;
-      if (isEdge || point.x - lastX >= minSpacing) {
-        tickIndices.push(index);
-        lastX = point.x;
-      }
-    });
+  const barSpacing = chartWidth / Math.max(values.length, 1);
+  const barWidth = getBankrollChartBarWidth(bankrollChartPeriod, barSpacing);
+  const barRadius = Math.min(6, barWidth * 0.36);
 
-    tickIndices.forEach((index) => {
-      const point = points[index];
-      ctx.fillText(formatBankrollTickLabel(historyPoints[index], index, bankrollChartPeriod), point.x, baseY + 8);
+  values.forEach((value, index) => {
+    const magnitude = Math.min(Math.abs(Number(value || 0)) / maxAbs, 1);
+    const barHeight = Math.max(2, magnitude * (chartHeight / 2 - 8));
+    const x = padding.left + index * barSpacing + (barSpacing - barWidth) / 2;
+    const y = value >= 0 ? zeroY - barHeight : zeroY;
+    ctx.fillStyle = value >= 0 ? positiveColor : negativeColor;
+    drawRoundedChartBar(ctx, x, y, barWidth, barHeight, barRadius);
+    bankrollChartHoverBars.push({
+      x,
+      y,
+      width: barWidth,
+      height: barHeight,
+      centerX: x + barWidth / 2,
+      anchorY: y,
+      value,
+      label: formatBankrollTickLabel(historyPoints[index], index, bankrollChartPeriod)
     });
-  }
-
-  ctx.textAlign = "left";
-  ctx.textBaseline = "top";
-  const totalRealized = formatSignedCurrency(finalValue);
-  const dayCount = Math.max(0, historyPoints.length);
-  ctx.fillText(`Realized P&L ${totalRealized} • ${dayCount} day${dayCount === 1 ? "" : "s"}`, padding.left, padding.top + 6);
+  });
 }
 
 function recordBankrollHistoryPoint() {
@@ -17253,7 +17277,7 @@ function resetBankrollHistory() {
 function invalidateAccountChartHistory() {
   persistentBankrollHistory = [];
   persistentBankrollUserId = null;
-  if (chartPanel?.classList.contains("is-open")) {
+  if (currentRoute === "activity-log" || chartPanel?.classList.contains("is-open")) {
     void loadPersistentBankrollHistory({ force: true });
   }
 }
@@ -17662,13 +17686,23 @@ function animateBankrollOutcome(delta) {
 }
 
 function updateStatsUI() {
-  handsPlayedEl.textContent = stats.hands.toString();
-  totalWageredEl.textContent = formatCurrency(stats.wagered);
-  totalPaidEl.textContent = formatCurrency(stats.paid);
+  if (handsPlayedEl) {
+    handsPlayedEl.textContent = stats.hands.toString();
+  }
+  if (totalWageredEl) {
+    totalWageredEl.textContent = formatCurrency(stats.wagered);
+  }
+  if (totalPaidEl) {
+    totalPaidEl.textContent = formatCurrency(stats.paid);
+  }
   const hold = stats.wagered - stats.paid;
-  holdEl.textContent = formatCurrency(hold);
+  if (holdEl) {
+    holdEl.textContent = formatCurrency(hold);
+  }
   const edge = stats.wagered > 0 ? (hold / stats.wagered) * 100 : 0;
-  houseEdgeEl.textContent = `${edge.toFixed(2)}%`;
+  if (houseEdgeEl) {
+    houseEdgeEl.textContent = `${edge.toFixed(2)}%`;
+  }
 }
 
 function formatStopper({ label, suit }) {
@@ -21180,21 +21214,45 @@ if (drawerGraphLink && chartPanel && chartClose) {
   });
 }
 
-if (bankrollPeriodSelect) {
-  bankrollPeriodSelect.addEventListener("change", () => {
-    bankrollChartPeriod = bankrollPeriodSelect.value || "month";
-    updateBankrollChartFilterUI();
-    drawBankrollChart();
-  });
-}
-
-bankrollChartGameFilterButtons.forEach((button) => {
+bankrollChartFilterButtons.forEach((button) => {
   button.addEventListener("click", () => {
-    bankrollChartGameFilter = button.dataset.bankrollGame || "all";
+    bankrollChartPeriod = button.dataset.bankrollPeriod || "month";
     updateBankrollChartFilterUI();
     drawBankrollChart();
   });
 });
+
+bankrollChartGameFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    bankrollChartGameFilter = normalizeBankrollChartGameFilter(button.dataset.bankrollGame || "all");
+    updateBankrollChartFilterUI();
+    drawBankrollChart();
+  });
+});
+
+if (bankrollChartCanvas && bankrollChartWrapper) {
+  bankrollChartCanvas.addEventListener("mousemove", (event) => {
+    const rect = bankrollChartCanvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const hit = bankrollChartHoverBars.find((bar) => (
+      x >= bar.x &&
+      x <= bar.x + bar.width &&
+      y >= bar.y &&
+      y <= bar.y + bar.height
+    ));
+
+    if (hit) {
+      showBankrollChartTooltip(hit);
+    } else {
+      hideBankrollChartTooltip();
+    }
+  });
+
+  bankrollChartCanvas.addEventListener("mouseleave", () => {
+    hideBankrollChartTooltip();
+  });
+}
 
 activityFilterButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -21872,7 +21930,10 @@ if (activityLogListEl) {
 
 if (activityLogRefreshButton) {
   activityLogRefreshButton.addEventListener("click", () => {
-    void loadActivityLogPage({ force: true });
+    void Promise.all([
+      loadPersistentBankrollHistory({ force: true }),
+      loadActivityLogPage({ force: true })
+    ]);
   });
 }
 
