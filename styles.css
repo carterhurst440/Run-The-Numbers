@@ -6839,11 +6839,6 @@ body.theme-angelic {
     padding: 0.9rem;
   }
 
-  .shape-traders-header-balance .shape-traders-balance-list,
-  .shape-traders-header-balance-actions {
-    grid-template-columns: none;
-  }
-
   .shape-traders-header-actions,
   .shape-traders-trade-actions,
   .shape-traders-activity-main,
@@ -6853,34 +6848,75 @@ body.theme-angelic {
   }
 
   .shape-traders-header-balance {
-    gap: 0.6rem;
+    grid-template-columns: minmax(0, 1fr) minmax(4.65rem, 0.88fr);
+    grid-template-rows: auto auto;
+    gap: 0.5rem 0.42rem;
   }
 
   .shape-traders-header-balance .shape-traders-balance-list {
+    grid-column: 1 / 2;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.42rem;
+    min-width: 0;
   }
 
   .shape-traders-header-balance .shape-traders-balance-list div {
-    padding: 0.58rem 0.32rem;
-    justify-content: center;
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 0.22rem;
+    padding: 0;
+    justify-content: stretch;
     text-align: center;
+    min-width: 0;
   }
 
   .shape-traders-header-balance .shape-traders-balance-list dt {
-    font-size: 0.52rem;
+    min-height: 1.2rem;
+    font-size: 0.44rem;
+    letter-spacing: 0.11em;
   }
 
   .shape-traders-header-balance .shape-traders-balance-list dd {
-    font-size: 0.74rem;
+    min-height: 2.7rem;
+    width: 100%;
+    padding: 0.3rem 0.18rem;
+    font-size: 0.78rem;
+    line-height: 1;
   }
 
   .shape-traders-header-balance-actions {
-    flex: 0 0 auto;
-    width: auto;
+    grid-column: 2 / 3;
+    grid-row: 2;
+    display: flex;
+    align-items: end;
+    justify-content: stretch;
+    width: 100%;
+    min-width: 0;
+    align-self: end;
   }
 
   .shape-traders-header-button {
-    width: auto;
+    width: 100%;
+  }
+
+  #shape-traders-liquidate-nav {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    min-height: 2.7rem;
+    padding: 0.3rem 0.18rem;
+    border-radius: 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--header-border-color) 72%, rgba(255, 255, 255, 0.16));
+    background: color-mix(in srgb, var(--menu-bg) 72%, black 28%);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+      0 0 0 1px rgba(10, 16, 34, 0.18);
+    font-size: 0.5rem;
+    line-height: 1.05;
+    letter-spacing: 0.12em;
+    text-align: center;
   }
 
   .shape-traders-header-back-button {
