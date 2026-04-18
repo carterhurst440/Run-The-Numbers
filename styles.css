@@ -1776,6 +1776,29 @@ body[data-app-state="loading"] #app-shell {
   letter-spacing: 0.08em;
 }
 
+#shape-traders-liquidate-nav {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: color-mix(in srgb, var(--gold) 74%, var(--text-light) 26%);
+}
+
+#shape-traders-liquidate-nav:hover:not(:disabled),
+#shape-traders-liquidate-nav:focus-visible:not(:disabled) {
+  background: transparent;
+  box-shadow: none;
+  color: color-mix(in srgb, var(--gold) 88%, white 12%);
+}
+
+#shape-traders-liquidate-nav:disabled {
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+}
+
 .shape-traders-header-balance {
   display: flex;
   align-items: center;
@@ -1820,6 +1843,9 @@ body[data-app-state="loading"] #app-shell {
   min-width: 0;
   padding: 0;
   border-radius: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .shape-traders-header-balance .shape-traders-balance-list dt {
@@ -1837,8 +1863,10 @@ body[data-app-state="loading"] #app-shell {
   padding: 0.45rem 0.68rem;
   border-radius: 0.85rem;
   background: color-mix(in srgb, var(--menu-bg) 72%, black 28%);
-  border: 1px solid color-mix(in srgb, var(--header-border-color) 68%, transparent);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  border: 1px solid color-mix(in srgb, var(--header-border-color) 72%, rgba(255, 255, 255, 0.16));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 0 0 1px rgba(10, 16, 34, 0.18);
   font-size: 0.96rem;
   line-height: 1.05;
   text-align: center;
@@ -4658,10 +4686,11 @@ body[data-app-state="loading"] #app-shell {
   }
 
   #home-title {
-    font-size: clamp(1.22rem, 7.2vw, 1.82rem);
-    letter-spacing: 0.09em;
-    max-width: min(100%, 12ch);
-    line-height: 1.08;
+    font-size: clamp(1.08rem, 6.4vw, 1.62rem);
+    letter-spacing: 0.06em;
+    max-width: min(100%, 14ch);
+    line-height: 1.06;
+    text-wrap: balance;
   }
 
   .home-subtitle {
@@ -9798,9 +9827,11 @@ body.play-assistant-open .play-assistant-fab {
 }
 
 .account-chart-period-btn.active {
-  background: color-mix(in srgb, var(--active-paytable-bg) 88%, rgba(255, 255, 255, 0.08));
+  background: color-mix(in srgb, var(--theme-action-color, var(--neon-cyan)) 22%, transparent);
   color: color-mix(in srgb, white 90%, var(--text-light) 10%);
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.18);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--theme-action-color, var(--neon-cyan)) 62%, transparent),
+    0 4px 16px color-mix(in srgb, var(--theme-action-color, var(--neon-cyan)) 18%, transparent);
 }
 
 .account-chart-game-btn {
@@ -9819,8 +9850,9 @@ body.play-assistant-open .play-assistant-fab {
 }
 
 .account-chart-game-btn.active {
-  background: color-mix(in srgb, var(--active-paytable-bg) 82%, transparent);
+  background: color-mix(in srgb, var(--theme-action-color, var(--neon-cyan)) 22%, transparent);
   color: color-mix(in srgb, white 90%, var(--text-light) 10%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--theme-action-color, var(--neon-cyan)) 62%, transparent);
 }
 
 .account-chart-summary {
