@@ -14114,6 +14114,9 @@ const handReviewCloseButton = document.getElementById("hand-review-close");
 const handReviewOkButton = document.getElementById("hand-review-ok");
 const activityLogListEl = document.getElementById("activity-log-list");
 const activityLogRefreshButton = document.getElementById("activity-log-refresh");
+const activityLogLoadMoreButton = document.getElementById("activity-log-load-more");
+const activityLogFilterButtons = Array.from(document.querySelectorAll("[data-activity-log-filter]"));
+const activityLogTradeFilterButtons = Array.from(document.querySelectorAll("[data-activity-log-trade-filter]"));
 const outOfCreditsCopyEl = document.getElementById("out-of-credits-copy");
 const betAnalyticsModal = document.getElementById("bet-analytics-modal");
 const betAnalyticsClose = document.getElementById("bet-analytics-close");
@@ -14565,6 +14568,14 @@ let recentHandReviews = [];
 let activityLogEntries = [];
 let activityLogLoadedUserId = null;
 let activityLogLoading = false;
+let activityLogHasMore = false;
+let activityLogFetchLimit = 100;
+let activityLogSelectedGames = new Set([
+  GAME_KEYS.RUN_THE_NUMBERS,
+  GAME_KEYS.GUESS_10,
+  GAME_KEYS.SHAPE_TRADERS
+]);
+let activityLogTradeFilter = "all";
 let handReviewModalTrigger = null;
 let handReviewRequestToken = 0;
 let chipEditorModalTrigger = null;
@@ -19422,10 +19433,45 @@ function mapShapeTraderTradeRowToActivityLogEntry(row) {
   };
 }
 
+function getFilteredActivityLogEntries() {
+  return activityLogEntries.filter((entry) => {
+    if (!activityLogSelectedGames.has(entry.gameKey)) {
+      return false;
+    }
+    if (entry.entryType !== "trade" || entry.gameKey !== GAME_KEYS.SHAPE_TRADERS) {
+      return true;
+    }
+    if (activityLogTradeFilter === "all") {
+      return true;
+    }
+    return entry.side === activityLogTradeFilter;
+  });
+}
+
+function updateActivityLogFilterButtons() {
+  activityLogFilterButtons.forEach((button) => {
+    if (!(button instanceof HTMLElement)) return;
+    const gameKey = button.dataset.activityLogFilter || "";
+    const isActive = activityLogSelectedGames.has(gameKey);
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  });
+
+  activityLogTradeFilterButtons.forEach((button) => {
+    if (!(button instanceof HTMLElement)) return;
+    const tradeFilter = button.dataset.activityLogTradeFilter || "all";
+    const isActive = activityLogTradeFilter === tradeFilter;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  });
+}
+
 function renderActivityLogPage() {
   if (!activityLogListEl) {
     return;
   }
+
+  updateActivityLogFilterButtons();
 
   if (activityLogLoading) {
     activityLogListEl.innerHTML = `
@@ -19436,16 +19482,23 @@ function renderActivityLogPage() {
     return;
   }
 
-  if (!activityLogEntries.length) {
+  const visibleEntries = getFilteredActivityLogEntries();
+
+  if (!visibleEntries.length) {
     activityLogListEl.innerHTML = `
       <li class="activity-log-item activity-log-item-empty">
-        <p>No activity yet. Play a hand or make a trade to start the log.</p>
+        <p>${activityLogEntries.length ? "No activity matches the selected filters." : "No activity yet. Play a hand or make a trade to start the log."}</p>
       </li>
     `;
+    if (activityLogLoadMoreButton) {
+      activityLogLoadMoreButton.hidden = !activityLogHasMore;
+      activityLogLoadMoreButton.disabled = activityLogLoading;
+      activityLogLoadMoreButton.textContent = "Load More";
+    }
     return;
   }
 
-  activityLogListEl.innerHTML = activityLogEntries.map((entry) => {
+  activityLogListEl.innerHTML = visibleEntries.map((entry) => {
     if (entry.entryType === "trade") {
       const netProfitMarkup = entry.netProfit === null || entry.netProfit === undefined
         ? ""
@@ -19508,9 +19561,15 @@ function renderActivityLogPage() {
       </li>
     `;
   }).join("");
+
+  if (activityLogLoadMoreButton) {
+    activityLogLoadMoreButton.hidden = !activityLogHasMore;
+    activityLogLoadMoreButton.disabled = activityLogLoading;
+    activityLogLoadMoreButton.textContent = activityLogLoading ? "Loading…" : "Load More";
+  }
 }
 
-async function loadActivityLogPage({ force = false } = {}) {
+async function loadActivityLogPage({ force = false, append = false } = {}) {
   if (!activityLogListEl) {
     return;
   }
@@ -19519,6 +19578,7 @@ async function loadActivityLogPage({ force = false } = {}) {
     activityLogEntries = [];
     activityLogLoadedUserId = currentUser?.id || null;
     activityLogLoading = false;
+    activityLogHasMore = false;
     renderActivityLogPage();
     return;
   }
@@ -19527,7 +19587,13 @@ async function loadActivityLogPage({ force = false } = {}) {
     return;
   }
 
-  if (!force && activityLogLoadedUserId === currentUser.id && activityLogEntries.length) {
+  if (force) {
+    activityLogFetchLimit = 100;
+  } else if (append) {
+    activityLogFetchLimit += 100;
+  }
+
+  if (!force && !append && activityLogLoadedUserId === currentUser.id && activityLogEntries.length) {
     renderActivityLogPage();
     return;
   }
@@ -19541,14 +19607,14 @@ async function loadActivityLogPage({ force = false } = {}) {
       .select("id, user_id, created_at, game_id, total_cards, stopper_label, stopper_suit, total_wager, total_paid, net, commission_kept, new_account_value")
       .eq("user_id", currentUser.id)
       .order("created_at", { ascending: false })
-      .limit(150);
+      .limit(activityLogFetchLimit);
 
     const tradesQuery = supabase
       .from("shape_trader_trades")
       .select("*")
       .eq("user_id", currentUser.id)
       .order("executed_at", { ascending: false })
-      .limit(150);
+      .limit(activityLogFetchLimit);
 
     const [
       { data: handRows, error: handError },
@@ -19569,14 +19635,16 @@ async function loadActivityLogPage({ force = false } = {}) {
     }
 
     const normalizedHands = (Array.isArray(handRows) ? handRows : []).map(mapGameHandRowToActivityEntry);
+    activityLogHasMore = normalizedHands.length >= activityLogFetchLimit || normalizedTrades.length >= activityLogFetchLimit;
     activityLogEntries = [...normalizedHands, ...normalizedTrades]
       .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-      .slice(0, 200);
+      .slice(0, activityLogFetchLimit);
     activityLogLoadedUserId = currentUser.id;
   } catch (error) {
     console.error("[RTN] Unable to load activity log", error);
     showToast("Unable to load activity log", "error");
     activityLogEntries = [];
+    activityLogHasMore = false;
   } finally {
     activityLogLoading = false;
     renderActivityLogPage();
@@ -21312,6 +21380,35 @@ if (activityLogRefreshButton) {
     void loadActivityLogPage({ force: true });
   });
 }
+
+if (activityLogLoadMoreButton) {
+  activityLogLoadMoreButton.addEventListener("click", () => {
+    void loadActivityLogPage({ append: true });
+  });
+}
+
+activityLogFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const gameKey = button instanceof HTMLElement ? button.dataset.activityLogFilter || "" : "";
+    if (!gameKey) {
+      return;
+    }
+    if (activityLogSelectedGames.has(gameKey)) {
+      activityLogSelectedGames.delete(gameKey);
+    } else {
+      activityLogSelectedGames.add(gameKey);
+    }
+    renderActivityLogPage();
+  });
+});
+
+activityLogTradeFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const nextFilter = button instanceof HTMLElement ? button.dataset.activityLogTradeFilter || "all" : "all";
+    activityLogTradeFilter = nextFilter;
+    renderActivityLogPage();
+  });
+});
 
 if (handReviewCloseButton) {
   handReviewCloseButton.addEventListener("click", () => {

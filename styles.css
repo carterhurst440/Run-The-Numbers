@@ -11343,6 +11343,45 @@ body.modal-open {
   overflow: hidden;
 }
 
+.activity-log-filters,
+.activity-log-subfilters,
+.activity-log-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.activity-log-filter {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--drawer-border) 72%, transparent);
+  background: color-mix(in srgb, var(--drawer-bg) 72%, black 28%);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.activity-log-filter:hover,
+.activity-log-filter:focus-visible {
+  color: var(--text-light);
+  border-color: color-mix(in srgb, var(--neon-cyan) 64%, white 36%);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.activity-log-filter.is-active {
+  color: var(--text-light);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--neon-cyan) 28%, transparent), color-mix(in srgb, var(--neon-magenta) 22%, transparent));
+  border-color: color-mix(in srgb, var(--neon-cyan) 52%, white 48%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--neon-cyan) 18%, transparent), inset 0 0 18px color-mix(in srgb, var(--neon-violet) 12%, transparent);
+}
+
 .activity-log-list {
   list-style: none;
   margin: 0;
@@ -11426,6 +11465,18 @@ body.modal-open {
   .activity-log-footer {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .activity-log-filters,
+  .activity-log-subfilters,
+  .activity-log-actions {
+    width: 100%;
+  }
+
+  .activity-log-filter,
+  .activity-log-actions .link-button {
+    width: 100%;
+    justify-content: center;
   }
 }
 

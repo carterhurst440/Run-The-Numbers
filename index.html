@@ -2158,7 +2158,20 @@
                 <h2 id="activity-log-list-title">Latest Activity</h2>
                 <p class="section-sub">Most recent events appear first with the ending account value saved on each row.</p>
               </div>
+              <div class="activity-log-filters" role="group" aria-label="Filter activity by game">
+                <button type="button" class="activity-log-filter is-active" data-activity-log-filter="game_001">Run The Numbers</button>
+                <button type="button" class="activity-log-filter is-active" data-activity-log-filter="game_002">Guess 10</button>
+                <button type="button" class="activity-log-filter is-active" data-activity-log-filter="game_003">Shape Traders</button>
+              </div>
+              <div class="activity-log-subfilters" role="group" aria-label="Filter Shape Traders trades by side">
+                <button type="button" class="activity-log-filter is-active" data-activity-log-trade-filter="all">All Trades</button>
+                <button type="button" class="activity-log-filter" data-activity-log-trade-filter="buy">Buys</button>
+                <button type="button" class="activity-log-filter" data-activity-log-trade-filter="sell">Sells</button>
+              </div>
               <ul id="activity-log-list" class="activity-log-list" aria-live="polite"></ul>
+              <div class="activity-log-actions">
+                <button type="button" id="activity-log-load-more" class="link-button" hidden>Load More</button>
+              </div>
             </section>
           </div>
         </section>
