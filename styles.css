@@ -7069,11 +7069,11 @@ body.theme-angelic {
   }
 
   .shape-traders-qty-field {
-    justify-items: center;
+    justify-items: start;
   }
 
   .shape-traders-qty-field > span {
-    text-align: center;
+    text-align: left;
   }
 
   .shape-traders-qty-stepper {
