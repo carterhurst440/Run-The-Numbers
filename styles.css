@@ -6848,7 +6848,7 @@ body.theme-angelic {
   }
 
   .shape-traders-header-balance {
-    grid-template-columns: minmax(0, 1fr) minmax(4.65rem, 0.88fr);
+    grid-template-columns: minmax(0, 2fr) minmax(5.1rem, 1fr);
     grid-template-rows: auto auto;
     gap: 0.5rem 0.42rem;
   }
