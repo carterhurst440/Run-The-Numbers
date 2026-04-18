@@ -11518,11 +11518,11 @@ body.modal-open {
 }
 
 .activity-log-game-logo {
-  width: 0.72rem;
-  height: 0.72rem;
+  width: 0.58rem;
+  height: 0.58rem;
   object-fit: contain;
   flex-shrink: 0;
-  opacity: 0.85;
+  opacity: 0.78;
 }
 
 .activity-log-balance {
