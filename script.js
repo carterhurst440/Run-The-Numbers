@@ -2694,65 +2694,6 @@ function createEmptyShapeTraderMarketCap() {
   }, {});
 }
 
-function createInitialShapeTraderMarketCurrentRows() {
-  return SHAPE_TRADERS_ASSETS.map((asset) => ({
-    shape: asset.id,
-    game_id: GAME_KEYS.SHAPE_TRADERS,
-    current_price: SHAPE_TRADERS_START_PRICE,
-    last_draw_id: null,
-    last_window_index: null,
-    last_sequence_in_window: null,
-    last_card_label: null,
-    last_percentage: null,
-    last_event_type: null,
-    bankruptcy_triggered: false,
-    updated_at: new Date().toISOString()
-  }));
-}
-
-function createShapeTraderPriceHistoryRows(drawRow, transitions = []) {
-  if (!drawRow || !Array.isArray(transitions) || !transitions.length) {
-    return [];
-  }
-
-  return transitions.map((transition) => ({
-    draw_id: Number(drawRow.draw_id),
-    game_id: GAME_KEYS.SHAPE_TRADERS,
-    shape: transition.assetId,
-    recorded_at: drawRow.drawn_at,
-    previous_price: roundCurrencyValue(Number(transition.previousPrice || 0)),
-    percentage_applied: Number(transition.percentageApplied || 0),
-    new_price: roundCurrencyValue(Number(transition.newPrice || 0)),
-    event_type: drawRow.card_kind === "macro" ? "macro_card" : "asset_card",
-    split_triggered: Boolean(transition.splitTriggered),
-    bankruptcy_triggered: Boolean(transition.bankruptcyTriggered)
-  }));
-}
-
-function createShapeTraderMarketCurrentRows(drawRow, transitions = [], { eventTypeOverride = null } = {}) {
-  if (!Array.isArray(transitions) || !transitions.length) {
-    return [];
-  }
-
-  const eventType = eventTypeOverride || (drawRow?.card_kind === "macro" ? "macro_card" : "asset_card");
-  return transitions.map((transition) => ({
-    shape: transition.assetId,
-    game_id: GAME_KEYS.SHAPE_TRADERS,
-    current_price: roundCurrencyValue(Number(transition.newPrice || SHAPE_TRADERS_START_PRICE)),
-    last_draw_id: drawRow?.draw_id === undefined || drawRow?.draw_id === null ? null : Number(drawRow.draw_id),
-    last_window_index:
-      drawRow?.window_index === undefined || drawRow?.window_index === null ? null : Math.floor(Number(drawRow.window_index || 0)),
-    last_sequence_in_window:
-      drawRow?.sequence_in_window === undefined || drawRow?.sequence_in_window === null ? null : Math.floor(Number(drawRow.sequence_in_window || 1)),
-    last_card_label: drawRow?.card_label || null,
-    last_percentage:
-      drawRow?.percentage === undefined || drawRow?.percentage === null ? null : Number(drawRow.percentage || 0),
-    last_event_type: eventType,
-    bankruptcy_triggered: Boolean(transition.bankruptcyTriggered),
-    updated_at: drawRow?.drawn_at || new Date().toISOString()
-  }));
-}
-
 function buildShapeTraderPriceSnapshotFromState(prices = shapeTradersCurrentPrices) {
   return {
     previous_square_price: roundCurrencyValue(Number(prices.square || SHAPE_TRADERS_START_PRICE)),
@@ -3385,7 +3326,6 @@ function updateShapeTraderWindowActivityState() {
   shapeTradersLastBecameInactiveAt = isActive ? null : Date.now();
   if (isActive) {
     shapeTradersLastHeartbeatAt = 0;
-    shapeTradersNeedsResumeHydration = true;
   }
 }
 
@@ -3854,167 +3794,6 @@ async function persistShapeTraderDrawRow(windowIndex, sequenceInWindow = 1) {
   return payload;
 }
 
-async function persistShapeTraderPriceHistory(drawRow, transitions) {
-  const rows = createShapeTraderPriceHistoryRows(drawRow, transitions);
-  if (!rows.length || !supabase || !shapeTradersPriceHistoryPersistenceAvailable) {
-    return rows;
-  }
-
-  try {
-    await supabase
-      .from("shape_trader_price_history")
-      .upsert(rows, { onConflict: "draw_id,shape" });
-  } catch (error) {
-    if (isMissingColumnError(error, "split_triggered")) {
-      try {
-        await supabase
-          .from("shape_trader_price_history")
-          .upsert(
-            rows.map(({ split_triggered, ...row }) => row),
-            { onConflict: "draw_id,shape" }
-          );
-        return rows;
-      } catch (retryError) {
-        console.error("[RTN] Unable to persist Shape Traders price history without split_triggered fallback", retryError);
-      }
-    }
-    if (isMissingRelationError(error, "shape_trader_price_history")) {
-      shapeTradersPriceHistoryPersistenceAvailable = false;
-      console.warn("[RTN] shape_trader_price_history table missing; skipping price-history persistence until SQL is applied");
-      return rows;
-    }
-    console.error("[RTN] Unable to persist Shape Traders price history", error);
-  }
-
-  return rows;
-}
-
-async function persistShapeTraderMarketCurrent(drawRow, transitions, options = {}) {
-  const rows = createShapeTraderMarketCurrentRows(drawRow, transitions, options);
-  if (!rows.length || !supabase || !shapeTradersMarketPersistenceAvailable) {
-    return rows;
-  }
-
-  try {
-    await supabase
-      .from("shape_trader_market_current")
-      .upsert(rows, { onConflict: "shape" });
-  } catch (error) {
-    if (isMissingRelationError(error, "shape_trader_market_current")) {
-      shapeTradersMarketPersistenceAvailable = false;
-      console.warn("[RTN] shape_trader_market_current table missing; skipping live market persistence until SQL is applied");
-      return rows;
-    }
-    console.error("[RTN] Unable to persist Shape Traders market current rows", error);
-  }
-
-  return rows;
-}
-
-async function resetShapeTraderMarketCurrentRows() {
-  const rows = createInitialShapeTraderMarketCurrentRows();
-  if (!supabase || !shapeTradersMarketPersistenceAvailable) {
-    applyShapeTraderMarketCurrentRows(rows);
-    return rows;
-  }
-
-  try {
-    await supabase
-      .from("shape_trader_market_current")
-      .upsert(rows, { onConflict: "shape" });
-  } catch (error) {
-    if (isMissingRelationError(error, "shape_trader_market_current")) {
-      shapeTradersMarketPersistenceAvailable = false;
-      applyShapeTraderMarketCurrentRows(rows);
-      return rows;
-    }
-    console.error("[RTN] Unable to reset Shape Traders market current rows", error);
-  }
-
-  applyShapeTraderMarketCurrentRows(rows);
-  return rows;
-}
-
-function applyShapeTraderMarketCurrentRows(rows) {
-  if (!Array.isArray(rows) || !rows.length) {
-    return false;
-  }
-
-  let applied = false;
-  rows.forEach((row) => {
-    if (!row?.shape) return;
-    shapeTradersCurrentPrices[row.shape] = roundCurrencyValue(Number(row.current_price || SHAPE_TRADERS_START_PRICE));
-    applied = true;
-  });
-  return applied;
-}
-
-async function loadShapeTraderMarketCurrentRows() {
-  if (!supabase || !shapeTradersMarketPersistenceAvailable) {
-    return [];
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from("shape_trader_market_current")
-      .select("*")
-      .order("shape", { ascending: true });
-
-    if (error) {
-      if (isMissingRelationError(error, "shape_trader_market_current")) {
-        shapeTradersMarketPersistenceAvailable = false;
-        return [];
-      }
-      throw error;
-    }
-
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error("[RTN] Unable to load Shape Traders market current rows", error);
-    return [];
-  }
-}
-
-async function loadShapeTraderLatestPricesFromHistory() {
-  if (!supabase || !shapeTradersPriceHistoryPersistenceAvailable) {
-    return [];
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from("shape_trader_price_history")
-      .select("*")
-      .order("recorded_at", { ascending: false })
-      .limit(120);
-
-    if (error) {
-      if (isMissingRelationError(error, "shape_trader_price_history")) {
-        shapeTradersPriceHistoryPersistenceAvailable = false;
-        return [];
-      }
-      throw error;
-    }
-
-    const latestByShape = new Map();
-    (Array.isArray(data) ? data : []).forEach((row) => {
-      if (row?.shape && !latestByShape.has(row.shape)) {
-        latestByShape.set(row.shape, row);
-      }
-    });
-
-    return SHAPE_TRADERS_ASSETS
-      .map((asset) => latestByShape.get(asset.id))
-      .filter(Boolean)
-      .map((row) => ({
-        shape: row.shape,
-        current_price: row.new_price
-      }));
-  } catch (error) {
-    console.error("[RTN] Unable to load Shape Traders latest prices from history", error);
-    return [];
-  }
-}
-
 async function deleteShapeTraderTableRows(table, keyField) {
   if (!supabase) return;
 
@@ -4029,12 +3808,10 @@ async function deleteShapeTraderTableRows(table, keyField) {
       if (error) {
         if (isMissingRelationError(error, table)) {
           if (table === "shape_trader_draws") shapeTradersDrawPersistenceAvailable = false;
-          if (table === "shape_trader_price_history") shapeTradersPriceHistoryPersistenceAvailable = false;
           if (table === "shape_trader_trades") shapeTradersTradePersistenceAvailable = false;
           if (table === "shape_trader_accounts_current" || table === "shape_trader_positions_current") {
             shapeTradersStatePersistenceAvailable = false;
           }
-          if (table === "shape_trader_market_current") shapeTradersMarketPersistenceAvailable = false;
           return;
         }
         throw error;
@@ -4057,12 +3834,10 @@ async function deleteShapeTraderTableRows(table, keyField) {
         if (deleteError) {
           if (isMissingRelationError(deleteError, table)) {
             if (table === "shape_trader_draws") shapeTradersDrawPersistenceAvailable = false;
-            if (table === "shape_trader_price_history") shapeTradersPriceHistoryPersistenceAvailable = false;
             if (table === "shape_trader_trades") shapeTradersTradePersistenceAvailable = false;
             if (table === "shape_trader_accounts_current" || table === "shape_trader_positions_current") {
               shapeTradersStatePersistenceAvailable = false;
             }
-            if (table === "shape_trader_market_current") shapeTradersMarketPersistenceAvailable = false;
             return;
           }
           throw deleteError;
@@ -4072,64 +3847,6 @@ async function deleteShapeTraderTableRows(table, keyField) {
   } catch (error) {
     console.error(`[RTN] Unable to clear Shape Traders table ${table}`, error);
   }
-}
-
-function isMissingShapeTraderResetRpcError(error) {
-  const message = String(error?.message || error?.details || "");
-  return /admin_reset_shape_traders/i.test(message) && (
-    /does not exist/i.test(message) ||
-    /not found/i.test(message) ||
-    /could not find/i.test(message) ||
-    /42883/.test(String(error?.code || ""))
-  );
-}
-
-async function runShapeTraderAdminReset() {
-  if (!supabase) {
-    return { ok: false, mode: "none", error: null };
-  }
-
-  try {
-    const response = await supabase.rpc("admin_reset_shape_traders");
-    if (response?.error) {
-      throw response.error;
-    }
-    return { ok: true, mode: "rpc", error: null };
-  } catch (error) {
-    if (isMissingShapeTraderResetRpcError(error)) {
-      console.warn("[RTN] Shape Traders admin reset RPC unavailable; falling back to client-side deletes", error);
-      return { ok: false, mode: "fallback", error };
-    }
-    console.error("[RTN] Shape Traders admin reset RPC failed", error);
-    return { ok: false, mode: "rpc_failed", error };
-  }
-}
-
-async function wipeShapeTraderTestingData() {
-  const resetResult = await runShapeTraderAdminReset();
-  if (resetResult.ok) {
-    return "rpc";
-  }
-  if (resetResult.mode === "rpc_failed") {
-    throw resetResult.error || new Error("Shape Traders admin reset RPC failed.");
-  }
-  if (resetResult.mode === "fallback") {
-    await deleteShapeTraderTableRows("shape_trader_price_history", "id");
-    await deleteShapeTraderTableRows("shape_trader_draws", "draw_id");
-    await deleteShapeTraderTableRows("shape_trader_trades", "id");
-    await deleteShapeTraderTableRows("shape_trader_positions_current", "user_id");
-    await deleteShapeTraderTableRows("shape_trader_accounts_current", "user_id");
-    await resetShapeTraderMarketCurrentRows();
-    return "fallback";
-  }
-  return "none";
-}
-
-async function wipeShapeTraderSharedEngineData() {
-  await deleteShapeTraderTableRows("shape_trader_price_history", "id");
-  await deleteShapeTraderTableRows("shape_trader_draws", "draw_id");
-  await deleteShapeTraderTableRows("shape_trader_market_current", "shape");
-  await resetShapeTraderMarketCurrentRows();
 }
 
 async function resetShapeTraderDrawEngineEpoch() {
@@ -4157,254 +3874,6 @@ function resetShapeTradersDerivedState() {
   shapeTradersCurrentCard = null;
   shapeTradersPreviousCard = null;
   shapeTradersSplitNoticeByAsset = {};
-}
-
-async function requestShapeTraderEngineTick(reason = "client-sync", { force = false } = {}) {
-  if (isShapeTradersClientEnginePaused() || isShapeTradersDbDrawAuthorityEnabled() || !supabase || shapeTradersEngineInvokeInFlight) {
-    return false;
-  }
-
-  const now = Date.now();
-  if (!force && now - shapeTradersLastEngineInvokeAt < 4000) {
-    return false;
-  }
-
-  shapeTradersEngineInvokeInFlight = true;
-  shapeTradersLastEngineInvokeAt = now;
-
-  try {
-    const response = await supabase.functions.invoke("shape-trader-engine", {
-      body: {
-        reason,
-        targetNow: new Date(now).toISOString()
-      }
-    });
-    if (response?.error) {
-      throw response.error;
-    }
-    return Boolean(response?.data?.ok);
-  } catch (error) {
-    console.warn("[RTN] Unable to invoke Shape Traders backend engine", error);
-    return false;
-  } finally {
-    shapeTradersEngineInvokeInFlight = false;
-  }
-}
-
-function getShapeTraderEngineMismatchReason(now = Date.now()) {
-  if (shapeTradersLocalResetMode || shapeTradersRecoveryInFlight) {
-    return null;
-  }
-
-  const currentWindowIndex = getShapeTraderCurrentWindowIndex(now);
-  if (currentWindowIndex < 0) {
-    return null;
-  }
-
-  const currentWindowState = getShapeTraderWindowState(currentWindowIndex, now);
-  const latestRow = Array.isArray(shapeTradersRecentDrawRows) ? shapeTradersRecentDrawRows[0] : null;
-  const latestWindowIndex = latestRow ? Math.floor(Number(latestRow.window_index || 0)) : null;
-  const latestSequence = latestRow ? Math.floor(Number(latestRow.sequence_in_window || 0)) : null;
-
-  if (latestWindowIndex !== null) {
-    if (latestWindowIndex > currentWindowIndex) {
-      return `Persisted draw window ${latestWindowIndex} is ahead of live window ${currentWindowIndex}.`;
-    }
-    if (latestWindowIndex === currentWindowIndex && latestSequence > currentWindowState.visibleCount) {
-      return `Persisted draw ${latestWindowIndex}:${latestSequence} is ahead of visible count ${currentWindowState.visibleCount}.`;
-    }
-  }
-
-  if (shapeTradersProcessedWindowIndex > currentWindowIndex) {
-    return `Processed window ${shapeTradersProcessedWindowIndex} is ahead of live window ${currentWindowIndex}.`;
-  }
-
-  if (
-    shapeTradersProcessedWindowIndex === currentWindowIndex &&
-    shapeTradersProcessedVisibleCount > currentWindowState.visibleCount
-  ) {
-    return `Processed draw count ${shapeTradersProcessedVisibleCount} is ahead of visible count ${currentWindowState.visibleCount} in window ${currentWindowIndex}.`;
-  }
-
-  return null;
-}
-
-function realignShapeTraderEngineState(now = Date.now(), reason = "") {
-  const currentWindowIndex = Math.max(0, getShapeTraderCurrentWindowIndex(now));
-  const currentWindowState = getShapeTraderWindowState(currentWindowIndex, now);
-  const maxVisibleCount = Math.max(0, currentWindowState.visibleCount);
-
-  if (shapeTradersProcessedWindowIndex > currentWindowIndex) {
-    shapeTradersProcessedWindowIndex = currentWindowIndex;
-    shapeTradersProcessedVisibleCount = maxVisibleCount;
-  } else if (shapeTradersProcessedWindowIndex === currentWindowIndex) {
-    shapeTradersProcessedVisibleCount = Math.min(
-      Math.max(0, shapeTradersProcessedVisibleCount),
-      maxVisibleCount
-    );
-  }
-
-  if (Array.isArray(shapeTradersRecentDrawRows) && shapeTradersRecentDrawRows.length) {
-    shapeTradersRecentDrawRows = shapeTradersRecentDrawRows.filter((row) => {
-      const windowIndex = Math.floor(Number(row?.window_index || 0));
-      const sequenceInWindow = Math.floor(Number(row?.sequence_in_window || 0));
-      if (windowIndex < currentWindowIndex) {
-        return true;
-      }
-      if (windowIndex > currentWindowIndex) {
-        return false;
-      }
-      return sequenceInWindow <= maxVisibleCount;
-    });
-  }
-
-  const latestRow = Array.isArray(shapeTradersRecentDrawRows) ? shapeTradersRecentDrawRows[0] : null;
-  const previousRow = Array.isArray(shapeTradersRecentDrawRows) ? shapeTradersRecentDrawRows[1] : null;
-  shapeTradersCurrentCard = latestRow
-    ? mapShapeTraderDrawRowToCard(latestRow)
-    : currentWindowState.currentCard;
-  shapeTradersPreviousCard = previousRow
-    ? mapShapeTraderDrawRowToCard(previousRow)
-    : null;
-  shapeTradersMismatchTickCount = 0;
-  shapeTradersLastMismatchReason = "";
-
-  if (reason) {
-    console.warn("[RTN] Shape Traders drift detected; continuing with live engine state", {
-      reason,
-      currentWindowIndex,
-      maxVisibleCount
-    });
-  }
-}
-
-function getShapeTraderStalledDrawReason(now = Date.now()) {
-  if (
-    shapeTradersLocalResetMode ||
-    shapeTradersRecoveryInFlight ||
-    currentRoute !== "shape-traders" ||
-    !shapeTradersWindowActive
-  ) {
-    return null;
-  }
-
-  const latestRow = Array.isArray(shapeTradersRecentDrawRows) ? shapeTradersRecentDrawRows[0] : null;
-  if (!latestRow) {
-    return null;
-  }
-
-  const latestDrawAtMs = Date.parse(latestRow.created_at || latestRow.drawn_at || "");
-  if (!Number.isFinite(latestDrawAtMs)) {
-    return null;
-  }
-
-  const stalledForMs = now - latestDrawAtMs;
-  if (stalledForMs < 30000) {
-    return null;
-  }
-
-  const latestWindowIndex = Math.max(0, Math.floor(Number(latestRow.window_index || 0)));
-  const currentWindowIndex = Math.max(0, getShapeTraderCurrentWindowIndex(now));
-  const windowGap = Math.max(0, currentWindowIndex - latestWindowIndex);
-
-  return `Latest persisted draw is ${Math.round(stalledForMs / 1000)}s old (${latestWindowIndex} -> ${currentWindowIndex}, gap ${windowGap}).`;
-}
-
-function resumeShapeTraderEngineFromLatestRow(now = Date.now(), reason = "") {
-  const latestRow = Array.isArray(shapeTradersRecentDrawRows) ? shapeTradersRecentDrawRows[0] : null;
-  if (!latestRow) {
-    shapeTradersTimelineEpochMs = now;
-    shapeTradersProcessedWindowIndex = -1;
-    shapeTradersProcessedVisibleCount = 0;
-    shapeTradersCurrentCard = null;
-    shapeTradersPreviousCard = null;
-    shapeTradersRecentDrawRows = [];
-    return false;
-  }
-
-  const latestWindowIndex = Math.max(0, Math.floor(Number(latestRow.window_index || 0)));
-  const latestSequence = Math.max(1, Math.floor(Number(latestRow.sequence_in_window || 1)));
-  const rebasedLatestRow = {
-    ...latestRow,
-    drawn_at: new Date(now - 250).toISOString()
-  };
-  const nextEpoch = getShapeTraderTimelineEpochFromRow(rebasedLatestRow);
-
-  if (Number.isFinite(nextEpoch)) {
-    shapeTradersTimelineEpochMs = nextEpoch;
-  } else {
-    shapeTradersTimelineEpochMs = now;
-  }
-
-  applyShapeTraderDrawRowPriceSnapshot(latestRow);
-  shapeTradersProcessedWindowIndex = latestWindowIndex;
-  shapeTradersProcessedVisibleCount = latestSequence;
-  shapeTradersCurrentCard = mapShapeTraderDrawRowToCard(latestRow);
-  shapeTradersPreviousCard = shapeTradersRecentDrawRows[1]
-    ? mapShapeTraderDrawRowToCard(shapeTradersRecentDrawRows[1])
-    : null;
-  shapeTradersMismatchTickCount = 0;
-  shapeTradersLastMismatchReason = "";
-
-  if (reason) {
-    console.warn("[RTN] Shape Traders draw stream stalled; resuming from latest persisted row", {
-      reason,
-      latestWindowIndex,
-      latestSequence
-    });
-    setShapeTraderStatus("Shape Traders resumed from the latest saved draw after the live stream stalled.");
-  }
-
-  return true;
-}
-
-async function recoverShapeTraderEngineState(reason, now = Date.now()) {
-  if (shapeTradersRecoveryInFlight) {
-    return false;
-  }
-
-  shapeTradersRecoveryInFlight = true;
-  shapeTradersResetInFlight = true;
-  renderShapeTradersControls(now);
-
-  try {
-    console.warn("[RTN] Shape Traders live engine mismatch detected; starting recovery", { reason });
-    setShapeTraderStatus("Live market resync in progress. Open positions will be liquidated at visible prices before restart.");
-
-    if (shapeTradersHasOpenHoldings()) {
-      await liquidateAllShapeTraderHoldings("System resync liquidation");
-    }
-
-    await wipeShapeTraderSharedEngineData();
-
-    shapeTradersTimelineEpochMs = now;
-    shapeTradersRecentDrawRows = [];
-    shapeTradersOpenChartSeries = [];
-    shapeTradersLastHeartbeatAt = 0;
-    shapeTradersLastGlobalSyncAt = 0;
-    shapeTradersNeedsResumeHydration = false;
-    shapeTradersMismatchTickCount = 0;
-    shapeTradersLastMismatchReason = "";
-    resetShapeTradersDerivedState();
-    markShapeTraderInteraction();
-
-    await syncShapeTraderCurrentState();
-    await refreshShapeTraderGlobalSnapshot();
-    if (typeof window !== "undefined") {
-      startShapeTradersClock();
-    }
-    renderShapeTraders();
-    setShapeTraderStatus("Shape Traders resynced after a live market mismatch. Trading has resumed.");
-    return true;
-  } catch (error) {
-    console.error("[RTN] Shape Traders recovery failed", error);
-    setShapeTraderStatus(`Shape Traders resync failed: ${error?.message || "unknown error"}`);
-    return false;
-  } finally {
-    shapeTradersResetInFlight = false;
-    shapeTradersRecoveryInFlight = false;
-    renderShapeTradersControls();
-  }
 }
 
 async function applyShapeTraderDrawRow(row) {
@@ -4460,8 +3929,6 @@ async function applyShapeTraderDrawRow(row) {
       ...shapeTradersRecentDrawRows.filter((entry) => Number(entry?.draw_id || 0) !== nextDrawId)
     ].slice(0, 60);
   }
-  await persistShapeTraderPriceHistory(hydratedRow, transitions);
-  await persistShapeTraderMarketCurrent(hydratedRow, transitions);
   appendShapeTraderChartPoint(hydratedRow, transitions);
   const rowWindowIndex = Math.floor(Number(row?.window_index || 0));
   const rowSequence = Math.floor(Number(row?.sequence_in_window || 0));
@@ -4592,10 +4059,6 @@ async function syncShapeTraderExecutionPricesFromLatestDraw() {
       latestRow: null
     };
   }
-}
-
-async function reconcileShapeTraderMarketCurrent() {
-  return false;
 }
 
 async function appendShapeTraderActivity(entry) {
@@ -5153,17 +4616,17 @@ function renderShapeTradersControls(now = Date.now()) {
   }
 
   if (shapeTradersBuyButton) {
-    shapeTradersBuyButton.disabled = windowState.tradeLocked || shapeTradersResetInFlight || shapeTradersRecoveryInFlight;
+    shapeTradersBuyButton.disabled = windowState.tradeLocked || shapeTradersResetInFlight;
     shapeTradersBuyButton.classList.toggle("is-unavailable", buyUnavailable);
-    shapeTradersBuyButton.setAttribute("aria-disabled", String(windowState.tradeLocked || shapeTradersResetInFlight || shapeTradersRecoveryInFlight || buyUnavailable));
+    shapeTradersBuyButton.setAttribute("aria-disabled", String(windowState.tradeLocked || shapeTradersResetInFlight || buyUnavailable));
   }
   if (shapeTradersSellButton) {
-    shapeTradersSellButton.disabled = windowState.tradeLocked || shapeTradersResetInFlight || shapeTradersRecoveryInFlight;
+    shapeTradersSellButton.disabled = windowState.tradeLocked || shapeTradersResetInFlight;
     shapeTradersSellButton.classList.toggle("is-unavailable", sellUnavailable);
-    shapeTradersSellButton.setAttribute("aria-disabled", String(windowState.tradeLocked || shapeTradersResetInFlight || shapeTradersRecoveryInFlight || sellUnavailable));
+    shapeTradersSellButton.setAttribute("aria-disabled", String(windowState.tradeLocked || shapeTradersResetInFlight || sellUnavailable));
   }
   if (shapeTradersLiquidateButton) {
-    shapeTradersLiquidateButton.disabled = shapeTradersTradeActionInFlight || shapeTradersRecoveryInFlight || !shapeTradersHasOpenHoldings();
+    shapeTradersLiquidateButton.disabled = shapeTradersTradeActionInFlight || !shapeTradersHasOpenHoldings();
   }
   if (shapeTradersInactivityEl) {
     const hasOpenHoldings = shapeTradersHasOpenHoldings();
@@ -5210,7 +4673,7 @@ function attemptShapeTraderTrade(side) {
     at: now
   };
 
-  if (shapeTradersResetInFlight || shapeTradersRecoveryInFlight) {
+  if (shapeTradersResetInFlight) {
     setShapeTraderStatus("Shape Traders is resetting. Please wait for the reset to finish.");
     return;
   }
@@ -6153,7 +5616,6 @@ async function synchronizeShapeTraders(now = Date.now()) {
     isShapeTradersClientEnginePaused() ||
     shapeTradersSyncInFlight ||
     shapeTradersResetInFlight ||
-    shapeTradersRecoveryInFlight ||
     shapeTradersLocalResetMode ||
     shapeTradersTradeActionInFlight
   ) {
@@ -6165,96 +5627,7 @@ async function synchronizeShapeTraders(now = Date.now()) {
       return;
     }
 
-    if (isShapeTradersDbDrawAuthorityEnabled()) {
-      await hydrateShapeTradersFromDrawTable(now);
-
-      if (
-        !shapeTradersWindowActive &&
-        shapeTradersHasOpenHoldings() &&
-        shapeTradersLastBecameInactiveAt &&
-        Date.now() - shapeTradersLastBecameInactiveAt >= SHAPE_TRADERS_INACTIVITY_MS
-      ) {
-        void liquidateAllShapeTraderHoldings("Inactivity liquidation");
-        markShapeTraderInteraction();
-        setShapeTraderStatus("Positions liquidated after 5 minutes with the tab/window inactive.");
-      }
-
-      if (currentRoute === "shape-traders" && shapeTradersWindowActive && now - shapeTradersLastHeartbeatAt >= SHAPE_TRADERS_HEARTBEAT_MS) {
-        await syncShapeTraderCurrentState({ heartbeatOnly: true });
-      }
-
-      if (now - shapeTradersLastGlobalSyncAt >= SHAPE_TRADERS_GLOBAL_SYNC_MS) {
-        await refreshShapeTraderGlobalSnapshot();
-      }
-
-      renderShapeTraders();
-      return;
-    }
-
-  if (shapeTradersWindowActive && shapeTradersNeedsResumeHydration) {
-    shapeTradersNeedsResumeHydration = false;
-    await requestShapeTraderEngineTick("resume-hydration");
     await hydrateShapeTradersFromDrawTable(now);
-    await refreshShapeTraderGlobalSnapshot();
-    renderShapeTraders();
-    return;
-  }
-
-    const stalledReason = getShapeTraderStalledDrawReason(now);
-    if (stalledReason) {
-      await requestShapeTraderEngineTick("stalled-draw-stream", { force: true });
-      await hydrateShapeTradersFromDrawTable(now);
-      resumeShapeTraderEngineFromLatestRow(now, stalledReason);
-    }
-
-    const mismatchReason = getShapeTraderEngineMismatchReason(now);
-    if (mismatchReason) {
-      realignShapeTraderEngineState(now, mismatchReason);
-    } else {
-      shapeTradersMismatchTickCount = 0;
-      shapeTradersLastMismatchReason = "";
-    }
-    const currentWindowIndex = getShapeTraderCurrentWindowIndex(now);
-    const startingWindowIndex = Math.max(0, shapeTradersProcessedWindowIndex);
-    const windowBacklog = Math.max(0, currentWindowIndex - startingWindowIndex);
-
-    if (windowBacklog > SHAPE_TRADERS_MAX_CATCH_UP_WINDOWS) {
-      await requestShapeTraderEngineTick("window-backlog", { force: true });
-      await hydrateShapeTradersFromDrawTable(now);
-      const resumed = resumeShapeTraderEngineFromLatestRow(
-        now,
-        `Backlog exceeded ${SHAPE_TRADERS_MAX_CATCH_UP_WINDOWS} windows (${windowBacklog}).`
-      );
-      if (!resumed) {
-        await hydrateShapeTradersFromDrawTable(now);
-        await refreshShapeTraderGlobalSnapshot();
-        renderShapeTraders();
-        return;
-      }
-    }
-
-    let processedAnyDraws = false;
-    for (let windowIndex = startingWindowIndex; windowIndex <= currentWindowIndex; windowIndex += 1) {
-      if (shapeTradersResetInFlight || shapeTradersLocalResetMode) {
-        return;
-      }
-      const windowState = getShapeTraderWindowState(windowIndex, now);
-      const targetCount = windowIndex < currentWindowIndex ? windowState.cards.length : windowState.visibleCount;
-      const startSequence =
-        windowIndex === shapeTradersProcessedWindowIndex ? shapeTradersProcessedVisibleCount + 1 : 1;
-      for (let sequenceInWindow = startSequence; sequenceInWindow <= targetCount; sequenceInWindow += 1) {
-        if (shapeTradersResetInFlight || shapeTradersLocalResetMode) {
-          return;
-        }
-        const drawRow = await persistShapeTraderDrawRow(windowIndex, sequenceInWindow);
-        await applyShapeTraderDrawRow(drawRow);
-        processedAnyDraws = true;
-      }
-    }
-
-    if (processedAnyDraws) {
-      await reconcileShapeTraderMarketCurrent();
-    }
 
     if (
       !shapeTradersWindowActive &&
@@ -6327,7 +5700,7 @@ async function initializeShapeTraders() {
       setShapeTraderStatus("Shape Traders is paused client-side while the backend draw engine is being migrated.");
       renderShapeTraders();
       renderShapeTradersControls();
-    } else if (isShapeTradersDbDrawAuthorityEnabled()) {
+    } else {
       setShapeTraderStatus("");
       renderShapeTraders();
       renderShapeTradersControls();
@@ -15546,25 +14919,17 @@ let shapeTradersTradeActionInFlight = false;
 let shapeTradersTradePersistenceAvailable = true;
 let shapeTradersStatePersistenceAvailable = true;
 let shapeTradersDrawPersistenceAvailable = true;
-let shapeTradersMarketPersistenceAvailable = true;
-let shapeTradersPriceHistoryPersistenceAvailable = true;
 let shapeTradersLastGlobalSyncAt = 0;
 let shapeTradersLastHeartbeatAt = 0;
-let shapeTradersLastEngineInvokeAt = 0;
 let shapeTradersLastPersistedAccountActiveAt = null;
 let shapeTradersWindowActive = true;
 let shapeTradersLastBecameInactiveAt = null;
 let shapeTradersWindowActivityListenersBound = false;
-let shapeTradersNeedsResumeHydration = false;
 let shapeTradersRecentDrawRows = [];
 let shapeTradersSyncInFlight = false;
 let shapeTradersResetInFlight = false;
-let shapeTradersRecoveryInFlight = false;
-let shapeTradersMismatchTickCount = 0;
-let shapeTradersLastMismatchReason = "";
 let shapeTradersStateSyncInFlight = false;
 let shapeTradersGlobalSyncInFlight = false;
-let shapeTradersEngineInvokeInFlight = false;
 let shapeTradersSplitNoticeByAsset = {};
 let shapeTradersOpenChartAssetId = null;
 let shapeTradersOpenChartSeries = [];
