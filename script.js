@@ -16519,6 +16519,10 @@ function getAnalyticsPeriodStart(period) {
   if (period === "week") return new Date(now - 7 * 24 * 60 * 60 * 1000);
   if (period === "month") return new Date(now - 30 * 24 * 60 * 60 * 1000);
   if (period === "90days") return new Date(now - 90 * 24 * 60 * 60 * 1000);
+  if (period === "ytd") {
+    const today = new Date(now);
+    return new Date(today.getFullYear(), 0, 1);
+  }
   if (period === "year") return new Date(now - 365 * 24 * 60 * 60 * 1000);
   return null;
 }
@@ -16852,9 +16856,9 @@ function getFilteredBankrollHistoryPoints() {
 }
 
 function updateBankrollChartFilterUI() {
-  bankrollChartFilterButtons.forEach((button) => {
-    button.classList.toggle("active", button.dataset.bankrollPeriod === bankrollChartPeriod);
-  });
+  if (bankrollPeriodSelect) {
+    bankrollPeriodSelect.value = bankrollChartPeriod;
+  }
   bankrollChartGameFilterButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.bankrollGame === bankrollChartGameFilter);
   });
@@ -16862,12 +16866,12 @@ function updateBankrollChartFilterUI() {
   if (!bankrollChartSubhead) return;
 
   const periodLabels = {
-    hour: "the last hour",
-    day: "the last 24 hours",
-    week: "the last week",
+    week: "the last 7 days",
     month: "the last month",
     "90days": "the last 3 months",
-    year: "the last year"
+    ytd: "year to date",
+    year: "the last 365 days",
+    all: "all available history"
   };
   const gameLabels = {
     all: "all games",
@@ -21078,13 +21082,13 @@ if (drawerGraphLink && chartPanel && chartClose) {
   });
 }
 
-bankrollChartFilterButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    bankrollChartPeriod = button.dataset.bankrollPeriod || "year";
+if (bankrollPeriodSelect) {
+  bankrollPeriodSelect.addEventListener("change", () => {
+    bankrollChartPeriod = bankrollPeriodSelect.value || "month";
     updateBankrollChartFilterUI();
     drawBankrollChart();
   });
-});
+}
 
 bankrollChartGameFilterButtons.forEach((button) => {
   button.addEventListener("click", () => {
