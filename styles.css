@@ -1838,7 +1838,9 @@ body[data-app-state="loading"] #app-shell {
 
 .shape-traders-header-balance .shape-traders-balance-list div {
   display: grid;
+  grid-template-rows: minmax(1.2rem, auto) minmax(2.5rem, auto);
   align-content: start;
+  align-items: stretch;
   gap: 0.28rem;
   min-width: 0;
   padding: 0;
@@ -1849,11 +1851,16 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .shape-traders-header-balance .shape-traders-balance-list dt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
+  min-height: 1.2rem;
   font-size: 0.66rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--text-light) 64%, transparent);
+  text-align: center;
 }
 
 .shape-traders-header-balance .shape-traders-balance-list dd {
@@ -4905,9 +4912,9 @@ body[data-app-state="loading"] #app-shell {
   .shape-traders-header-balance {
     min-width: 0;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: stretch;
-    gap: 0.7rem;
+    gap: 0.55rem;
   }
 
   .shape-traders-header-balance-head {
@@ -4916,30 +4923,56 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .shape-traders-header-balance .shape-traders-balance-list {
-    display: flex;
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: stretch;
-    gap: 0.55rem;
+    gap: 0.45rem;
     width: 100%;
     min-width: 0;
   }
 
   .shape-traders-header-balance .shape-traders-balance-list div {
-    width: auto;
+    width: 100%;
     min-width: 0;
-    flex: 1 1 0;
   }
 
   .shape-traders-header-balance .shape-traders-balance-list dt {
     text-align: center;
+    min-height: 1.5rem;
+    font-size: 0.58rem;
+    letter-spacing: 0.12em;
+  }
+
+  .shape-traders-header-balance .shape-traders-balance-list dd {
+    min-height: 2.9rem;
+    padding: 0.42rem 0.35rem;
+    font-size: 0.98rem;
+    border-radius: 0.9rem;
   }
 
   .shape-traders-header-balance-actions {
+    grid-column: 1 / -1;
     display: flex;
     gap: 0.6rem;
-    width: auto;
-    margin-left: auto;
-    justify-content: flex-end;
+    width: 100%;
+    margin-left: 0;
+    justify-content: stretch;
     align-self: stretch;
+  }
+
+  .shape-traders-header-balance-actions .shape-traders-header-button,
+  #shape-traders-liquidate-nav {
+    width: 100%;
+    min-height: 2.55rem;
+    padding: 0.58rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--gold) 26%, var(--header-border-color) 74%);
+    background: color-mix(in srgb, var(--menu-bg) 74%, black 26%);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+      0 0 0 1px rgba(10, 16, 34, 0.18);
+    text-align: center;
   }
 
   .shape-traders-header-back-button {
@@ -6425,15 +6458,57 @@ body.theme-angelic {
   gap: 0.45rem;
 }
 
+.home-rank-terminal {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.8rem 0.95rem 0.95rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--betting-panel-border) 80%, transparent);
+  background: #000;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, white 4%, transparent),
+    inset 0 0 28px color-mix(in srgb, var(--neon-cyan) 8%, transparent);
+  text-align: left;
+}
+
+.home-rank-terminal-bar {
+  display: block;
+  color: color-mix(in srgb, white 56%, transparent);
+  font-family: "Play", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.home-rank-terminal-screen {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.7rem;
+  min-height: 2.2rem;
+}
+
+.home-rank-terminal-prompt {
+  padding-top: 0.08rem;
+  color: color-mix(in srgb, var(--neon-cyan) 84%, white 16%);
+  font-family: "Play", "SFMono-Regular", Consolas, monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.45;
+  text-shadow: 0 0 12px color-mix(in srgb, var(--neon-cyan) 40%, transparent);
+}
+
 .home-rank-typing {
-  margin: 0.55rem auto 0;
-  max-width: 780px;
+  margin: 0;
+  max-width: none;
   min-height: 1.8em;
-  text-align: center;
+  text-align: left;
   color: rgba(224, 244, 255, 0.9);
-  font-size: clamp(0.96rem, 2.2vw, 1.16rem);
+  font-family: "Play", "SFMono-Regular", Consolas, monospace;
+  font-size: clamp(0.95rem, 2vw, 1.04rem);
   line-height: 1.55;
-  letter-spacing: 0.015em;
+  letter-spacing: 0.03em;
+  word-break: break-word;
 }
 
 .home-rank-typing::after {
@@ -7034,8 +7109,7 @@ body.theme-angelic {
   }
 
   .home-rank-typing {
-    margin-top: 0.45rem;
-    padding: 0 0.35rem;
+    padding-right: 0.15rem;
   }
 
   .home-rank-icon-wrap {
@@ -12968,6 +13042,8 @@ body.modal-open {
 
 .admin-tab-content {
   display: block;
+  position: relative;
+  z-index: 0;
 }
 
 .admin-tab-content[hidden] {
@@ -13353,12 +13429,14 @@ body.modal-open {
   }
 
   .admin-tabs {
-    width: calc(100% + 1rem);
-    margin-inline: -0.5rem;
-    padding: 0 0.5rem 1.1rem;
-    scroll-padding-inline: 0.5rem;
+    width: 100%;
+    margin: 0 0 1.5rem;
+    padding: 0 0 0.85rem;
+    scroll-padding-inline: 0;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    position: relative;
+    z-index: 1;
   }
 
   .admin-tabs::-webkit-scrollbar {
@@ -14164,10 +14242,11 @@ body.modal-open {
   .admin-tabs {
     overflow-x: auto;
     overflow-y: hidden;
-    padding-bottom: 1.1rem;
-    margin-inline: -0.15rem;
+    padding-bottom: 0.85rem;
+    margin-inline: 0;
     scrollbar-width: thin;
     -webkit-overflow-scrolling: touch;
+    align-items: center;
   }
 
   .admin-tab {

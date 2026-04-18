@@ -498,13 +498,11 @@
         <section id="home-view" class="route-view app-page home-view" hidden aria-labelledby="home-title">
           <div class="home-hero">
             <h1 id="home-title" class="home-title">Welcome to the Casino Floor</h1>
-            <p class="home-subtitle">Track your rank, jump into live contests, and head to Play when you're ready to pick a table.</p>
             <div class="home-actions">
               <button type="button" class="home-button home-primary home-cta-button home-hero-play-button" data-route-target="play">
                 Play
               </button>
             </div>
-            <p id="home-rank-typing" class="home-rank-typing" hidden></p>
             <section id="home-rank-panel" class="home-rank-panel" hidden aria-labelledby="home-rank-title">
               <div class="home-rank-header">
                 <div>
@@ -518,6 +516,13 @@
                   </div>
                 </div>
                 <button type="button" id="home-rank-ladder-button" class="link-button">Rank Ladder</button>
+              </div>
+              <div id="home-rank-terminal" class="home-rank-terminal" hidden aria-live="polite">
+                <div class="home-rank-terminal-bar" aria-hidden="true">window</div>
+                <div class="home-rank-terminal-screen">
+                  <span class="home-rank-terminal-prompt" aria-hidden="true">&gt;</span>
+                  <p id="home-rank-typing" class="home-rank-typing" hidden></p>
+                </div>
               </div>
               <div class="home-rank-progress-grid">
                 <div class="rank-progress-card">
@@ -2388,7 +2393,7 @@
                       <button type="button" class="chart-filter-btn" data-activity-period="year">1Y</button>
                     </div>
                   </div>
-                  <p id="most-active-subhead" class="analytics-card-subhead">Ranked by hands played in the last 7 days.</p>
+                  <p id="most-active-subhead" class="analytics-card-subhead">Ranked by combined events in the last 7 days.</p>
                   <ul id="most-active-week-list" class="analytics-activity-list" aria-live="polite"></ul>
                   <button type="button" id="most-active-load-more" class="btn-secondary analytics-load-more" hidden>Load More</button>
                 </div>
@@ -2774,13 +2779,13 @@
     >
       <div class="modal-content analytics-modal player-bankroll-modal">
         <div class="modal-header">
-          <h2 id="player-bankroll-title">Player Bankroll Analytics</h2>
-          <button type="button" class="modal-close" id="player-bankroll-close" aria-label="Close player bankroll analytics">×</button>
+          <h2 id="player-bankroll-title">Player P&amp;L</h2>
+          <button type="button" class="modal-close" id="player-bankroll-close" aria-label="Close player P&amp;L">×</button>
         </div>
         <div class="modal-body player-bankroll-modal-body">
-          <p id="player-bankroll-subhead" class="analytics-card-subhead">Normal-mode bankroll history.</p>
+          <p id="player-bankroll-subhead" class="analytics-card-subhead">Daily realized P&amp;L across all games.</p>
           <div class="chart-header">
-            <h3 class="chart-title">Bankroll Analytics</h3>
+            <h3 class="chart-title">View P&amp;L</h3>
             <div class="chart-filters">
               <button type="button" class="chart-filter-btn" data-player-bankroll-period="hour">1H</button>
               <button type="button" class="chart-filter-btn" data-player-bankroll-period="day">24H</button>
@@ -2807,13 +2812,13 @@
     >
       <div class="modal-content analytics-modal player-bankroll-modal">
         <div class="modal-header">
-          <h2 id="player-hands-title">Player Hands Graph</h2>
-          <button type="button" class="modal-close" id="player-hands-close" aria-label="Close player hands graph">×</button>
+          <h2 id="player-hands-title">Player Chart</h2>
+          <button type="button" class="modal-close" id="player-hands-close" aria-label="Close player chart">×</button>
         </div>
         <div class="modal-body player-bankroll-modal-body">
-          <p id="player-hands-subhead" class="analytics-card-subhead">Hands played over time.</p>
+          <p id="player-hands-subhead" class="analytics-card-subhead">RTN hands, Guess 10 hands, and Shape Traders trades over time.</p>
           <div class="chart-header">
-            <h3 class="chart-title">Hands Played Over Time</h3>
+            <h3 class="chart-title">Chart</h3>
             <div class="chart-filters">
               <button type="button" class="chart-filter-btn" data-player-hands-period="hour">1H</button>
               <button type="button" class="chart-filter-btn" data-player-hands-period="day">24H</button>
@@ -2846,7 +2851,7 @@
         <div class="modal-body hand-review-body">
           <p id="player-mode-breakdown-summary" class="hand-review-summary"></p>
           <div class="chart-header">
-            <h3 class="chart-title">Hands Breakdown</h3>
+            <h3 class="chart-title">Activity Breakdown</h3>
             <div class="chart-filters">
               <button type="button" class="chart-filter-btn" data-player-breakdown-period="hour">1H</button>
               <button type="button" class="chart-filter-btn" data-player-breakdown-period="day">24H</button>
@@ -2862,7 +2867,7 @@
               <thead>
                 <tr>
                   <th scope="col">Mode</th>
-                  <th scope="col">Hands</th>
+                  <th scope="col">Events</th>
                 </tr>
               </thead>
               <tbody id="player-mode-breakdown-mode-body"></tbody>
@@ -2880,7 +2885,7 @@
               <thead>
                 <tr>
                   <th scope="col">Game</th>
-                  <th scope="col">Hands</th>
+                  <th scope="col">Events</th>
                 </tr>
               </thead>
               <tbody id="player-mode-breakdown-game-body"></tbody>

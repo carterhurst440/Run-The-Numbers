@@ -2087,11 +2087,9 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
         <section class="app-page home-view design-theme-preview-page design-theme-preview-home-page">
           <div class="home-hero">
             <h1 class="home-title">Welcome to the Casino Floor</h1>
-            <p class="home-subtitle">Track your rank, jump into live contests, and head to Play when you're ready to pick a table.</p>
             <div class="home-actions">
               <button type="button" class="home-button home-primary home-cta-button home-hero-play-button">Play</button>
             </div>
-            <p class="home-rank-typing">Analyst Carter Hurst, you're on. Review the numbers and report your position.</p>
             <section class="home-rank-panel" aria-label="Current rank">
               <div class="home-rank-header">
                 <div>
@@ -2104,6 +2102,13 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
                   </div>
                 </div>
                 <button type="button" class="link-button">Rank Ladder</button>
+              </div>
+              <div class="home-rank-terminal" aria-live="polite">
+                <div class="home-rank-terminal-bar" aria-hidden="true">window</div>
+                <div class="home-rank-terminal-screen">
+                  <span class="home-rank-terminal-prompt" aria-hidden="true">&gt;</span>
+                  <p class="home-rank-typing">Analyst Carter Hurst, you're on. Review the numbers and report your position.</p>
+                </div>
               </div>
               <div class="home-rank-progress-grid">
                 <div class="rank-progress-card">
@@ -2488,12 +2493,18 @@ function typeHomeRankWelcome(copy = "") {
   stopHomeRankTyping();
   const nextCopy = String(copy || "").trim();
   if (!nextCopy) {
+    if (homeRankTerminalEl) {
+      homeRankTerminalEl.hidden = true;
+    }
     homeRankTypingEl.hidden = true;
     homeRankTypingEl.textContent = "";
     return;
   }
 
   const token = rankWelcomeTypingToken;
+  if (homeRankTerminalEl) {
+    homeRankTerminalEl.hidden = false;
+  }
   homeRankTypingEl.hidden = false;
   homeRankTypingEl.textContent = "";
   let index = 0;
@@ -2505,7 +2516,10 @@ function typeHomeRankWelcome(copy = "") {
     if (index < nextCopy.length) {
       rankWelcomeTypingTimer = setTimeout(tick, index < 8 ? 18 : 24);
     } else {
-      rankWelcomeTypingTimer = null;
+      rankWelcomeTypingTimer = setTimeout(() => {
+        if (token !== rankWelcomeTypingToken) return;
+        typeHomeRankWelcome(nextCopy);
+      }, 5000);
     }
   };
 
@@ -14327,6 +14341,7 @@ const carterCashTooltip = document.getElementById("carter-cash-tooltip");
 const dashboardRunsEl = document.getElementById("dashboard-runs");
 const homeRankPanelEl = document.getElementById("home-rank-panel");
 const homeRankTitleEl = document.getElementById("home-rank-title");
+const homeRankTerminalEl = document.getElementById("home-rank-terminal");
 const homeRankTypingEl = document.getElementById("home-rank-typing");
 const homeRankHandsProgressTextEl = document.getElementById("home-rank-hands-progress-text");
 const homeRankHandsProgressBarEl = document.getElementById("home-rank-hands-progress-bar");
@@ -16989,6 +17004,118 @@ async function fetchShapeTraderTradeRecords({
   return allRecords;
 }
 
+async function fetchAdminGameHandsRecords({
+  startAt = null,
+  endAt = null,
+  userIds = null
+} = {}) {
+  if (!supabase) {
+    return [];
+  }
+  const allRows = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const query = supabase
+      .rpc("get_admin_game_hands", {
+        start_at: startAt ? startAt.toISOString() : null,
+        end_at: endAt ? endAt.toISOString() : null,
+        target_user_ids: Array.isArray(userIds) && userIds.length ? userIds : null
+      })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    const { data, error } = await query;
+    if (error) {
+      throw error;
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    allRows.push(...rows);
+    hasMore = rows.length === pageSize;
+    page += 1;
+  }
+
+  return allRows.map((row) => ({
+    ...row,
+    game_id: resolveGameKey(row?.game_id)
+  }));
+}
+
+async function fetchAdminShapeTraderTradeRecords({
+  startAt = null,
+  endAt = null,
+  userIds = null
+} = {}) {
+  if (!supabase) {
+    return [];
+  }
+  const allRows = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const query = supabase
+      .rpc("get_admin_shape_trader_trades", {
+        start_at: startAt ? startAt.toISOString() : null,
+        end_at: endAt ? endAt.toISOString() : null,
+        target_user_ids: Array.isArray(userIds) && userIds.length ? userIds : null
+      })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    const { data, error } = await query;
+    if (error) {
+      throw error;
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    allRows.push(...rows);
+    hasMore = rows.length === pageSize;
+    page += 1;
+  }
+
+  return allRows;
+}
+
+async function loadAdminAnalyticsRawRecords({
+  startAt = null,
+  endAt = new Date(),
+  userIds = null
+} = {}) {
+  const [handResult, tradeResult] = await Promise.allSettled([
+    fetchAdminGameHandsRecords({
+      startAt,
+      endAt,
+      userIds
+    }),
+    fetchAdminShapeTraderTradeRecords({
+      startAt,
+      endAt,
+      userIds
+    })
+  ]);
+
+  const handRecords = handResult.status === "fulfilled" ? handResult.value : [];
+  const tradeRecords = tradeResult.status === "fulfilled" ? tradeResult.value : [];
+
+  if (handResult.status === "rejected") {
+    console.warn("[RTN] admin game hands raw fetch failed", handResult.reason);
+  }
+  if (tradeResult.status === "rejected") {
+    console.warn("[RTN] admin shape trader raw fetch failed", tradeResult.reason);
+  }
+  if (handResult.status === "rejected" && tradeResult.status === "rejected") {
+    throw handResult.reason || tradeResult.reason || new Error("Admin analytics raw fetch failed");
+  }
+
+  return {
+    handRecords,
+    tradeRecords
+  };
+}
+
 async function fetchDailyProfitLossRows(userId) {
   const allRows = [];
   const pageSize = 1000;
@@ -17370,11 +17497,11 @@ function updateActivityFilterUI() {
   if (!mostActiveSubheadEl) return;
 
   const labels = {
-    hour: "Ranked by hands played in the last hour.",
-    day: "Ranked by hands played in the last 24 hours.",
-    week: "Ranked by hands played in the last 7 days.",
-    month: "Ranked by hands played in the last 30 days.",
-    year: "Ranked by hands played in the last year."
+    hour: "Ranked by combined events in the last hour.",
+    day: "Ranked by combined events in the last 24 hours.",
+    week: "Ranked by combined events in the last 7 days.",
+    month: "Ranked by combined events in the last 30 days.",
+    year: "Ranked by combined events in the last year."
   };
 
   mostActiveSubheadEl.textContent = labels[activityLeaderboardPeriod] || labels.week;
@@ -22571,6 +22698,7 @@ let playerBankrollChartInstance = null;
 let playerBankrollPeriod = "year";
 let activePlayerBankrollUserId = null;
 let activePlayerBankrollName = "";
+let activePlayerBankrollSeriesMode = "pnl";
 let playerHandsChartInstance = null;
 let playerHandsPeriod = "year";
 let activePlayerHandsUserId = null;
@@ -22756,15 +22884,19 @@ function populatePlayerFilterOptions(profiles) {
 async function loadPlayerFilterFromProfilesFallback() {
   const { data: profiles, error } = await supabase
     .from("profiles")
-    .select("id, username, first_name, last_name, hands_played_all_time")
-    .gt("hands_played_all_time", 0)
+    .select("id, username, first_name, last_name, hands_played_all_time, trades_made_all_time")
     .order("username", { ascending: true });
 
   if (error) {
     throw error;
   }
 
-  return Array.isArray(profiles) ? profiles : [];
+  return Array.isArray(profiles)
+    ? profiles.filter((profile) =>
+        Math.max(0, Number(profile?.hands_played_all_time || 0)) > 0 ||
+        Math.max(0, Number(profile?.trades_made_all_time || 0)) > 0
+      )
+    : [];
 }
 
 function isMissingRpcError(error) {
@@ -22781,7 +22913,7 @@ function renderMostActiveEntries() {
   if (!analyticsMostActiveEntries.length) {
     const emptyItem = document.createElement("li");
     emptyItem.className = "analytics-activity-item analytics-activity-empty";
-    emptyItem.textContent = "No hands were played in this time range.";
+    emptyItem.textContent = "No events were recorded in this time range.";
     mostActiveWeekListEl.appendChild(emptyItem);
     if (mostActiveLoadMoreButton) mostActiveLoadMoreButton.hidden = true;
     return;
@@ -22806,7 +22938,15 @@ function renderMostActiveEntries() {
 
     const meta = document.createElement("span");
     meta.className = "analytics-activity-meta";
-    meta.textContent = `${(entry.handsPlayed || 0).toLocaleString()} hands played`;
+    if (entry.hasDetailedBreakdown) {
+      meta.textContent =
+        `${(entry.totalEvents || 0).toLocaleString()} Events · ` +
+        `${(entry.shapeTradersTrades || 0).toLocaleString()} Trades · ` +
+        `${(entry.runTheNumbersHands || 0).toLocaleString()} RTN Hands · ` +
+        `${(entry.guess10Hands || 0).toLocaleString()} Guess 10 Hands`;
+    } else {
+      meta.textContent = `${(entry.handsPlayed || entry.totalEvents || 0).toLocaleString()} Hands`;
+    }
 
     const actions = document.createElement("div");
     actions.className = "analytics-activity-actions";
@@ -22816,14 +22956,14 @@ function renderMostActiveEntries() {
     bankrollButton.className = "analytics-inline-action";
     bankrollButton.dataset.playerBankrollUserId = entry.userId;
     bankrollButton.dataset.playerBankrollName = getContestDisplayName(profile, entry.userId);
-    bankrollButton.textContent = "Bankroll Analytics";
+    bankrollButton.textContent = "View PnL";
 
     const viewGraphButton = document.createElement("button");
     viewGraphButton.type = "button";
     viewGraphButton.className = "analytics-inline-action";
     viewGraphButton.dataset.playerHandsUserId = entry.userId;
     viewGraphButton.dataset.playerHandsName = getContestDisplayName(profile, entry.userId);
-    viewGraphButton.textContent = "Hands Played";
+    viewGraphButton.textContent = "Chart";
 
     const viewBreakdownButton = document.createElement("button");
     viewBreakdownButton.type = "button";
@@ -22866,23 +23006,229 @@ async function invokeAdminAnalytics(action, payload = {}) {
 
 async function loadPlayerBankrollHistory(userId) {
   if (!supabase || !userId) {
-    return [];
+    return { points: [], mode: "pnl" };
   }
-  const data = await invokeAdminAnalytics("player_bankroll_history", {
-    userId,
-    period: playerBankrollPeriod
-  });
-  return Array.isArray(data?.points) ? data.points : [];
+
+  const buildPnlPointsFromRawRecords = async () => {
+    const startDate = getAnalyticsPeriodStart(playerBankrollPeriod);
+    const { handRecords, tradeRecords } = await loadAdminAnalyticsRawRecords({
+      startAt: startDate,
+      endAt: new Date(),
+      userIds: [userId]
+    });
+    const buckets = new Map();
+    const ensureDay = (dayKey, createdAt) => {
+      if (!buckets.has(dayKey)) {
+        buckets.set(dayKey, {
+          dayKey,
+          created_at: createdAt,
+          pnlTotal: 0,
+          pnlRtn: 0,
+          pnlG10: 0,
+          pnlShapeTraders: 0
+        });
+      }
+      return buckets.get(dayKey);
+    };
+
+    handRecords.forEach((hand) => {
+      const modeType = String(hand?.mode_type || "").trim().toLowerCase();
+      if (hand?.contest_id || (modeType && modeType !== "normal")) {
+        return;
+      }
+      const dayKey = formatAnalyticsDateKey(hand?.created_at);
+      if (!dayKey) return;
+      const bucket = ensureDay(dayKey, String(hand?.created_at || `${dayKey}T12:00:00`));
+      const net = roundCurrencyValue(Number(hand?.net || 0));
+      const gameKey = resolveGameKey(hand?.game_id);
+      if (gameKey === GAME_KEYS.RUN_THE_NUMBERS) {
+        bucket.pnlRtn = roundCurrencyValue(bucket.pnlRtn + net);
+      } else if (gameKey === GAME_KEYS.GUESS_10) {
+        bucket.pnlG10 = roundCurrencyValue(bucket.pnlG10 + net);
+      }
+    });
+
+    tradeRecords.forEach((trade) => {
+      const tradeSide = String(trade?.trade_side || "").trim().toLowerCase();
+      if (trade?.contest_id || tradeSide !== "sell") {
+        return;
+      }
+      const dayKey = formatAnalyticsDateKey(trade?.executed_at);
+      if (!dayKey) return;
+      const bucket = ensureDay(dayKey, String(trade?.executed_at || `${dayKey}T12:00:00`));
+      bucket.pnlShapeTraders = roundCurrencyValue(
+        bucket.pnlShapeTraders + roundCurrencyValue(Number(trade?.net_profit || 0))
+      );
+    });
+
+    return Array.from(buckets.values())
+      .map((bucket, index) => ({
+        ...bucket,
+        pnlTotal: roundCurrencyValue(bucket.pnlRtn + bucket.pnlG10 + bucket.pnlShapeTraders),
+        fallbackIndex: index
+      }))
+      .sort((left, right) => String(left.dayKey).localeCompare(String(right.dayKey)));
+  };
+
+  try {
+    const rawPoints = await buildPnlPointsFromRawRecords();
+    if (rawPoints.length) {
+      return { points: rawPoints, mode: "pnl" };
+    }
+  } catch (adminRawError) {
+    console.warn("[RTN] admin raw pnl primary path failed", adminRawError);
+  }
+
+  try {
+    const data = await invokeAdminAnalytics("player_pnl_history", {
+      userId,
+      period: playerBankrollPeriod
+    });
+    const points = Array.isArray(data?.points) ? data.points : [];
+    if (points.length) {
+      return {
+        points,
+        mode: "pnl"
+      };
+    }
+    throw new Error("player_pnl_history returned no points");
+  } catch (error) {
+    console.warn("[RTN] player_pnl_history unavailable, falling back", error);
+    if (currentUser?.id === userId) {
+      await loadPersistentBankrollHistory({ force: true });
+      const startDate = getAnalyticsPeriodStart(playerBankrollPeriod);
+      const points = (persistentBankrollHistory || []).filter((point) => {
+        if (!startDate) return true;
+        const createdAt = point?.created_at ? new Date(point.created_at) : null;
+        return createdAt && !Number.isNaN(createdAt.getTime()) && createdAt >= startDate;
+      });
+      if (points.length) {
+        return { points, mode: "pnl" };
+      }
+    }
+
+    try {
+      const data = await invokeAdminAnalytics("player_bankroll_history", {
+        userId,
+        period: playerBankrollPeriod
+      });
+      const points = Array.isArray(data?.points) ? data.points : [];
+      if (points.length) {
+        return {
+          points,
+          mode: "legacy_bankroll"
+        };
+      }
+      return { points: [], mode: "pnl" };
+    } catch (legacyError) {
+      console.warn("[RTN] player_bankroll_history fallback failed", legacyError);
+      return { points: [], mode: "pnl" };
+    }
+  }
 }
 
 async function loadPlayerHandsHistory(userId, period = "all") {
-  const data = await invokeAdminAnalytics("hands_timeseries", {
-    userId,
-    period,
-    endAt: new Date().toISOString(),
-    targetUserIds: [userId]
-  });
-  return Array.isArray(data?.rows) ? data.rows : [];
+  try {
+    const data = await invokeAdminAnalytics("hands_timeseries", {
+      userId,
+      period,
+      endAt: new Date().toISOString(),
+      targetUserIds: [userId]
+    });
+    const rows = Array.isArray(data?.rows) ? data.rows : [];
+    const hasShapeTraderSeries = rows.some((row) => Number(row?.shapeTradersTrades || 0) > 0);
+    const hasDetailedSplitSeries = rows.some((row) =>
+      Number(row?.runTheNumbersHands || 0) > 0 ||
+      Number(row?.guess10Hands || 0) > 0 ||
+      Number(row?.shapeTradersTrades || 0) > 0
+    );
+    if (hasShapeTraderSeries || (hasDetailedSplitSeries && period === "year")) {
+      return rows;
+    }
+    if (hasDetailedSplitSeries && currentUser?.id === userId) {
+      return rows;
+    }
+  } catch (error) {
+    console.warn("[RTN] hands_timeseries unavailable, using local fallback when possible", error);
+  }
+
+  try {
+    const endAt = new Date();
+    const startAt = getAnalyticsPeriodStart(period);
+    const { handRecords, tradeRecords } = await loadAdminAnalyticsRawRecords({
+      startAt,
+      endAt,
+      userIds: [userId]
+    });
+    const effectiveStart =
+      startAt ||
+      (handRecords.length > 0
+        ? new Date(handRecords[0].created_at)
+        : tradeRecords.length > 0
+          ? new Date(tradeRecords[0].executed_at)
+          : new Date(endAt.getTime() - 29 * 24 * 60 * 60 * 1000));
+    const buckets = buildHandsChartBuckets(period, effectiveStart, endAt);
+    const rows = buckets.map((bucket) => ({
+      label: bucket.label,
+      runTheNumbersHands: 0,
+      guess10Hands: 0,
+      shapeTradersTrades: 0,
+      totalEvents: 0
+    }));
+
+    handRecords.forEach((record) => {
+      const createdAt = new Date(record.created_at);
+      const bucketIndex = buckets.findIndex((bucket) => createdAt >= bucket.start && createdAt < bucket.end);
+      if (bucketIndex < 0) return;
+      const gameKey = resolveGameKey(record.game_id);
+      if (gameKey === GAME_KEYS.GUESS_10) {
+        rows[bucketIndex].guess10Hands += 1;
+      } else {
+        rows[bucketIndex].runTheNumbersHands += 1;
+      }
+      rows[bucketIndex].totalEvents += 1;
+    });
+
+    tradeRecords.forEach((record) => {
+      const executedAt = new Date(record.executed_at);
+      const bucketIndex = buckets.findIndex((bucket) => executedAt >= bucket.start && executedAt < bucket.end);
+      if (bucketIndex < 0) return;
+      rows[bucketIndex].shapeTradersTrades += 1;
+      rows[bucketIndex].totalEvents += 1;
+    });
+
+    if (rows.length) {
+      return rows;
+    }
+  } catch (adminRawError) {
+    console.warn("[RTN] admin raw hands fallback failed", adminRawError);
+  }
+
+  if (currentUser?.id !== userId) {
+    return [];
+  }
+
+  try {
+    const endAt = new Date();
+    const startAt = getAnalyticsPeriodStart(period);
+    const series = await buildHandsByGameSeries(period, {
+      startAt,
+      endAt,
+      userIds: [userId]
+    });
+    const rtnSeries = series.datasets.find((dataset) => dataset?.key === GAME_KEYS.RUN_THE_NUMBERS);
+    const g10Series = series.datasets.find((dataset) => dataset?.key === GAME_KEYS.GUESS_10);
+    const tradeSeries = series.datasets.find((dataset) => dataset?.key === `${GAME_KEYS.SHAPE_TRADERS}_trades`);
+    return series.labels.map((label, index) => ({
+      label,
+      runTheNumbersHands: Number(rtnSeries?.values?.[index] || 0),
+      guess10Hands: Number(g10Series?.values?.[index] || 0),
+      shapeTradersTrades: Number(tradeSeries?.values?.[index] || 0)
+    }));
+  } catch (fallbackError) {
+    console.warn("[RTN] local hands fallback failed", fallbackError);
+    return [];
+  }
 }
 
 function closePlayerBankrollModal() {
@@ -22915,8 +23261,9 @@ function closePlayerBankrollModal() {
 
 async function renderPlayerBankrollChart(userId, period = "year") {
   playerBankrollPeriod = period;
-  const points = await loadPlayerBankrollHistory(userId);
-  const source = points;
+  const bankrollSeries = await loadPlayerBankrollHistory(userId);
+  const source = Array.isArray(bankrollSeries?.points) ? bankrollSeries.points : [];
+  activePlayerBankrollSeriesMode = bankrollSeries?.mode || "pnl";
 
   const canvas = document.getElementById("player-bankroll-chart");
   if (!(canvas instanceof HTMLCanvasElement)) {
@@ -22933,22 +23280,37 @@ async function renderPlayerBankrollChart(userId, period = "year") {
   }
 
   const labels = source.map((point, index) => formatBankrollTickLabel(point, index, period));
-  const values = source.length ? source.map((point) => Number(point.value || 0)) : [INITIAL_BANKROLL];
+  const values = source.length
+    ? source.map((point) =>
+        activePlayerBankrollSeriesMode === "legacy_bankroll"
+          ? Number(point.value || 0)
+          : Number(point.pnlTotal || 0)
+      )
+    : [0];
+  const barColors = values.map((value) =>
+    Number(value || 0) >= 0 ? "rgba(22, 163, 74, 0.92)" : "rgba(249, 115, 22, 0.92)"
+  );
+  const fillColors = values.map((value) =>
+    Number(value || 0) >= 0 ? "rgba(22, 163, 74, 0.22)" : "rgba(249, 115, 22, 0.22)"
+  );
 
   playerBankrollChartInstance = new Chart(ctx, {
-    type: "line",
+    type: activePlayerBankrollSeriesMode === "legacy_bankroll" ? "line" : "bar",
     data: {
-      labels,
+      labels: labels.length ? labels : ["No Data"],
       datasets: [
         {
-          label: "Bankroll",
+          label: activePlayerBankrollSeriesMode === "legacy_bankroll" ? "Bankroll" : "Daily Realized P&L",
           data: values,
-          borderColor: "rgba(53, 255, 234, 1)",
-          backgroundColor: "rgba(53, 255, 234, 0.14)",
-          borderWidth: 2,
-          fill: true,
-          tension: 0.25,
-          pointRadius: values.length > 1 ? 0 : 4
+          borderColor: barColors,
+          backgroundColor: fillColors,
+          borderWidth: 1.4,
+          borderRadius: activePlayerBankrollSeriesMode === "legacy_bankroll" ? 0 : 8,
+          borderSkipped: activePlayerBankrollSeriesMode === "legacy_bankroll" ? undefined : false,
+          maxBarThickness: activePlayerBankrollSeriesMode === "legacy_bankroll" ? undefined : (period === "year" ? 10 : 18),
+          fill: activePlayerBankrollSeriesMode === "legacy_bankroll",
+          tension: activePlayerBankrollSeriesMode === "legacy_bankroll" ? 0.25 : 0,
+          pointRadius: activePlayerBankrollSeriesMode === "legacy_bankroll" ? (values.length > 1 ? 0 : 4) : 0
         }
       ]
     },
@@ -22971,7 +23333,9 @@ async function renderPlayerBankrollChart(userId, period = "year") {
           displayColors: false,
           callbacks: {
             label(context) {
-              return `Bankroll: ${formatCurrency(Number(context.parsed.y || 0))}`;
+              return activePlayerBankrollSeriesMode === "legacy_bankroll"
+                ? `Bankroll: ${formatCurrency(Number(context.parsed.y || 0))}`
+                : `Daily P&L: ${formatSignedCurrency(Number(context.parsed.y || 0))}`;
             }
           }
         }
@@ -22988,13 +23352,16 @@ async function renderPlayerBankrollChart(userId, period = "year") {
           }
         },
         y: {
+          beginAtZero: true,
           grid: {
             color: "rgba(53, 255, 234, 0.1)"
           },
           ticks: {
             color: "rgba(173, 225, 247, 0.75)",
             callback(value) {
-              return formatCurrency(Number(value || 0));
+              return activePlayerBankrollSeriesMode === "legacy_bankroll"
+                ? formatCurrency(Number(value || 0))
+                : formatSignedCurrency(Number(value || 0));
             }
           }
         }
@@ -23004,14 +23371,17 @@ async function renderPlayerBankrollChart(userId, period = "year") {
 
   if (playerBankrollSubheadEl) {
     const labelsByPeriod = {
-      hour: `Showing ${source.length.toLocaleString()} account balance snapshots from the last hour.`,
-      day: `Showing ${source.length.toLocaleString()} account balance snapshots from the last 24 hours.`,
-      week: `Showing ${source.length.toLocaleString()} account balance snapshots from the last week.`,
-      month: `Showing ${source.length.toLocaleString()} account balance snapshots from the last month.`,
-      "90days": `Showing ${source.length.toLocaleString()} account balance snapshots from the last 90 days.`,
-      year: `Showing ${source.length.toLocaleString()} account balance snapshots from the last year.`
+      hour: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last hour.`,
+      day: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last 24 hours.`,
+      week: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last week.`,
+      month: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last month.`,
+      "90days": `Showing ${source.length.toLocaleString()} daily realized P&L points from the last 90 days.`,
+      year: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last year.`
     };
-    playerBankrollSubheadEl.textContent = labelsByPeriod[period] || labelsByPeriod.year;
+    playerBankrollSubheadEl.textContent =
+      activePlayerBankrollSeriesMode === "legacy_bankroll"
+        ? "Daily realized P&L is not available from the admin endpoint yet, so this is showing the legacy bankroll history view."
+        : (labelsByPeriod[period] || labelsByPeriod.year);
   }
 }
 
@@ -23025,7 +23395,7 @@ async function openPlayerBankrollModal(userId, playerName) {
   playerBankrollPeriod = "year";
 
   if (playerBankrollTitleEl) {
-    playerBankrollTitleEl.textContent = `${activePlayerBankrollName} Bankroll Analytics`;
+    playerBankrollTitleEl.textContent = `${activePlayerBankrollName} View PnL`;
   }
 
   document.querySelectorAll("[data-player-bankroll-period]").forEach((button) => {
@@ -23080,6 +23450,7 @@ async function renderPlayerHandsChart(userId, period = "year") {
   const labels = rows.map((row) => row.label || "");
   const runTheNumbersValues = rows.map((row) => Number(row.runTheNumbersHands || 0));
   const guess10Values = rows.map((row) => Number(row.guess10Hands || 0));
+  const shapeTradersValues = rows.map((row) => Number(row.shapeTradersTrades || 0));
   const hasSplitData = rows.length > 0;
 
   const canvas = document.getElementById("player-hands-chart");
@@ -23123,11 +23494,22 @@ async function renderPlayerHandsChart(userId, period = "year") {
               tension: 0.25,
               pointRadius: guess10Values.length > 1 ? 0 : 4,
               pointHoverRadius: 4
+            },
+            {
+              label: getGameLabel(GAME_KEYS.SHAPE_TRADERS),
+              data: shapeTradersValues,
+              borderColor: "rgba(53, 255, 234, 1)",
+              backgroundColor: "rgba(53, 255, 234, 0.14)",
+              borderWidth: 2,
+              fill: false,
+              tension: 0.25,
+              pointRadius: shapeTradersValues.length > 1 ? 0 : 4,
+              pointHoverRadius: 4
             }
           ]
         : [
             {
-              label: "Hands Played",
+              label: "Events",
               data: [0],
               borderColor: "rgba(255, 118, 222, 1)",
               backgroundColor: "rgba(255, 118, 222, 0.14)",
@@ -23193,12 +23575,12 @@ async function renderPlayerHandsChart(userId, period = "year") {
 
   if (playerHandsSubheadEl) {
     const labelsByPeriod = {
-      hour: `Showing ${rows.length.toLocaleString()} hands buckets from the last hour in US Mountain Time, split by game.`,
-      day: `Showing ${rows.length.toLocaleString()} hands buckets from the last 24 hours in US Mountain Time, split by game.`,
-      week: `Showing ${rows.length.toLocaleString()} hands buckets from the last week in US Mountain Time, split by game.`,
-      month: `Showing ${rows.length.toLocaleString()} hands buckets from the last month in US Mountain Time, split by game.`,
-      "90days": `Showing ${rows.length.toLocaleString()} hands buckets from the last 90 days in US Mountain Time, split by game.`,
-      year: `Showing ${rows.length.toLocaleString()} hands buckets from the last year in US Mountain Time, split by game.`
+      hour: `Showing ${rows.length.toLocaleString()} event buckets from the last hour in US Mountain Time, split across RTN, Guess 10, and Shape Traders.`,
+      day: `Showing ${rows.length.toLocaleString()} event buckets from the last 24 hours in US Mountain Time, split across RTN, Guess 10, and Shape Traders.`,
+      week: `Showing ${rows.length.toLocaleString()} event buckets from the last week in US Mountain Time, split across RTN, Guess 10, and Shape Traders.`,
+      month: `Showing ${rows.length.toLocaleString()} event buckets from the last month in US Mountain Time, split across RTN, Guess 10, and Shape Traders.`,
+      "90days": `Showing ${rows.length.toLocaleString()} event buckets from the last 90 days in US Mountain Time, split across RTN, Guess 10, and Shape Traders.`,
+      year: `Showing ${rows.length.toLocaleString()} event buckets from the last year in US Mountain Time, split across RTN, Guess 10, and Shape Traders.`
     };
     playerHandsSubheadEl.textContent = labelsByPeriod[period] || labelsByPeriod.year;
   }
@@ -23214,7 +23596,7 @@ async function openPlayerHandsModal(userId, playerName) {
   playerHandsPeriod = "year";
 
   if (playerHandsTitleEl) {
-    playerHandsTitleEl.textContent = `${activePlayerHandsName} Hands Played`;
+    playerHandsTitleEl.textContent = `${activePlayerHandsName} Chart`;
   }
 
   document.querySelectorAll("[data-player-hands-period]").forEach((button) => {
@@ -23291,7 +23673,13 @@ async function loadPlayerModeBreakdownFallback(userId, period = "year") {
     startAt: startDate,
     endAt: new Date(),
     userIds: [userId],
-    fields: ["user_id", "created_at", "game_id"]
+    fields: ["user_id", "created_at", "game_id", "mode_type", "contest_id"]
+  });
+  const tradeRecords = await fetchShapeTraderTradeRecords({
+    startAt: startDate,
+    endAt: new Date(),
+    userId,
+    fields: ["executed_at", "trade_side", "contest_id"]
   });
   const countsByGame = new Map(
     Object.values(GAME_KEYS).map((gameKey) => [gameKey, 0])
@@ -23300,20 +23688,33 @@ async function loadPlayerModeBreakdownFallback(userId, period = "year") {
     const gameKey = resolveGameKey(record.game_id);
     countsByGame.set(gameKey, (countsByGame.get(gameKey) || 0) + 1);
   });
+  countsByGame.set(
+    GAME_KEYS.SHAPE_TRADERS,
+    (countsByGame.get(GAME_KEYS.SHAPE_TRADERS) || 0) + tradeRecords.length
+  );
   const gameRows = Array.from(countsByGame.entries()).map(([gameKey, handsPlayed]) => ({
     label: getGameLabel(gameKey),
     handsPlayed
   }));
   const gameTotalHands = gameRows.reduce((sum, row) => sum + Number(row.handsPlayed || 0), 0);
 
-  const runRows = await loadGameRunsForUser(userId, { startAt: startDate });
-  const contestHands = (Array.isArray(runRows) ? runRows : []).filter((row) => {
-    const metadata = row?.metadata && typeof row.metadata === "object" ? row.metadata : {};
-    const accountMode = String(metadata?.account_mode || "").trim().toLowerCase();
-    const contestId = String(metadata?.contest_id || "").trim();
-    return accountMode === "contest" || Boolean(contestId);
-  }).length;
-  const normalHands = Math.max(0, (Array.isArray(runRows) ? runRows.length : 0) - contestHands);
+  let contestHands = 0;
+  let normalHands = 0;
+  records.forEach((row) => {
+    const modeType = String(row?.mode_type || "").trim().toLowerCase();
+    if (row?.contest_id || modeType === "contest") {
+      contestHands += 1;
+    } else {
+      normalHands += 1;
+    }
+  });
+  tradeRecords.forEach((row) => {
+    if (row?.contest_id) {
+      contestHands += 1;
+    } else {
+      normalHands += 1;
+    }
+  });
   const modeRows = [
     { label: "Normal Mode", handsPlayed: normalHands },
     { label: "Contest Mode", handsPlayed: contestHands }
@@ -23325,6 +23726,62 @@ async function loadPlayerModeBreakdownFallback(userId, period = "year") {
     gameRows,
     modeTotalHands,
     gameTotalHands
+  };
+}
+
+async function loadPlayerModeBreakdownFromAdminRaw(userId, period = "year") {
+  const startDate = getAnalyticsPeriodStart(period);
+  const { handRecords, tradeRecords } = await loadAdminAnalyticsRawRecords({
+    startAt: startDate,
+    endAt: new Date(),
+    userIds: [userId]
+  });
+
+  const countsByGame = new Map(
+    Object.values(GAME_KEYS).map((gameKey) => [gameKey, 0])
+  );
+  handRecords.forEach((record) => {
+    const gameKey = resolveGameKey(record.game_id);
+    countsByGame.set(gameKey, (countsByGame.get(gameKey) || 0) + 1);
+  });
+  countsByGame.set(
+    GAME_KEYS.SHAPE_TRADERS,
+    (countsByGame.get(GAME_KEYS.SHAPE_TRADERS) || 0) + tradeRecords.length
+  );
+
+  let contestHands = 0;
+  let normalHands = 0;
+  handRecords.forEach((row) => {
+    const modeType = String(row?.mode_type || "").trim().toLowerCase();
+    if (row?.contest_id || modeType === "contest") {
+      contestHands += 1;
+    } else {
+      normalHands += 1;
+    }
+  });
+  tradeRecords.forEach((row) => {
+    if (row?.contest_id) {
+      contestHands += 1;
+    } else {
+      normalHands += 1;
+    }
+  });
+
+  const gameRows = Array.from(countsByGame.entries()).map(([gameKey, handsPlayed]) => ({
+    key: gameKey,
+    label: getGameLabel(gameKey),
+    handsPlayed
+  }));
+  const modeRows = [
+    { label: "Normal Mode", handsPlayed: normalHands },
+    { label: "Contest Mode", handsPlayed: contestHands }
+  ];
+
+  return {
+    modeRows,
+    gameRows,
+    modeTotalHands: modeRows.reduce((sum, row) => sum + Number(row.handsPlayed || 0), 0),
+    gameTotalHands: gameRows.reduce((sum, row) => sum + Number(row.handsPlayed || 0), 0)
   };
 }
 
@@ -23342,30 +23799,53 @@ async function renderPlayerModeBreakdown(userId, period = "year") {
     gameRows = Array.isArray(data?.gameRows) ? data.gameRows : [];
     modeTotalHands = Math.max(0, Number(data?.modeTotalHands || 0));
     gameTotalHands = Math.max(0, Number(data?.gameTotalHands || 0));
-    if (!modeRows.length && !gameRows.length && modeTotalHands === 0 && gameTotalHands === 0) {
-      const fallback = await loadPlayerModeBreakdownFallback(userId, period);
-      modeRows = fallback.modeRows;
-      gameRows = fallback.gameRows;
-      modeTotalHands = fallback.modeTotalHands;
-      gameTotalHands = fallback.gameTotalHands;
+    const hasShapeTradersRow = gameRows.some((row) => resolveGameKey(row?.key || row?.label) === GAME_KEYS.SHAPE_TRADERS || /shape traders/i.test(String(row?.label || "")));
+    if ((!modeRows.length && !gameRows.length && modeTotalHands === 0 && gameTotalHands === 0) || !hasShapeTradersRow) {
+      try {
+        const adminRaw = await loadPlayerModeBreakdownFromAdminRaw(userId, period);
+        modeRows = adminRaw.modeRows;
+        gameRows = adminRaw.gameRows;
+        modeTotalHands = adminRaw.modeTotalHands;
+        gameTotalHands = adminRaw.gameTotalHands;
+      } catch (adminRawError) {
+        console.warn("[RTN] admin raw breakdown compatibility fallback failed", adminRawError);
+        if (currentUser?.id === userId) {
+          const fallback = await loadPlayerModeBreakdownFallback(userId, period);
+          modeRows = fallback.modeRows;
+          gameRows = fallback.gameRows;
+          modeTotalHands = fallback.modeTotalHands;
+          gameTotalHands = fallback.gameTotalHands;
+        }
+      }
     }
   } catch (error) {
     console.warn("[RTN] player breakdown edge fallback", error);
-    const fallback = await loadPlayerModeBreakdownFallback(userId, period);
-    modeRows = fallback.modeRows;
-    gameRows = fallback.gameRows;
-    modeTotalHands = fallback.modeTotalHands;
-    gameTotalHands = fallback.gameTotalHands;
+    try {
+      const adminRaw = await loadPlayerModeBreakdownFromAdminRaw(userId, period);
+      modeRows = adminRaw.modeRows;
+      gameRows = adminRaw.gameRows;
+      modeTotalHands = adminRaw.modeTotalHands;
+      gameTotalHands = adminRaw.gameTotalHands;
+    } catch (adminRawError) {
+      console.warn("[RTN] admin raw breakdown fallback failed", adminRawError);
+      if (currentUser?.id === userId) {
+        const fallback = await loadPlayerModeBreakdownFallback(userId, period);
+        modeRows = fallback.modeRows;
+        gameRows = fallback.gameRows;
+        modeTotalHands = fallback.modeTotalHands;
+        gameTotalHands = fallback.gameTotalHands;
+      }
+    }
   }
 
   if (playerModeBreakdownSummaryEl) {
     const labelsByPeriod = {
-      hour: `Mode and game hands played in the last hour.`,
-      day: `Mode and game hands played in the last 24 hours.`,
-      week: `Mode and game hands played in the last 7 days.`,
-      month: `Mode and game hands played in the last 30 days.`,
-      "90days": `Mode and game hands played in the last 90 days.`,
-      year: `Mode and game hands played in the last year.`
+      hour: `Mode and game events in the last hour.`,
+      day: `Mode and game events in the last 24 hours.`,
+      week: `Mode and game events in the last 7 days.`,
+      month: `Mode and game events in the last 30 days.`,
+      "90days": `Mode and game events in the last 90 days.`,
+      year: `Mode and game events in the last year.`
     };
     playerModeBreakdownSummaryEl.textContent = labelsByPeriod[period] || labelsByPeriod.year;
   }
@@ -23513,34 +23993,7 @@ async function loadMostActiveThisWeek() {
 
   const startDate = getAnalyticsPeriodStart(activityLeaderboardPeriod);
   try {
-    let rankedUsers = [];
-    const { data, error } = await supabase.rpc("get_admin_most_active_hands", {
-      start_at: startDate ? startDate.toISOString() : null,
-      end_at: new Date().toISOString(),
-      target_user_ids: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null,
-      limit_count: null
-    });
-
-    if (error) {
-      if (!isMissingRpcError(error)) {
-        console.warn("[RTN] get_admin_most_active_hands failed, using fallback:", error);
-      }
-      rankedUsers = await loadMostActiveHandsFallback(startDate);
-    } else {
-      rankedUsers = Array.isArray(data)
-        ? data.map((entry) => ({
-            userId: entry.user_id,
-            handsPlayed: Number(entry.hands_played || 0),
-            profile: {
-              id: entry.user_id,
-              username: entry.username || null,
-              first_name: entry.first_name || null,
-              last_name: entry.last_name || null
-            }
-          }))
-        : [];
-      cacheAnalyticsProfiles(rankedUsers.map((entry) => entry.profile).filter(Boolean));
-    }
+    const rankedUsers = await loadMostActiveHandsFallback(startDate);
 
     if (requestId !== analyticsMostActiveRequestId) return;
     analyticsMostActiveEntries = rankedUsers;
@@ -23557,39 +24010,131 @@ async function loadMostActiveThisWeek() {
 }
 
 async function loadMostActiveHandsFallback(startDate) {
-  const allRecords = [];
-  const pageSize = 1000;
-  let page = 0;
-  let hasMore = true;
-
-  while (hasMore) {
-    let query = supabase
-      .from("game_hands")
-      .select("user_id, created_at")
-      .order("created_at", { ascending: false })
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-
-    if (startDate) {
-      query = query.gte("created_at", startDate.toISOString());
+  try {
+    const { data, error } = await supabase.rpc("get_admin_most_active_events", {
+      start_at: startDate ? startDate.toISOString() : null,
+      end_at: new Date().toISOString(),
+      target_user_ids: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null,
+      limit_count: null
+    });
+    if (!error && Array.isArray(data)) {
+      return data.map((entry) => ({
+        userId: entry.user_id,
+        totalEvents: Number(entry.total_events || 0),
+        runTheNumbersHands: Number(entry.run_the_numbers_hands || 0),
+        guess10Hands: Number(entry.guess10_hands || 0),
+        shapeTradersTrades: Number(entry.shape_traders_trades || 0),
+        hasDetailedBreakdown: true,
+        profile: {
+          id: entry.user_id,
+          username: entry.username || null,
+          first_name: entry.first_name || null,
+          last_name: entry.last_name || null
+        }
+      }));
     }
-
-    if (selectedPlayerIds && selectedPlayerIds.length > 0) {
-      query = query.in("user_id", selectedPlayerIds);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      throw error;
-    }
-
-    if (Array.isArray(data) && data.length) {
-      allRecords.push(...data);
-      hasMore = data.length === pageSize;
-      page += 1;
-    } else {
-      hasMore = false;
-    }
+  } catch (error) {
+    console.warn("[RTN] get_admin_most_active_events unavailable, falling back", error);
   }
+
+  try {
+    const { handRecords, tradeRecords } = await loadAdminAnalyticsRawRecords({
+      startAt: startDate,
+      endAt: new Date(),
+      userIds: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null
+    });
+    const rankedMap = new Map();
+
+    handRecords.forEach((record) => {
+      const userId = record?.user_id;
+      if (!userId) return;
+      const current = rankedMap.get(userId) || {
+        userId,
+        totalEvents: 0,
+        runTheNumbersHands: 0,
+        guess10Hands: 0,
+        shapeTradersTrades: 0
+      };
+      const gameKey = resolveGameKey(record?.game_id);
+      if (gameKey === GAME_KEYS.GUESS_10) {
+        current.guess10Hands += 1;
+      } else {
+        current.runTheNumbersHands += 1;
+      }
+      current.totalEvents += 1;
+      rankedMap.set(userId, current);
+    });
+
+    tradeRecords.forEach((record) => {
+      const userId = record?.user_id;
+      if (!userId) return;
+      const current = rankedMap.get(userId) || {
+        userId,
+        totalEvents: 0,
+        runTheNumbersHands: 0,
+        guess10Hands: 0,
+        shapeTradersTrades: 0
+      };
+      current.shapeTradersTrades += 1;
+      current.totalEvents += 1;
+      rankedMap.set(userId, current);
+    });
+
+    const rankedUsers = Array.from(rankedMap.values()).sort((a, b) => {
+      if ((b.totalEvents || 0) !== (a.totalEvents || 0)) return (b.totalEvents || 0) - (a.totalEvents || 0);
+      return String(a.userId).localeCompare(String(b.userId));
+    });
+    if (rankedUsers.length) {
+      const profilesById = await loadAnalyticsProfilesByIds(rankedUsers.map((entry) => entry.userId));
+      return rankedUsers.map((entry) => ({
+        ...entry,
+        hasDetailedBreakdown: true,
+        profile: profilesById.get(entry.userId) || null
+      }));
+    }
+  } catch (adminRawError) {
+    console.warn("[RTN] admin raw most-active fallback failed", adminRawError);
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("get_admin_most_active_hands", {
+      start_at: startDate ? startDate.toISOString() : null,
+      end_at: new Date().toISOString(),
+      target_user_ids: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null,
+      limit_count: null
+    });
+    if (!error && Array.isArray(data) && data.length) {
+      return data.map((entry) => ({
+        userId: entry.user_id,
+        handsPlayed: Number(entry.hands_played || 0),
+        totalEvents: Number(entry.hands_played || 0),
+        hasDetailedBreakdown: false,
+        profile: {
+          id: entry.user_id,
+          username: entry.username || null,
+          first_name: entry.first_name || null,
+          last_name: entry.last_name || null
+        }
+      }));
+    }
+  } catch (error) {
+    console.warn("[RTN] get_admin_most_active_hands unavailable, falling back to client reads", error);
+  }
+
+  const [allRecords, tradeRecords] = await Promise.all([
+    fetchGameHandsRecords({
+      startAt: startDate,
+      endAt: new Date(),
+      userIds: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null,
+      fields: ["user_id", "created_at", "game_id"]
+    }),
+    fetchShapeTraderTradeRecords({
+      startAt: startDate,
+      endAt: new Date(),
+      userIds: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null,
+      fields: ["user_id", "executed_at"]
+    })
+  ]);
 
   const rankedMap = new Map();
   allRecords.forEach((record) => {
@@ -23597,21 +24142,45 @@ async function loadMostActiveHandsFallback(startDate) {
     if (!userId) return;
     const current = rankedMap.get(userId) || {
       userId,
-      handsPlayed: 0
+      totalEvents: 0,
+      runTheNumbersHands: 0,
+      guess10Hands: 0,
+      shapeTradersTrades: 0
     };
-    current.handsPlayed += 1;
+    const gameKey = resolveGameKey(record?.game_id);
+    if (gameKey === GAME_KEYS.GUESS_10) {
+      current.guess10Hands += 1;
+    } else {
+      current.runTheNumbersHands += 1;
+    }
+    current.totalEvents += 1;
+    rankedMap.set(userId, current);
+  });
+
+  tradeRecords.forEach((record) => {
+    const userId = record?.user_id;
+    if (!userId) return;
+    const current = rankedMap.get(userId) || {
+      userId,
+      totalEvents: 0,
+      runTheNumbersHands: 0,
+      guess10Hands: 0,
+      shapeTradersTrades: 0
+    };
+    current.shapeTradersTrades += 1;
+    current.totalEvents += 1;
     rankedMap.set(userId, current);
   });
 
   const rankedUsers = Array.from(rankedMap.values()).sort((a, b) => {
-    if ((b.handsPlayed || 0) !== (a.handsPlayed || 0)) return (b.handsPlayed || 0) - (a.handsPlayed || 0);
+    if ((b.totalEvents || 0) !== (a.totalEvents || 0)) return (b.totalEvents || 0) - (a.totalEvents || 0);
     return String(a.userId).localeCompare(String(b.userId));
   });
-  const topUsers = rankedUsers.slice(0, 10);
-  const profilesById = await loadAnalyticsProfilesByIds(topUsers.map((entry) => entry.userId));
+  const profilesById = await loadAnalyticsProfilesByIds(rankedUsers.map((entry) => entry.userId));
 
-  return topUsers.map((entry) => ({
+  return rankedUsers.map((entry) => ({
     ...entry,
+    hasDetailedBreakdown: true,
     profile: profilesById.get(entry.userId) || null
   }));
 }

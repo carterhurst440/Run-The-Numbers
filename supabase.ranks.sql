@@ -117,22 +117,46 @@ begin
     effective_snapshot_date,
     effective_reference,
     (
-      select count(distinct gh.user_id)::integer
-      from public.game_hands gh
-      where gh.created_at > effective_reference - interval '24 hours'
-        and gh.created_at <= effective_reference
+      select count(distinct activity.user_id)::integer
+      from (
+        select gh.user_id
+        from public.game_hands gh
+        where gh.created_at > effective_reference - interval '24 hours'
+          and gh.created_at <= effective_reference
+        union
+        select st.user_id
+        from public.shape_trader_trades st
+        where st.executed_at > effective_reference - interval '24 hours'
+          and st.executed_at <= effective_reference
+      ) activity
     ),
     (
-      select count(distinct gh.user_id)::integer
-      from public.game_hands gh
-      where gh.created_at > effective_reference - interval '7 days'
-        and gh.created_at <= effective_reference
+      select count(distinct activity.user_id)::integer
+      from (
+        select gh.user_id
+        from public.game_hands gh
+        where gh.created_at > effective_reference - interval '7 days'
+          and gh.created_at <= effective_reference
+        union
+        select st.user_id
+        from public.shape_trader_trades st
+        where st.executed_at > effective_reference - interval '7 days'
+          and st.executed_at <= effective_reference
+      ) activity
     ),
     (
-      select count(distinct gh.user_id)::integer
-      from public.game_hands gh
-      where gh.created_at > effective_reference - interval '30 days'
-        and gh.created_at <= effective_reference
+      select count(distinct activity.user_id)::integer
+      from (
+        select gh.user_id
+        from public.game_hands gh
+        where gh.created_at > effective_reference - interval '30 days'
+          and gh.created_at <= effective_reference
+        union
+        select st.user_id
+        from public.shape_trader_trades st
+        where st.executed_at > effective_reference - interval '30 days'
+          and st.executed_at <= effective_reference
+      ) activity
     )
   )
   on conflict (snapshot_date) do update
@@ -389,13 +413,16 @@ begin
 end;
 $$;
 
-create or replace function public.get_admin_analytics_players()
+drop function if exists public.get_admin_analytics_players();
+
+create function public.get_admin_analytics_players()
 returns table(
   id uuid,
   username text,
   first_name text,
   last_name text,
-  hands_played_all_time integer
+  hands_played_all_time integer,
+  trades_made_all_time integer
 )
 language plpgsql
 security definer
@@ -411,9 +438,11 @@ begin
     p.username,
     p.first_name,
     p.last_name,
-    coalesce(p.hands_played_all_time, 0)::integer as hands_played_all_time
+    coalesce(p.hands_played_all_time, 0)::integer as hands_played_all_time,
+    coalesce(p.trades_made_all_time, 0)::integer as trades_made_all_time
   from public.profiles p
   where coalesce(p.hands_played_all_time, 0) > 0
+     or coalesce(p.trades_made_all_time, 0) > 0
   order by lower(coalesce(p.username, concat_ws(' ', p.first_name, p.last_name), p.id::text));
 end;
 $$;
@@ -529,6 +558,150 @@ begin
 end;
 $$;
 
+create or replace function public.get_admin_most_active_events(
+  start_at timestamptz default null,
+  end_at timestamptz default null,
+  target_user_ids uuid[] default null,
+  limit_count integer default 10
+)
+returns table(
+  user_id uuid,
+  total_events bigint,
+  run_the_numbers_hands bigint,
+  guess10_hands bigint,
+  shape_traders_trades bigint,
+  username text,
+  first_name text,
+  last_name text
+)
+language plpgsql
+security definer
+as $$
+begin
+  if (auth.jwt() ->> 'email') is distinct from 'carterwarrenhurst@gmail.com' then
+    raise exception 'Not authorized to view admin event activity rankings';
+  end if;
+
+  return query
+  with hand_counts as (
+    select
+      gh.user_id,
+      count(*) filter (where coalesce(gh.game_id, 'game_001') = 'game_001')::bigint as run_the_numbers_hands,
+      count(*) filter (where gh.game_id = 'game_002')::bigint as guess10_hands
+    from public.game_hands gh
+    where (start_at is null or gh.created_at >= start_at)
+      and (end_at is null or gh.created_at <= end_at)
+      and (target_user_ids is null or gh.user_id = any(target_user_ids))
+    group by gh.user_id
+  ),
+  trade_counts as (
+    select
+      st.user_id,
+      count(*)::bigint as shape_traders_trades
+    from public.shape_trader_trades st
+    where (start_at is null or st.executed_at >= start_at)
+      and (end_at is null or st.executed_at <= end_at)
+      and (target_user_ids is null or st.user_id = any(target_user_ids))
+    group by st.user_id
+  ),
+  combined as (
+    select
+      coalesce(h.user_id, t.user_id) as user_id,
+      coalesce(h.run_the_numbers_hands, 0)::bigint as run_the_numbers_hands,
+      coalesce(h.guess10_hands, 0)::bigint as guess10_hands,
+      coalesce(t.shape_traders_trades, 0)::bigint as shape_traders_trades
+    from hand_counts h
+    full outer join trade_counts t on t.user_id = h.user_id
+  )
+  select
+    c.user_id,
+    (c.run_the_numbers_hands + c.guess10_hands + c.shape_traders_trades)::bigint as total_events,
+    c.run_the_numbers_hands,
+    c.guess10_hands,
+    c.shape_traders_trades,
+    p.username,
+    p.first_name,
+    p.last_name
+  from combined c
+  left join public.profiles p on p.id = c.user_id
+  where c.user_id is not null
+  order by total_events desc, c.shape_traders_trades desc, c.run_the_numbers_hands desc, c.guess10_hands desc, c.user_id
+  limit nullif(greatest(coalesce(limit_count, 0), 0), 0);
+end;
+$$;
+
+create or replace function public.get_admin_game_hands(
+  start_at timestamptz default null,
+  end_at timestamptz default null,
+  target_user_ids uuid[] default null
+)
+returns table(
+  user_id uuid,
+  created_at timestamptz,
+  game_id text,
+  net numeric,
+  mode_type text,
+  contest_id uuid
+)
+language plpgsql
+security definer
+as $$
+begin
+  if (auth.jwt() ->> 'email') is distinct from 'carterwarrenhurst@gmail.com' then
+    raise exception 'Not authorized to view admin game hands';
+  end if;
+
+  return query
+  select
+    gh.user_id,
+    gh.created_at,
+    gh.game_id,
+    gh.net,
+    gh.mode_type,
+    gh.contest_id
+  from public.game_hands gh
+  where (start_at is null or gh.created_at >= start_at)
+    and (end_at is null or gh.created_at <= end_at)
+    and (target_user_ids is null or gh.user_id = any(target_user_ids))
+  order by gh.created_at asc;
+end;
+$$;
+
+create or replace function public.get_admin_shape_trader_trades(
+  start_at timestamptz default null,
+  end_at timestamptz default null,
+  target_user_ids uuid[] default null
+)
+returns table(
+  user_id uuid,
+  executed_at timestamptz,
+  trade_side text,
+  net_profit numeric,
+  contest_id uuid
+)
+language plpgsql
+security definer
+as $$
+begin
+  if (auth.jwt() ->> 'email') is distinct from 'carterwarrenhurst@gmail.com' then
+    raise exception 'Not authorized to view admin shape trader trades';
+  end if;
+
+  return query
+  select
+    st.user_id,
+    st.executed_at,
+    st.trade_side,
+    st.net_profit,
+    st.contest_id
+  from public.shape_trader_trades st
+  where (start_at is null or st.executed_at >= start_at)
+    and (end_at is null or st.executed_at <= end_at)
+    and (target_user_ids is null or st.user_id = any(target_user_ids))
+  order by st.executed_at asc;
+end;
+$$;
+
 select public.recompute_all_profile_ranks();
 
 grant select, insert, update, delete on public.ranks to authenticated;
@@ -542,3 +715,6 @@ grant execute on function public.get_admin_app_activity_snapshot_timeseries(time
 grant execute on function public.get_admin_analytics_players() to authenticated;
 grant execute on function public.get_admin_most_active_players(timestamptz, timestamptz, uuid[], integer) to authenticated;
 grant execute on function public.get_admin_most_active_hands(timestamptz, timestamptz, uuid[], integer) to authenticated;
+grant execute on function public.get_admin_most_active_events(timestamptz, timestamptz, uuid[], integer) to authenticated;
+grant execute on function public.get_admin_game_hands(timestamptz, timestamptz, uuid[]) to authenticated;
+grant execute on function public.get_admin_shape_trader_trades(timestamptz, timestamptz, uuid[]) to authenticated;
