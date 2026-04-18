@@ -248,7 +248,7 @@ function applyBackendGameAssetRows(rows = []) {
 }
 
 async function refreshGameAssetsFromBackend() {
-  if (!supabase) {
+  if (!supabase || shouldWaitForLiveSupabaseGameAssets()) {
     return false;
   }
   try {
@@ -327,6 +327,13 @@ function persistGameAssetLibrary() {
   } catch (error) {
     console.warn("[RTN] Unable to persist game assets", error);
   }
+}
+
+function shouldWaitForLiveSupabaseGameAssets() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  return Boolean(window.SUPABASE_URL && window.SUPABASE_ANON_KEY) && !window.__RTN_SUPABASE_LIVE_READY;
 }
 
 function renderGameLogoTargets() {
@@ -14518,6 +14525,11 @@ let currentAccountMode = {
 };
 hydrateGameAssetLibrary();
 renderGameLogoTargets();
+if (typeof window !== "undefined") {
+  window.addEventListener("supabase:ready", () => {
+    void refreshGameAssetsFromBackend().catch((err) => console.warn("[RTN] Deferred game asset sync error:", err));
+  });
+}
 Promise.resolve()
   .then(() => refreshGameAssetsFromBackend())
   .catch((err) => console.warn("[RTN] Initial game asset sync error:", err));

@@ -6,6 +6,10 @@
 
 let liveClient = null;
 
+if (typeof window !== "undefined") {
+  window.__RTN_SUPABASE_LIVE_READY = false;
+}
+
 const SUPABASE_URL = typeof window !== "undefined" ? window.SUPABASE_URL || null : null;
 const SUPABASE_ANON_KEY = typeof window !== "undefined" ? window.SUPABASE_ANON_KEY || null : null;
 
@@ -81,6 +85,7 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY) {
       console.info("[RTN] Supabase client initialized (live mode)");
       try {
         if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+          window.__RTN_SUPABASE_LIVE_READY = true;
           window.dispatchEvent(new CustomEvent('supabase:ready'));
         }
       } catch (e) {
