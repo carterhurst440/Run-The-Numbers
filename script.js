@@ -14242,6 +14242,10 @@ const bankrollChartTooltip = document.getElementById("bankroll-chart-tooltip");
 const bankrollChartTooltipDateEl = document.getElementById("bankroll-chart-tooltip-date");
 const bankrollChartTooltipValueEl = document.getElementById("bankroll-chart-tooltip-value");
 const activityFilterButtons = Array.from(document.querySelectorAll("[data-activity-period]"));
+const mostActiveGameFilterButtons = Array.from(document.querySelectorAll("[data-most-active-game]"));
+const mostActiveChartSubheadEl = document.getElementById("most-active-chart-subhead");
+const mostActivePlayerFiltersEl = document.getElementById("most-active-player-filters");
+const mostActiveChartCanvas = document.getElementById("most-active-analytics-chart");
 const activeUsersFilterButtons = Array.from(document.querySelectorAll("[data-active-users-period]"));
 const activeUsersSubheadEl = document.getElementById("active-users-subhead");
 const panelScrim = document.getElementById("panel-scrim");
@@ -22523,6 +22527,31 @@ if (mostActiveWeekListEl) {
   });
 }
 
+if (mostActivePlayerFiltersEl) {
+  mostActivePlayerFiltersEl.addEventListener("change", (event) => {
+    const input = event.target instanceof HTMLInputElement ? event.target : null;
+    if (!input || input.type !== "checkbox" || !input.dataset.mostActiveTrendUserId) {
+      return;
+    }
+    const nextSelectedIds = Array.from(
+      mostActivePlayerFiltersEl.querySelectorAll("input[data-most-active-trend-user-id]:checked")
+    ).map((checkbox) => checkbox.value);
+    mostActiveTrendSelectedUserIds = nextSelectedIds;
+    renderMostActiveTrendChartFromSource();
+  });
+}
+
+mostActiveGameFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const nextGame = button instanceof HTMLElement
+      ? normalizeBankrollChartGameFilter(button.dataset.mostActiveGame || "all")
+      : "all";
+    mostActiveTrendGameFilter = nextGame;
+    updateMostActiveTrendFilterUI();
+    renderMostActiveTrendChartFromSource();
+  });
+});
+
 if (playerBankrollClose) {
   playerBankrollClose.addEventListener("click", () => {
     closePlayerBankrollModal();
@@ -22748,6 +22777,10 @@ let analyticsPlayerFilterLoaded = false;
 let analyticsMostActiveRequestId = 0;
 let analyticsMostActiveEntries = [];
 let analyticsMostActiveVisibleCount = 10;
+let mostActiveTrendChartInstance = null;
+let mostActiveTrendGameFilter = "all";
+let mostActiveTrendSelectedUserIds = [];
+let mostActiveTrendSource = null;
 let playerBankrollChartInstance = null;
 let playerBankrollPeriod = "year";
 let playerBankrollGameFilter = "all";
@@ -23044,6 +23077,301 @@ function renderMostActiveEntries() {
       mostActiveLoadMoreButton.textContent = `Load More (${remainingCount.toLocaleString()} left)`;
     }
   }
+}
+
+function getMostActiveTrendSeriesColors(index = 0) {
+  const palette = [
+    { border: "rgba(53, 255, 234, 1)", background: "rgba(53, 255, 234, 0.14)" },
+    { border: "rgba(255, 105, 180, 1)", background: "rgba(255, 105, 180, 0.14)" },
+    { border: "rgba(255, 190, 92, 1)", background: "rgba(255, 190, 92, 0.14)" },
+    { border: "rgba(124, 92, 255, 1)", background: "rgba(124, 92, 255, 0.14)" },
+    { border: "rgba(120, 255, 141, 1)", background: "rgba(120, 255, 141, 0.14)" },
+    { border: "rgba(255, 143, 92, 1)", background: "rgba(255, 143, 92, 0.14)" },
+    { border: "rgba(120, 180, 255, 1)", background: "rgba(120, 180, 255, 0.14)" },
+    { border: "rgba(255, 224, 102, 1)", background: "rgba(255, 224, 102, 0.14)" }
+  ];
+  return palette[index % palette.length];
+}
+
+function updateMostActiveTrendFilterUI() {
+  mostActiveGameFilterButtons.forEach((button) => {
+    button.classList.toggle(
+      "active",
+      button instanceof HTMLElement &&
+        normalizeBankrollChartGameFilter(button.dataset.mostActiveGame || "all") === mostActiveTrendGameFilter
+    );
+  });
+}
+
+function renderMostActivePlayerFilters(rankedUsers = []) {
+  if (!mostActivePlayerFiltersEl) return;
+  mostActivePlayerFiltersEl.innerHTML = "";
+  if (!rankedUsers.length) {
+    const empty = document.createElement("p");
+    empty.className = "most-active-player-filters-empty";
+    empty.textContent = "No players available for charting.";
+    mostActivePlayerFiltersEl.appendChild(empty);
+    return;
+  }
+
+  const selectedSet = new Set(mostActiveTrendSelectedUserIds);
+  const fragment = document.createDocumentFragment();
+  rankedUsers.forEach((entry, index) => {
+    const profile = entry.profile || analyticsProfileCache.get(entry.userId) || null;
+    const label = document.createElement("label");
+    label.className = "most-active-player-chip";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = entry.userId;
+    input.checked = selectedSet.has(entry.userId);
+    input.dataset.mostActiveTrendUserId = entry.userId;
+
+    const marker = document.createElement("span");
+    marker.className = "most-active-player-chip-mark";
+    const colors = getMostActiveTrendSeriesColors(index);
+    marker.style.setProperty("--player-line-color", colors.border);
+
+    const text = document.createElement("span");
+    text.className = "most-active-player-chip-text";
+    text.textContent = getContestDisplayName(profile, entry.userId);
+
+    label.append(input, marker, text);
+    fragment.appendChild(label);
+  });
+  mostActivePlayerFiltersEl.appendChild(fragment);
+}
+
+function buildMostActiveTrendDatasets({
+  rankedUsers = [],
+  handRecords = [],
+  tradeRecords = [],
+  period = "week",
+  startAt = null,
+  endAt = new Date()
+} = {}) {
+  const availableUserIds = rankedUsers.map((entry) => entry.userId).filter(Boolean);
+  const selectedUserIds = mostActiveTrendSelectedUserIds.filter((userId) => availableUserIds.includes(userId));
+  const effectiveSelectedIds = selectedUserIds.length ? selectedUserIds : availableUserIds.slice(0, Math.min(5, availableUserIds.length));
+  if (effectiveSelectedIds.length !== mostActiveTrendSelectedUserIds.length || !mostActiveTrendSelectedUserIds.length) {
+    mostActiveTrendSelectedUserIds = [...effectiveSelectedIds];
+  }
+
+  const effectiveStart =
+    startAt ||
+    (handRecords.length > 0
+      ? new Date(handRecords[0]?.created_at || endAt)
+      : tradeRecords.length > 0
+        ? new Date(tradeRecords[0]?.executed_at || endAt)
+        : new Date(endAt.getTime() - 29 * 24 * 60 * 60 * 1000));
+
+  const buckets = buildHandsChartBuckets(period, effectiveStart, endAt);
+  const seriesMap = new Map(
+    effectiveSelectedIds.map((userId) => [
+      userId,
+      {
+        key: userId,
+        label: getContestDisplayName(
+          rankedUsers.find((entry) => entry.userId === userId)?.profile || analyticsProfileCache.get(userId) || null,
+          userId
+        ),
+        values: new Array(buckets.length).fill(0)
+      }
+    ])
+  );
+
+  handRecords.forEach((record) => {
+    const userId = record?.user_id;
+    if (!seriesMap.has(userId)) return;
+    const createdAt = new Date(record?.created_at || 0);
+    const bucketIndex = buckets.findIndex((bucket) => createdAt >= bucket.start && createdAt < bucket.end);
+    if (bucketIndex < 0) return;
+    const gameKey = resolveGameKey(record?.game_id);
+    if (
+      mostActiveTrendGameFilter !== "all" &&
+      mostActiveTrendGameFilter !== gameKey
+    ) {
+      return;
+    }
+    seriesMap.get(userId).values[bucketIndex] += 1;
+  });
+
+  if (mostActiveTrendGameFilter === "all" || mostActiveTrendGameFilter === GAME_KEYS.SHAPE_TRADERS) {
+    tradeRecords.forEach((record) => {
+      const userId = record?.user_id;
+      if (!seriesMap.has(userId)) return;
+      const executedAt = new Date(record?.executed_at || 0);
+      const bucketIndex = buckets.findIndex((bucket) => executedAt >= bucket.start && executedAt < bucket.end);
+      if (bucketIndex < 0) return;
+      seriesMap.get(userId).values[bucketIndex] += 1;
+    });
+  }
+
+  const datasets = effectiveSelectedIds.map((userId, index) => {
+    const colors = getMostActiveTrendSeriesColors(index);
+    const series = seriesMap.get(userId);
+    return {
+      label: series?.label || userId,
+      data: series?.values || [],
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+      borderWidth: 2,
+      fill: false,
+      tension: 0.28,
+      pointRadius: (series?.values || []).length > 1 ? 0 : 4,
+      pointHoverRadius: 4
+    };
+  });
+
+  return {
+    labels: buckets.map((bucket) => bucket.label),
+    datasets
+  };
+}
+
+function updateMostActiveChartSubhead(rankedUsers = []) {
+  if (!mostActiveChartSubheadEl) return;
+  const gameLabels = {
+    all: "total events",
+    [GAME_KEYS.RUN_THE_NUMBERS]: "Run The Numbers hands",
+    [GAME_KEYS.GUESS_10]: "Guess 10 hands",
+    [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders trades"
+  };
+  const selectedCount = mostActiveTrendSelectedUserIds.length || Math.min(5, rankedUsers.length);
+  mostActiveChartSubheadEl.textContent =
+    `Charting ${gameLabels[mostActiveTrendGameFilter] || gameLabels.all} for ${selectedCount.toLocaleString()} selected player${selectedCount === 1 ? "" : "s"} in the current time window.`;
+}
+
+function renderMostActiveTrendChartFromSource() {
+  if (!(mostActiveChartCanvas instanceof HTMLCanvasElement) || !mostActiveTrendSource) {
+    return;
+  }
+  const { rankedUsers, handRecords, tradeRecords, startAt, endAt, period } = mostActiveTrendSource;
+  updateMostActiveTrendFilterUI();
+
+  const ctx = mostActiveChartCanvas.getContext("2d");
+  if (!ctx) return;
+  const { labels, datasets } = buildMostActiveTrendDatasets({
+    rankedUsers,
+    handRecords,
+    tradeRecords,
+    period,
+    startAt,
+    endAt
+  });
+  renderMostActivePlayerFilters(rankedUsers);
+  updateMostActiveChartSubhead(rankedUsers);
+
+  if (mostActiveTrendChartInstance) {
+    mostActiveTrendChartInstance.destroy();
+  }
+
+  mostActiveTrendChartInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: labels.length ? labels : ["No Data"],
+      datasets: datasets.length ? datasets : [{
+        label: "No Data",
+        data: [0],
+        borderColor: "rgba(173, 225, 247, 0.55)",
+        backgroundColor: "rgba(173, 225, 247, 0.12)",
+        borderWidth: 2,
+        fill: false,
+        tension: 0.25,
+        pointRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            color: "rgba(226, 248, 255, 0.85)",
+            boxWidth: 14,
+            boxHeight: 14
+          }
+        },
+        tooltip: {
+          mode: "index",
+          intersect: false,
+          backgroundColor: "rgba(9, 18, 32, 0.95)",
+          titleColor: "rgba(53, 255, 234, 1)",
+          bodyColor: "rgba(226, 248, 255, 0.9)",
+          borderColor: "rgba(53, 255, 234, 0.5)",
+          borderWidth: 1,
+          padding: 12,
+          callbacks: {
+            label(context) {
+              return `${context.dataset.label}: ${Math.round(Number(context.parsed.y || 0)).toLocaleString()} events`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: "rgba(53, 255, 234, 0.08)" },
+          ticks: {
+            color: "rgba(173, 225, 247, 0.75)",
+            maxRotation: 45,
+            minRotation: 0
+          }
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: "rgba(53, 255, 234, 0.08)" },
+          ticks: {
+            color: "rgba(173, 225, 247, 0.75)",
+            precision: 0,
+            callback(value) {
+              return Math.round(Number(value || 0)).toLocaleString();
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+async function renderMostActiveTrendChart(rankedUsers = [], startAt = null) {
+  if (!(mostActiveChartCanvas instanceof HTMLCanvasElement)) {
+    return;
+  }
+  if (!rankedUsers.length) {
+    mostActiveTrendSource = {
+      rankedUsers: [],
+      handRecords: [],
+      tradeRecords: [],
+      startAt,
+      endAt: new Date(),
+      period: activityLeaderboardPeriod
+    };
+    mostActiveTrendSelectedUserIds = [];
+    renderMostActiveTrendChartFromSource();
+    return;
+  }
+
+  const userIds = rankedUsers.map((entry) => entry.userId).filter(Boolean);
+  const endAt = new Date();
+  const { handRecords, tradeRecords } = await loadAdminAnalyticsRawRecords({
+    startAt,
+    endAt,
+    userIds
+  });
+  const availableIds = new Set(userIds);
+  mostActiveTrendSelectedUserIds = mostActiveTrendSelectedUserIds.filter((userId) => availableIds.has(userId));
+  if (!mostActiveTrendSelectedUserIds.length) {
+    mostActiveTrendSelectedUserIds = userIds.slice(0, Math.min(5, userIds.length));
+  }
+  mostActiveTrendSource = {
+    rankedUsers,
+    handRecords,
+    tradeRecords,
+    startAt,
+    endAt,
+    period: activityLeaderboardPeriod
+  };
+  renderMostActiveTrendChartFromSource();
 }
 
 async function invokeAdminAnalytics(action, payload = {}) {
@@ -24078,6 +24406,7 @@ async function loadMostActiveThisWeek() {
     if (requestId !== analyticsMostActiveRequestId) return;
     analyticsMostActiveEntries = rankedUsers;
     renderMostActiveEntries();
+    await renderMostActiveTrendChart(rankedUsers, startDate);
   } catch (error) {
     if (requestId !== analyticsMostActiveRequestId) return;
     console.error("[RTN] loadMostActiveThisWeek error", error);

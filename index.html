@@ -2394,6 +2394,21 @@
                     </div>
                   </div>
                   <p id="most-active-subhead" class="analytics-card-subhead">Ranked by combined events in the last 7 days.</p>
+                  <div class="most-active-trend-block">
+                    <div class="most-active-trend-toolbar">
+                      <div id="most-active-player-filters" class="most-active-player-filters" aria-label="Filter most active chart players"></div>
+                      <div class="chart-filters bankroll-game-filters most-active-game-filters">
+                        <button type="button" class="chart-filter-btn active" data-most-active-game="all">All</button>
+                        <button type="button" class="chart-filter-btn" data-most-active-game="game_001">RTN</button>
+                        <button type="button" class="chart-filter-btn" data-most-active-game="game_002">G10</button>
+                        <button type="button" class="chart-filter-btn" data-most-active-game="shape_traders">ST</button>
+                      </div>
+                    </div>
+                    <p id="most-active-chart-subhead" class="analytics-card-subhead">Trend lines by player for the selected time window.</p>
+                    <div class="overview-chart-container most-active-chart-container">
+                      <canvas id="most-active-analytics-chart"></canvas>
+                    </div>
+                  </div>
                   <ul id="most-active-week-list" class="analytics-activity-list" aria-live="polite"></ul>
                   <button type="button" id="most-active-load-more" class="btn-secondary analytics-load-more" hidden>Load More</button>
                 </div>
