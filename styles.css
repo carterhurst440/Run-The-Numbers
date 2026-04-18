@@ -4913,20 +4913,24 @@ body[data-app-state="loading"] #app-shell {
     min-width: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    align-items: stretch;
+    grid-template-rows: auto auto;
+    align-items: end;
     gap: 0.55rem;
   }
 
   .shape-traders-header-balance-head {
     grid-column: 1 / -1;
+    grid-row: 1;
     width: 100%;
   }
 
   .shape-traders-header-balance .shape-traders-balance-list {
     grid-column: 1 / 2;
+    grid-row: 2;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    align-items: stretch;
+    align-items: end;
+    align-self: end;
     gap: 0.45rem;
     width: 100%;
     min-width: 0;
@@ -4935,6 +4939,9 @@ body[data-app-state="loading"] #app-shell {
   .shape-traders-header-balance .shape-traders-balance-list div {
     width: 100%;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
   }
 
   .shape-traders-header-balance .shape-traders-balance-list dt {
@@ -4953,13 +4960,14 @@ body[data-app-state="loading"] #app-shell {
 
   .shape-traders-header-balance-actions {
     grid-column: 2 / 3;
+    grid-row: 2;
     display: flex;
     gap: 0.6rem;
     width: auto;
     margin-left: 0;
     justify-content: flex-end;
-    align-self: stretch;
-    align-items: center;
+    align-self: end;
+    align-items: flex-end;
   }
 
   .shape-traders-header-balance-actions .shape-traders-header-button,
