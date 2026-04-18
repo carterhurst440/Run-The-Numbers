@@ -5520,10 +5520,6 @@ function startShapeTradersClock() {
 }
 
 async function initializeShapeTraders() {
-  if (shapeTradersInitializePromise) {
-    return shapeTradersInitializePromise;
-  }
-  shapeTradersInitializePromise = (async () => {
   bindShapeTraderWindowActivityListeners();
   applyShapeTradersTradeSheetState();
   if (shapeTradersInitialized) {
@@ -5562,12 +5558,6 @@ async function initializeShapeTraders() {
   await synchronizeShapeTraders();
   applyShapeTradersTradeSheetState();
   startShapeTradersClock();
-  })();
-  try {
-    return await shapeTradersInitializePromise;
-  } finally {
-    shapeTradersInitializePromise = null;
-  }
 }
 
 async function loadAdminRanks(force = false) {
@@ -5974,7 +5964,6 @@ async function setRoute(route, { replaceHash = false } = {}) {
   if (!routeViews[resolvedRoute] && !isPublicAuthRoute) {
     resolvedRoute = "home";
   }
-  const previousRoute = currentRoute;
 
   const shouldShowAppShell = TABLE_ROUTES.has(resolvedRoute);
   if (appShell) {
@@ -6016,9 +6005,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
 
   if (resolvedRoute === "shape-traders") {
     markShapeTraderInteraction();
-    if (previousRoute !== "shape-traders" || !shapeTradersInitialized || !shapeTradersTimerId) {
-      await initializeShapeTraders();
-    }
+    await initializeShapeTraders();
     await synchronizeShapeTraders();
   }
 
@@ -14681,7 +14668,6 @@ const SHAPE_TRADERS_SPLIT_FLASH_MS = 5000;
 const SHAPE_TRADERS_ACTIVITY_PAGE_SIZE = 100;
 const SHAPE_TRADERS_GLOBAL_SYNC_MS = 5000;
 const SHAPE_TRADERS_HEARTBEAT_MS = 30000;
-const SHAPE_TRADERS_SYNC_TICK_MS = 1000;
 const SHAPE_TRADERS_MAX_CATCH_UP_WINDOWS = 12;
 const SHAPE_TRADERS_ASSETS = [
   { id: "square", label: "Square", accent: "cyan", icon: "square" },
@@ -14719,7 +14705,6 @@ let shapeTradersPreviousCard = null;
 let shapeTradersTimerId = null;
 let shapeTradersAnimationFrameId = null;
 let shapeTradersInitialized = false;
-let shapeTradersInitializePromise = null;
 let shapeTradersTimelineEpochMs = SHAPE_TRADERS_EPOCH_MS;
 let shapeTradersLocalResetMode = false;
 let shapeTradersTradeActionInFlight = false;
