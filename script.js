@@ -5418,11 +5418,12 @@ async function liquidateShapeTraderAsset(
     syncState = true,
     priceOverride = null,
     persistAccount = true,
-    persistContestHistory = true
+    persistContestHistory = true,
+    showToast = true
   } = {}
 ) {
   const holding = shapeTradersHoldings[assetId];
-  if (!holding || holding.quantity <= 0) return;
+  if (!holding || holding.quantity <= 0) return null;
 
   const currentPrice = roundCurrencyValue(
     priceOverride === null
@@ -5466,7 +5467,9 @@ async function liquidateShapeTraderAsset(
       throw error;
     }
   }
-  showShapeTraderTradeToast(totalValue);
+  if (showToast) {
+    showShapeTraderTradeToast(totalValue);
+  }
 
   const entry = createShapeTraderActivityEntry({
     side: "sell",
@@ -5489,6 +5492,13 @@ async function liquidateShapeTraderAsset(
       console.warn("[RTN] Unable to sync Shape Traders state after liquidation", error);
     }
   }
+  return {
+    assetId,
+    quantity,
+    totalValue,
+    netProfit,
+    price: currentPrice
+  };
 }
 
 function createShapeTraderTradeStateSnapshot() {
@@ -5544,17 +5554,22 @@ async function liquidateAllShapeTraderHoldings(reason = "Manual liquidation") {
     const previousState = createShapeTraderTradeStateSnapshot();
 
     let liquidatedAnyPosition = false;
+    let bundledLiquidationTotal = 0;
     for (const asset of SHAPE_TRADERS_ASSETS) {
       const quantity = Number(shapeTradersHoldings[asset.id]?.quantity || 0);
       if (quantity <= 0) {
         continue;
       }
       liquidatedAnyPosition = true;
-      await liquidateShapeTraderAsset(asset.id, reason, {
+      const liquidation = await liquidateShapeTraderAsset(asset.id, reason, {
         syncState: false,
         persistAccount: false,
-        persistContestHistory: false
+        persistContestHistory: false,
+        showToast: false
       });
+      bundledLiquidationTotal = roundCurrencyValue(
+        bundledLiquidationTotal + Number(liquidation?.totalValue || 0)
+      );
     }
     if (liquidatedAnyPosition) {
       try {
@@ -5564,6 +5579,7 @@ async function liquidateAllShapeTraderHoldings(reason = "Manual liquidation") {
         await rollbackShapeTraderCommittedState(previousState);
         throw error;
       }
+      showShapeTraderTradeToast(bundledLiquidationTotal, "Liquidation Total");
     }
     renderShapeTraders();
   } catch (error) {
@@ -6093,13 +6109,13 @@ function showAccountDeltaToast(delta, label = "Account") {
   }, 2000);
 }
 
-function showShapeTraderTradeToast(delta) {
+function showShapeTraderTradeToast(delta, label = "Trade Total") {
   if (!handToastContainer) return;
 
   const value = Math.abs(Number(delta || 0));
   const tone = delta > 0 ? "positive" : delta < 0 ? "negative" : "neutral";
   const prefix = delta > 0 ? "+" : delta < 0 ? "−" : "±";
-  const message = `Trade Total ${prefix}${formatCurrency(value)}`;
+  const message = `${label} ${prefix}${formatCurrency(value)}`;
 
   handToastContainer.querySelectorAll(".hand-toast").forEach((node) => node.remove());
 
