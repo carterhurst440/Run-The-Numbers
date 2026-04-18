@@ -11126,7 +11126,9 @@ body.play-assistant-open .play-assistant-fab {
 }
 
 .overview-series-filters .chart-filter-btn.active {
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 0 18px rgba(255, 105, 180, 0.22);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--theme-action-color, var(--neon-cyan)) 42%, transparent),
+    0 0 18px color-mix(in srgb, var(--theme-action-color, var(--neon-cyan)) 22%, transparent);
 }
 
 .overview-chart-loading {
@@ -11417,9 +11419,11 @@ body.play-assistant-open .play-assistant-fab {
 }
 
 .chart-filter-btn.active {
-  background: color-mix(in srgb, var(--active-paytable-bg) 88%, transparent);
-  color: color-mix(in srgb, white 90%, var(--text-light) 10%);
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.18);
+  background: color-mix(in srgb, var(--theme-action-color, var(--neon-cyan)) 26%, transparent);
+  color: color-mix(in srgb, white 90%, var(--theme-action-color, var(--text-light)) 10%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--theme-action-color, var(--neon-cyan)) 42%, transparent),
+    0 4px 16px color-mix(in srgb, var(--theme-action-color, var(--neon-cyan)) 18%, transparent);
 }
 
 .chart-container {

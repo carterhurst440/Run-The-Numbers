@@ -1260,6 +1260,7 @@ function normalizeRankRecord(rank = {}) {
     welcome_phrase: String(rank.welcome_phrase || "").trim(),
     required_hands_played: Math.max(0, Math.round(Number(rank.required_hands_played || 0))),
     required_contest_wins: Math.max(0, Math.round(Number(rank.required_contest_wins || 0))),
+    required_trades_made: Math.max(0, Math.round(Number(rank.required_trades_made || 0))),
     icon_url: typeof rank.icon_url === "string" ? rank.icon_url.trim() : "",
     theme_key: themeKey
   };
@@ -1294,16 +1295,18 @@ function interpolateRankWelcome(rank, profile = currentProfile) {
   return String(rank?.welcome_phrase || "").replace(/\{name\}/g, playerName);
 }
 
-function resolveRankState(handsPlayed = 0, contestWins = 0, ladder = getRankLadder()) {
+function resolveRankState(handsPlayed = 0, contestWins = 0, tradesMade = 0, ladder = getRankLadder()) {
   const sorted = [...ladder].sort((a, b) => a.tier - b.tier);
   const progressHands = Math.max(0, Math.round(Number(handsPlayed || 0)));
   const progressWins = Math.max(0, Math.round(Number(contestWins || 0)));
+  const progressTrades = Math.max(0, Math.round(Number(tradesMade || 0)));
   let currentRank = sorted[0] || normalizeRankRecord(DEFAULT_RANK_LADDER[0]);
 
   sorted.forEach((rank) => {
     if (
       progressHands >= rank.required_hands_played &&
-      progressWins >= rank.required_contest_wins
+      progressWins >= rank.required_contest_wins &&
+      progressTrades >= rank.required_trades_made
     ) {
       currentRank = rank;
     }
@@ -1315,7 +1318,8 @@ function resolveRankState(handsPlayed = 0, contestWins = 0, ladder = getRankLadd
     currentRank,
     nextRank,
     handsPlayed: progressHands,
-    contestWins: progressWins
+    contestWins: progressWins,
+    tradesMade: progressTrades
   };
 }
 
@@ -1359,6 +1363,21 @@ async function fetchHandsPlayedCount(userId) {
     return Math.max(0, Number(count || 0));
   } catch (error) {
     console.error("[RTN] fetchHandsPlayedCount error", error);
+    return 0;
+  }
+}
+
+async function fetchTradesMadeCount(userId) {
+  if (!userId || !supabase) return 0;
+  try {
+    const { count, error } = await supabase
+      .from("shape_trader_trades")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId);
+    if (error) throw error;
+    return Math.max(0, Number(count || 0));
+  } catch (error) {
+    console.error("[RTN] fetchTradesMadeCount error", error);
     return 0;
   }
 }
@@ -1428,11 +1447,77 @@ async function reconcileProfileHandProgress({ force = false } = {}) {
   }
 }
 
+async function incrementProfileTradeProgress(tradeIncrement = 1) {
+  if (!currentUser?.id || currentUser.id === GUEST_USER.id || !supabase) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("increment_profile_trades_made", {
+      target_user_id: currentUser.id,
+      trade_increment: tradeIncrement
+    });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row && currentProfile) {
+      currentProfile.trades_made_all_time = Math.max(
+        0,
+        Math.round(Number(row.trades_made_all_time || currentProfile.trades_made_all_time || 0))
+      );
+      currentProfile.current_rank_tier = Math.max(
+        1,
+        Math.round(Number(row.current_rank_tier || currentProfile.current_rank_tier || 1))
+      );
+      currentProfile.current_rank_id = row.current_rank_id || currentProfile.current_rank_id || null;
+      currentProfile.updated_at = row.updated_at || currentProfile.updated_at || null;
+    }
+    return row || null;
+  } catch (error) {
+    console.error("[RTN] incrementProfileTradeProgress error", error);
+    return null;
+  }
+}
+
+async function reconcileProfileTradeProgress({ force = false } = {}) {
+  if (!currentUser?.id || currentUser.id === GUEST_USER.id || !supabase) {
+    return null;
+  }
+  if (!force && reconciledTradesMadeUserId === currentUser.id) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("reconcile_profile_trades_made", {
+      target_user_id: currentUser.id
+    });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row && currentProfile) {
+      currentProfile.trades_made_all_time = Math.max(
+        0,
+        Math.round(Number(row.trades_made_all_time || currentProfile.trades_made_all_time || 0))
+      );
+      currentProfile.current_rank_tier = Math.max(
+        1,
+        Math.round(Number(row.current_rank_tier || currentProfile.current_rank_tier || 1))
+      );
+      currentProfile.current_rank_id = row.current_rank_id || currentProfile.current_rank_id || null;
+      currentProfile.updated_at = row.updated_at || currentProfile.updated_at || null;
+    }
+    reconciledTradesMadeUserId = currentUser.id;
+    return row || null;
+  } catch (error) {
+    console.error("[RTN] reconcileProfileTradeProgress error", error);
+    return null;
+  }
+}
+
 async function refreshCurrentRankState({ force = false } = {}) {
   const previousTier = currentRankState?.currentRank?.tier || null;
   if (!currentUser?.id || currentUser.id === GUEST_USER.id) {
     currentRankState = null;
     reconciledHandsPlayedUserId = null;
+    reconciledTradesMadeUserId = null;
     applyResolvedTheme();
     renderDrawerRankSummary(null);
     typeHomeRankWelcome("");
@@ -1442,12 +1527,17 @@ async function refreshCurrentRankState({ force = false } = {}) {
 
   const ladder = await loadRankLadder(force);
   await reconcileProfileHandProgress({ force });
+  await reconcileProfileTradeProgress({ force });
   const storedHandsPlayed = Number(currentProfile?.hands_played_all_time);
   const handsPlayed = Number.isFinite(storedHandsPlayed)
     ? Math.max(0, Math.round(storedHandsPlayed))
     : await fetchHandsPlayedCount(currentUser.id);
   const contestWins = Math.max(0, Math.round(Number(currentProfile?.contest_wins || 0)));
-  currentRankState = resolveRankState(handsPlayed, contestWins, ladder);
+  const storedTradesMade = Number(currentProfile?.trades_made_all_time);
+  const tradesMade = Number.isFinite(storedTradesMade)
+    ? Math.max(0, Math.round(storedTradesMade))
+    : await fetchTradesMadeCount(currentUser.id);
+  currentRankState = resolveRankState(handsPlayed, contestWins, tradesMade, ladder);
   applyResolvedTheme();
   renderDrawerRankSummary(currentRankState.currentRank);
   typeHomeRankWelcome(interpolateRankWelcome(currentRankState.currentRank));
@@ -1477,9 +1567,11 @@ function renderHomeRankPanel() {
     return;
   }
 
-  const { currentRank, nextRank, handsPlayed, contestWins } = currentRankState;
+  const { currentRank, nextRank, handsPlayed, contestWins, tradesMade } = currentRankState;
   const handsRequirement = nextRank ? nextRank.required_hands_played : currentRank.required_hands_played;
   const winsRequirement = nextRank ? nextRank.required_contest_wins : currentRank.required_contest_wins;
+  const tradesRequirement = nextRank ? nextRank.required_trades_made : currentRank.required_trades_made;
+  const showTradesProgress = tradesRequirement > 0;
 
   homeRankPanelEl.hidden = false;
   if (homeRankTitleEl) {
@@ -1500,6 +1592,17 @@ function renderHomeRankPanel() {
   }
   if (homeRankWinsProgressBarEl) {
     homeRankWinsProgressBarEl.style.width = `${getRankProgressPercent(contestWins, nextRank ? winsRequirement : Math.max(contestWins, 1))}%`;
+  }
+  if (homeRankTradesProgressCardEl) {
+    homeRankTradesProgressCardEl.hidden = !showTradesProgress;
+  }
+  if (homeRankTradesProgressTextEl) {
+    homeRankTradesProgressTextEl.textContent = nextRank
+      ? `${formatRankRequirementValue(tradesMade)} / ${formatRankRequirementValue(tradesRequirement)}`
+      : `${formatRankRequirementValue(tradesMade)} all time`;
+  }
+  if (homeRankTradesProgressBarEl) {
+    homeRankTradesProgressBarEl.style.width = `${getRankProgressPercent(tradesMade, nextRank ? tradesRequirement : Math.max(tradesMade, 1))}%`;
   }
 
   if (homeRankIconEl && homeRankIconFallbackEl) {
@@ -1523,6 +1626,9 @@ function buildRankRequirementsCopy(rank) {
   }
   if (rank.required_contest_wins > 0) {
     requirements.push(`${formatRankRequirementValue(rank.required_contest_wins)} contest victories`);
+  }
+  if (rank.required_trades_made > 0) {
+    requirements.push(`${formatRankRequirementValue(rank.required_trades_made)} trades made`);
   }
   return requirements.length ? requirements.join(" • ") : "No thresholds";
 }
@@ -2486,7 +2592,7 @@ async function renderRankLadderModal() {
   try {
     const players = await loadAdminRankPlayerSummaries();
     playerCounts = players.reduce((map, player) => {
-      const playerRankState = resolveRankState(player.handsPlayed, player.contestWins, ladder);
+      const playerRankState = resolveRankState(player.handsPlayed, player.contestWins, player.tradesMade, ladder);
       const rankId = playerRankState.currentRank?.id || `tier-${playerRankState.currentRank?.tier || 1}`;
       map.set(rankId, (map.get(rankId) || 0) + 1);
       return map;
@@ -2592,6 +2698,7 @@ function openAdminRankModal(rank = null) {
   setValue("welcomePhrase", rank?.welcome_phrase || "");
   setValue("requiredHandsPlayed", String(rank?.required_hands_played || 0));
   setValue("requiredContestWins", String(rank?.required_contest_wins || 0));
+  setValue("requiredTradesMade", String(rank?.required_trades_made || 0));
   setValue("themeKey", rank?.theme_key || "blue");
   setValue("iconUrl", rank?.icon_url || "");
 
@@ -2603,7 +2710,7 @@ async function loadAdminRankPlayerSummaries() {
   if (!supabase) return [];
   const { data: profiles, error: profileError } = await supabase
     .from("profiles")
-    .select("id, username, first_name, last_name, contest_wins, hands_played_all_time, current_rank_tier");
+    .select("id, username, first_name, last_name, contest_wins, hands_played_all_time, trades_made_all_time, current_rank_tier");
   if (profileError) throw profileError;
 
   const profileList = Array.isArray(profiles) ? profiles : [];
@@ -2611,6 +2718,7 @@ async function loadAdminRankPlayerSummaries() {
     ...profile,
     displayName: getContestDisplayName(profile, profile.id),
     handsPlayed: Math.max(0, Math.round(Number(profile.hands_played_all_time || 0))),
+    tradesMade: Math.max(0, Math.round(Number(profile.trades_made_all_time || 0))),
     contestWins: Math.max(0, Math.round(Number(profile.contest_wins || 0)))
   }));
 }
@@ -3420,6 +3528,9 @@ async function recordShapeTraderTrade(entry) {
       throw error;
     }
     invalidateAccountChartHistory();
+    if (currentUser.id === currentProfile?.id) {
+      void incrementProfileTradeProgress(1).then(() => refreshCurrentRankState());
+    }
   } catch (error) {
     console.error("[RTN] Unable to record shape trader trade", error);
   }
@@ -5767,7 +5878,7 @@ async function loadAdminRanks(force = false) {
     const groupedPlayers = new Map();
 
     players.forEach((player) => {
-      const playerRankState = resolveRankState(player.handsPlayed, player.contestWins, ladder);
+      const playerRankState = resolveRankState(player.handsPlayed, player.contestWins, player.tradesMade, ladder);
       const rankId = playerRankState.currentRank?.id || `tier-${playerRankState.currentRank?.tier || 1}`;
       const existing = groupedPlayers.get(rankId) || [];
       existing.push(player);
@@ -5817,6 +5928,7 @@ async function handleAdminRankSubmit(event) {
     welcome_phrase: String(formData.get("welcomePhrase") || "").trim(),
     required_hands_played: Math.max(0, Math.round(Number(formData.get("requiredHandsPlayed") || 0))),
     required_contest_wins: Math.max(0, Math.round(Number(formData.get("requiredContestWins") || 0))),
+    required_trades_made: Math.max(0, Math.round(Number(formData.get("requiredTradesMade") || 0))),
     theme_key: slugifyThemeKey(String(formData.get("themeKey") || "blue").trim()) || "blue",
     icon_url: String(formData.get("iconUrl") || "").trim()
   };
@@ -14220,6 +14332,9 @@ const homeRankHandsProgressTextEl = document.getElementById("home-rank-hands-pro
 const homeRankHandsProgressBarEl = document.getElementById("home-rank-hands-progress-bar");
 const homeRankWinsProgressTextEl = document.getElementById("home-rank-wins-progress-text");
 const homeRankWinsProgressBarEl = document.getElementById("home-rank-wins-progress-bar");
+const homeRankTradesProgressCardEl = document.getElementById("home-rank-trades-progress-card");
+const homeRankTradesProgressTextEl = document.getElementById("home-rank-trades-progress-text");
+const homeRankTradesProgressBarEl = document.getElementById("home-rank-trades-progress-bar");
 const homeRankLadderButton = document.getElementById("home-rank-ladder-button");
 const homeRankIconEl = document.getElementById("home-rank-icon");
 const homeRankIconFallbackEl = document.getElementById("home-rank-icon-fallback");
@@ -14781,6 +14896,7 @@ let themeLibraryHydrated = false;
 let gameAssetLibraryCache = {};
 let currentRankState = null;
 let reconciledHandsPlayedUserId = null;
+let reconciledTradesMadeUserId = null;
 let rankWelcomeTypingTimer = null;
 let rankWelcomeTypingToken = 0;
 let contestCache = [];
@@ -16912,7 +17028,7 @@ function buildHandsChartBuckets(period, startDate, endDate = new Date()) {
     start.setSeconds(0, 0);
     const minuteBlock = Math.floor(start.getMinutes() / 5) * 5;
     start.setMinutes(minuteBlock, 0, 0);
-    for (const current = new Date(start); current <= end; current = new Date(current.getTime() + 5 * 60 * 1000)) {
+    for (let current = new Date(start); current <= end; current = new Date(current.getTime() + 5 * 60 * 1000)) {
       const key = current.toISOString();
       buckets.push({
         key,
@@ -16926,7 +17042,7 @@ function buildHandsChartBuckets(period, startDate, endDate = new Date()) {
 
   if (period === "day") {
     start.setMinutes(0, 0, 0);
-    for (const current = new Date(start); current <= end; current = new Date(current.getTime() + 60 * 60 * 1000)) {
+    for (let current = new Date(start); current <= end; current = new Date(current.getTime() + 60 * 60 * 1000)) {
       const key = current.toISOString();
       buckets.push({
         key,
@@ -16966,69 +17082,6 @@ async function buildHandsByGameSeries(period, {
     userIds: Array.isArray(userIds) && userIds.length ? userIds : null,
     fields: ["executed_at", "user_id"]
   });
-
-  try {
-    const data = await invokeAdminAnalytics("hands_timeseries", {
-      period,
-      startAt: startAt ? startAt.toISOString() : null,
-      endAt: endAt.toISOString(),
-      targetUserIds: Array.isArray(userIds) && userIds.length ? userIds : null
-    });
-    const rows = Array.isArray(data?.rows) ? data.rows : [];
-    if (rows.length) {
-      const effectiveStart =
-        startAt ||
-        (rows[0]?.bucketStart ? new Date(rows[0].bucketStart) : null) ||
-        (tradeRecords.length ? new Date(tradeRecords[0].executed_at) : null) ||
-        new Date(endAt.getTime() - 29 * 24 * 60 * 60 * 1000);
-      const buckets = buildHandsChartBuckets(period, effectiveStart, endAt);
-      const runTheNumbersHands = new Array(buckets.length).fill(0);
-      const guess10Hands = new Array(buckets.length).fill(0);
-      const shapeTraderTrades = new Array(buckets.length).fill(0);
-
-      rows.forEach((row) => {
-        const bucketStart = row?.bucketStart ? new Date(row.bucketStart) : null;
-        const bucketIndex = bucketStart
-          ? buckets.findIndex((bucket) => bucketStart >= bucket.start && bucketStart < bucket.end)
-          : -1;
-        if (bucketIndex < 0) {
-          return;
-        }
-        runTheNumbersHands[bucketIndex] = Number(row.runTheNumbersHands || 0);
-        guess10Hands[bucketIndex] = Number(row.guess10Hands || 0);
-      });
-
-      tradeRecords.forEach((record) => {
-        const executedAt = new Date(record.executed_at);
-        const bucketIndex = buckets.findIndex((bucket) => executedAt >= bucket.start && executedAt < bucket.end);
-        if (bucketIndex >= 0) {
-          shapeTraderTrades[bucketIndex] += 1;
-        }
-      });
-      return {
-        labels: buckets.map((bucket) => bucket.label),
-        datasets: [
-          {
-            key: GAME_KEYS.RUN_THE_NUMBERS,
-            label: getGameLabel(GAME_KEYS.RUN_THE_NUMBERS),
-            values: runTheNumbersHands
-          },
-          {
-            key: GAME_KEYS.GUESS_10,
-            label: getGameLabel(GAME_KEYS.GUESS_10),
-            values: guess10Hands
-          },
-          {
-            key: `${GAME_KEYS.SHAPE_TRADERS}_trades`,
-            label: "Shape Traders Trades",
-            values: shapeTraderTrades
-          }
-        ]
-      };
-    }
-  } catch (error) {
-    console.warn("[RTN] buildHandsByGameSeries edge fallback", error);
-  }
 
   const records = await fetchGameHandsRecords({
     startAt,

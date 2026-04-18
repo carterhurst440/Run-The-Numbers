@@ -538,6 +538,15 @@
                     <div id="home-rank-wins-progress-bar" class="rank-progress-fill"></div>
                   </div>
                 </div>
+                <div id="home-rank-trades-progress-card" class="rank-progress-card" hidden>
+                  <div class="rank-progress-label-row">
+                    <span>Trades Made</span>
+                    <span id="home-rank-trades-progress-text">0 / 0</span>
+                  </div>
+                  <div class="rank-progress-track" aria-hidden="true">
+                    <div id="home-rank-trades-progress-bar" class="rank-progress-fill"></div>
+                  </div>
+                </div>
               </div>
             </section>
             <section id="home-live-contests" class="home-contests-panel" hidden aria-labelledby="home-live-contests-title">
@@ -3279,7 +3288,7 @@
           <button type="button" class="modal-close" id="rank-ladder-close" aria-label="Close rank ladder">×</button>
         </div>
         <div class="modal-body rank-ladder-body">
-          <p class="rank-ladder-copy">Advance by playing hands and collecting contest victories.</p>
+          <p class="rank-ladder-copy">Advance by playing hands, making trades, and collecting contest victories.</p>
           <ul id="rank-ladder-list" class="rank-ladder-list"></ul>
         </div>
         <div class="modal-actions">
@@ -3489,6 +3498,10 @@
           <label class="admin-field">
             <span>Contest Wins Requirement</span>
             <input type="number" name="requiredContestWins" min="0" step="1" value="0" required />
+          </label>
+          <label class="admin-field">
+            <span>Trades Made Requirement</span>
+            <input type="number" name="requiredTradesMade" min="0" step="1" value="0" required />
           </label>
           <label class="admin-field">
             <span>Rank Theme</span>
