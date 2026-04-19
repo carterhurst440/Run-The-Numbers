@@ -471,6 +471,14 @@ function isPermissionDeniedError(error) {
   return code === "42501" || message.includes("permission denied") || message.includes("row-level security");
 }
 
+function isMissingFunctionError(error, functionName) {
+  const message = String(error?.message || error?.details || error?.hint || "").toLowerCase();
+  return message.includes(String(functionName || "").toLowerCase()) && (
+    message.includes("could not find the function")
+    || message.includes("does not exist")
+  );
+}
+
 function normalizeContestAllowedGameIds(value) {
   const values = Array.isArray(value) ? value : [];
   const normalized = values
@@ -4058,9 +4066,47 @@ async function refreshShapeTraderGlobalSnapshot() {
   shapeTradersGlobalSyncInFlight = true;
 
   try {
-    const { data: accountRows, error: accountsError } = await supabase
+    const contestId = getShapeTraderCurrentContestId();
+    const { data: snapshotRows, error: snapshotError } = await supabase
+      .rpc("get_shape_trader_market_activity_snapshot", {
+        target_contest_id: contestId
+      });
+
+    if (!snapshotError) {
+      const snapshotRow = Array.isArray(snapshotRows) ? snapshotRows[0] : snapshotRows;
+      if (snapshotRow) {
+        const aggregateQuantityByAsset = {
+          square: Number(snapshotRow.square_quantity || 0),
+          triangle: Number(snapshotRow.triangle_quantity || 0),
+          circle: Number(snapshotRow.circle_quantity || 0)
+        };
+        const marketCapByAsset = createEmptyShapeTraderMarketCap();
+        Object.entries(aggregateQuantityByAsset).forEach(([assetId, quantity]) => {
+          marketCapByAsset[assetId] = roundCurrencyValue(
+            Math.max(0, Number(quantity || 0)) * Number(shapeTradersCurrentPrices[assetId] || 0)
+          );
+        });
+        shapeTradersGlobalSnapshot = {
+          activeTraderCount: Math.max(0, Math.round(Number(snapshotRow.active_trader_count || 0))),
+          marketCapByAsset
+        };
+        shapeTradersLastGlobalSyncAt = Date.now();
+        return;
+      }
+    } else if (!isMissingFunctionError(snapshotError, "get_shape_trader_market_activity_snapshot")) {
+      if (isPermissionDeniedError(snapshotError)) {
+        shapeTradersGlobalSnapshot = {
+          activeTraderCount: 0,
+          marketCapByAsset: createEmptyShapeTraderMarketCap()
+        };
+        return;
+      }
+      throw snapshotError;
+    }
+
+    const { data: accountRows, error: accountsError } = await applyShapeTraderAccountScopeFilter(supabase
       .from("shape_trader_accounts_current")
-      .select("*");
+      .select("*"), contestId);
 
     if (accountsError) {
       if (isMissingRelationError(accountsError, "shape_trader_accounts_current")) {
@@ -4077,9 +4123,9 @@ async function refreshShapeTraderGlobalSnapshot() {
       throw accountsError;
     }
 
-    const { data: positionRows, error: positionsError } = await supabase
+    const { data: positionRows, error: positionsError } = await applyShapeTraderAccountScopeFilter(supabase
       .from("shape_trader_positions_current")
-      .select("*");
+      .select("*"), contestId);
 
     if (positionsError) {
       if (isMissingRelationError(positionsError, "shape_trader_positions_current")) {
