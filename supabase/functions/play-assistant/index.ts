@@ -249,12 +249,63 @@ type DraftBetPlanArgs = {
   }>;
 };
 
+type DraftShapeTraderRulesArgs = {
+  clear_all?: boolean;
+  summary?: string;
+  risk_tolerance?: string;
+  rules?: Array<{
+    side?: string;
+    asset_id?: string;
+    threshold?: number;
+    quantity_mode?: string;
+    quantity?: number | null;
+    repeat?: boolean;
+  }>;
+};
+
 const DEFAULT_MODEL = Deno.env.get("OPENAI_MODEL") || "gpt-5-mini";
 const RESPONSES_API_TIMEOUT_MS = 20000;
+
+function normalizeShapeTraderAssetId(value: unknown) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "square" || normalized === "triangle" || normalized === "circle" || normalized === "any") {
+    return normalized;
+  }
+  return "any";
+}
 
 function buildSystemPrompt(state: AssistantState) {
   const gameKey = String(state.gameKey || "").trim().toLowerCase();
   const isGuess10 = gameKey === "game_002";
+  const isShapeTraders = gameKey === "game_003" || gameKey === "shape_traders";
+  if (isShapeTraders) {
+    return `
+You are the Shape Traders PLAY assistant.
+
+Responsibilities:
+- Explain Shape Traders clearly and accurately.
+- Convert natural-language automation requests into structured, consent-gated rule drafts when appropriate.
+- Use the supplied table state only. Do not invent prices, holdings, cash, account value, or fills.
+- Respect the player's requested or inferred risk tolerance: cautious, balanced, or aggressive.
+- Draft rules only. Do not claim that trades have already executed.
+
+Game facts:
+- Shape Traders has three assets: Square, Triangle, and Circle.
+- Trades execute at the latest persisted market price.
+- Buys and sells use whole units only.
+- Account value is cash plus the current marked value of holdings.
+- The client enforces bankroll limits, holdings limits, contest mode, trade locks, and timing around each draw.
+
+Behavior:
+- Use get_table_context whenever prices, holdings, cash, or active rules matter.
+- If the user wants automation, use draft_shape_trader_rules.
+- Support broad phrasing such as "below 50", "under 50", "buy 10 shares", "one time", "once", "freeze after execution", "all my cash", "full position", and "any asset".
+- When the user clearly wants both an entry and an exit rule, draft both in one response.
+- If the user asks to remove all rules, use clear_all true.
+- Keep answers concise, practical, and confident.
+- Never mention tools, JSON, schemas, or backend internals.
+`.trim();
+  }
   if (isGuess10) {
     return `
 You are the Guess 10 PLAY assistant.
@@ -1092,6 +1143,48 @@ function draftBetPlan(args: DraftBetPlanArgs, state: AssistantState) {
   };
 }
 
+function draftShapeTraderRules(args: DraftShapeTraderRulesArgs, state: AssistantState, latestMessage: string) {
+  const risk = normalizeRiskTolerance(args.risk_tolerance || state.riskTolerance);
+  const sourceRules = Array.isArray(args.rules) ? args.rules : [];
+
+  const cleanedRules = sourceRules
+    .map((rule) => {
+      const side = String(rule?.side || "").trim().toLowerCase() === "sell" ? "sell" : "buy";
+      const threshold = safeNumber(rule?.threshold);
+      if (!Number.isFinite(threshold) || threshold <= 0) {
+        return null;
+      }
+      const quantityMode = String(rule?.quantity_mode || "").trim().toLowerCase() === "fixed" ? "fixed" : "all";
+      const quantity = quantityMode === "fixed" ? clampToWholeUnits(safeNumber(rule?.quantity)) : null;
+      if (quantityMode === "fixed" && quantity <= 0) {
+        return null;
+      }
+      return {
+        side,
+        assetId: normalizeShapeTraderAssetId(rule?.asset_id),
+        threshold,
+        quantityMode,
+        quantity,
+        repeat: rule?.repeat !== false,
+        enabled: true,
+        sourcePrompt: latestMessage
+      };
+    })
+    .filter(Boolean);
+  const clearAll = cleanedRules.length === 0 && Boolean(args.clear_all);
+
+  return {
+    clearAll,
+    summary:
+      String(args.summary || "").trim() ||
+      (clearAll
+        ? "Delete all saved Shape Traders rules."
+        : "Shape Traders rule draft ready for confirmation."),
+    rules: cleanedRules,
+    riskTolerance: risk
+  };
+}
+
 function getTableContext(state: AssistantState) {
   return {
     gameKey: state.gameKey,
@@ -1188,6 +1281,7 @@ Deno.serve(async (request) => {
     const state = sanitizeState(body?.state);
     const messages = Array.isArray(body?.messages) ? (body.messages as AssistantMessage[]) : [];
     const supportsDraftPlan = state.gameKey === "game_001";
+    const supportsShapeTraderRules = state.gameKey === "game_003" || state.gameKey === "shape_traders";
     console.info("[play-assistant] request", {
       latestMessage,
       gameKey: state.gameKey,
@@ -1206,7 +1300,8 @@ Deno.serve(async (request) => {
           JSON.stringify({
             reply: `I couldn't stage that random layout because only ${randomSpreadDirective.availableUnits} units are available right now.`,
             riskTolerance: state.riskTolerance,
-            plan: null
+            plan: null,
+            ruleDraft: null
           }),
           {
             status: 200,
@@ -1237,7 +1332,8 @@ Deno.serve(async (request) => {
         JSON.stringify({
           reply: `Understood. I made a best-guess random draft of ${randomSpreadDirective.selectedCount} bet${randomSpreadDirective.selectedCount === 1 ? "" : "s"} at ${randomSpreadDirective.perBetUnits} unit${randomSpreadDirective.perBetUnits === 1 ? "" : "s"} each for ${totalRequestedUnits} total units.${adjustedCopy} Confirm if you want me to place it on the felt.`,
           riskTolerance: randomPlan.riskTolerance || state.riskTolerance,
-          plan: randomPlan
+          plan: randomPlan,
+          ruleDraft: null
         }),
         {
           status: 200,
@@ -1262,7 +1358,8 @@ Deno.serve(async (request) => {
           JSON.stringify({
             reply: `I understood the bet target as ${targetLabel}, but I couldn't read the wager amount. Try something like "place 500 on ${targetLabel}".`,
             riskTolerance: state.riskTolerance,
-            plan: null
+            plan: null,
+            ruleDraft: null
           }),
           {
             status: 200,
@@ -1284,7 +1381,8 @@ Deno.serve(async (request) => {
                 ? `I can't place ${requestedUnits} units on ${targetLabel} because only ${availableUnits} units are available right now.`
                 : `I can't place ${requestedUnits} units on each target in ${targetLabel} because that needs ${totalRequestedUnits} units and only ${availableUnits} are available right now.`,
             riskTolerance: state.riskTolerance,
-            plan: null
+            plan: null,
+            ruleDraft: null
           }),
           {
             status: 200,
@@ -1317,7 +1415,8 @@ Deno.serve(async (request) => {
                 ? `Understood. I drafted exactly ${requestedUnits} units on ${bets[0].label}. Confirm if you want me to place it on the felt.`
                 : `Understood. I made a best-guess draft of ${requestedUnits} units on each target in ${targetText} for ${totalRequestedUnits} units total. Confirm if you want me to place it on the felt.`,
             riskTolerance: directPlan.riskTolerance || state.riskTolerance,
-            plan: directPlan
+            plan: directPlan,
+            ruleDraft: null
           }),
           {
             status: 200,
@@ -1337,7 +1436,8 @@ Deno.serve(async (request) => {
           reply: chartResponse.reply,
           riskTolerance: state.riskTolerance,
           plan: null,
-          chart: chartResponse.chart
+          chart: chartResponse.chart,
+          ruleDraft: null
         }),
         {
           status: 200,
@@ -1394,8 +1494,44 @@ Deno.serve(async (request) => {
         }
       });
     }
+    if (supportsShapeTraderRules) {
+      tools.push({
+        type: "function",
+        name: "draft_shape_trader_rules",
+        description: "Create consent-gated Shape Traders rules for buy-below and sell-above behavior.",
+        parameters: {
+          type: "object",
+          properties: {
+            clear_all: { type: "boolean" },
+            summary: { type: "string" },
+            risk_tolerance: {
+              type: "string",
+              enum: ["cautious", "balanced", "aggressive"]
+            },
+            rules: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  side: { type: "string", enum: ["buy", "sell"] },
+                  asset_id: { type: "string", enum: ["square", "triangle", "circle", "any"] },
+                  threshold: { type: "number" },
+                  quantity_mode: { type: "string", enum: ["fixed", "all"] },
+                  quantity: { type: ["number", "null"] },
+                  repeat: { type: "boolean" }
+                },
+                required: ["side", "asset_id", "threshold", "quantity_mode", "repeat"],
+                additionalProperties: false
+              }
+            }
+          },
+          additionalProperties: false
+        }
+      });
+    }
 
     let draftedPlan: ReturnType<typeof draftBetPlan> | null = null;
+    let draftedShapeTraderRules: ReturnType<typeof draftShapeTraderRules> | null = null;
     const systemPrompt = buildSystemPrompt(state);
     let response = await callResponsesApi({
       model: DEFAULT_MODEL,
@@ -1444,6 +1580,13 @@ Deno.serve(async (request) => {
         } else if (name === "draft_bet_plan") {
           draftedPlan = draftBetPlan(args as DraftBetPlanArgs, state);
           result = draftedPlan;
+        } else if (name === "draft_shape_trader_rules") {
+          draftedShapeTraderRules = draftShapeTraderRules(
+            args as DraftShapeTraderRulesArgs,
+            state,
+            latestMessage
+          );
+          result = draftedShapeTraderRules;
         } else {
           result = { error: `Unknown tool: ${name}` };
         }
@@ -1480,14 +1623,16 @@ Deno.serve(async (request) => {
     console.info("[play-assistant] final payload", {
       responseId: response?.id ?? null,
       reply,
-      draftedPlan
+      draftedPlan,
+      draftedShapeTraderRules
     });
     return new Response(
       JSON.stringify({
         reply,
-        riskTolerance: draftedPlan?.riskTolerance || state.riskTolerance,
+        riskTolerance: draftedShapeTraderRules?.riskTolerance || draftedPlan?.riskTolerance || state.riskTolerance,
         plan: draftedPlan,
-        chart: null
+        chart: null,
+        ruleDraft: draftedShapeTraderRules
       }),
       {
         status: 200,

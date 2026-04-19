@@ -1,9 +1,25 @@
+-- Shape Traders RLS
+--
+-- This file reflects the current Shape Traders architecture:
+-- - shared market state is driven by Postgres functions / cron
+-- - the draw table is the primary shared engine output
+-- - user-owned state stays private
+-- - contest-linked trade rows stay readable to authenticated users so
+--   contest journey charts can be viewed by all signed-in players
+--
+-- IMPORTANT:
+-- This intentionally does not manage old shared tables that are no longer
+-- part of the primary runtime path, such as shape_trader_market_current and
+-- shape_trader_price_history.
+
 alter table public.shape_trader_accounts_current enable row level security;
+alter table public.shape_trader_deck_cards enable row level security;
 alter table public.shape_trader_draws enable row level security;
-alter table public.shape_trader_market_current enable row level security;
+alter table public.shape_trader_engine_config enable row level security;
 alter table public.shape_trader_positions_current enable row level security;
-alter table public.shape_trader_price_history enable row level security;
 alter table public.shape_trader_trades enable row level security;
+
+-- User-owned current account state
 
 drop policy if exists "shape_trader_accounts_current_select_own" on public.shape_trader_accounts_current;
 create policy "shape_trader_accounts_current_select_own"
@@ -34,6 +50,8 @@ for delete
 to authenticated
 using (user_id = auth.uid());
 
+-- User-owned current positions
+
 drop policy if exists "shape_trader_positions_current_select_own" on public.shape_trader_positions_current;
 create policy "shape_trader_positions_current_select_own"
 on public.shape_trader_positions_current
@@ -63,12 +81,25 @@ for delete
 to authenticated
 using (user_id = auth.uid());
 
+-- Trades
+--
+-- Normal-mode trades stay private to the owner.
+-- Contest-linked trades are readable to authenticated users so contest
+-- journey charts can show full participant history across all games.
+
 drop policy if exists "shape_trader_trades_select_own" on public.shape_trader_trades;
 create policy "shape_trader_trades_select_own"
 on public.shape_trader_trades
 for select
 to authenticated
 using (user_id = auth.uid());
+
+drop policy if exists "shape_trader_trades_select_contest_authenticated" on public.shape_trader_trades;
+create policy "shape_trader_trades_select_contest_authenticated"
+on public.shape_trader_trades
+for select
+to authenticated
+using (contest_id is not null);
 
 drop policy if exists "shape_trader_trades_insert_own" on public.shape_trader_trades;
 create policy "shape_trader_trades_insert_own"
@@ -92,6 +123,12 @@ for delete
 to authenticated
 using (user_id = auth.uid());
 
+-- Shared draw stream
+--
+-- Authenticated users can read the shared market draw history.
+-- Admin keeps mutation access for reset / troubleshooting flows triggered from
+-- the client. The server-side SQL engine itself runs independently of client RLS.
+
 drop policy if exists "shape_trader_draws_select_authenticated" on public.shape_trader_draws;
 create policy "shape_trader_draws_select_authenticated"
 on public.shape_trader_draws
@@ -99,47 +136,49 @@ for select
 to authenticated
 using (true);
 
-drop policy if exists "shape_trader_draws_write_authenticated" on public.shape_trader_draws;
-create policy "shape_trader_draws_write_authenticated"
+drop policy if exists "shape_trader_draws_admin_manage" on public.shape_trader_draws;
+create policy "shape_trader_draws_admin_manage"
 on public.shape_trader_draws
 for all
 to authenticated
-using (true)
-with check (true);
+using ((auth.jwt() ->> 'email') = 'carterwarrenhurst@gmail.com')
+with check ((auth.jwt() ->> 'email') = 'carterwarrenhurst@gmail.com');
 
-drop policy if exists "shape_trader_market_current_select_authenticated" on public.shape_trader_market_current;
-create policy "shape_trader_market_current_select_authenticated"
-on public.shape_trader_market_current
+-- Engine config
+--
+-- The client still reads and admin-resets the engine epoch directly.
+
+drop policy if exists "shape_trader_engine_config_select_authenticated" on public.shape_trader_engine_config;
+create policy "shape_trader_engine_config_select_authenticated"
+on public.shape_trader_engine_config
 for select
 to authenticated
 using (true);
 
-drop policy if exists "shape_trader_market_current_write_authenticated" on public.shape_trader_market_current;
-create policy "shape_trader_market_current_write_authenticated"
-on public.shape_trader_market_current
+drop policy if exists "shape_trader_engine_config_admin_manage" on public.shape_trader_engine_config;
+create policy "shape_trader_engine_config_admin_manage"
+on public.shape_trader_engine_config
 for all
 to authenticated
-using (true)
-with check (true);
+using ((auth.jwt() ->> 'email') = 'carterwarrenhurst@gmail.com')
+with check ((auth.jwt() ->> 'email') = 'carterwarrenhurst@gmail.com');
 
-drop policy if exists "shape_trader_price_history_select_authenticated" on public.shape_trader_price_history;
-create policy "shape_trader_price_history_select_authenticated"
-on public.shape_trader_price_history
+-- Deck definition
+--
+-- Read-only to authenticated users for transparency / debugging.
+-- Writes remain admin-only.
+
+drop policy if exists "shape_trader_deck_cards_select_authenticated" on public.shape_trader_deck_cards;
+create policy "shape_trader_deck_cards_select_authenticated"
+on public.shape_trader_deck_cards
 for select
 to authenticated
 using (true);
 
-drop policy if exists "shape_trader_price_history_write_authenticated" on public.shape_trader_price_history;
-create policy "shape_trader_price_history_write_authenticated"
-on public.shape_trader_price_history
+drop policy if exists "shape_trader_deck_cards_admin_manage" on public.shape_trader_deck_cards;
+create policy "shape_trader_deck_cards_admin_manage"
+on public.shape_trader_deck_cards
 for all
 to authenticated
-using (true)
-with check (true);
-
--- Note:
--- User-owned tables are locked to auth.uid().
--- Shared market tables are now behind RLS too, but still writable by authenticated users
--- because the current app writes to them directly from the client.
--- If you want those fully hardened, the next step is moving writes into an RPC or Edge Function
--- and then narrowing these write policies to a service role path only.
+using ((auth.jwt() ->> 'email') = 'carterwarrenhurst@gmail.com')
+with check ((auth.jwt() ->> 'email') = 'carterwarrenhurst@gmail.com');

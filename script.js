@@ -5476,7 +5476,7 @@ async function liquidateShapeTraderAsset(
       await persistBankroll({
         recordContestHistory: persistContestHistory && isContestAccountMode(),
         contestHistoryLabel: "Trade",
-        contestCreditsValue: getShapeTraderAccountValue(),
+        contestCreditsValue: bankroll,
         throwOnError: true
       });
     } catch (error) {
@@ -5549,7 +5549,7 @@ async function commitShapeTraderAccountBalance({ contestHistoryLabel = "Trade" }
   return persistBankroll({
     recordContestHistory: isContestAccountMode(),
     contestHistoryLabel,
-    contestCreditsValue: getShapeTraderAccountValue(),
+    contestCreditsValue: bankroll,
     throwOnError: true
   });
 }
@@ -5558,7 +5558,7 @@ async function rollbackShapeTraderCommittedState(previousState) {
   restoreShapeTraderTradeStateSnapshot(previousState);
   await persistBankroll({
     recordContestHistory: false,
-    contestCreditsValue: getShapeTraderAccountValue(),
+    contestCreditsValue: bankroll,
     throwOnError: true
   });
   await syncShapeTraderCurrentState({ throwOnError: true });
@@ -5611,6 +5611,148 @@ async function liquidateAllShapeTraderHoldings(reason = "Manual liquidation") {
   } finally {
     shapeTradersTradeActionInFlight = false;
     renderShapeTradersControls();
+  }
+}
+
+function getLatestShapeTraderDrawId() {
+  return Math.max(0, Math.floor(Number(shapeTradersRecentDrawRows?.[0]?.draw_id || 0)));
+}
+
+function resolveShapeTraderAssistantRuleAssetIds(rule) {
+  if (!rule) return [];
+  if (rule.actionType === "liquidate_all" || rule.triggerType !== "asset_price") {
+    return [];
+  }
+  if (rule.assetId === "any") {
+    return SHAPE_TRADERS_ASSETS.map((asset) => asset.id);
+  }
+  return SHAPE_TRADERS_ASSETS.some((asset) => asset.id === rule.assetId) ? [rule.assetId] : [];
+}
+
+function getShapeTraderAssistantRuleMetric(rule, assetId = null) {
+  if (!rule) return 0;
+  if (rule.triggerType === "holdings_value") {
+    return roundCurrencyValue(getShapeTraderHoldingsValue());
+  }
+  if (rule.triggerType === "account_value") {
+    return roundCurrencyValue(getShapeTraderAccountValue());
+  }
+  const price = roundCurrencyValue(Number(shapeTradersCurrentPrices[assetId] || 0));
+  return Number.isFinite(price) ? price : 0;
+}
+
+function isShapeTraderAssistantRuleSatisfied(rule, assetId = null) {
+  const metric = getShapeTraderAssistantRuleMetric(rule, assetId);
+  if (!Number.isFinite(metric) || metric <= 0) {
+    return false;
+  }
+  if (rule.actionType === "liquidate_all" || rule.triggerType !== "asset_price") {
+    return metric >= rule.threshold;
+  }
+  return rule.actionType === "sell" ? metric >= rule.threshold : metric <= rule.threshold;
+}
+
+function getShapeTraderAssistantRuleQuantity(rule, assetId) {
+  if (rule.actionType === "liquidate_all") {
+    return shapeTradersHasOpenHoldings() ? getShapeTraderOpenQuantity() : 0;
+  }
+  const price = roundCurrencyValue(Number(shapeTradersCurrentPrices[assetId] || 0));
+  if (!Number.isFinite(price) || price <= 0) return 0;
+  if (rule.actionType === "sell") {
+    const available = Math.max(0, Math.round(Number(shapeTradersHoldings[assetId]?.quantity || 0)));
+    if (rule.quantityMode === "fixed") {
+      return Math.min(available, Math.max(1, Math.round(Number(rule.quantity || 1))));
+    }
+    return available;
+  }
+  if (rule.quantityMode === "fixed") {
+    return Math.max(1, Math.round(Number(rule.quantity || 1)));
+  }
+  return Math.max(0, Math.floor(Number(bankroll || 0) / price));
+}
+
+async function evaluateShapeTraderAssistantRules(latestDrawId = getLatestShapeTraderDrawId()) {
+  if (!latestDrawId || latestDrawId === shapeTradersAssistantLastEvaluatedDrawId) {
+    return;
+  }
+  shapeTradersAssistantLastEvaluatedDrawId = latestDrawId;
+  ensureShapeTraderAssistantRulesLoaded();
+  if (!shapeTradersAssistantRules.length) {
+    return;
+  }
+
+  let rulesChanged = false;
+  for (const rule of shapeTradersAssistantRules) {
+    if (!rule?.enabled || rule.lastTriggeredDrawId === latestDrawId) {
+      continue;
+    }
+    const assetIds = resolveShapeTraderAssistantRuleAssetIds(rule);
+    const assetId = assetIds.length
+      ? assetIds.find((candidate) => isShapeTraderAssistantRuleSatisfied(rule, candidate))
+      : null;
+    const portfolioTriggered = !assetIds.length && isShapeTraderAssistantRuleSatisfied(rule, null);
+    if (!assetId && !portfolioTriggered) {
+      continue;
+    }
+
+    const quantity = getShapeTraderAssistantRuleQuantity(rule, assetId);
+    const assetLabel = assetId ? getShapeTraderAssetConfig(assetId).label : "portfolio";
+    if (quantity <= 0) {
+      if (rule.lastFailureDrawId !== latestDrawId) {
+        rule.lastFailureDrawId = latestDrawId;
+        pushPlayAssistantMessage({
+          role: "system",
+          text: `${rule.actionType === "liquidate_all" ? "LIQUIDATE ALL" : rule.actionType === "sell" ? "SELL" : "BUY"} trade failed for ${assetLabel}. Rule: ${summarizeShapeTraderAssistantRule(rule)} Reason: ${rule.actionType === "sell" || rule.actionType === "liquidate_all" ? "insufficient holdings" : "insufficient funds"}.`
+        });
+      }
+      rulesChanged = true;
+      continue;
+    }
+
+    const result = rule.actionType === "liquidate_all"
+      ? await liquidateAllShapeTraderHoldings(`AI rule: ${summarizeShapeTraderAssistantRule(rule)}`)
+      : rule.actionType === "sell"
+      ? await sellShapeTraderAsset({
+          assetId,
+          quantity,
+          reason: `AI rule: ${summarizeShapeTraderAssistantRule(rule)}`,
+          showToast: false
+        })
+      : await buyShapeTraderAsset({
+          assetId,
+          quantity,
+          reason: `AI rule: ${summarizeShapeTraderAssistantRule(rule)}`,
+          showToast: false
+        });
+
+    if (!result) {
+      if (rule.lastFailureDrawId !== latestDrawId) {
+        rule.lastFailureDrawId = latestDrawId;
+        pushPlayAssistantMessage({
+          role: "system",
+          text: `${rule.actionType === "liquidate_all" ? "LIQUIDATE ALL" : rule.actionType === "sell" ? "SELL" : "BUY"} trade failed for ${assetLabel}. Rule: ${summarizeShapeTraderAssistantRule(rule)}`
+        });
+      }
+      rulesChanged = true;
+      continue;
+    }
+
+    rule.lastTriggeredDrawId = latestDrawId;
+    rule.executionCount = Math.max(0, Math.floor(Number(rule.executionCount || 0))) + 1;
+    rule.enabled = false;
+    rulesChanged = true;
+    pushPlayAssistantMessage({
+      role: "system",
+      text:
+        rule.actionType === "liquidate_all"
+          ? `LIQUIDATE ALL executed. Rule: ${summarizeShapeTraderAssistantRule(rule)}`
+          : `${rule.actionType === "sell" ? "SELL" : "BUY"} trade executed for ${assetLabel}: ${Math.max(1, Math.round(Number(result.quantity || quantity)))} unit${Math.max(1, Math.round(Number(result.quantity || quantity))) === 1 ? "" : "s"} at ${formatCurrency(result.price || shapeTradersCurrentPrices[assetId] || 0)}. Rule: ${summarizeShapeTraderAssistantRule(rule)}`
+    });
+  }
+
+  if (rulesChanged) {
+    setShapeTraderAssistantRules(shapeTradersAssistantRules);
+    updatePlayAssistantContext();
   }
 }
 
@@ -5691,7 +5833,12 @@ async function resetShapeTraderMarketPrices() {
   }
 }
 
-async function buyShapeTraderAsset() {
+async function buyShapeTraderAsset({
+  assetId = shapeTradersSelectedAsset,
+  quantity = Math.max(1, Math.round(Number(shapeTradersQuantityInput?.value || 1))),
+  reason = "",
+  showToast = true
+} = {}) {
   if (shapeTradersTradeActionInFlight) {
     return;
   }
@@ -5699,12 +5846,10 @@ async function buyShapeTraderAsset() {
   renderShapeTradersControls();
   try {
   await syncShapeTraderExecutionPricesFromLatestDraw();
-  const quantity = Math.max(1, Math.round(Number(shapeTradersQuantityInput?.value || 1)));
-  const assetId = shapeTradersSelectedAsset;
   const price = Number(shapeTradersCurrentPrices[assetId] || 0);
   const totalValue = roundCurrencyValue(quantity * price);
   if (bankroll < totalValue) {
-    return;
+    return null;
   }
 
   const holding = shapeTradersHoldings[assetId];
@@ -5729,14 +5874,17 @@ async function buyShapeTraderAsset() {
     await rollbackShapeTraderCommittedState(previousState);
     throw error;
   }
-  showShapeTraderTradeToast(-totalValue);
+  if (showToast) {
+    showShapeTraderTradeToast(-totalValue);
+  }
 
   const entry = createShapeTraderActivityEntry({
     side: "buy",
     assetId,
     quantity,
     totalValue,
-    price
+    price,
+    reason
   });
   try {
     await appendShapeTraderActivity(entry);
@@ -5745,16 +5893,28 @@ async function buyShapeTraderAsset() {
   }
   markShapeTraderInteraction();
   renderShapeTraders();
+  return {
+    assetId,
+    quantity,
+    totalValue,
+    price
+  };
   } catch (error) {
     console.error("[RTN] Shape Traders buy failed", error);
     setShapeTraderStatus("Unable to sync that buy to your account. The trade was canceled.");
+    return null;
   } finally {
     shapeTradersTradeActionInFlight = false;
     renderShapeTradersControls();
   }
 }
 
-async function sellShapeTraderAsset() {
+async function sellShapeTraderAsset({
+  assetId = shapeTradersSelectedAsset,
+  quantity = Math.max(1, Math.round(Number(shapeTradersQuantityInput?.value || 1))),
+  reason = "",
+  showToast = true
+} = {}) {
   if (shapeTradersTradeActionInFlight) {
     return;
   }
@@ -5762,11 +5922,9 @@ async function sellShapeTraderAsset() {
   renderShapeTradersControls();
   try {
   await syncShapeTraderExecutionPricesFromLatestDraw();
-  const quantity = Math.max(1, Math.round(Number(shapeTradersQuantityInput?.value || 1)));
-  const assetId = shapeTradersSelectedAsset;
   const holding = shapeTradersHoldings[assetId];
   if (!holding || holding.quantity < quantity) {
-    return;
+    return null;
   }
 
   const price = Number(shapeTradersCurrentPrices[assetId] || 0);
@@ -5789,7 +5947,9 @@ async function sellShapeTraderAsset() {
     await rollbackShapeTraderCommittedState(previousState);
     throw error;
   }
-  showShapeTraderTradeToast(totalValue);
+  if (showToast) {
+    showShapeTraderTradeToast(totalValue);
+  }
 
   const entry = createShapeTraderActivityEntry({
     side: "sell",
@@ -5797,7 +5957,8 @@ async function sellShapeTraderAsset() {
     quantity,
     totalValue,
     price,
-    netProfit
+    netProfit,
+    reason
   });
   try {
     await appendShapeTraderActivity(entry);
@@ -5806,9 +5967,17 @@ async function sellShapeTraderAsset() {
   }
   markShapeTraderInteraction();
   renderShapeTraders();
+  return {
+    assetId,
+    quantity,
+    totalValue,
+    netProfit,
+    price
+  };
   } catch (error) {
     console.error("[RTN] Shape Traders sell failed", error);
     setShapeTraderStatus("Unable to sync that sale to your account. The trade was canceled.");
+    return null;
   } finally {
     shapeTradersTradeActionInFlight = false;
     renderShapeTradersControls();
@@ -5850,6 +6019,7 @@ async function synchronizeShapeTraders(now = Date.now()) {
     }
 
     await hydrateShapeTradersFromDrawTable(now);
+    await evaluateShapeTraderAssistantRules();
 
     if (
       !shapeTradersWindowActive &&
@@ -5910,6 +6080,7 @@ function startShapeTradersClock() {
 async function initializeShapeTraders() {
   bindShapeTraderWindowActivityListeners();
   applyShapeTradersTradeSheetState();
+  ensureShapeTraderAssistantRulesLoaded();
   if (shapeTradersInitialized) {
     if (!shapeTradersTimerId) {
       startShapeTradersClock();
@@ -12362,11 +12533,10 @@ async function optIntoContest(contest = currentContest) {
     if (currentContest?.id === insertedEntry.contest_id) {
       currentContestEntry = insertedEntry;
     }
-    currentAccountMode = {
+    await applyAccountModeSelection({
       type: "contest",
       contestId: insertedEntry.contest_id
-    };
-    saveAccountModeSelection(currentAccountMode);
+    }, { resetHistory: true });
     const activationResult = await maybeActivatePendingContest(insertedEntry.contest_id);
     showToast(entryFee > 0 ? `Contest mode added for ${formatCurrency(entryFee)} CC` : "Contest mode added", "success");
     if (activationResult?.activated) {
@@ -12574,9 +12744,12 @@ async function handleAdminContestViewResults(contest) {
 
 async function switchToContestMode(contestId, { navigateToPlay = false } = {}) {
   const targetMode = parseAccountModeValue(`contest:${contestId}`);
-  currentAccountMode = targetMode;
-  saveAccountModeSelection(currentAccountMode);
-  syncActiveAccountMode({ forceApply: true, resetHistory: true });
+  const canSwitch = await maybeHandleShapeTraderModeSwitch(targetMode);
+  if (!canSwitch) {
+    renderAccountModeSelector();
+    return false;
+  }
+  await applyAccountModeSelection(targetMode, { resetHistory: true });
   if (navigateToPlay) {
     const contest = getContestById(contestId);
     const allowedGames = normalizeContestAllowedGameIds(contest?.allowed_game_ids);
@@ -12587,6 +12760,7 @@ async function switchToContestMode(contestId, { navigateToPlay = false } = {}) {
         : "play";
     await setRoute(firstAllowedRoute);
   }
+  return true;
 }
 
 function renderPlayerContestRow(contest, participantStats = 0) {
@@ -14511,6 +14685,12 @@ const resetConfirmButton = document.getElementById("reset-confirm");
 const resetCancelButton = document.getElementById("reset-cancel");
 const resetCloseButton = document.getElementById("reset-close");
 const resetModalCopyEl = document.getElementById("reset-modal-copy");
+const outOfCreditsModal = document.getElementById("out-of-credits-modal");
+const shapeTradersModeSwitchModal = document.getElementById("shape-traders-mode-switch-modal");
+const shapeTradersModeSwitchCopyEl = document.getElementById("shape-traders-mode-switch-copy");
+const shapeTradersModeSwitchConfirmButton = document.getElementById("shape-traders-mode-switch-confirm");
+const shapeTradersModeSwitchCancelButton = document.getElementById("shape-traders-mode-switch-cancel");
+const shapeTradersModeSwitchCloseButton = document.getElementById("shape-traders-mode-switch-close");
 const activePaytableNameEl = document.getElementById("active-paytable-name");
 const activePaytableStepsEl = document.getElementById("active-paytable-steps");
 const profileRetryBanner = document.getElementById("profile-retry-banner");
@@ -14835,6 +15015,10 @@ const playAssistantCloseButton = document.getElementById("play-assistant-close")
 const playAssistantTitleEl = document.getElementById("play-assistant-title");
 const playAssistantContextEl = document.getElementById("play-assistant-context");
 const playAssistantThreadEl = document.getElementById("play-assistant-thread");
+const playAssistantRulesEl = document.getElementById("play-assistant-rules");
+const playAssistantRulesToggleEl = document.getElementById("play-assistant-rules-toggle");
+const playAssistantRulesLabelEl = document.getElementById("play-assistant-rules-label");
+const playAssistantRulesListEl = document.getElementById("play-assistant-rules-list");
 const playAssistantQuickActionsEl = document.getElementById("play-assistant-quick-actions");
 const playAssistantQuickActionButtons = Array.from(
   document.querySelectorAll("[data-play-assistant-prompt]")
@@ -15189,18 +15373,24 @@ let currentProfile = null;
 let suppressHash = false;
 let dashboardProfileRetryTimer = null;
 let resetModalTrigger = null;
+let shapeTradersModeSwitchModalTrigger = null;
 let playAssistantOpen = false;
 let playAssistantThread = [];
 let playAssistantThreadGameKey = null;
 let playAssistantRiskTolerance = "balanced";
 let playAssistantPendingPlan = null;
+let playAssistantPendingRuleDraft = null;
 let playAssistantRequestInFlight = false;
+let playAssistantRulesCollapsed = true;
 let playAssistantHistoryCache = {
   userId: null,
   gameKey: null,
   fetchedAt: 0,
   insights: null
 };
+let shapeTradersAssistantRules = [];
+let shapeTradersAssistantRulesLoadedForUser = null;
+let shapeTradersAssistantLastEvaluatedDrawId = 0;
 let recentHandReviews = [];
 let activityLogEntries = [];
 let activityLogLoadedUserId = null;
@@ -15256,6 +15446,7 @@ const SHAPE_TRADERS_ACTIVITY_PAGE_SIZE = 100;
 const SHAPE_TRADERS_GLOBAL_SYNC_MS = 5000;
 const SHAPE_TRADERS_HEARTBEAT_MS = 30000;
 const SHAPE_TRADERS_MAX_CATCH_UP_WINDOWS = 12;
+const SHAPE_TRADER_ASSISTANT_RULE_STORAGE_PREFIX = "shape-trader-assistant-rules";
 const SHAPE_TRADERS_CLIENT_ENGINE_PAUSED = false;
 const SHAPE_TRADERS_DB_DRAW_AUTHORITY = true;
 const SHAPE_TRADERS_ASSETS = [
@@ -15337,7 +15528,7 @@ function isShapeTradersClientEnginePaused() {
 function isShapeTradersDbDrawAuthorityEnabled() {
   return SHAPE_TRADERS_DB_DRAW_AUTHORITY;
 }
-const PLAY_ASSISTANT_ROUTES = new Set(["run-the-numbers", "red-black"]);
+const PLAY_ASSISTANT_ROUTES = new Set(["run-the-numbers", "red-black", "shape-traders"]);
 const PLAY_ASSISTANT_CONFIG = {
   [GAME_KEYS.RUN_THE_NUMBERS]: {
     title: "Bankroll Coach",
@@ -15393,6 +15584,32 @@ const PLAY_ASSISTANT_CONFIG = {
       {
         label: "My odds",
         prompt: "Explain how the Guess 10 multipliers and commission work."
+      }
+    ]
+  },
+  [GAME_KEYS.SHAPE_TRADERS]: {
+    title: "Market Operator",
+    rulesSummary: [
+      "Shape Traders uses the live draw table to update Square, Triangle, and Circle prices.",
+      "You may buy whole units only, and each trade fills at the latest persisted market price.",
+      "Buy rules and sell rules are deterministic once activated.",
+      "The assistant can explain the rules, draft automated trade rules, and post execution updates in this chat.",
+      "Activated rules never bypass bankroll limits, holdings limits, contest mode, or trade locks during a draw animation."
+    ].join(" "),
+    greeting:
+      "I can explain Shape Traders and help you set session rules like buying below a price or selling above a target. Describe the behavior you want and I’ll turn it into a rule for you to confirm.",
+    quickActions: [
+      {
+        label: "How does it work?",
+        prompt: "Explain Shape Traders in simple terms."
+      },
+      {
+        label: "Create a rule",
+        prompt: "I want to buy any asset that dips below 10 dollars with whatever money I have left and sell it as soon as it reaches 20."
+      },
+      {
+        label: "Show my rules",
+        prompt: "Show me my active Shape Traders rules."
       }
     ]
   }
@@ -15451,6 +15668,9 @@ function getViewportMetrics() {
 function getActivePlayAssistantChipBar() {
   if (currentRoute === "red-black") {
     return redBlackChipBarEl;
+  }
+  if (currentRoute === "shape-traders") {
+    return shapeTradersTradePanelEl;
   }
   return chipBarEl;
 }
@@ -19057,10 +19277,504 @@ async function loadPlayAssistantHandHistoryInsights({
   }
 }
 
+function roundShapeTraderAssistantThreshold(value) {
+  return roundCurrencyValue(Number(value || 0));
+}
+
+function getShapeTraderAssistantRuleStorageKey(userId = currentUser?.id || "guest") {
+  return `${SHAPE_TRADER_ASSISTANT_RULE_STORAGE_PREFIX}:${userId || "guest"}`;
+}
+
+function normalizeShapeTraderAssistantRule(rule) {
+  if (!rule || typeof rule !== "object") return null;
+  const triggerType = String(rule.triggerType || rule.trigger_type || "asset_price").trim().toLowerCase();
+  const actionType = String(rule.actionType || rule.action_type || "").trim().toLowerCase();
+  const side = rule.side === "sell" ? "sell" : "buy";
+  const resolvedActionType =
+    actionType === "liquidate_all"
+      ? "liquidate_all"
+      : actionType === "sell"
+        ? "sell"
+        : actionType === "buy"
+          ? "buy"
+          : side;
+  const threshold = roundShapeTraderAssistantThreshold(rule.threshold);
+  if (!Number.isFinite(threshold) || threshold <= 0) {
+    return null;
+  }
+  const resolvedTriggerType =
+    triggerType === "holdings_value" || triggerType === "account_value"
+      ? triggerType
+      : "asset_price";
+  const assetId =
+    rule.assetId === "any" || SHAPE_TRADERS_ASSETS.some((asset) => asset.id === rule.assetId)
+      ? rule.assetId
+      : "any";
+  const quantityMode =
+    resolvedActionType === "liquidate_all"
+      ? "all"
+      : rule.quantityMode === "fixed"
+        ? "fixed"
+        : "all";
+  const quantity = quantityMode === "fixed"
+    ? Math.max(1, Math.round(Number(rule.quantity || 1)))
+    : null;
+  return {
+    id: String(rule.id || `shape-rule-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    side,
+    actionType: resolvedActionType,
+    triggerType: resolvedTriggerType,
+    comparator:
+      resolvedActionType === "liquidate_all" || resolvedActionType === "sell" || resolvedTriggerType !== "asset_price"
+        ? "gte"
+        : "lte",
+    assetId,
+    threshold,
+    quantityMode,
+    quantity,
+    repeat: false,
+    enabled: rule.enabled !== false,
+    createdAt: String(rule.createdAt || new Date().toISOString()),
+    sourcePrompt: String(rule.sourcePrompt || "").trim(),
+    lastTriggeredDrawId: Math.max(0, Math.floor(Number(rule.lastTriggeredDrawId || 0))),
+    lastFailureDrawId: Math.max(0, Math.floor(Number(rule.lastFailureDrawId || 0))),
+    executionCount: Math.max(0, Math.floor(Number(rule.executionCount || 0)))
+  };
+}
+
+function summarizeShapeTraderAssistantRule(rule) {
+  if (!rule) return "";
+  if (rule.actionType === "liquidate_all") {
+    const triggerLabel =
+      rule.triggerType === "account_value"
+        ? `account value reaches ${formatCurrency(rule.threshold)}`
+        : rule.triggerType === "holdings_value"
+          ? `holdings value reaches ${formatCurrency(rule.threshold)}`
+          : `threshold reaches ${formatCurrency(rule.threshold)}`;
+    return `Liquidate all holdings when ${triggerLabel}${rule.repeat ? "" : " once"}.`;
+  }
+  const assetLabel = rule.assetId === "any"
+    ? "any asset"
+    : getShapeTraderAssetConfig(rule.assetId).label;
+  const sideLabel = rule.actionType === "sell" || rule.side === "sell" ? "Sell" : "Buy";
+  const thresholdLabel = `${rule.actionType === "sell" ? "at or above" : "at or below"} ${formatCurrency(rule.threshold)}`;
+  const quantityValue = Math.max(1, Math.round(Number(rule.quantity || 1)));
+  const quantityLabel =
+    rule.quantityMode === "fixed"
+      ? `${quantityValue} unit${quantityValue === 1 ? "" : "s"}`
+      : rule.actionType === "sell"
+        ? "full position"
+        : "all available cash";
+  return `${sideLabel} ${assetLabel} ${thresholdLabel} using ${quantityLabel}${rule.repeat ? "" : " once"}.`;
+}
+
+function normalizeShapeTraderAssistantRuleDraft(ruleDraft) {
+  if (!ruleDraft || typeof ruleDraft !== "object") return null;
+  const rules = Array.isArray(ruleDraft.rules)
+    ? ruleDraft.rules.map((rule) => normalizeShapeTraderAssistantRule(rule)).filter(Boolean)
+    : [];
+  const summaryInput = ruleDraft.summary;
+  const summary = Array.isArray(summaryInput)
+    ? summaryInput.map((line) => String(line || "").trim()).filter(Boolean)
+    : typeof summaryInput === "string" && summaryInput.trim()
+      ? [summaryInput.trim()]
+      : rules.map((rule) => summarizeShapeTraderAssistantRule(rule));
+  return {
+    id: String(ruleDraft.id || `shape-rule-draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    clearAll: rules.length ? false : Boolean(ruleDraft.clearAll ?? ruleDraft.clear_all),
+    rules,
+    sourcePrompt: String(ruleDraft.sourcePrompt || "").trim(),
+    summary,
+    applied: Boolean(ruleDraft.applied)
+  };
+}
+
+function getShapeTraderAssistantRuleMetaBadges(rule) {
+  if (!rule) return [];
+  if (rule.actionType === "liquidate_all") {
+    return [
+      "Portfolio rule",
+      "Liquidate all",
+      rule.triggerType === "account_value" ? "Account value trigger" : "Holdings value trigger",
+      "One-shot"
+    ];
+  }
+  const quantityValue = Math.max(1, Math.round(Number(rule.quantity || 1)));
+  return [
+    rule.actionType === "sell" ? "Sell rule" : "Buy rule",
+    rule.assetId === "any" ? "Any asset" : getShapeTraderAssetConfig(rule.assetId).label,
+    rule.quantityMode === "fixed"
+      ? `${quantityValue} units`
+      : rule.actionType === "sell"
+        ? "Full position"
+        : "All cash",
+    "One-shot"
+  ];
+}
+
+function ensureShapeTraderAssistantRulesLoaded() {
+  const userKey = currentUser?.id || "guest";
+  if (shapeTradersAssistantRulesLoadedForUser === userKey) {
+    return;
+  }
+  shapeTradersAssistantRulesLoadedForUser = userKey;
+  shapeTradersAssistantLastEvaluatedDrawId = 0;
+  shapeTradersAssistantRules = [];
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  try {
+    const raw = window.localStorage.getItem(getShapeTraderAssistantRuleStorageKey(userKey));
+    const parsed = raw ? JSON.parse(raw) : [];
+    shapeTradersAssistantRules = Array.isArray(parsed)
+      ? parsed.map((rule) => normalizeShapeTraderAssistantRule(rule)).filter(Boolean)
+      : [];
+  } catch (error) {
+    console.warn("[RTN] Unable to load Shape Traders assistant rules", error);
+  }
+}
+
+function persistShapeTraderAssistantRules() {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  try {
+    window.localStorage.setItem(
+      getShapeTraderAssistantRuleStorageKey(),
+      JSON.stringify(shapeTradersAssistantRules)
+    );
+  } catch (error) {
+    console.warn("[RTN] Unable to persist Shape Traders assistant rules", error);
+  }
+}
+
+function setShapeTraderAssistantRules(nextRules) {
+  shapeTradersAssistantRules = Array.isArray(nextRules)
+    ? nextRules.map((rule) => normalizeShapeTraderAssistantRule(rule)).filter(Boolean)
+    : [];
+  persistShapeTraderAssistantRules();
+  renderPlayAssistantRules();
+}
+
+function getShapeTraderAssistantRulesSummary() {
+  ensureShapeTraderAssistantRulesLoaded();
+  if (!shapeTradersAssistantRules.length) {
+    return "You do not have any Shape Traders rules saved yet.";
+  }
+  const lines = shapeTradersAssistantRules.map((rule, index) => {
+    const status = rule.enabled ? "live" : "paused";
+    return `- Rule ${index + 1}: ${summarizeShapeTraderAssistantRule(rule)} Status: ${status}.`;
+  });
+  return `Here are your Shape Traders rules right now:\n${lines.join("\n")}`;
+}
+
+function renderPlayAssistantRules() {
+  if (!playAssistantRulesEl || !playAssistantRulesListEl || !playAssistantRulesToggleEl || !playAssistantRulesLabelEl) {
+    return;
+  }
+  const shouldShow = getCurrentPlayAssistantGameKey() === GAME_KEYS.SHAPE_TRADERS;
+  if (!shouldShow) {
+    playAssistantRulesEl.hidden = true;
+    playAssistantRulesEl.classList.add("is-collapsed");
+    playAssistantRulesListEl.innerHTML = "";
+    playAssistantRulesListEl.hidden = true;
+    playAssistantRulesLabelEl.textContent = "View Rules (0)";
+    playAssistantRulesToggleEl.setAttribute("aria-expanded", "false");
+    return;
+  }
+
+  ensureShapeTraderAssistantRulesLoaded();
+  const ruleCount = shapeTradersAssistantRules.length;
+  playAssistantRulesLabelEl.textContent = `View Rules (${ruleCount})`;
+  playAssistantRulesEl.classList.toggle("is-collapsed", playAssistantRulesCollapsed);
+  playAssistantRulesListEl.hidden = playAssistantRulesCollapsed;
+  playAssistantRulesToggleEl.setAttribute("aria-expanded", String(!playAssistantRulesCollapsed));
+  playAssistantRulesEl.hidden = false;
+
+  if (!shapeTradersAssistantRules.length) {
+    playAssistantRulesListEl.innerHTML =
+      '<p class="play-assistant-plan-summary">No live rules yet. Ask the assistant to build one, then confirm it.</p>';
+    return;
+  }
+
+  playAssistantRulesListEl.innerHTML = shapeTradersAssistantRules
+    .map((rule) => `
+      <article class="play-assistant-rule-card${rule.enabled ? "" : " is-disabled"}">
+        <p class="play-assistant-rule-summary">${escapeAssistantHtml(summarizeShapeTraderAssistantRule(rule))}</p>
+        <div class="play-assistant-rule-meta">
+          ${getShapeTraderAssistantRuleMetaBadges(rule)
+            .map((badge) => `<span class="play-assistant-rule-pill">${escapeAssistantHtml(badge)}</span>`)
+            .join("")}
+        </div>
+        <div class="play-assistant-rule-actions">
+          <button type="button" class="primary" data-shape-rule-toggle="${escapeAssistantHtml(rule.id)}">
+            ${rule.enabled ? "Pause" : "Enable"}
+          </button>
+          <button type="button" data-shape-rule-delete="${escapeAssistantHtml(rule.id)}">Delete</button>
+        </div>
+      </article>
+    `)
+    .join("");
+}
+
+function detectShapeTraderAssistantAssetId(message = "") {
+  const normalized = String(message || "").toLowerCase();
+  if (/\bsquare\b/.test(normalized)) return "square";
+  if (/\btriangle\b/.test(normalized)) return "triangle";
+  if (/\bcircle\b/.test(normalized)) return "circle";
+  return "any";
+}
+
+function detectShapeTraderAssistantQuantityConfig(message = "", side = "buy") {
+  const normalized = String(message || "").toLowerCase();
+  const explicitQuantityMatch = normalized.match(/(\d+)\s+(?:unit|units|share|shares)/);
+  if (explicitQuantityMatch) {
+    return {
+      quantityMode: "fixed",
+      quantity: Math.max(1, Math.round(Number(explicitQuantityMatch[1] || 1)))
+    };
+  }
+  if (
+    side === "buy" &&
+    /\b(all cash|all my cash|all available cash|whatever money i have left|whatever cash i have left|max affordable|with whatever money)\b/.test(normalized)
+  ) {
+    return { quantityMode: "all", quantity: null };
+  }
+  if (
+    side === "sell" &&
+    /\b(all holdings|everything|all of it|full position|entire position|sell it|liquidate)\b/.test(normalized)
+  ) {
+    return { quantityMode: "all", quantity: null };
+  }
+  return {
+    quantityMode: side === "sell" ? "all" : "fixed",
+    quantity: side === "sell" ? null : 1
+  };
+}
+
+function detectShapeTraderAssistantRepeat(message = "") {
+  const normalized = String(message || "").toLowerCase();
+  if (/\b(one shot|one-shot|once|just once|single time)\b/.test(normalized)) {
+    return false;
+  }
+  return true;
+}
+
+function parseShapeTraderAssistantThreshold(message = "", side = "buy") {
+  const normalized = String(message || "").toLowerCase();
+  const patterns = side === "sell"
+    ? [
+        /\b(?:sell|exit|liquidate)[\w\s,]*?(?:at or above|above|over|>=|at|hits|hit|reaches|reach|gets to)\s+\$?(\d+(?:\.\d+)?)/,
+        /\bas soon as (?:it|the asset|square|triangle|circle) (?:reaches|hits|gets to)\s+\$?(\d+(?:\.\d+)?)/,
+        /\bwhen (?:it|the asset|square|triangle|circle) (?:reaches|hits|gets to|is above|is over)\s+\$?(\d+(?:\.\d+)?)/
+      ]
+    : [
+        /\b(?:buy|enter|purchase)[\w\s,]*?(?:at or below|below|under|<=|at|less than|dips below|drops below|falls below)\s+\$?(\d+(?:\.\d+)?)/,
+        /\bwhen (?:it|the asset|square|triangle|circle) (?:dips below|drops below|falls below|is below|is under)\s+\$?(\d+(?:\.\d+)?)/
+      ];
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match) {
+      const threshold = roundShapeTraderAssistantThreshold(match[1]);
+      if (Number.isFinite(threshold) && threshold > 0) {
+        return threshold;
+      }
+    }
+  }
+  return null;
+}
+
+function buildShapeTraderAssistantRule(side, message = "") {
+  const threshold = parseShapeTraderAssistantThreshold(message, side);
+  if (!Number.isFinite(threshold) || threshold <= 0) {
+    return null;
+  }
+  const quantityConfig = detectShapeTraderAssistantQuantityConfig(message, side);
+  return normalizeShapeTraderAssistantRule({
+    side,
+    actionType: side,
+    triggerType: "asset_price",
+    assetId: detectShapeTraderAssistantAssetId(message),
+    threshold,
+    quantityMode: quantityConfig.quantityMode,
+    quantity: quantityConfig.quantity,
+    repeat: detectShapeTraderAssistantRepeat(message),
+    enabled: true,
+    sourcePrompt: message
+  });
+}
+
+function buildShapeTraderPortfolioRuleDraftFromMessage(message = "") {
+  const normalized = String(message || "").toLowerCase();
+  const wantsLiquidateAll =
+    /\b(liquidate all|sell everything|sell all|exit all|close all positions?)\b/.test(normalized);
+  if (!wantsLiquidateAll) {
+    return null;
+  }
+
+  const holdingsMatch = normalized.match(/\bholdings(?: value)? (?:are|is|hits|hit|reach|reaches|gets to|above|over|at)\s+\$?(\d+(?:\.\d+)?)/);
+  const accountMatch = normalized.match(/\baccount value (?:is|hits|hit|reach|reaches|gets to|above|over|at)\s+\$?(\d+(?:\.\d+)?)/);
+  const threshold = roundShapeTraderAssistantThreshold((holdingsMatch?.[1] || accountMatch?.[1] || ""));
+  if (!Number.isFinite(threshold) || threshold <= 0) {
+    return null;
+  }
+
+  return normalizeShapeTraderAssistantRule({
+    side: "sell",
+    actionType: "liquidate_all",
+    triggerType: holdingsMatch ? "holdings_value" : "account_value",
+    assetId: "any",
+    threshold,
+    quantityMode: "all",
+    quantity: null,
+    repeat: detectShapeTraderAssistantRepeat(message),
+    enabled: true,
+    sourcePrompt: message
+  });
+}
+
+function buildShapeTraderAssistantRuleDraftFromMessage(message = "") {
+  const portfolioRule = buildShapeTraderPortfolioRuleDraftFromMessage(message);
+  if (portfolioRule) {
+    return {
+      id: `shape-rule-draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      rules: [portfolioRule],
+      sourcePrompt: String(message || "").trim(),
+      summary: [summarizeShapeTraderAssistantRule(portfolioRule)]
+    };
+  }
+  const buyRule = /\bbuy|purchase|enter\b/i.test(message) ? buildShapeTraderAssistantRule("buy", message) : null;
+  const sellRule = /\bsell|exit|liquidate\b/i.test(message) ? buildShapeTraderAssistantRule("sell", message) : null;
+  const rules = [buyRule, sellRule].filter(Boolean);
+  if (!rules.length) {
+    return null;
+  }
+  return {
+    id: `shape-rule-draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    rules,
+    sourcePrompt: String(message || "").trim(),
+    summary: rules.map((rule) => summarizeShapeTraderAssistantRule(rule))
+  };
+}
+
+function buildLocalShapeTradersAssistantResponse(userMessage, state) {
+  const normalized = String(userMessage || "").toLowerCase().trim();
+  if (!normalized) {
+    return null;
+  }
+
+  if (/\b(show|list|what are)\b/.test(normalized) && /\brules?\b/.test(normalized)) {
+    return {
+      reply: getShapeTraderAssistantRulesSummary(),
+      riskTolerance: state.riskTolerance,
+      plan: null,
+      chart: null,
+      ruleDraft: null
+    };
+  }
+
+  if (/\b(explain|how does|how do i play|rules|what is)\b/.test(normalized) && /\bshape|market|trader\b/.test(normalized)) {
+    return {
+      reply:
+        "Shape Traders is a live price game for Square, Triangle, and Circle. You buy whole units at the latest persisted price, you can sell at the latest persisted price, and your account value is cash plus the market value of your holdings. I can turn instructions like buy-below and sell-above into deterministic rules that execute only when the draw updates satisfy them.",
+      riskTolerance: state.riskTolerance,
+      plan: null,
+      chart: null,
+      ruleDraft: null
+    };
+  }
+
+  const clearRules = /\b(clear|delete|remove)\b/.test(normalized) && /\b(all )?rules?\b/.test(normalized);
+  if (clearRules) {
+    return {
+      reply: "Confirm if you want me to remove every saved Shape Traders rule.",
+      riskTolerance: state.riskTolerance,
+      plan: null,
+      chart: null,
+      ruleDraft: {
+        id: `shape-rule-clear-${Date.now()}`,
+        clearAll: true,
+        rules: [],
+        summary: ["Delete all saved Shape Traders rules."]
+      }
+    };
+  }
+
+  const draft = buildShapeTraderAssistantRuleDraftFromMessage(userMessage);
+  if (draft?.rules?.length) {
+    return {
+      reply: `I translated that into ${draft.rules.length} Shape Traders rule${draft.rules.length === 1 ? "" : "s"}.\n${draft.summary.map((line) => `- ${line}`).join("\n")}\n\nConfirm if you want me to activate them.`,
+      riskTolerance: state.riskTolerance,
+      plan: null,
+      chart: null,
+      ruleDraft: draft
+    };
+  }
+
+  return {
+    reply:
+      "I can help with Shape Traders rules in a few specific formats right now. Try something like: buy Square below 12 and sell it at 18, or buy any asset that dips below 10 with all available cash and sell it when it reaches 20.",
+    riskTolerance: state.riskTolerance,
+    plan: null,
+    chart: null,
+    ruleDraft: null
+  };
+}
+
 async function getPlayAssistantState() {
   const gameKey = getCurrentPlayAssistantGameKey();
   const config = getPlayAssistantConfig(gameKey);
   const handHistory = await loadPlayAssistantHandHistoryInsights({ gameKey });
+  if (gameKey === GAME_KEYS.SHAPE_TRADERS) {
+    ensureShapeTraderAssistantRulesLoaded();
+    return {
+      gameKey,
+      gameLabel: getGameLabel(gameKey),
+      bankroll,
+      carterCash,
+      riskTolerance: playAssistantRiskTolerance,
+      accountMode: {
+        key: getAccountModeValue(),
+        label: getAccountModeLabel(),
+        contest: isContestAccountMode()
+          ? {
+              id: currentAccountMode.contestId,
+              title: getModeContest()?.title ?? "Contest Mode"
+            }
+          : null
+      },
+      betting: {
+        canPlaceBets: !getShapeTraderWindowState(getShapeTraderCurrentWindowIndex()).tradeLocked,
+        dealing: false,
+        outstandingUnits: 0,
+        availableUnits: bankroll,
+        totalExposureUnits: getShapeTraderAccountValue(),
+        currentBets: []
+      },
+      stats: {
+        holdingsValue: getShapeTraderHoldingsValue(),
+        accountValue: getShapeTraderAccountValue()
+      },
+      rulesSummary: config.rulesSummary,
+      betCatalog: [],
+      gameReference: {
+        assets: SHAPE_TRADERS_ASSETS.map((asset) => ({
+          id: asset.id,
+          label: asset.label,
+          price: roundCurrencyValue(Number(shapeTradersCurrentPrices[asset.id] || 0)),
+          owned: Math.max(0, Math.round(Number(shapeTradersHoldings[asset.id]?.quantity || 0)))
+        }))
+      },
+      tableState: {
+        selectedAsset: shapeTradersSelectedAsset,
+        prices: { ...shapeTradersCurrentPrices },
+        holdings: JSON.parse(JSON.stringify(shapeTradersHoldings)),
+        accountValue: getShapeTraderAccountValue(),
+        holdingsValue: getShapeTraderHoldingsValue(),
+        activeRules: shapeTradersAssistantRules.slice()
+      },
+      handHistory
+    };
+  }
 
   if (gameKey === GAME_KEYS.GUESS_10) {
     const outstanding = Math.max(0, Number(redBlackBet || 0));
@@ -19155,8 +19869,15 @@ async function getPlayAssistantState() {
 
 function updatePlayAssistantContext() {
   if (!playAssistantContextEl) return;
-  playAssistantContextEl.textContent = "";
+  if (getCurrentPlayAssistantGameKey() === GAME_KEYS.SHAPE_TRADERS) {
+    ensureShapeTraderAssistantRulesLoaded();
+    const liveRules = shapeTradersAssistantRules.filter((rule) => rule.enabled).length;
+    playAssistantContextEl.textContent = `${liveRules} live rule${liveRules === 1 ? "" : "s"} · account value ${formatCurrency(getShapeTraderAccountValue())}`;
+  } else {
+    playAssistantContextEl.textContent = "";
+  }
   updatePlayAssistantUiContent();
+  renderPlayAssistantRules();
 }
 
 function escapeAssistantHtml(value) {
@@ -19224,6 +19945,9 @@ function pushPlayAssistantMessage(message) {
     role: message.role || "assistant",
     text: message.text || "",
     plan: message.plan ? { ...message.plan } : null,
+    ruleDraft: message.ruleDraft
+      ? normalizeShapeTraderAssistantRuleDraft(message.ruleDraft)
+      : null,
     chart: normalizeAssistantChart(message.chart),
     loading: Boolean(message.loading),
     timestamp: Date.now()
@@ -19497,6 +20221,30 @@ function renderPlayAssistantThread() {
       article.appendChild(planWrap);
     }
 
+    if (message.ruleDraft && (message.ruleDraft.clearAll || message.ruleDraft.rules?.length)) {
+      const draftWrap = document.createElement("div");
+      draftWrap.className = "play-assistant-rule-draft";
+      const listMarkup = message.ruleDraft.clearAll
+        ? "<ul><li>Delete all saved Shape Traders rules.</li></ul>"
+        : `<ul>${(message.ruleDraft.summary || [])
+            .map((line) => `<li>${escapeAssistantHtml(line)}</li>`)
+            .join("")}</ul>`;
+      draftWrap.innerHTML = `
+        <p class="play-assistant-plan-summary">Confirm to activate this rule set.</p>
+        ${listMarkup}
+        <div class="play-assistant-rule-actions">
+          <button type="button" class="primary" data-shape-rule-draft-id="${escapeAssistantHtml(message.id)}">
+            ${message.ruleDraft.applied ? "Activated" : "Activate rules"}
+          </button>
+        </div>
+      `;
+      const button = draftWrap.querySelector("[data-shape-rule-draft-id]");
+      if (button instanceof HTMLButtonElement && message.ruleDraft.applied) {
+        button.disabled = true;
+      }
+      article.appendChild(draftWrap);
+    }
+
     if (message.chart?.labels?.length && message.chart?.values?.length) {
       const chartWrap = document.createElement("div");
       chartWrap.className = "play-assistant-chart";
@@ -19547,6 +20295,7 @@ function updatePlayAssistantVisibility() {
   const shouldShow = PLAY_ASSISTANT_ROUTES.has(currentRoute);
   if (shouldShow) {
     ensurePlayAssistantThreadMatchesCurrentGame();
+    renderPlayAssistantRules();
     seedPlayAssistant();
   }
   if (playAssistantToggle) {
@@ -19567,6 +20316,7 @@ function ensurePlayAssistantThreadMatchesCurrentGame() {
   if (playAssistantThreadGameKey && playAssistantThreadGameKey !== gameKey) {
     playAssistantThread = [];
     playAssistantPendingPlan = null;
+    playAssistantPendingRuleDraft = null;
     renderPlayAssistantThread();
   }
   playAssistantThreadGameKey = gameKey;
@@ -20097,6 +20847,8 @@ function buildLocalGuess10PredictionSequenceResponse(userMessage, state) {
 async function requestPlayAssistantResponse(userMessage) {
   const gameKey = getCurrentPlayAssistantGameKey();
   const state = await getPlayAssistantState();
+  const localShapeTradersResponse =
+    gameKey === GAME_KEYS.SHAPE_TRADERS ? buildLocalShapeTradersAssistantResponse(userMessage, state) : null;
   const localChartResponse = buildLocalAssistantChartResponse(userMessage, state);
   if (localChartResponse) {
     return localChartResponse;
@@ -20146,11 +20898,16 @@ async function requestPlayAssistantResponse(userMessage) {
         reply: String(data.reply),
         riskTolerance: data.riskTolerance || state.riskTolerance,
         plan: normalizeAssistantPlan(data.plan),
-        chart: normalizeAssistantChart(data.chart)
+        chart: normalizeAssistantChart(data.chart),
+        ruleDraft: data.ruleDraft || null
       };
     }
   } catch (error) {
     console.warn("[RTN] play assistant fallback", error);
+  }
+
+  if (localShapeTradersResponse) {
+    return localShapeTradersResponse;
   }
 
   if (gameKey !== GAME_KEYS.RUN_THE_NUMBERS) {
@@ -20159,7 +20916,8 @@ async function requestPlayAssistantResponse(userMessage) {
         "I can help explain Guess 10, your current prediction, and cash-out decisions, but I can't auto-stage Guess 10 actions yet.",
       riskTolerance: state.riskTolerance,
       plan: null,
-      chart: null
+      chart: null,
+      ruleDraft: null
     };
   }
 
@@ -20176,6 +20934,7 @@ async function requestPlayAssistantResponse(userMessage) {
         reply: `Understood. I made a best-guess random draft of ${randomSpreadDirective.selectedCount} bet${randomSpreadDirective.selectedCount === 1 ? "" : "s"} at ${randomSpreadDirective.perBetUnits} unit${randomSpreadDirective.perBetUnits === 1 ? "" : "s"} each for ${totalRequestedUnits} total units.${adjustedCopy} Confirm if you want me to place it on the felt.`,
         riskTolerance: state.riskTolerance,
         chart: null,
+        ruleDraft: null,
         plan: normalizeAssistantPlan({
           summary: "Best-guess random layout captured. Confirm and I will stage it on the felt.",
           replaceExisting: true,
@@ -20200,11 +20959,12 @@ async function requestPlayAssistantResponse(userMessage) {
           : targetText.replace(/\s+/g, " ").trim() || "that layout";
       return {
         reply:
-          definitions.length === 1
-            ? `Understood. I drafted exactly ${requestedUnits} units on ${definitions[0].label}. Confirm if you want me to place it on the felt.`
-            : `Understood. I made a best-guess draft of ${requestedUnits} units on each target in ${summaryTarget} for ${totalRequestedUnits} units total. Confirm if you want me to place it on the felt.`,
+            definitions.length === 1
+              ? `Understood. I drafted exactly ${requestedUnits} units on ${definitions[0].label}. Confirm if you want me to place it on the felt.`
+              : `Understood. I made a best-guess draft of ${requestedUnits} units on each target in ${summaryTarget} for ${totalRequestedUnits} units total. Confirm if you want me to place it on the felt.`,
         riskTolerance: state.riskTolerance,
         chart: null,
+        ruleDraft: null,
         plan: normalizeAssistantPlan({
           summary:
             definitions.length === 1
@@ -20221,12 +20981,13 @@ async function requestPlayAssistantResponse(userMessage) {
         definitions.length === 1 ? definitions[0].label : targetText.replace(/\s+/g, " ").trim() || "that layout";
       return {
         reply:
-          definitions.length === 1
-            ? `I can't place ${requestedUnits} units on ${targetLabel} because only ${availableUnits} units are available right now.`
-            : `I can't place ${requestedUnits} units on each target in ${targetLabel} because that needs ${totalRequestedUnits} units and only ${availableUnits} are available right now.`,
+            definitions.length === 1
+              ? `I can't place ${requestedUnits} units on ${targetLabel} because only ${availableUnits} units are available right now.`
+              : `I can't place ${requestedUnits} units on each target in ${targetLabel} because that needs ${totalRequestedUnits} units and only ${availableUnits} are available right now.`,
         riskTolerance: state.riskTolerance,
         plan: null,
-        chart: null
+        chart: null,
+        ruleDraft: null
       };
     }
 
@@ -20236,7 +20997,8 @@ async function requestPlayAssistantResponse(userMessage) {
     reply: "The assistant is temporarily unavailable. Try again in a moment.",
     riskTolerance: state.riskTolerance,
     plan: null,
-    chart: null
+    chart: null,
+    ruleDraft: null
   };
 }
 
@@ -20336,6 +21098,45 @@ function applyAssistantPlan(plan, messageId = null) {
   return true;
 }
 
+function applyShapeTraderAssistantRuleDraft(ruleDraft, messageId = null) {
+  if (getCurrentPlayAssistantGameKey() !== GAME_KEYS.SHAPE_TRADERS || !ruleDraft) {
+    return false;
+  }
+
+  ensureShapeTraderAssistantRulesLoaded();
+  if (ruleDraft.clearAll) {
+    setShapeTraderAssistantRules([]);
+    pushPlayAssistantMessage({
+      role: "system",
+      text: "Removed every saved Shape Traders rule."
+    });
+  } else {
+    const nextRules = [...shapeTradersAssistantRules];
+    (ruleDraft.rules || []).forEach((rule) => {
+      const normalized = normalizeShapeTraderAssistantRule(rule);
+      if (normalized) {
+        nextRules.push(normalized);
+      }
+    });
+    setShapeTraderAssistantRules(nextRules);
+    pushPlayAssistantMessage({
+      role: "system",
+      text: `Activated ${(ruleDraft.rules || []).length} Shape Traders rule${(ruleDraft.rules || []).length === 1 ? "" : "s"}. I’ll watch each new draw and post fills here.`
+    });
+  }
+
+  playAssistantPendingRuleDraft = null;
+  updatePlayAssistantContext();
+  if (messageId) {
+    const sourceMessage = playAssistantThread.find((entry) => entry.id === messageId);
+    if (sourceMessage?.ruleDraft) {
+      sourceMessage.ruleDraft.applied = true;
+      renderPlayAssistantThread();
+    }
+  }
+  return true;
+}
+
 async function sendPlayAssistantMessage(rawMessage) {
   const userMessage = String(rawMessage || "").trim();
   if (!userMessage || playAssistantRequestInFlight) {
@@ -20357,6 +21158,16 @@ async function sendPlayAssistantMessage(rawMessage) {
     return;
   }
 
+  if (
+    playAssistantPendingRuleDraft &&
+    /^\s*(yes|y|activate|enable|do it|go ahead|ok|okay|confirm)\b/i.test(userMessage)
+  ) {
+    pushPlayAssistantMessage({ role: "user", text: userMessage });
+    resetPlayAssistantDraft();
+    applyShapeTraderAssistantRuleDraft(playAssistantPendingRuleDraft);
+    return;
+  }
+
   pushPlayAssistantMessage({ role: "user", text: userMessage });
   resetPlayAssistantDraft();
   setPlayAssistantLoading(true);
@@ -20370,11 +21181,13 @@ async function sendPlayAssistantMessage(rawMessage) {
   }
 
   playAssistantPendingPlan = response?.plan || null;
+  playAssistantPendingRuleDraft = response?.ruleDraft || null;
 
   pushPlayAssistantMessage({
     role: "assistant",
     text: response?.reply || "I hit a snag. Please try again in a moment.",
     plan: response?.plan || null,
+    ruleDraft: response?.ruleDraft || null,
     chart: response?.chart || null
   });
 }
@@ -21228,6 +22041,107 @@ function closeOutOfCreditsModal({ restoreFocus = false } = {}) {
   outOfCreditsModalTrigger = null;
 }
 
+function openShapeTradersModeSwitchModal(nextMode) {
+  if (!shapeTradersModeSwitchModal) {
+    return Promise.resolve(
+      typeof window === "undefined"
+        ? true
+        : window.confirm("You still have Shape Traders holdings in this mode. Liquidate them at the live market price before switching accounts?")
+    );
+  }
+
+  if (shapeTradersModeSwitchCopyEl) {
+    shapeTradersModeSwitchCopyEl.textContent =
+      `You still have open Shape Traders holdings in ${getAccountModeLabel(currentAccountMode)}. Liquidate them at the live market price before switching to ${getAccountModeLabel(nextMode)}.`;
+  }
+
+  shapeTradersModeSwitchModalTrigger =
+    document.activeElement instanceof HTMLElement ? document.activeElement : accountModeSelect;
+  shapeTradersModeSwitchModal.hidden = false;
+  shapeTradersModeSwitchModal.classList.add("is-open");
+  shapeTradersModeSwitchModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  shapeTradersModeSwitchConfirmButton?.focus();
+
+  return new Promise((resolve) => {
+    shapeTradersModeSwitchModal.dataset.pendingResolution = "true";
+    shapeTradersModeSwitchModal.dataset.pendingNextMode = getAccountModeValue(nextMode);
+    shapeTradersModeSwitchModal._resolve = resolve;
+  });
+}
+
+function closeShapeTradersModeSwitchModal({ restoreFocus = false, confirmed = false } = {}) {
+  if (!shapeTradersModeSwitchModal) return;
+  const resolve = shapeTradersModeSwitchModal._resolve;
+  delete shapeTradersModeSwitchModal._resolve;
+  delete shapeTradersModeSwitchModal.dataset.pendingResolution;
+  delete shapeTradersModeSwitchModal.dataset.pendingNextMode;
+
+  shapeTradersModeSwitchModal.classList.remove("is-open");
+  shapeTradersModeSwitchModal.setAttribute("aria-hidden", "true");
+  shapeTradersModeSwitchModal.hidden = true;
+
+  if (
+    (!paytableModal || paytableModal.hidden) &&
+    (!shippingModal || shippingModal.hidden) &&
+    (!resetModal || resetModal.hidden) &&
+    (!adminPrizeModal || adminPrizeModal.hidden) &&
+    (!prizeImageModal || prizeImageModal.hidden) &&
+    (!contestModal || contestModal.hidden) &&
+    (!contestResultsModal || contestResultsModal.hidden) &&
+    (!adminContestResultsModal || adminContestResultsModal.hidden) &&
+    (!adminContestModal || adminContestModal.hidden) &&
+    (!outOfCreditsModal || outOfCreditsModal.hidden)
+  ) {
+    document.body.classList.remove("modal-open");
+  }
+
+  if (restoreFocus && shapeTradersModeSwitchModalTrigger instanceof HTMLElement) {
+    shapeTradersModeSwitchModalTrigger.focus();
+  }
+  shapeTradersModeSwitchModalTrigger = null;
+
+  if (typeof resolve === "function") {
+    resolve(Boolean(confirmed));
+  }
+}
+
+async function maybeHandleShapeTraderModeSwitch(nextMode) {
+  const modeChanged = getAccountModeValue(nextMode) !== getAccountModeValue(currentAccountMode);
+  if (!modeChanged) {
+    return true;
+  }
+
+  if (!shapeTradersHasOpenHoldings()) {
+    return true;
+  }
+
+  const confirmed = await openShapeTradersModeSwitchModal(nextMode);
+  if (!confirmed) {
+    return false;
+  }
+
+  await liquidateAllShapeTraderHoldings("Mode switch liquidation");
+  return !shapeTradersHasOpenHoldings();
+}
+
+async function applyAccountModeSelection(nextMode, { resetHistory = true } = {}) {
+  currentAccountMode = nextMode;
+  saveAccountModeSelection(currentAccountMode);
+  syncActiveAccountMode({ forceApply: true, resetHistory });
+
+  shapeTradersHoldings = createEmptyShapeTraderHoldings();
+  shapeTradersActivity = [];
+  shapeTradersActivityLoadedCount = 0;
+  shapeTradersActivityHasMore = false;
+  renderShapeTraders();
+
+  if (currentUser?.id) {
+    await loadShapeTraderPortfolioFromBackend();
+    renderShapeTraders();
+  }
+}
+
 function renderDraw(card) {
   const cardEl = makeCardElement(card);
   const fragment = document.createDocumentFragment();
@@ -21703,15 +22617,53 @@ if (playAssistantQuickActionButtons.length) {
 
 if (playAssistantThreadEl) {
   playAssistantThreadEl.addEventListener("click", (event) => {
-    const target = event.target instanceof HTMLElement ? event.target.closest("[data-plan-id]") : null;
+    const target = event.target instanceof HTMLElement ? event.target.closest("[data-plan-id], [data-shape-rule-draft-id]") : null;
     if (!(target instanceof HTMLElement)) {
       return;
     }
-    const messageId = target.dataset.planId;
+    const messageId = target.dataset.planId || target.dataset.shapeRuleDraftId;
     const message = playAssistantThread.find((entry) => entry.id === messageId);
     if (message?.plan) {
       applyAssistantPlan(message.plan, messageId);
+      return;
     }
+    if (message?.ruleDraft) {
+      applyShapeTraderAssistantRuleDraft(message.ruleDraft, messageId);
+    }
+  });
+}
+
+if (playAssistantRulesListEl) {
+  playAssistantRulesListEl.addEventListener("click", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (!target) return;
+    const toggleId = target.closest("[data-shape-rule-toggle]")?.getAttribute("data-shape-rule-toggle");
+    const deleteId = target.closest("[data-shape-rule-delete]")?.getAttribute("data-shape-rule-delete");
+    if (!toggleId && !deleteId) {
+      return;
+    }
+    ensureShapeTraderAssistantRulesLoaded();
+    const nextRules = shapeTradersAssistantRules.map((rule) => ({ ...rule }));
+    if (toggleId) {
+      const rule = nextRules.find((entry) => entry.id === toggleId);
+      if (rule) {
+        rule.enabled = !rule.enabled;
+        setShapeTraderAssistantRules(nextRules);
+        updatePlayAssistantContext();
+      }
+      return;
+    }
+    if (deleteId) {
+      setShapeTraderAssistantRules(nextRules.filter((rule) => rule.id !== deleteId));
+      updatePlayAssistantContext();
+    }
+  });
+}
+
+if (playAssistantRulesToggleEl) {
+  playAssistantRulesToggleEl.addEventListener("click", () => {
+    playAssistantRulesCollapsed = !playAssistantRulesCollapsed;
+    renderPlayAssistantRules();
   });
 }
 
@@ -21936,9 +22888,13 @@ if (!graphToggle && chartPanel && chartClose) {
 if (accountModeSelect) {
   accountModeSelect.addEventListener("change", async (event) => {
     const nextMode = parseAccountModeValue(event.target?.value || ACCOUNT_MODE_NORMAL);
-    currentAccountMode = nextMode;
-    saveAccountModeSelection(currentAccountMode);
-    syncActiveAccountMode({ forceApply: true, resetHistory: true });
+    const previousModeValue = getAccountModeValue(currentAccountMode);
+    const canSwitch = await maybeHandleShapeTraderModeSwitch(nextMode);
+    if (!canSwitch) {
+      accountModeSelect.value = previousModeValue;
+      return;
+    }
+    await applyAccountModeSelection(nextMode, { resetHistory: true });
   });
 }
 
@@ -25887,6 +26843,32 @@ if (outOfCreditsCloseButton) {
   });
 }
 
+if (shapeTradersModeSwitchConfirmButton) {
+  shapeTradersModeSwitchConfirmButton.addEventListener("click", () => {
+    closeShapeTradersModeSwitchModal({ restoreFocus: false, confirmed: true });
+  });
+}
+
+if (shapeTradersModeSwitchCancelButton) {
+  shapeTradersModeSwitchCancelButton.addEventListener("click", () => {
+    closeShapeTradersModeSwitchModal({ restoreFocus: true, confirmed: false });
+  });
+}
+
+if (shapeTradersModeSwitchCloseButton) {
+  shapeTradersModeSwitchCloseButton.addEventListener("click", () => {
+    closeShapeTradersModeSwitchModal({ restoreFocus: true, confirmed: false });
+  });
+}
+
+if (shapeTradersModeSwitchModal) {
+  shapeTradersModeSwitchModal.addEventListener("click", (event) => {
+    if (event.target === shapeTradersModeSwitchModal) {
+      closeShapeTradersModeSwitchModal({ restoreFocus: true, confirmed: false });
+    }
+  });
+}
+
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     if (playAssistantOpen) {
@@ -25896,7 +26878,11 @@ document.addEventListener("keydown", (event) => {
       return;
     }
     setCarterCashTooltipOpen(false);
-    const outOfCreditsModal = document.getElementById("out-of-credits-modal");
+    if (shapeTradersModeSwitchModal && !shapeTradersModeSwitchModal.hidden) {
+      closeShapeTradersModeSwitchModal({ restoreFocus: true, confirmed: false });
+      event.preventDefault();
+      return;
+    }
     if (outOfCreditsModal && !outOfCreditsModal.hidden) {
       closeOutOfCreditsModal({ restoreFocus: true });
       event.preventDefault();

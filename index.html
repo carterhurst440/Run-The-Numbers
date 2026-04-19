@@ -494,6 +494,31 @@
         </div>
       </div>
 
+      <div
+        class="modal"
+        id="shape-traders-mode-switch-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shape-traders-mode-switch-title"
+        hidden
+      >
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 id="shape-traders-mode-switch-title">Liquidate holdings to switch modes?</h2>
+            <button type="button" class="modal-close" id="shape-traders-mode-switch-close" aria-label="Close">×</button>
+          </div>
+          <div class="modal-body">
+            <p id="shape-traders-mode-switch-copy">
+              You still have open Shape Traders holdings in this mode. Liquidate them at the live market price before switching accounts.
+            </p>
+          </div>
+          <div class="modal-actions">
+            <button type="button" id="shape-traders-mode-switch-cancel" class="secondary">Stay Here</button>
+            <button type="button" id="shape-traders-mode-switch-confirm" class="primary">Liquidate and Switch</button>
+          </div>
+        </div>
+      </div>
+
       <main class="app-main">
         <section id="home-view" class="route-view app-page home-view" hidden aria-labelledby="home-title">
           <div class="home-hero">
@@ -1927,6 +1952,19 @@
             aria-live="polite"
             aria-relevant="additions"
           ></div>
+          <section id="play-assistant-rules" class="play-assistant-rules" hidden>
+            <button
+              type="button"
+              id="play-assistant-rules-toggle"
+              class="play-assistant-rules-toggle"
+              aria-expanded="false"
+              aria-controls="play-assistant-rules-list"
+            >
+              <span id="play-assistant-rules-label">View Rules (0)</span>
+              <span class="play-assistant-rules-caret" aria-hidden="true">+</span>
+            </button>
+            <div id="play-assistant-rules-list" class="play-assistant-rules-list"></div>
+          </section>
           <div class="play-assistant-quick-actions" id="play-assistant-quick-actions">
             <button type="button" class="play-assistant-chip" data-play-assistant-prompt="Explain how Run the Numbers works in simple terms.">
               How do I play?
