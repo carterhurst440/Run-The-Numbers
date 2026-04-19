@@ -11607,10 +11607,95 @@ body.play-assistant-open .play-assistant-fab {
   max-width: 960px;
 }
 
+.player-activity-log-modal {
+  width: min(980px, 94vw);
+  max-width: 980px;
+}
+
 .player-bankroll-modal-body {
   display: flex;
   flex-direction: column !important;
   gap: 0.75rem;
+}
+
+.player-activity-log-modal-body {
+  display: flex;
+  flex-direction: column !important;
+  gap: 0.75rem;
+  overflow-y: auto;
+}
+
+.player-activity-log-section {
+  padding-top: 0;
+}
+
+.admin-ai-conversation-modal {
+  width: min(1040px, 94vw);
+  max-width: 1040px;
+}
+
+.admin-ai-conversation-modal-body {
+  display: flex;
+  flex-direction: column !important;
+  gap: 0.9rem;
+  overflow-y: auto;
+}
+
+.admin-ai-conversation-meta-card,
+.admin-ai-conversation-section {
+  border: 1px solid var(--betting-panel-border);
+  background: var(--betting-panel-bg);
+  box-shadow: var(--betting-panel-shadow);
+  border-radius: 1rem;
+  padding: 1rem 1.05rem;
+}
+
+.admin-ai-conversation-thread,
+.admin-ai-conversation-actions {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.admin-ai-message,
+.admin-ai-action-card {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.95rem 1rem;
+  border-radius: 0.95rem;
+  border: 1px solid color-mix(in srgb, var(--drawer-border) 60%, transparent);
+  background: color-mix(in srgb, var(--drawer-bg) 82%, black 18%);
+}
+
+.admin-ai-message-head,
+.admin-ai-action-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-ai-message-role,
+.admin-ai-action-type {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.admin-ai-message-time,
+.admin-ai-action-time,
+.admin-ai-action-detail {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.admin-ai-message-body,
+.admin-ai-action-summary {
+  margin: 0;
+  color: var(--text-light);
+  line-height: 1.55;
 }
 
 .player-bankroll-summary {

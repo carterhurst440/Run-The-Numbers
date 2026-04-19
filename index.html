@@ -2489,6 +2489,15 @@
                   <ul id="pnl-rank-list" class="analytics-activity-list" aria-live="polite"></ul>
                   <button type="button" id="pnl-rank-load-more" class="btn-secondary analytics-load-more" hidden>Load More</button>
                 </div>
+                <div class="analytics-activity-card">
+                  <div class="overview-chart-header">
+                    <h3>AI Conversations</h3>
+                    <button type="button" id="admin-ai-conversations-refresh" class="link-button">Refresh</button>
+                  </div>
+                  <p id="admin-ai-conversations-subhead" class="analytics-card-subhead">Recent AI chat turns with stored conversation details and confirmed actions.</p>
+                  <ul id="admin-ai-conversations-list" class="analytics-activity-list" aria-live="polite"></ul>
+                  <button type="button" id="admin-ai-conversations-load-more" class="btn-secondary analytics-load-more" hidden>Load More</button>
+                </div>
                 <div class="analytics-bet-filters-row">
                   <p id="analytics-bet-filter-subhead" class="analytics-description">Showing all-time bet counts. Click on any bet to view detailed statistics.</p>
                   <div class="chart-filters bet-grid-filters">
@@ -2941,6 +2950,66 @@
 
     <div
       class="modal"
+      id="player-activity-log-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="player-activity-log-title"
+      hidden
+    >
+      <div class="modal-content analytics-modal player-activity-log-modal">
+        <div class="modal-header">
+          <h2 id="player-activity-log-title">Player Activity Log</h2>
+          <button type="button" class="modal-close" id="player-activity-log-close" aria-label="Close player activity log">×</button>
+        </div>
+        <div class="modal-body player-activity-log-modal-body">
+          <div class="route-section activity-log-section player-activity-log-section">
+            <div class="route-section-heading">
+              <div>
+                <h3 id="player-activity-log-list-title">Latest Activity</h3>
+                <p id="player-activity-log-subhead" class="analytics-card-subhead">The same account activity log view shown to the player.</p>
+              </div>
+              <button type="button" id="player-activity-log-refresh" class="link-button">Refresh</button>
+            </div>
+            <div class="activity-log-toolbar">
+              <div class="activity-log-filters" role="group" aria-label="Filter player activity by game">
+                <label class="activity-log-checkbox">
+                  <input type="checkbox" data-player-activity-log-filter="game_001" checked />
+                  <span class="activity-log-checkbox-mark" aria-hidden="true"></span>
+                  <span>Run the Numbers</span>
+                </label>
+                <label class="activity-log-checkbox">
+                  <input type="checkbox" data-player-activity-log-filter="game_002" checked />
+                  <span class="activity-log-checkbox-mark" aria-hidden="true"></span>
+                  <span>Guess 10</span>
+                </label>
+                <label class="activity-log-checkbox">
+                  <input type="checkbox" data-player-activity-log-filter="game_003" checked />
+                  <span class="activity-log-checkbox-mark" aria-hidden="true"></span>
+                  <span>Shape Traders</span>
+                </label>
+              </div>
+              <div class="activity-log-subfilters" aria-label="Filter Shape Traders trades by side">
+                <label class="activity-log-select-field" for="player-activity-log-trade-filter">
+                  <span>Shape Traders</span>
+                  <select id="player-activity-log-trade-filter">
+                    <option value="all">All trades</option>
+                    <option value="buy">Buys only</option>
+                    <option value="sell">Sells only</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <ul id="player-activity-log-list" class="activity-log-list" aria-live="polite"></ul>
+            <div class="activity-log-actions">
+              <button type="button" id="player-activity-log-load-more" class="link-button" hidden>Load More</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal"
       id="player-mode-breakdown-modal"
       role="dialog"
       aria-modal="true"
@@ -3380,6 +3449,39 @@
           </div>
           <p id="admin-contest-message" class="admin-message" role="status" aria-live="polite"></p>
         </form>
+      </div>
+    </div>
+
+    <div
+      class="modal"
+      id="admin-ai-conversation-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="admin-ai-conversation-title"
+      hidden
+    >
+      <div class="modal-content analytics-modal admin-ai-conversation-modal">
+        <div class="modal-header">
+          <h2 id="admin-ai-conversation-title">AI Conversation</h2>
+          <button type="button" class="modal-close" id="admin-ai-conversation-close" aria-label="Close AI conversation">×</button>
+        </div>
+        <div class="modal-body admin-ai-conversation-modal-body">
+          <div class="admin-ai-conversation-meta-card">
+            <p id="admin-ai-conversation-meta" class="analytics-card-subhead">Conversation metadata</p>
+          </div>
+          <section class="admin-ai-conversation-section" aria-labelledby="admin-ai-conversation-thread-title">
+            <div class="route-section-heading">
+              <h3 id="admin-ai-conversation-thread-title">Conversation Details</h3>
+            </div>
+            <div id="admin-ai-conversation-thread" class="admin-ai-conversation-thread"></div>
+          </section>
+          <section class="admin-ai-conversation-section" aria-labelledby="admin-ai-conversation-actions-title">
+            <div class="route-section-heading">
+              <h3 id="admin-ai-conversation-actions-title">Actions Performed</h3>
+            </div>
+            <div id="admin-ai-conversation-actions" class="admin-ai-conversation-actions"></div>
+          </section>
+        </div>
       </div>
     </div>
 

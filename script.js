@@ -15305,6 +15305,15 @@ const playerHandsModal = document.getElementById("player-hands-modal");
 const playerHandsClose = document.getElementById("player-hands-close");
 const playerHandsTitleEl = document.getElementById("player-hands-title");
 const playerHandsSubheadEl = document.getElementById("player-hands-subhead");
+const playerActivityLogModal = document.getElementById("player-activity-log-modal");
+const playerActivityLogClose = document.getElementById("player-activity-log-close");
+const playerActivityLogTitleEl = document.getElementById("player-activity-log-title");
+const playerActivityLogSubheadEl = document.getElementById("player-activity-log-subhead");
+const playerActivityLogListEl = document.getElementById("player-activity-log-list");
+const playerActivityLogRefreshButton = document.getElementById("player-activity-log-refresh");
+const playerActivityLogLoadMoreButton = document.getElementById("player-activity-log-load-more");
+const playerActivityLogFilterInputs = Array.from(document.querySelectorAll("[data-player-activity-log-filter]"));
+const playerActivityLogTradeFilterSelect = document.getElementById("player-activity-log-trade-filter");
 const playerModeBreakdownModal = document.getElementById("player-mode-breakdown-modal");
 const playerModeBreakdownClose = document.getElementById("player-mode-breakdown-close");
 const playerModeBreakdownTitleEl = document.getElementById("player-mode-breakdown-title");
@@ -15373,6 +15382,16 @@ const mostActiveLoadMoreButton = document.getElementById("most-active-load-more"
 const pnlRankListEl = document.getElementById("pnl-rank-list");
 const pnlRankSubheadEl = document.getElementById("pnl-rank-subhead");
 const pnlRankLoadMoreButton = document.getElementById("pnl-rank-load-more");
+const adminAiConversationsListEl = document.getElementById("admin-ai-conversations-list");
+const adminAiConversationsSubheadEl = document.getElementById("admin-ai-conversations-subhead");
+const adminAiConversationsRefreshButton = document.getElementById("admin-ai-conversations-refresh");
+const adminAiConversationsLoadMoreButton = document.getElementById("admin-ai-conversations-load-more");
+const adminAiConversationModal = document.getElementById("admin-ai-conversation-modal");
+const adminAiConversationClose = document.getElementById("admin-ai-conversation-close");
+const adminAiConversationTitleEl = document.getElementById("admin-ai-conversation-title");
+const adminAiConversationMetaEl = document.getElementById("admin-ai-conversation-meta");
+const adminAiConversationThreadEl = document.getElementById("admin-ai-conversation-thread");
+const adminAiConversationActionsEl = document.getElementById("admin-ai-conversation-actions");
 const rankLadderModal = document.getElementById("rank-ladder-modal");
 const rankLadderListEl = document.getElementById("rank-ladder-list");
 const rankLadderCloseButton = document.getElementById("rank-ladder-close");
@@ -15750,6 +15769,8 @@ let playAssistantThreadGameKey = null;
 let playAssistantRiskTolerance = "balanced";
 let playAssistantPendingPlan = null;
 let playAssistantPendingRuleDraft = null;
+let playAssistantPendingPlanMessageId = null;
+let playAssistantPendingRuleDraftMessageId = null;
 let playAssistantRequestInFlight = false;
 let playAssistantRulesCollapsed = true;
 let playAssistantHistoryCache = {
@@ -15773,9 +15794,26 @@ let activityLogSelectedGames = new Set([
   GAME_KEYS.SHAPE_TRADERS
 ]);
 let activityLogTradeFilter = "all";
+let playerActivityLogEntries = [];
+let playerActivityLogLoadedUserId = null;
+let playerActivityLogLoading = false;
+let playerActivityLogHasMore = false;
+let playerActivityLogFetchLimit = 100;
+let activePlayerActivityLogUserId = null;
+let activePlayerActivityLogName = "";
+let playerActivityLogSelectedGames = new Set([
+  GAME_KEYS.RUN_THE_NUMBERS,
+  GAME_KEYS.GUESS_10,
+  GAME_KEYS.SHAPE_TRADERS
+]);
+let playerActivityLogTradeFilter = "all";
 let handReviewModalTrigger = null;
 let handReviewRequestToken = 0;
 let chipEditorModalTrigger = null;
+let adminAiConversationEntries = [];
+let adminAiConversationVisibleCount = 20;
+let adminAiConversationLoading = false;
+let activeAdminAiConversation = null;
 
 let shippingModalTrigger = null;
 let activeShippingPurchase = null;
@@ -15795,6 +15833,7 @@ const PLAY_ASSISTANT_MAX_HISTORY = 12;
 const PLAY_ASSISTANT_HISTORY_LIMIT = 100;
 const PLAY_ASSISTANT_HISTORY_CACHE_MS = 60 * 1000;
 const PLAY_ASSISTANT_REQUEST_TIMEOUT_MS = 25000;
+const PLAY_ASSISTANT_STORAGE_TABLE = "ai_chat_conversations";
 const SHAPE_TRADERS_EPOCH_MS = Date.parse("2026-04-16T00:00:00Z");
 const SHAPE_TRADERS_DRAW_INTERVAL_MS = 15000;
 const SHAPE_TRADERS_DUMP_CARDS = 5;
@@ -20745,6 +20784,8 @@ function updatePlayAssistantVisibility() {
 }
 
 function resetPlayAssistantDraft() {
+  playAssistantPendingPlanMessageId = null;
+  playAssistantPendingRuleDraftMessageId = null;
   if (!playAssistantInput) return;
   playAssistantInput.value = "";
 }
@@ -20755,6 +20796,8 @@ function ensurePlayAssistantThreadMatchesCurrentGame() {
     playAssistantThread = [];
     playAssistantPendingPlan = null;
     playAssistantPendingRuleDraft = null;
+    playAssistantPendingPlanMessageId = null;
+    playAssistantPendingRuleDraftMessageId = null;
     renderPlayAssistantThread();
   }
   playAssistantThreadGameKey = gameKey;
@@ -20768,6 +20811,169 @@ function serializePlayAssistantMessages() {
       role: message.role === "system" ? "assistant" : message.role,
       content: message.text
     }));
+}
+
+function getPlayAssistantUserName() {
+  if (currentUser?.id && currentUser.id !== GUEST_USER.id) {
+    return getContestDisplayName(currentProfile, currentUser.id);
+  }
+  return getContestDisplayName(GUEST_PROFILE, GUEST_USER.id);
+}
+
+function buildPlayAssistantThreadSnapshot() {
+  return playAssistantThread
+    .filter((message) => !message.loading)
+    .slice(-PLAY_ASSISTANT_MAX_HISTORY)
+    .map((message) => ({
+      id: String(message.id || ""),
+      role: String(message.role || "assistant"),
+      text: String(message.text || ""),
+      timestamp: Number(message.timestamp || Date.now()),
+      plan: message.plan
+        ? {
+            summary: String(message.plan.summary || ""),
+            totalUnits: Number(message.plan.totalUnits || 0),
+            clearOnly: Boolean(message.plan.clearOnly),
+            replaceExisting: Boolean(message.plan.replaceExisting),
+            bets: Array.isArray(message.plan.bets)
+              ? message.plan.bets.map((bet) => ({
+                  key: String(bet.key || ""),
+                  label: String(bet.label || ""),
+                  units: Number(bet.units || 0)
+                }))
+              : []
+          }
+        : null,
+      ruleDraft: message.ruleDraft
+        ? {
+            id: String(message.ruleDraft.id || ""),
+            clearAll: Boolean(message.ruleDraft.clearAll),
+            summary: Array.isArray(message.ruleDraft.summary)
+              ? message.ruleDraft.summary.map((line) => String(line || ""))
+              : [],
+            ruleCount: Array.isArray(message.ruleDraft.rules) ? message.ruleDraft.rules.length : 0
+          }
+        : null,
+      chart: message.chart
+        ? {
+            type: String(message.chart.type || "line"),
+            title: String(message.chart.title || ""),
+            subtitle: String(message.chart.subtitle || "")
+          }
+        : null
+    }));
+}
+
+function buildPlayAssistantConversationDetails(userMessage, response) {
+  const gameKey = getCurrentPlayAssistantGameKey();
+  return {
+    route: currentRoute,
+    gameId: gameKey,
+    userMessage: String(userMessage || ""),
+    assistantReply: String(response?.reply || ""),
+    riskTolerance: String(response?.riskTolerance || playAssistantRiskTolerance || "balanced"),
+    plan: response?.plan
+      ? {
+          summary: String(response.plan.summary || ""),
+          totalUnits: Number(response.plan.totalUnits || 0),
+          clearOnly: Boolean(response.plan.clearOnly),
+          replaceExisting: Boolean(response.plan.replaceExisting),
+          bets: Array.isArray(response.plan.bets)
+            ? response.plan.bets.map((bet) => ({
+                key: String(bet.key || ""),
+                label: String(bet.label || ""),
+                units: Number(bet.units || 0)
+              }))
+            : []
+        }
+      : null,
+    ruleDraft: response?.ruleDraft
+      ? {
+          id: String(response.ruleDraft.id || ""),
+          clearAll: Boolean(response.ruleDraft.clearAll),
+          summary: Array.isArray(response.ruleDraft.summary)
+            ? response.ruleDraft.summary.map((line) => String(line || ""))
+            : [],
+          ruleCount: Array.isArray(response.ruleDraft.rules) ? response.ruleDraft.rules.length : 0
+        }
+      : null,
+    chart: response?.chart
+      ? {
+          type: String(response.chart.type || "line"),
+          title: String(response.chart.title || ""),
+          subtitle: String(response.chart.subtitle || ""),
+          labels: Array.isArray(response.chart.labels) ? response.chart.labels.map((label) => String(label || "")) : [],
+          values: Array.isArray(response.chart.values) ? response.chart.values.map((value) => Number(value || 0)) : []
+        }
+      : null,
+    threadMessages: buildPlayAssistantThreadSnapshot()
+  };
+}
+
+async function persistPlayAssistantConversation({ assistantMessageId, userMessage, response } = {}) {
+  if (!supabase || !currentUser?.id || currentUser.id === GUEST_USER.id || !assistantMessageId) {
+    return;
+  }
+
+  try {
+    const payload = {
+      user_id: currentUser.id,
+      game_id: getCurrentPlayAssistantGameKey(),
+      user_name: getPlayAssistantUserName(),
+      assistant_message_id: assistantMessageId,
+      conversation_details: buildPlayAssistantConversationDetails(userMessage, response),
+      actions_performed: []
+    };
+    const { error } = await supabase.from(PLAY_ASSISTANT_STORAGE_TABLE).insert(payload);
+    if (error) {
+      throw error;
+    }
+  } catch (error) {
+    console.warn("[RTN] Unable to persist play assistant conversation", error);
+  }
+}
+
+async function appendPlayAssistantConversationAction(assistantMessageId, action) {
+  if (!supabase || !currentUser?.id || currentUser.id === GUEST_USER.id || !assistantMessageId || !action) {
+    return;
+  }
+
+  try {
+    const { data: existingRow, error: fetchError } = await supabase
+      .from(PLAY_ASSISTANT_STORAGE_TABLE)
+      .select("id, actions_performed")
+      .eq("assistant_message_id", assistantMessageId)
+      .eq("user_id", currentUser.id)
+      .maybeSingle();
+
+    if (fetchError) {
+      throw fetchError;
+    }
+    if (!existingRow?.id) {
+      return;
+    }
+
+    const existingActions = Array.isArray(existingRow.actions_performed)
+      ? existingRow.actions_performed
+      : [];
+    const nextActions = [
+      ...existingActions,
+      {
+        performedAt: new Date().toISOString(),
+        ...action
+      }
+    ];
+    const { error: updateError } = await supabase
+      .from(PLAY_ASSISTANT_STORAGE_TABLE)
+      .update({ actions_performed: nextActions })
+      .eq("id", existingRow.id);
+
+    if (updateError) {
+      throw updateError;
+    }
+  } catch (error) {
+    console.warn("[RTN] Unable to append play assistant action", error);
+  }
 }
 
 function buildAssistantChipBreakdown(units) {
@@ -21488,12 +21694,21 @@ function applyAssistantPlan(plan, messageId = null) {
 
   if (normalizedPlan.clearOnly) {
     playAssistantPendingPlan = null;
+    playAssistantPendingPlanMessageId = null;
     if (messageId) {
       const sourceMessage = playAssistantThread.find((entry) => entry.id === messageId);
       if (sourceMessage?.plan) {
         sourceMessage.plan.applied = true;
         renderPlayAssistantThread();
       }
+    }
+    if (messageId) {
+      void appendPlayAssistantConversationAction(messageId, {
+        actionType: "bets_cleared",
+        summary: normalizedPlan.summary,
+        clearOnly: true,
+        replaceExisting: true
+      });
     }
     statusEl.textContent = "Assistant cleared all current bets from the table.";
     pushPlayAssistantMessage({
@@ -21517,12 +21732,29 @@ function applyAssistantPlan(plan, messageId = null) {
   }
 
   playAssistantPendingPlan = null;
+  playAssistantPendingPlanMessageId = null;
   if (messageId) {
     const sourceMessage = playAssistantThread.find((entry) => entry.id === messageId);
     if (sourceMessage?.plan) {
       sourceMessage.plan.applied = true;
       renderPlayAssistantThread();
     }
+  }
+  if (messageId) {
+    void appendPlayAssistantConversationAction(messageId, {
+      actionType: "wagers_staged",
+      summary: normalizedPlan.summary,
+      clearOnly: false,
+      replaceExisting: Boolean(normalizedPlan.replaceExisting),
+      totalUnits: Number(normalizedPlan.totalUnits || 0),
+      wagersPlaced: Array.isArray(normalizedPlan.bets)
+        ? normalizedPlan.bets.map((bet) => ({
+            key: String(bet.key || ""),
+            label: String(bet.label || ""),
+            units: Number(bet.units || 0)
+          }))
+        : []
+    });
   }
   statusEl.textContent = `Assistant placed ${formatCurrency(
     normalizedPlan.totalUnits
@@ -21564,6 +21796,7 @@ function applyShapeTraderAssistantRuleDraft(ruleDraft, messageId = null) {
   }
 
   playAssistantPendingRuleDraft = null;
+  playAssistantPendingRuleDraftMessageId = null;
   updatePlayAssistantContext();
   if (messageId) {
     const sourceMessage = playAssistantThread.find((entry) => entry.id === messageId);
@@ -21571,6 +21804,25 @@ function applyShapeTraderAssistantRuleDraft(ruleDraft, messageId = null) {
       sourceMessage.ruleDraft.applied = true;
       renderPlayAssistantThread();
     }
+  }
+  if (messageId) {
+    void appendPlayAssistantConversationAction(messageId, {
+      actionType: ruleDraft.clearAll ? "rules_cleared" : "rules_saved",
+      summary: Array.isArray(ruleDraft.summary)
+        ? ruleDraft.summary.join(" ")
+        : String(ruleDraft.summary || ""),
+      clearAll: Boolean(ruleDraft.clearAll),
+      rulesMade: Array.isArray(ruleDraft.rules)
+        ? ruleDraft.rules.map((rule) => ({
+            side: String(rule.side || rule.actionType || ""),
+            assetId: String(rule.assetId || "any"),
+            threshold: Number(rule.threshold || 0),
+            quantityMode: String(rule.quantityMode || ""),
+            quantity: rule.quantity === null || rule.quantity === undefined ? null : Number(rule.quantity || 0),
+            repeat: Boolean(rule.repeat)
+          }))
+        : []
+    });
   }
   return true;
 }
@@ -21591,8 +21843,9 @@ async function sendPlayAssistantMessage(rawMessage) {
     /^\s*(yes|y|apply|place|set it|do it|go ahead|ok|okay)\b/i.test(userMessage)
   ) {
     pushPlayAssistantMessage({ role: "user", text: userMessage });
+    const pendingPlanMessageId = playAssistantPendingPlanMessageId;
     resetPlayAssistantDraft();
-    applyAssistantPlan(playAssistantPendingPlan);
+    applyAssistantPlan(playAssistantPendingPlan, pendingPlanMessageId);
     return;
   }
 
@@ -21601,8 +21854,9 @@ async function sendPlayAssistantMessage(rawMessage) {
     /^\s*(yes|y|activate|enable|do it|go ahead|ok|okay|confirm)\b/i.test(userMessage)
   ) {
     pushPlayAssistantMessage({ role: "user", text: userMessage });
+    const pendingRuleDraftMessageId = playAssistantPendingRuleDraftMessageId;
     resetPlayAssistantDraft();
-    applyShapeTraderAssistantRuleDraft(playAssistantPendingRuleDraft);
+    applyShapeTraderAssistantRuleDraft(playAssistantPendingRuleDraft, pendingRuleDraftMessageId);
     return;
   }
 
@@ -21620,13 +21874,22 @@ async function sendPlayAssistantMessage(rawMessage) {
 
   playAssistantPendingPlan = response?.plan || null;
   playAssistantPendingRuleDraft = response?.ruleDraft || null;
+  const assistantMessageId = createPlayAssistantMessageId();
+  playAssistantPendingPlanMessageId = response?.plan ? assistantMessageId : null;
+  playAssistantPendingRuleDraftMessageId = response?.ruleDraft ? assistantMessageId : null;
 
   pushPlayAssistantMessage({
+    id: assistantMessageId,
     role: "assistant",
     text: response?.reply || "I hit a snag. Please try again in a moment.",
     plan: response?.plan || null,
     ruleDraft: response?.ruleDraft || null,
     chart: response?.chart || null
+  });
+  void persistPlayAssistantConversation({
+    assistantMessageId,
+    userMessage,
+    response
   });
 }
 
@@ -21884,37 +22147,63 @@ function getActivityEntryModeLabel(entry) {
   return contestTitle ? contestTitle : "Contest Mode";
 }
 
-function getFilteredActivityLogEntries() {
-  return activityLogEntries.filter((entry) => {
+function getFilteredActivityLogEntriesFromState(entries = [], selectedGames = new Set(), tradeFilter = "all") {
+  return entries.filter((entry) => {
     if (entry.entryType === "account") {
       return true;
     }
-    if (!activityLogSelectedGames.has(entry.gameKey)) {
+    if (!selectedGames.has(entry.gameKey)) {
       return false;
     }
     if (entry.entryType !== "trade" || entry.gameKey !== GAME_KEYS.SHAPE_TRADERS) {
       return true;
     }
-    if (activityLogTradeFilter === "all") {
+    if (tradeFilter === "all") {
       return true;
     }
-    return entry.side === activityLogTradeFilter;
+    return entry.side === tradeFilter;
   });
 }
 
-function updateActivityLogFilterControls() {
-  activityLogFilterInputs.forEach((input) => {
+function getFilteredActivityLogEntries() {
+  return getFilteredActivityLogEntriesFromState(
+    activityLogEntries,
+    activityLogSelectedGames,
+    activityLogTradeFilter
+  );
+}
+
+function updateActivityLogFilterControlsFor(inputs = [], tradeSelect = null, selectedGames = new Set(), tradeFilter = "all") {
+  inputs.forEach((input) => {
     if (!(input instanceof HTMLInputElement)) return;
-    const gameKey = input.dataset.activityLogFilter || "";
-    const isActive = activityLogSelectedGames.has(gameKey);
+    const gameKey = input.dataset.activityLogFilter || input.dataset.playerActivityLogFilter || "";
+    const isActive = selectedGames.has(gameKey);
     input.checked = isActive;
     input.closest(".activity-log-checkbox")?.classList.toggle("is-active", isActive);
   });
 
-  if (activityLogTradeFilterSelect) {
-    activityLogTradeFilterSelect.value = activityLogTradeFilter;
-    activityLogTradeFilterSelect.disabled = !activityLogSelectedGames.has(GAME_KEYS.SHAPE_TRADERS);
+  if (tradeSelect) {
+    tradeSelect.value = tradeFilter;
+    tradeSelect.disabled = !selectedGames.has(GAME_KEYS.SHAPE_TRADERS);
   }
+}
+
+function updateActivityLogFilterControls() {
+  updateActivityLogFilterControlsFor(
+    activityLogFilterInputs,
+    activityLogTradeFilterSelect,
+    activityLogSelectedGames,
+    activityLogTradeFilter
+  );
+}
+
+function updatePlayerActivityLogFilterControls() {
+  updateActivityLogFilterControlsFor(
+    playerActivityLogFilterInputs,
+    playerActivityLogTradeFilterSelect,
+    playerActivityLogSelectedGames,
+    playerActivityLogTradeFilter
+  );
 }
 
 function formatCardSequence(cards = []) {
@@ -21941,39 +22230,8 @@ function getActivityLogGameLogoMarkup(gameKey) {
   return `<img class="activity-log-game-logo" src="${escapeGameAssetField(record.logo_url)}" alt="${escapeAssistantHtml(record.label || getGameLabel(gameKey))} logo" />`;
 }
 
-function renderActivityLogPage() {
-  if (!activityLogListEl) {
-    return;
-  }
-
-  updateActivityLogFilterControls();
-
-  if (activityLogLoading) {
-    activityLogListEl.innerHTML = `
-      <li class="activity-log-item activity-log-item-empty">
-        <p>Loading activity…</p>
-      </li>
-    `;
-    return;
-  }
-
-  const visibleEntries = getFilteredActivityLogEntries();
-
-  if (!visibleEntries.length) {
-    activityLogListEl.innerHTML = `
-      <li class="activity-log-item activity-log-item-empty">
-        <p>${activityLogEntries.length ? "No activity matches the selected filters." : "No activity yet. Play a hand or make a trade to start the log."}</p>
-      </li>
-    `;
-    if (activityLogLoadMoreButton) {
-      activityLogLoadMoreButton.hidden = !activityLogHasMore;
-      activityLogLoadMoreButton.disabled = activityLogLoading;
-      activityLogLoadMoreButton.textContent = "Load More";
-    }
-    return;
-  }
-
-  activityLogListEl.innerHTML = visibleEntries.map((entry) => {
+function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true } = {}) {
+  return entries.map((entry) => {
     if (entry.entryType === "account") {
       const amountLabel = formatSignedCurrency(entry.amount);
       const accountTitle = entry.eventType === "daily_credit_refresh" ? "Account Refresh" : "Account Update";
@@ -22049,8 +22307,8 @@ function renderActivityLogPage() {
     return `
       <li class="activity-log-item">
         <article class="activity-log-card">
-            <div class="activity-log-topline">
-              <div class="activity-log-topline-main">
+          <div class="activity-log-topline">
+            <div class="activity-log-topline-main">
               <p class="activity-log-kicker">${escapeAssistantHtml(entry.gameLabel)}</p>
               <h3 class="activity-log-title">${escapeAssistantHtml(handDescriptor)}</h3>
               <p class="activity-log-mode">${escapeAssistantHtml(getActivityEntryModeLabel(entry))}</p>
@@ -22065,18 +22323,93 @@ function renderActivityLogPage() {
           <p class="activity-log-meta">${escapeAssistantHtml(secondaryBits.join(" · ") || "Completed hand recorded to your account history.")}</p>
           <div class="activity-log-footer">
             <p class="activity-log-balance">Ending account value: ${escapeAssistantHtml(formatCurrency(entry.newAccountValue))}</p>
-            <button type="button" class="history-review-button" data-hand-review-id="${escapeAssistantHtml(entry.handId)}">Review Hand</button>
+            ${showReviewButtons ? `<button type="button" class="history-review-button" data-hand-review-id="${escapeAssistantHtml(entry.handId)}">Review Hand</button>` : ""}
           </div>
         </article>
       </li>
     `;
   }).join("");
+}
 
-  if (activityLogLoadMoreButton) {
-    activityLogLoadMoreButton.hidden = !activityLogHasMore;
-    activityLogLoadMoreButton.disabled = activityLogLoading;
-    activityLogLoadMoreButton.textContent = activityLogLoading ? "Loading…" : "Load More";
+function renderActivityLogList({
+  listEl,
+  loadMoreButton = null,
+  entries = [],
+  loading = false,
+  hasMore = false,
+  selectedGames = new Set(),
+  tradeFilter = "all",
+  updateControls = () => {},
+  showReviewButtons = true,
+  emptyMessage = "No activity yet. Play a hand or make a trade to start the log."
+} = {}) {
+  if (!listEl) {
+    return;
   }
+
+  updateControls();
+
+  if (loading) {
+    listEl.innerHTML = `
+      <li class="activity-log-item activity-log-item-empty">
+        <p>Loading activity…</p>
+      </li>
+    `;
+    return;
+  }
+
+  const visibleEntries = getFilteredActivityLogEntriesFromState(entries, selectedGames, tradeFilter);
+
+  if (!visibleEntries.length) {
+    listEl.innerHTML = `
+      <li class="activity-log-item activity-log-item-empty">
+        <p>${entries.length ? "No activity matches the selected filters." : emptyMessage}</p>
+      </li>
+    `;
+    if (loadMoreButton) {
+      loadMoreButton.hidden = !hasMore;
+      loadMoreButton.disabled = loading;
+      loadMoreButton.textContent = "Load More";
+    }
+    return;
+  }
+
+  listEl.innerHTML = buildActivityLogEntriesMarkup(visibleEntries, { showReviewButtons });
+
+  if (loadMoreButton) {
+    loadMoreButton.hidden = !hasMore;
+    loadMoreButton.disabled = loading;
+    loadMoreButton.textContent = loading ? "Loading…" : "Load More";
+  }
+}
+
+function renderActivityLogPage() {
+  renderActivityLogList({
+    listEl: activityLogListEl,
+    loadMoreButton: activityLogLoadMoreButton,
+    entries: activityLogEntries,
+    loading: activityLogLoading,
+    hasMore: activityLogHasMore,
+    selectedGames: activityLogSelectedGames,
+    tradeFilter: activityLogTradeFilter,
+    updateControls: updateActivityLogFilterControls,
+    showReviewButtons: true
+  });
+}
+
+function renderPlayerActivityLogModal() {
+  renderActivityLogList({
+    listEl: playerActivityLogListEl,
+    loadMoreButton: playerActivityLogLoadMoreButton,
+    entries: playerActivityLogEntries,
+    loading: playerActivityLogLoading,
+    hasMore: playerActivityLogHasMore,
+    selectedGames: playerActivityLogSelectedGames,
+    tradeFilter: playerActivityLogTradeFilter,
+    updateControls: updatePlayerActivityLogFilterControls,
+    showReviewButtons: false,
+    emptyMessage: "No activity has been recorded for this player yet."
+  });
 }
 
 async function hydrateActivityLogEntrySequences(entries = []) {
@@ -22103,6 +22436,363 @@ async function hydrateActivityLogEntrySequences(entries = []) {
         : ""
     };
   });
+}
+
+async function fetchAdminActivityLogRows(userId, limitCount = 100) {
+  if (!supabase || !userId) {
+    return [];
+  }
+
+  const { data, error } = await supabase.rpc("get_admin_activity_log", {
+    target_user_id: userId,
+    limit_count: limitCount
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+function mapAdminActivityLogRowToEntry(row) {
+  const entryType = String(row?.entry_type || "").trim().toLowerCase();
+  if (entryType === "trade") {
+    return mapShapeTraderTradeRowToActivityLogEntry({
+      id: row?.id || null,
+      executed_at: row?.created_at || null,
+      trade_side: row?.trade_side || null,
+      shape: row?.shape || null,
+      quantity: row?.quantity || null,
+      total_value: row?.total_value || null,
+      shape_price: row?.shape_price || null,
+      net_profit: row?.net_profit || null,
+      new_account_value: row?.new_account_value || null,
+      contest_id: row?.contest_id || null
+    });
+  }
+
+  if (entryType === "account") {
+    return mapAccountEventRowToActivityLogEntry({
+      id: row?.id || null,
+      created_at: row?.created_at || null,
+      event_type: row?.event_type || null,
+      amount: row?.amount || null,
+      previous_balance: row?.previous_balance || null,
+      new_balance: row?.new_account_value || null
+    });
+  }
+
+  return mapGameHandRowToActivityEntry({
+    id: row?.id || null,
+    created_at: row?.created_at || null,
+    game_id: row?.game_id || null,
+    mode_type: row?.mode_type || null,
+    contest_id: row?.contest_id || null,
+    total_cards: row?.total_cards || null,
+    stopper_label: row?.stopper_label || null,
+    stopper_suit: row?.stopper_suit || null,
+    total_wager: row?.total_wager || null,
+    total_paid: row?.total_paid || null,
+    net: row?.net || null,
+    commission_kept: row?.commission_kept || null,
+    new_account_value: row?.new_account_value || null,
+    drawn_cards: row?.drawn_cards || null
+  });
+}
+
+async function loadPlayerActivityLogModal({ force = false, append = false } = {}) {
+  if (!playerActivityLogListEl || !activePlayerActivityLogUserId) {
+    return;
+  }
+
+  if (playerActivityLogLoading) {
+    return;
+  }
+
+  if (force) {
+    playerActivityLogFetchLimit = 100;
+  } else if (append) {
+    playerActivityLogFetchLimit += 100;
+  }
+
+  if (
+    !force &&
+    !append &&
+    playerActivityLogLoadedUserId === activePlayerActivityLogUserId &&
+    playerActivityLogEntries.length
+  ) {
+    renderPlayerActivityLogModal();
+    return;
+  }
+
+  playerActivityLogLoading = true;
+  renderPlayerActivityLogModal();
+
+  try {
+    const rows = await fetchAdminActivityLogRows(activePlayerActivityLogUserId, playerActivityLogFetchLimit);
+    const contestIds = [...new Set(
+      rows
+        .map((row) => String(row?.contest_id || "").trim())
+        .filter(Boolean)
+    )];
+    if (contestIds.length) {
+      const { data: contestRows, error: contestError } = await supabase
+        .from("contests")
+        .select("id, title")
+        .in("id", contestIds);
+      if (!contestError && Array.isArray(contestRows)) {
+        contestRows.forEach((contest) => {
+          if (!contest?.id) return;
+          const existing = getContestById(contest.id);
+          if (!existing) {
+            contestCache.push(contest);
+          }
+        });
+      }
+    }
+    playerActivityLogHasMore = rows.length >= playerActivityLogFetchLimit;
+    playerActivityLogEntries = await hydrateActivityLogEntrySequences(
+      rows.map(mapAdminActivityLogRowToEntry)
+    );
+    playerActivityLogLoadedUserId = activePlayerActivityLogUserId;
+  } catch (error) {
+    console.error("[RTN] Unable to load admin player activity log", error);
+    showToast("Unable to load player activity log", "error");
+    playerActivityLogEntries = [];
+    playerActivityLogHasMore = false;
+  } finally {
+    playerActivityLogLoading = false;
+    renderPlayerActivityLogModal();
+  }
+}
+
+function getAdminAiConversationGameLabel(gameId = "") {
+  const normalized = resolveGameKey(gameId);
+  return getGameLabel(normalized || gameId || "Unknown Game");
+}
+
+function summarizeAdminAiConversationActions(actions = []) {
+  if (!Array.isArray(actions) || !actions.length) {
+    return "No confirmed actions recorded.";
+  }
+  return actions.map((action) => {
+    const type = String(action?.actionType || "").trim();
+    if (type === "wagers_staged") {
+      const totalUnits = Number(action?.totalUnits || 0);
+      const wagerCount = Array.isArray(action?.wagersPlaced) ? action.wagersPlaced.length : 0;
+      return `${wagerCount.toLocaleString()} wager${wagerCount === 1 ? "" : "s"} staged for ${formatCurrency(totalUnits)} total`;
+    }
+    if (type === "bets_cleared") {
+      return "Current bets cleared";
+    }
+    if (type === "rules_saved") {
+      const ruleCount = Array.isArray(action?.rulesMade) ? action.rulesMade.length : 0;
+      return `${ruleCount.toLocaleString()} rule${ruleCount === 1 ? "" : "s"} saved`;
+    }
+    if (type === "rules_cleared") {
+      return "Saved rules cleared";
+    }
+    return type || "Action recorded";
+  }).join(" · ");
+}
+
+function renderAdminAiConversationEntries() {
+  if (!adminAiConversationsListEl) {
+    return;
+  }
+
+  if (adminAiConversationLoading) {
+    adminAiConversationsListEl.innerHTML = '<li class="analytics-activity-item analytics-activity-empty">Loading AI conversations...</li>';
+    return;
+  }
+
+  if (!adminAiConversationEntries.length) {
+    adminAiConversationsListEl.innerHTML = '<li class="analytics-activity-item analytics-activity-empty">No AI conversations have been stored yet.</li>';
+    if (adminAiConversationsLoadMoreButton) {
+      adminAiConversationsLoadMoreButton.hidden = true;
+    }
+    return;
+  }
+
+  adminAiConversationsListEl.innerHTML = "";
+  const fragment = document.createDocumentFragment();
+  adminAiConversationEntries.slice(0, adminAiConversationVisibleCount).forEach((entry, index) => {
+    const details = entry?.conversation_details && typeof entry.conversation_details === "object"
+      ? entry.conversation_details
+      : {};
+    const actions = Array.isArray(entry?.actions_performed) ? entry.actions_performed : [];
+    const item = document.createElement("li");
+    item.className = "analytics-activity-item";
+
+    const rank = document.createElement("span");
+    rank.className = "analytics-activity-rank";
+    rank.textContent = `#${index + 1}`;
+
+    const body = document.createElement("div");
+    body.className = "analytics-activity-body";
+
+    const name = document.createElement("span");
+    name.className = "analytics-activity-name";
+    name.textContent = `${entry.user_name || getContestDisplayName(null, entry.user_id)} · ${getAdminAiConversationGameLabel(entry.game_id)}`;
+
+    const meta = document.createElement("span");
+    meta.className = "analytics-activity-meta";
+    meta.textContent = `${formatActivityLogTimestamp(entry.created_at)} · ${String(details.userMessage || "No prompt captured").slice(0, 120)}${String(details.userMessage || "").length > 120 ? "..." : ""}`;
+
+    const value = document.createElement("span");
+    value.className = "analytics-activity-value";
+    value.textContent = actions.length ? `${actions.length.toLocaleString()} action${actions.length === 1 ? "" : "s"}` : "Chat Only";
+
+    const actionsWrap = document.createElement("div");
+    actionsWrap.className = "analytics-activity-actions";
+
+    const viewButton = document.createElement("button");
+    viewButton.type = "button";
+    viewButton.className = "analytics-inline-action";
+    viewButton.dataset.adminAiConversationId = String(entry.id || "");
+    viewButton.textContent = "View Conversation";
+
+    body.append(name, meta);
+    actionsWrap.append(value, viewButton);
+    item.append(rank, body, actionsWrap);
+    fragment.appendChild(item);
+  });
+  adminAiConversationsListEl.appendChild(fragment);
+
+  if (adminAiConversationsSubheadEl) {
+    const total = adminAiConversationEntries.length;
+    adminAiConversationsSubheadEl.textContent = `Showing ${Math.min(adminAiConversationVisibleCount, total).toLocaleString()} of ${total.toLocaleString()} recent AI chat turns, including stored transcript details and confirmed actions.`;
+  }
+
+  if (adminAiConversationsLoadMoreButton) {
+    const remaining = adminAiConversationEntries.length - adminAiConversationVisibleCount;
+    adminAiConversationsLoadMoreButton.hidden = remaining <= 0;
+    if (remaining > 0) {
+      adminAiConversationsLoadMoreButton.textContent = `Load More (${remaining.toLocaleString()} left)`;
+    }
+  }
+}
+
+async function loadAdminAiConversations() {
+  if (!supabase || !adminAiConversationsListEl) {
+    return;
+  }
+
+  adminAiConversationLoading = true;
+  adminAiConversationVisibleCount = 20;
+  renderAdminAiConversationEntries();
+
+  try {
+    const { data, error } = await supabase.rpc("get_admin_ai_chat_conversations", {
+      limit_count: 200,
+      target_user_ids: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    adminAiConversationEntries = Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error("[RTN] Unable to load admin AI conversations", error);
+    adminAiConversationEntries = [];
+  } finally {
+    adminAiConversationLoading = false;
+    renderAdminAiConversationEntries();
+  }
+}
+
+function renderAdminAiConversationModal(entry) {
+  if (!entry || !adminAiConversationThreadEl || !adminAiConversationActionsEl) {
+    return;
+  }
+
+  const details = entry?.conversation_details && typeof entry.conversation_details === "object"
+    ? entry.conversation_details
+    : {};
+  const threadMessages = Array.isArray(details.threadMessages) ? details.threadMessages : [];
+  const actions = Array.isArray(entry?.actions_performed) ? entry.actions_performed : [];
+
+  if (adminAiConversationTitleEl) {
+    adminAiConversationTitleEl.textContent = `${entry.user_name || "Player"} · ${getAdminAiConversationGameLabel(entry.game_id)}`;
+  }
+  if (adminAiConversationMetaEl) {
+    adminAiConversationMetaEl.textContent = `${formatActivityLogTimestamp(entry.created_at)} · ${entry.user_id || "Unknown user"} · ${actions.length.toLocaleString()} action${actions.length === 1 ? "" : "s"} recorded`;
+  }
+
+  adminAiConversationThreadEl.innerHTML = threadMessages.length
+    ? threadMessages.map((message) => `
+        <article class="admin-ai-message" data-role="${escapeAssistantHtml(String(message.role || "assistant"))}">
+          <div class="admin-ai-message-head">
+            <span class="admin-ai-message-role">${escapeAssistantHtml(String(message.role || "assistant"))}</span>
+            <span class="admin-ai-message-time">${escapeAssistantHtml(formatActivityLogTimestamp(message.timestamp || entry.created_at))}</span>
+          </div>
+          <div class="admin-ai-message-body">${formatAssistantMessageHtml(String(message.text || ""))}</div>
+        </article>
+      `).join("")
+    : `<article class="admin-ai-message"><div class="admin-ai-message-body">No thread snapshot was stored for this turn.</div></article>`;
+
+  adminAiConversationActionsEl.innerHTML = actions.length
+    ? actions.map((action) => {
+        const rulesMade = Array.isArray(action?.rulesMade) ? action.rulesMade : [];
+        const wagersPlaced = Array.isArray(action?.wagersPlaced) ? action.wagersPlaced : [];
+        return `
+          <article class="admin-ai-action-card">
+            <div class="admin-ai-action-head">
+              <span class="admin-ai-action-type">${escapeAssistantHtml(String(action?.actionType || "action"))}</span>
+              <span class="admin-ai-action-time">${escapeAssistantHtml(formatActivityLogTimestamp(action?.performedAt || entry.created_at))}</span>
+            </div>
+            <p class="admin-ai-action-summary">${escapeAssistantHtml(String(action?.summary || summarizeAdminAiConversationActions([action])))}</p>
+            ${wagersPlaced.length ? `<p class="admin-ai-action-detail">${escapeAssistantHtml(wagersPlaced.map((bet) => `${Number(bet?.units || 0)}u ${String(bet?.label || bet?.key || "Bet")}`).join(" · "))}</p>` : ""}
+            ${rulesMade.length ? `<p class="admin-ai-action-detail">${escapeAssistantHtml(rulesMade.map((rule) => `${String(rule?.side || "rule")} ${String(rule?.assetId || "any")} @ ${formatCurrency(Number(rule?.threshold || 0))}`).join(" · "))}</p>` : ""}
+          </article>
+        `;
+      }).join("")
+    : `<article class="admin-ai-action-card"><p class="admin-ai-action-summary">No confirmed actions were recorded for this conversation turn.</p></article>`;
+}
+
+function openAdminAiConversationModal(entryId) {
+  if (!adminAiConversationModal) {
+    return;
+  }
+  const entry = adminAiConversationEntries.find((candidate) => String(candidate?.id || "") === String(entryId || ""));
+  if (!entry) {
+    return;
+  }
+  activeAdminAiConversation = entry;
+  renderAdminAiConversationModal(entry);
+  adminAiConversationModal.hidden = false;
+  adminAiConversationModal.classList.add("is-open");
+  adminAiConversationModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  adminAiConversationClose?.focus();
+}
+
+function closeAdminAiConversationModal() {
+  if (!adminAiConversationModal) {
+    return;
+  }
+  adminAiConversationModal.classList.remove("is-open");
+  adminAiConversationModal.setAttribute("aria-hidden", "true");
+  adminAiConversationModal.hidden = true;
+  activeAdminAiConversation = null;
+  if (
+    (!playerBankrollModal || playerBankrollModal.hidden) &&
+    (!playerHandsModal || playerHandsModal.hidden) &&
+    (!playerActivityLogModal || playerActivityLogModal.hidden) &&
+    (!playerModeBreakdownModal || playerModeBreakdownModal.hidden) &&
+    (!betAnalyticsModal || betAnalyticsModal.hidden) &&
+    (!resetModal || resetModal.hidden) &&
+    (!shippingModal || shippingModal.hidden) &&
+    (!paytableModal || paytableModal.hidden) &&
+    (!adminPrizeModal || adminPrizeModal.hidden) &&
+    (!prizeImageModal || prizeImageModal.hidden) &&
+    (!numberBetsModal || numberBetsModal.hidden) &&
+    (!handReviewModal || handReviewModal.hidden)
+  ) {
+    document.body.classList.remove("modal-open");
+  }
 }
 
 async function loadActivityLogPage({ force = false, append = false } = {}) {
@@ -24369,6 +25059,16 @@ if (mostActiveWeekListEl) {
         breakdownButton.dataset.playerModeBreakdownUserId || "",
         breakdownButton.dataset.playerModeBreakdownName || "Player"
       );
+      return;
+    }
+
+    const activityLogButton =
+      event.target instanceof HTMLElement ? event.target.closest("[data-player-activity-log-user-id]") : null;
+    if (activityLogButton instanceof HTMLElement) {
+      void openPlayerActivityLogModal(
+        activityLogButton.dataset.playerActivityLogUserId || "",
+        activityLogButton.dataset.playerActivityLogName || "Player"
+      );
     }
   });
 }
@@ -24383,6 +25083,29 @@ if (pnlRankListEl) {
         bankrollButton.dataset.playerBankrollName || "Player"
       );
     }
+  });
+}
+
+if (adminAiConversationsListEl) {
+  adminAiConversationsListEl.addEventListener("click", (event) => {
+    const button =
+      event.target instanceof HTMLElement ? event.target.closest("[data-admin-ai-conversation-id]") : null;
+    if (button instanceof HTMLElement) {
+      openAdminAiConversationModal(button.dataset.adminAiConversationId || "");
+    }
+  });
+}
+
+if (adminAiConversationsRefreshButton) {
+  adminAiConversationsRefreshButton.addEventListener("click", () => {
+    void loadAdminAiConversations();
+  });
+}
+
+if (adminAiConversationsLoadMoreButton) {
+  adminAiConversationsLoadMoreButton.addEventListener("click", () => {
+    adminAiConversationVisibleCount += 20;
+    renderAdminAiConversationEntries();
   });
 }
 
@@ -24460,6 +25183,68 @@ if (playerHandsModal) {
     if (event.target === playerHandsModal) {
       closePlayerHandsModal();
     }
+  });
+}
+
+if (playerActivityLogClose) {
+  playerActivityLogClose.addEventListener("click", () => {
+    closePlayerActivityLogModal();
+  });
+}
+
+if (playerActivityLogModal) {
+  playerActivityLogModal.addEventListener("click", (event) => {
+    if (event.target === playerActivityLogModal) {
+      closePlayerActivityLogModal();
+    }
+  });
+}
+
+if (adminAiConversationClose) {
+  adminAiConversationClose.addEventListener("click", () => {
+    closeAdminAiConversationModal();
+  });
+}
+
+if (adminAiConversationModal) {
+  adminAiConversationModal.addEventListener("click", (event) => {
+    if (event.target === adminAiConversationModal) {
+      closeAdminAiConversationModal();
+    }
+  });
+}
+
+if (playerActivityLogRefreshButton) {
+  playerActivityLogRefreshButton.addEventListener("click", () => {
+    void loadPlayerActivityLogModal({ force: true });
+  });
+}
+
+if (playerActivityLogLoadMoreButton) {
+  playerActivityLogLoadMoreButton.addEventListener("click", () => {
+    void loadPlayerActivityLogModal({ append: true });
+  });
+}
+
+playerActivityLogFilterInputs.forEach((input) => {
+  input.addEventListener("change", () => {
+    const gameKey = input instanceof HTMLInputElement ? input.dataset.playerActivityLogFilter || "" : "";
+    if (!gameKey) {
+      return;
+    }
+    if (playerActivityLogSelectedGames.has(gameKey)) {
+      playerActivityLogSelectedGames.delete(gameKey);
+    } else {
+      playerActivityLogSelectedGames.add(gameKey);
+    }
+    renderPlayerActivityLogModal();
+  });
+});
+
+if (playerActivityLogTradeFilterSelect) {
+  playerActivityLogTradeFilterSelect.addEventListener("change", () => {
+    playerActivityLogTradeFilter = playerActivityLogTradeFilterSelect.value || "all";
+    renderPlayerActivityLogModal();
   });
 }
 
@@ -24577,6 +25362,7 @@ adminTabButtons.forEach(button => {
       renderActiveUsersChart("year");
       loadMostActiveThisWeek();
       loadPnlRankings();
+      loadAdminAiConversations();
     } else if (targetTab === "contests") {
       adminPrizesContent.hidden = true;
       if (adminGamesContent) adminGamesContent.hidden = true;
@@ -24979,10 +25765,18 @@ function renderMostActiveEntries() {
     viewBreakdownButton.dataset.playerModeBreakdownName = getContestDisplayName(profile, entry.userId);
     viewBreakdownButton.textContent = "View Breakdown";
 
+    const activityLogButton = document.createElement("button");
+    activityLogButton.type = "button";
+    activityLogButton.className = "analytics-inline-action";
+    activityLogButton.dataset.playerActivityLogUserId = entry.userId;
+    activityLogButton.dataset.playerActivityLogName = getContestDisplayName(profile, entry.userId);
+    activityLogButton.textContent = "Activity Log";
+
     body.append(name, meta);
     actions.appendChild(bankrollButton);
     actions.appendChild(viewGraphButton);
     actions.appendChild(viewBreakdownButton);
+    actions.appendChild(activityLogButton);
     item.append(rank, body, actions);
     fragment.appendChild(item);
   });
@@ -25588,6 +26382,7 @@ function closePlayerBankrollModal() {
   }
 
   if (
+    (!playerActivityLogModal || playerActivityLogModal.hidden) &&
     (!betAnalyticsModal || betAnalyticsModal.hidden) &&
     (!resetModal || resetModal.hidden) &&
     (!shippingModal || shippingModal.hidden) &&
@@ -25797,6 +26592,7 @@ function closePlayerHandsModal() {
 
   if (
     (!playerBankrollModal || playerBankrollModal.hidden) &&
+    (!playerActivityLogModal || playerActivityLogModal.hidden) &&
     (!playerModeBreakdownModal || playerModeBreakdownModal.hidden) &&
     (!betAnalyticsModal || betAnalyticsModal.hidden) &&
     (!resetModal || resetModal.hidden) &&
@@ -25982,6 +26778,67 @@ async function openPlayerHandsModal(userId, playerName) {
   playerHandsClose?.focus();
 }
 
+function closePlayerActivityLogModal() {
+  if (!playerActivityLogModal) {
+    return;
+  }
+
+  playerActivityLogModal.classList.remove("is-open");
+  playerActivityLogModal.setAttribute("aria-hidden", "true");
+  playerActivityLogModal.hidden = true;
+
+  if (
+    (!playerBankrollModal || playerBankrollModal.hidden) &&
+    (!playerHandsModal || playerHandsModal.hidden) &&
+    (!playerModeBreakdownModal || playerModeBreakdownModal.hidden) &&
+    (!betAnalyticsModal || betAnalyticsModal.hidden) &&
+    (!resetModal || resetModal.hidden) &&
+    (!shippingModal || shippingModal.hidden) &&
+    (!paytableModal || paytableModal.hidden) &&
+    (!adminPrizeModal || adminPrizeModal.hidden) &&
+    (!prizeImageModal || prizeImageModal.hidden) &&
+    (!numberBetsModal || numberBetsModal.hidden) &&
+    (!handReviewModal || handReviewModal.hidden)
+  ) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+async function openPlayerActivityLogModal(userId, playerName) {
+  if (!playerActivityLogModal || !userId) {
+    return;
+  }
+
+  activePlayerActivityLogUserId = userId;
+  activePlayerActivityLogName = playerName || "Player";
+  playerActivityLogFetchLimit = 100;
+  playerActivityLogSelectedGames = new Set([
+    GAME_KEYS.RUN_THE_NUMBERS,
+    GAME_KEYS.GUESS_10,
+    GAME_KEYS.SHAPE_TRADERS
+  ]);
+  playerActivityLogTradeFilter = "all";
+  playerActivityLogEntries = [];
+  playerActivityLogLoadedUserId = null;
+
+  if (playerActivityLogTitleEl) {
+    playerActivityLogTitleEl.textContent = `${activePlayerActivityLogName} Activity Log`;
+  }
+  if (playerActivityLogSubheadEl) {
+    playerActivityLogSubheadEl.textContent = `Account activity log for ${activePlayerActivityLogName}, using the same card layout and filters shown to the player.`;
+  }
+
+  renderPlayerActivityLogModal();
+
+  playerActivityLogModal.hidden = false;
+  playerActivityLogModal.classList.add("is-open");
+  playerActivityLogModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+
+  await loadPlayerActivityLogModal({ force: true });
+  playerActivityLogClose?.focus();
+}
+
 function closePlayerModeBreakdownModal() {
   if (!playerModeBreakdownModal) {
     return;
@@ -25993,6 +26850,7 @@ function closePlayerModeBreakdownModal() {
 
   if (
     (!playerBankrollModal || playerBankrollModal.hidden) &&
+    (!playerActivityLogModal || playerActivityLogModal.hidden) &&
     (!betAnalyticsModal || betAnalyticsModal.hidden) &&
     (!resetModal || resetModal.hidden) &&
     (!shippingModal || shippingModal.hidden) &&
@@ -26692,6 +27550,7 @@ function refreshAnalytics() {
   renderActiveUsersChart(activeUsersPeriod);
   loadMostActiveThisWeek();
   loadPnlRankings();
+  loadAdminAiConversations();
 }
 
 function initializeAnalyticsBettingGrid() {
