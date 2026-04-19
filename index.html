@@ -2423,6 +2423,21 @@
                   <ul id="most-active-week-list" class="analytics-activity-list" aria-live="polite"></ul>
                   <button type="button" id="most-active-load-more" class="btn-secondary analytics-load-more" hidden>Load More</button>
                 </div>
+                <div class="analytics-activity-card">
+                  <div class="overview-chart-header">
+                    <h3>Best P&amp;L</h3>
+                    <div class="chart-filters activity-filters">
+                      <button type="button" class="chart-filter-btn" data-pnl-rank-period="hour">1H</button>
+                      <button type="button" class="chart-filter-btn" data-pnl-rank-period="day">24H</button>
+                      <button type="button" class="chart-filter-btn active" data-pnl-rank-period="week">1W</button>
+                      <button type="button" class="chart-filter-btn" data-pnl-rank-period="month">1M</button>
+                      <button type="button" class="chart-filter-btn" data-pnl-rank-period="year">1Y</button>
+                    </div>
+                  </div>
+                  <p id="pnl-rank-subhead" class="analytics-card-subhead">Ranked by realized P&amp;L in the last 7 days.</p>
+                  <ul id="pnl-rank-list" class="analytics-activity-list" aria-live="polite"></ul>
+                  <button type="button" id="pnl-rank-load-more" class="btn-secondary analytics-load-more" hidden>Load More</button>
+                </div>
                 <div class="analytics-bet-filters-row">
                   <p id="analytics-bet-filter-subhead" class="analytics-description">Showing all-time bet counts. Click on any bet to view detailed statistics.</p>
                   <div class="chart-filters bet-grid-filters">

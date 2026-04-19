@@ -14342,6 +14342,7 @@ const bankrollChartTooltip = document.getElementById("bankroll-chart-tooltip");
 const bankrollChartTooltipDateEl = document.getElementById("bankroll-chart-tooltip-date");
 const bankrollChartTooltipValueEl = document.getElementById("bankroll-chart-tooltip-value");
 const activityFilterButtons = Array.from(document.querySelectorAll("[data-activity-period]"));
+const pnlRankFilterButtons = Array.from(document.querySelectorAll("[data-pnl-rank-period]"));
 const mostActiveGameFilterButtons = Array.from(document.querySelectorAll("[data-most-active-game]"));
 const mostActiveChartSubheadEl = document.getElementById("most-active-chart-subhead");
 const mostActivePlayerFiltersEl = document.getElementById("most-active-player-filters");
@@ -14685,6 +14686,9 @@ const adminRankThemeSelect = document.getElementById("admin-rank-theme-select");
 const mostActiveWeekListEl = document.getElementById("most-active-week-list");
 const mostActiveSubheadEl = document.getElementById("most-active-subhead");
 const mostActiveLoadMoreButton = document.getElementById("most-active-load-more");
+const pnlRankListEl = document.getElementById("pnl-rank-list");
+const pnlRankSubheadEl = document.getElementById("pnl-rank-subhead");
+const pnlRankLoadMoreButton = document.getElementById("pnl-rank-load-more");
 const rankLadderModal = document.getElementById("rank-ladder-modal");
 const rankLadderListEl = document.getElementById("rank-ladder-list");
 const rankLadderCloseButton = document.getElementById("rank-ladder-close");
@@ -21859,10 +21863,25 @@ activityFilterButtons.forEach((button) => {
   });
 });
 
+pnlRankFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    pnlRankLeaderboardPeriod = button.dataset.pnlRankPeriod || "week";
+    updatePnlRankFilterUI();
+    loadPnlRankings();
+  });
+});
+
 if (mostActiveLoadMoreButton) {
   mostActiveLoadMoreButton.addEventListener("click", () => {
     analyticsMostActiveVisibleCount += ANALYTICS_ACTIVITY_PAGE_SIZE;
     renderMostActiveEntries();
+  });
+}
+
+if (pnlRankLoadMoreButton) {
+  pnlRankLoadMoreButton.addEventListener("click", () => {
+    analyticsPnlRankVisibleCount += ANALYTICS_ACTIVITY_PAGE_SIZE;
+    renderPnlRankEntries();
   });
 }
 
@@ -22637,6 +22656,19 @@ if (mostActiveWeekListEl) {
   });
 }
 
+if (pnlRankListEl) {
+  pnlRankListEl.addEventListener("click", (event) => {
+    const bankrollButton =
+      event.target instanceof HTMLElement ? event.target.closest("[data-player-bankroll-user-id]") : null;
+    if (bankrollButton instanceof HTMLElement) {
+      void openPlayerBankrollModal(
+        bankrollButton.dataset.playerBankrollUserId || "",
+        bankrollButton.dataset.playerBankrollName || "Player"
+      );
+    }
+  });
+}
+
 if (mostActivePlayerFiltersEl) {
   mostActivePlayerFiltersEl.addEventListener("change", (event) => {
     const input = event.target instanceof HTMLInputElement ? event.target : null;
@@ -22827,6 +22859,7 @@ adminTabButtons.forEach(button => {
       renderOverviewChart("year");
       renderActiveUsersChart("year");
       loadMostActiveThisWeek();
+      loadPnlRankings();
     } else if (targetTab === "contests") {
       adminPrizesContent.hidden = true;
       if (adminGamesContent) adminGamesContent.hidden = true;
@@ -22887,6 +22920,9 @@ let analyticsPlayerFilterLoaded = false;
 let analyticsMostActiveRequestId = 0;
 let analyticsMostActiveEntries = [];
 let analyticsMostActiveVisibleCount = 10;
+let analyticsPnlRankRequestId = 0;
+let analyticsPnlRankEntries = [];
+let analyticsPnlRankVisibleCount = 10;
 let mostActiveTrendChartInstance = null;
 let mostActiveTrendGameFilter = "all";
 let mostActiveTrendSelectedUserIds = [];
@@ -22901,6 +22937,7 @@ let playerHandsChartInstance = null;
 let playerHandsPeriod = "year";
 let activePlayerHandsUserId = null;
 let activePlayerHandsName = "";
+let pnlRankLeaderboardPeriod = "week";
 const ANALYTICS_TIME_ZONE = "America/Denver";
 
 function formatAnalyticsDate(dateInput, options = {}) {
@@ -23015,6 +23052,61 @@ let activePlayerBreakdownName = "";
 let playerBreakdownPeriod = "year";
 const analyticsProfileCache = new Map();
 const ANALYTICS_ACTIVITY_PAGE_SIZE = 10;
+
+function buildRealizedPnlBucketsFromRawRecords(handRecords = [], tradeRecords = []) {
+  const buckets = new Map();
+  const ensureDay = (dayKey, createdAt) => {
+    if (!buckets.has(dayKey)) {
+      buckets.set(dayKey, {
+        dayKey,
+        created_at: createdAt,
+        pnlTotal: 0,
+        pnlRtn: 0,
+        pnlG10: 0,
+        pnlShapeTraders: 0
+      });
+    }
+    return buckets.get(dayKey);
+  };
+
+  handRecords.forEach((hand) => {
+    const modeType = String(hand?.mode_type || "").trim().toLowerCase();
+    if (hand?.contest_id || (modeType && modeType !== "normal")) {
+      return;
+    }
+    const dayKey = formatAnalyticsDateKey(hand?.created_at);
+    if (!dayKey) return;
+    const bucket = ensureDay(dayKey, String(hand?.created_at || `${dayKey}T12:00:00`));
+    const net = roundCurrencyValue(Number(hand?.net || 0));
+    const gameKey = resolveGameKey(hand?.game_id);
+    if (gameKey === GAME_KEYS.RUN_THE_NUMBERS) {
+      bucket.pnlRtn = roundCurrencyValue(bucket.pnlRtn + net);
+    } else if (gameKey === GAME_KEYS.GUESS_10) {
+      bucket.pnlG10 = roundCurrencyValue(bucket.pnlG10 + net);
+    }
+  });
+
+  tradeRecords.forEach((trade) => {
+    const tradeSide = String(trade?.trade_side || "").trim().toLowerCase();
+    if (trade?.contest_id || tradeSide !== "sell") {
+      return;
+    }
+    const dayKey = formatAnalyticsDateKey(trade?.executed_at);
+    if (!dayKey) return;
+    const bucket = ensureDay(dayKey, String(trade?.executed_at || `${dayKey}T12:00:00`));
+    bucket.pnlShapeTraders = roundCurrencyValue(
+      bucket.pnlShapeTraders + roundCurrencyValue(Number(trade?.net_profit || 0))
+    );
+  });
+
+  return Array.from(buckets.values())
+    .map((bucket, index) => ({
+      ...bucket,
+      pnlTotal: roundCurrencyValue(bucket.pnlRtn + bucket.pnlG10 + bucket.pnlShapeTraders),
+      fallbackIndex: index
+    }))
+    .sort((left, right) => String(left.dayKey).localeCompare(String(right.dayKey)));
+}
 
 function cacheAnalyticsProfiles(profiles) {
   (profiles || []).forEach((profile) => {
@@ -23185,6 +23277,97 @@ function renderMostActiveEntries() {
     mostActiveLoadMoreButton.hidden = remainingCount <= 0;
     if (remainingCount > 0) {
       mostActiveLoadMoreButton.textContent = `Load More (${remainingCount.toLocaleString()} left)`;
+    }
+  }
+}
+
+function updatePnlRankFilterUI() {
+  pnlRankFilterButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.pnlRankPeriod === pnlRankLeaderboardPeriod);
+  });
+
+  if (!pnlRankSubheadEl) return;
+
+  const labels = {
+    hour: "Ranked by realized P&L in the last hour.",
+    day: "Ranked by realized P&L in the last 24 hours.",
+    week: "Ranked by realized P&L in the last 7 days.",
+    month: "Ranked by realized P&L in the last 30 days.",
+    year: "Ranked by realized P&L in the last year."
+  };
+
+  pnlRankSubheadEl.textContent = labels[pnlRankLeaderboardPeriod] || labels.week;
+}
+
+function renderPnlRankEntries() {
+  if (!pnlRankListEl) return;
+
+  pnlRankListEl.innerHTML = "";
+
+  if (!analyticsPnlRankEntries.length) {
+    const emptyItem = document.createElement("li");
+    emptyItem.className = "analytics-activity-item analytics-activity-empty";
+    emptyItem.textContent = "No realized P&L was recorded in this time range.";
+    pnlRankListEl.appendChild(emptyItem);
+    if (pnlRankLoadMoreButton) pnlRankLoadMoreButton.hidden = true;
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  analyticsPnlRankEntries.slice(0, analyticsPnlRankVisibleCount).forEach((entry, index) => {
+    const profile = entry.profile || analyticsProfileCache.get(entry.userId) || null;
+    const item = document.createElement("li");
+    item.className = "analytics-activity-item";
+
+    const rank = document.createElement("span");
+    rank.className = "analytics-activity-rank";
+    rank.textContent = `#${index + 1}`;
+
+    const body = document.createElement("div");
+    body.className = "analytics-activity-body";
+
+    const name = document.createElement("span");
+    name.className = "analytics-activity-name";
+    name.textContent = getContestDisplayName(profile, entry.userId);
+
+    const meta = document.createElement("span");
+    meta.className = "analytics-activity-meta";
+    meta.textContent =
+      `${formatSignedCurrency(entry.pnlTotal)} Total · ` +
+      `${formatSignedCurrency(entry.pnlShapeTraders)} ST · ` +
+      `${formatSignedCurrency(entry.pnlRtn)} RTN · ` +
+      `${formatSignedCurrency(entry.pnlG10)} G10`;
+
+    const value = document.createElement("span");
+    value.className = "analytics-activity-value";
+    if (Number(entry.pnlTotal || 0) < 0) {
+      value.classList.add("is-negative");
+    }
+    value.textContent = formatSignedCurrency(entry.pnlTotal);
+
+    const actions = document.createElement("div");
+    actions.className = "analytics-activity-actions";
+
+    const bankrollButton = document.createElement("button");
+    bankrollButton.type = "button";
+    bankrollButton.className = "analytics-inline-action";
+    bankrollButton.dataset.playerBankrollUserId = entry.userId;
+    bankrollButton.dataset.playerBankrollName = getContestDisplayName(profile, entry.userId);
+    bankrollButton.textContent = "View PnL";
+
+    body.append(name, meta);
+    actions.append(value, bankrollButton);
+    item.append(rank, body, actions);
+    fragment.appendChild(item);
+  });
+
+  pnlRankListEl.appendChild(fragment);
+
+  if (pnlRankLoadMoreButton) {
+    const remainingCount = analyticsPnlRankEntries.length - analyticsPnlRankVisibleCount;
+    pnlRankLoadMoreButton.hidden = remainingCount <= 0;
+    if (remainingCount > 0) {
+      pnlRankLoadMoreButton.textContent = `Load More (${remainingCount.toLocaleString()} left)`;
     }
   }
 }
@@ -23509,58 +23692,7 @@ async function loadPlayerBankrollHistory(userId) {
       endAt: new Date(),
       userIds: [userId]
     });
-    const buckets = new Map();
-    const ensureDay = (dayKey, createdAt) => {
-      if (!buckets.has(dayKey)) {
-        buckets.set(dayKey, {
-          dayKey,
-          created_at: createdAt,
-          pnlTotal: 0,
-          pnlRtn: 0,
-          pnlG10: 0,
-          pnlShapeTraders: 0
-        });
-      }
-      return buckets.get(dayKey);
-    };
-
-    handRecords.forEach((hand) => {
-      const modeType = String(hand?.mode_type || "").trim().toLowerCase();
-      if (hand?.contest_id || (modeType && modeType !== "normal")) {
-        return;
-      }
-      const dayKey = formatAnalyticsDateKey(hand?.created_at);
-      if (!dayKey) return;
-      const bucket = ensureDay(dayKey, String(hand?.created_at || `${dayKey}T12:00:00`));
-      const net = roundCurrencyValue(Number(hand?.net || 0));
-      const gameKey = resolveGameKey(hand?.game_id);
-      if (gameKey === GAME_KEYS.RUN_THE_NUMBERS) {
-        bucket.pnlRtn = roundCurrencyValue(bucket.pnlRtn + net);
-      } else if (gameKey === GAME_KEYS.GUESS_10) {
-        bucket.pnlG10 = roundCurrencyValue(bucket.pnlG10 + net);
-      }
-    });
-
-    tradeRecords.forEach((trade) => {
-      const tradeSide = String(trade?.trade_side || "").trim().toLowerCase();
-      if (trade?.contest_id || tradeSide !== "sell") {
-        return;
-      }
-      const dayKey = formatAnalyticsDateKey(trade?.executed_at);
-      if (!dayKey) return;
-      const bucket = ensureDay(dayKey, String(trade?.executed_at || `${dayKey}T12:00:00`));
-      bucket.pnlShapeTraders = roundCurrencyValue(
-        bucket.pnlShapeTraders + roundCurrencyValue(Number(trade?.net_profit || 0))
-      );
-    });
-
-    return Array.from(buckets.values())
-      .map((bucket, index) => ({
-        ...bucket,
-        pnlTotal: roundCurrencyValue(bucket.pnlRtn + bucket.pnlG10 + bucket.pnlShapeTraders),
-        fallbackIndex: index
-      }))
-      .sort((left, right) => String(left.dayKey).localeCompare(String(right.dayKey)));
+    return buildRealizedPnlBucketsFromRawRecords(handRecords, tradeRecords);
   };
 
   try {
@@ -24528,6 +24660,104 @@ async function loadMostActiveThisWeek() {
   }
 }
 
+async function loadPnlRankings() {
+  if (!supabase || !pnlRankListEl) return;
+  const requestId = ++analyticsPnlRankRequestId;
+  analyticsPnlRankEntries = [];
+  analyticsPnlRankVisibleCount = ANALYTICS_ACTIVITY_PAGE_SIZE;
+
+  updatePnlRankFilterUI();
+
+  pnlRankListEl.innerHTML = "";
+  if (pnlRankLoadMoreButton) {
+    pnlRankLoadMoreButton.hidden = true;
+    pnlRankLoadMoreButton.textContent = "Load More";
+  }
+  const loadingItem = document.createElement("li");
+  loadingItem.className = "analytics-activity-item analytics-activity-empty";
+  loadingItem.textContent = "Loading P&L rankings...";
+  pnlRankListEl.appendChild(loadingItem);
+
+  const startDate = getAnalyticsPeriodStart(pnlRankLeaderboardPeriod);
+  try {
+    const { handRecords, tradeRecords } = await loadAdminAnalyticsRawRecords({
+      startAt: startDate,
+      endAt: new Date(),
+      userIds: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null
+    });
+
+    if (requestId !== analyticsPnlRankRequestId) return;
+
+    const recordsByUser = new Map();
+    handRecords.forEach((record) => {
+      const userId = record?.user_id;
+      if (!userId) return;
+      const current = recordsByUser.get(userId) || { handRecords: [], tradeRecords: [] };
+      current.handRecords.push(record);
+      recordsByUser.set(userId, current);
+    });
+
+    tradeRecords.forEach((record) => {
+      const userId = record?.user_id;
+      if (!userId) return;
+      const current = recordsByUser.get(userId) || { handRecords: [], tradeRecords: [] };
+      current.tradeRecords.push(record);
+      recordsByUser.set(userId, current);
+    });
+
+    const rankedEntries = Array.from(recordsByUser.entries())
+      .map(([userId, userRecords]) => {
+        const buckets = buildRealizedPnlBucketsFromRawRecords(userRecords.handRecords, userRecords.tradeRecords);
+        return buckets.reduce((totals, bucket) => ({
+          userId,
+          pnlTotal: roundCurrencyValue(totals.pnlTotal + Number(bucket?.pnlTotal || 0)),
+          pnlRtn: roundCurrencyValue(totals.pnlRtn + Number(bucket?.pnlRtn || 0)),
+          pnlG10: roundCurrencyValue(totals.pnlG10 + Number(bucket?.pnlG10 || 0)),
+          pnlShapeTraders: roundCurrencyValue(totals.pnlShapeTraders + Number(bucket?.pnlShapeTraders || 0))
+        }), {
+          userId,
+          pnlTotal: 0,
+          pnlRtn: 0,
+          pnlG10: 0,
+          pnlShapeTraders: 0
+        });
+      })
+      .filter((entry) => {
+        const total = Math.abs(Number(entry?.pnlTotal || 0));
+        const detailTotal =
+          Math.abs(Number(entry?.pnlRtn || 0)) +
+          Math.abs(Number(entry?.pnlG10 || 0)) +
+          Math.abs(Number(entry?.pnlShapeTraders || 0));
+        return total > 0 || detailTotal > 0;
+      })
+      .sort((a, b) => {
+        if ((b.pnlTotal || 0) !== (a.pnlTotal || 0)) return (b.pnlTotal || 0) - (a.pnlTotal || 0);
+        return String(a.userId).localeCompare(String(b.userId));
+      });
+
+    if (rankedEntries.length) {
+      const profilesById = await loadAnalyticsProfilesByIds(rankedEntries.map((entry) => entry.userId));
+      if (requestId !== analyticsPnlRankRequestId) return;
+      analyticsPnlRankEntries = rankedEntries.map((entry) => ({
+        ...entry,
+        profile: profilesById.get(entry.userId) || null
+      }));
+    } else {
+      analyticsPnlRankEntries = [];
+    }
+
+    renderPnlRankEntries();
+  } catch (error) {
+    if (requestId !== analyticsPnlRankRequestId) return;
+    console.error("[RTN] loadPnlRankings error", error);
+    pnlRankListEl.innerHTML = "";
+    const errorItem = document.createElement("li");
+    errorItem.className = "analytics-activity-item analytics-activity-empty";
+    errorItem.textContent = "Unable to load P&L rankings.";
+    pnlRankListEl.appendChild(errorItem);
+  }
+}
+
 async function loadMostActiveHandsFallback(startDate) {
   try {
     const { data, error } = await supabase.rpc("get_admin_most_active_events", {
@@ -24744,6 +24974,7 @@ function refreshAnalytics() {
   const activeUsersPeriod = activeUsersFilterBtn?.dataset.activeUsersPeriod || "year";
   renderActiveUsersChart(activeUsersPeriod);
   loadMostActiveThisWeek();
+  loadPnlRankings();
 }
 
 function initializeAnalyticsBettingGrid() {

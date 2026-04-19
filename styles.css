@@ -11146,6 +11146,21 @@ body.play-assistant-open .play-assistant-fab {
   color: rgba(173, 225, 247, 0.8);
 }
 
+.analytics-activity-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 6.5rem;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: rgba(118, 255, 180, 0.96);
+}
+
+.analytics-activity-value.is-negative {
+  color: rgba(255, 137, 137, 0.96);
+}
+
 .most-active-trend-block {
   display: grid;
   gap: 0.8rem;
