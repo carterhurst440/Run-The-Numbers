@@ -21824,6 +21824,27 @@ function mapShapeTraderTradeRowToActivityLogEntry(row) {
   };
 }
 
+function mapAccountEventRowToActivityLogEntry(row) {
+  const eventType = String(row?.event_type || "").trim();
+  const amount = roundCurrencyValue(Number(row?.amount || 0));
+  const previousBalance = roundCurrencyValue(Number(row?.previous_balance || 0));
+  const newBalance = roundCurrencyValue(Number(row?.new_balance || 0));
+
+  return {
+    id: `account:${row?.id || `${eventType}:${row?.created_at || Date.now()}`}`,
+    entryType: "account",
+    gameKey: "account",
+    gameLabel: "Account",
+    createdAt: row?.created_at || new Date().toISOString(),
+    modeType: "normal",
+    contestId: null,
+    eventType,
+    amount,
+    previousBalance,
+    newAccountValue: newBalance
+  };
+}
+
 function getActivityEntryModeLabel(entry) {
   if (!entry?.contestId) {
     return "Normal Mode";
@@ -21835,6 +21856,9 @@ function getActivityEntryModeLabel(entry) {
 
 function getFilteredActivityLogEntries() {
   return activityLogEntries.filter((entry) => {
+    if (entry.entryType === "account") {
+      return true;
+    }
     if (!activityLogSelectedGames.has(entry.gameKey)) {
       return false;
     }
@@ -21920,6 +21944,32 @@ function renderActivityLogPage() {
   }
 
   activityLogListEl.innerHTML = visibleEntries.map((entry) => {
+    if (entry.entryType === "account") {
+      const amountLabel = formatSignedCurrency(entry.amount);
+      const accountTitle = entry.eventType === "daily_credit_refresh" ? "Account Refresh" : "Account Update";
+      const accountMeta = entry.eventType === "daily_credit_refresh"
+        ? `Daily cash refresh restored your bankroll from ${formatCurrency(entry.previousBalance)} to ${formatCurrency(entry.newAccountValue)}.`
+        : `Account balance adjusted from ${formatCurrency(entry.previousBalance)} to ${formatCurrency(entry.newAccountValue)}.`;
+      return `
+        <li class="activity-log-item">
+          <article class="activity-log-card">
+            <div class="activity-log-topline">
+              <div class="activity-log-topline-main">
+                <p class="activity-log-kicker">${escapeAssistantHtml(entry.gameLabel)}</p>
+                <h3 class="activity-log-title">${escapeAssistantHtml(accountTitle)}</h3>
+                <p class="activity-log-mode">Normal Mode</p>
+                <p class="activity-log-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</p>
+              </div>
+              <div class="activity-log-topline-side"></div>
+            </div>
+            <p class="activity-log-primary">${escapeAssistantHtml(`${amountLabel} added`)}</p>
+            <p class="activity-log-meta">${escapeAssistantHtml(accountMeta)}</p>
+            <p class="activity-log-balance">Ending account value: ${escapeAssistantHtml(formatCurrency(entry.newAccountValue))}</p>
+          </article>
+        </li>
+      `;
+    }
+
     if (entry.entryType === "trade") {
       const netProfitMarkup = entry.netProfit === null || entry.netProfit === undefined
         ? ""
@@ -22072,10 +22122,18 @@ async function loadActivityLogPage({ force = false, append = false } = {}) {
       .order("executed_at", { ascending: false })
       .limit(activityLogFetchLimit);
 
+    const accountEventsQuery = supabase
+      .from("account_events")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(activityLogFetchLimit);
+
     const [
       { data: handRows, error: handError },
-      { data: tradeRows, error: tradeError }
-    ] = await Promise.all([handsQuery, tradesQuery]);
+      { data: tradeRows, error: tradeError },
+      { data: accountEventRows, error: accountEventError }
+    ] = await Promise.all([handsQuery, tradesQuery, accountEventsQuery]);
 
     if (handError) {
       throw handError;
@@ -22090,9 +22148,18 @@ async function loadActivityLogPage({ force = false, append = false } = {}) {
       normalizedTrades = (Array.isArray(tradeRows) ? tradeRows : []).map(mapShapeTraderTradeRowToActivityLogEntry);
     }
 
+    let normalizedAccountEvents = [];
+    if (accountEventError) {
+      if (!isMissingRelationError(accountEventError, "account_events")) {
+        throw accountEventError;
+      }
+    } else {
+      normalizedAccountEvents = (Array.isArray(accountEventRows) ? accountEventRows : []).map(mapAccountEventRowToActivityLogEntry);
+    }
+
     const normalizedHands = (Array.isArray(handRows) ? handRows : []).map(mapGameHandRowToActivityEntry);
     const contestIds = [...new Set(
-      [...normalizedHands, ...normalizedTrades]
+      [...normalizedHands, ...normalizedTrades, ...normalizedAccountEvents]
         .map((entry) => String(entry?.contestId || "").trim())
         .filter(Boolean)
     )];
@@ -22111,8 +22178,11 @@ async function loadActivityLogPage({ force = false, append = false } = {}) {
         });
       }
     }
-    activityLogHasMore = normalizedHands.length >= activityLogFetchLimit || normalizedTrades.length >= activityLogFetchLimit;
-    const mergedEntries = [...normalizedHands, ...normalizedTrades]
+    activityLogHasMore =
+      normalizedHands.length >= activityLogFetchLimit
+      || normalizedTrades.length >= activityLogFetchLimit
+      || normalizedAccountEvents.length >= activityLogFetchLimit;
+    const mergedEntries = [...normalizedHands, ...normalizedTrades, ...normalizedAccountEvents]
       .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
       .slice(0, activityLogFetchLimit);
     activityLogEntries = await hydrateActivityLogEntrySequences(mergedEntries);

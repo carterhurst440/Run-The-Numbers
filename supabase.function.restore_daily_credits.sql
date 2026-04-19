@@ -14,11 +14,45 @@ DECLARE
 BEGIN
   -- Only update Normal Mode balances in public.profiles.
   -- Contest Mode balances are stored separately in public.contest_entries.
-  WITH updated AS (
-    UPDATE public.profiles
-    SET credits = 1000
+  WITH targets AS (
+    SELECT id, credits AS previous_balance
+    FROM public.profiles
     WHERE credits < 100
-    RETURNING id
+  ),
+  updated AS (
+    UPDATE public.profiles profile
+    SET credits = 1000
+    FROM targets target
+    WHERE profile.id = target.id
+    RETURNING
+      profile.id,
+      target.previous_balance,
+      (1000 - target.previous_balance)::numeric(12,2) AS added_amount,
+      profile.credits::numeric(12,2) AS new_balance
+  ),
+  logged AS (
+    INSERT INTO public.account_events (
+      user_id,
+      event_type,
+      amount,
+      previous_balance,
+      new_balance,
+      metadata,
+      created_at
+    )
+    SELECT
+      updated.id,
+      'daily_credit_refresh',
+      updated.added_amount,
+      updated.previous_balance,
+      updated.new_balance,
+      jsonb_build_object(
+        'source', 'restore_daily_credits',
+        'target_balance', 1000
+      ),
+      timezone('utc', now())
+    FROM updated
+    RETURNING user_id
   )
   SELECT 
     COUNT(*)::INTEGER,
