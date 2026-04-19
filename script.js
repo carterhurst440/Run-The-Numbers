@@ -24181,7 +24181,7 @@ async function openPlayerBankrollModal(userId, playerName) {
   playerBankrollGameFilter = "all";
 
   if (playerBankrollTitleEl) {
-    playerBankrollTitleEl.textContent = `${activePlayerBankrollName} View PnL`;
+    playerBankrollTitleEl.textContent = `${activePlayerBankrollName} Account Chart`;
   }
 
   updatePlayerBankrollFilterUI();
