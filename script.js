@@ -10878,6 +10878,124 @@ function compareRunsByResolvedAt(a, b) {
   return 0;
 }
 
+async function fetchContestJourneyEventStream(contestId, userId) {
+  if (!contestId || !userId || !supabase) {
+    return [];
+  }
+
+  const pageSize = 1000;
+  const handRows = [];
+  const tradeRows = [];
+
+  let handPage = 0;
+  let hasMoreHands = true;
+  while (hasMoreHands) {
+    const { data, error } = await supabase
+      .from("game_hands")
+      .select("id, created_at, game_id, new_account_value")
+      .eq("user_id", userId)
+      .eq("contest_id", contestId)
+      .order("created_at", { ascending: true })
+      .range(handPage * pageSize, (handPage + 1) * pageSize - 1);
+
+    if (error) throw error;
+
+    const rows = Array.isArray(data) ? data : [];
+    handRows.push(...rows);
+    hasMoreHands = rows.length === pageSize;
+    handPage += 1;
+  }
+
+  let tradePage = 0;
+  let hasMoreTrades = true;
+  while (hasMoreTrades) {
+    const { data, error } = await supabase
+      .from("shape_trader_trades")
+      .select("id, executed_at, trade_side, new_account_value")
+      .eq("user_id", userId)
+      .eq("contest_id", contestId)
+      .order("executed_at", { ascending: true })
+      .range(tradePage * pageSize, (tradePage + 1) * pageSize - 1);
+
+    if (error) {
+      if (isMissingRelationError(error, "shape_trader_trades")) {
+        break;
+      }
+      throw error;
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    tradeRows.push(...rows);
+    hasMoreTrades = rows.length === pageSize;
+    tradePage += 1;
+  }
+
+  const normalizeJourneyValue = (value) => {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? Number(numericValue.toFixed(2)) : null;
+  };
+
+  const eventStream = [
+    ...handRows.map((row) => ({
+      id: String(row?.id || ""),
+      sourceType: "hand",
+      sortWeight: 0,
+      created_at: row?.created_at || null,
+      value: normalizeJourneyValue(row?.new_account_value),
+      gameKey: resolveGameKey(row?.game_id)
+    })),
+    ...tradeRows.map((row) => ({
+      id: String(row?.id || ""),
+      sourceType: "trade",
+      sortWeight: 1,
+      created_at: row?.executed_at || null,
+      value: normalizeJourneyValue(row?.new_account_value),
+      gameKey: GAME_KEYS.SHAPE_TRADERS,
+      tradeSide: String(row?.trade_side || "").trim().toLowerCase()
+    }))
+  ]
+    .filter((event) => Number.isFinite(event.value) && event.created_at)
+    .sort((left, right) => {
+      const leftTime = left?.created_at ? new Date(left.created_at).getTime() : Number.NaN;
+      const rightTime = right?.created_at ? new Date(right.created_at).getTime() : Number.NaN;
+      const leftHasTime = Number.isFinite(leftTime);
+      const rightHasTime = Number.isFinite(rightTime);
+      if (leftHasTime && rightHasTime && leftTime !== rightTime) {
+        return leftTime - rightTime;
+      }
+      if (leftHasTime !== rightHasTime) {
+        return leftHasTime ? -1 : 1;
+      }
+      if ((left?.sortWeight || 0) !== (right?.sortWeight || 0)) {
+        return (left?.sortWeight || 0) - (right?.sortWeight || 0);
+      }
+      return String(left?.id || "").localeCompare(String(right?.id || ""));
+    });
+
+  const gameCounters = {
+    [GAME_KEYS.RUN_THE_NUMBERS]: 0,
+    [GAME_KEYS.GUESS_10]: 0,
+    [GAME_KEYS.SHAPE_TRADERS]: 0
+  };
+
+  return eventStream.map((event, index) => {
+    gameCounters[event.gameKey] = (gameCounters[event.gameKey] || 0) + 1;
+    let label = `Event ${index + 1}`;
+    if (event.gameKey === GAME_KEYS.RUN_THE_NUMBERS) {
+      label = `RTN ${gameCounters[event.gameKey]}`;
+    } else if (event.gameKey === GAME_KEYS.GUESS_10) {
+      label = `G10 ${gameCounters[event.gameKey]}`;
+    } else if (event.gameKey === GAME_KEYS.SHAPE_TRADERS) {
+      label = `ST ${gameCounters[event.gameKey]}`;
+    }
+    return {
+      label,
+      value: event.value,
+      created_at: event.created_at
+    };
+  });
+}
+
 async function loadContestJourneyPoints(contest, entry) {
   if (!contest?.id || !entry?.user_id) return [];
 
@@ -10908,45 +11026,58 @@ async function loadContestJourneyPoints(contest, entry) {
     created_at: contest.starts_at || entry.opted_in_at || null
   }];
 
-  const sharedHistoryPoints = getContestHistoryHandPoints(entry.contest_history);
-  if (sharedHistoryPoints.length) {
-    points.push(...sharedHistoryPoints);
-  } else if (entry.user_id === currentUser?.id) {
-    const allRuns = [];
-    const pageSize = 1000;
-    let page = 0;
-    let hasMore = true;
+  try {
+    const eventPoints = await fetchContestJourneyEventStream(contest.id, entry.user_id);
+    if (eventPoints.length) {
+      points.push(...eventPoints);
+    } else {
+      const sharedHistoryPoints = getContestHistoryHandPoints(entry.contest_history);
+      if (sharedHistoryPoints.length) {
+        points.push(...sharedHistoryPoints);
+      } else if (entry.user_id === currentUser?.id) {
+        const allRuns = [];
+        const pageSize = 1000;
+        let page = 0;
+        let hasMore = true;
 
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from("game_runs")
-        .select("created_at, metadata")
-        .eq("user_id", entry.user_id)
-        .contains("metadata", { contest_id: contest.id })
-        .order("created_at", { ascending: true })
-        .range(page * pageSize, (page + 1) * pageSize - 1);
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from("game_runs")
+            .select("created_at, metadata")
+            .eq("user_id", entry.user_id)
+            .contains("metadata", { contest_id: contest.id })
+            .order("created_at", { ascending: true })
+            .range(page * pageSize, (page + 1) * pageSize - 1);
 
-      if (error) throw error;
+          if (error) throw error;
 
-      if (Array.isArray(data) && data.length) {
-        allRuns.push(...data);
-        hasMore = data.length === pageSize;
-        page += 1;
-      } else {
-        hasMore = false;
+          if (Array.isArray(data) && data.length) {
+            allRuns.push(...data);
+            hasMore = data.length === pageSize;
+            page += 1;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        allRuns.sort(compareRunsByResolvedAt).forEach((run, index) => {
+          const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
+          const endingBankroll = normalizeJourneyValue(metadata?.ending_bankroll);
+          if (!Number.isFinite(endingBankroll)) return;
+          points.push({
+            label: `Hand ${index + 1}`,
+            value: endingBankroll,
+            created_at: getRunResolvedAt(run)
+          });
+        });
       }
     }
-
-    allRuns.sort(compareRunsByResolvedAt).forEach((run, index) => {
-      const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
-      const endingBankroll = normalizeJourneyValue(metadata?.ending_bankroll);
-      if (!Number.isFinite(endingBankroll)) return;
-      points.push({
-        label: `Hand ${index + 1}`,
-        value: endingBankroll,
-        created_at: getRunResolvedAt(run)
-      });
-    });
+  } catch (error) {
+    console.warn("[RTN] contest journey event-stream fallback failed", error);
+    const sharedHistoryPoints = getContestHistoryHandPoints(entry.contest_history);
+    if (sharedHistoryPoints.length) {
+      points.push(...sharedHistoryPoints);
+    }
   }
 
   const endingValue = normalizeJourneyValue(entry.current_credits ?? entry.score ?? points[points.length - 1]?.value ?? 0);
