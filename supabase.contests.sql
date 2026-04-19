@@ -108,6 +108,15 @@ create table if not exists public.contest_start_notifications (
   primary key (contest_id, user_id)
 );
 
+create table if not exists public.contest_publish_notifications (
+  contest_id uuid not null references public.contests (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  created_at timestamptz not null default timezone('utc', now()),
+  email_requested boolean not null default false,
+  email_sent_at timestamptz,
+  primary key (contest_id, user_id)
+);
+
 alter table public.contest_entries add column if not exists pre_contest_credits numeric(12,2) not null default 1000.00;
 alter table public.contest_entries add column if not exists pre_contest_carter_cash integer not null default 0;
 alter table public.contest_entries add column if not exists pre_contest_carter_cash_progress numeric not null default 0;
@@ -125,11 +134,15 @@ alter table public.contest_start_notifications add column if not exists created_
 alter table public.contest_start_notifications add column if not exists seen_at timestamptz;
 alter table public.contest_start_notifications add column if not exists email_requested boolean not null default false;
 alter table public.contest_start_notifications add column if not exists email_sent_at timestamptz;
+alter table public.contest_publish_notifications add column if not exists created_at timestamptz not null default timezone('utc', now());
+alter table public.contest_publish_notifications add column if not exists email_requested boolean not null default false;
+alter table public.contest_publish_notifications add column if not exists email_sent_at timestamptz;
 
 alter table public.contests enable row level security;
 alter table public.contest_entries enable row level security;
 alter table public.contest_medals enable row level security;
 alter table public.contest_start_notifications enable row level security;
+alter table public.contest_publish_notifications enable row level security;
 
 drop policy if exists "Authenticated users can view contests" on public.contests;
 create policy "Authenticated users can view contests"
@@ -214,6 +227,14 @@ to authenticated
 using ((auth.jwt() ->> 'email') = 'carterwarrenhurst@gmail.com')
 with check ((auth.jwt() ->> 'email') = 'carterwarrenhurst@gmail.com');
 
+drop policy if exists "Admin can manage contest publish notifications" on public.contest_publish_notifications;
+create policy "Admin can manage contest publish notifications"
+on public.contest_publish_notifications
+for all
+to authenticated
+using ((auth.jwt() ->> 'email') = 'carterwarrenhurst@gmail.com')
+with check ((auth.jwt() ->> 'email') = 'carterwarrenhurst@gmail.com');
+
 create or replace function public.seed_live_contest_notifications()
 returns table(contest_id uuid, title text, inserted_notifications integer, email_requested integer)
 language plpgsql
@@ -271,6 +292,7 @@ $$;
 drop function if exists public.get_contest_start_email_recipients(uuid);
 drop function if exists public.get_contest_publish_email_recipients(uuid);
 drop function if exists public.maybe_activate_pending_contest(uuid);
+drop function if exists public.seed_contest_publish_notifications(uuid);
 
 create function public.get_contest_start_email_recipients(_contest_id uuid)
 returns table(
@@ -315,6 +337,46 @@ as $$
     and coalesce(u.email, '') <> '';
 $$;
 
+create function public.seed_contest_publish_notifications(_contest_id uuid)
+returns integer
+language plpgsql
+security definer
+as $$
+declare
+  inserted_count integer := 0;
+begin
+  with inserted as (
+    insert into public.contest_publish_notifications (contest_id, user_id, email_requested)
+    select
+      c.id,
+      p.id,
+      true
+    from public.contests c
+    join public.profiles p
+      on c.send_start_email_notification
+     and coalesce(p.receive_contest_start_emails, true)
+    join auth.users u on u.id = p.id
+    left join public.contest_publish_notifications n
+      on n.contest_id = c.id
+     and n.user_id = p.id
+    where c.id = _contest_id
+      and c.start_mode = 'threshold'
+      and (
+        c.is_test = false
+        or u.email = 'carterwarrenhurst@gmail.com'
+      )
+      and coalesce(u.email, '') <> ''
+      and n.contest_id is null
+    returning 1
+  )
+  select count(*)
+  into inserted_count
+  from inserted;
+
+  return inserted_count;
+end;
+$$;
+
 create function public.get_contest_publish_email_recipients(_contest_id uuid)
 returns table(
   user_id uuid,
@@ -330,7 +392,7 @@ language sql
 security definer
 as $$
   select
-    p.id,
+    n.user_id,
     u.email::text,
     p.first_name,
     c.title,
@@ -338,17 +400,18 @@ as $$
     c.starts_at,
     c.contestant_starting_requirement,
     c.contest_length_hours
-  from public.contests c
-  join public.profiles p
-    on c.send_start_email_notification
-   and coalesce(p.receive_contest_start_emails, true)
-  join auth.users u on u.id = p.id
-  where c.id = _contest_id
+  from public.contest_publish_notifications n
+  join public.contests c on c.id = n.contest_id
+  join public.profiles p on p.id = n.user_id
+  join auth.users u on u.id = n.user_id
+  where n.contest_id = _contest_id
     and c.start_mode = 'threshold'
     and (
       c.is_test = false
       or u.email = 'carterwarrenhurst@gmail.com'
     )
+    and n.email_requested = true
+    and n.email_sent_at is null
     and coalesce(u.email, '') <> '';
 $$;
 
@@ -411,5 +474,7 @@ grant select, insert, update, delete on public.contests to authenticated;
 grant select, insert, update, delete on public.contest_entries to authenticated;
 grant select, insert, update, delete on public.contest_medals to authenticated;
 grant select, insert, update, delete on public.contest_start_notifications to authenticated;
+grant select, insert, update, delete on public.contest_publish_notifications to authenticated;
 grant execute on function public.seed_live_contest_notifications() to authenticated;
+grant execute on function public.seed_contest_publish_notifications(uuid) to authenticated;
 grant execute on function public.maybe_activate_pending_contest(uuid) to authenticated;

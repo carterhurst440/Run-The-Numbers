@@ -20,6 +20,75 @@ const corsHeaders = {
 };
 
 const CONTEST_EMAIL_TIME_ZONE = "America/Denver";
+const RESEND_MIN_INTERVAL_MS = 250;
+const RESEND_MAX_ATTEMPTS = 4;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getRetryDelayMs(retryAfterHeader: string | null, attempt: number) {
+  const retryAfterSeconds = Number(retryAfterHeader);
+  if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+    return Math.ceil(retryAfterSeconds * 1000);
+  }
+
+  return RESEND_MIN_INTERVAL_MS * Math.max(1, attempt + 1);
+}
+
+async function sendEmailWithRetry(
+  resendApiKey: string,
+  emailFrom: string,
+  recipient: RecipientRow,
+  contestId: string
+) {
+  for (let attempt = 0; attempt < RESEND_MAX_ATTEMPTS; attempt += 1) {
+    if (attempt > 0) {
+      await sleep(RESEND_MIN_INTERVAL_MS);
+    }
+
+    const resendResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: emailFrom,
+        to: recipient.email,
+        subject: `New contest live: ${recipient.contest_title}`,
+        html: buildEmailHtml(recipient, contestId)
+      })
+    });
+
+    if (resendResponse.ok) {
+      return { ok: true as const };
+    }
+
+    const errorText = await resendResponse.text();
+    if (resendResponse.status !== 429 || attempt === RESEND_MAX_ATTEMPTS - 1) {
+      return {
+        ok: false as const,
+        status: resendResponse.status,
+        errorText
+      };
+    }
+
+    const delayMs = getRetryDelayMs(resendResponse.headers.get("retry-after"), attempt);
+    console.warn("[send-contest-start-emails] resend rate limited; retrying", {
+      email: recipient.email,
+      attempt: attempt + 1,
+      delayMs
+    });
+    await sleep(delayMs);
+  }
+
+  return {
+    ok: false as const,
+    status: 429,
+    errorText: "Exceeded retry attempts."
+  };
+}
 
 function formatPrizeMoney(value: number) {
   return new Intl.NumberFormat("en-US", {
@@ -147,29 +216,22 @@ Deno.serve(async (request) => {
     }
 
     const sentUserIds: string[] = [];
+    let failedCount = 0;
 
     for (const recipient of recipients) {
-      const resendResponse = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          from: emailFrom,
-          to: recipient.email,
-          subject: `New contest live: ${recipient.contest_title}`,
-          html: buildEmailHtml(recipient, contestId)
-        })
-      });
-
-      if (!resendResponse.ok) {
-        const errorText = await resendResponse.text();
-        console.error("[send-contest-start-emails] resend error", errorText);
+      const result = await sendEmailWithRetry(resendApiKey, emailFrom, recipient, contestId);
+      if (!result.ok) {
+        failedCount += 1;
+        console.error("[send-contest-start-emails] resend error", {
+          email: recipient.email,
+          status: result.status,
+          errorText: result.errorText
+        });
         continue;
       }
 
       sentUserIds.push(recipient.user_id);
+      await sleep(RESEND_MIN_INTERVAL_MS);
     }
 
     if (sentUserIds.length) {
@@ -181,7 +243,7 @@ Deno.serve(async (request) => {
       if (updateError) throw updateError;
     }
 
-    return new Response(JSON.stringify({ sent: sentUserIds.length }), {
+    return new Response(JSON.stringify({ sent: sentUserIds.length, failed: failedCount }), {
       status: 200,
       headers: {
         ...corsHeaders,

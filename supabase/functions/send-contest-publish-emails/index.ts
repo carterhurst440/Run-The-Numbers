@@ -17,6 +17,75 @@ const corsHeaders = {
 };
 
 const CONTEST_EMAIL_TIME_ZONE = "America/Denver";
+const RESEND_MIN_INTERVAL_MS = 250;
+const RESEND_MAX_ATTEMPTS = 4;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getRetryDelayMs(retryAfterHeader: string | null, attempt: number) {
+  const retryAfterSeconds = Number(retryAfterHeader);
+  if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+    return Math.ceil(retryAfterSeconds * 1000);
+  }
+
+  return RESEND_MIN_INTERVAL_MS * Math.max(1, attempt + 1);
+}
+
+async function sendEmailWithRetry(
+  resendApiKey: string,
+  emailFrom: string,
+  recipient: RecipientRow,
+  contestId: string
+) {
+  for (let attempt = 0; attempt < RESEND_MAX_ATTEMPTS; attempt += 1) {
+    if (attempt > 0) {
+      await sleep(RESEND_MIN_INTERVAL_MS);
+    }
+
+    const resendResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: emailFrom,
+        to: recipient.email,
+        subject: `New contest published: ${recipient.contest_title}`,
+        html: buildEmailHtml(recipient, contestId)
+      })
+    });
+
+    if (resendResponse.ok) {
+      return { ok: true as const };
+    }
+
+    const errorText = await resendResponse.text();
+    if (resendResponse.status !== 429 || attempt === RESEND_MAX_ATTEMPTS - 1) {
+      return {
+        ok: false as const,
+        status: resendResponse.status,
+        errorText
+      };
+    }
+
+    const delayMs = getRetryDelayMs(resendResponse.headers.get("retry-after"), attempt);
+    console.warn("[send-contest-publish-emails] resend rate limited; retrying", {
+      email: recipient.email,
+      attempt: attempt + 1,
+      delayMs
+    });
+    await sleep(delayMs);
+  }
+
+  return {
+    ok: false as const,
+    status: 429,
+    errorText: "Exceeded retry attempts."
+  };
+}
 
 function formatContestStartTime(value: string | null) {
   if (!value) {
@@ -91,6 +160,11 @@ Deno.serve(async (request) => {
       auth: { persistSession: false }
     });
 
+    const { error: seedError } = await supabase.rpc("seed_contest_publish_notifications", {
+      _contest_id: contestId
+    });
+    if (seedError) throw seedError;
+
     const { data, error } = await supabase.rpc("get_contest_publish_email_recipients", {
       _contest_id: contestId
     });
@@ -107,33 +181,35 @@ Deno.serve(async (request) => {
       });
     }
 
-    let sentCount = 0;
+    const sentUserIds: string[] = [];
+    let failedCount = 0;
 
     for (const recipient of recipients) {
-      const resendResponse = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          from: emailFrom,
-          to: recipient.email,
-          subject: `New contest published: ${recipient.contest_title}`,
-          html: buildEmailHtml(recipient, contestId)
-        })
-      });
-
-      if (!resendResponse.ok) {
-        const errorText = await resendResponse.text();
-        console.error("[send-contest-publish-emails] resend error", errorText);
+      const result = await sendEmailWithRetry(resendApiKey, emailFrom, recipient, contestId);
+      if (!result.ok) {
+        failedCount += 1;
+        console.error("[send-contest-publish-emails] resend error", {
+          email: recipient.email,
+          status: result.status,
+          errorText: result.errorText
+        });
         continue;
       }
 
-      sentCount += 1;
+      sentUserIds.push(recipient.user_id);
+      await sleep(RESEND_MIN_INTERVAL_MS);
     }
 
-    return new Response(JSON.stringify({ sent: sentCount }), {
+    if (sentUserIds.length) {
+      const { error: updateError } = await supabase
+        .from("contest_publish_notifications")
+        .update({ email_sent_at: new Date().toISOString() })
+        .eq("contest_id", contestId)
+        .in("user_id", sentUserIds);
+      if (updateError) throw updateError;
+    }
+
+    return new Response(JSON.stringify({ sent: sentUserIds.length, failed: failedCount }), {
       status: 200,
       headers: {
         ...corsHeaders,
