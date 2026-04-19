@@ -6023,6 +6023,9 @@ async function evaluateShapeTraderAssistantRules(latestDrawId = getLatestShapeTr
 
   let rulesChanged = false;
   for (const rule of shapeTradersAssistantRules) {
+    if (!doesShapeTraderAssistantRuleMatchCurrentMode(rule)) {
+      continue;
+    }
     if (!rule?.enabled || rule.lastTriggeredDrawId === latestDrawId) {
       continue;
     }
@@ -19668,12 +19671,21 @@ function roundShapeTraderAssistantThreshold(value) {
   return roundCurrencyValue(Number(value || 0));
 }
 
-function getShapeTraderAssistantRuleStorageKey(userId = currentUser?.id || "guest") {
+function getShapeTraderAssistantRuleStorageKey(
+  userId = currentUser?.id || "guest",
+  mode = currentAccountMode
+) {
+  const modeKey = getAccountModeValue(mode) || ACCOUNT_MODE_NORMAL;
+  return `${SHAPE_TRADER_ASSISTANT_RULE_STORAGE_PREFIX}:${userId || "guest"}:${modeKey}`;
+}
+
+function getLegacyShapeTraderAssistantRuleStorageKey(userId = currentUser?.id || "guest") {
   return `${SHAPE_TRADER_ASSISTANT_RULE_STORAGE_PREFIX}:${userId || "guest"}`;
 }
 
 function normalizeShapeTraderAssistantRule(rule) {
   if (!rule || typeof rule !== "object") return null;
+  const currentScope = getAccountModeValue(currentAccountMode) || ACCOUNT_MODE_NORMAL;
   const triggerType = String(rule.triggerType || rule.trigger_type || "asset_price").trim().toLowerCase();
   const actionType = String(rule.actionType || rule.action_type || "").trim().toLowerCase();
   const side = rule.side === "sell" ? "sell" : "buy";
@@ -19716,6 +19728,7 @@ function normalizeShapeTraderAssistantRule(rule) {
     : null;
   return {
     id: String(rule.id || `shape-rule-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    accountScope: String(rule.accountScope || rule.account_scope || currentScope),
     side,
     actionType: resolvedActionType,
     triggerType: resolvedTriggerType,
@@ -19732,6 +19745,13 @@ function normalizeShapeTraderAssistantRule(rule) {
     lastFailureDrawId: Math.max(0, Math.floor(Number(rule.lastFailureDrawId || 0))),
     executionCount: Math.max(0, Math.floor(Number(rule.executionCount || 0)))
   };
+}
+
+function doesShapeTraderAssistantRuleMatchCurrentMode(rule, mode = currentAccountMode) {
+  if (!rule) return false;
+  const expectedScope = getAccountModeValue(mode) || ACCOUNT_MODE_NORMAL;
+  const ruleScope = String(rule.accountScope || rule.account_scope || "");
+  return ruleScope === expectedScope;
 }
 
 function summarizeShapeTraderAssistantRule(rule) {
@@ -19806,18 +19826,28 @@ function getShapeTraderAssistantRuleMetaBadges(rule) {
 
 function ensureShapeTraderAssistantRulesLoaded() {
   const userKey = currentUser?.id || "guest";
-  if (shapeTradersAssistantRulesLoadedForUser === userKey) {
+  const modeKey = getAccountModeValue(currentAccountMode) || ACCOUNT_MODE_NORMAL;
+  const scopedKey = `${userKey}:${modeKey}`;
+  if (shapeTradersAssistantRulesLoadedForUser === scopedKey) {
     return;
   }
-  shapeTradersAssistantRulesLoadedForUser = userKey;
+  shapeTradersAssistantRulesLoadedForUser = scopedKey;
   shapeTradersAssistantLastEvaluatedDrawId = 0;
   shapeTradersAssistantRules = [];
   if (typeof window === "undefined" || !window.localStorage) {
     return;
   }
   try {
-    const raw = window.localStorage.getItem(getShapeTraderAssistantRuleStorageKey(userKey));
-    const parsed = raw ? JSON.parse(raw) : [];
+    const scopedStorageKey = getShapeTraderAssistantRuleStorageKey(userKey, currentAccountMode);
+    const raw = window.localStorage.getItem(scopedStorageKey);
+    const legacyRaw = !raw && !isContestAccountMode(currentAccountMode)
+      ? window.localStorage.getItem(getLegacyShapeTraderAssistantRuleStorageKey(userKey))
+      : null;
+    const sourceRaw = raw || legacyRaw;
+    if (!raw && legacyRaw) {
+      window.localStorage.setItem(scopedStorageKey, legacyRaw);
+    }
+    const parsed = sourceRaw ? JSON.parse(sourceRaw) : [];
     shapeTradersAssistantRules = Array.isArray(parsed)
       ? parsed.map((rule) => normalizeShapeTraderAssistantRule(rule)).filter(Boolean)
       : [];
