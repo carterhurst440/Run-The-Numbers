@@ -3502,6 +3502,157 @@ function applyShapeTraderAccountScopeFilter(query, contestId = getShapeTraderCur
   return query.is("contest_id", null);
 }
 
+async function currentAccountHasShapeTraderExposure() {
+  if (shapeTradersHasOpenHoldings()) {
+    return true;
+  }
+  if (!supabase || !currentUser?.id || !shapeTradersStatePersistenceAvailable) {
+    return false;
+  }
+
+  try {
+    const accountScope = getShapeTraderAccountScope();
+    const contestId = getShapeTraderCurrentContestId();
+    const query = applyShapeTraderAccountScopeFilter(
+      supabase
+        .from("shape_trader_positions_current")
+        .select("shape, quantity")
+        .eq("user_id", currentUser.id)
+        .eq("account_scope", accountScope)
+        .gt("quantity", 0)
+        .limit(1),
+      contestId
+    );
+    const { data, error } = await query;
+    if (error) {
+      if (isMissingRelationError(error, "shape_trader_positions_current")) {
+        shapeTradersStatePersistenceAvailable = false;
+        return false;
+      }
+      throw error;
+    }
+    return Array.isArray(data) && data.some((row) => Number(row?.quantity || 0) > 0);
+  } catch (error) {
+    console.warn("[RTN] Unable to verify Shape Traders exposure before starting another game", error);
+    return false;
+  }
+}
+
+async function ensureContestCreditsCommittedBeforeGameStart() {
+  if (!isContestAccountMode() || !pendingContestCreditSync || !supabase || !currentUser?.id) {
+    return true;
+  }
+
+  const activeContest = getModeContest();
+  const activeEntry = getModeContestEntry();
+  if (!activeContest || !activeEntry) {
+    return false;
+  }
+
+  if (String(pendingContestCreditSync.contestId || "") !== String(activeContest.id)) {
+    clearPendingContestCreditSync();
+    return true;
+  }
+
+  const expectedCredits = normalizeStoredCreditValue(pendingContestCreditSync.expectedCredits);
+  const contestSelectFields = [
+    "contest_id",
+    "user_id",
+    "starting_credits",
+    "starting_carter_cash",
+    "current_credits",
+    "current_carter_cash",
+    "current_carter_cash_progress",
+    "contest_history",
+    "display_name",
+    "participant_email"
+  ].join(", ");
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const { data: refreshedEntry, error: refreshedError } = await supabase
+      .from("contest_entries")
+      .select(contestSelectFields)
+      .eq("contest_id", activeContest.id)
+      .eq("user_id", currentUser.id)
+      .maybeSingle();
+
+    if (refreshedError) {
+      console.warn("[RTN] Unable to verify contest credits before starting next game", refreshedError);
+      return false;
+    }
+
+    const mergedEntry = refreshedEntry ? { ...activeEntry, ...refreshedEntry } : activeEntry;
+    const refreshedCredits = normalizeStoredCreditValue(mergedEntry.current_credits ?? 0);
+    if (refreshedEntry) {
+      applyAuthoritativeAccountSnapshotForMode(currentAccountMode, {
+        contestEntry: mergedEntry
+      });
+    }
+
+    if (Math.abs(refreshedCredits - expectedCredits) < 0.01) {
+      clearPendingContestCreditSync({ contestId: activeContest.id });
+      return true;
+    }
+
+    const { data: updatedEntry, error: updateError } = await supabase
+      .from("contest_entries")
+      .update({
+        current_credits: expectedCredits,
+        current_carter_cash: Number.isFinite(carterCash) ? carterCash : 0,
+        current_carter_cash_progress: normalizeCarterCashProgressValue(carterCashProgress),
+        display_name: getContestDisplayName(currentProfile, currentUser.id),
+        participant_email: currentUser.email || ""
+      })
+      .eq("contest_id", activeContest.id)
+      .eq("user_id", currentUser.id)
+      .select(contestSelectFields)
+      .maybeSingle();
+
+    if (updateError) {
+      console.warn("[RTN] Unable to repair contest credits before starting next game", updateError);
+      return false;
+    }
+
+    if (updatedEntry) {
+      applyAuthoritativeAccountSnapshotForMode(currentAccountMode, {
+        contestEntry: { ...activeEntry, ...updatedEntry }
+      });
+    }
+  }
+
+  return false;
+}
+
+async function guardAgainstShapeTraderExposureBeforeGameStart(gameKey) {
+  const contestCreditsReady = await ensureContestCreditsCommittedBeforeGameStart();
+  if (!contestCreditsReady) {
+    const gameLabel = getGameLabel(gameKey) || "this game";
+    const message = `Contest credits are still syncing from Shape Traders. Wait a moment before starting ${gameLabel}.`;
+    if (gameKey === GAME_KEYS.GUESS_10) {
+      setRedBlackStatus(message);
+    } else if (statusEl) {
+      statusEl.textContent = message;
+    }
+    showToast(message, "error");
+    return false;
+  }
+
+  const hasExposure = await currentAccountHasShapeTraderExposure();
+  if (!hasExposure) {
+    return true;
+  }
+
+  const gameLabel = getGameLabel(gameKey) || "this game";
+  const message = `Liquidate your Shape Traders holdings before starting ${gameLabel}.`;
+  if (gameKey === GAME_KEYS.GUESS_10) {
+    setRedBlackStatus(message);
+  } else if (statusEl) {
+    statusEl.textContent = message;
+  }
+  showToast(message, "error");
+  return false;
+}
+
 function updateShapeTraderWindowActivityState() {
   const isActive = isShapeTraderWindowCurrentlyActive();
   if (isActive === shapeTradersWindowActive) {
@@ -6035,6 +6186,13 @@ async function maybeHandleShapeTraderExit(nextRoute) {
 
   await liquidateAllShapeTraderHoldings("Navigation liquidation");
   if (isContestAccountMode()) {
+    const activeContest = getModeContest();
+    if (activeContest) {
+      pendingContestCreditSync = {
+        contestId: activeContest.id,
+        expectedCredits: normalizeStoredCreditValue(bankroll)
+      };
+    }
     await syncContestState({ force: true });
   }
   return true;
@@ -10008,6 +10166,16 @@ function getContestAccountSnapshot(entry) {
     carter_cash: Number(entry.current_carter_cash ?? entry.starting_carter_cash ?? 0),
     carter_cash_progress: Number(entry.current_carter_cash_progress ?? 0)
   };
+}
+
+function clearPendingContestCreditSync({ contestId = null } = {}) {
+  if (!pendingContestCreditSync) {
+    return;
+  }
+  if (contestId && String(pendingContestCreditSync.contestId || "") !== String(contestId)) {
+    return;
+  }
+  pendingContestCreditSync = null;
 }
 
 function getCurrentAccountSnapshot(mode = currentAccountMode) {
@@ -15385,6 +15553,7 @@ let themeLibraryCache = [];
 let themeLibraryHydrated = false;
 let gameAssetLibraryCache = {};
 let currentRankState = null;
+let pendingContestCreditSync = null;
 let reconciledHandsPlayedUserId = null;
 let reconciledTradesMadeUserId = null;
 let rankWelcomeTypingTimer = null;
@@ -16185,6 +16354,13 @@ function applyAuthoritativeAccountSnapshotForMode(
     }
     const snapshot = getContestAccountSnapshot(nextEntry);
     applyAccountSnapshot(snapshot, { resetHistory });
+    if (
+      pendingContestCreditSync &&
+      String(pendingContestCreditSync.contestId || "") === String(nextEntry.contest_id || "") &&
+      Math.abs(normalizeStoredCreditValue(nextEntry.current_credits ?? 0) - normalizeStoredCreditValue(pendingContestCreditSync.expectedCredits ?? 0)) < 0.01
+    ) {
+      clearPendingContestCreditSync({ contestId: nextEntry.contest_id });
+    }
     return snapshot;
   }
 
@@ -17099,6 +17275,12 @@ async function finalizeGuess10Hand({
 async function dealGuess10Card() {
   if (redBlackBet <= 0 || !isRedBlackSelectionValid()) {
     return;
+  }
+  if (!redBlackHandActive) {
+    const canStart = await guardAgainstShapeTraderExposureBeforeGameStart(GAME_KEYS.GUESS_10);
+    if (!canStart) {
+      return;
+    }
   }
   if (!canUseCurrentFundsForGame(GAME_KEYS.GUESS_10)) {
     const contest = getModeContest(currentAccountMode);
@@ -22590,6 +22772,10 @@ async function processCard(card, context) {
 
 async function dealHand() {
   if (bets.length === 0 || dealing) return;
+  const canStart = await guardAgainstShapeTraderExposureBeforeGameStart(GAME_KEYS.RUN_THE_NUMBERS);
+  if (!canStart) {
+    return;
+  }
   if (!canUseCurrentFundsForGame(GAME_KEYS.RUN_THE_NUMBERS)) {
     const contest = getModeContest(currentAccountMode);
     statusEl.textContent = `This contest bankroll can only be used for ${getContestGamesLabel(contest)}.`;
