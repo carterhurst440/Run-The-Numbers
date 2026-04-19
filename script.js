@@ -353,6 +353,7 @@ function persistGameAssetLibrary() {
     const payload = Object.values(GAME_KEYS).reduce((next, gameKey) => {
       const record = gameAssetLibraryCache[gameKey] || DEFAULT_GAME_ASSET_LIBRARY[gameKey];
       next[gameKey] = {
+        status: normalizeGameStatusForStorage(record.status, gameKey),
         logo_url: record.logo_url || DEFAULT_GAME_ASSET_LIBRARY[gameKey].logo_url,
         card_description: String(record.card_description || DEFAULT_GAME_ASSET_LIBRARY[gameKey].card_description || "").trim(),
         card_background_color: sanitizeGameAssetColor(record.card_background_color),
@@ -396,7 +397,7 @@ function renderGameLogoTargets() {
     const gameKey = resolveGameKey(node.dataset.gameCard || "");
     const record = getGameAssetRecord(gameKey);
     if (!record) return;
-    const presentation = getGameAdminPresentation(gameKey);
+    const presentation = getGameAdminPresentation(gameKey, record.status);
     node.classList.remove("game-card-primary", "game-card-beta", "game-card-shape-traders");
     node.classList.add(presentation.cardClass);
     node.hidden = !isGameVisibleToUser(gameKey);
@@ -412,14 +413,18 @@ function renderGameLogoTargets() {
 
   document.querySelectorAll("[data-game-kicker-for]").forEach((node) => {
     const gameKey = resolveGameKey(node.dataset.gameKickerFor || "");
-    const presentation = getGameAdminPresentation(gameKey);
+    const record = getGameAssetRecord(gameKey);
+    if (!record) return;
+    const presentation = getGameAdminPresentation(gameKey, record.status);
     node.textContent = presentation.kicker;
   });
 
   document.querySelectorAll("[data-game-pill-for]").forEach((node) => {
     if (!(node instanceof HTMLElement)) return;
     const gameKey = resolveGameKey(node.dataset.gamePillFor || "");
-    const presentation = getGameAdminPresentation(gameKey);
+    const record = getGameAssetRecord(gameKey);
+    if (!record) return;
+    const presentation = getGameAdminPresentation(gameKey, record.status);
     node.hidden = !presentation.pill;
     node.textContent = presentation.pill || "";
   });
@@ -429,7 +434,7 @@ function renderGameLogoTargets() {
     const gameKey = resolveGameKey(node.dataset.gameButtonFor || "");
     const record = getGameAssetRecord(gameKey);
     if (!record) return;
-    const presentation = getGameAdminPresentation(gameKey);
+    const presentation = getGameAdminPresentation(gameKey, record.status);
     node.textContent = presentation.buttonLabel;
     const customButtonColor = sanitizeGameAssetColor(record.button_color);
     if (customButtonColor) {
