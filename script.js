@@ -3696,7 +3696,9 @@ function createShapeTraderActivityEntry({
   totalValue,
   price,
   netProfit = null,
-  reason = ""
+  reason = "",
+  createdAt = new Date().toISOString(),
+  accountValue = getShapeTraderAccountValue()
 }) {
   const asset = getShapeTraderAssetConfig(assetId);
   return {
@@ -3708,10 +3710,10 @@ function createShapeTraderActivityEntry({
     totalValue: roundCurrencyValue(totalValue),
     price: roundCurrencyValue(price),
     netProfit: netProfit === null ? null : roundCurrencyValue(netProfit),
-    accountValue: getShapeTraderAccountValue(),
+    accountValue: roundCurrencyValue(accountValue),
     contestId: isContestAccountMode() ? getModeContest()?.id || null : null,
     reason,
-    createdAt: new Date().toISOString()
+    createdAt
   };
 }
 
@@ -3912,6 +3914,57 @@ async function loadShapeTraderPortfolioFromBackend() {
   }
 }
 
+function getShapeTraderDrawPriceFieldName(assetId, variant = "new") {
+  const assetKey = assetId === "square" || assetId === "triangle" || assetId === "circle"
+    ? assetId
+    : "square";
+  return `${variant}_${assetKey}_price`;
+}
+
+function hasMatchingShapeTraderStructuralActivity({
+  assetId,
+  drawnAt,
+  preSplitQuantity,
+  preSplitPrice,
+  postSplitQuantity,
+  postSplitPrice
+}) {
+  const targetTime = new Date(drawnAt || 0).getTime();
+  if (!Number.isFinite(targetTime) || !Array.isArray(shapeTradersActivity) || !shapeTradersActivity.length) {
+    return false;
+  }
+  const toleranceMs = 60 * 1000;
+  let hasSell = false;
+  let hasBuy = false;
+
+  shapeTradersActivity.forEach((entry) => {
+    if (entry?.assetId !== assetId) return;
+    const entryTime = new Date(entry.createdAt || 0).getTime();
+    if (!Number.isFinite(entryTime) || Math.abs(entryTime - targetTime) > toleranceMs) {
+      return;
+    }
+    const quantity = Math.max(0, Math.round(Number(entry.quantity || 0)));
+    const price = roundCurrencyValue(Number(entry.price || 0));
+    if (
+      entry.side === "sell"
+      && entry.netProfit === null
+      && quantity === preSplitQuantity
+      && price === roundCurrencyValue(preSplitPrice)
+    ) {
+      hasSell = true;
+    }
+    if (
+      entry.side === "buy"
+      && quantity === postSplitQuantity
+      && price === roundCurrencyValue(postSplitPrice)
+    ) {
+      hasBuy = true;
+    }
+  });
+
+  return hasSell && hasBuy;
+}
+
 async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeTradersLastPersistedAccountActiveAt) {
   if (!supabase || !currentUser?.id || !sinceIso || !shapeTradersStatePersistenceAvailable) {
     return false;
@@ -3926,7 +3979,7 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
     while (hasMore) {
       const { data, error } = await supabase
         .from("shape_trader_draws")
-        .select("draw_id, drawn_at, bankruptcy_split")
+        .select("draw_id, drawn_at, bankruptcy_split, previous_square_price, previous_triangle_price, previous_circle_price, new_square_price, new_triangle_price, new_circle_price")
         .gt("drawn_at", sinceIso)
         .order("draw_id", { ascending: true })
         .range(page * pageSize, (page + 1) * pageSize - 1);
@@ -3946,7 +3999,13 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
   }
 
   let changed = false;
+  let latestProcessedAt = sinceIso;
+  let activityBackfilled = false;
+  const pendingActivityWrites = [];
   rows.forEach((row) => {
+    if (row?.drawn_at) {
+      latestProcessedAt = row.drawn_at;
+    }
     const tags = Array.isArray(row?.bankruptcy_split) ? row.bankruptcy_split : [];
     tags.forEach((tag) => {
       const [assetId, eventType] = String(tag || "").split("_");
@@ -3959,8 +4018,51 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
         return;
       }
       if (eventType === "split") {
+        const previousPrice = roundCurrencyValue(Number(row?.[getShapeTraderDrawPriceFieldName(assetId, "previous")] || 0));
+        const splitPrice = roundCurrencyValue(Number(row?.[getShapeTraderDrawPriceFieldName(assetId, "new")] || 0));
+        const postSplitQuantity = quantity * SHAPE_TRADERS_SPLIT_FACTOR;
+        const nextAccountValue = roundCurrencyValue(getShapeTraderAccountValue());
+        if (
+          Number.isFinite(previousPrice)
+          && previousPrice > 0
+          && Number.isFinite(splitPrice)
+          && splitPrice > 0
+          && !hasMatchingShapeTraderStructuralActivity({
+            assetId,
+            drawnAt: row?.drawn_at,
+            preSplitQuantity: quantity,
+            preSplitPrice: previousPrice,
+            postSplitQuantity,
+            postSplitPrice: splitPrice
+          })
+        ) {
+          const sellEntry = createShapeTraderActivityEntry({
+            side: "sell",
+            assetId,
+            quantity,
+            totalValue: roundCurrencyValue(quantity * previousPrice),
+            price: previousPrice,
+            netProfit: null,
+            reason: "10:1 asset split",
+            createdAt: row?.drawn_at || new Date().toISOString(),
+            accountValue: nextAccountValue
+          });
+          const buyEntry = createShapeTraderActivityEntry({
+            side: "buy",
+            assetId,
+            quantity: postSplitQuantity,
+            totalValue: roundCurrencyValue(postSplitQuantity * splitPrice),
+            price: splitPrice,
+            reason: "10:1 asset split",
+            createdAt: row?.drawn_at || new Date().toISOString(),
+            accountValue: nextAccountValue
+          });
+          pendingActivityWrites.push(recordShapeTraderTrade(sellEntry));
+          pendingActivityWrites.push(recordShapeTraderTrade(buyEntry));
+          activityBackfilled = true;
+        }
         shapeTradersHoldings[assetId] = {
-          quantity: quantity * SHAPE_TRADERS_SPLIT_FACTOR,
+          quantity: postSplitQuantity,
           averagePrice: roundCurrencyValue(Number(holding.averagePrice || 0) / SHAPE_TRADERS_SPLIT_FACTOR)
         };
         changed = true;
@@ -3978,7 +4080,16 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
     return false;
   }
 
+  if (pendingActivityWrites.length) {
+    await Promise.allSettled(pendingActivityWrites);
+  }
   await syncShapeTraderCurrentState({ throwOnError: false });
+  if (latestProcessedAt) {
+    shapeTradersLastPersistedAccountActiveAt = latestProcessedAt;
+  }
+  if (activityBackfilled) {
+    await loadShapeTraderActivityPage({ offset: 0, append: false });
+  }
   renderShapeTraders();
   return true;
 }
@@ -19782,7 +19893,7 @@ function renderPlayAssistantRules() {
 
   playAssistantRulesListEl.innerHTML = shapeTradersAssistantRules
     .map((rule) => `
-      <article class="play-assistant-rule-card${rule.enabled ? "" : " is-disabled"}">
+      <article class="play-assistant-rule-card${rule.enabled ? " is-enabled" : " is-disabled"}">
         <p class="play-assistant-rule-summary">${escapeAssistantHtml(summarizeShapeTraderAssistantRule(rule))}</p>
         <div class="play-assistant-rule-meta">
           ${getShapeTraderAssistantRuleMetaBadges(rule)
