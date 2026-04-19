@@ -5566,6 +5566,13 @@ async function rollbackShapeTraderCommittedState(previousState) {
 }
 
 async function liquidateAllShapeTraderHoldings(reason = "Manual liquidation") {
+  return liquidateAllShapeTraderHoldingsWithOptions(reason);
+}
+
+async function liquidateAllShapeTraderHoldingsWithOptions(
+  reason = "Manual liquidation",
+  { onProgress = null } = {}
+) {
   if (shapeTradersTradeActionInFlight) {
     return;
   }
@@ -5575,6 +5582,18 @@ async function liquidateAllShapeTraderHoldings(reason = "Manual liquidation") {
     await syncShapeTraderExecutionPricesFromLatestDraw();
     await waitForShapeTraderSyncIdle();
     const previousState = createShapeTraderTradeStateSnapshot();
+    const openAssets = SHAPE_TRADERS_ASSETS.filter((asset) => Number(shapeTradersHoldings[asset.id]?.quantity || 0) > 0);
+    const totalSteps = openAssets.length;
+    let completedSteps = 0;
+
+    if (typeof onProgress === "function") {
+      onProgress({
+        completed: completedSteps,
+        total: totalSteps,
+        percent: totalSteps > 0 ? 0 : 100,
+        label: totalSteps > 0 ? "Preparing liquidation…" : "No holdings to liquidate."
+      });
+    }
 
     let liquidatedAnyPosition = false;
     let bundledLiquidationTotal = 0;
@@ -5593,9 +5612,26 @@ async function liquidateAllShapeTraderHoldings(reason = "Manual liquidation") {
       bundledLiquidationTotal = roundCurrencyValue(
         bundledLiquidationTotal + Number(liquidation?.totalValue || 0)
       );
+      completedSteps += 1;
+      if (typeof onProgress === "function") {
+        onProgress({
+          completed: completedSteps,
+          total: totalSteps,
+          percent: totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 100,
+          label: `Liquidated ${getShapeTraderAssetConfig(asset.id).label}.`
+        });
+      }
     }
     if (liquidatedAnyPosition) {
       try {
+        if (typeof onProgress === "function") {
+          onProgress({
+            completed: totalSteps,
+            total: totalSteps,
+            percent: 100,
+            label: "Finalizing liquidation…"
+          });
+        }
         await commitShapeTraderAccountBalance();
         await syncShapeTraderCurrentState({ throwOnError: true });
       } catch (error) {
@@ -5649,7 +5685,7 @@ function isShapeTraderAssistantRuleSatisfied(rule, assetId = null) {
   if (rule.actionType === "liquidate_all" || rule.triggerType !== "asset_price") {
     return metric >= rule.threshold;
   }
-  return rule.actionType === "sell" ? metric >= rule.threshold : metric <= rule.threshold;
+  return rule.comparator === "gte" ? metric >= rule.threshold : metric <= rule.threshold;
 }
 
 function getShapeTraderAssistantRuleQuantity(rule, assetId) {
@@ -5998,6 +6034,9 @@ async function maybeHandleShapeTraderExit(nextRoute) {
   }
 
   await liquidateAllShapeTraderHoldings("Navigation liquidation");
+  if (isContestAccountMode()) {
+    await syncContestState({ force: true });
+  }
   return true;
 }
 
@@ -6493,6 +6532,11 @@ async function setRoute(route, { replaceHash = false } = {}) {
     currentUser = { ...GUEST_USER };
   }
 
+  const canLeaveShapeTraders = await maybeHandleShapeTraderExit(nextRoute);
+  if (!canLeaveShapeTraders) {
+    return;
+  }
+
   // Skip all auth-related updates for public auth pages
   const isPublicAuthPage = nextRoute === "forgot-password" || nextRoute === "reset-password" || nextRoute === "auth" || nextRoute === "signup" || nextRoute === "auth/callback";
   
@@ -6506,11 +6550,6 @@ async function setRoute(route, { replaceHash = false } = {}) {
   if (!isAuthRoute && nextRoute === "admin" && !isAdmin()) {
     showToast("Admin access only", "error");
     nextRoute = "home";
-  }
-
-  const canLeaveShapeTraders = await maybeHandleShapeTraderExit(nextRoute);
-  if (!canLeaveShapeTraders) {
-    return;
   }
 
   const requestedGameKey = getGameKeyForRoute(nextRoute);
@@ -12750,6 +12789,7 @@ async function switchToContestMode(contestId, { navigateToPlay = false } = {}) {
     return false;
   }
   await applyAccountModeSelection(targetMode, { resetHistory: true });
+  closeShapeTradersModeSwitchModal({ restoreFocus: false, confirmed: true, force: true });
   if (navigateToPlay) {
     const contest = getContestById(contestId);
     const allowedGames = normalizeContestAllowedGameIds(contest?.allowed_game_ids);
@@ -14688,6 +14728,10 @@ const resetModalCopyEl = document.getElementById("reset-modal-copy");
 const outOfCreditsModal = document.getElementById("out-of-credits-modal");
 const shapeTradersModeSwitchModal = document.getElementById("shape-traders-mode-switch-modal");
 const shapeTradersModeSwitchCopyEl = document.getElementById("shape-traders-mode-switch-copy");
+const shapeTradersModeSwitchProgressEl = document.getElementById("shape-traders-mode-switch-progress");
+const shapeTradersModeSwitchProgressValueEl = document.getElementById("shape-traders-mode-switch-progress-value");
+const shapeTradersModeSwitchProgressFillEl = document.getElementById("shape-traders-mode-switch-progress-fill");
+const shapeTradersModeSwitchStatusEl = document.getElementById("shape-traders-mode-switch-status");
 const shapeTradersModeSwitchConfirmButton = document.getElementById("shape-traders-mode-switch-confirm");
 const shapeTradersModeSwitchCancelButton = document.getElementById("shape-traders-mode-switch-cancel");
 const shapeTradersModeSwitchCloseButton = document.getElementById("shape-traders-mode-switch-close");
@@ -15374,6 +15418,7 @@ let suppressHash = false;
 let dashboardProfileRetryTimer = null;
 let resetModalTrigger = null;
 let shapeTradersModeSwitchModalTrigger = null;
+let shapeTradersModeSwitchInFlight = false;
 let playAssistantOpen = false;
 let playAssistantThread = [];
 let playAssistantThreadGameKey = null;
@@ -15590,18 +15635,21 @@ const PLAY_ASSISTANT_CONFIG = {
   [GAME_KEYS.SHAPE_TRADERS]: {
     title: "Market Operator",
     rulesSummary: [
-      "Shape Traders uses the live draw table to update Square, Triangle, and Circle prices.",
-      "You may buy whole units only, and each trade fills at the latest persisted market price.",
-      "Buy rules and sell rules are deterministic once activated.",
-      "The assistant can explain the rules, draft automated trade rules, and post execution updates in this chat.",
-      "Activated rules never bypass bankroll limits, holdings limits, contest mode, or trade locks during a draw animation."
+      "Shape Traders runs on a repeating 15-second draw cycle for Square, Triangle, and Circle.",
+      "Each cycle reveals one card from a shared persisted deck, and every 5 cards the game enters a short data-dump sequence that reveals those cards in order.",
+      "Asset cards move one named shape by their printed percentage, while macro cards move all three assets together by their printed percentage.",
+      "Prices are always derived from the latest persisted draw result, and all buys or sells fill at that latest persisted market price.",
+      "If any asset reaches 1000 units or more, that asset immediately performs a 10-for-1 split so price drops by a factor of 10 and holders receive 10 times as many units.",
+      "If any asset falls below 1 unit, it is treated as bankrupt and resets back to 100 for the market while existing holdings in that asset are wiped out.",
+      "You may buy and sell whole units only, and account value is cash plus the current marked value of holdings.",
+      "The assistant can explain the price engine, deck cadence, split logic, bankruptcy logic, and draft deterministic automation rules when you want them."
     ].join(" "),
     greeting:
-      "I can explain Shape Traders and help you set session rules like buying below a price or selling above a target. Describe the behavior you want and I’ll turn it into a rule for you to confirm.",
+      "I can explain how Shape Traders prices are actually generated, including the shared deck, 15-second cadence, data-dump timing, split behavior, and bankruptcy resets. I can also turn automation instructions into rules for you to confirm.",
     quickActions: [
       {
         label: "How does it work?",
-        prompt: "Explain Shape Traders in simple terms."
+        prompt: "Explain how Shape Traders asset prices are determined."
       },
       {
         label: "Create a rule",
@@ -17004,16 +17052,20 @@ async function finalizeGuess10Hand({
   result
 }) {
   try {
+    const resolvedEndingBankroll = getResolvedContestHandEndingBankroll(net);
     stats.hands += 1;
     stats.wagered += completedBet;
     stats.paid += totalReturn;
     updateStatsUI();
+    bankroll = resolvedEndingBankroll;
+    handleBankrollChanged();
     animateBankrollOutcome(net);
     recordBankrollHistoryPoint();
     applyPlaythrough(completedBet);
     await persistBankroll({
       recordContestHistory: isContestAccountMode(),
-      contestHistoryLabel: "Guess 10 Hand"
+      contestHistoryLabel: "Guess 10 Hand",
+      contestCreditsValue: resolvedEndingBankroll
     });
     await incrementProfileHandProgress(1);
     await ensureProfileSynced({ force: true });
@@ -19306,6 +19358,14 @@ function normalizeShapeTraderAssistantRule(rule) {
     triggerType === "holdings_value" || triggerType === "account_value"
       ? triggerType
       : "asset_price";
+  const comparator =
+    rule.comparator === "gte" || rule.comparator === "lte"
+      ? rule.comparator
+      : resolvedTriggerType === "asset_price"
+        ? detectShapeTraderAssistantComparator(String(rule.sourcePrompt || ""), resolvedActionType === "sell" ? "sell" : "buy")
+      : resolvedActionType === "liquidate_all" || resolvedActionType === "sell" || resolvedTriggerType !== "asset_price"
+        ? "gte"
+        : "lte";
   const assetId =
     rule.assetId === "any" || SHAPE_TRADERS_ASSETS.some((asset) => asset.id === rule.assetId)
       ? rule.assetId
@@ -19324,10 +19384,7 @@ function normalizeShapeTraderAssistantRule(rule) {
     side,
     actionType: resolvedActionType,
     triggerType: resolvedTriggerType,
-    comparator:
-      resolvedActionType === "liquidate_all" || resolvedActionType === "sell" || resolvedTriggerType !== "asset_price"
-        ? "gte"
-        : "lte",
+    comparator,
     assetId,
     threshold,
     quantityMode,
@@ -19357,7 +19414,7 @@ function summarizeShapeTraderAssistantRule(rule) {
     ? "any asset"
     : getShapeTraderAssetConfig(rule.assetId).label;
   const sideLabel = rule.actionType === "sell" || rule.side === "sell" ? "Sell" : "Buy";
-  const thresholdLabel = `${rule.actionType === "sell" ? "at or above" : "at or below"} ${formatCurrency(rule.threshold)}`;
+  const thresholdLabel = `${rule.comparator === "gte" ? "at or above" : "at or below"} ${formatCurrency(rule.threshold)}`;
   const quantityValue = Math.max(1, Math.round(Number(rule.quantity || 1)));
   const quantityLabel =
     rule.quantityMode === "fixed"
@@ -19567,7 +19624,9 @@ function parseShapeTraderAssistantThreshold(message = "", side = "buy") {
         /\bwhen (?:it|the asset|square|triangle|circle) (?:reaches|hits|gets to|is above|is over)\s+\$?(\d+(?:\.\d+)?)/
       ]
     : [
+        /\b(?:buy|enter|purchase)[\w\s,]*?(?:at or above|above|over|>=|more than|greater than|breaks above|goes above)\s+\$?(\d+(?:\.\d+)?)/,
         /\b(?:buy|enter|purchase)[\w\s,]*?(?:at or below|below|under|<=|at|less than|dips below|drops below|falls below)\s+\$?(\d+(?:\.\d+)?)/,
+        /\bwhen (?:it|the asset|square|triangle|circle) (?:is above|is over|goes above|breaks above|gets above)\s+\$?(\d+(?:\.\d+)?)/,
         /\bwhen (?:it|the asset|square|triangle|circle) (?:dips below|drops below|falls below|is below|is under)\s+\$?(\d+(?:\.\d+)?)/
       ];
 
@@ -19583,6 +19642,19 @@ function parseShapeTraderAssistantThreshold(message = "", side = "buy") {
   return null;
 }
 
+function detectShapeTraderAssistantComparator(message = "", side = "buy") {
+  const normalized = String(message || "").toLowerCase();
+  if (side === "sell") {
+    return "gte";
+  }
+  if (
+    /\b(?:at or above|above|over|>=|more than|greater than|breaks above|goes above|is above|is over|gets above)\b/.test(normalized)
+  ) {
+    return "gte";
+  }
+  return "lte";
+}
+
 function buildShapeTraderAssistantRule(side, message = "") {
   const threshold = parseShapeTraderAssistantThreshold(message, side);
   if (!Number.isFinite(threshold) || threshold <= 0) {
@@ -19593,6 +19665,7 @@ function buildShapeTraderAssistantRule(side, message = "") {
     side,
     actionType: side,
     triggerType: "asset_price",
+    comparator: detectShapeTraderAssistantComparator(message, side),
     assetId: detectShapeTraderAssistantAssetId(message),
     threshold,
     quantityMode: quantityConfig.quantityMode,
@@ -19675,7 +19748,7 @@ function buildLocalShapeTradersAssistantResponse(userMessage, state) {
   if (/\b(explain|how does|how do i play|rules|what is)\b/.test(normalized) && /\bshape|market|trader\b/.test(normalized)) {
     return {
       reply:
-        "Shape Traders is a live price game for Square, Triangle, and Circle. You buy whole units at the latest persisted price, you can sell at the latest persisted price, and your account value is cash plus the market value of your holdings. I can turn instructions like buy-below and sell-above into deterministic rules that execute only when the draw updates satisfy them.",
+        "Shape Traders prices come from a shared persisted deck that advances on a repeating 15-second cycle. Each reveal applies a printed percentage move: asset cards move one named shape, macro cards move all three shapes together, and every 5 cards the game runs a short data-dump sequence to reveal that batch in order. Trades always fill at the latest persisted market price. If an asset reaches 1000 or more it immediately performs a 10-for-1 split, which divides the price by 10 and multiplies every holder's units by 10. If an asset falls below 1, it is treated as bankrupt, resets back to 100 for the market, and existing holdings in that asset are wiped out. Your account value is always cash plus the current marked value of your holdings.",
       riskTolerance: state.riskTolerance,
       plan: null,
       chart: null,
@@ -22055,6 +22128,13 @@ function openShapeTradersModeSwitchModal(nextMode) {
       `You still have open Shape Traders holdings in ${getAccountModeLabel(currentAccountMode)}. Liquidate them at the live market price before switching to ${getAccountModeLabel(nextMode)}.`;
   }
 
+  setShapeTradersModeSwitchProgress({
+    visible: false,
+    inFlight: false,
+    percent: 0,
+    status: "Preparing liquidation…"
+  });
+
   shapeTradersModeSwitchModalTrigger =
     document.activeElement instanceof HTMLElement ? document.activeElement : accountModeSelect;
   shapeTradersModeSwitchModal.hidden = false;
@@ -22070,12 +22150,63 @@ function openShapeTradersModeSwitchModal(nextMode) {
   });
 }
 
-function closeShapeTradersModeSwitchModal({ restoreFocus = false, confirmed = false } = {}) {
+function resolveShapeTradersModeSwitchModal(confirmed = false) {
   if (!shapeTradersModeSwitchModal) return;
   const resolve = shapeTradersModeSwitchModal._resolve;
   delete shapeTradersModeSwitchModal._resolve;
   delete shapeTradersModeSwitchModal.dataset.pendingResolution;
   delete shapeTradersModeSwitchModal.dataset.pendingNextMode;
+  if (typeof resolve === "function") {
+    resolve(Boolean(confirmed));
+  }
+}
+
+function setShapeTradersModeSwitchProgress({
+  visible = false,
+  inFlight = false,
+  percent = 0,
+  status = "Preparing liquidation…"
+} = {}) {
+  shapeTradersModeSwitchInFlight = Boolean(inFlight);
+  if (shapeTradersModeSwitchProgressEl) {
+    shapeTradersModeSwitchProgressEl.hidden = !visible;
+    shapeTradersModeSwitchProgressEl.classList.toggle("is-indeterminate", visible && inFlight && percent <= 0);
+  }
+  if (shapeTradersModeSwitchProgressValueEl) {
+    shapeTradersModeSwitchProgressValueEl.textContent = `${Math.max(0, Math.min(100, Math.round(Number(percent || 0))))}%`;
+  }
+  if (shapeTradersModeSwitchProgressFillEl) {
+    shapeTradersModeSwitchProgressFillEl.style.width = `${Math.max(0, Math.min(100, Number(percent || 0)))}%`;
+    shapeTradersModeSwitchProgressFillEl.parentElement?.setAttribute("aria-valuenow", String(Math.max(0, Math.min(100, Math.round(Number(percent || 0))))));
+  }
+  if (shapeTradersModeSwitchStatusEl) {
+    shapeTradersModeSwitchStatusEl.textContent = String(status || "");
+  }
+  if (shapeTradersModeSwitchConfirmButton) {
+    shapeTradersModeSwitchConfirmButton.disabled = inFlight;
+    shapeTradersModeSwitchConfirmButton.textContent = inFlight ? "Liquidating…" : "Liquidate and Switch";
+  }
+  if (shapeTradersModeSwitchCancelButton) {
+    shapeTradersModeSwitchCancelButton.disabled = inFlight;
+  }
+  if (shapeTradersModeSwitchCloseButton) {
+    shapeTradersModeSwitchCloseButton.disabled = inFlight;
+  }
+}
+
+function closeShapeTradersModeSwitchModal({ restoreFocus = false, confirmed = false, force = false } = {}) {
+  if (!shapeTradersModeSwitchModal) return;
+  if (shapeTradersModeSwitchInFlight && !force) {
+    return;
+  }
+
+  resolveShapeTradersModeSwitchModal(confirmed);
+  setShapeTradersModeSwitchProgress({
+    visible: false,
+    inFlight: false,
+    percent: 0,
+    status: "Preparing liquidation…"
+  });
 
   shapeTradersModeSwitchModal.classList.remove("is-open");
   shapeTradersModeSwitchModal.setAttribute("aria-hidden", "true");
@@ -22118,11 +22249,49 @@ async function maybeHandleShapeTraderModeSwitch(nextMode) {
 
   const confirmed = await openShapeTradersModeSwitchModal(nextMode);
   if (!confirmed) {
+    closeShapeTradersModeSwitchModal({ restoreFocus: true, confirmed: false, force: true });
     return false;
   }
 
-  await liquidateAllShapeTraderHoldings("Mode switch liquidation");
-  return !shapeTradersHasOpenHoldings();
+  if (shapeTradersModeSwitchCopyEl) {
+    shapeTradersModeSwitchCopyEl.textContent =
+      `Liquidating open Shape Traders holdings from ${getAccountModeLabel(currentAccountMode)} before switching to ${getAccountModeLabel(nextMode)}.`;
+  }
+  setShapeTradersModeSwitchProgress({
+    visible: true,
+    inFlight: true,
+    percent: 0,
+    status: "Preparing liquidation…"
+  });
+
+  await liquidateAllShapeTraderHoldingsWithOptions("Mode switch liquidation", {
+    onProgress: ({ percent = 0, label = "Preparing liquidation…" } = {}) => {
+      setShapeTradersModeSwitchProgress({
+        visible: true,
+        inFlight: true,
+        percent,
+        status: label
+      });
+    }
+  });
+
+  if (shapeTradersHasOpenHoldings()) {
+    setShapeTradersModeSwitchProgress({
+      visible: true,
+      inFlight: false,
+      percent: 100,
+      status: "Liquidation did not complete. Review your holdings and try again."
+    });
+    return false;
+  }
+
+  setShapeTradersModeSwitchProgress({
+    visible: true,
+    inFlight: true,
+    percent: 100,
+    status: `Liquidation complete. Switching to ${getAccountModeLabel(nextMode)}…`
+  });
+  return true;
 }
 
 async function applyAccountModeSelection(nextMode, { resetHistory = true } = {}) {
@@ -22255,12 +22424,25 @@ function applyShapeTraderCarterCashProgress(netProfit) {
   applyPlaythrough(realizedMove);
 }
 
+function getResolvedContestHandEndingBankroll(netDelta = 0) {
+  if (!isContestAccountMode()) {
+    return roundCurrencyValue(bankroll);
+  }
+  const activeEntry = getModeContestEntry();
+  const startingCredits = Number(activeEntry?.current_credits);
+  if (!Number.isFinite(startingCredits)) {
+    return roundCurrencyValue(bankroll);
+  }
+  return normalizeStoredCreditValue(roundCurrencyValue(startingCredits + Number(netDelta || 0)));
+}
+
 async function endHand(stopperCard, context = {}) {
   setHandPaused(false);
   settleAdvancedBets(stopperCard, context);
   const totalWagerThisHand = bets.reduce((sum, bet) => sum + bet.units, 0);
   const totalPaidThisHand = bets.reduce((sum, bet) => sum + bet.paid, 0);
   const netThisHand = totalPaidThisHand - totalWagerThisHand;
+  const resolvedEndingBankroll = getResolvedContestHandEndingBankroll(netThisHand);
 
   const betSnapshots = bets.map((bet) => ({
     key: bet.key,
@@ -22296,13 +22478,16 @@ async function endHand(stopperCard, context = {}) {
   lastBetLayout = currentOpeningLayout.length > 0 ? snapshotLayout(currentOpeningLayout) : [];
   currentOpeningLayout = [];
 
+  bankroll = resolvedEndingBankroll;
+  handleBankrollChanged();
   dealing = false;
   awaitingManualDeal = false;
   animateBankrollOutcome(netThisHand);
   recordBankrollHistoryPoint();
   await persistBankroll({
     recordContestHistory: isContestAccountMode(),
-    contestHistoryLabel: `Hand ${stats.hands}`
+    contestHistoryLabel: `Hand ${stats.hands}`,
+    contestCreditsValue: resolvedEndingBankroll
   });
   await incrementProfileHandProgress(1);
   await ensureProfileSynced({ force: true });
@@ -22895,6 +23080,7 @@ if (accountModeSelect) {
       return;
     }
     await applyAccountModeSelection(nextMode, { resetHistory: true });
+    closeShapeTradersModeSwitchModal({ restoreFocus: false, confirmed: true, force: true });
   });
 }
 
@@ -26845,7 +27031,7 @@ if (outOfCreditsCloseButton) {
 
 if (shapeTradersModeSwitchConfirmButton) {
   shapeTradersModeSwitchConfirmButton.addEventListener("click", () => {
-    closeShapeTradersModeSwitchModal({ restoreFocus: false, confirmed: true });
+    resolveShapeTradersModeSwitchModal(true);
   });
 }
 

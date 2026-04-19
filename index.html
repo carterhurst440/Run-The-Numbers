@@ -511,6 +511,23 @@
             <p id="shape-traders-mode-switch-copy">
               You still have open Shape Traders holdings in this mode. Liquidate them at the live market price before switching accounts.
             </p>
+            <div id="shape-traders-mode-switch-progress" class="shape-traders-mode-switch-progress" hidden>
+              <div class="shape-traders-mode-switch-progress-head">
+                <span>Liquidation Progress</span>
+                <span id="shape-traders-mode-switch-progress-value">0%</span>
+              </div>
+              <div
+                class="shape-traders-mode-switch-progress-track"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+                aria-labelledby="shape-traders-mode-switch-title"
+              >
+                <span id="shape-traders-mode-switch-progress-fill" class="shape-traders-mode-switch-progress-fill"></span>
+              </div>
+              <p id="shape-traders-mode-switch-status" class="shape-traders-mode-switch-status">Preparing liquidation…</p>
+            </div>
           </div>
           <div class="modal-actions">
             <button type="button" id="shape-traders-mode-switch-cancel" class="secondary">Stay Here</button>
