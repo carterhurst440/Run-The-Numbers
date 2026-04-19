@@ -2175,11 +2175,7 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
                 <button type="button" class="link-button">Rank Ladder</button>
               </div>
               <div class="home-rank-terminal" aria-live="polite">
-                <div class="home-rank-terminal-bar" aria-hidden="true">window</div>
-                <div class="home-rank-terminal-screen">
-                  <span class="home-rank-terminal-prompt" aria-hidden="true">&gt;</span>
-                  <p class="home-rank-typing">Analyst Carter Hurst, you're on. Review the numbers and report your position.</p>
-                </div>
+                <p class="home-rank-typing">Analyst Carter Hurst, you're on. Review the numbers and report your position.</p>
               </div>
               <div class="home-rank-progress-grid">
                 <div class="rank-progress-card">

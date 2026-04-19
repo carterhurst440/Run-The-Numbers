@@ -6444,20 +6444,13 @@ body.theme-angelic {
 }
 
 .home-rank-terminal {
-  display: grid;
-  gap: 0.75rem;
-  padding: 0.8rem 0.95rem 0.95rem;
-  border-radius: 1rem;
-  border: 1px solid color-mix(in srgb, var(--betting-panel-border) 80%, transparent);
-  background: #000;
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, white 4%, transparent),
-    inset 0 0 28px color-mix(in srgb, var(--neon-cyan) 8%, transparent);
+  display: block;
+  padding: 0;
   text-align: left;
 }
 
 .home-rank-terminal-bar {
-  display: block;
+  display: none;
   color: color-mix(in srgb, white 56%, transparent);
   font-family: "Play", "SFMono-Regular", Consolas, monospace;
   font-size: 0.72rem;
@@ -6466,15 +6459,12 @@ body.theme-angelic {
 }
 
 .home-rank-terminal-screen {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  gap: 0.7rem;
-  min-height: 2.2rem;
+  display: block;
+  min-height: 0;
 }
 
 .home-rank-terminal-prompt {
-  padding-top: 0.08rem;
+  display: none;
   color: color-mix(in srgb, var(--neon-cyan) 84%, white 16%);
   font-family: "Play", "SFMono-Regular", Consolas, monospace;
   font-size: 1rem;
@@ -6488,12 +6478,13 @@ body.theme-angelic {
   max-width: none;
   min-height: 1.8em;
   text-align: left;
-  color: rgba(224, 244, 255, 0.9);
+  color: color-mix(in srgb, white 88%, var(--neon-cyan) 12%);
   font-family: "Play", "SFMono-Regular", Consolas, monospace;
   font-size: clamp(0.95rem, 2vw, 1.04rem);
   line-height: 1.55;
   letter-spacing: 0.03em;
   word-break: break-word;
+  text-shadow: 0 0 14px color-mix(in srgb, var(--neon-cyan) 18%, transparent);
 }
 
 .home-rank-typing::after {
