@@ -20634,7 +20634,7 @@ function updatePlayAssistantRuleBadge() {
     : 0;
   const shouldShow = isShapeTraders && liveRules > 0;
   playAssistantRuleBadgeEl.hidden = !shouldShow;
-  playAssistantRuleBadgeEl.textContent = String(Math.min(liveRules, 99));
+  playAssistantRuleBadgeEl.textContent = shouldShow ? String(Math.min(liveRules, 99)) : "";
 }
 
 function escapeAssistantHtml(value) {
