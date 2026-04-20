@@ -27588,10 +27588,17 @@ async function loadPlayerModeBreakdownFallback(userId, period = "year") {
 
 async function loadPlayerModeBreakdownFromAdminRaw(userId, period = "year") {
   const startDate = getAnalyticsPeriodStart(period);
-  const { handRecords, tradeRecords } = await loadAdminAnalyticsRawRecords({
+  const handRecords = await fetchGameHandsRecords({
     startAt: startDate,
     endAt: new Date(),
-    userIds: [userId]
+    userIds: [userId],
+    fields: ["user_id", "created_at", "game_id", "mode_type", "contest_id"]
+  });
+  const tradeRecords = await fetchShapeTraderTradeRecords({
+    startAt: startDate,
+    endAt: new Date(),
+    userId,
+    fields: ["executed_at", "trade_side", "contest_id"]
   });
 
   const countsByGame = new Map(
