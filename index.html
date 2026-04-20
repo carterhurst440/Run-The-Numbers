@@ -2386,22 +2386,6 @@
               <section class="route-section analytics-section">
                 <h2>Betting Analytics</h2>
                 
-                <!-- Player Filter -->
-                <div class="analytics-player-filter">
-                  <label for="player-filter-select">Filter by Players:</label>
-                  <div class="player-filter-wrapper">
-                    <select id="player-filter-select" multiple size="5">
-                      <option value="all" selected>All Players</option>
-                      <!-- Players populated dynamically -->
-                    </select>
-                    <div class="player-filter-actions">
-                      <button type="button" id="apply-player-filter" class="btn-primary">Apply Filter</button>
-                      <button type="button" id="clear-player-filter" class="btn-secondary">Clear</button>
-                    </div>
-                  </div>
-                  <p class="filter-hint">Select one or more players, then apply the filter.</p>
-                </div>
-                
                 <div class="analytics-overview-chart">
                   <div class="overview-chart-header">
                     <h3>Hands &amp; Trades</h3>
@@ -2569,6 +2553,20 @@
                     <button type="button" class="chart-filter-btn" data-bet-period="month">1M</button>
                     <button type="button" class="chart-filter-btn active" data-bet-period="all">ALL</button>
                   </div>
+                </div>
+                <div class="analytics-player-filter analytics-bet-player-filter">
+                  <label for="player-filter-select">Filter RTN Bets By Players:</label>
+                  <div class="player-filter-wrapper">
+                    <select id="player-filter-select" multiple size="5">
+                      <option value="all" selected>All Players</option>
+                      <!-- Players populated dynamically -->
+                    </select>
+                    <div class="player-filter-actions">
+                      <button type="button" id="apply-player-filter" class="btn-primary">Apply Filter</button>
+                      <button type="button" id="clear-player-filter" class="btn-secondary">Clear</button>
+                    </div>
+                  </div>
+                  <p class="filter-hint">Applies to the Run The Numbers bet counts and bet analytics modal only.</p>
                 </div>
                 <div class="analytics-betting-panel">
                   <section class="analytics-number-bets" aria-labelledby="analytics-number-bets-heading">

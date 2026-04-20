@@ -8428,7 +8428,7 @@ async function renderOverviewChart(period = "year") {
       const series = await buildHandsByGameSeries(period, {
         startAt: startDate,
         endAt: now,
-        userIds: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null
+        userIds: null
       });
       renderChart(series.labels, series.datasets);
       finalizeOverviewLoad();
@@ -8470,7 +8470,7 @@ async function renderOverviewChart(period = "year") {
     const series = await buildHandsByGameSeries(period, {
       startAt: startDate,
       endAt: now,
-      userIds: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null
+      userIds: null
     });
     renderChart(series.labels.length ? series.labels : dates, series.datasets);
     finalizeOverviewLoad();
@@ -22789,7 +22789,7 @@ async function loadAdminAiConversations() {
   try {
     const { data, error } = await supabase.rpc("get_admin_ai_chat_conversations", {
       limit_count: 200,
-      target_user_ids: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null
+      target_user_ids: null
     });
 
     if (error) {
@@ -25658,7 +25658,7 @@ if (activeUsersDeselectAllButton) {
   });
 }
 
-// Global variable to store selected player filter
+// Player filter state for the RTN bet analytics section only
 let selectedPlayerIds = null; // null = all players, [] = specific players
 let playerEmailMap = {}; // Map of user_id to email for display
 let analyticsBetBadgePeriod = "all";
@@ -27915,7 +27915,7 @@ async function loadPnlRankings() {
     const { handRecords, tradeRecords } = await loadAdminAnalyticsRawRecords({
       startAt: startDate,
       endAt: new Date(),
-      userIds: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null
+      userIds: null
     });
 
     if (requestId !== analyticsPnlRankRequestId) return;
@@ -28015,7 +28015,7 @@ async function loadMostActiveHandsFallback(startDate) {
     const { data, error } = await supabase.rpc("get_admin_most_active_events", {
       start_at: startDate ? startDate.toISOString() : null,
       end_at: new Date().toISOString(),
-      target_user_ids: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null,
+      target_user_ids: null,
       limit_count: null
     });
     if (!error && Array.isArray(data)) {
@@ -28042,7 +28042,7 @@ async function loadMostActiveHandsFallback(startDate) {
     const { handRecords, tradeRecords } = await loadAdminAnalyticsRawRecords({
       startAt: startDate,
       endAt: new Date(),
-      userIds: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null
+      userIds: null
     });
     const rankedMap = new Map();
 
@@ -28101,7 +28101,7 @@ async function loadMostActiveHandsFallback(startDate) {
     const { data, error } = await supabase.rpc("get_admin_most_active_hands", {
       start_at: startDate ? startDate.toISOString() : null,
       end_at: new Date().toISOString(),
-      target_user_ids: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null,
+      target_user_ids: null,
       limit_count: null
     });
     if (!error && Array.isArray(data) && data.length) {
@@ -28126,13 +28126,13 @@ async function loadMostActiveHandsFallback(startDate) {
     fetchGameHandsRecords({
       startAt: startDate,
       endAt: new Date(),
-      userIds: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null,
+      userIds: null,
       fields: ["user_id", "created_at", "game_id"]
     }),
     fetchShapeTraderTradeRecords({
       startAt: startDate,
       endAt: new Date(),
-      userIds: selectedPlayerIds && selectedPlayerIds.length > 0 ? selectedPlayerIds : null,
+      userIds: null,
       fields: ["user_id", "executed_at"]
     })
   ]);
@@ -28198,9 +28198,8 @@ document.getElementById("apply-player-filter")?.addEventListener("click", () => 
     selectedPlayerIds = selectedOptions.map(opt => opt.value);
     console.info(`[RTN] Filter set to: ${selectedPlayerIds.length} player(s)`);
   }
-  
-  // Refresh all analytics data
-  refreshAnalytics();
+
+  refreshBetAnalyticsSection();
 });
 
 // Clear player filter
@@ -28211,7 +28210,7 @@ document.getElementById("clear-player-filter")?.addEventListener("click", () => 
   });
   selectedPlayerIds = null;
   console.info("[RTN] Filter cleared");
-  refreshAnalytics();
+  refreshBetAnalyticsSection();
 });
 
 // Refresh all analytics with current filter
@@ -28228,6 +28227,10 @@ function refreshAnalytics() {
   loadMostActiveThisWeek();
   loadPnlRankings();
   loadAdminAiConversations();
+}
+
+function refreshBetAnalyticsSection() {
+  refreshBetBadgeCounts();
 }
 
 function initializeAnalyticsBettingGrid() {
