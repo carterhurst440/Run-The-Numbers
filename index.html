@@ -2404,6 +2404,38 @@
                 
                 <div class="analytics-overview-chart">
                   <div class="overview-chart-header">
+                    <h3>Total P&amp;L</h3>
+                    <div class="overview-chart-controls">
+                      <div class="chart-filters total-pnl-filters">
+                        <button type="button" class="chart-filter-btn" data-total-pnl-period="hour">1H</button>
+                        <button type="button" class="chart-filter-btn" data-total-pnl-period="day">24H</button>
+                        <button type="button" class="chart-filter-btn" data-total-pnl-period="week">1W</button>
+                        <button type="button" class="chart-filter-btn" data-total-pnl-period="month">1M</button>
+                        <button type="button" class="chart-filter-btn" data-total-pnl-period="90days">3M</button>
+                        <button type="button" class="chart-filter-btn active" data-total-pnl-period="year">1Y</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="most-active-trend-toolbar analytics-game-chip-toolbar">
+                    <div class="most-active-player-filter-row">
+                      <div id="total-pnl-game-filters" class="most-active-player-filters" aria-label="Filter total pnl chart games"></div>
+                      <div class="most-active-player-filter-actions">
+                        <button type="button" id="total-pnl-select-all" class="analytics-inline-action">Select All</button>
+                        <button type="button" id="total-pnl-deselect-all" class="analytics-inline-action">Deselect All</button>
+                      </div>
+                    </div>
+                  </div>
+                  <p id="total-pnl-subhead" class="analytics-card-subhead">Platform-wide realized P&amp;L across all players for the selected time window.</p>
+                  <div class="overview-chart-container">
+                    <canvas id="total-pnl-analytics-chart"></canvas>
+                    <div class="overview-chart-loading total-pnl-chart-loading">
+                      <div class="spinner"></div>
+                      <p>Loading total P&amp;L...</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="analytics-overview-chart">
+                  <div class="overview-chart-header">
                     <h3>Hands &amp; Trades</h3>
                     <div class="overview-chart-controls">
                       <div class="chart-filters overview-filters">
@@ -2416,9 +2448,19 @@
                       </div>
                     </div>
                   </div>
+                  <div class="most-active-trend-toolbar analytics-game-chip-toolbar">
+                    <div class="most-active-player-filter-row">
+                      <div id="overview-game-filters" class="most-active-player-filters" aria-label="Filter hands and trades chart games"></div>
+                      <div class="most-active-player-filter-actions">
+                        <button type="button" id="overview-select-all" class="analytics-inline-action">Select All</button>
+                        <button type="button" id="overview-deselect-all" class="analytics-inline-action">Deselect All</button>
+                      </div>
+                    </div>
+                  </div>
+                  <p id="overview-chart-subhead" class="analytics-card-subhead">Hands and trades for the selected players and time window.</p>
                   <div class="overview-chart-container">
                     <canvas id="overview-analytics-chart"></canvas>
-                    <div class="overview-chart-loading">
+                    <div class="overview-chart-loading hands-overview-chart-loading">
                       <div class="spinner"></div>
                       <p>Loading chart data...</p>
                     </div>

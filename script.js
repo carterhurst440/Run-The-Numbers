@@ -8270,6 +8270,7 @@ async function renderBetVolumeChart(betKey, period) {
 // Global variable for overview chart
 let overviewChartInstance = null;
 let activeUsersChartInstance = null;
+let totalPnlChartInstance = null;
 
 async function renderOverviewChart(period = "year") {
   if (!supabase) {
@@ -8277,8 +8278,16 @@ async function renderOverviewChart(period = "year") {
     return;
   }
 
+  overviewChartPeriod = period;
+  if (!overviewGameSelectionsInitialized) {
+    overviewSelectedGameKeys = getOverviewGameSeriesDefinitions().map((series) => series.key);
+    overviewGameSelectionsInitialized = true;
+  }
+  renderOverviewGameFilters();
+  updateOverviewChartSubhead(period);
+
   // Show loading state
-  const loadingOverlay = document.querySelector(".overview-chart-loading");
+  const loadingOverlay = document.querySelector(".hands-overview-chart-loading");
   if (loadingOverlay) {
     loadingOverlay.style.display = "flex";
   }
@@ -8306,11 +8315,22 @@ async function renderOverviewChart(period = "year") {
       overviewChartInstance.destroy();
     }
 
+    const filteredSeriesEntries = (Array.isArray(seriesEntries) ? seriesEntries : []).filter((entry) =>
+      overviewSelectedGameKeys.includes(entry?.key)
+    );
+    const chartDatasets = filteredSeriesEntries.length
+      ? filteredSeriesEntries
+      : [{
+          key: "empty",
+          label: "No Data",
+          values: [0]
+        }];
+
     overviewChartInstance = new Chart(ctx, {
       type: "line",
       data: {
-        labels,
-        datasets: (Array.isArray(seriesEntries) ? seriesEntries : []).map((entry, index) => {
+        labels: labels.length ? labels : ["No Data"],
+        datasets: chartDatasets.map((entry, index) => {
           const palette = [
             {
               borderColor: "rgba(255, 209, 102, 1)",
@@ -8344,7 +8364,7 @@ async function renderOverviewChart(period = "year") {
         maintainAspectRatio: false,
         plugins: {
           legend: {
-            display: true,
+            display: false,
             labels: {
               color: "rgba(226, 248, 255, 0.85)",
               boxWidth: 14,
@@ -8462,6 +8482,188 @@ async function renderOverviewChart(period = "year") {
       btn.disabled = false;
     });
     return;
+  }
+}
+
+async function renderTotalPnlChart(period = "year") {
+  totalPnlChartPeriod = period;
+  updateTotalPnlFilterUI();
+  if (!totalPnlGameSelectionsInitialized) {
+    totalPnlSelectedGameKeys = getTotalPnlGameSeriesDefinitions().map((series) => series.key);
+    totalPnlGameSelectionsInitialized = true;
+  }
+  renderTotalPnlGameFilters();
+
+  if (!supabase) {
+    console.warn("[RTN] Cannot render total pnl chart: Supabase client not initialized");
+    return;
+  }
+
+  const canvas = document.getElementById("total-pnl-analytics-chart");
+  if (!(canvas instanceof HTMLCanvasElement)) {
+    return;
+  }
+
+  const loadingOverlay = document.querySelector(".total-pnl-chart-loading");
+  if (loadingOverlay) {
+    loadingOverlay.style.display = "flex";
+  }
+  totalPnlFilterButtons.forEach((button) => {
+    button.disabled = true;
+  });
+
+  try {
+    const endAt = new Date();
+    const startAt = getAnalyticsPeriodStart(period) || new Date(endAt.getTime() - 365 * 24 * 60 * 60 * 1000);
+    const buckets = buildHandsChartBuckets(period, startAt, endAt);
+    const { handRecords, tradeRecords } = await loadAdminAnalyticsRawRecords({
+      startAt,
+      endAt,
+      userIds: null
+    });
+
+    const bucketValues = buckets.map(() => ({
+      [GAME_KEYS.RUN_THE_NUMBERS]: 0,
+      [GAME_KEYS.GUESS_10]: 0,
+      [GAME_KEYS.SHAPE_TRADERS]: 0
+    }));
+    const findBucketIndex = (value) => buckets.findIndex((bucket) => value >= bucket.start && value < bucket.end);
+
+    handRecords.forEach((record) => {
+      const createdAt = new Date(record?.created_at || 0);
+      const bucketIndex = findBucketIndex(createdAt);
+      if (bucketIndex < 0) return;
+      const gameKey = resolveGameKey(record?.game_id);
+      if (gameKey !== GAME_KEYS.RUN_THE_NUMBERS && gameKey !== GAME_KEYS.GUESS_10) {
+        return;
+      }
+      bucketValues[bucketIndex][gameKey] = roundCurrencyValue(
+        Number(bucketValues[bucketIndex][gameKey] || 0) + Number(record?.net || 0)
+      );
+    });
+
+    tradeRecords.forEach((record) => {
+      const tradeSide = String(record?.trade_side || "").trim().toLowerCase();
+      if (tradeSide !== "sell") return;
+      const executedAt = new Date(record?.executed_at || 0);
+      const bucketIndex = findBucketIndex(executedAt);
+      if (bucketIndex < 0) return;
+      bucketValues[bucketIndex][GAME_KEYS.SHAPE_TRADERS] = roundCurrencyValue(
+        Number(bucketValues[bucketIndex][GAME_KEYS.SHAPE_TRADERS] || 0) + Number(record?.net_profit || 0)
+      );
+    });
+
+    const selectedGames = totalPnlSelectedGameKeys.filter((key) => key !== "all");
+    const values = bucketValues.map((row) =>
+      roundCurrencyValue(selectedGames.reduce((sum, gameKey) => sum + Number(row?.[gameKey] || 0), 0))
+    );
+    const totalPnlValue = roundCurrencyValue(values.reduce((sum, value) => sum + Number(value || 0), 0));
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      return;
+    }
+
+    if (totalPnlChartInstance) {
+      totalPnlChartInstance.destroy();
+    }
+
+    totalPnlChartInstance = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: buckets.length ? buckets.map((bucket) => bucket.label) : ["No Data"],
+        datasets: [{
+          label: "Total P&L",
+          data: values.length ? values : [0],
+          borderColor: "rgba(53, 255, 234, 1)",
+          backgroundColor: "rgba(53, 255, 234, 0.16)",
+          borderWidth: 2,
+          fill: false,
+          tension: 0.26,
+          pointRadius: values.length > 1 ? 0 : 4,
+          pointHoverRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            mode: "index",
+            intersect: false,
+            backgroundColor: "rgba(9, 18, 32, 0.95)",
+            titleColor: "rgba(53, 255, 234, 1)",
+            bodyColor: "rgba(226, 248, 255, 0.9)",
+            borderColor: "rgba(53, 255, 234, 0.5)",
+            borderWidth: 1,
+            padding: 12,
+            displayColors: false,
+            callbacks: {
+              label(context) {
+                return `Realized P&L: ${formatSignedCurrency(Number(context.parsed.y || 0))}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: {
+              color: "rgba(53, 255, 234, 0.1)"
+            },
+            ticks: {
+              color: "rgba(173, 225, 247, 0.75)",
+              maxRotation: 45,
+              minRotation: 0
+            }
+          },
+          y: {
+            grid: {
+              color: "rgba(53, 255, 234, 0.1)"
+            },
+            ticks: {
+              color: "rgba(173, 225, 247, 0.75)",
+              callback(value) {
+                return formatSignedCurrency(Number(value || 0));
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (totalPnlSubheadEl) {
+      const periodLabels = {
+        hour: "last hour",
+        day: "last 24 hours",
+        week: "last week",
+        month: "last month",
+        "90days": "last 90 days",
+        year: "last year"
+      };
+      const selectedGameLabel = selectedGames.length === getTotalPnlGameSeriesDefinitions().length
+        ? "all games"
+        : selectedGames.length
+          ? selectedGames.map((gameKey) => getGameLabel(gameKey)).join(", ")
+          : "no games selected";
+      const cadenceLabel = period === "day" ? "hourly" : period === "hour" ? "5-minute" : "daily";
+      totalPnlSubheadEl.textContent =
+        `Platform-wide realized P&L for ${selectedGameLabel} across the ${periodLabels[period] || "selected range"}, shown in ${cadenceLabel} buckets. Total: ${formatSignedCurrency(totalPnlValue)}.`;
+    }
+  } catch (error) {
+    console.error("[RTN] Error rendering total pnl chart:", error);
+    if (totalPnlSubheadEl) {
+      totalPnlSubheadEl.textContent = "Unable to load platform-wide realized P&L right now.";
+    }
+  } finally {
+    if (loadingOverlay) {
+      loadingOverlay.style.display = "none";
+    }
+    totalPnlFilterButtons.forEach((button) => {
+      button.disabled = false;
+    });
   }
 }
 
@@ -15055,6 +15257,15 @@ const bankrollChartTooltipDateEl = document.getElementById("bankroll-chart-toolt
 const bankrollChartTooltipValueEl = document.getElementById("bankroll-chart-tooltip-value");
 const activityFilterButtons = Array.from(document.querySelectorAll("[data-activity-period]"));
 const pnlRankFilterButtons = Array.from(document.querySelectorAll("[data-pnl-rank-period]"));
+const totalPnlFilterButtons = Array.from(document.querySelectorAll("[data-total-pnl-period]"));
+const totalPnlSubheadEl = document.getElementById("total-pnl-subhead");
+const totalPnlGameFiltersEl = document.getElementById("total-pnl-game-filters");
+const totalPnlSelectAllButton = document.getElementById("total-pnl-select-all");
+const totalPnlDeselectAllButton = document.getElementById("total-pnl-deselect-all");
+const overviewChartSubheadEl = document.getElementById("overview-chart-subhead");
+const overviewGameFiltersEl = document.getElementById("overview-game-filters");
+const overviewSelectAllButton = document.getElementById("overview-select-all");
+const overviewDeselectAllButton = document.getElementById("overview-deselect-all");
 const mostActiveGameFilterButtons = Array.from(document.querySelectorAll("[data-most-active-game]"));
 const mostActiveChartSubheadEl = document.getElementById("most-active-chart-subhead");
 const mostActivePlayerFiltersEl = document.getElementById("most-active-player-filters");
@@ -15701,6 +15912,12 @@ let bankrollChartGameFilter = "all";
 let bankrollChartHoverBars = [];
 let bankrollChartLiveRefreshTimerId = null;
 let activityLeaderboardPeriod = "week";
+let overviewChartPeriod = "year";
+let overviewSelectedGameKeys = [];
+let overviewGameSelectionsInitialized = false;
+let totalPnlChartPeriod = "year";
+let totalPnlSelectedGameKeys = [];
+let totalPnlGameSelectionsInitialized = false;
 let activeUsersChartPeriod = "all";
 let activeUsersSelectedSeriesKeys = ["dau", "wau", "mau"];
 let activeUsersSeriesInitialized = false;
@@ -25438,6 +25655,7 @@ adminTabButtons.forEach(button => {
       if (adminRanksContent) adminRanksContent.hidden = true;
       loadPlayerFilter(); // Load player list for filter
       initializeAnalyticsBettingGrid();
+      renderTotalPnlChart("year");
       renderOverviewChart("year");
       renderActiveUsersChart("year");
       loadMostActiveThisWeek();
@@ -25486,6 +25704,80 @@ document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(button 
     renderOverviewChart(period);
   });
 });
+
+totalPnlFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const period = button.dataset.totalPnlPeriod || "year";
+    totalPnlFilterButtons.forEach((btn) => {
+      btn.classList.remove("active");
+    });
+    button.classList.add("active");
+    renderTotalPnlChart(period);
+  });
+});
+
+if (overviewGameFiltersEl) {
+  overviewGameFiltersEl.addEventListener("change", (event) => {
+    const input = event.target instanceof HTMLInputElement ? event.target : null;
+    if (!input || input.type !== "checkbox" || !input.dataset.overviewGameKey) {
+      return;
+    }
+    overviewSelectedGameKeys = Array.from(
+      overviewGameFiltersEl.querySelectorAll("input[data-overview-game-key]:checked")
+    ).map((checkbox) => checkbox.value);
+    renderOverviewGameFilters();
+    updateOverviewChartSubhead(overviewChartPeriod);
+    void renderOverviewChart(overviewChartPeriod);
+  });
+}
+
+if (overviewSelectAllButton) {
+  overviewSelectAllButton.addEventListener("click", () => {
+    overviewSelectedGameKeys = getOverviewGameSeriesDefinitions().map((series) => series.key);
+    renderOverviewGameFilters();
+    updateOverviewChartSubhead(overviewChartPeriod);
+    void renderOverviewChart(overviewChartPeriod);
+  });
+}
+
+if (overviewDeselectAllButton) {
+  overviewDeselectAllButton.addEventListener("click", () => {
+    overviewSelectedGameKeys = [];
+    renderOverviewGameFilters();
+    updateOverviewChartSubhead(overviewChartPeriod);
+    void renderOverviewChart(overviewChartPeriod);
+  });
+}
+
+if (totalPnlGameFiltersEl) {
+  totalPnlGameFiltersEl.addEventListener("change", (event) => {
+    const input = event.target instanceof HTMLInputElement ? event.target : null;
+    if (!input || input.type !== "checkbox" || !input.dataset.totalPnlGameKey) {
+      return;
+    }
+    totalPnlSelectedGameKeys = Array.from(
+      totalPnlGameFiltersEl.querySelectorAll("input[data-total-pnl-game-key]:checked")
+    ).map((checkbox) => checkbox.value);
+    renderTotalPnlGameFilters();
+    void renderTotalPnlChart(totalPnlChartPeriod);
+  });
+}
+
+if (totalPnlSelectAllButton) {
+  totalPnlSelectAllButton.addEventListener("click", () => {
+    totalPnlSelectedGameKeys = getTotalPnlGameSeriesDefinitions().map((series) => series.key);
+    renderTotalPnlGameFilters();
+    void renderTotalPnlChart(totalPnlChartPeriod);
+  });
+}
+
+if (totalPnlDeselectAllButton) {
+  totalPnlDeselectAllButton.addEventListener("click", () => {
+    totalPnlSelectedGameKeys = [];
+    renderTotalPnlGameFilters();
+    void renderTotalPnlChart(totalPnlChartPeriod);
+  });
+}
 
 activeUsersFilterButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -25719,6 +26011,129 @@ function buildRealizedPnlBucketsFromRawRecords(handRecords = [], tradeRecords = 
       fallbackIndex: index
     }))
     .sort((left, right) => String(left.dayKey).localeCompare(String(right.dayKey)));
+}
+
+function getOverviewGameSeriesDefinitions() {
+  return [
+    {
+      key: GAME_KEYS.RUN_THE_NUMBERS,
+      label: getGameLabel(GAME_KEYS.RUN_THE_NUMBERS),
+      color: "rgba(255, 209, 102, 1)"
+    },
+    {
+      key: GAME_KEYS.GUESS_10,
+      label: getGameLabel(GAME_KEYS.GUESS_10),
+      color: "rgba(255, 127, 216, 1)"
+    },
+    {
+      key: `${GAME_KEYS.SHAPE_TRADERS}_trades`,
+      label: "Shape Traders Trades",
+      color: "rgba(53, 255, 234, 1)"
+    }
+  ];
+}
+
+function getTotalPnlGameSeriesDefinitions() {
+  return [
+    {
+      key: GAME_KEYS.RUN_THE_NUMBERS,
+      label: getGameLabel(GAME_KEYS.RUN_THE_NUMBERS),
+      color: "rgba(255, 209, 102, 1)"
+    },
+    {
+      key: GAME_KEYS.GUESS_10,
+      label: getGameLabel(GAME_KEYS.GUESS_10),
+      color: "rgba(255, 127, 216, 1)"
+    },
+    {
+      key: GAME_KEYS.SHAPE_TRADERS,
+      label: getGameLabel(GAME_KEYS.SHAPE_TRADERS),
+      color: "rgba(53, 255, 234, 1)"
+    }
+  ];
+}
+
+function renderGameSelectionChips(container, definitions, selectedKeys, dataAttribute) {
+  if (!container) return;
+  container.innerHTML = "";
+
+  if (!Array.isArray(definitions) || !definitions.length) {
+    const empty = document.createElement("p");
+    empty.className = "most-active-player-filters-empty";
+    empty.textContent = "No filters available.";
+    container.appendChild(empty);
+    return;
+  }
+
+  const selectedSet = new Set(selectedKeys);
+  const fragment = document.createDocumentFragment();
+  definitions.forEach((definition) => {
+    const label = document.createElement("label");
+    label.className = "most-active-player-chip";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = definition.key;
+    input.checked = selectedSet.has(definition.key);
+    input.dataset[dataAttribute] = definition.key;
+
+    const marker = document.createElement("span");
+    marker.className = "most-active-player-chip-mark";
+    marker.style.setProperty("--player-line-color", definition.color || "rgba(53, 255, 234, 1)");
+
+    const text = document.createElement("span");
+    text.className = "most-active-player-chip-text";
+    text.textContent = definition.label;
+
+    label.append(input, marker, text);
+    fragment.appendChild(label);
+  });
+
+  container.appendChild(fragment);
+}
+
+function renderOverviewGameFilters() {
+  renderGameSelectionChips(
+    overviewGameFiltersEl,
+    getOverviewGameSeriesDefinitions(),
+    overviewSelectedGameKeys,
+    "overviewGameKey"
+  );
+}
+
+function renderTotalPnlGameFilters() {
+  renderGameSelectionChips(
+    totalPnlGameFiltersEl,
+    getTotalPnlGameSeriesDefinitions(),
+    totalPnlSelectedGameKeys,
+    "totalPnlGameKey"
+  );
+}
+
+function updateOverviewChartSubhead(period = overviewChartPeriod) {
+  if (!overviewChartSubheadEl) return;
+
+  const periodLabels = {
+    hour: "last hour",
+    day: "last 24 hours",
+    week: "last week",
+    month: "last month",
+    "90days": "last 90 days",
+    year: "last year"
+  };
+  const selectedLabels = getOverviewGameSeriesDefinitions()
+    .filter((definition) => overviewSelectedGameKeys.includes(definition.key))
+    .map((definition) => definition.label);
+
+  overviewChartSubheadEl.textContent = selectedLabels.length
+    ? `Showing ${selectedLabels.join(", ")} for the selected players across the ${periodLabels[period] || "selected range"}.`
+    : "No game lines selected. Choose one or more games to show the chart.";
+}
+
+function updateTotalPnlFilterUI() {
+  totalPnlFilterButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.totalPnlPeriod === totalPnlChartPeriod);
+  });
 }
 
 function cacheAnalyticsProfiles(profiles) {
@@ -27646,7 +28061,11 @@ document.getElementById("clear-player-filter")?.addEventListener("click", () => 
 // Refresh all analytics with current filter
 function refreshAnalytics() {
   refreshBetBadgeCounts();
-  
+
+  const activeTotalPnlFilterBtn = document.querySelector(".total-pnl-filters .chart-filter-btn.active");
+  const totalPnlPeriod = activeTotalPnlFilterBtn?.dataset.totalPnlPeriod || totalPnlChartPeriod || "year";
+  renderTotalPnlChart(totalPnlPeriod);
+
   // Reload overview chart
   const activeFilterBtn = document.querySelector(".overview-filters .chart-filter-btn.active");
   const period = activeFilterBtn?.dataset.period || "year";

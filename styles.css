@@ -11448,6 +11448,11 @@ body.play-assistant-open .play-assistant-fab {
   margin-bottom: 0.75rem;
 }
 
+.analytics-game-chip-toolbar {
+  margin-top: 0.15rem;
+  margin-bottom: 0.75rem;
+}
+
 .most-active-chart-container {
   height: 320px;
 }
