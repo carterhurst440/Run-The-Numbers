@@ -9183,6 +9183,10 @@ body.play-assistant-open .play-assistant-fab {
   line-height: 1;
 }
 
+.play-assistant-rule-badge[hidden] {
+  display: none !important;
+}
+
 .play-assistant-panel {
   position: fixed;
   right: clamp(1rem, 2.5vw, 1.6rem);

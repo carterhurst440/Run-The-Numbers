@@ -15097,11 +15097,6 @@ const adminPnlSubheadEl = document.getElementById("admin-pnl-subhead");
 const adminPnlTooltip = document.getElementById("admin-pnl-tooltip");
 const adminPnlTooltipDateEl = document.getElementById("admin-pnl-tooltip-date");
 const adminPnlTooltipValueEl = document.getElementById("admin-pnl-tooltip-value");
-const adminPnlContestToggle = document.getElementById("admin-pnl-contest-toggle");
-const adminPnlContestToggleWrap =
-  adminPnlContestToggle instanceof HTMLInputElement
-    ? adminPnlContestToggle.closest(".advanced-toggle")
-    : null;
 const adminPnlGameFilterButtons = Array.from(document.querySelectorAll("[data-admin-pnl-game]"));
 const adminPnlPlayerFiltersEl = document.getElementById("admin-pnl-player-filters");
 const adminPnlSelectAllButton = document.getElementById("admin-pnl-select-all");
@@ -20021,6 +20016,14 @@ function renderPlayAssistantRules() {
     return;
   }
   const shouldShow = getCurrentPlayAssistantGameKey() === GAME_KEYS.SHAPE_TRADERS;
+  const updateRuleBadge = (count = 0) => {
+    if (!playAssistantRuleBadgeEl) return;
+    const safeCount = Math.max(0, Math.round(Number(count || 0)));
+    const shouldDisplay = safeCount > 0;
+    playAssistantRuleBadgeEl.hidden = !shouldDisplay;
+    playAssistantRuleBadgeEl.textContent = shouldDisplay ? String(safeCount) : "";
+    playAssistantRuleBadgeEl.setAttribute("aria-hidden", shouldDisplay ? "false" : "true");
+  };
   if (!shouldShow) {
     playAssistantRulesEl.hidden = true;
     playAssistantRulesEl.classList.add("is-collapsed");
@@ -20028,12 +20031,14 @@ function renderPlayAssistantRules() {
     playAssistantRulesListEl.hidden = true;
     playAssistantRulesLabelEl.textContent = "View Rules (0)";
     playAssistantRulesToggleEl.setAttribute("aria-expanded", "false");
+    updateRuleBadge(0);
     return;
   }
 
   ensureShapeTraderAssistantRulesLoaded();
   const ruleCount = shapeTradersAssistantRules.length;
   playAssistantRulesLabelEl.textContent = `View Rules (${ruleCount})`;
+  updateRuleBadge(ruleCount);
   playAssistantRulesEl.classList.toggle("is-collapsed", playAssistantRulesCollapsed);
   playAssistantRulesListEl.hidden = playAssistantRulesCollapsed;
   playAssistantRulesToggleEl.setAttribute("aria-expanded", String(!playAssistantRulesCollapsed));
@@ -24409,14 +24414,6 @@ pnlRankFilterButtons.forEach((button) => {
   });
 });
 
-if (adminPnlContestToggle instanceof HTMLInputElement) {
-  adminPnlContestToggle.addEventListener("change", () => {
-    adminPnlIncludeContestModes = adminPnlContestToggle.checked;
-    updatePnlRankFilterUI();
-    loadPnlRankings();
-  });
-}
-
 adminPnlGameFilterButtons.forEach((button) => {
   button.addEventListener("click", () => {
     adminPnlChartGameFilter = normalizeBankrollChartGameFilter(button.dataset.adminPnlGame || "all");
@@ -25686,7 +25683,6 @@ let analyticsPnlRankVisibleCount = 10;
 let adminPnlChartGameFilter = "all";
 let adminPnlChartSelectedUserIds = [];
 let adminPnlChartSelectionScope = "";
-let adminPnlIncludeContestModes = false;
 let adminPnlChartHoverBars = [];
 let adminPnlChartSource = null;
 let mostActiveTrendChartInstance = null;
@@ -25823,8 +25819,7 @@ const ANALYTICS_ACTIVITY_PAGE_SIZE = 10;
 
 function buildRealizedPnlBucketsFromRawRecords(
   handRecords = [],
-  tradeRecords = [],
-  { includeContestModes = false } = {}
+  tradeRecords = []
 ) {
   const buckets = new Map();
   const ensureDay = (dayKey, createdAt) => {
@@ -25842,10 +25837,6 @@ function buildRealizedPnlBucketsFromRawRecords(
   };
 
   handRecords.forEach((hand) => {
-    const modeType = String(hand?.mode_type || "").trim().toLowerCase();
-    if (!includeContestModes && (hand?.contest_id || (modeType && modeType !== "normal"))) {
-      return;
-    }
     const dayKey = formatAnalyticsDateKey(hand?.created_at);
     if (!dayKey) return;
     const bucket = ensureDay(dayKey, String(hand?.created_at || `${dayKey}T12:00:00`));
@@ -25861,9 +25852,6 @@ function buildRealizedPnlBucketsFromRawRecords(
   tradeRecords.forEach((trade) => {
     const tradeSide = String(trade?.trade_side || "").trim().toLowerCase();
     if (tradeSide !== "sell") {
-      return;
-    }
-    if (!includeContestModes && trade?.contest_id) {
       return;
     }
     const dayKey = formatAnalyticsDateKey(trade?.executed_at);
@@ -26157,12 +26145,6 @@ function updatePnlRankFilterUI() {
     button.classList.toggle("active", button.dataset.pnlRankPeriod === pnlRankLeaderboardPeriod);
   });
 
-  if (adminPnlContestToggle instanceof HTMLInputElement) {
-    adminPnlContestToggle.checked = adminPnlIncludeContestModes;
-    adminPnlContestToggle.setAttribute("aria-checked", adminPnlIncludeContestModes ? "true" : "false");
-  }
-  adminPnlContestToggleWrap?.classList.toggle("is-active", adminPnlIncludeContestModes);
-
   if (!pnlRankSubheadEl) return;
 
   const labels = {
@@ -26173,8 +26155,7 @@ function updatePnlRankFilterUI() {
     year: "Ranked by realized P&L in the last year."
   };
 
-  const modeLabel = adminPnlIncludeContestModes ? "Including contest modes." : "Normal mode only.";
-  pnlRankSubheadEl.textContent = `${labels[pnlRankLeaderboardPeriod] || labels.week} ${modeLabel}`;
+  pnlRankSubheadEl.textContent = `${labels[pnlRankLeaderboardPeriod] || labels.week} Contest play included.`;
 }
 
 function renderAdminPnlPlayerFilters(entries = []) {
@@ -26272,7 +26253,7 @@ function getAdminPnlPeriodDescription(period = "week") {
 }
 
 function getAdminPnlSelectionScopeKey() {
-  return `${pnlRankLeaderboardPeriod}:${adminPnlIncludeContestModes ? "contest" : "normal"}`;
+  return pnlRankLeaderboardPeriod;
 }
 
 function buildAdminPnlChartPoints({
@@ -26281,7 +26262,6 @@ function buildAdminPnlChartPoints({
   selectedUserIds = [],
   period = "week",
   gameFilter = "all",
-  includeContestModes = false,
   startAt = null,
   endAt = new Date()
 } = {}) {
@@ -26289,8 +26269,6 @@ function buildAdminPnlChartPoints({
   const filteredHands = handRecords.filter((record) => {
     const userId = record?.user_id;
     if (!selectedSet.has(userId)) return false;
-    const modeType = String(record?.mode_type || "").trim().toLowerCase();
-    if (!includeContestModes && (record?.contest_id || (modeType && modeType !== "normal"))) return false;
     const gameKey = resolveGameKey(record?.game_id);
     return gameFilter === "all" ? gameKey !== GAME_KEYS.SHAPE_TRADERS : gameKey === gameFilter;
   });
@@ -26299,7 +26277,6 @@ function buildAdminPnlChartPoints({
     if (!selectedSet.has(userId)) return false;
     const tradeSide = String(record?.trade_side || "").trim().toLowerCase();
     if (tradeSide !== "sell") return false;
-    if (!includeContestModes && record?.contest_id) return false;
     return gameFilter === "all" || gameFilter === GAME_KEYS.SHAPE_TRADERS;
   });
 
@@ -26348,7 +26325,7 @@ function drawAdminPnlChart() {
     [GAME_KEYS.GUESS_10]: "Guess 10",
     [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders"
   };
-  const modeDescription = adminPnlIncludeContestModes ? "including contest modes" : "normal mode only";
+  const modeDescription = "contest play included";
 
   const emptyState = () => {
     const rect = adminPnlChartCanvas.getBoundingClientRect();
@@ -26383,7 +26360,6 @@ function drawAdminPnlChart() {
     selectedUserIds: adminPnlChartSelectedUserIds,
     period: pnlRankLeaderboardPeriod,
     gameFilter: adminPnlChartGameFilter,
-    includeContestModes: adminPnlIncludeContestModes,
     startAt: adminPnlChartSource.startAt || null,
     endAt: adminPnlChartSource.endAt || new Date()
   });
@@ -27981,15 +27957,13 @@ async function loadPnlRankings() {
 
     const rankedEntries = Array.from(recordsByUser.entries())
       .map(([userId, userRecords]) => {
-        const buckets = buildRealizedPnlBucketsFromRawRecords(userRecords.handRecords, userRecords.tradeRecords, {
-          includeContestModes: adminPnlIncludeContestModes
-        });
-        return buckets.reduce((totals, bucket) => ({
+        const buckets = buildRealizedPnlBucketsFromRawRecords(userRecords.handRecords, userRecords.tradeRecords);
+        const totals = buckets.reduce((runningTotals, bucket) => ({
           userId,
-          pnlTotal: roundCurrencyValue(totals.pnlTotal + Number(bucket?.pnlTotal || 0)),
-          pnlRtn: roundCurrencyValue(totals.pnlRtn + Number(bucket?.pnlRtn || 0)),
-          pnlG10: roundCurrencyValue(totals.pnlG10 + Number(bucket?.pnlG10 || 0)),
-          pnlShapeTraders: roundCurrencyValue(totals.pnlShapeTraders + Number(bucket?.pnlShapeTraders || 0))
+          pnlTotal: roundCurrencyValue(runningTotals.pnlTotal + Number(bucket?.pnlTotal || 0)),
+          pnlRtn: roundCurrencyValue(runningTotals.pnlRtn + Number(bucket?.pnlRtn || 0)),
+          pnlG10: roundCurrencyValue(runningTotals.pnlG10 + Number(bucket?.pnlG10 || 0)),
+          pnlShapeTraders: roundCurrencyValue(runningTotals.pnlShapeTraders + Number(bucket?.pnlShapeTraders || 0))
         }), {
           userId,
           pnlTotal: 0,
@@ -27997,15 +27971,12 @@ async function loadPnlRankings() {
           pnlG10: 0,
           pnlShapeTraders: 0
         });
+        return {
+          ...totals,
+          activityBucketCount: buckets.length
+        };
       })
-      .filter((entry) => {
-        const total = Math.abs(Number(entry?.pnlTotal || 0));
-        const detailTotal =
-          Math.abs(Number(entry?.pnlRtn || 0)) +
-          Math.abs(Number(entry?.pnlG10 || 0)) +
-          Math.abs(Number(entry?.pnlShapeTraders || 0));
-        return total > 0 || detailTotal > 0;
-      })
+      .filter((entry) => Number(entry?.activityBucketCount || 0) > 0)
       .sort((a, b) => {
         if ((b.pnlTotal || 0) !== (a.pnlTotal || 0)) return (b.pnlTotal || 0) - (a.pnlTotal || 0);
         return String(a.userId).localeCompare(String(b.userId));
