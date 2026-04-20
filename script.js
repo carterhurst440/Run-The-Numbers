@@ -4147,7 +4147,6 @@ function hasMatchingShapeTraderBankruptcyActivity({
     return (
       entry.side === "sell"
       && String(entry.reason || "").toLowerCase() === "bankruptcy reset"
-      && entry.netProfit === null
       && entryQuantity === Math.max(0, Math.round(Number(quantity || 0)))
       && entryPrice === 0
     );
@@ -4376,13 +4375,14 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
         if (
           !alreadyLogged
         ) {
+          const bankruptcyLoss = roundCurrencyValue(-1 * Number(holding.averagePrice || 0) * quantity);
           const bankruptcyEntry = createShapeTraderActivityEntry({
             side: "sell",
             assetId,
             quantity,
             totalValue: 0,
             price: 0,
-            netProfit: null,
+            netProfit: bankruptcyLoss,
             reason: "Bankruptcy reset",
             createdAt: structuralEventAt,
             accountValue: nextAccountValue
@@ -6149,9 +6149,7 @@ async function liquidateShapeTraderAsset(
   );
   const quantity = holding.quantity;
   const totalValue = roundCurrencyValue(quantity * currentPrice);
-  const netProfit = isBankruptcyReset
-    ? null
-    : roundCurrencyValue((currentPrice - holding.averagePrice) * quantity);
+  const netProfit = roundCurrencyValue((currentPrice - holding.averagePrice) * quantity);
   const previousBankroll = bankroll;
   const previousHolding = {
     quantity: Number(holding.quantity || 0),
@@ -6166,7 +6164,7 @@ async function liquidateShapeTraderAsset(
     quantity: 0,
     averagePrice: 0
   };
-  if (netProfit !== null) {
+  if (!isBankruptcyReset) {
     applyShapeTraderCarterCashProgress(netProfit);
   }
   if (persistAccount) {
