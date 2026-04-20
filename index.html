@@ -2497,11 +2497,20 @@
                         <button type="button" class="account-chart-period-btn" data-pnl-rank-period="month">1M</button>
                         <button type="button" class="account-chart-period-btn" data-pnl-rank-period="year">1Y</button>
                       </div>
-                      <div class="account-chart-games chart-filters admin-pnl-chart-games">
-                        <button type="button" class="account-chart-game-btn active" data-admin-pnl-game="all">All</button>
-                        <button type="button" class="account-chart-game-btn" data-admin-pnl-game="game_001">RTN</button>
-                        <button type="button" class="account-chart-game-btn" data-admin-pnl-game="game_002">G10</button>
-                        <button type="button" class="account-chart-game-btn" data-admin-pnl-game="shape_traders">ST</button>
+                      <div class="admin-pnl-toolbar-actions">
+                        <label class="advanced-toggle admin-pnl-mode-toggle" id="admin-pnl-contest-toggle-wrap">
+                          <input type="checkbox" id="admin-pnl-contest-toggle" aria-checked="false" />
+                          <span class="toggle-label">Include Contest Modes</span>
+                          <span class="toggle-visual" aria-hidden="true">
+                            <span class="toggle-thumb"></span>
+                          </span>
+                        </label>
+                        <div class="account-chart-games chart-filters admin-pnl-chart-games">
+                          <button type="button" class="account-chart-game-btn active" data-admin-pnl-game="all">All</button>
+                          <button type="button" class="account-chart-game-btn" data-admin-pnl-game="game_001">RTN</button>
+                          <button type="button" class="account-chart-game-btn" data-admin-pnl-game="game_002">G10</button>
+                          <button type="button" class="account-chart-game-btn" data-admin-pnl-game="shape_traders">ST</button>
+                        </div>
                       </div>
                     </div>
                     <div class="most-active-trend-toolbar admin-pnl-player-toolbar">

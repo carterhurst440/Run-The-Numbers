@@ -15097,6 +15097,11 @@ const adminPnlSubheadEl = document.getElementById("admin-pnl-subhead");
 const adminPnlTooltip = document.getElementById("admin-pnl-tooltip");
 const adminPnlTooltipDateEl = document.getElementById("admin-pnl-tooltip-date");
 const adminPnlTooltipValueEl = document.getElementById("admin-pnl-tooltip-value");
+const adminPnlContestToggle = document.getElementById("admin-pnl-contest-toggle");
+const adminPnlContestToggleWrap =
+  adminPnlContestToggle instanceof HTMLInputElement
+    ? adminPnlContestToggle.closest(".advanced-toggle")
+    : null;
 const adminPnlGameFilterButtons = Array.from(document.querySelectorAll("[data-admin-pnl-game]"));
 const adminPnlPlayerFiltersEl = document.getElementById("admin-pnl-player-filters");
 const adminPnlSelectAllButton = document.getElementById("admin-pnl-select-all");
@@ -24404,6 +24409,14 @@ pnlRankFilterButtons.forEach((button) => {
   });
 });
 
+if (adminPnlContestToggle instanceof HTMLInputElement) {
+  adminPnlContestToggle.addEventListener("change", () => {
+    adminPnlIncludeContestModes = adminPnlContestToggle.checked;
+    updatePnlRankFilterUI();
+    loadPnlRankings();
+  });
+}
+
 adminPnlGameFilterButtons.forEach((button) => {
   button.addEventListener("click", () => {
     adminPnlChartGameFilter = normalizeBankrollChartGameFilter(button.dataset.adminPnlGame || "all");
@@ -25673,6 +25686,7 @@ let analyticsPnlRankVisibleCount = 10;
 let adminPnlChartGameFilter = "all";
 let adminPnlChartSelectedUserIds = [];
 let adminPnlChartSelectionPeriod = "";
+let adminPnlIncludeContestModes = false;
 let adminPnlChartHoverBars = [];
 let adminPnlChartSource = null;
 let mostActiveTrendChartInstance = null;
@@ -25803,10 +25817,15 @@ function getAnalyticsDayRange(dateInput) {
 let activePlayerBreakdownUserId = null;
 let activePlayerBreakdownName = "";
 let playerBreakdownPeriod = "year";
+let analyticsPlayerBreakdownRequestId = 0;
 const analyticsProfileCache = new Map();
 const ANALYTICS_ACTIVITY_PAGE_SIZE = 10;
 
-function buildRealizedPnlBucketsFromRawRecords(handRecords = [], tradeRecords = []) {
+function buildRealizedPnlBucketsFromRawRecords(
+  handRecords = [],
+  tradeRecords = [],
+  { includeContestModes = false } = {}
+) {
   const buckets = new Map();
   const ensureDay = (dayKey, createdAt) => {
     if (!buckets.has(dayKey)) {
@@ -25824,7 +25843,7 @@ function buildRealizedPnlBucketsFromRawRecords(handRecords = [], tradeRecords = 
 
   handRecords.forEach((hand) => {
     const modeType = String(hand?.mode_type || "").trim().toLowerCase();
-    if (hand?.contest_id || (modeType && modeType !== "normal")) {
+    if (!includeContestModes && (hand?.contest_id || (modeType && modeType !== "normal"))) {
       return;
     }
     const dayKey = formatAnalyticsDateKey(hand?.created_at);
@@ -25841,7 +25860,10 @@ function buildRealizedPnlBucketsFromRawRecords(handRecords = [], tradeRecords = 
 
   tradeRecords.forEach((trade) => {
     const tradeSide = String(trade?.trade_side || "").trim().toLowerCase();
-    if (trade?.contest_id || tradeSide !== "sell") {
+    if (tradeSide !== "sell") {
+      return;
+    }
+    if (!includeContestModes && trade?.contest_id) {
       return;
     }
     const dayKey = formatAnalyticsDateKey(trade?.executed_at);
@@ -26135,6 +26157,12 @@ function updatePnlRankFilterUI() {
     button.classList.toggle("active", button.dataset.pnlRankPeriod === pnlRankLeaderboardPeriod);
   });
 
+  if (adminPnlContestToggle instanceof HTMLInputElement) {
+    adminPnlContestToggle.checked = adminPnlIncludeContestModes;
+    adminPnlContestToggle.setAttribute("aria-checked", adminPnlIncludeContestModes ? "true" : "false");
+  }
+  adminPnlContestToggleWrap?.classList.toggle("is-active", adminPnlIncludeContestModes);
+
   if (!pnlRankSubheadEl) return;
 
   const labels = {
@@ -26145,7 +26173,8 @@ function updatePnlRankFilterUI() {
     year: "Ranked by realized P&L in the last year."
   };
 
-  pnlRankSubheadEl.textContent = labels[pnlRankLeaderboardPeriod] || labels.week;
+  const modeLabel = adminPnlIncludeContestModes ? "Including contest modes." : "Normal mode only.";
+  pnlRankSubheadEl.textContent = `${labels[pnlRankLeaderboardPeriod] || labels.week} ${modeLabel}`;
 }
 
 function renderAdminPnlPlayerFilters(entries = []) {
@@ -26248,6 +26277,7 @@ function buildAdminPnlChartPoints({
   selectedUserIds = [],
   period = "week",
   gameFilter = "all",
+  includeContestModes = false,
   startAt = null,
   endAt = new Date()
 } = {}) {
@@ -26256,7 +26286,7 @@ function buildAdminPnlChartPoints({
     const userId = record?.user_id;
     if (!selectedSet.has(userId)) return false;
     const modeType = String(record?.mode_type || "").trim().toLowerCase();
-    if (record?.contest_id || (modeType && modeType !== "normal")) return false;
+    if (!includeContestModes && (record?.contest_id || (modeType && modeType !== "normal"))) return false;
     const gameKey = resolveGameKey(record?.game_id);
     return gameFilter === "all" ? gameKey !== GAME_KEYS.SHAPE_TRADERS : gameKey === gameFilter;
   });
@@ -26264,7 +26294,8 @@ function buildAdminPnlChartPoints({
     const userId = record?.user_id;
     if (!selectedSet.has(userId)) return false;
     const tradeSide = String(record?.trade_side || "").trim().toLowerCase();
-    if (record?.contest_id || tradeSide !== "sell") return false;
+    if (tradeSide !== "sell") return false;
+    if (!includeContestModes && record?.contest_id) return false;
     return gameFilter === "all" || gameFilter === GAME_KEYS.SHAPE_TRADERS;
   });
 
@@ -26313,6 +26344,7 @@ function drawAdminPnlChart() {
     [GAME_KEYS.GUESS_10]: "Guess 10",
     [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders"
   };
+  const modeDescription = adminPnlIncludeContestModes ? "including contest modes" : "normal mode only";
 
   const emptyState = () => {
     const rect = adminPnlChartCanvas.getBoundingClientRect();
@@ -26332,7 +26364,7 @@ function drawAdminPnlChart() {
       adminPnlChangeEl.classList.remove("is-negative");
     }
     if (adminPnlSubheadEl) {
-      adminPnlSubheadEl.textContent = `No realized P&L recorded for ${gameLabels[adminPnlChartGameFilter] || gameLabels.all} in ${getAdminPnlPeriodDescription(pnlRankLeaderboardPeriod)}.`;
+      adminPnlSubheadEl.textContent = `No realized P&L recorded for ${gameLabels[adminPnlChartGameFilter] || gameLabels.all} in ${getAdminPnlPeriodDescription(pnlRankLeaderboardPeriod)} with ${modeDescription}.`;
     }
   };
 
@@ -26347,6 +26379,7 @@ function drawAdminPnlChart() {
     selectedUserIds: adminPnlChartSelectedUserIds,
     period: pnlRankLeaderboardPeriod,
     gameFilter: adminPnlChartGameFilter,
+    includeContestModes: adminPnlIncludeContestModes,
     startAt: adminPnlChartSource.startAt || null,
     endAt: adminPnlChartSource.endAt || new Date()
   });
@@ -26368,8 +26401,8 @@ function drawAdminPnlChart() {
   }
   if (adminPnlSubheadEl) {
     adminPnlSubheadEl.textContent = hasFilterData
-      ? `${gameLabels[adminPnlChartGameFilter] || gameLabels.all} · ${getAdminPnlPeriodDescription(pnlRankLeaderboardPeriod)} · ${selectedCount.toLocaleString()} selected player${selectedCount === 1 ? "" : "s"}`
-      : `No realized P&L recorded for ${gameLabels[adminPnlChartGameFilter] || gameLabels.all} in ${getAdminPnlPeriodDescription(pnlRankLeaderboardPeriod)}.`;
+      ? `${gameLabels[adminPnlChartGameFilter] || gameLabels.all} · ${getAdminPnlPeriodDescription(pnlRankLeaderboardPeriod)} · ${selectedCount.toLocaleString()} selected player${selectedCount === 1 ? "" : "s"} · ${modeDescription}`
+      : `No realized P&L recorded for ${gameLabels[adminPnlChartGameFilter] || gameLabels.all} in ${getAdminPnlPeriodDescription(pnlRankLeaderboardPeriod)} with ${modeDescription}.`;
   }
 
   const rect = adminPnlChartCanvas.getBoundingClientRect();
@@ -27559,7 +27592,7 @@ async function loadPlayerModeBreakdownFallback(userId, period = "year") {
   let normalHands = 0;
   records.forEach((row) => {
     const modeType = String(row?.mode_type || "").trim().toLowerCase();
-    if (row?.contest_id || modeType === "contest") {
+    if (row?.contest_id || (modeType && modeType !== "normal")) {
       contestHands += 1;
     } else {
       normalHands += 1;
@@ -27617,7 +27650,7 @@ async function loadPlayerModeBreakdownFromAdminRaw(userId, period = "year") {
   let normalHands = 0;
   handRecords.forEach((row) => {
     const modeType = String(row?.mode_type || "").trim().toLowerCase();
-    if (row?.contest_id || modeType === "contest") {
+    if (row?.contest_id || (modeType && modeType !== "normal")) {
       contestHands += 1;
     } else {
       normalHands += 1;
@@ -27650,58 +27683,11 @@ async function loadPlayerModeBreakdownFromAdminRaw(userId, period = "year") {
 }
 
 async function renderPlayerModeBreakdown(userId, period = "year") {
+  const requestId = ++analyticsPlayerBreakdownRequestId;
   let modeRows = [];
   let gameRows = [];
   let modeTotalHands = 0;
   let gameTotalHands = 0;
-  try {
-    const data = await invokeAdminAnalytics("player_mode_breakdown", {
-      userId,
-      period
-    });
-    modeRows = Array.isArray(data?.modeRows) ? data.modeRows : [];
-    gameRows = Array.isArray(data?.gameRows) ? data.gameRows : [];
-    modeTotalHands = Math.max(0, Number(data?.modeTotalHands || 0));
-    gameTotalHands = Math.max(0, Number(data?.gameTotalHands || 0));
-    const hasShapeTradersRow = gameRows.some((row) => resolveGameKey(row?.key || row?.label) === GAME_KEYS.SHAPE_TRADERS || /shape traders/i.test(String(row?.label || "")));
-    if ((!modeRows.length && !gameRows.length && modeTotalHands === 0 && gameTotalHands === 0) || !hasShapeTradersRow) {
-      try {
-        const adminRaw = await loadPlayerModeBreakdownFromAdminRaw(userId, period);
-        modeRows = adminRaw.modeRows;
-        gameRows = adminRaw.gameRows;
-        modeTotalHands = adminRaw.modeTotalHands;
-        gameTotalHands = adminRaw.gameTotalHands;
-      } catch (adminRawError) {
-        console.warn("[RTN] admin raw breakdown compatibility fallback failed", adminRawError);
-        if (currentUser?.id === userId) {
-          const fallback = await loadPlayerModeBreakdownFallback(userId, period);
-          modeRows = fallback.modeRows;
-          gameRows = fallback.gameRows;
-          modeTotalHands = fallback.modeTotalHands;
-          gameTotalHands = fallback.gameTotalHands;
-        }
-      }
-    }
-  } catch (error) {
-    console.warn("[RTN] player breakdown edge fallback", error);
-    try {
-      const adminRaw = await loadPlayerModeBreakdownFromAdminRaw(userId, period);
-      modeRows = adminRaw.modeRows;
-      gameRows = adminRaw.gameRows;
-      modeTotalHands = adminRaw.modeTotalHands;
-      gameTotalHands = adminRaw.gameTotalHands;
-    } catch (adminRawError) {
-      console.warn("[RTN] admin raw breakdown fallback failed", adminRawError);
-      if (currentUser?.id === userId) {
-        const fallback = await loadPlayerModeBreakdownFallback(userId, period);
-        modeRows = fallback.modeRows;
-        gameRows = fallback.gameRows;
-        modeTotalHands = fallback.modeTotalHands;
-        gameTotalHands = fallback.gameTotalHands;
-      }
-    }
-  }
-
   if (playerModeBreakdownSummaryEl) {
     const labelsByPeriod = {
       hour: `Mode and game events in the last hour.`,
@@ -27712,6 +27698,51 @@ async function renderPlayerModeBreakdown(userId, period = "year") {
       year: `Mode and game events in the last year.`
     };
     playerModeBreakdownSummaryEl.textContent = labelsByPeriod[period] || labelsByPeriod.year;
+  }
+  if (playerModeBreakdownModeBodyEl) {
+    playerModeBreakdownModeBodyEl.innerHTML = "";
+  }
+  if (playerModeBreakdownGameBodyEl) {
+    playerModeBreakdownGameBodyEl.innerHTML = "";
+  }
+  if (playerModeBreakdownModeTotalEl) {
+    playerModeBreakdownModeTotalEl.textContent = "—";
+  }
+  if (playerModeBreakdownGameTotalEl) {
+    playerModeBreakdownGameTotalEl.textContent = "—";
+  }
+
+  try {
+    const adminRaw = await loadPlayerModeBreakdownFromAdminRaw(userId, period);
+    modeRows = adminRaw.modeRows;
+    gameRows = adminRaw.gameRows;
+    modeTotalHands = adminRaw.modeTotalHands;
+    gameTotalHands = adminRaw.gameTotalHands;
+  } catch (adminRawError) {
+    console.warn("[RTN] player breakdown admin raw path failed", adminRawError);
+    try {
+      const data = await invokeAdminAnalytics("player_mode_breakdown", {
+        userId,
+        period
+      });
+      modeRows = Array.isArray(data?.modeRows) ? data.modeRows : [];
+      gameRows = Array.isArray(data?.gameRows) ? data.gameRows : [];
+      modeTotalHands = Math.max(0, Number(data?.modeTotalHands || 0));
+      gameTotalHands = Math.max(0, Number(data?.gameTotalHands || 0));
+    } catch (error) {
+      console.warn("[RTN] player breakdown edge fallback", error);
+      if (currentUser?.id === userId) {
+        const fallback = await loadPlayerModeBreakdownFallback(userId, period);
+        modeRows = fallback.modeRows;
+        gameRows = fallback.gameRows;
+        modeTotalHands = fallback.modeTotalHands;
+        gameTotalHands = fallback.gameTotalHands;
+      }
+    }
+  }
+
+  if (requestId !== analyticsPlayerBreakdownRequestId || userId !== activePlayerBreakdownUserId || period !== playerBreakdownPeriod) {
+    return;
   }
 
   playerModeBreakdownModeBodyEl.innerHTML = "";
@@ -27946,7 +27977,9 @@ async function loadPnlRankings() {
 
     const rankedEntries = Array.from(recordsByUser.entries())
       .map(([userId, userRecords]) => {
-        const buckets = buildRealizedPnlBucketsFromRawRecords(userRecords.handRecords, userRecords.tradeRecords);
+        const buckets = buildRealizedPnlBucketsFromRawRecords(userRecords.handRecords, userRecords.tradeRecords, {
+          includeContestModes: adminPnlIncludeContestModes
+        });
         return buckets.reduce((totals, bucket) => ({
           userId,
           pnlTotal: roundCurrencyValue(totals.pnlTotal + Number(bucket?.pnlTotal || 0)),

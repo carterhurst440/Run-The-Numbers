@@ -7669,7 +7669,6 @@ body.theme-angelic {
   justify-content: center;
   padding: 0;
   box-shadow: var(--icon-button-shadow);
-  margin-left: clamp(0.4rem, 1vw, 0.75rem);
 }
 
 .menu-toggle:hover,
@@ -11455,6 +11454,19 @@ body.play-assistant-open .play-assistant-fab {
 
 .admin-pnl-chart-card {
   margin-bottom: 1rem;
+}
+
+.admin-pnl-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-pnl-mode-toggle {
+  min-height: 2.4rem;
+  white-space: nowrap;
 }
 
 .admin-pnl-player-toolbar {
