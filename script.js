@@ -3567,6 +3567,35 @@ async function adminSetShapeTraderMarketPrice(targetPrice, assetId = shapeTrader
   }
 }
 
+function renderShapeTradersAdminAssetSelector() {
+  if (!shapeTradersAdminAssetSelectorEl) return;
+  shapeTradersAdminAssetSelectorEl.innerHTML = "";
+  SHAPE_TRADERS_ASSETS.forEach((asset) => {
+    const button = document.createElement("button");
+    const selectAsset = () => {
+      if (shapeTradersAdminSelectedAsset === asset.id) return;
+      shapeTradersAdminSelectedAsset = asset.id;
+      renderShapeTradersAdminAssetSelector();
+    };
+    button.type = "button";
+    button.className = `secondary shape-traders-asset-button ${shapeTradersAdminSelectedAsset === asset.id ? "active" : ""}`;
+    button.dataset.shapeTraderAsset = asset.id;
+    button.setAttribute("aria-pressed", shapeTradersAdminSelectedAsset === asset.id ? "true" : "false");
+    button.setAttribute("aria-label", `Admin target ${asset.label}`);
+    button.setAttribute("title", asset.label);
+    button.innerHTML = `<span class="shape-traders-shape-icon shape-${asset.icon}"></span>`;
+    button.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      selectAsset();
+    });
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      selectAsset();
+    });
+    shapeTradersAdminAssetSelectorEl.appendChild(button);
+  });
+}
+
 function isShapeTraderWindowCurrentlyActive() {
   if (typeof document === "undefined") {
     return true;
@@ -4841,7 +4870,8 @@ async function applyShapeTraderCard(card) {
   shapeTradersCurrentCard = card;
 
   affectedAssets.forEach((assetId) => {
-    if (shapeTradersCurrentPrices[assetId] >= 1) {
+    const transition = transitions.find((entry) => entry.assetId === assetId);
+    if (!transition?.bankruptcyTriggered) {
       return;
     }
 
@@ -5969,6 +5999,7 @@ async function liquidateShapeTraderAsset(
 ) {
   const holding = shapeTradersHoldings[assetId];
   if (!holding || holding.quantity <= 0) return null;
+  const isBankruptcyReset = String(reason || "").toLowerCase() === "bankruptcy reset";
 
   const currentPrice = roundCurrencyValue(
     priceOverride === null
@@ -5977,7 +6008,9 @@ async function liquidateShapeTraderAsset(
   );
   const quantity = holding.quantity;
   const totalValue = roundCurrencyValue(quantity * currentPrice);
-  const netProfit = roundCurrencyValue((currentPrice - holding.averagePrice) * quantity);
+  const netProfit = isBankruptcyReset
+    ? null
+    : roundCurrencyValue((currentPrice - holding.averagePrice) * quantity);
   const previousBankroll = bankroll;
   const previousHolding = {
     quantity: Number(holding.quantity || 0),
@@ -5992,7 +6025,9 @@ async function liquidateShapeTraderAsset(
     quantity: 0,
     averagePrice: 0
   };
-  applyShapeTraderCarterCashProgress(netProfit);
+  if (netProfit !== null) {
+    applyShapeTraderCarterCashProgress(netProfit);
+  }
   if (persistAccount) {
     try {
       await persistBankroll({
@@ -6930,6 +6965,7 @@ function updateAdminVisibility(user = currentUser) {
   if (shapeTradersAdminTestControls) {
     if (adminVisible) {
       shapeTradersAdminTestControls.removeAttribute("hidden");
+      renderShapeTradersAdminAssetSelector();
     } else {
       shapeTradersAdminTestControls.setAttribute("hidden", "");
     }
@@ -15268,6 +15304,7 @@ const shapeTradersTradeHintEl = document.querySelector(".shape-traders-trade-she
 const shapeTradersLiquidateButton = document.getElementById("shape-traders-liquidate-nav");
 const shapeTradersMarketResetButton = document.getElementById("shape-traders-market-reset");
 const shapeTradersAdminTestControls = document.getElementById("shape-traders-admin-test-controls");
+const shapeTradersAdminAssetSelectorEl = document.getElementById("shape-traders-admin-asset-selector");
 const shapeTradersAdminPriceInput = document.getElementById("shape-traders-admin-price-input");
 const shapeTradersSetPrice999Button = document.getElementById("shape-traders-set-price-999");
 const shapeTradersSetPrice101Button = document.getElementById("shape-traders-set-price-101");
@@ -16198,6 +16235,7 @@ const SHAPE_TRADERS_MACRO_CARDS = [
   assetId: null
 }));
 let shapeTradersSelectedAsset = SHAPE_TRADERS_ASSETS[0].id;
+let shapeTradersAdminSelectedAsset = SHAPE_TRADERS_ASSETS[0].id;
 let shapeTradersHoldings = createEmptyShapeTraderHoldings();
 let shapeTradersActivity = [];
 let shapeTradersCurrentPrices = createInitialShapeTraderPrices();
@@ -29030,7 +29068,7 @@ if (shapeTradersSetPrice999Button) {
     if (shapeTradersAdminPriceInput) {
       shapeTradersAdminPriceInput.value = "999.00";
     }
-    void adminSetShapeTraderMarketPrice(999);
+    void adminSetShapeTraderMarketPrice(999, shapeTradersAdminSelectedAsset);
   });
 }
 
@@ -29039,13 +29077,13 @@ if (shapeTradersSetPrice101Button) {
     if (shapeTradersAdminPriceInput) {
       shapeTradersAdminPriceInput.value = "1.01";
     }
-    void adminSetShapeTraderMarketPrice(1.01);
+    void adminSetShapeTraderMarketPrice(1.01, shapeTradersAdminSelectedAsset);
   });
 }
 
 if (shapeTradersApplyPriceButton) {
   shapeTradersApplyPriceButton.addEventListener("click", () => {
-    void adminSetShapeTraderMarketPrice(shapeTradersAdminPriceInput?.value);
+    void adminSetShapeTraderMarketPrice(shapeTradersAdminPriceInput?.value, shapeTradersAdminSelectedAsset);
   });
 }
 
