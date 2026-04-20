@@ -4154,6 +4154,71 @@ function hasMatchingShapeTraderBankruptcyActivity({
   });
 }
 
+async function claimShapeTraderStructuralEvent({
+  drawId,
+  assetId,
+  eventType
+}) {
+  if (!supabase || !currentUser?.id || !shapeTradersStructuralEventPersistenceAvailable) {
+    return {
+      claimed: true,
+      durable: false
+    };
+  }
+
+  const safeDrawId = Math.max(0, Math.floor(Number(drawId || 0)));
+  if (!safeDrawId || !assetId || !eventType) {
+    return {
+      claimed: true,
+      durable: false
+    };
+  }
+
+  const payload = {
+    user_id: currentUser.id,
+    game_id: GAME_KEYS.SHAPE_TRADERS,
+    contest_id: getShapeTraderCurrentContestId(),
+    account_scope: getShapeTraderAccountScope(),
+    draw_id: safeDrawId,
+    shape: assetId,
+    event_type: eventType
+  };
+
+  try {
+    const { error } = await supabase
+      .from("shape_trader_structural_events_applied")
+      .insert(payload);
+
+    if (error) {
+      if (error.code === "23505") {
+        return {
+          claimed: false,
+          durable: true
+        };
+      }
+      if (isMissingRelationError(error, "shape_trader_structural_events_applied")) {
+        shapeTradersStructuralEventPersistenceAvailable = false;
+        return {
+          claimed: true,
+          durable: false
+        };
+      }
+      throw error;
+    }
+
+    return {
+      claimed: true,
+      durable: true
+    };
+  } catch (error) {
+    console.warn("[RTN] Unable to claim Shape Traders structural event", error);
+    return {
+      claimed: true,
+      durable: false
+    };
+  }
+}
+
 async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeTradersLastPersistedAccountActiveAt) {
   if (!supabase || !currentUser?.id || !shapeTradersStatePersistenceAvailable) {
     return false;
@@ -4209,7 +4274,7 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
   let latestProcessedDrawId = startDrawId;
   let activityBackfilled = false;
   const pendingActivityWrites = [];
-  rows.forEach((row) => {
+  for (const row of rows) {
     if (row?.draw_id !== undefined && row?.draw_id !== null) {
       latestProcessedDrawId = Math.max(latestProcessedDrawId, Math.floor(Number(row.draw_id || 0)));
     }
@@ -4217,37 +4282,48 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
       latestProcessedAt = row.drawn_at;
     }
     const tags = Array.isArray(row?.bankruptcy_split) ? row.bankruptcy_split : [];
-    tags.forEach((tag) => {
+    for (const tag of tags) {
       const [assetId, eventType] = String(tag || "").split("_");
       if (!assetId || !eventType || !shapeTradersHoldings[assetId]) {
-        return;
+        continue;
       }
       const holding = shapeTradersHoldings[assetId];
       const quantity = Math.max(0, Math.round(Number(holding?.quantity || 0)));
       if (quantity <= 0) {
-        return;
+        continue;
       }
       if (eventType === "split") {
+        const claimResult = await claimShapeTraderStructuralEvent({
+          drawId: row?.draw_id,
+          assetId,
+          eventType: "split"
+        });
+        if (!claimResult.claimed) {
+          continue;
+        }
         const splitPrice = roundCurrencyValue(Number(row?.[getShapeTraderDrawPriceFieldName(assetId, "new")] || 0));
         const previousPrice = roundCurrencyValue(splitPrice * SHAPE_TRADERS_SPLIT_FACTOR);
         const legacyPreviousPrice = roundCurrencyValue(Number(row?.[getShapeTraderDrawPriceFieldName(assetId, "previous")] || 0));
         const postSplitQuantity = quantity * SHAPE_TRADERS_SPLIT_FACTOR;
         const nextAccountValue = roundCurrencyValue(getShapeTraderAccountValue());
         const structuralEventAt = getShapeTraderActivityTimestamp(row?.drawn_at || new Date().toISOString());
+        const alreadyLogged = claimResult.durable
+          ? false
+          : hasMatchingShapeTraderStructuralActivity({
+              assetId,
+              drawnAt: row?.drawn_at,
+              preSplitQuantity: quantity,
+              preSplitPrice: previousPrice,
+              legacyPreSplitPrice: legacyPreviousPrice,
+              postSplitQuantity,
+              postSplitPrice: splitPrice
+            });
         if (
           Number.isFinite(previousPrice)
           && previousPrice > 0
           && Number.isFinite(splitPrice)
           && splitPrice > 0
-          && !hasMatchingShapeTraderStructuralActivity({
-            assetId,
-            drawnAt: row?.drawn_at,
-            preSplitQuantity: quantity,
-            preSplitPrice: previousPrice,
-            legacyPreSplitPrice: legacyPreviousPrice,
-            postSplitQuantity,
-            postSplitPrice: splitPrice
-          })
+          && !alreadyLogged
         ) {
           const sellEntry = createShapeTraderActivityEntry({
             side: "sell",
@@ -4280,14 +4356,25 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
         };
         changed = true;
       } else if (eventType === "bankruptcy") {
+        const claimResult = await claimShapeTraderStructuralEvent({
+          drawId: row?.draw_id,
+          assetId,
+          eventType: "bankruptcy"
+        });
+        if (!claimResult.claimed) {
+          continue;
+        }
         const structuralEventAt = getShapeTraderActivityTimestamp(row?.drawn_at || new Date().toISOString());
         const nextAccountValue = roundCurrencyValue(getShapeTraderAccountValue());
+        const alreadyLogged = claimResult.durable
+          ? false
+          : hasMatchingShapeTraderBankruptcyActivity({
+              assetId,
+              drawnAt: row?.drawn_at,
+              quantity
+            });
         if (
-          !hasMatchingShapeTraderBankruptcyActivity({
-            assetId,
-            drawnAt: row?.drawn_at,
-            quantity
-          })
+          !alreadyLogged
         ) {
           const bankruptcyEntry = createShapeTraderActivityEntry({
             side: "sell",
@@ -4311,8 +4398,8 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
         };
         changed = true;
       }
-    });
-  });
+    }
+  }
 
   if (!changed) {
     return false;
@@ -16307,6 +16394,7 @@ let shapeTradersTradeActionInFlight = false;
 let shapeTradersTradePersistenceAvailable = true;
 let shapeTradersStatePersistenceAvailable = true;
 let shapeTradersDrawPersistenceAvailable = true;
+let shapeTradersStructuralEventPersistenceAvailable = true;
 let shapeTradersLastGlobalSyncAt = 0;
 let shapeTradersLastHeartbeatAt = 0;
 let shapeTradersLastPersistedAccountActiveAt = null;

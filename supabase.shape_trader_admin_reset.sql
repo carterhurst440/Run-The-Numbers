@@ -10,6 +10,7 @@ begin
   delete from public.shape_trader_trades where true;
   delete from public.shape_trader_positions_current where true;
   delete from public.shape_trader_accounts_current where true;
+  delete from public.shape_trader_structural_events_applied where true;
 
   insert into public.shape_trader_market_current (
     shape,

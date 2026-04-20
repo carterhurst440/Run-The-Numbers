@@ -169,6 +169,7 @@ const mockDatabase = {
   shape_trader_trades: [],
   shape_trader_accounts_current: [],
   shape_trader_positions_current: [],
+  shape_trader_structural_events_applied: [],
   themes: [],
   contests: [],
   contest_entries: []
