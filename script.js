@@ -4384,21 +4384,22 @@ function setShapeTraderStatus(message) {
 
 function setShapeTraderResetProgress(message, { buttonLabel = "RESET", disableControls = false } = {}) {
   setShapeTraderStatus(message);
+  const adminControlsDisabled = disableControls || !isAdmin();
   if (shapeTradersMarketResetButton) {
     shapeTradersMarketResetButton.textContent = buttonLabel;
     shapeTradersMarketResetButton.disabled = disableControls;
   }
   if (shapeTradersSetPrice999Button) {
-    shapeTradersSetPrice999Button.disabled = disableControls;
+    shapeTradersSetPrice999Button.disabled = adminControlsDisabled;
   }
   if (shapeTradersSetPrice101Button) {
-    shapeTradersSetPrice101Button.disabled = disableControls;
+    shapeTradersSetPrice101Button.disabled = adminControlsDisabled;
   }
   if (shapeTradersApplyPriceButton) {
-    shapeTradersApplyPriceButton.disabled = disableControls;
+    shapeTradersApplyPriceButton.disabled = adminControlsDisabled;
   }
   if (shapeTradersAdminPriceInput) {
-    shapeTradersAdminPriceInput.disabled = disableControls;
+    shapeTradersAdminPriceInput.disabled = adminControlsDisabled;
   }
   if (shapeTradersBuyButton) {
     shapeTradersBuyButton.disabled = disableControls || shapeTradersBuyButton.disabled;
@@ -4415,21 +4416,22 @@ function setShapeTraderResetProgress(message, { buttonLabel = "RESET", disableCo
 }
 
 function clearShapeTraderResetProgress() {
+  const adminVisible = isAdmin();
   if (shapeTradersMarketResetButton) {
     shapeTradersMarketResetButton.textContent = "RESET";
     shapeTradersMarketResetButton.disabled = false;
   }
   if (shapeTradersSetPrice999Button) {
-    shapeTradersSetPrice999Button.disabled = false;
+    shapeTradersSetPrice999Button.disabled = !adminVisible;
   }
   if (shapeTradersSetPrice101Button) {
-    shapeTradersSetPrice101Button.disabled = false;
+    shapeTradersSetPrice101Button.disabled = !adminVisible;
   }
   if (shapeTradersApplyPriceButton) {
-    shapeTradersApplyPriceButton.disabled = false;
+    shapeTradersApplyPriceButton.disabled = !adminVisible;
   }
   if (shapeTradersAdminPriceInput) {
-    shapeTradersAdminPriceInput.disabled = false;
+    shapeTradersAdminPriceInput.disabled = !adminVisible;
   }
   if (shapeTradersLiquidateButton) {
     shapeTradersLiquidateButton.disabled = false;
@@ -4515,6 +4517,10 @@ async function adminSetShapeTraderMarketPrice(targetPrice, assetId = shapeTrader
 
 function renderShapeTradersAdminAssetSelector() {
   if (!shapeTradersAdminAssetSelectorEl) return;
+  if (!isAdmin()) {
+    shapeTradersAdminAssetSelectorEl.innerHTML = "";
+    return;
+  }
   shapeTradersAdminAssetSelectorEl.innerHTML = "";
   SHAPE_TRADERS_ASSETS.forEach((asset) => {
     const button = document.createElement("button");
@@ -6447,17 +6453,18 @@ function renderShapeTradersControls(now = Date.now()) {
       shapeTradersTradeActionInFlight ||
       !shapeTradersHasOpenHoldings();
   }
+  const adminControlsDisabled = !isAdmin() || shapeTradersResetInFlight || shapeTradersTradeActionInFlight;
   if (shapeTradersSetPrice999Button) {
-    shapeTradersSetPrice999Button.disabled = shapeTradersResetInFlight || shapeTradersTradeActionInFlight;
+    shapeTradersSetPrice999Button.disabled = adminControlsDisabled;
   }
   if (shapeTradersSetPrice101Button) {
-    shapeTradersSetPrice101Button.disabled = shapeTradersResetInFlight || shapeTradersTradeActionInFlight;
+    shapeTradersSetPrice101Button.disabled = adminControlsDisabled;
   }
   if (shapeTradersApplyPriceButton) {
-    shapeTradersApplyPriceButton.disabled = shapeTradersResetInFlight || shapeTradersTradeActionInFlight;
+    shapeTradersApplyPriceButton.disabled = adminControlsDisabled;
   }
   if (shapeTradersAdminPriceInput) {
-    shapeTradersAdminPriceInput.disabled = shapeTradersResetInFlight || shapeTradersTradeActionInFlight;
+    shapeTradersAdminPriceInput.disabled = adminControlsDisabled;
   }
   if (shapeTradersInactivityEl) {
     const hasOpenHoldings = shapeTradersHasOpenHoldings();
@@ -8050,9 +8057,27 @@ function updateAdminVisibility(user = currentUser) {
   if (shapeTradersAdminTestControls) {
     if (adminVisible) {
       shapeTradersAdminTestControls.removeAttribute("hidden");
+      shapeTradersAdminTestControls.removeAttribute("aria-hidden");
       renderShapeTradersAdminAssetSelector();
     } else {
       shapeTradersAdminTestControls.setAttribute("hidden", "");
+      shapeTradersAdminTestControls.setAttribute("aria-hidden", "true");
+      if (shapeTradersAdminAssetSelectorEl) {
+        shapeTradersAdminAssetSelectorEl.innerHTML = "";
+      }
+      if (shapeTradersAdminPriceInput) {
+        shapeTradersAdminPriceInput.value = "";
+        shapeTradersAdminPriceInput.disabled = true;
+      }
+      if (shapeTradersSetPrice999Button) {
+        shapeTradersSetPrice999Button.disabled = true;
+      }
+      if (shapeTradersSetPrice101Button) {
+        shapeTradersSetPrice101Button.disabled = true;
+      }
+      if (shapeTradersApplyPriceButton) {
+        shapeTradersApplyPriceButton.disabled = true;
+      }
     }
   }
   renderGameLogoTargets();

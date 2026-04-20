@@ -1945,6 +1945,10 @@ body[data-app-state="loading"] #app-shell {
   flex-wrap: wrap;
 }
 
+.shape-traders-admin-test-controls[hidden] {
+  display: none !important;
+}
+
 .shape-traders-admin-asset-selector {
   display: flex;
   align-items: center;
