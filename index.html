@@ -2404,38 +2404,6 @@
                 
                 <div class="analytics-overview-chart">
                   <div class="overview-chart-header">
-                    <h3>Total P&amp;L</h3>
-                    <div class="overview-chart-controls">
-                      <div class="chart-filters total-pnl-filters">
-                        <button type="button" class="chart-filter-btn" data-total-pnl-period="hour">1H</button>
-                        <button type="button" class="chart-filter-btn" data-total-pnl-period="day">24H</button>
-                        <button type="button" class="chart-filter-btn" data-total-pnl-period="week">1W</button>
-                        <button type="button" class="chart-filter-btn" data-total-pnl-period="month">1M</button>
-                        <button type="button" class="chart-filter-btn" data-total-pnl-period="90days">3M</button>
-                        <button type="button" class="chart-filter-btn active" data-total-pnl-period="year">1Y</button>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="most-active-trend-toolbar analytics-game-chip-toolbar">
-                    <div class="most-active-player-filter-row">
-                      <div id="total-pnl-game-filters" class="most-active-player-filters" aria-label="Filter total pnl chart games"></div>
-                      <div class="most-active-player-filter-actions">
-                        <button type="button" id="total-pnl-select-all" class="analytics-inline-action">Select All</button>
-                        <button type="button" id="total-pnl-deselect-all" class="analytics-inline-action">Deselect All</button>
-                      </div>
-                    </div>
-                  </div>
-                  <p id="total-pnl-subhead" class="analytics-card-subhead">Platform-wide realized P&amp;L across all players for the selected time window.</p>
-                  <div class="overview-chart-container">
-                    <canvas id="total-pnl-analytics-chart"></canvas>
-                    <div class="overview-chart-loading total-pnl-chart-loading">
-                      <div class="spinner"></div>
-                      <p>Loading total P&amp;L...</p>
-                    </div>
-                  </div>
-                </div>
-                <div class="analytics-overview-chart">
-                  <div class="overview-chart-header">
                     <h3>Hands &amp; Trades</h3>
                     <div class="overview-chart-controls">
                       <div class="chart-filters overview-filters">
@@ -2534,13 +2502,50 @@
                 </div>
                 <div class="analytics-activity-card">
                   <div class="overview-chart-header">
-                    <h3>Best P&amp;L</h3>
-                    <div class="chart-filters activity-filters">
-                      <button type="button" class="chart-filter-btn" data-pnl-rank-period="hour">1H</button>
-                      <button type="button" class="chart-filter-btn" data-pnl-rank-period="day">24H</button>
-                      <button type="button" class="chart-filter-btn active" data-pnl-rank-period="week">1W</button>
-                      <button type="button" class="chart-filter-btn" data-pnl-rank-period="month">1M</button>
-                      <button type="button" class="chart-filter-btn" data-pnl-rank-period="year">1Y</button>
+                    <h3>PNL</h3>
+                  </div>
+                  <div class="account-chart-card admin-pnl-chart-card">
+                    <div class="account-chart-toolbar">
+                      <div class="account-chart-periods chart-filters">
+                        <button type="button" class="account-chart-period-btn" data-pnl-rank-period="hour">1H</button>
+                        <button type="button" class="account-chart-period-btn" data-pnl-rank-period="day">24H</button>
+                        <button type="button" class="account-chart-period-btn active" data-pnl-rank-period="week">1W</button>
+                        <button type="button" class="account-chart-period-btn" data-pnl-rank-period="month">1M</button>
+                        <button type="button" class="account-chart-period-btn" data-pnl-rank-period="year">1Y</button>
+                      </div>
+                      <div class="account-chart-games chart-filters admin-pnl-chart-games">
+                        <button type="button" class="account-chart-game-btn active" data-admin-pnl-game="all">All</button>
+                        <button type="button" class="account-chart-game-btn" data-admin-pnl-game="game_001">RTN</button>
+                        <button type="button" class="account-chart-game-btn" data-admin-pnl-game="game_002">G10</button>
+                        <button type="button" class="account-chart-game-btn" data-admin-pnl-game="shape_traders">ST</button>
+                      </div>
+                    </div>
+                    <div class="most-active-trend-toolbar admin-pnl-player-toolbar">
+                      <div class="most-active-player-filter-row">
+                        <div id="admin-pnl-player-filters" class="most-active-player-filters" aria-label="Filter pnl chart players"></div>
+                        <div class="most-active-player-filter-actions">
+                          <button type="button" id="admin-pnl-select-all" class="analytics-inline-action">Select All</button>
+                          <button type="button" id="admin-pnl-deselect-all" class="analytics-inline-action">Deselect All</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="account-chart-summary">
+                      <p class="account-chart-label">Realized profit &amp; loss</p>
+                      <p class="account-chart-total" id="admin-pnl-total">—</p>
+                      <p class="account-chart-change" id="admin-pnl-change">Loading selected period...</p>
+                      <p class="account-chart-description drawer-subhead" id="admin-pnl-subhead">Daily realized P&amp;L across the selected players.</p>
+                    </div>
+                    <div class="bankroll-chart-wrapper account-chart-visual admin-pnl-chart-shell" id="admin-pnl-chart-wrapper" role="presentation">
+                      <canvas
+                        id="admin-pnl-chart"
+                        class="bankroll-chart"
+                        role="img"
+                        aria-label="Bar chart showing admin realized profit and loss"
+                      ></canvas>
+                      <div class="account-chart-tooltip" id="admin-pnl-tooltip" hidden>
+                        <p class="account-chart-tooltip-date" id="admin-pnl-tooltip-date">Apr 17</p>
+                        <p class="account-chart-tooltip-value" id="admin-pnl-tooltip-value">+$0.00</p>
+                      </div>
                     </div>
                   </div>
                   <p id="pnl-rank-subhead" class="analytics-card-subhead">Ranked by realized P&amp;L in the last 7 days.</p>

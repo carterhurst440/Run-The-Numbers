@@ -11453,6 +11453,18 @@ body.play-assistant-open .play-assistant-fab {
   margin-bottom: 0.75rem;
 }
 
+.admin-pnl-chart-card {
+  margin-bottom: 1rem;
+}
+
+.admin-pnl-player-toolbar {
+  gap: 0.65rem;
+}
+
+.admin-pnl-chart-shell {
+  min-height: 340px;
+}
+
 .most-active-chart-container {
   height: 320px;
 }

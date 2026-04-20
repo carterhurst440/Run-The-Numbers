@@ -8270,7 +8270,6 @@ async function renderBetVolumeChart(betKey, period) {
 // Global variable for overview chart
 let overviewChartInstance = null;
 let activeUsersChartInstance = null;
-let totalPnlChartInstance = null;
 
 async function renderOverviewChart(period = "year") {
   if (!supabase) {
@@ -8482,188 +8481,6 @@ async function renderOverviewChart(period = "year") {
       btn.disabled = false;
     });
     return;
-  }
-}
-
-async function renderTotalPnlChart(period = "year") {
-  totalPnlChartPeriod = period;
-  updateTotalPnlFilterUI();
-  if (!totalPnlGameSelectionsInitialized) {
-    totalPnlSelectedGameKeys = getTotalPnlGameSeriesDefinitions().map((series) => series.key);
-    totalPnlGameSelectionsInitialized = true;
-  }
-  renderTotalPnlGameFilters();
-
-  if (!supabase) {
-    console.warn("[RTN] Cannot render total pnl chart: Supabase client not initialized");
-    return;
-  }
-
-  const canvas = document.getElementById("total-pnl-analytics-chart");
-  if (!(canvas instanceof HTMLCanvasElement)) {
-    return;
-  }
-
-  const loadingOverlay = document.querySelector(".total-pnl-chart-loading");
-  if (loadingOverlay) {
-    loadingOverlay.style.display = "flex";
-  }
-  totalPnlFilterButtons.forEach((button) => {
-    button.disabled = true;
-  });
-
-  try {
-    const endAt = new Date();
-    const startAt = getAnalyticsPeriodStart(period) || new Date(endAt.getTime() - 365 * 24 * 60 * 60 * 1000);
-    const buckets = buildHandsChartBuckets(period, startAt, endAt);
-    const { handRecords, tradeRecords } = await loadAdminAnalyticsRawRecords({
-      startAt,
-      endAt,
-      userIds: null
-    });
-
-    const bucketValues = buckets.map(() => ({
-      [GAME_KEYS.RUN_THE_NUMBERS]: 0,
-      [GAME_KEYS.GUESS_10]: 0,
-      [GAME_KEYS.SHAPE_TRADERS]: 0
-    }));
-    const findBucketIndex = (value) => buckets.findIndex((bucket) => value >= bucket.start && value < bucket.end);
-
-    handRecords.forEach((record) => {
-      const createdAt = new Date(record?.created_at || 0);
-      const bucketIndex = findBucketIndex(createdAt);
-      if (bucketIndex < 0) return;
-      const gameKey = resolveGameKey(record?.game_id);
-      if (gameKey !== GAME_KEYS.RUN_THE_NUMBERS && gameKey !== GAME_KEYS.GUESS_10) {
-        return;
-      }
-      bucketValues[bucketIndex][gameKey] = roundCurrencyValue(
-        Number(bucketValues[bucketIndex][gameKey] || 0) + Number(record?.net || 0)
-      );
-    });
-
-    tradeRecords.forEach((record) => {
-      const tradeSide = String(record?.trade_side || "").trim().toLowerCase();
-      if (tradeSide !== "sell") return;
-      const executedAt = new Date(record?.executed_at || 0);
-      const bucketIndex = findBucketIndex(executedAt);
-      if (bucketIndex < 0) return;
-      bucketValues[bucketIndex][GAME_KEYS.SHAPE_TRADERS] = roundCurrencyValue(
-        Number(bucketValues[bucketIndex][GAME_KEYS.SHAPE_TRADERS] || 0) + Number(record?.net_profit || 0)
-      );
-    });
-
-    const selectedGames = totalPnlSelectedGameKeys.filter((key) => key !== "all");
-    const values = bucketValues.map((row) =>
-      roundCurrencyValue(selectedGames.reduce((sum, gameKey) => sum + Number(row?.[gameKey] || 0), 0))
-    );
-    const totalPnlValue = roundCurrencyValue(values.reduce((sum, value) => sum + Number(value || 0), 0));
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      return;
-    }
-
-    if (totalPnlChartInstance) {
-      totalPnlChartInstance.destroy();
-    }
-
-    totalPnlChartInstance = new Chart(ctx, {
-      type: "line",
-      data: {
-        labels: buckets.length ? buckets.map((bucket) => bucket.label) : ["No Data"],
-        datasets: [{
-          label: "Total P&L",
-          data: values.length ? values : [0],
-          borderColor: "rgba(53, 255, 234, 1)",
-          backgroundColor: "rgba(53, 255, 234, 0.16)",
-          borderWidth: 2,
-          fill: false,
-          tension: 0.26,
-          pointRadius: values.length > 1 ? 0 : 4,
-          pointHoverRadius: 4
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: false
-          },
-          tooltip: {
-            mode: "index",
-            intersect: false,
-            backgroundColor: "rgba(9, 18, 32, 0.95)",
-            titleColor: "rgba(53, 255, 234, 1)",
-            bodyColor: "rgba(226, 248, 255, 0.9)",
-            borderColor: "rgba(53, 255, 234, 0.5)",
-            borderWidth: 1,
-            padding: 12,
-            displayColors: false,
-            callbacks: {
-              label(context) {
-                return `Realized P&L: ${formatSignedCurrency(Number(context.parsed.y || 0))}`;
-              }
-            }
-          }
-        },
-        scales: {
-          x: {
-            grid: {
-              color: "rgba(53, 255, 234, 0.1)"
-            },
-            ticks: {
-              color: "rgba(173, 225, 247, 0.75)",
-              maxRotation: 45,
-              minRotation: 0
-            }
-          },
-          y: {
-            grid: {
-              color: "rgba(53, 255, 234, 0.1)"
-            },
-            ticks: {
-              color: "rgba(173, 225, 247, 0.75)",
-              callback(value) {
-                return formatSignedCurrency(Number(value || 0));
-              }
-            }
-          }
-        }
-      }
-    });
-
-    if (totalPnlSubheadEl) {
-      const periodLabels = {
-        hour: "last hour",
-        day: "last 24 hours",
-        week: "last week",
-        month: "last month",
-        "90days": "last 90 days",
-        year: "last year"
-      };
-      const selectedGameLabel = selectedGames.length === getTotalPnlGameSeriesDefinitions().length
-        ? "all games"
-        : selectedGames.length
-          ? selectedGames.map((gameKey) => getGameLabel(gameKey)).join(", ")
-          : "no games selected";
-      const cadenceLabel = period === "day" ? "hourly" : period === "hour" ? "5-minute" : "daily";
-      totalPnlSubheadEl.textContent =
-        `Platform-wide realized P&L for ${selectedGameLabel} across the ${periodLabels[period] || "selected range"}, shown in ${cadenceLabel} buckets. Total: ${formatSignedCurrency(totalPnlValue)}.`;
-    }
-  } catch (error) {
-    console.error("[RTN] Error rendering total pnl chart:", error);
-    if (totalPnlSubheadEl) {
-      totalPnlSubheadEl.textContent = "Unable to load platform-wide realized P&L right now.";
-    }
-  } finally {
-    if (loadingOverlay) {
-      loadingOverlay.style.display = "none";
-    }
-    totalPnlFilterButtons.forEach((button) => {
-      button.disabled = false;
-    });
   }
 }
 
@@ -15257,11 +15074,6 @@ const bankrollChartTooltipDateEl = document.getElementById("bankroll-chart-toolt
 const bankrollChartTooltipValueEl = document.getElementById("bankroll-chart-tooltip-value");
 const activityFilterButtons = Array.from(document.querySelectorAll("[data-activity-period]"));
 const pnlRankFilterButtons = Array.from(document.querySelectorAll("[data-pnl-rank-period]"));
-const totalPnlFilterButtons = Array.from(document.querySelectorAll("[data-total-pnl-period]"));
-const totalPnlSubheadEl = document.getElementById("total-pnl-subhead");
-const totalPnlGameFiltersEl = document.getElementById("total-pnl-game-filters");
-const totalPnlSelectAllButton = document.getElementById("total-pnl-select-all");
-const totalPnlDeselectAllButton = document.getElementById("total-pnl-deselect-all");
 const overviewChartSubheadEl = document.getElementById("overview-chart-subhead");
 const overviewGameFiltersEl = document.getElementById("overview-game-filters");
 const overviewSelectAllButton = document.getElementById("overview-select-all");
@@ -15277,6 +15089,18 @@ const activeUsersSubheadEl = document.getElementById("active-users-subhead");
 const activeUsersSeriesFiltersEl = document.getElementById("active-users-series-filters");
 const activeUsersSelectAllButton = document.getElementById("active-users-select-all");
 const activeUsersDeselectAllButton = document.getElementById("active-users-deselect-all");
+const adminPnlChartCanvas = document.getElementById("admin-pnl-chart");
+const adminPnlChartWrapper = document.getElementById("admin-pnl-chart-wrapper");
+const adminPnlTotalEl = document.getElementById("admin-pnl-total");
+const adminPnlChangeEl = document.getElementById("admin-pnl-change");
+const adminPnlSubheadEl = document.getElementById("admin-pnl-subhead");
+const adminPnlTooltip = document.getElementById("admin-pnl-tooltip");
+const adminPnlTooltipDateEl = document.getElementById("admin-pnl-tooltip-date");
+const adminPnlTooltipValueEl = document.getElementById("admin-pnl-tooltip-value");
+const adminPnlGameFilterButtons = Array.from(document.querySelectorAll("[data-admin-pnl-game]"));
+const adminPnlPlayerFiltersEl = document.getElementById("admin-pnl-player-filters");
+const adminPnlSelectAllButton = document.getElementById("admin-pnl-select-all");
+const adminPnlDeselectAllButton = document.getElementById("admin-pnl-deselect-all");
 const panelScrim = document.getElementById("panel-scrim");
 const bankrollChartCanvas = document.getElementById("bankroll-chart");
 const bankrollChartWrapper = document.getElementById("bankroll-chart-wrapper");
@@ -15915,9 +15739,6 @@ let activityLeaderboardPeriod = "week";
 let overviewChartPeriod = "year";
 let overviewSelectedGameKeys = [];
 let overviewGameSelectionsInitialized = false;
-let totalPnlChartPeriod = "year";
-let totalPnlSelectedGameKeys = [];
-let totalPnlGameSelectionsInitialized = false;
 let activeUsersChartPeriod = "all";
 let activeUsersSelectedSeriesKeys = ["dau", "wau", "mau"];
 let activeUsersSeriesInitialized = false;
@@ -24544,6 +24365,29 @@ if (bankrollChartCanvas && bankrollChartWrapper) {
   });
 }
 
+if (adminPnlChartCanvas && adminPnlChartWrapper) {
+  adminPnlChartCanvas.addEventListener("mousemove", (event) => {
+    const rect = adminPnlChartCanvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const hit = adminPnlChartHoverBars.find((bar) => (
+      x >= bar.x &&
+      x <= bar.x + bar.width &&
+      y >= bar.y &&
+      y <= bar.y + bar.height
+    ));
+    if (hit) {
+      showAdminPnlTooltip(hit);
+    } else {
+      hideAdminPnlTooltip();
+    }
+  });
+
+  adminPnlChartCanvas.addEventListener("mouseleave", () => {
+    hideAdminPnlTooltip();
+  });
+}
+
 activityFilterButtons.forEach((button) => {
   button.addEventListener("click", () => {
     activityLeaderboardPeriod = button.dataset.activityPeriod || "week";
@@ -24559,6 +24403,47 @@ pnlRankFilterButtons.forEach((button) => {
     loadPnlRankings();
   });
 });
+
+adminPnlGameFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    adminPnlChartGameFilter = normalizeBankrollChartGameFilter(button.dataset.adminPnlGame || "all");
+    adminPnlGameFilterButtons.forEach((candidate) => {
+      candidate.classList.toggle(
+        "active",
+        candidate instanceof HTMLElement &&
+          normalizeBankrollChartGameFilter(candidate.dataset.adminPnlGame || "all") === adminPnlChartGameFilter
+      );
+    });
+    drawAdminPnlChart();
+  });
+});
+
+if (adminPnlPlayerFiltersEl) {
+  adminPnlPlayerFiltersEl.addEventListener("change", (event) => {
+    const input = event.target instanceof HTMLInputElement ? event.target : null;
+    if (!input || input.type !== "checkbox" || !input.dataset.adminPnlUserId) {
+      return;
+    }
+    adminPnlChartSelectedUserIds = Array.from(
+      adminPnlPlayerFiltersEl.querySelectorAll("input[data-admin-pnl-user-id]:checked")
+    ).map((checkbox) => checkbox.value);
+    drawAdminPnlChart();
+  });
+}
+
+if (adminPnlSelectAllButton) {
+  adminPnlSelectAllButton.addEventListener("click", () => {
+    adminPnlChartSelectedUserIds = analyticsPnlRankEntries.map((entry) => entry.userId).filter(Boolean);
+    drawAdminPnlChart();
+  });
+}
+
+if (adminPnlDeselectAllButton) {
+  adminPnlDeselectAllButton.addEventListener("click", () => {
+    adminPnlChartSelectedUserIds = [];
+    drawAdminPnlChart();
+  });
+}
 
 if (mostActiveLoadMoreButton) {
   mostActiveLoadMoreButton.addEventListener("click", () => {
@@ -25655,7 +25540,6 @@ adminTabButtons.forEach(button => {
       if (adminRanksContent) adminRanksContent.hidden = true;
       loadPlayerFilter(); // Load player list for filter
       initializeAnalyticsBettingGrid();
-      renderTotalPnlChart("year");
       renderOverviewChart("year");
       renderActiveUsersChart("year");
       loadMostActiveThisWeek();
@@ -25705,17 +25589,6 @@ document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(button 
   });
 });
 
-totalPnlFilterButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    const period = button.dataset.totalPnlPeriod || "year";
-    totalPnlFilterButtons.forEach((btn) => {
-      btn.classList.remove("active");
-    });
-    button.classList.add("active");
-    renderTotalPnlChart(period);
-  });
-});
-
 if (overviewGameFiltersEl) {
   overviewGameFiltersEl.addEventListener("change", (event) => {
     const input = event.target instanceof HTMLInputElement ? event.target : null;
@@ -25746,36 +25619,6 @@ if (overviewDeselectAllButton) {
     renderOverviewGameFilters();
     updateOverviewChartSubhead(overviewChartPeriod);
     void renderOverviewChart(overviewChartPeriod);
-  });
-}
-
-if (totalPnlGameFiltersEl) {
-  totalPnlGameFiltersEl.addEventListener("change", (event) => {
-    const input = event.target instanceof HTMLInputElement ? event.target : null;
-    if (!input || input.type !== "checkbox" || !input.dataset.totalPnlGameKey) {
-      return;
-    }
-    totalPnlSelectedGameKeys = Array.from(
-      totalPnlGameFiltersEl.querySelectorAll("input[data-total-pnl-game-key]:checked")
-    ).map((checkbox) => checkbox.value);
-    renderTotalPnlGameFilters();
-    void renderTotalPnlChart(totalPnlChartPeriod);
-  });
-}
-
-if (totalPnlSelectAllButton) {
-  totalPnlSelectAllButton.addEventListener("click", () => {
-    totalPnlSelectedGameKeys = getTotalPnlGameSeriesDefinitions().map((series) => series.key);
-    renderTotalPnlGameFilters();
-    void renderTotalPnlChart(totalPnlChartPeriod);
-  });
-}
-
-if (totalPnlDeselectAllButton) {
-  totalPnlDeselectAllButton.addEventListener("click", () => {
-    totalPnlSelectedGameKeys = [];
-    renderTotalPnlGameFilters();
-    void renderTotalPnlChart(totalPnlChartPeriod);
   });
 }
 
@@ -25827,6 +25670,11 @@ let analyticsMostActiveVisibleCount = 10;
 let analyticsPnlRankRequestId = 0;
 let analyticsPnlRankEntries = [];
 let analyticsPnlRankVisibleCount = 10;
+let adminPnlChartGameFilter = "all";
+let adminPnlChartSelectedUserIds = [];
+let adminPnlChartSelectionPeriod = "";
+let adminPnlChartHoverBars = [];
+let adminPnlChartSource = null;
 let mostActiveTrendChartInstance = null;
 let mostActiveTrendGameFilter = "all";
 let mostActiveTrendSelectedUserIds = [];
@@ -26033,26 +25881,6 @@ function getOverviewGameSeriesDefinitions() {
   ];
 }
 
-function getTotalPnlGameSeriesDefinitions() {
-  return [
-    {
-      key: GAME_KEYS.RUN_THE_NUMBERS,
-      label: getGameLabel(GAME_KEYS.RUN_THE_NUMBERS),
-      color: "rgba(255, 209, 102, 1)"
-    },
-    {
-      key: GAME_KEYS.GUESS_10,
-      label: getGameLabel(GAME_KEYS.GUESS_10),
-      color: "rgba(255, 127, 216, 1)"
-    },
-    {
-      key: GAME_KEYS.SHAPE_TRADERS,
-      label: getGameLabel(GAME_KEYS.SHAPE_TRADERS),
-      color: "rgba(53, 255, 234, 1)"
-    }
-  ];
-}
-
 function renderGameSelectionChips(container, definitions, selectedKeys, dataAttribute) {
   if (!container) return;
   container.innerHTML = "";
@@ -26101,15 +25929,6 @@ function renderOverviewGameFilters() {
   );
 }
 
-function renderTotalPnlGameFilters() {
-  renderGameSelectionChips(
-    totalPnlGameFiltersEl,
-    getTotalPnlGameSeriesDefinitions(),
-    totalPnlSelectedGameKeys,
-    "totalPnlGameKey"
-  );
-}
-
 function updateOverviewChartSubhead(period = overviewChartPeriod) {
   if (!overviewChartSubheadEl) return;
 
@@ -26128,12 +25947,6 @@ function updateOverviewChartSubhead(period = overviewChartPeriod) {
   overviewChartSubheadEl.textContent = selectedLabels.length
     ? `Showing ${selectedLabels.join(", ")} for the selected players across the ${periodLabels[period] || "selected range"}.`
     : "No game lines selected. Choose one or more games to show the chart.";
-}
-
-function updateTotalPnlFilterUI() {
-  totalPnlFilterButtons.forEach((button) => {
-    button.classList.toggle("active", button.dataset.totalPnlPeriod === totalPnlChartPeriod);
-  });
 }
 
 function cacheAnalyticsProfiles(profiles) {
@@ -26333,6 +26146,304 @@ function updatePnlRankFilterUI() {
   };
 
   pnlRankSubheadEl.textContent = labels[pnlRankLeaderboardPeriod] || labels.week;
+}
+
+function renderAdminPnlPlayerFilters(entries = []) {
+  if (!adminPnlPlayerFiltersEl) return;
+  adminPnlPlayerFiltersEl.innerHTML = "";
+
+  if (!entries.length) {
+    const empty = document.createElement("p");
+    empty.className = "most-active-player-filters-empty";
+    empty.textContent = "No players available for this period.";
+    adminPnlPlayerFiltersEl.appendChild(empty);
+    return;
+  }
+
+  const selectedSet = new Set(adminPnlChartSelectedUserIds);
+  const fragment = document.createDocumentFragment();
+  entries.forEach((entry, index) => {
+    const profile = entry.profile || analyticsProfileCache.get(entry.userId) || null;
+    const label = document.createElement("label");
+    label.className = "most-active-player-chip";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = entry.userId;
+    input.checked = selectedSet.has(entry.userId);
+    input.dataset.adminPnlUserId = entry.userId;
+
+    const marker = document.createElement("span");
+    marker.className = "most-active-player-chip-mark";
+    const colors = getMostActiveTrendSeriesColors(index);
+    marker.style.setProperty("--player-line-color", colors.border);
+
+    const text = document.createElement("span");
+    text.className = "most-active-player-chip-text";
+    text.textContent = getContestDisplayName(profile, entry.userId);
+
+    label.append(input, marker, text);
+    fragment.appendChild(label);
+  });
+  adminPnlPlayerFiltersEl.appendChild(fragment);
+}
+
+function hideAdminPnlTooltip() {
+  if (adminPnlTooltip) {
+    adminPnlTooltip.hidden = true;
+  }
+}
+
+function showAdminPnlTooltip(bar) {
+  if (!adminPnlTooltip || !adminPnlTooltipDateEl || !adminPnlTooltipValueEl || !bar) {
+    return;
+  }
+
+  adminPnlTooltipDateEl.textContent = bar.label;
+  adminPnlTooltipValueEl.textContent = formatSignedCurrency(bar.value);
+  adminPnlTooltipValueEl.classList.toggle("is-negative", Number(bar.value || 0) < 0);
+
+  const wrapperRect = adminPnlChartWrapper?.getBoundingClientRect();
+  if (!wrapperRect) {
+    adminPnlTooltip.hidden = false;
+    return;
+  }
+
+  adminPnlTooltip.hidden = false;
+  const tooltipWidth = adminPnlTooltip.offsetWidth || 112;
+  const horizontalPadding = 10;
+  const minLeft = tooltipWidth / 2 + horizontalPadding;
+  const maxLeft = wrapperRect.width - tooltipWidth / 2 - horizontalPadding;
+  const left = Math.max(minLeft, Math.min(maxLeft, bar.centerX));
+  const top = Math.max(8, bar.anchorY);
+  adminPnlTooltip.style.left = `${left}px`;
+  adminPnlTooltip.style.top = `${top}px`;
+}
+
+function getAdminPnlPeriodSummaryLabel(period = "week") {
+  const labels = {
+    hour: "Last hour",
+    day: "Last 24 hours",
+    week: "Last 7 days",
+    month: "Last 30 days",
+    year: "Last year"
+  };
+  return labels[period] || labels.week;
+}
+
+function getAdminPnlPeriodDescription(period = "week") {
+  const labels = {
+    hour: "the last hour",
+    day: "the last 24 hours",
+    week: "the last 7 days",
+    month: "the last 30 days",
+    year: "the last year"
+  };
+  return labels[period] || labels.week;
+}
+
+function buildAdminPnlChartPoints({
+  handRecords = [],
+  tradeRecords = [],
+  selectedUserIds = [],
+  period = "week",
+  gameFilter = "all",
+  startAt = null,
+  endAt = new Date()
+} = {}) {
+  const selectedSet = new Set((selectedUserIds || []).filter(Boolean));
+  const filteredHands = handRecords.filter((record) => {
+    const userId = record?.user_id;
+    if (!selectedSet.has(userId)) return false;
+    const modeType = String(record?.mode_type || "").trim().toLowerCase();
+    if (record?.contest_id || (modeType && modeType !== "normal")) return false;
+    const gameKey = resolveGameKey(record?.game_id);
+    return gameFilter === "all" ? gameKey !== GAME_KEYS.SHAPE_TRADERS : gameKey === gameFilter;
+  });
+  const filteredTrades = tradeRecords.filter((record) => {
+    const userId = record?.user_id;
+    if (!selectedSet.has(userId)) return false;
+    const tradeSide = String(record?.trade_side || "").trim().toLowerCase();
+    if (record?.contest_id || tradeSide !== "sell") return false;
+    return gameFilter === "all" || gameFilter === GAME_KEYS.SHAPE_TRADERS;
+  });
+
+  const effectiveStart =
+    startAt ||
+    (filteredHands.length > 0
+      ? new Date(filteredHands[0]?.created_at || endAt)
+      : filteredTrades.length > 0
+        ? new Date(filteredTrades[0]?.executed_at || endAt)
+        : getAnalyticsPeriodStart(period) || new Date(endAt.getTime() - 29 * 24 * 60 * 60 * 1000));
+  const buckets = buildHandsChartBuckets(period, effectiveStart, endAt);
+  const values = new Array(buckets.length).fill(0);
+
+  filteredHands.forEach((record) => {
+    const createdAt = new Date(record?.created_at || 0);
+    const bucketIndex = buckets.findIndex((bucket) => createdAt >= bucket.start && createdAt < bucket.end);
+    if (bucketIndex < 0) return;
+    values[bucketIndex] = roundCurrencyValue(values[bucketIndex] + Number(record?.net || 0));
+  });
+
+  filteredTrades.forEach((record) => {
+    const executedAt = new Date(record?.executed_at || 0);
+    const bucketIndex = buckets.findIndex((bucket) => executedAt >= bucket.start && executedAt < bucket.end);
+    if (bucketIndex < 0) return;
+    values[bucketIndex] = roundCurrencyValue(values[bucketIndex] + Number(record?.net_profit || 0));
+  });
+
+  return buckets.map((bucket, index) => ({
+    label: bucket.label,
+    value: roundCurrencyValue(values[index] || 0)
+  }));
+}
+
+function drawAdminPnlChart() {
+  if (!(adminPnlChartCanvas instanceof HTMLCanvasElement) || !adminPnlChartWrapper) return;
+
+  const entries = Array.isArray(adminPnlChartSource?.entries) ? adminPnlChartSource.entries : [];
+  renderAdminPnlPlayerFilters(entries);
+  hideAdminPnlTooltip();
+  adminPnlChartHoverBars = [];
+
+  const selectedCount = adminPnlChartSelectedUserIds.length;
+  const gameLabels = {
+    all: "all games",
+    [GAME_KEYS.RUN_THE_NUMBERS]: "Run The Numbers",
+    [GAME_KEYS.GUESS_10]: "Guess 10",
+    [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders"
+  };
+
+  const emptyState = () => {
+    const rect = adminPnlChartCanvas.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      const dpr = window.devicePixelRatio || 1;
+      adminPnlChartCanvas.width = rect.width * dpr;
+      adminPnlChartCanvas.height = rect.height * dpr;
+      const ctx = adminPnlChartCanvas.getContext("2d");
+      if (ctx) {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, adminPnlChartCanvas.width, adminPnlChartCanvas.height);
+      }
+    }
+    if (adminPnlTotalEl) adminPnlTotalEl.textContent = "—";
+    if (adminPnlChangeEl) {
+      adminPnlChangeEl.textContent = `No realized P&L data for ${getAdminPnlPeriodSummaryLabel(pnlRankLeaderboardPeriod).toLowerCase()}`;
+      adminPnlChangeEl.classList.remove("is-negative");
+    }
+    if (adminPnlSubheadEl) {
+      adminPnlSubheadEl.textContent = `No realized P&L recorded for ${gameLabels[adminPnlChartGameFilter] || gameLabels.all} in ${getAdminPnlPeriodDescription(pnlRankLeaderboardPeriod)}.`;
+    }
+  };
+
+  if (!adminPnlChartSource || !selectedCount) {
+    emptyState();
+    return;
+  }
+
+  const points = buildAdminPnlChartPoints({
+    handRecords: adminPnlChartSource.handRecords || [],
+    tradeRecords: adminPnlChartSource.tradeRecords || [],
+    selectedUserIds: adminPnlChartSelectedUserIds,
+    period: pnlRankLeaderboardPeriod,
+    gameFilter: adminPnlChartGameFilter,
+    startAt: adminPnlChartSource.startAt || null,
+    endAt: adminPnlChartSource.endAt || new Date()
+  });
+  const values = points.map((point) => Number(point.value || 0));
+  const hasFilterData = values.some((value) => Math.abs(value) > 0.0001);
+  const totalRealizedValue = roundCurrencyValue(values.reduce((sum, value) => sum + Number(value || 0), 0));
+
+  if (adminPnlTotalEl) {
+    adminPnlTotalEl.textContent = hasFilterData ? formatSignedCurrency(totalRealizedValue) : "—";
+  }
+  if (adminPnlChangeEl) {
+    if (hasFilterData) {
+      adminPnlChangeEl.textContent = `${totalRealizedValue >= 0 ? "▲" : "▼"} ${getAdminPnlPeriodSummaryLabel(pnlRankLeaderboardPeriod)} total`;
+      adminPnlChangeEl.classList.toggle("is-negative", totalRealizedValue < 0);
+    } else {
+      adminPnlChangeEl.textContent = `No realized P&L data for ${getAdminPnlPeriodSummaryLabel(pnlRankLeaderboardPeriod).toLowerCase()}`;
+      adminPnlChangeEl.classList.remove("is-negative");
+    }
+  }
+  if (adminPnlSubheadEl) {
+    adminPnlSubheadEl.textContent = hasFilterData
+      ? `${gameLabels[adminPnlChartGameFilter] || gameLabels.all} · ${getAdminPnlPeriodDescription(pnlRankLeaderboardPeriod)} · ${selectedCount.toLocaleString()} selected player${selectedCount === 1 ? "" : "s"}`
+      : `No realized P&L recorded for ${gameLabels[adminPnlChartGameFilter] || gameLabels.all} in ${getAdminPnlPeriodDescription(pnlRankLeaderboardPeriod)}.`;
+  }
+
+  const rect = adminPnlChartCanvas.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return;
+  const dpr = window.devicePixelRatio || 1;
+  adminPnlChartCanvas.width = rect.width * dpr;
+  adminPnlChartCanvas.height = rect.height * dpr;
+
+  const ctx = adminPnlChartCanvas.getContext("2d");
+  if (!ctx) return;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, adminPnlChartCanvas.width, adminPnlChartCanvas.height);
+  ctx.scale(dpr, dpr);
+
+  const padding = { top: 12, right: 12, bottom: 18, left: 12 };
+  const width = rect.width;
+  const height = rect.height;
+  const chartWidth = Math.max(1, width - padding.left - padding.right);
+  const chartHeight = Math.max(1, height - padding.top - padding.bottom);
+  const maxAbs = Math.max(...values.map((value) => Math.abs(value)), 1);
+  const zeroY = padding.top + chartHeight / 2;
+  const baselineColor = "rgba(148, 163, 184, 0.45)";
+  const minorColor = "rgba(148, 163, 184, 0.16)";
+  const positiveColor = "#16a34a";
+  const negativeColor = "#f97316";
+
+  ctx.strokeStyle = minorColor;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padding.left, padding.top + chartHeight * 0.2);
+  ctx.lineTo(width - padding.right, padding.top + chartHeight * 0.2);
+  ctx.moveTo(padding.left, padding.top + chartHeight * 0.8);
+  ctx.lineTo(width - padding.right, padding.top + chartHeight * 0.8);
+  ctx.stroke();
+
+  ctx.strokeStyle = baselineColor;
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(padding.left, zeroY);
+  ctx.lineTo(width - padding.right, zeroY);
+  ctx.stroke();
+
+  if (!hasFilterData) {
+    return;
+  }
+
+  const barSpacing = chartWidth / Math.max(values.length, 1);
+  const barWidth = getBankrollChartBarWidth(
+    pnlRankLeaderboardPeriod === "hour" ? "week" : pnlRankLeaderboardPeriod === "day" ? "month" : pnlRankLeaderboardPeriod,
+    barSpacing
+  );
+  const barRadius = Math.min(6, barWidth * 0.36);
+
+  values.forEach((value, index) => {
+    const magnitude = Math.min(Math.abs(Number(value || 0)) / maxAbs, 1);
+    const barHeight = Math.max(2, magnitude * (chartHeight / 2 - 8));
+    const x = padding.left + index * barSpacing + (barSpacing - barWidth) / 2;
+    const y = value >= 0 ? zeroY - barHeight : zeroY;
+    ctx.fillStyle = value >= 0 ? positiveColor : negativeColor;
+    drawRoundedChartBar(ctx, x, y, barWidth, barHeight, barRadius, {
+      roundTop: value >= 0,
+      roundBottom: value < 0
+    });
+    adminPnlChartHoverBars.push({
+      x,
+      y,
+      width: barWidth,
+      height: barHeight,
+      centerX: x + barWidth / 2,
+      anchorY: y,
+      value,
+      label: points[index]?.label || String(index + 1)
+    });
+  });
 }
 
 function renderPnlRankEntries() {
@@ -27761,6 +27872,31 @@ async function loadPnlRankings() {
   const requestId = ++analyticsPnlRankRequestId;
   analyticsPnlRankEntries = [];
   analyticsPnlRankVisibleCount = ANALYTICS_ACTIVITY_PAGE_SIZE;
+  adminPnlChartSource = null;
+
+  if (adminPnlTotalEl) adminPnlTotalEl.textContent = "—";
+  if (adminPnlChangeEl) {
+    adminPnlChangeEl.textContent = "Loading selected period...";
+    adminPnlChangeEl.classList.remove("is-negative");
+  }
+  if (adminPnlSubheadEl) {
+    adminPnlSubheadEl.textContent = "Loading realized P&L for the selected players and game.";
+  }
+  if (adminPnlChartCanvas instanceof HTMLCanvasElement) {
+    const rect = adminPnlChartCanvas.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      const dpr = window.devicePixelRatio || 1;
+      adminPnlChartCanvas.width = rect.width * dpr;
+      adminPnlChartCanvas.height = rect.height * dpr;
+      const ctx = adminPnlChartCanvas.getContext("2d");
+      if (ctx) {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, adminPnlChartCanvas.width, adminPnlChartCanvas.height);
+      }
+    }
+  }
+  hideAdminPnlTooltip();
+  adminPnlChartHoverBars = [];
 
   updatePnlRankFilterUI();
 
@@ -27842,7 +27978,26 @@ async function loadPnlRankings() {
       analyticsPnlRankEntries = [];
     }
 
+    const availableUserIds = analyticsPnlRankEntries.map((entry) => entry.userId).filter(Boolean);
+    if (adminPnlChartSelectionPeriod !== pnlRankLeaderboardPeriod) {
+      adminPnlChartSelectedUserIds = [...availableUserIds];
+      adminPnlChartSelectionPeriod = pnlRankLeaderboardPeriod;
+    } else {
+      adminPnlChartSelectedUserIds = adminPnlChartSelectedUserIds.filter((userId) => availableUserIds.includes(userId));
+      if (!adminPnlChartSelectedUserIds.length && availableUserIds.length) {
+        adminPnlChartSelectedUserIds = [...availableUserIds];
+      }
+    }
+    adminPnlChartSource = {
+      entries: analyticsPnlRankEntries,
+      handRecords,
+      tradeRecords,
+      startAt: startDate,
+      endAt: new Date()
+    };
+
     renderPnlRankEntries();
+    drawAdminPnlChart();
   } catch (error) {
     if (requestId !== analyticsPnlRankRequestId) return;
     console.error("[RTN] loadPnlRankings error", error);
@@ -27851,6 +28006,7 @@ async function loadPnlRankings() {
     errorItem.className = "analytics-activity-item analytics-activity-empty";
     errorItem.textContent = "Unable to load P&L rankings.";
     pnlRankListEl.appendChild(errorItem);
+    drawAdminPnlChart();
   }
 }
 
@@ -28061,10 +28217,6 @@ document.getElementById("clear-player-filter")?.addEventListener("click", () => 
 // Refresh all analytics with current filter
 function refreshAnalytics() {
   refreshBetBadgeCounts();
-
-  const activeTotalPnlFilterBtn = document.querySelector(".total-pnl-filters .chart-filter-btn.active");
-  const totalPnlPeriod = activeTotalPnlFilterBtn?.dataset.totalPnlPeriod || totalPnlChartPeriod || "year";
-  renderTotalPnlChart(totalPnlPeriod);
 
   // Reload overview chart
   const activeFilterBtn = document.querySelector(".overview-filters .chart-filter-btn.active");
@@ -28981,6 +29133,7 @@ updatePlayAssistantBounds();
 resetBankrollHistory();
 window.addEventListener("resize", schedulePlayAreaHeightUpdate);
 window.addEventListener("resize", drawBankrollChart);
+window.addEventListener("resize", drawAdminPnlChart);
 if (typeof window !== "undefined" && window.visualViewport) {
   window.visualViewport.addEventListener("resize", schedulePlayAreaHeightUpdate);
   window.visualViewport.addEventListener("scroll", schedulePlayAreaHeightUpdate);
