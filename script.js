@@ -4125,6 +4125,35 @@ function hasMatchingShapeTraderStructuralActivity({
   return hasSell && hasBuy;
 }
 
+function hasMatchingShapeTraderBankruptcyActivity({
+  assetId,
+  drawnAt,
+  quantity
+}) {
+  const targetTime = new Date(drawnAt || 0).getTime();
+  if (!Number.isFinite(targetTime) || !Array.isArray(shapeTradersActivity) || !shapeTradersActivity.length) {
+    return false;
+  }
+  const toleranceMs = 60 * 1000;
+
+  return shapeTradersActivity.some((entry) => {
+    if (entry?.assetId !== assetId) return false;
+    const entryTime = new Date(entry.createdAt || 0).getTime();
+    if (!Number.isFinite(entryTime) || Math.abs(entryTime - targetTime) > toleranceMs) {
+      return false;
+    }
+    const entryQuantity = Math.max(0, Math.round(Number(entry.quantity || 0)));
+    const entryPrice = roundCurrencyValue(Number(entry.price || 0));
+    return (
+      entry.side === "sell"
+      && String(entry.reason || "").toLowerCase() === "bankruptcy reset"
+      && entry.netProfit === null
+      && entryQuantity === Math.max(0, Math.round(Number(quantity || 0)))
+      && entryPrice === 0
+    );
+  });
+}
+
 async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeTradersLastPersistedAccountActiveAt) {
   if (!supabase || !currentUser?.id || !shapeTradersStatePersistenceAvailable) {
     return false;
@@ -4251,6 +4280,31 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
         };
         changed = true;
       } else if (eventType === "bankruptcy") {
+        const structuralEventAt = getShapeTraderActivityTimestamp(row?.drawn_at || new Date().toISOString());
+        const nextAccountValue = roundCurrencyValue(getShapeTraderAccountValue());
+        if (
+          !hasMatchingShapeTraderBankruptcyActivity({
+            assetId,
+            drawnAt: row?.drawn_at,
+            quantity
+          })
+        ) {
+          const bankruptcyEntry = createShapeTraderActivityEntry({
+            side: "sell",
+            assetId,
+            quantity,
+            totalValue: 0,
+            price: 0,
+            netProfit: null,
+            reason: "Bankruptcy reset",
+            createdAt: structuralEventAt,
+            accountValue: nextAccountValue
+          });
+          pendingActivityWrites.push(recordShapeTraderTrade(bankruptcyEntry));
+          shapeTradersActivity.unshift(bankruptcyEntry);
+          shapeTradersActivityLoadedCount = shapeTradersActivity.length;
+          activityBackfilled = true;
+        }
         shapeTradersHoldings[assetId] = {
           quantity: 0,
           averagePrice: 0
