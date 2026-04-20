@@ -3995,7 +3995,7 @@ function hasMatchingShapeTraderStructuralActivity({
 }
 
 async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeTradersLastPersistedAccountActiveAt) {
-  if (!supabase || !currentUser?.id || !sinceIso || !shapeTradersStatePersistenceAvailable) {
+  if (!supabase || !currentUser?.id || !shapeTradersStatePersistenceAvailable) {
     return false;
   }
 
@@ -4003,13 +4003,30 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
   const pageSize = 1000;
   let page = 0;
   let hasMore = true;
+  let startDrawId = Math.max(0, Math.floor(Number(shapeTradersLastStructuralSyncDrawId || 0)));
 
   try {
+    if (startDrawId <= 0 && sinceIso) {
+      const { data: anchorRows, error: anchorError } = await supabase
+        .from("shape_trader_draws")
+        .select("draw_id")
+        .lte("drawn_at", sinceIso)
+        .order("draw_id", { ascending: false })
+        .limit(1);
+
+      if (anchorError) {
+        throw anchorError;
+      }
+
+      const anchorRow = Array.isArray(anchorRows) && anchorRows.length ? anchorRows[0] : null;
+      startDrawId = Math.max(0, Math.floor(Number(anchorRow?.draw_id || 0)));
+    }
+
     while (hasMore) {
       const { data, error } = await supabase
         .from("shape_trader_draws")
         .select("draw_id, drawn_at, bankruptcy_split, previous_square_price, previous_triangle_price, previous_circle_price, new_square_price, new_triangle_price, new_circle_price")
-        .gt("drawn_at", sinceIso)
+        .gt("draw_id", startDrawId)
         .order("draw_id", { ascending: true })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
@@ -4029,9 +4046,13 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
 
   let changed = false;
   let latestProcessedAt = sinceIso;
+  let latestProcessedDrawId = startDrawId;
   let activityBackfilled = false;
   const pendingActivityWrites = [];
   rows.forEach((row) => {
+    if (row?.draw_id !== undefined && row?.draw_id !== null) {
+      latestProcessedDrawId = Math.max(latestProcessedDrawId, Math.floor(Number(row.draw_id || 0)));
+    }
     if (row?.drawn_at) {
       latestProcessedAt = row.drawn_at;
     }
@@ -4114,6 +4135,7 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
     await Promise.allSettled(pendingActivityWrites);
   }
   await syncShapeTraderCurrentState({ throwOnError: false });
+  shapeTradersLastStructuralSyncDrawId = latestProcessedDrawId;
   if (latestProcessedAt) {
     shapeTradersLastPersistedAccountActiveAt = latestProcessedAt;
   }
