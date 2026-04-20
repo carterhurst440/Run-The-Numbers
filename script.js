@@ -3713,6 +3713,24 @@ function createShapeTraderActivityEntry({
   };
 }
 
+function getShapeTraderActivityTimestamp(baseTimestamp = new Date().toISOString(), offsetMs = 0) {
+  const parsedMs = Date.parse(baseTimestamp || "");
+  const baseMs = Number.isFinite(parsedMs) ? parsedMs : Date.now();
+  return new Date(baseMs + Math.max(0, Math.floor(Number(offsetMs) || 0))).toISOString();
+}
+
+function getShapeTraderActivitySideLabel(entry) {
+  const normalizedSide = String(entry?.side || "").toLowerCase() === "buy" ? "BUY" : "SELL";
+  const reason = String(entry?.reason || "").toLowerCase();
+  if (reason === "10:1 asset split") {
+    return `${normalizedSide} (SPLIT)`;
+  }
+  if (reason === "bankruptcy reset") {
+    return "SELL (BK)";
+  }
+  return normalizedSide;
+}
+
 function getShapeTraderSplitNotice(assetId, now = Date.now()) {
   const notice = shapeTradersSplitNoticeByAsset[assetId];
   if (!notice) return null;
@@ -3748,12 +3766,27 @@ async function recordShapeTraderTrade(entry) {
     quantity: entry.quantity,
     total_value: roundCurrencyValue(entry.totalValue),
     net_profit: entry.netProfit === null ? null : roundCurrencyValue(entry.netProfit),
-    new_account_value: roundCurrencyValue(entry.accountValue)
+    new_account_value: roundCurrencyValue(entry.accountValue),
+    trade_reason: entry.reason || ""
   };
 
   try {
     const { error } = await supabase.from("shape_trader_trades").insert(payload);
     if (error) {
+      if (isMissingColumnError(error, "trade_reason")) {
+        const { trade_reason, ...legacyPayload } = payload;
+        const retryResult = await supabase.from("shape_trader_trades").insert(legacyPayload);
+        if (!retryResult?.error) {
+          invalidateAccountChartHistory();
+          if (currentUser.id === currentProfile?.id) {
+            void incrementProfileTradeProgress(1).then(() => refreshCurrentRankState());
+          }
+          return;
+        }
+        if (retryResult.error) {
+          throw retryResult.error;
+        }
+      }
       if (isMissingRelationError(error, "shape_trader_trades")) {
         shapeTradersTradePersistenceAvailable = false;
         console.warn("[RTN] shape_trader_trades table missing; skipping persistence until SQL is applied");
@@ -3783,7 +3816,7 @@ function mapShapeTraderTradeRowToActivity(row) {
     netProfit: row?.net_profit === null || row?.net_profit === undefined ? null : roundCurrencyValue(Number(row.net_profit || 0)),
     accountValue: roundCurrencyValue(Number(row?.new_account_value || 0)),
     contestId: row?.contest_id || null,
-    reason: "",
+    reason: row?.trade_reason || "",
     createdAt: row?.executed_at || row?.created_at || new Date().toISOString()
   };
 }
@@ -4014,10 +4047,11 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
         return;
       }
       if (eventType === "split") {
-        const previousPrice = roundCurrencyValue(Number(row?.[getShapeTraderDrawPriceFieldName(assetId, "previous")] || 0));
         const splitPrice = roundCurrencyValue(Number(row?.[getShapeTraderDrawPriceFieldName(assetId, "new")] || 0));
+        const previousPrice = roundCurrencyValue(splitPrice * SHAPE_TRADERS_SPLIT_FACTOR);
         const postSplitQuantity = quantity * SHAPE_TRADERS_SPLIT_FACTOR;
         const nextAccountValue = roundCurrencyValue(getShapeTraderAccountValue());
+        const structuralEventAt = getShapeTraderActivityTimestamp(row?.drawn_at || new Date().toISOString());
         if (
           Number.isFinite(previousPrice)
           && previousPrice > 0
@@ -4040,7 +4074,7 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
             price: previousPrice,
             netProfit: null,
             reason: "10:1 asset split",
-            createdAt: row?.drawn_at || new Date().toISOString(),
+            createdAt: structuralEventAt,
             accountValue: nextAccountValue
           });
           const buyEntry = createShapeTraderActivityEntry({
@@ -4050,7 +4084,7 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
             totalValue: roundCurrencyValue(postSplitQuantity * splitPrice),
             price: splitPrice,
             reason: "10:1 asset split",
-            createdAt: row?.drawn_at || new Date().toISOString(),
+            createdAt: getShapeTraderActivityTimestamp(structuralEventAt, 1),
             accountValue: nextAccountValue
           });
           pendingActivityWrites.push(recordShapeTraderTrade(sellEntry));
@@ -4596,6 +4630,7 @@ async function executeShapeTraderAssetSplit(assetId, preSplitPrice) {
   const postSplitAveragePrice = roundCurrencyValue(preSplitAveragePrice / SHAPE_TRADERS_SPLIT_FACTOR);
   const sellTotalValue = roundCurrencyValue(preSplitQuantity * preSplitPrice);
   const buyTotalValue = roundCurrencyValue(postSplitQuantity * splitPrice);
+  const splitEventAt = getShapeTraderActivityTimestamp();
 
   shapeTradersCurrentPrices[assetId] = preSplitPrice;
   const sellEntry = createShapeTraderActivityEntry({
@@ -4606,7 +4641,8 @@ async function executeShapeTraderAssetSplit(assetId, preSplitPrice) {
     price: preSplitPrice,
     // Splits are structural position adjustments, not realized gains.
     netProfit: null,
-    reason: "10:1 asset split"
+    reason: "10:1 asset split",
+    createdAt: splitEventAt
   });
   await appendShapeTraderActivity(sellEntry);
 
@@ -4621,7 +4657,8 @@ async function executeShapeTraderAssetSplit(assetId, preSplitPrice) {
     quantity: postSplitQuantity,
     totalValue: buyTotalValue,
     price: splitPrice,
-    reason: "10:1 asset split"
+    reason: "10:1 asset split",
+    createdAt: getShapeTraderActivityTimestamp(splitEventAt, 1)
   });
   await appendShapeTraderActivity(buyEntry);
   await syncShapeTraderCurrentState();
@@ -4800,6 +4837,7 @@ function renderShapeTradersActivity() {
   shapeTradersActivity.forEach((entry) => {
     const item = document.createElement("article");
     const sideClass = entry.side === "buy" ? "is-buy" : "is-sell";
+    const sideLabel = getShapeTraderActivitySideLabel(entry);
     const profitMarkup = entry.netProfit === null
       ? '<span class="shape-traders-activity-profit muted">--</span>'
       : `<span class="shape-traders-activity-profit ${entry.netProfit >= 0 ? "gain" : "loss"}">${entry.netProfit >= 0 ? "+" : ""}${formatCurrency(entry.netProfit)}</span>`;
@@ -4816,7 +4854,7 @@ function renderShapeTradersActivity() {
       : "--";
     item.className = `shape-traders-activity-item ${sideClass}`;
     item.innerHTML = `
-      <span class="shape-traders-activity-side">${entry.side.toUpperCase()}</span>
+      <span class="shape-traders-activity-side">${sideLabel}</span>
       <span class="shape-traders-shape-icon shape-${getShapeTraderAssetConfig(entry.assetId).icon}"></span>
       <span class="shape-traders-activity-price">${formatCurrency(entry.price)}</span>
       <span class="shape-traders-activity-qty">x${formatCurrency(entry.quantity)}</span>
