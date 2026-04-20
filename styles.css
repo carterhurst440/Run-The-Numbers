@@ -11683,10 +11683,13 @@ body.play-assistant-open .play-assistant-fab {
   flex-direction: column !important;
   gap: 0.75rem;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .player-activity-log-section {
   padding-top: 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .admin-ai-conversation-modal {
