@@ -2741,7 +2741,7 @@
                   <div class="admin-listing-header">
                     <div>
                       <h3>Login Theme</h3>
-                      <p class="route-subheading">Style the auth experience independently from the in-app rank themes.</p>
+                      <p class="route-subheading">Style the auth experience independently from the app and game themes.</p>
                     </div>
                     <button type="button" class="secondary" id="admin-login-theme-edit">Edit</button>
                   </div>
@@ -3786,7 +3786,7 @@
             </div>
             <div class="modal-actions admin-form-actions">
               <button type="button" class="secondary" id="admin-theme-cancel">Cancel</button>
-              <button type="button" class="secondary" id="admin-theme-clear-override">Use Rank Theme</button>
+              <button type="button" class="secondary" id="admin-theme-clear-override">Use Assigned Theme</button>
               <button type="button" class="secondary" id="admin-theme-try-on">Try On Theme</button>
               <button type="submit" class="primary" id="admin-theme-save">Save theme</button>
             </div>
@@ -4082,10 +4082,7 @@
             <span>Trades Made Requirement</span>
             <input type="number" name="requiredTradesMade" min="0" step="1" value="0" required />
           </label>
-          <label class="admin-field">
-            <span>Rank Theme</span>
-            <select name="themeKey" id="admin-rank-theme-select" required></select>
-          </label>
+          <input type="hidden" name="themeKey" id="admin-rank-theme-select" value="main-app-comfort" />
           <label class="admin-field">
             <span>Rank Icon URL</span>
             <input type="url" name="iconUrl" placeholder="https://..." />

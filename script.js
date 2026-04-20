@@ -2285,7 +2285,7 @@ async function resetAdminLoginThemeToDefaults() {
 }
 
 function normalizeRankRecord(rank = {}) {
-  const themeKey = slugifyThemeKey(rank.theme_key || "blue") || "blue";
+  const themeKey = slugifyThemeKey(rank.theme_key || MAIN_APP_THEME_KEY) || MAIN_APP_THEME_KEY;
   return {
     id: rank.id || null,
     tier: Math.max(1, Number(rank.tier || 1)),
@@ -2609,14 +2609,9 @@ function renderHomeRankPanel() {
   const winsRequirement = nextRank ? nextRank.required_contest_wins : currentRank.required_contest_wins;
   const tradesRequirement = nextRank ? nextRank.required_trades_made : currentRank.required_trades_made;
   const showTradesProgress = tradesRequirement > 0;
-  const rankTheme = getRankAccentThemeRecord(currentRank);
 
   homeRankPanelEl.hidden = false;
-  if (rankTheme) {
-    applyThemeVariables(rankTheme, homeRankPanelEl);
-  } else {
-    clearThemeVariables(homeRankPanelEl);
-  }
+  clearThemeVariables(homeRankPanelEl);
   if (homeRankTitleEl) {
     homeRankTitleEl.textContent = `${currentRank.name} · Tier ${currentRank.tier}`;
   }
@@ -3612,12 +3607,7 @@ function renderDrawerRankSummary(rank) {
   }
 
   drawerRankSummaryEl.hidden = false;
-  const rankTheme = getRankAccentThemeRecord(rank);
-  if (rankTheme) {
-    applyThemeVariables(rankTheme, drawerRankSummaryEl);
-  } else {
-    clearThemeVariables(drawerRankSummaryEl);
-  }
+  clearThemeVariables(drawerRankSummaryEl);
   drawerRankNameEl.textContent = `${rank.name} · Tier ${rank.tier}`;
   if (rank.icon_url) {
     drawerRankIconEl.src = rank.icon_url;
@@ -3705,22 +3695,16 @@ async function renderRankLadderModal() {
     const playerCount = playerCounts.get(rankKey) || 0;
     const item = document.createElement("li");
     item.className = "rank-ladder-item";
-    item.dataset.theme = rank.theme_key || "blue";
     item.innerHTML = `
       <div class="rank-ladder-tier">Tier ${rank.tier}</div>
       <div class="rank-ladder-body">
         <div class="rank-ladder-title-row">
           <h3>${rank.name}</h3>
-          <span class="rank-theme-pill">${getRankThemeLabel(rank.theme_key)}</span>
         </div>
         <p class="rank-ladder-requirements">${buildRankRequirementsCopy(rank)}</p>
         <p class="rank-ladder-player-count">${playerCount} player${playerCount === 1 ? "" : "s"} in this rank</p>
       </div>
     `;
-    const scopedThemeVariables = getThemeCssVariables(getThemeRecord(rank.theme_key || "blue"));
-    Object.entries(scopedThemeVariables).forEach(([key, value]) => {
-      item.style.setProperty(key, value);
-    });
     rankLadderListEl.appendChild(item);
   });
 }
@@ -3790,14 +3774,13 @@ function openAdminRankModal(rank = null) {
     }
   };
 
-  populateAdminRankThemeOptions(rank?.theme_key || "blue");
   setValue("name", rank?.name || "");
   setValue("tier", String(rank?.tier || getRankLadder().length + 1));
   setValue("welcomePhrase", rank?.welcome_phrase || "");
   setValue("requiredHandsPlayed", String(rank?.required_hands_played || 0));
   setValue("requiredContestWins", String(rank?.required_contest_wins || 0));
   setValue("requiredTradesMade", String(rank?.required_trades_made || 0));
-  setValue("themeKey", rank?.theme_key || "blue");
+  setValue("themeKey", rank?.theme_key || MAIN_APP_THEME_KEY);
   setValue("iconUrl", rank?.icon_url || "");
 
   adminRankModal.hidden = false;
@@ -3824,7 +3807,6 @@ async function loadAdminRankPlayerSummaries() {
 function renderAdminRankRow(rank, players = []) {
   const item = document.createElement("li");
   item.className = "admin-rank-card";
-  item.dataset.theme = rank.theme_key || "blue";
 
   const playersMarkup = players.length
     ? players
@@ -3850,7 +3832,6 @@ function renderAdminRankRow(rank, players = []) {
           <h3>${rank.name}</h3>
         </div>
       </div>
-      <span class="rank-theme-pill">${escapeAssistantHtml(getRankThemeLabel(rank.theme_key))}</span>
     </div>
     <p class="admin-rank-welcome">${interpolateRankWelcome(rank, currentProfile)}</p>
     <p class="admin-rank-requirements">${buildRankRequirementsCopy(rank)}</p>
@@ -3868,10 +3849,6 @@ function renderAdminRankRow(rank, players = []) {
   editButton?.addEventListener("click", () => openAdminRankModal(rank));
   deleteButton?.addEventListener("click", () => {
     void handleAdminRankDelete(rank);
-  });
-  const scopedThemeVariables = getThemeCssVariables(getThemeRecord(rank.theme_key || "blue"));
-  Object.entries(scopedThemeVariables).forEach(([key, value]) => {
-    item.style.setProperty(key, value);
   });
   return item;
 }
@@ -7981,7 +7958,7 @@ async function handleAdminRankSubmit(event) {
     required_hands_played: Math.max(0, Math.round(Number(formData.get("requiredHandsPlayed") || 0))),
     required_contest_wins: Math.max(0, Math.round(Number(formData.get("requiredContestWins") || 0))),
     required_trades_made: Math.max(0, Math.round(Number(formData.get("requiredTradesMade") || 0))),
-    theme_key: slugifyThemeKey(String(formData.get("themeKey") || "blue").trim()) || "blue",
+    theme_key: slugifyThemeKey(String(formData.get("themeKey") || MAIN_APP_THEME_KEY).trim()) || MAIN_APP_THEME_KEY,
     icon_url: String(formData.get("iconUrl") || "").trim()
   };
 

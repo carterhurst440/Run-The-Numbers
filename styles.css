@@ -14990,17 +14990,300 @@ body.modal-open {
 
 body[data-theme-profile="main-app-comfort"] {
   --body-bg:
-    radial-gradient(circle at 16% 12%, rgba(143, 214, 210, 0.1), transparent 34%),
-    radial-gradient(circle at 84% 14%, rgba(217, 183, 143, 0.08), transparent 32%),
-    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(180deg, #161a22 0%, #12161d 46%, #0f1318 100%);
-  --body-bg-size: auto, auto, 72px 72px, 72px 72px, 100% 100%;
+    radial-gradient(circle at 12% 10%, rgba(151, 101, 255, 0.12), transparent 28%),
+    radial-gradient(circle at 86% 8%, rgba(111, 217, 255, 0.08), transparent 24%),
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(180deg, #0c0d10 0%, #101116 42%, #0b0c10 100%);
+  --body-bg-size: auto, auto, 56px 56px, 56px 56px, 100% 100%;
   --body-bg-position: center, center, 0 0, 0 0, center;
   --app-overlay:
-    radial-gradient(circle at 18% 8%, rgba(143, 214, 210, 0.12), transparent 42%),
-    radial-gradient(circle at 82% 12%, rgba(217, 183, 143, 0.08), transparent 40%),
-    radial-gradient(circle at 50% 120%, rgba(145, 166, 200, 0.1), transparent 58%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.012), transparent 16%),
+    radial-gradient(circle at 18% 10%, rgba(151, 101, 255, 0.08), transparent 34%),
+    radial-gradient(circle at 82% 12%, rgba(87, 214, 255, 0.06), transparent 30%);
+  --header-gradient: #0a0b0e;
+  --header-border-color: rgba(255, 255, 255, 0.06);
+  --icon-button-bg: #171920;
+  --icon-button-border-color: rgba(255, 255, 255, 0.08);
+  --icon-button-border-hover: rgba(179, 131, 255, 0.46);
+  --icon-button-shadow-hover: 0 10px 24px rgba(151, 101, 255, 0.16);
+  --menu-bg: #171920;
+  --menu-border-color: rgba(255, 255, 255, 0.08);
+  --menu-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+  --menu-border-hover: rgba(179, 131, 255, 0.34);
+  --menu-shadow-hover: 0 22px 48px rgba(151, 101, 255, 0.14);
+  --stat-bg: #171920;
+  --stat-border: rgba(255, 255, 255, 0.07);
+  --stat-shadow: 0 18px 40px rgba(0, 0, 0, 0.26);
+  --betting-panel-bg: #171920;
+  --betting-panel-border: rgba(255, 255, 255, 0.07);
+  --betting-panel-shadow: 0 24px 56px rgba(0, 0, 0, 0.28);
+  --active-paytable-bg: #111319;
+  --active-paytable-border: rgba(255, 255, 255, 0.08);
+  --active-paytable-shadow: none;
+  --secondary-button-bg: #1f222b;
+  --secondary-button-border: rgba(255, 255, 255, 0.08);
+  --secondary-button-shadow: none;
+  --secondary-button-shadow-hover: 0 10px 22px rgba(151, 101, 255, 0.12);
+  --secondary-button-text: rgba(241, 243, 247, 0.94);
+  --primary-button-bg: linear-gradient(135deg, #915eff, #6d44ff);
+  --primary-button-border: rgba(180, 138, 255, 0.42);
+  --primary-button-shadow: 0 14px 28px rgba(109, 68, 255, 0.26);
+  --primary-button-shadow-hover: 0 16px 32px rgba(109, 68, 255, 0.32);
+  --primary-button-text: #fbfbff;
+  --deal-button-bg: linear-gradient(135deg, #915eff, #6d44ff);
+  --deal-button-shadow: 0 14px 28px rgba(109, 68, 255, 0.26);
+  --deal-button-shadow-hover: 0 16px 32px rgba(109, 68, 255, 0.32);
+  --deal-button-text: #fbfbff;
+  --drawer-bg: #101217;
+  --drawer-border: rgba(255, 255, 255, 0.08);
+  --drawer-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+  --chart-background: #101217;
+  --chart-grid-color: rgba(255, 255, 255, 0.08);
+  --chart-axis-color: rgba(227, 231, 240, 0.72);
+  --chart-line-color: #8d5cff;
+  --chart-line-shadow: rgba(141, 92, 255, 0.22);
+  --chart-fill-color: rgba(141, 92, 255, 0.16);
+  --chart-fill-fade: rgba(141, 92, 255, 0);
+  --chart-marker-color: #b998ff;
+  --chart-marker-stroke: rgba(255, 255, 255, 0.9);
+  --theme-action-color: #b998ff;
+  --gold: #f1f3f7;
+  --muted: #9da4b2;
+}
+
+body[data-theme-profile="main-app-comfort"] .header {
+  background: rgba(10, 11, 14, 0.92);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+body[data-theme-profile="main-app-comfort"] .header-bar {
+  width: min(1460px, 100%);
+  margin: 0 auto;
+  gap: 1rem;
+}
+
+body[data-theme-profile="main-app-comfort"] .bankroll,
+body[data-theme-profile="main-app-comfort"] .carter-cash {
+  padding: 0.25rem 0.1rem;
+}
+
+body[data-theme-profile="main-app-comfort"] .header-mode-select,
+body[data-theme-profile="main-app-comfort"] .icon-button,
+body[data-theme-profile="main-app-comfort"] .menu-toggle {
+  border-radius: 999px;
+  background: #171920;
+}
+
+body[data-theme-profile="main-app-comfort"] .header-mode-select {
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+  padding: 0.68rem 2.2rem 0.68rem 1rem;
+  font-size: 0.76rem;
+}
+
+body[data-theme-profile="main-app-comfort"] .icon-button,
+body[data-theme-profile="main-app-comfort"] .menu-toggle {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+body[data-theme-profile="main-app-comfort"] .app-main {
+  width: min(1500px, 100%);
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 2.8vw, 1.6rem) clamp(1.4rem, 3vw, 2.4rem);
+}
+
+body[data-theme-profile="main-app-comfort"] .home-view {
+  align-items: stretch;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+body[data-theme-profile="main-app-comfort"] .home-hero,
+body[data-theme-profile="main-app-comfort"] .route-shell {
+  width: min(1460px, 100%);
+  align-items: stretch;
+  justify-content: flex-start;
+  min-height: 0;
+}
+
+body[data-theme-profile="main-app-comfort"] .route-shell {
+  max-width: none;
+  padding: clamp(1.4rem, 3vw, 2.2rem) 0 clamp(2rem, 4vw, 3rem);
+  gap: 1.4rem;
+}
+
+body[data-theme-profile="main-app-comfort"] .route-header h1,
+body[data-theme-profile="main-app-comfort"] .store-title,
+body[data-theme-profile="main-app-comfort"] .home-title {
+  font-family: "Sora", "Inter", system-ui, sans-serif;
+  letter-spacing: -0.04em;
+  text-transform: none;
+  text-shadow: none;
+}
+
+body[data-theme-profile="main-app-comfort"] .home-title {
+  font-size: clamp(2.2rem, 5vw, 3.5rem);
+  line-height: 1.05;
+}
+
+body[data-theme-profile="main-app-comfort"] .home-subtitle,
+body[data-theme-profile="main-app-comfort"] .route-subheading,
+body[data-theme-profile="main-app-comfort"] .store-subtitle {
+  color: rgba(221, 226, 236, 0.68);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+body[data-theme-profile="main-app-comfort"] .home-games {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  width: 100%;
+}
+
+body[data-theme-profile="main-app-comfort"] .game-card,
+body[data-theme-profile="main-app-comfort"] .home-contests-panel,
+body[data-theme-profile="main-app-comfort"] .home-contest-card,
+body[data-theme-profile="main-app-comfort"] .home-rank-panel,
+body[data-theme-profile="main-app-comfort"] .route-section,
+body[data-theme-profile="main-app-comfort"] .admin-rank-card,
+body[data-theme-profile="main-app-comfort"] .rank-ladder-item,
+body[data-theme-profile="main-app-comfort"] .prize-item,
+body[data-theme-profile="main-app-comfort"] .activity-log-card,
+body[data-theme-profile="main-app-comfort"] .contest-detail-card,
+body[data-theme-profile="main-app-comfort"] .admin-contest-card,
+body[data-theme-profile="main-app-comfort"] .notification-card {
+  border-radius: 1.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(180deg, rgba(28, 30, 37, 0.94), rgba(20, 22, 28, 0.96));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+body[data-theme-profile="main-app-comfort"] .home-contests-panel,
+body[data-theme-profile="main-app-comfort"] .home-rank-panel {
+  width: 100%;
+  padding: 1.25rem;
+}
+
+body[data-theme-profile="main-app-comfort"] .home-contests-title,
+body[data-theme-profile="main-app-comfort"] .game-card-title,
+body[data-theme-profile="main-app-comfort"] .home-rank-title {
+  font-family: "Sora", "Inter", system-ui, sans-serif;
+  letter-spacing: -0.03em;
+  text-transform: none;
+}
+
+body[data-theme-profile="main-app-comfort"] .home-rank-eyebrow,
+body[data-theme-profile="main-app-comfort"] .home-contests-eyebrow,
+body[data-theme-profile="main-app-comfort"] .game-card-kicker {
+  color: rgba(157, 164, 178, 0.72);
+  letter-spacing: 0.14em;
+}
+
+body[data-theme-profile="main-app-comfort"] .home-rank-terminal,
+body[data-theme-profile="main-app-comfort"] .home-rank-progress-grid {
+  width: 100%;
+}
+
+body[data-theme-profile="main-app-comfort"] .home-rank-typing {
+  color: rgba(236, 239, 246, 0.82);
+  font-family: "Inter", "Sora", system-ui, sans-serif;
+  text-shadow: none;
+}
+
+body[data-theme-profile="main-app-comfort"] .home-rank-typing::after {
+  background: #8d5cff;
+}
+
+body[data-theme-profile="main-app-comfort"] .home-contest-card,
+body[data-theme-profile="main-app-comfort"] .game-card {
+  overflow: hidden;
+}
+
+body[data-theme-profile="main-app-comfort"] .home-contest-card,
+body[data-theme-profile="main-app-comfort"] .home-contests-panel,
+body[data-theme-profile="main-app-comfort"] .game-card {
+  background:
+    radial-gradient(circle at top right, rgba(145, 94, 255, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+    #171920;
+}
+
+body[data-theme-profile="main-app-comfort"] .contest-threshold-progress,
+body[data-theme-profile="main-app-comfort"] .rank-progress-card,
+body[data-theme-profile="main-app-comfort"] .contest-list-tabs,
+body[data-theme-profile="main-app-comfort"] .contest-email-setting,
+body[data-theme-profile="main-app-comfort"] .admin-toggle-control,
+body[data-theme-profile="main-app-comfort"] .activity-log-select-field select,
+body[data-theme-profile="main-app-comfort"] .activity-log-item-empty,
+body[data-theme-profile="main-app-comfort"] .prize-empty {
+  border-radius: 1.1rem;
+  border-color: rgba(255, 255, 255, 0.07);
+  background: #111319;
+  box-shadow: none;
+}
+
+body[data-theme-profile="main-app-comfort"] .contest-threshold-progress {
+  animation: none;
+}
+
+body[data-theme-profile="main-app-comfort"] .contest-threshold-progress-fill,
+body[data-theme-profile="main-app-comfort"] .rank-progress-fill {
+  background: linear-gradient(90deg, #8d5cff, #b767ff);
+  box-shadow: none;
+}
+
+body[data-theme-profile="main-app-comfort"] .contest-list-tab.is-active,
+body[data-theme-profile="main-app-comfort"] .home-button,
+body[data-theme-profile="main-app-comfort"] .primary,
+body[data-theme-profile="main-app-comfort"] .deal {
+  box-shadow: none;
+}
+
+body[data-theme-profile="main-app-comfort"] .drawer {
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(16, 18, 23, 0.94);
+  box-shadow: 0 20px 64px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+body[data-theme-profile="main-app-comfort"] .drawer-header h2,
+body[data-theme-profile="main-app-comfort"] .drawer-section h3 {
+  color: rgba(244, 246, 252, 0.94);
+  text-transform: none;
+  letter-spacing: -0.02em;
+}
+
+body[data-theme-profile="main-app-comfort"] .drawer-section,
+body[data-theme-profile="main-app-comfort"] .drawer-rank-summary {
+  border-radius: 1.2rem;
+}
+
+body[data-theme-profile="main-app-comfort"] .drawer-rank-icon-wrap,
+body[data-theme-profile="main-app-comfort"] .home-rank-icon-wrap,
+body[data-theme-profile="main-app-comfort"] .admin-rank-thumb,
+body[data-theme-profile="main-app-comfort"] .admin-rank-preview-thumb {
+  background: #1a1d24;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+body[data-theme-profile="main-app-comfort"] .home-rank-icon-fallback,
+body[data-theme-profile="main-app-comfort"] .drawer-rank-icon-fallback {
+  color: #b998ff;
+}
+
+body[data-theme-profile="main-app-comfort"] .rank-ladder-item .rank-theme-pill,
+body[data-theme-profile="main-app-comfort"] .admin-rank-card .rank-theme-pill {
+  display: none;
 }
 
 body[data-theme-profile="rtn-green-room"] {
