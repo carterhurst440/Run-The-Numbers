@@ -1521,6 +1521,130 @@ function updateAdminAiThemeStatus() {
     : "Assistant surfaces are inheriting the active app theme.";
 }
 
+function getAdminAiThemePreviewMarkup() {
+  return `
+    <div class="design-ai-preview-grid">
+      <section class="design-ai-preview-card">
+        <p class="design-ai-preview-label">Closed State</p>
+        <div class="design-ai-preview-surface">
+          <button type="button" class="play-assistant-fab" aria-hidden="true" tabindex="-1">
+            <span class="play-assistant-rule-badge" aria-hidden="true">2</span>
+            <span class="play-assistant-fab-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path d="M12 3.5c4.97 0 9 3.58 9 8 0 2.19-.99 4.18-2.6 5.62-.34.31-.55.75-.57 1.21l-.08 1.95c-.03.78-.85 1.28-1.55.94l-2.2-1.06c-.34-.16-.73-.2-1.09-.11-.61.15-1.25.23-1.91.23-4.97 0-9-3.58-9-8s4.03-8 9-8Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.7"></path>
+                <path d="M8.5 11.6h7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"></path>
+                <path d="M8.5 8.8h4.7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"></path>
+              </svg>
+            </span>
+            <span class="play-assistant-fab-label">AI</span>
+          </button>
+        </div>
+      </section>
+      <section class="design-ai-preview-card">
+        <p class="design-ai-preview-label">Shape Traders Chat</p>
+        <div class="design-ai-preview-surface">
+          <section class="play-assistant-panel" aria-hidden="true">
+            <div class="play-assistant-panel-header">
+              <div>
+                <p class="play-assistant-eyebrow">Shape Traders AI</p>
+                <h2>Triangle Desk</h2>
+              </div>
+              <button type="button" class="play-assistant-close" tabindex="-1">×</button>
+            </div>
+            <div class="play-assistant-thread">
+              <article class="play-assistant-message" data-role="assistant">
+                <div class="play-assistant-message-meta">
+                  <span>AI</span>
+                  <span>Live</span>
+                </div>
+                <div class="play-assistant-message-body">
+                  <p>Triangle is holding trend support into the next draw. I would wait for a dip entry instead of chasing here.</p>
+                </div>
+              </article>
+              <article class="play-assistant-message" data-role="user">
+                <div class="play-assistant-message-meta">
+                  <span>You</span>
+                  <span>Now</span>
+                </div>
+                <div class="play-assistant-message-body">
+                  <p>Show me the live rule set for Shape Traders.</p>
+                </div>
+              </article>
+            </div>
+            <section class="play-assistant-rules">
+              <button type="button" class="play-assistant-rules-toggle" aria-expanded="true" tabindex="-1">
+                <span class="play-assistant-rules-label">View Rules (2)</span>
+                <span class="play-assistant-rules-caret" aria-hidden="true">−</span>
+              </button>
+              <div class="play-assistant-rules-list">
+                <article class="play-assistant-rule-card is-enabled">
+                  <p class="play-assistant-rule-summary">Buy Triangle when it dips below 94 and sell it at 118.</p>
+                  <div class="play-assistant-rule-meta">
+                    <span class="play-assistant-rule-pill">Triangle</span>
+                    <span class="play-assistant-rule-pill">Active</span>
+                    <span class="play-assistant-rule-pill">Auto Buy</span>
+                  </div>
+                </article>
+                <article class="play-assistant-rule-card is-disabled">
+                  <p class="play-assistant-rule-summary">Buy Square after a dump if momentum flips positive for 2 draws.</p>
+                  <div class="play-assistant-rule-meta">
+                    <span class="play-assistant-rule-pill">Square</span>
+                    <span class="play-assistant-rule-pill">Paused</span>
+                  </div>
+                </article>
+              </div>
+            </section>
+          </section>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderAdminAiThemePreview(target = adminAiThemePreviewModalEl) {
+  if (!(target instanceof HTMLElement)) return;
+  target.innerHTML = getAdminAiThemePreviewMarkup();
+}
+
+function applyAdminAiThemePreview(settings, target = adminAiThemePreviewModalEl) {
+  if (!(target instanceof HTMLElement)) return;
+  const baseTheme = getResolvedThemeRecord() || getThemeRecord("blue");
+  applyThemeVariables(baseTheme, target);
+  applyAiThemeVariables(settings, target);
+}
+
+function renderAdminAiThemeCardPreview(settings = aiThemeSettingsCache) {
+  if (!(adminAiThemePreviewCardEl instanceof HTMLElement)) return;
+  adminAiThemePreviewCardEl.innerHTML = getAdminAiThemePreviewMarkup();
+  applyAdminAiThemePreview(settings, adminAiThemePreviewCardEl);
+}
+
+function openAdminAiThemeModal() {
+  if (!adminAiThemeModal) return;
+  populateAdminAiThemeForm(aiThemeSettingsCache);
+  if (adminAiThemeMessage) {
+    adminAiThemeMessage.textContent = "";
+  }
+  renderAdminAiThemePreview();
+  applyAdminAiThemePreview(getAdminAiThemeFormState(), adminAiThemePreviewModalEl);
+  adminAiThemeModal.hidden = false;
+  document.body.classList.add("modal-open");
+  const firstField = adminAiThemeForm?.elements.namedItem("panelBackground");
+  if (firstField instanceof HTMLInputElement) {
+    window.setTimeout(() => firstField.focus(), 0);
+  }
+}
+
+function closeAdminAiThemeModal() {
+  if (!adminAiThemeModal) return;
+  adminAiThemeModal.hidden = true;
+  document.body.classList.remove("modal-open");
+  populateAdminAiThemeForm(aiThemeSettingsCache);
+  if (adminAiThemeMessage) {
+    adminAiThemeMessage.textContent = "";
+  }
+}
+
 async function handleAdminAiThemeSubmit(event) {
   event.preventDefault();
   if (!isAdmin() || !adminAiThemeForm || !supabase || !aiThemeSettingsPersistenceAvailable) {
@@ -1542,10 +1666,12 @@ async function handleAdminAiThemeSubmit(event) {
     aiThemeSettingsHydrated = true;
     applyResolvedTheme();
     updateAdminAiThemeStatus();
+    renderAdminAiThemeCardPreview(aiThemeSettingsCache);
     if (adminAiThemeMessage) {
       adminAiThemeMessage.textContent = "AI theme saved.";
     }
     showToast("AI theme saved", "success");
+    closeAdminAiThemeModal();
   } catch (error) {
     console.error("[RTN] handleAdminAiThemeSubmit error", error);
     if (adminAiThemeMessage) {
@@ -1573,10 +1699,12 @@ async function resetAdminAiThemeToDefaults() {
     populateAdminAiThemeForm({});
     applyResolvedTheme();
     updateAdminAiThemeStatus();
+    renderAdminAiThemeCardPreview(aiThemeSettingsCache);
     if (adminAiThemeMessage) {
       adminAiThemeMessage.textContent = "AI theme reset to app theme defaults.";
     }
     showToast("AI theme reset", "success");
+    closeAdminAiThemeModal();
   } catch (error) {
     console.error("[RTN] resetAdminAiThemeToDefaults error", error);
     if (adminAiThemeMessage) {
@@ -2703,6 +2831,7 @@ async function loadAdminThemes(force = false) {
   populateAdminRankThemeOptions(adminRankThemeSelect?.value || "blue");
   populateAdminAiThemeForm(aiThemeSettingsCache);
   updateAdminAiThemeStatus();
+  renderAdminAiThemeCardPreview(aiThemeSettingsCache);
   if (!adminThemeListEl) return;
   adminThemeListEl.innerHTML = "";
   const themes = getThemeLibrary();
@@ -16119,7 +16248,13 @@ const adminGameModalMessage = document.getElementById("admin-game-modal-message"
 const adminAiThemeForm = document.getElementById("admin-ai-theme-form");
 const adminAiThemeMessage = document.getElementById("admin-ai-theme-message");
 const adminAiThemeStatus = document.getElementById("admin-ai-theme-status");
+const adminAiThemeEditButton = document.getElementById("admin-ai-theme-edit");
 const adminAiThemeResetButton = document.getElementById("admin-ai-theme-reset");
+const adminAiThemeCancelButton = document.getElementById("admin-ai-theme-cancel");
+const adminAiThemePreviewCardEl = document.getElementById("admin-ai-theme-preview-card");
+const adminAiThemePreviewModalEl = document.getElementById("admin-ai-theme-preview-modal");
+const adminAiThemeModal = document.getElementById("admin-ai-theme-modal");
+const adminAiThemeCloseButton = document.getElementById("admin-ai-theme-close");
 const adminThemeForm = document.getElementById("admin-theme-form");
 const adminThemeListEl = document.getElementById("admin-theme-list");
 const adminThemeMessage = document.getElementById("admin-theme-message");
@@ -25553,14 +25688,46 @@ if (adminThemeForm) {
 
 if (adminAiThemeForm) {
   populateAdminAiThemeForm({});
+  renderAdminAiThemePreview();
+  applyAdminAiThemePreview({}, adminAiThemePreviewModalEl);
+  renderAdminAiThemeCardPreview({});
+  adminAiThemeForm.addEventListener("input", () => {
+    applyAdminAiThemePreview(getAdminAiThemeFormState(), adminAiThemePreviewModalEl);
+  });
   adminAiThemeForm.addEventListener("submit", (event) => {
     void handleAdminAiThemeSubmit(event);
+  });
+}
+
+if (adminAiThemeEditButton) {
+  adminAiThemeEditButton.addEventListener("click", () => {
+    openAdminAiThemeModal();
   });
 }
 
 if (adminAiThemeResetButton) {
   adminAiThemeResetButton.addEventListener("click", () => {
     void resetAdminAiThemeToDefaults();
+  });
+}
+
+if (adminAiThemeCancelButton) {
+  adminAiThemeCancelButton.addEventListener("click", () => {
+    closeAdminAiThemeModal();
+  });
+}
+
+if (adminAiThemeCloseButton) {
+  adminAiThemeCloseButton.addEventListener("click", () => {
+    closeAdminAiThemeModal();
+  });
+}
+
+if (adminAiThemeModal) {
+  adminAiThemeModal.addEventListener("click", (event) => {
+    if (event.target === adminAiThemeModal) {
+      closeAdminAiThemeModal();
+    }
   });
 }
 
@@ -29844,6 +30011,11 @@ document.addEventListener("keydown", (event) => {
     }
     if (adminThemeModal && !adminThemeModal.hidden) {
       closeAdminThemeModal();
+      event.preventDefault();
+      return;
+    }
+    if (adminAiThemeModal && !adminAiThemeModal.hidden) {
+      closeAdminAiThemeModal();
       event.preventDefault();
       return;
     }
