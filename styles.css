@@ -15019,18 +15019,19 @@ body[data-theme-profile="rtn-green-room"] {
       transparent 1px,
       transparent 5px
     ),
-    #184e31;
+    radial-gradient(circle at 50% 30%, rgba(48, 102, 64, 0.28), transparent 42%),
+    #123724;
   --body-bg-size: auto;
   --body-bg-position: center;
   --app-overlay: none;
-  --table-rail-color: #4f341d;
-  --table-rail-highlight: #795634;
-  --table-panel-bg: #184e31;
-  --paytable-panel-bg: #205338;
-  --betting-panel-bg: #1a4b31;
-  --chip-bar-bg: #14442b;
-  --menu-bg: #153d29;
-  --bet-spot-bg: #245e3e;
+  --table-rail-color: #3e2614;
+  --table-rail-highlight: #7a5735;
+  --table-panel-bg: #153f29;
+  --paytable-panel-bg: #1c4a31;
+  --betting-panel-bg: #143923;
+  --chip-bar-bg: #102d1d;
+  --menu-bg: #113320;
+  --bet-spot-bg: #1c4b2e;
   --paytable-option-bg: rgba(20, 58, 37, 0.94);
   --paytable-option-border: rgba(208, 190, 124, 0.32);
   --paytable-option-shadow: none;
@@ -15087,8 +15088,8 @@ body[data-theme-profile="rtn-green-room"] {
   --bet-spot-border: rgba(206, 193, 133, 0.38);
   --bet-spot-border-hover: rgba(232, 223, 165, 0.72);
   --bet-spot-border-active: rgba(245, 236, 188, 0.86);
-  --bet-spot-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18), 0 4px 0 rgba(0, 0, 0, 0.18);
-  --bet-spot-active-shadow: inset 0 0 0 1px rgba(245, 236, 188, 0.12), 0 5px 0 rgba(0, 0, 0, 0.22);
+  --bet-spot-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.28), 0 3px 0 rgba(0, 0, 0, 0.3);
+  --bet-spot-active-shadow: inset 0 0 0 1px rgba(245, 236, 188, 0.14), 0 4px 0 rgba(0, 0, 0, 0.34);
 }
 
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .table-panel,
@@ -15114,12 +15115,26 @@ body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .advanced-panel 
     var(--table-panel-bg);
   border: 1px solid rgba(208, 190, 124, 0.22);
   box-shadow:
-    0 0 0 10px var(--table-rail-color),
-    0 0 0 12px rgba(18, 9, 4, 0.78),
+    0 0 0 12px var(--table-rail-color),
+    0 0 0 14px rgba(14, 8, 4, 0.82),
+    0 10px 24px rgba(0, 0, 0, 0.26),
     inset 0 0 0 1px rgba(255, 255, 255, 0.03),
     inset 0 0 0 3px rgba(8, 24, 15, 0.28),
-    inset 0 0 0 4px rgba(121, 86, 52, 0.24),
+    inset 0 0 0 5px rgba(122, 87, 53, 0.28),
     0 0 0 1px rgba(7, 19, 12, 0.5);
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .table-panel {
+  position: relative;
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .table-panel::before,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .betting-panel::before {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border: 1px solid rgba(216, 201, 135, 0.14);
+  pointer-events: none;
 }
 
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .betting-panel {
@@ -15164,14 +15179,36 @@ body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .advanced-panel 
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .paytable-panel-header h2,
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .active-paytable-label,
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bets-title,
-body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bets-subtitle {
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bets-subtitle,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bets-heading {
   color: #d8c987;
+  text-transform: uppercase;
+  letter-spacing: 0.18rem;
 }
 
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .paytable-panel-header p,
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .active-paytable-steps,
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .table-callout {
   color: rgba(231, 239, 222, 0.78);
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .number-bets,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .specific-card-bets,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .advanced-bets {
+  position: relative;
+  padding: 1rem;
+  border: 1px solid rgba(216, 201, 135, 0.18);
+  background: rgba(10, 28, 18, 0.18);
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .number-bets::before,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .specific-card-bets::before,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .advanced-bets::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(216, 201, 135, 0.08);
+  pointer-events: none;
 }
 
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .paytable-option,
@@ -15191,12 +15228,35 @@ body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .count-bet {
   border-radius: 0 !important;
   background: var(--bet-spot-bg);
   text-shadow: none;
+  min-height: 4.9rem;
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .specific-card-bet {
+  min-height: 3.35rem;
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-spot .bet-label,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-spot .bet-title,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-spot .bet-rank,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-spot .bet-suit {
+  color: rgba(244, 239, 221, 0.96);
+  letter-spacing: 0.05rem;
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-spot .bet-payout,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-spot .bet-copy,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-total {
+  color: rgba(214, 223, 195, 0.78);
 }
 
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-spot:hover:not(:disabled),
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-spot:focus-visible,
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-spot.has-bet {
   transform: translateY(-1px);
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-spot.has-bet {
+  background: #2a633f;
 }
 
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .deal-mode-toggle,
@@ -15231,7 +15291,8 @@ body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-bar {
   border-top: 1px solid rgba(208, 190, 124, 0.22);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.035),
-    0 -6px 0 rgba(79, 52, 29, 0.92);
+    0 -8px 0 rgba(62, 38, 20, 0.96),
+    0 -10px 0 rgba(18, 9, 4, 0.82);
 }
 
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-choice[data-tone="0"] {
@@ -15272,6 +15333,11 @@ body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .deal {
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .secondary {
   text-transform: uppercase;
   letter-spacing: 0.06rem;
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .change-paytable,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .secondary {
+  font-size: 0.72rem;
 }
 
 body[data-theme-profile="guess-10-deep-blue"] #red-black-view .beta-game-panel {
