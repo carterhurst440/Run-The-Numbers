@@ -2045,6 +2045,7 @@
           aria-controls="play-assistant-panel"
           hidden
         >
+          <span id="play-assistant-rule-badge" class="play-assistant-rule-badge" aria-hidden="true" hidden>0</span>
           <span class="play-assistant-fab-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
               <path
@@ -2435,6 +2436,15 @@
                       </div>
                     </div>
                   </div>
+                  <div class="most-active-trend-toolbar active-users-series-toolbar">
+                    <div class="most-active-player-filter-row">
+                      <div id="active-users-series-filters" class="most-active-player-filters" aria-label="Filter active user chart lines"></div>
+                      <div class="most-active-player-filter-actions">
+                        <button type="button" id="active-users-select-all" class="analytics-inline-action">Select All</button>
+                        <button type="button" id="active-users-deselect-all" class="analytics-inline-action">Deselect All</button>
+                      </div>
+                    </div>
+                  </div>
                   <p id="active-users-subhead" class="analytics-card-subhead">Daily snapshots of DAU, WAU, and MAU based on users who played at least one hand. This chart reflects overall app usage.</p>
                   <div class="overview-chart-container">
                     <canvas id="active-users-analytics-chart"></canvas>
@@ -2458,7 +2468,13 @@
                   <p id="most-active-subhead" class="analytics-card-subhead">Ranked by combined events in the last 7 days.</p>
                   <div class="most-active-trend-block">
                     <div class="most-active-trend-toolbar">
-                      <div id="most-active-player-filters" class="most-active-player-filters" aria-label="Filter most active chart players"></div>
+                      <div class="most-active-player-filter-row">
+                        <div id="most-active-player-filters" class="most-active-player-filters" aria-label="Filter most active chart players"></div>
+                        <div class="most-active-player-filter-actions">
+                          <button type="button" id="most-active-select-all" class="analytics-inline-action">Select All</button>
+                          <button type="button" id="most-active-deselect-all" class="analytics-inline-action">Deselect All</button>
+                        </div>
+                      </div>
                       <div class="chart-filters bankroll-game-filters most-active-game-filters">
                         <button type="button" class="chart-filter-btn active" data-most-active-game="all">All</button>
                         <button type="button" class="chart-filter-btn" data-most-active-game="game_001">RTN</button>

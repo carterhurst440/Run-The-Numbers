@@ -8480,7 +8480,47 @@ function updateActiveUsersChartFilterUI() {
     all: "Daily snapshots of DAU, WAU, and MAU across all time based on users who played at least one hand. This chart reflects overall app usage."
   };
 
-  activeUsersSubheadEl.textContent = labels[activeUsersChartPeriod] || labels.all;
+  const selectedCount = activeUsersSelectedSeriesKeys.length;
+  const baseLabel = labels[activeUsersChartPeriod] || labels.all;
+  activeUsersSubheadEl.textContent = `${baseLabel} Charting ${selectedCount.toLocaleString()} selected line${selectedCount === 1 ? "" : "s"}.`;
+}
+
+function getActiveUsersSeriesDefinitions() {
+  return [
+    { key: "dau", label: "DAU", borderColor: "rgba(53, 255, 234, 1)", backgroundColor: "rgba(53, 255, 234, 0.12)" },
+    { key: "wau", label: "WAU", borderColor: "rgba(255, 105, 180, 1)", backgroundColor: "rgba(255, 105, 180, 0.12)" },
+    { key: "mau", label: "MAU", borderColor: "rgba(255, 190, 92, 1)", backgroundColor: "rgba(255, 190, 92, 0.12)" }
+  ];
+}
+
+function renderActiveUsersSeriesFilters() {
+  if (!activeUsersSeriesFiltersEl) {
+    return;
+  }
+  const selectedSet = new Set(activeUsersSelectedSeriesKeys);
+  const fragment = document.createDocumentFragment();
+  activeUsersSeriesFiltersEl.innerHTML = "";
+  getActiveUsersSeriesDefinitions().forEach((series) => {
+    const label = document.createElement("label");
+    label.className = "most-active-player-chip";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = series.key;
+    input.checked = selectedSet.has(series.key);
+    input.dataset.activeUsersSeriesKey = series.key;
+
+    const marker = document.createElement("span");
+    marker.className = "most-active-player-chip-mark";
+    marker.style.setProperty("--player-line-color", series.borderColor);
+
+    const text = document.createElement("span");
+    text.className = "most-active-player-chip-text";
+    text.textContent = series.label;
+
+    label.append(input, marker, text);
+    fragment.appendChild(label);
+  });
+  activeUsersSeriesFiltersEl.appendChild(fragment);
 }
 
 async function renderActiveUsersChart(period = "year") {
@@ -8491,6 +8531,7 @@ async function renderActiveUsersChart(period = "year") {
 
   activeUsersChartPeriod = period;
   updateActiveUsersChartFilterUI();
+  renderActiveUsersSeriesFilters();
 
   const loadingOverlay = document.querySelector(".active-users-chart-loading");
   if (loadingOverlay) {
@@ -8562,6 +8603,15 @@ async function renderActiveUsersChart(period = "year") {
     }
   });
 
+  const seriesDefinitions = getActiveUsersSeriesDefinitions();
+  const availableSeriesKeys = seriesDefinitions.map((series) => series.key);
+  activeUsersSelectedSeriesKeys = activeUsersSelectedSeriesKeys.filter((key) => availableSeriesKeys.includes(key));
+  if (!activeUsersSeriesInitialized) {
+    activeUsersSelectedSeriesKeys = [...availableSeriesKeys];
+    activeUsersSeriesInitialized = true;
+  }
+  renderActiveUsersSeriesFilters();
+
   const canvas = document.getElementById("active-users-analytics-chart");
   if (!canvas) {
     console.warn("[RTN] Active users chart canvas not found");
@@ -8574,51 +8624,39 @@ async function renderActiveUsersChart(period = "year") {
     activeUsersChartInstance.destroy();
   }
 
+  const selectedSeriesSet = new Set(activeUsersSelectedSeriesKeys);
+  const datasets = seriesDefinitions
+    .filter((series) => selectedSeriesSet.has(series.key))
+    .map((series) => ({
+      label: series.label,
+      data: dates.map((date) => snapshotMap[date][series.key] || 0),
+      borderColor: series.borderColor,
+      backgroundColor: series.backgroundColor,
+      borderWidth: 2,
+      fill: false,
+      tension: 0.3
+    }));
+
   activeUsersChartInstance = new Chart(ctx, {
     type: "line",
     data: {
       labels: dates,
-      datasets: [
-        {
-          label: "DAU",
-          data: dates.map((date) => snapshotMap[date].dau),
-          borderColor: "rgba(53, 255, 234, 1)",
-          backgroundColor: "rgba(53, 255, 234, 0.12)",
-          borderWidth: 2,
-          fill: false,
-          tension: 0.3
-        },
-        {
-          label: "WAU",
-          data: dates.map((date) => snapshotMap[date].wau),
-          borderColor: "rgba(255, 105, 180, 1)",
-          backgroundColor: "rgba(255, 105, 180, 0.12)",
-          borderWidth: 2,
-          fill: false,
-          tension: 0.3
-        },
-        {
-          label: "MAU",
-          data: dates.map((date) => snapshotMap[date].mau),
-          borderColor: "rgba(255, 190, 92, 1)",
-          backgroundColor: "rgba(255, 190, 92, 0.12)",
-          borderWidth: 2,
-          fill: false,
-          tension: 0.3
-        }
-      ]
+      datasets: datasets.length ? datasets : [{
+        label: "No Data",
+        data: dates.map(() => 0),
+        borderColor: "rgba(173, 225, 247, 0.55)",
+        backgroundColor: "rgba(173, 225, 247, 0.12)",
+        borderWidth: 2,
+        fill: false,
+        tension: 0.3
+      }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          display: true,
-          labels: {
-            color: "rgba(226, 248, 255, 0.85)",
-            boxWidth: 14,
-            boxHeight: 14
-          }
+          display: false
         },
         tooltip: {
           mode: "index",
@@ -15020,9 +15058,14 @@ const pnlRankFilterButtons = Array.from(document.querySelectorAll("[data-pnl-ran
 const mostActiveGameFilterButtons = Array.from(document.querySelectorAll("[data-most-active-game]"));
 const mostActiveChartSubheadEl = document.getElementById("most-active-chart-subhead");
 const mostActivePlayerFiltersEl = document.getElementById("most-active-player-filters");
+const mostActiveSelectAllButton = document.getElementById("most-active-select-all");
+const mostActiveDeselectAllButton = document.getElementById("most-active-deselect-all");
 const mostActiveChartCanvas = document.getElementById("most-active-analytics-chart");
 const activeUsersFilterButtons = Array.from(document.querySelectorAll("[data-active-users-period]"));
 const activeUsersSubheadEl = document.getElementById("active-users-subhead");
+const activeUsersSeriesFiltersEl = document.getElementById("active-users-series-filters");
+const activeUsersSelectAllButton = document.getElementById("active-users-select-all");
+const activeUsersDeselectAllButton = document.getElementById("active-users-deselect-all");
 const panelScrim = document.getElementById("panel-scrim");
 const bankrollChartCanvas = document.getElementById("bankroll-chart");
 const bankrollChartWrapper = document.getElementById("bankroll-chart-wrapper");
@@ -15397,6 +15440,7 @@ const rankLadderListEl = document.getElementById("rank-ladder-list");
 const rankLadderCloseButton = document.getElementById("rank-ladder-close");
 const rankLadderOkButton = document.getElementById("rank-ladder-ok");
 const playAssistantToggle = document.getElementById("play-assistant-toggle");
+const playAssistantRuleBadgeEl = document.getElementById("play-assistant-rule-badge");
 const playAssistantPanel = document.getElementById("play-assistant-panel");
 const playAssistantCloseButton = document.getElementById("play-assistant-close");
 const playAssistantTitleEl = document.getElementById("play-assistant-title");
@@ -15658,6 +15702,8 @@ let bankrollChartHoverBars = [];
 let bankrollChartLiveRefreshTimerId = null;
 let activityLeaderboardPeriod = "week";
 let activeUsersChartPeriod = "all";
+let activeUsersSelectedSeriesKeys = ["dau", "wau", "mau"];
+let activeUsersSeriesInitialized = false;
 let autoDealEnabled = true;
 let carterCash = 0;
   let carterCashProgress = 0;
@@ -20355,6 +20401,23 @@ function updatePlayAssistantContext() {
   }
   updatePlayAssistantUiContent();
   renderPlayAssistantRules();
+  updatePlayAssistantRuleBadge();
+}
+
+function updatePlayAssistantRuleBadge() {
+  if (!playAssistantRuleBadgeEl) {
+    return;
+  }
+  const isShapeTraders = getCurrentPlayAssistantGameKey() === GAME_KEYS.SHAPE_TRADERS;
+  if (isShapeTraders) {
+    ensureShapeTraderAssistantRulesLoaded();
+  }
+  const liveRules = isShapeTraders
+    ? shapeTradersAssistantRules.filter((rule) => rule.enabled).length
+    : 0;
+  const shouldShow = isShapeTraders && liveRules > 0;
+  playAssistantRuleBadgeEl.hidden = !shouldShow;
+  playAssistantRuleBadgeEl.textContent = String(Math.min(liveRules, 99));
 }
 
 function escapeAssistantHtml(value) {
@@ -20753,6 +20816,7 @@ function togglePlayAssistant(open = !playAssistantOpen) {
   if (typeof document !== "undefined") {
     document.body.classList.toggle("play-assistant-open", playAssistantOpen);
   }
+  updatePlayAssistantRuleBadge();
   if (playAssistantPanel) {
     updatePlayAssistantBounds();
     playAssistantPanel.hidden = !playAssistantOpen;
@@ -20775,6 +20839,7 @@ function updatePlayAssistantVisibility() {
     renderPlayAssistantRules();
     seedPlayAssistant();
   }
+  updatePlayAssistantRuleBadge();
   if (playAssistantToggle) {
     playAssistantToggle.hidden = !shouldShow || playAssistantOpen;
   }
@@ -25123,6 +25188,21 @@ if (mostActivePlayerFiltersEl) {
   });
 }
 
+if (mostActiveSelectAllButton) {
+  mostActiveSelectAllButton.addEventListener("click", () => {
+    const rankedUsers = Array.isArray(mostActiveTrendSource?.rankedUsers) ? mostActiveTrendSource.rankedUsers : [];
+    mostActiveTrendSelectedUserIds = rankedUsers.map((entry) => entry.userId).filter(Boolean);
+    renderMostActiveTrendChartFromSource();
+  });
+}
+
+if (mostActiveDeselectAllButton) {
+  mostActiveDeselectAllButton.addEventListener("click", () => {
+    mostActiveTrendSelectedUserIds = [];
+    renderMostActiveTrendChartFromSource();
+  });
+}
+
 mostActiveGameFilterButtons.forEach((button) => {
   button.addEventListener("click", () => {
     const nextGame = button instanceof HTMLElement
@@ -25414,6 +25494,35 @@ activeUsersFilterButtons.forEach((button) => {
   });
 });
 
+if (activeUsersSeriesFiltersEl) {
+  activeUsersSeriesFiltersEl.addEventListener("change", (event) => {
+    const input = event.target instanceof HTMLInputElement ? event.target : null;
+    if (!input || input.type !== "checkbox" || !input.dataset.activeUsersSeriesKey) {
+      return;
+    }
+    activeUsersSelectedSeriesKeys = Array.from(
+      activeUsersSeriesFiltersEl.querySelectorAll("input[data-active-users-series-key]:checked")
+    ).map((checkbox) => checkbox.value);
+    void renderActiveUsersChart(activeUsersChartPeriod);
+  });
+}
+
+if (activeUsersSelectAllButton) {
+  activeUsersSelectAllButton.addEventListener("click", () => {
+    activeUsersSelectedSeriesKeys = getActiveUsersSeriesDefinitions().map((series) => series.key);
+    renderActiveUsersSeriesFilters();
+    void renderActiveUsersChart(activeUsersChartPeriod);
+  });
+}
+
+if (activeUsersDeselectAllButton) {
+  activeUsersDeselectAllButton.addEventListener("click", () => {
+    activeUsersSelectedSeriesKeys = [];
+    renderActiveUsersSeriesFilters();
+    void renderActiveUsersChart(activeUsersChartPeriod);
+  });
+}
+
 // Global variable to store selected player filter
 let selectedPlayerIds = null; // null = all players, [] = specific players
 let playerEmailMap = {}; // Map of user_id to email for display
@@ -25429,6 +25538,7 @@ let analyticsPnlRankVisibleCount = 10;
 let mostActiveTrendChartInstance = null;
 let mostActiveTrendGameFilter = "all";
 let mostActiveTrendSelectedUserIds = [];
+let mostActiveTrendSelectionsInitialized = false;
 let mostActiveTrendSource = null;
 let playerBankrollChartInstance = null;
 let playerBankrollPeriod = "year";
@@ -25955,8 +26065,8 @@ function buildMostActiveTrendDatasets({
 } = {}) {
   const availableUserIds = rankedUsers.map((entry) => entry.userId).filter(Boolean);
   const selectedUserIds = mostActiveTrendSelectedUserIds.filter((userId) => availableUserIds.includes(userId));
-  const effectiveSelectedIds = selectedUserIds.length ? selectedUserIds : availableUserIds.slice(0, Math.min(5, availableUserIds.length));
-  if (effectiveSelectedIds.length !== mostActiveTrendSelectedUserIds.length || !mostActiveTrendSelectedUserIds.length) {
+  const effectiveSelectedIds = selectedUserIds.length ? selectedUserIds : [];
+  if (effectiveSelectedIds.length !== mostActiveTrendSelectedUserIds.length) {
     mostActiveTrendSelectedUserIds = [...effectiveSelectedIds];
   }
 
@@ -26089,12 +26199,7 @@ function renderMostActiveTrendChartFromSource() {
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          display: true,
-          labels: {
-            color: "rgba(226, 248, 255, 0.85)",
-            boxWidth: 14,
-            boxHeight: 14
-          }
+          display: false
         },
         tooltip: {
           mode: "index",
@@ -26164,8 +26269,9 @@ async function renderMostActiveTrendChart(rankedUsers = [], startAt = null) {
   });
   const availableIds = new Set(userIds);
   mostActiveTrendSelectedUserIds = mostActiveTrendSelectedUserIds.filter((userId) => availableIds.has(userId));
-  if (!mostActiveTrendSelectedUserIds.length) {
-    mostActiveTrendSelectedUserIds = userIds.slice(0, Math.min(5, userIds.length));
+  if (!mostActiveTrendSelectionsInitialized) {
+    mostActiveTrendSelectedUserIds = [...userIds];
+    mostActiveTrendSelectionsInitialized = true;
   }
   mostActiveTrendSource = {
     rankedUsers,

@@ -9055,7 +9055,7 @@ button:disabled {
   right: clamp(1rem, 2.5vw, 1.6rem);
   bottom: calc(env(safe-area-inset-bottom) + 8.1rem);
   z-index: 40;
-  overflow: hidden;
+  overflow: visible;
   width: 3rem;
   height: 3rem;
   min-width: 3rem;
@@ -9154,6 +9154,33 @@ body.play-assistant-open .play-assistant-fab {
   z-index: 1;
   font-size: 0.54rem;
   letter-spacing: 0.12em;
+  line-height: 1;
+}
+
+.play-assistant-rule-badge {
+  position: absolute;
+  top: -0.35rem;
+  left: -0.28rem;
+  z-index: 2;
+  min-width: 1.3rem;
+  height: 1.3rem;
+  padding: 0 0.28rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--gold) 92%, white 8%),
+    color-mix(in srgb, var(--neon-magenta) 28%, var(--gold) 72%)
+  );
+  color: #16110a;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.32),
+    0 0 0 1px rgba(255, 209, 102, 0.12);
+  font-size: 0.66rem;
+  font-weight: 900;
   line-height: 1;
 }
 
@@ -11353,10 +11380,21 @@ body.play-assistant-open .play-assistant-fab {
   gap: 0.75rem;
 }
 
+.most-active-player-filter-row {
+  display: grid;
+  gap: 0.65rem;
+}
+
 .most-active-player-filters {
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;
+}
+
+.most-active-player-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
 }
 
 .most-active-player-filters-empty {
@@ -11403,6 +11441,11 @@ body.play-assistant-open .play-assistant-fab {
 
 .most-active-player-chip:has(input:not(:checked)) {
   opacity: 0.55;
+}
+
+.active-users-series-toolbar {
+  margin-top: 0.1rem;
+  margin-bottom: 0.75rem;
 }
 
 .most-active-chart-container {
