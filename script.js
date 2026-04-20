@@ -25685,7 +25685,7 @@ let analyticsPnlRankEntries = [];
 let analyticsPnlRankVisibleCount = 10;
 let adminPnlChartGameFilter = "all";
 let adminPnlChartSelectedUserIds = [];
-let adminPnlChartSelectionPeriod = "";
+let adminPnlChartSelectionScope = "";
 let adminPnlIncludeContestModes = false;
 let adminPnlChartHoverBars = [];
 let adminPnlChartSource = null;
@@ -26269,6 +26269,10 @@ function getAdminPnlPeriodDescription(period = "week") {
     year: "the last year"
   };
   return labels[period] || labels.week;
+}
+
+function getAdminPnlSelectionScopeKey() {
+  return `${pnlRankLeaderboardPeriod}:${adminPnlIncludeContestModes ? "contest" : "normal"}`;
 }
 
 function buildAdminPnlChartPoints({
@@ -28019,9 +28023,10 @@ async function loadPnlRankings() {
     }
 
     const availableUserIds = analyticsPnlRankEntries.map((entry) => entry.userId).filter(Boolean);
-    if (adminPnlChartSelectionPeriod !== pnlRankLeaderboardPeriod) {
+    const selectionScopeKey = getAdminPnlSelectionScopeKey();
+    if (adminPnlChartSelectionScope !== selectionScopeKey) {
       adminPnlChartSelectedUserIds = [...availableUserIds];
-      adminPnlChartSelectionPeriod = pnlRankLeaderboardPeriod;
+      adminPnlChartSelectionScope = selectionScopeKey;
     } else {
       adminPnlChartSelectedUserIds = adminPnlChartSelectedUserIds.filter((userId) => availableUserIds.includes(userId));
       if (!adminPnlChartSelectedUserIds.length && availableUserIds.length) {
