@@ -692,6 +692,154 @@ const DEFAULT_RANK_LADDER = [
     theme_key: "pastel"
   }
 ];
+const BUILTIN_THEME_LIBRARY = [
+  {
+    key: "main-app-comfort",
+    name: "Main App Comfort",
+    base_theme: "blue",
+    palette: {
+      accent: "#8fd6d2",
+      accentSecondary: "#d9b78f",
+      accentTertiary: "#91a6c8",
+      heroButton: "#d6b07a",
+      primaryButton: "#7ca2bc",
+      actionColor: "#7ca2bc",
+      primaryButtonDisabled: "#6f7f91",
+      secondaryButton: "#55697f",
+      secondaryButtonDisabled: "#5d6773",
+      progressStart: "#8fd6d2",
+      progressEnd: "#91a6c8",
+      gold: "#e2c48f",
+      muted: "#c7d3de",
+      success: "#91c7a5",
+      danger: "#d78d8d",
+      bgStart: "#161a22",
+      bgEnd: "#0f1318",
+      panelStart: "#263140",
+      panelEnd: "#171d26",
+      headerStart: "#334355",
+      headerEnd: "#202b38"
+    },
+    settings: {
+      glowStrength: 22,
+      surfaceContrast: 56,
+      radiusScale: 72,
+      flatSurfaces: false
+    },
+    is_builtin: true
+  },
+  {
+    key: "rtn-green-room",
+    name: "RTN Green Room",
+    base_theme: "blue",
+    palette: {
+      accent: "#8be0b3",
+      accentSecondary: "#d8c07c",
+      accentTertiary: "#73bda0",
+      heroButton: "#9fdc8a",
+      primaryButton: "#5ca775",
+      actionColor: "#5ca775",
+      primaryButtonDisabled: "#688676",
+      secondaryButton: "#355b4a",
+      secondaryButtonDisabled: "#586b62",
+      progressStart: "#8be0b3",
+      progressEnd: "#b7e48b",
+      gold: "#dcc686",
+      muted: "#cae6d4",
+      success: "#9de6b7",
+      danger: "#d68f8c",
+      bgStart: "#0f1712",
+      bgEnd: "#0a100c",
+      panelStart: "#1e3a2b",
+      panelEnd: "#122118",
+      headerStart: "#29513d",
+      headerEnd: "#173024"
+    },
+    settings: {
+      glowStrength: 26,
+      surfaceContrast: 60,
+      radiusScale: 68,
+      flatSurfaces: false
+    },
+    is_builtin: true
+  },
+  {
+    key: "guess-10-deep-blue",
+    name: "Guess 10 Deep Blue",
+    base_theme: "blue",
+    palette: {
+      accent: "#7ec8ff",
+      accentSecondary: "#8fb0ff",
+      accentTertiary: "#78e0ff",
+      heroButton: "#9bb7ff",
+      primaryButton: "#4e7fda",
+      actionColor: "#4e7fda",
+      primaryButtonDisabled: "#6a7fa8",
+      secondaryButton: "#344c82",
+      secondaryButtonDisabled: "#566884",
+      progressStart: "#7ec8ff",
+      progressEnd: "#9ab7ff",
+      gold: "#d8c8a1",
+      muted: "#c8d6f0",
+      success: "#90d6c6",
+      danger: "#d58d94",
+      bgStart: "#0e1526",
+      bgEnd: "#09101d",
+      panelStart: "#1c315f",
+      panelEnd: "#111c34",
+      headerStart: "#29467e",
+      headerEnd: "#16294e"
+    },
+    settings: {
+      glowStrength: 30,
+      surfaceContrast: 58,
+      radiusScale: 70,
+      flatSurfaces: false
+    },
+    is_builtin: true
+  },
+  {
+    key: "shape-traders-carbon",
+    name: "Shape Traders Carbon",
+    base_theme: "steel-black",
+    palette: {
+      accent: "#b8c2cf",
+      accentSecondary: "#8d98a8",
+      accentTertiary: "#d8dde5",
+      heroButton: "#c1cad6",
+      primaryButton: "#6d7786",
+      actionColor: "#6d7786",
+      primaryButtonDisabled: "#59616c",
+      secondaryButton: "#303641",
+      secondaryButtonDisabled: "#4d5560",
+      progressStart: "#b8c2cf",
+      progressEnd: "#dde3ea",
+      gold: "#d6c3a2",
+      muted: "#cfd5dd",
+      success: "#9fb6aa",
+      danger: "#b98792",
+      bgStart: "#0d0f12",
+      bgEnd: "#07080a",
+      panelStart: "#1c2026",
+      panelEnd: "#111418",
+      headerStart: "#252a31",
+      headerEnd: "#13161a"
+    },
+    settings: {
+      glowStrength: 12,
+      surfaceContrast: 74,
+      radiusScale: 58,
+      flatSurfaces: false
+    },
+    is_builtin: true
+  }
+];
+const MAIN_APP_THEME_KEY = "main-app-comfort";
+const GAME_THEME_KEYS = {
+  "run-the-numbers": "rtn-green-room",
+  "red-black": "guess-10-deep-blue",
+  "shape-traders": "shape-traders-carbon"
+};
 const PRIZE_CURRENCIES = {
   units: {
     key: "units",
@@ -1069,7 +1217,7 @@ function normalizeThemeRecord(theme = {}) {
     base_theme: baseTheme,
     palette: normalizeThemePalette(source.palette || {}),
     settings: normalizeThemeSettings(source.settings || {}),
-    is_builtin: false
+    is_builtin: Boolean(source.is_builtin)
   };
 }
 
@@ -1082,7 +1230,10 @@ function getThemeRecord(themeKey) {
     return normalizeThemeRecord(themeKey);
   }
   const key = slugifyThemeKey(themeKey || "blue") || "blue";
-  return getThemeLibrary().find((theme) => theme.key === key) || getThemeLibrary()[0] || getEmergencyThemeRecord(key);
+  const builtinMatch = BUILTIN_THEME_LIBRARY
+    .map((theme) => normalizeThemeRecord(theme))
+    .find((theme) => theme.key === key);
+  return getThemeLibrary().find((theme) => theme.key === key) || builtinMatch || getThemeLibrary()[0] || getEmergencyThemeRecord(key);
 }
 
 async function loadThemeLibrary(force = false) {
@@ -1090,8 +1241,12 @@ async function loadThemeLibrary(force = false) {
     return themeLibraryCache;
   }
 
+  const builtinThemes = BUILTIN_THEME_LIBRARY.map((theme) => normalizeThemeRecord(theme));
+
   if (!supabase) {
-    return themeLibraryCache.length ? themeLibraryCache : [getEmergencyThemeRecord("blue")];
+    themeLibraryCache = builtinThemes.length ? builtinThemes : [getEmergencyThemeRecord(MAIN_APP_THEME_KEY)];
+    themeLibraryHydrated = true;
+    return themeLibraryCache;
   }
 
   try {
@@ -1101,23 +1256,45 @@ async function loadThemeLibrary(force = false) {
     });
     const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
     if (error) throw error;
-    themeLibraryCache = (Array.isArray(data) ? data : [])
-      .map((theme) => normalizeThemeRecord(theme))
+    const mergedThemes = [...builtinThemes];
+    const dbThemes = (Array.isArray(data) ? data : []).map((theme) => normalizeThemeRecord(theme));
+    dbThemes.forEach((theme) => {
+      const existingIndex = mergedThemes.findIndex((entry) => entry.key === theme.key);
+      if (existingIndex >= 0) {
+        mergedThemes[existingIndex] = theme;
+      } else {
+        mergedThemes.push(theme);
+      }
+    });
+    themeLibraryCache = mergedThemes
       .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
     if (!themeLibraryCache.length) {
-      themeLibraryCache = [getEmergencyThemeRecord("blue")];
+      themeLibraryCache = builtinThemes.length ? builtinThemes : [getEmergencyThemeRecord(MAIN_APP_THEME_KEY)];
     }
     themeLibraryHydrated = true;
   } catch (error) {
     console.warn("[RTN] loadThemeLibrary failed", error);
     if (!themeLibraryCache.length) {
-      themeLibraryCache = [getEmergencyThemeRecord("blue")];
+      themeLibraryCache = builtinThemes.length ? builtinThemes : [getEmergencyThemeRecord(MAIN_APP_THEME_KEY)];
     }
   }
 
   refreshAdminThemeOverrideThemeFromLibrary();
 
   return themeLibraryCache;
+}
+
+function getMainAppThemeRecord() {
+  return getThemeRecord(MAIN_APP_THEME_KEY);
+}
+
+function getGameThemeRecord(route = currentRoute) {
+  const themeKey = GAME_THEME_KEYS[route] || "";
+  return themeKey ? getThemeRecord(themeKey) : null;
+}
+
+function getRankAccentThemeRecord(rank = currentRankState?.currentRank) {
+  return rank?.theme_key ? getThemeRecord(rank.theme_key) : null;
 }
 
 function parseCssColor(color) {
@@ -2384,6 +2561,7 @@ function renderHomeRankPanel() {
 
   if (!currentRankState?.currentRank || !currentUser?.id || currentUser.id === GUEST_USER.id) {
     homeRankPanelEl.hidden = true;
+    clearThemeVariables(homeRankPanelEl);
     return;
   }
 
@@ -2392,8 +2570,14 @@ function renderHomeRankPanel() {
   const winsRequirement = nextRank ? nextRank.required_contest_wins : currentRank.required_contest_wins;
   const tradesRequirement = nextRank ? nextRank.required_trades_made : currentRank.required_trades_made;
   const showTradesProgress = tradesRequirement > 0;
+  const rankTheme = getRankAccentThemeRecord(currentRank);
 
   homeRankPanelEl.hidden = false;
+  if (rankTheme) {
+    applyThemeVariables(rankTheme, homeRankPanelEl);
+  } else {
+    clearThemeVariables(homeRankPanelEl);
+  }
   if (homeRankTitleEl) {
     homeRankTitleEl.textContent = `${currentRank.name} · Tier ${currentRank.tier}`;
   }
@@ -3352,10 +3536,17 @@ function renderDrawerRankSummary(rank) {
   if (!drawerRankSummaryEl || !drawerRankNameEl || !drawerRankIconEl || !drawerRankIconFallbackEl) return;
   if (!rank || !currentUser?.id || currentUser.id === GUEST_USER.id) {
     drawerRankSummaryEl.hidden = true;
+    clearThemeVariables(drawerRankSummaryEl);
     return;
   }
 
   drawerRankSummaryEl.hidden = false;
+  const rankTheme = getRankAccentThemeRecord(rank);
+  if (rankTheme) {
+    applyThemeVariables(rankTheme, drawerRankSummaryEl);
+  } else {
+    clearThemeVariables(drawerRankSummaryEl);
+  }
   drawerRankNameEl.textContent = `${rank.name} · Tier ${rank.tier}`;
   if (rank.icon_url) {
     drawerRankIconEl.src = rank.icon_url;
@@ -8094,6 +8285,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
 
   currentRoute = resolvedRoute;
+  applyResolvedTheme();
   updatePlayAssistantVisibility();
   markAppReady();
 
@@ -15960,16 +16152,14 @@ function syncAdminThemeOverrideForCurrentUser() {
 
 function getResolvedThemeRecord() {
   syncAdminThemeOverrideForCurrentUser();
-  if (!currentUser?.id || currentUser.id === GUEST_USER.id) {
-    return getThemeRecord("blue");
-  }
   if (isAdmin() && adminThemeOverrideTheme) {
     return getThemeRecord(adminThemeOverrideTheme);
   }
-  if (currentRankState?.currentRank?.theme_key) {
-    return getThemeRecord(currentRankState.currentRank.theme_key);
+  const gameTheme = getGameThemeRecord(currentRoute);
+  if (gameTheme) {
+    return gameTheme;
   }
-  return null;
+  return getMainAppThemeRecord();
 }
 
 function refreshAdminThemeOverrideThemeFromLibrary() {
@@ -15988,12 +16178,13 @@ function refreshAdminThemeOverrideThemeFromLibrary() {
 
 function updateAdminThemeOverrideUI() {
   const overrideTheme = isAdmin() && adminThemeOverrideTheme ? getThemeRecord(adminThemeOverrideTheme) : null;
-  const rankTheme = getThemeRecord(currentRankState?.currentRank?.theme_key || "blue");
+  const activeTheme = getResolvedThemeRecord();
+  const themeLabel = GAME_THEME_KEYS[currentRoute] ? "game theme" : "main app theme";
 
   if (adminThemeOverrideStatus) {
     adminThemeOverrideStatus.textContent = overrideTheme
-      ? `Trying on ${overrideTheme.name}. Rank theme remains ${rankTheme?.name || "Blue"}.`
-      : `Using rank theme ${rankTheme?.name || "Blue"}.`;
+      ? `Trying on ${overrideTheme.name}. The active ${themeLabel} is temporarily overridden for you.`
+      : `Using ${activeTheme?.name || "Main App Comfort"} as the active ${themeLabel}.`;
   }
 
   if (adminThemeClearOverrideButton) {
