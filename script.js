@@ -18247,6 +18247,9 @@ async function buildHandsByGameSeries(period, {
 }
 
 function formatBankrollTickLabel(point, fallbackIndex, period = "all") {
+  if (point?.label) {
+    return String(point.label);
+  }
   if (point?.dayKey) {
     const date = createAnalyticsDateFromKey(point.dayKey);
     if (date && !Number.isNaN(date.getTime())) {
@@ -18383,22 +18386,6 @@ function getBankrollChartGameValue(point) {
   return roundCurrencyValue(Number(point.pnlTotal || 0));
 }
 
-function getPlayerBankrollChartGameValue(point) {
-  if (!point || typeof point !== "object") {
-    return 0;
-  }
-  if (playerBankrollGameFilter === GAME_KEYS.RUN_THE_NUMBERS) {
-    return roundCurrencyValue(Number(point.pnlRtn || 0));
-  }
-  if (playerBankrollGameFilter === GAME_KEYS.GUESS_10) {
-    return roundCurrencyValue(Number(point.pnlG10 || 0));
-  }
-  if (playerBankrollGameFilter === GAME_KEYS.SHAPE_TRADERS) {
-    return roundCurrencyValue(Number(point.pnlShapeTraders || 0));
-  }
-  return roundCurrencyValue(Number(point.pnlTotal || 0));
-}
-
 function getPlayerBankrollPeriodSummaryLabel(period = "year") {
   const labels = {
     hour: "Last hour",
@@ -18416,13 +18403,6 @@ function updatePlayerBankrollFilterUI() {
     button.classList.toggle(
       "active",
       button instanceof HTMLElement && button.dataset.playerBankrollPeriod === playerBankrollPeriod
-    );
-  });
-  document.querySelectorAll("[data-player-bankroll-game]").forEach((button) => {
-    button.classList.toggle(
-      "active",
-      button instanceof HTMLElement &&
-        normalizeBankrollChartGameFilter(button.dataset.playerBankrollGame || "all") === playerBankrollGameFilter
     );
   });
 }
@@ -25351,19 +25331,6 @@ document.querySelectorAll("[data-player-bankroll-period]").forEach((button) => {
   });
 });
 
-document.querySelectorAll("[data-player-bankroll-game]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const nextGame = button instanceof HTMLElement
-      ? normalizeBankrollChartGameFilter(button.dataset.playerBankrollGame || "all")
-      : "all";
-    playerBankrollGameFilter = nextGame;
-    updatePlayerBankrollFilterUI();
-    if (activePlayerBankrollUserId) {
-      void renderPlayerBankrollChart(activePlayerBankrollUserId, playerBankrollPeriod);
-    }
-  });
-});
-
 if (playerHandsClose) {
   playerHandsClose.addEventListener("click", () => {
     closePlayerHandsModal();
@@ -25692,7 +25659,6 @@ let mostActiveTrendSelectionsInitialized = false;
 let mostActiveTrendSource = null;
 let playerBankrollChartInstance = null;
 let playerBankrollPeriod = "year";
-let playerBankrollGameFilter = "all";
 let activePlayerBankrollUserId = null;
 let activePlayerBankrollName = "";
 let activePlayerBankrollSeriesMode = "pnl";
@@ -26843,12 +26809,44 @@ async function loadPlayerBankrollHistory(userId) {
 
   const buildPnlPointsFromRawRecords = async () => {
     const startDate = getAnalyticsPeriodStart(playerBankrollPeriod);
+    const endDate = new Date();
     const { handRecords, tradeRecords } = await loadAdminAnalyticsRawRecords({
       startAt: startDate,
-      endAt: new Date(),
+      endAt: endDate,
       userIds: [userId]
     });
-    return buildRealizedPnlBucketsFromRawRecords(handRecords, tradeRecords);
+    const effectiveStart =
+      startDate ||
+      (handRecords.length > 0
+        ? new Date(handRecords[0]?.created_at || endDate)
+        : tradeRecords.length > 0
+          ? new Date(tradeRecords[0]?.executed_at || endDate)
+          : endDate);
+    const buckets = buildHandsChartBuckets(playerBankrollPeriod, effectiveStart, endDate);
+    const values = new Array(buckets.length).fill(0);
+
+    handRecords.forEach((record) => {
+      const createdAt = new Date(record?.created_at || 0);
+      const bucketIndex = buckets.findIndex((bucket) => createdAt >= bucket.start && createdAt < bucket.end);
+      if (bucketIndex < 0) return;
+      values[bucketIndex] = roundCurrencyValue(values[bucketIndex] + Number(record?.net || 0));
+    });
+
+    tradeRecords.forEach((record) => {
+      const tradeSide = String(record?.trade_side || "").trim().toLowerCase();
+      if (tradeSide !== "sell") return;
+      const executedAt = new Date(record?.executed_at || 0);
+      const bucketIndex = buckets.findIndex((bucket) => executedAt >= bucket.start && executedAt < bucket.end);
+      if (bucketIndex < 0) return;
+      values[bucketIndex] = roundCurrencyValue(values[bucketIndex] + Number(record?.net_profit || 0));
+    });
+
+    return buckets.map((bucket, index) => ({
+      created_at: bucket.start.toISOString(),
+      label: bucket.label,
+      pnlTotal: roundCurrencyValue(values[index] || 0),
+      fallbackIndex: index
+    }));
   };
 
   try {
@@ -27066,7 +27064,7 @@ async function renderPlayerBankrollChart(userId, period = "year") {
     ? source.map((point) =>
         activePlayerBankrollSeriesMode === "legacy_bankroll"
           ? Number(point.value || 0)
-          : Number(getPlayerBankrollChartGameValue(point) || 0)
+          : Number(point.pnlTotal || 0)
       )
     : [0];
   const hasFilterData = values.some((value) => Math.abs(Number(value || 0)) > 0.0001);
@@ -27081,20 +27079,13 @@ async function renderPlayerBankrollChart(userId, period = "year") {
   const fillColors = values.map((value) =>
     Number(value || 0) >= 0 ? positiveFillColor : negativeFillColor
   );
-  const gameLabels = {
-    all: "all games",
-    [GAME_KEYS.RUN_THE_NUMBERS]: "Run The Numbers",
-    [GAME_KEYS.GUESS_10]: "Guess 10",
-    [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders"
-  };
-
   playerBankrollChartInstance = new Chart(ctx, {
     type: activePlayerBankrollSeriesMode === "legacy_bankroll" ? "line" : "bar",
     data: {
       labels: labels.length ? labels : ["No Data"],
       datasets: [
         {
-          label: activePlayerBankrollSeriesMode === "legacy_bankroll" ? "Bankroll" : "Daily Realized P&L",
+          label: activePlayerBankrollSeriesMode === "legacy_bankroll" ? "Bankroll" : "Total Realized P&L",
           data: values,
           borderColor: activePlayerBankrollSeriesMode === "legacy_bankroll"
             ? "rgba(53, 255, 234, 1)"
@@ -27131,7 +27122,7 @@ async function renderPlayerBankrollChart(userId, period = "year") {
             label(context) {
               return activePlayerBankrollSeriesMode === "legacy_bankroll"
                 ? `Bankroll: ${formatCurrency(Number(context.parsed.y || 0))}`
-                : `Daily P&L: ${formatSignedCurrency(Number(context.parsed.y || 0))}`;
+                : `Total P&L: ${formatSignedCurrency(Number(context.parsed.y || 0))}`;
             }
           }
         }
@@ -27182,12 +27173,12 @@ async function renderPlayerBankrollChart(userId, period = "year") {
 
   if (playerBankrollSubheadEl) {
     const labelsByPeriod = {
-      hour: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last hour for ${gameLabels[playerBankrollGameFilter] || gameLabels.all}.`,
-      day: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last 24 hours for ${gameLabels[playerBankrollGameFilter] || gameLabels.all}.`,
-      week: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last week for ${gameLabels[playerBankrollGameFilter] || gameLabels.all}.`,
-      month: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last month for ${gameLabels[playerBankrollGameFilter] || gameLabels.all}.`,
-      "90days": `Showing ${source.length.toLocaleString()} daily realized P&L points from the last 90 days for ${gameLabels[playerBankrollGameFilter] || gameLabels.all}.`,
-      year: `Showing ${source.length.toLocaleString()} daily realized P&L points from the last year for ${gameLabels[playerBankrollGameFilter] || gameLabels.all}.`
+      hour: `Showing ${source.length.toLocaleString()} 5-minute total P&L buckets from the last hour. Contest play included.`,
+      day: `Showing ${source.length.toLocaleString()} hourly total P&L buckets from the last 24 hours. Contest play included.`,
+      week: `Showing ${source.length.toLocaleString()} daily total P&L buckets from the last week. Contest play included.`,
+      month: `Showing ${source.length.toLocaleString()} daily total P&L buckets from the last month. Contest play included.`,
+      "90days": `Showing ${source.length.toLocaleString()} daily total P&L buckets from the last 90 days. Contest play included.`,
+      year: `Showing ${source.length.toLocaleString()} daily total P&L buckets from the last year. Contest play included.`
     };
     playerBankrollSubheadEl.textContent =
       activePlayerBankrollSeriesMode === "legacy_bankroll"
@@ -27204,7 +27195,6 @@ async function openPlayerBankrollModal(userId, playerName) {
   activePlayerBankrollUserId = userId;
   activePlayerBankrollName = playerName || "Player";
   playerBankrollPeriod = "year";
-  playerBankrollGameFilter = "all";
 
   if (playerBankrollTitleEl) {
     playerBankrollTitleEl.textContent = `${activePlayerBankrollName} Account Chart`;
