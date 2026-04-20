@@ -14977,6 +14977,139 @@ body.modal-open {
   grid-column: 1;
 }
 
+.admin-theme-profile-card .admin-theme-meta {
+  text-transform: none;
+  letter-spacing: 0.03em;
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.admin-theme-profile-card .admin-theme-actions {
+  align-items: center;
+}
+
+body[data-theme-profile="main-app-comfort"] {
+  --body-bg:
+    radial-gradient(circle at 16% 12%, rgba(143, 214, 210, 0.1), transparent 34%),
+    radial-gradient(circle at 84% 14%, rgba(217, 183, 143, 0.08), transparent 32%),
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(180deg, #161a22 0%, #12161d 46%, #0f1318 100%);
+  --body-bg-size: auto, auto, 72px 72px, 72px 72px, 100% 100%;
+  --body-bg-position: center, center, 0 0, 0 0, center;
+  --app-overlay:
+    radial-gradient(circle at 18% 8%, rgba(143, 214, 210, 0.12), transparent 42%),
+    radial-gradient(circle at 82% 12%, rgba(217, 183, 143, 0.08), transparent 40%),
+    radial-gradient(circle at 50% 120%, rgba(145, 166, 200, 0.1), transparent 58%);
+}
+
+body[data-theme-profile="rtn-green-room"] {
+  --body-bg:
+    radial-gradient(circle at center, rgba(0, 0, 0, 0.08), transparent 62%),
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(180deg, #12311f 0%, #0f2619 54%, #0a1a12 100%);
+  --body-bg-size: auto, 44px 44px, 44px 44px, 100% 100%;
+  --body-bg-position: center, 0 0, 0 0, center;
+  --app-overlay:
+    radial-gradient(circle at 14% 12%, rgba(139, 224, 179, 0.08), transparent 30%),
+    radial-gradient(circle at 85% 10%, rgba(220, 198, 134, 0.07), transparent 24%),
+    radial-gradient(circle at 50% 120%, rgba(0, 0, 0, 0.12), transparent 58%);
+  --bet-spot-bg: linear-gradient(180deg, rgba(32, 74, 49, 0.98), rgba(24, 56, 38, 0.98));
+  --bet-spot-border: rgba(206, 193, 133, 0.38);
+  --bet-spot-border-hover: rgba(232, 223, 165, 0.72);
+  --bet-spot-border-active: rgba(245, 236, 188, 0.86);
+  --bet-spot-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18), 0 4px 0 rgba(0, 0, 0, 0.18);
+  --bet-spot-active-shadow: inset 0 0 0 1px rgba(245, 236, 188, 0.12), 0 5px 0 rgba(0, 0, 0, 0.22);
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .table-panel,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .betting-panel,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .paytable-panel,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .advanced-panel {
+  border-radius: 0;
+  background: color-mix(in srgb, var(--panel-start) 90%, #0a170f 10%);
+  box-shadow: inset 0 0 0 1px rgba(208, 190, 124, 0.12), 0 18px 34px rgba(0, 0, 0, 0.22);
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-spot,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bust-bet,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .suit-bet,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .count-bet {
+  border-radius: 0 !important;
+  background: var(--bet-spot-bg);
+  text-shadow: none;
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-spot:hover:not(:disabled),
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-spot:focus-visible,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-spot.has-bet {
+  transform: translateY(-1px);
+}
+
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .beta-game-panel {
+  border-radius: 2rem;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 38%),
+    linear-gradient(160deg, rgba(27, 53, 103, 0.9), rgba(14, 23, 46, 0.94));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 24px 48px rgba(4, 10, 24, 0.3);
+}
+
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .beta-bet-spot {
+  border-radius: 1.8rem;
+  backdrop-filter: blur(8px);
+}
+
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .beta-bet-spot-circle {
+  border-radius: 1.25rem;
+}
+
+body[data-theme-profile="shape-traders-carbon"] {
+  --body-bg:
+    linear-gradient(rgba(76, 159, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 74, 211, 0.07) 1px, transparent 1px),
+    radial-gradient(circle at 50% 0%, rgba(76, 159, 255, 0.12), transparent 34%),
+    linear-gradient(180deg, #0a0d12 0%, #090b10 44%, #05070a 100%);
+  --body-bg-size: 54px 54px, 54px 54px, auto, 100% 100%;
+  --body-bg-position: 0 0, 0 0, center top, center;
+  --app-overlay:
+    radial-gradient(circle at 18% 10%, rgba(76, 159, 255, 0.18), transparent 34%),
+    radial-gradient(circle at 82% 12%, rgba(255, 74, 211, 0.16), transparent 32%),
+    radial-gradient(circle at 50% 120%, rgba(255, 225, 92, 0.08), transparent 58%);
+}
+
+body[data-theme-profile="shape-traders-carbon"] .shape-traders-panel {
+  border-radius: 0.8rem;
+  border-color: rgba(120, 208, 255, 0.3);
+  background:
+    linear-gradient(180deg, rgba(10, 15, 24, 0.96), rgba(7, 10, 18, 0.98)),
+    linear-gradient(90deg, rgba(76, 159, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(rgba(255, 74, 211, 0.06) 1px, transparent 1px);
+  background-size: auto, 24px 24px, 24px 24px;
+  box-shadow:
+    inset 0 0 0 1px rgba(76, 159, 255, 0.12),
+    inset 0 0 48px rgba(76, 159, 255, 0.08),
+    0 0 28px rgba(76, 159, 255, 0.08);
+}
+
+body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card,
+body[data-theme-profile="shape-traders-carbon"] .shape-traders-holding-card,
+body[data-theme-profile="shape-traders-carbon"] .shape-traders-balance-list div {
+  border-radius: 0.65rem;
+  box-shadow:
+    inset 0 0 0 1px rgba(76, 159, 255, 0.1),
+    0 0 18px rgba(76, 159, 255, 0.08);
+}
+
+body[data-theme-profile="shape-traders-carbon"] .shape-traders-countdown-ring {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 0 22px rgba(76, 159, 255, 0.14),
+    0 0 26px rgba(76, 159, 255, 0.16);
+}
+
 @media (max-width: 768px) {
   .admin-view .route-shell {
     padding-inline: 1rem;

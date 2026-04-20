@@ -840,6 +840,36 @@ const GAME_THEME_KEYS = {
   "red-black": "guess-10-deep-blue",
   "shape-traders": "shape-traders-carbon"
 };
+const ADMIN_THEME_PROFILE_DEFINITIONS = [
+  {
+    key: "global-app",
+    label: "Global App",
+    description: "Comforting shell for home, store, profile, drawer, analytics, and the non-game parts of the app.",
+    themeKey: MAIN_APP_THEME_KEY,
+    pill: "APP"
+  },
+  {
+    key: "run-the-numbers",
+    label: "Run The Numbers",
+    description: "Classic casino feel with green felt, flatter surfaces, and sharper corners across the main betting experience.",
+    themeKey: GAME_THEME_KEYS["run-the-numbers"],
+    pill: "RTN"
+  },
+  {
+    key: "red-black",
+    label: "Guess 10",
+    description: "Calm and smooth blue UI with rounded surfaces, glossy depth, and a modern premium table feel.",
+    themeKey: GAME_THEME_KEYS["red-black"],
+    pill: "G10"
+  },
+  {
+    key: "shape-traders",
+    label: "Shape Traders",
+    description: "Dark retro-future treatment with TRON energy, neon structure lines, and bright electric accents.",
+    themeKey: GAME_THEME_KEYS["shape-traders"],
+    pill: "ST"
+  }
+];
 const PRIZE_CURRENCIES = {
   units: {
     key: "units",
@@ -3302,6 +3332,36 @@ function buildThemeCardPreviewMarkup(theme) {
   return swatches;
 }
 
+function renderAdminThemeProfileRow(profile) {
+  const theme = getThemeRecord(profile.themeKey);
+  const item = document.createElement("li");
+  item.className = "admin-theme-card admin-theme-profile-card";
+  item.innerHTML = `
+    <div class="admin-theme-card-header">
+      <div>
+        <h3>${escapeAssistantHtml(profile.label)}</h3>
+        <p class="admin-theme-meta">${escapeAssistantHtml(theme.name)} · ${escapeAssistantHtml(profile.description)}</p>
+      </div>
+      <span class="rank-theme-pill">${escapeAssistantHtml(profile.pill)}</span>
+    </div>
+    <div class="admin-theme-preview-swatch">${buildThemeCardPreviewMarkup(theme)}</div>
+    <div class="admin-theme-actions">
+      <button type="button" class="secondary" data-admin-theme-profile-edit="${escapeAssistantHtml(theme.key)}">Edit Theme</button>
+      <button type="button" class="secondary" data-admin-theme-try-on-key="${escapeAssistantHtml(theme.key)}">Try On</button>
+    </div>
+  `;
+  applyPreviewTheme(theme, item.querySelector(".admin-theme-preview-swatch"));
+  return item;
+}
+
+function renderAdminThemeProfileList() {
+  if (!adminThemeProfileListEl) return;
+  adminThemeProfileListEl.innerHTML = "";
+  ADMIN_THEME_PROFILE_DEFINITIONS.forEach((profile) => {
+    adminThemeProfileListEl.appendChild(renderAdminThemeProfileRow(profile));
+  });
+}
+
 function createDuplicateThemeDraft(theme) {
   const source = normalizeThemeRecord(theme);
   const existingNames = new Set(
@@ -3360,6 +3420,7 @@ function renderAdminThemeRow(theme) {
 async function loadAdminThemes(force = false) {
   if (!isAdmin()) {
     if (adminThemeListEl) adminThemeListEl.innerHTML = "";
+    if (adminThemeProfileListEl) adminThemeProfileListEl.innerHTML = "";
     return;
   }
   if (adminThemesLoaded && !force) return;
@@ -3373,6 +3434,7 @@ async function loadAdminThemes(force = false) {
   updateAdminAiThemeStatus();
   populateAdminLoginThemeForm(loginThemeSettingsCache);
   updateAdminLoginThemeStatus();
+  renderAdminThemeProfileList();
   if (!adminThemeListEl) return;
   adminThemeListEl.innerHTML = "";
   const themes = getThemeLibrary();
@@ -16087,6 +16149,7 @@ function applyTheme(theme) {
     return;
   }
   if (currentTheme === themeRecord.key && document.body.classList.contains(THEME_CLASS_MAP[next])) {
+    document.body.dataset.themeProfile = themeRecord.key;
     applyThemeVariables(themeRecord);
     applyAiThemeVariables(aiThemeSettingsCache);
     applyLoginThemeVariables(loginThemeSettingsCache);
@@ -16102,6 +16165,7 @@ function applyTheme(theme) {
     document.body.classList.remove(className);
   });
   document.body.classList.add(THEME_CLASS_MAP[next]);
+  document.body.dataset.themeProfile = themeRecord.key;
   applyThemeVariables(themeRecord);
   applyAiThemeVariables(aiThemeSettingsCache);
   applyLoginThemeVariables(loginThemeSettingsCache);
@@ -16845,6 +16909,7 @@ const adminLoginThemeModal = document.getElementById("admin-login-theme-modal");
 const adminLoginThemeCloseButton = document.getElementById("admin-login-theme-close");
 const adminThemeForm = document.getElementById("admin-theme-form");
 const adminThemeListEl = document.getElementById("admin-theme-list");
+const adminThemeProfileListEl = document.getElementById("admin-theme-profile-list");
 const adminThemeMessage = document.getElementById("admin-theme-message");
 const adminThemePreviewEl = document.getElementById("admin-theme-preview");
 const adminThemePreviewPageSelect = document.getElementById("admin-theme-preview-page");
@@ -26431,6 +26496,29 @@ if (adminThemePreviewPageSelect) {
 if (adminThemeCreateButton) {
   adminThemeCreateButton.addEventListener("click", () => {
     openAdminThemeModal();
+  });
+}
+
+if (adminThemeProfileListEl) {
+  adminThemeProfileListEl.addEventListener("click", (event) => {
+    const editButton =
+      event.target instanceof HTMLElement ? event.target.closest("[data-admin-theme-profile-edit]") : null;
+    if (editButton instanceof HTMLElement) {
+      const themeKey = editButton.dataset.adminThemeProfileEdit || "";
+      if (themeKey) {
+        openAdminThemeModal(getThemeRecord(themeKey));
+      }
+      return;
+    }
+
+    const tryOnButton =
+      event.target instanceof HTMLElement ? event.target.closest("[data-admin-theme-try-on-key]") : null;
+    if (tryOnButton instanceof HTMLElement) {
+      const themeKey = tryOnButton.dataset.adminThemeTryOnKey || "";
+      if (themeKey) {
+        setAdminThemeOverride(themeKey, { persist: true });
+      }
+    }
   });
 }
 
