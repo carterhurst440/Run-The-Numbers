@@ -921,12 +921,18 @@ function normalizeAiThemeSettings(settings = {}) {
     userMessageBackground: read("userMessageBackground"),
     assistantTextColor: read("assistantTextColor"),
     userTextColor: read("userTextColor"),
+    chatMessageOutlineColor: read("chatMessageOutlineColor"),
+    rulesSectionOutlineColor: read("rulesSectionOutlineColor"),
+    textInputOutlineColor: read("textInputOutlineColor"),
     rulesActiveBackground: read("rulesActiveBackground"),
     rulesActiveBorderColor: read("rulesActiveBorderColor"),
     rulesInactiveBackground: read("rulesInactiveBackground"),
     rulesInactiveBorderColor: read("rulesInactiveBorderColor"),
     floatingButtonBackground: read("floatingButtonBackground"),
     floatingButtonTextColor: read("floatingButtonTextColor"),
+    sendButtonBackground: read("sendButtonBackground"),
+    activeButtonBackground: read("activeButtonBackground"),
+    disabledButtonBackground: read("disabledButtonBackground"),
     badgeBackground: read("badgeBackground"),
     badgeTextColor: read("badgeTextColor")
   };
@@ -946,6 +952,12 @@ function getResolvedAiThemeFormValues(settings = aiThemeSettingsCache) {
     userMessageBackground: overrides.userMessageBackground || DEFAULT_AI_THEME_FORM_VALUES.userMessageBackground,
     assistantTextColor: overrides.assistantTextColor || DEFAULT_AI_THEME_FORM_VALUES.assistantTextColor,
     userTextColor: overrides.userTextColor || DEFAULT_AI_THEME_FORM_VALUES.userTextColor,
+    chatMessageOutlineColor:
+      overrides.chatMessageOutlineColor || DEFAULT_AI_THEME_FORM_VALUES.chatMessageOutlineColor,
+    rulesSectionOutlineColor:
+      overrides.rulesSectionOutlineColor || DEFAULT_AI_THEME_FORM_VALUES.rulesSectionOutlineColor,
+    textInputOutlineColor:
+      overrides.textInputOutlineColor || DEFAULT_AI_THEME_FORM_VALUES.textInputOutlineColor,
     rulesActiveBackground: overrides.rulesActiveBackground || DEFAULT_AI_THEME_FORM_VALUES.rulesActiveBackground,
     rulesActiveBorderColor:
       overrides.rulesActiveBorderColor || DEFAULT_AI_THEME_FORM_VALUES.rulesActiveBorderColor,
@@ -957,6 +969,11 @@ function getResolvedAiThemeFormValues(settings = aiThemeSettingsCache) {
       overrides.floatingButtonBackground || DEFAULT_AI_THEME_FORM_VALUES.floatingButtonBackground,
     floatingButtonTextColor:
       overrides.floatingButtonTextColor || DEFAULT_AI_THEME_FORM_VALUES.floatingButtonTextColor,
+    sendButtonBackground: overrides.sendButtonBackground || DEFAULT_AI_THEME_FORM_VALUES.sendButtonBackground,
+    activeButtonBackground:
+      overrides.activeButtonBackground || DEFAULT_AI_THEME_FORM_VALUES.activeButtonBackground,
+    disabledButtonBackground:
+      overrides.disabledButtonBackground || DEFAULT_AI_THEME_FORM_VALUES.disabledButtonBackground,
     badgeBackground: overrides.badgeBackground || DEFAULT_AI_THEME_FORM_VALUES.badgeBackground,
     badgeTextColor: overrides.badgeTextColor || DEFAULT_AI_THEME_FORM_VALUES.badgeTextColor
   };
@@ -1458,6 +1475,15 @@ function getAiThemeCssVariables(settings = aiThemeSettingsCache) {
   if (normalized.userTextColor) {
     variables["--assistant-user-message-text"] = normalized.userTextColor;
   }
+  if (normalized.chatMessageOutlineColor) {
+    variables["--assistant-message-outline"] = normalized.chatMessageOutlineColor;
+  }
+  if (normalized.rulesSectionOutlineColor) {
+    variables["--assistant-rules-outline"] = normalized.rulesSectionOutlineColor;
+  }
+  if (normalized.textInputOutlineColor) {
+    variables["--assistant-input-outline"] = normalized.textInputOutlineColor;
+  }
   if (normalized.rulesActiveBackground) {
     variables["--assistant-rule-active-bg"] = normalized.rulesActiveBackground;
   }
@@ -1475,6 +1501,15 @@ function getAiThemeCssVariables(settings = aiThemeSettingsCache) {
   }
   if (normalized.floatingButtonTextColor) {
     variables["--assistant-fab-text"] = normalized.floatingButtonTextColor;
+  }
+  if (normalized.sendButtonBackground) {
+    variables["--assistant-send-button-bg"] = normalized.sendButtonBackground;
+  }
+  if (normalized.activeButtonBackground) {
+    variables["--assistant-action-button-active-bg"] = normalized.activeButtonBackground;
+  }
+  if (normalized.disabledButtonBackground) {
+    variables["--assistant-action-button-disabled-bg"] = normalized.disabledButtonBackground;
   }
   if (normalized.badgeBackground) {
     variables["--assistant-badge-bg"] = normalized.badgeBackground;
@@ -1773,12 +1808,18 @@ function getAdminAiThemeFormState() {
     userMessageBackground: String(formData.get("userMessageBackground") || ""),
     assistantTextColor: String(formData.get("assistantTextColor") || ""),
     userTextColor: String(formData.get("userTextColor") || ""),
+    chatMessageOutlineColor: String(formData.get("chatMessageOutlineColor") || ""),
+    rulesSectionOutlineColor: String(formData.get("rulesSectionOutlineColor") || ""),
+    textInputOutlineColor: String(formData.get("textInputOutlineColor") || ""),
     rulesActiveBackground: String(formData.get("rulesActiveBackground") || ""),
     rulesActiveBorderColor: String(formData.get("rulesActiveBorderColor") || ""),
     rulesInactiveBackground: String(formData.get("rulesInactiveBackground") || ""),
     rulesInactiveBorderColor: String(formData.get("rulesInactiveBorderColor") || ""),
     floatingButtonBackground: String(formData.get("floatingButtonBackground") || ""),
     floatingButtonTextColor: String(formData.get("floatingButtonTextColor") || ""),
+    sendButtonBackground: String(formData.get("sendButtonBackground") || ""),
+    activeButtonBackground: String(formData.get("activeButtonBackground") || ""),
+    disabledButtonBackground: String(formData.get("disabledButtonBackground") || ""),
     badgeBackground: String(formData.get("badgeBackground") || ""),
     badgeTextColor: String(formData.get("badgeTextColor") || "")
   });
@@ -16700,12 +16741,18 @@ const DEFAULT_AI_THEME_FORM_VALUES = {
   userMessageBackground: "#15386d",
   assistantTextColor: "#f7fbff",
   userTextColor: "#f7fbff",
+  chatMessageOutlineColor: "#94a7c4",
+  rulesSectionOutlineColor: "#63f0ff",
+  textInputOutlineColor: "#63f0ff",
   rulesActiveBackground: "#a15d21",
   rulesActiveBorderColor: "#ffc15e",
   rulesInactiveBackground: "#384b71",
   rulesInactiveBorderColor: "#94a7c4",
   floatingButtonBackground: "#13315f",
   floatingButtonTextColor: "#f7fbff",
+  sendButtonBackground: "#2b6fd6",
+  activeButtonBackground: "#a15d21",
+  disabledButtonBackground: "#384b71",
   badgeBackground: "#ffd166",
   badgeTextColor: "#16110a"
 };
@@ -16739,12 +16786,18 @@ const AI_THEME_VARIABLE_KEYS = [
   "--assistant-message-text",
   "--assistant-response-text",
   "--assistant-user-message-text",
+  "--assistant-message-outline",
+  "--assistant-rules-outline",
+  "--assistant-input-outline",
   "--assistant-rule-active-bg",
   "--assistant-rule-active-border",
   "--assistant-rule-inactive-bg",
   "--assistant-rule-inactive-border",
   "--assistant-fab-bg",
   "--assistant-fab-text",
+  "--assistant-send-button-bg",
+  "--assistant-action-button-active-bg",
+  "--assistant-action-button-disabled-bg",
   "--assistant-badge-bg",
   "--assistant-badge-text"
 ];
