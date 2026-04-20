@@ -1658,6 +1658,15 @@ function applyThemeVariables(theme, target = document.body) {
   });
 }
 
+function applyGlobalShellThemeVariables() {
+  const mainAppTheme = getMainAppThemeRecord();
+  if (!mainAppTheme) return;
+  [headerEl, utilityPanel, notificationsPanel].forEach((element) => {
+    if (!element) return;
+    applyThemeVariables(mainAppTheme, element);
+  });
+}
+
 function getAiThemeCssVariables(settings = aiThemeSettingsCache) {
   const normalized = normalizeAiThemeSettings(settings);
   const variables = {};
@@ -16151,6 +16160,7 @@ function applyTheme(theme) {
   if (currentTheme === themeRecord.key && document.body.classList.contains(THEME_CLASS_MAP[next])) {
     document.body.dataset.themeProfile = themeRecord.key;
     applyThemeVariables(themeRecord);
+    applyGlobalShellThemeVariables();
     applyAiThemeVariables(aiThemeSettingsCache);
     applyLoginThemeVariables(loginThemeSettingsCache);
     applyLoginThemeContent(loginThemeSettingsCache);
@@ -16167,6 +16177,7 @@ function applyTheme(theme) {
   document.body.classList.add(THEME_CLASS_MAP[next]);
   document.body.dataset.themeProfile = themeRecord.key;
   applyThemeVariables(themeRecord);
+  applyGlobalShellThemeVariables();
   applyAiThemeVariables(aiThemeSettingsCache);
   applyLoginThemeVariables(loginThemeSettingsCache);
   applyLoginThemeContent(loginThemeSettingsCache);
