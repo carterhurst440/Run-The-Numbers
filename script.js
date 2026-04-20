@@ -4090,6 +4090,19 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
   return true;
 }
 
+async function maybeReconcileShapeTraderStructuralEvents(latestDrawId = getLatestShapeTraderDrawId()) {
+  const safeLatestDrawId = Math.max(0, Math.floor(Number(latestDrawId || 0)));
+  if (safeLatestDrawId <= 0 || safeLatestDrawId <= shapeTradersLastStructuralSyncDrawId) {
+    return false;
+  }
+
+  const reconciled = await reconcileShapeTraderHoldingsFromPersistedEvents();
+  if (reconciled || safeLatestDrawId > shapeTradersLastStructuralSyncDrawId) {
+    shapeTradersLastStructuralSyncDrawId = safeLatestDrawId;
+  }
+  return reconciled;
+}
+
 async function syncShapeTraderCurrentState({ heartbeatOnly = false, throwOnError = false } = {}) {
   const waitStartedAt = Date.now();
   while (shapeTradersStateSyncInFlight) {
@@ -4366,6 +4379,7 @@ function resetShapeTradersDerivedState() {
   shapeTradersCurrentCard = null;
   shapeTradersPreviousCard = null;
   shapeTradersSplitNoticeByAsset = {};
+  shapeTradersLastStructuralSyncDrawId = 0;
 }
 
 async function applyShapeTraderDrawRow(row) {
@@ -4539,6 +4553,8 @@ async function syncShapeTraderExecutionPricesFromLatestDraw() {
         : shapeTradersPreviousCard;
       renderShapeTraders();
     }
+
+    await maybeReconcileShapeTraderStructuralEvents(latestDrawId);
 
     return {
       ok: true,
@@ -6372,6 +6388,7 @@ async function synchronizeShapeTraders(now = Date.now()) {
     }
 
     await hydrateShapeTradersFromDrawTable(now);
+    await maybeReconcileShapeTraderStructuralEvents();
     await evaluateShapeTraderAssistantRules();
 
     if (
@@ -15987,6 +16004,7 @@ let shapeTradersDrawPersistenceAvailable = true;
 let shapeTradersLastGlobalSyncAt = 0;
 let shapeTradersLastHeartbeatAt = 0;
 let shapeTradersLastPersistedAccountActiveAt = null;
+let shapeTradersLastStructuralSyncDrawId = 0;
 let shapeTradersWindowActive = true;
 let shapeTradersLastBecameInactiveAt = null;
 let shapeTradersWindowActivityListenersBound = false;
