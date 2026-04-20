@@ -908,6 +908,60 @@ function normalizeThemeSettings(settings = {}) {
   };
 }
 
+function normalizeAiThemeSettings(settings = {}) {
+  const source = settings && typeof settings === "object" && !Array.isArray(settings) ? settings : {};
+  const read = (key) => {
+    const value = source[key];
+    return typeof value === "string" ? value.trim() : "";
+  };
+  return {
+    panelBackground: read("panelBackground"),
+    panelBorderColor: read("panelBorderColor"),
+    assistantMessageBackground: read("assistantMessageBackground"),
+    userMessageBackground: read("userMessageBackground"),
+    assistantTextColor: read("assistantTextColor"),
+    userTextColor: read("userTextColor"),
+    rulesActiveBackground: read("rulesActiveBackground"),
+    rulesActiveBorderColor: read("rulesActiveBorderColor"),
+    rulesInactiveBackground: read("rulesInactiveBackground"),
+    rulesInactiveBorderColor: read("rulesInactiveBorderColor"),
+    floatingButtonBackground: read("floatingButtonBackground"),
+    floatingButtonTextColor: read("floatingButtonTextColor"),
+    badgeBackground: read("badgeBackground"),
+    badgeTextColor: read("badgeTextColor")
+  };
+}
+
+function hasAiThemeOverrides(settings = aiThemeSettingsCache) {
+  return Object.values(normalizeAiThemeSettings(settings)).some(Boolean);
+}
+
+function getResolvedAiThemeFormValues(settings = aiThemeSettingsCache) {
+  const overrides = normalizeAiThemeSettings(settings);
+  return {
+    panelBackground: overrides.panelBackground || DEFAULT_AI_THEME_FORM_VALUES.panelBackground,
+    panelBorderColor: overrides.panelBorderColor || DEFAULT_AI_THEME_FORM_VALUES.panelBorderColor,
+    assistantMessageBackground:
+      overrides.assistantMessageBackground || DEFAULT_AI_THEME_FORM_VALUES.assistantMessageBackground,
+    userMessageBackground: overrides.userMessageBackground || DEFAULT_AI_THEME_FORM_VALUES.userMessageBackground,
+    assistantTextColor: overrides.assistantTextColor || DEFAULT_AI_THEME_FORM_VALUES.assistantTextColor,
+    userTextColor: overrides.userTextColor || DEFAULT_AI_THEME_FORM_VALUES.userTextColor,
+    rulesActiveBackground: overrides.rulesActiveBackground || DEFAULT_AI_THEME_FORM_VALUES.rulesActiveBackground,
+    rulesActiveBorderColor:
+      overrides.rulesActiveBorderColor || DEFAULT_AI_THEME_FORM_VALUES.rulesActiveBorderColor,
+    rulesInactiveBackground:
+      overrides.rulesInactiveBackground || DEFAULT_AI_THEME_FORM_VALUES.rulesInactiveBackground,
+    rulesInactiveBorderColor:
+      overrides.rulesInactiveBorderColor || DEFAULT_AI_THEME_FORM_VALUES.rulesInactiveBorderColor,
+    floatingButtonBackground:
+      overrides.floatingButtonBackground || DEFAULT_AI_THEME_FORM_VALUES.floatingButtonBackground,
+    floatingButtonTextColor:
+      overrides.floatingButtonTextColor || DEFAULT_AI_THEME_FORM_VALUES.floatingButtonTextColor,
+    badgeBackground: overrides.badgeBackground || DEFAULT_AI_THEME_FORM_VALUES.badgeBackground,
+    badgeTextColor: overrides.badgeTextColor || DEFAULT_AI_THEME_FORM_VALUES.badgeTextColor
+  };
+}
+
 function hasThemeOverrides(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length);
 }
@@ -1322,6 +1376,215 @@ function applyThemeVariables(theme, target = document.body) {
   });
 }
 
+function getAiThemeCssVariables(settings = aiThemeSettingsCache) {
+  const normalized = normalizeAiThemeSettings(settings);
+  const variables = {};
+
+  if (normalized.panelBackground) {
+    variables["--assistant-panel-bg"] = normalized.panelBackground;
+    variables["--assistant-panel-flat-bg"] = normalized.panelBackground;
+  }
+  if (normalized.panelBorderColor) {
+    variables["--assistant-panel-border"] = normalized.panelBorderColor;
+  }
+  if (normalized.assistantMessageBackground) {
+    variables["--assistant-response-bg"] = normalized.assistantMessageBackground;
+  }
+  if (normalized.userMessageBackground) {
+    variables["--assistant-user-message-bg"] = normalized.userMessageBackground;
+  }
+  if (normalized.assistantTextColor) {
+    variables["--assistant-message-text"] = normalized.assistantTextColor;
+    variables["--assistant-response-text"] = normalized.assistantTextColor;
+  }
+  if (normalized.userTextColor) {
+    variables["--assistant-user-message-text"] = normalized.userTextColor;
+  }
+  if (normalized.rulesActiveBackground) {
+    variables["--assistant-rule-active-bg"] = normalized.rulesActiveBackground;
+  }
+  if (normalized.rulesActiveBorderColor) {
+    variables["--assistant-rule-active-border"] = normalized.rulesActiveBorderColor;
+  }
+  if (normalized.rulesInactiveBackground) {
+    variables["--assistant-rule-inactive-bg"] = normalized.rulesInactiveBackground;
+  }
+  if (normalized.rulesInactiveBorderColor) {
+    variables["--assistant-rule-inactive-border"] = normalized.rulesInactiveBorderColor;
+  }
+  if (normalized.floatingButtonBackground) {
+    variables["--assistant-fab-bg"] = normalized.floatingButtonBackground;
+  }
+  if (normalized.floatingButtonTextColor) {
+    variables["--assistant-fab-text"] = normalized.floatingButtonTextColor;
+  }
+  if (normalized.badgeBackground) {
+    variables["--assistant-badge-bg"] = normalized.badgeBackground;
+  }
+  if (normalized.badgeTextColor) {
+    variables["--assistant-badge-text"] = normalized.badgeTextColor;
+  }
+
+  return variables;
+}
+
+function clearAiThemeVariables(target = document.body) {
+  if (!target?.style) return;
+  AI_THEME_VARIABLE_KEYS.forEach((key) => target.style.removeProperty(key));
+}
+
+function applyAiThemeVariables(settings = aiThemeSettingsCache, target = document.body) {
+  if (!target?.style) return;
+  clearAiThemeVariables(target);
+  const variables = getAiThemeCssVariables(settings);
+  Object.entries(variables).forEach(([key, value]) => {
+    target.style.setProperty(key, value);
+  });
+}
+
+async function loadAiThemeSettings(force = false) {
+  if (!force && aiThemeSettingsHydrated) {
+    return aiThemeSettingsCache;
+  }
+
+  if (!supabase || !currentUser?.id || currentUser.id === GUEST_USER.id || !aiThemeSettingsPersistenceAvailable) {
+    aiThemeSettingsCache = {};
+    aiThemeSettingsHydrated = false;
+    return aiThemeSettingsCache;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("ai_theme_settings")
+      .select("settings")
+      .eq("key", "global")
+      .limit(1);
+    if (error) {
+      if (isMissingRelationError(error, "ai_theme_settings")) {
+        aiThemeSettingsPersistenceAvailable = false;
+        aiThemeSettingsCache = {};
+        aiThemeSettingsHydrated = false;
+        return aiThemeSettingsCache;
+      }
+      throw error;
+    }
+    const row = Array.isArray(data) && data.length ? data[0] : null;
+    aiThemeSettingsCache = normalizeAiThemeSettings(row?.settings || {});
+    aiThemeSettingsHydrated = true;
+    return aiThemeSettingsCache;
+  } catch (error) {
+    console.warn("[RTN] Unable to load AI theme settings", error);
+    aiThemeSettingsCache = {};
+    aiThemeSettingsHydrated = false;
+    return aiThemeSettingsCache;
+  }
+}
+
+function populateAdminAiThemeForm(settings = aiThemeSettingsCache) {
+  if (!adminAiThemeForm) return;
+  const resolved = getResolvedAiThemeFormValues(settings);
+  Object.entries(resolved).forEach(([key, value]) => {
+    const field = adminAiThemeForm.elements.namedItem(key);
+    if (field instanceof HTMLInputElement) {
+      field.value = value;
+    }
+  });
+}
+
+function getAdminAiThemeFormState() {
+  if (!adminAiThemeForm) {
+    return normalizeAiThemeSettings({});
+  }
+  const formData = new FormData(adminAiThemeForm);
+  return normalizeAiThemeSettings({
+    panelBackground: String(formData.get("panelBackground") || ""),
+    panelBorderColor: String(formData.get("panelBorderColor") || ""),
+    assistantMessageBackground: String(formData.get("assistantMessageBackground") || ""),
+    userMessageBackground: String(formData.get("userMessageBackground") || ""),
+    assistantTextColor: String(formData.get("assistantTextColor") || ""),
+    userTextColor: String(formData.get("userTextColor") || ""),
+    rulesActiveBackground: String(formData.get("rulesActiveBackground") || ""),
+    rulesActiveBorderColor: String(formData.get("rulesActiveBorderColor") || ""),
+    rulesInactiveBackground: String(formData.get("rulesInactiveBackground") || ""),
+    rulesInactiveBorderColor: String(formData.get("rulesInactiveBorderColor") || ""),
+    floatingButtonBackground: String(formData.get("floatingButtonBackground") || ""),
+    floatingButtonTextColor: String(formData.get("floatingButtonTextColor") || ""),
+    badgeBackground: String(formData.get("badgeBackground") || ""),
+    badgeTextColor: String(formData.get("badgeTextColor") || "")
+  });
+}
+
+function updateAdminAiThemeStatus() {
+  if (!adminAiThemeStatus) return;
+  adminAiThemeStatus.textContent = hasAiThemeOverrides(aiThemeSettingsCache)
+    ? "Global AI overrides are active across all assistant surfaces."
+    : "Assistant surfaces are inheriting the active app theme.";
+}
+
+async function handleAdminAiThemeSubmit(event) {
+  event.preventDefault();
+  if (!isAdmin() || !adminAiThemeForm || !supabase || !aiThemeSettingsPersistenceAvailable) {
+    return;
+  }
+
+  const nextSettings = getAdminAiThemeFormState();
+
+  try {
+    const { error } = await supabase.from("ai_theme_settings").upsert(
+      {
+        key: "global",
+        settings: nextSettings
+      },
+      { onConflict: "key" }
+    );
+    if (error) throw error;
+    aiThemeSettingsCache = nextSettings;
+    aiThemeSettingsHydrated = true;
+    applyResolvedTheme();
+    updateAdminAiThemeStatus();
+    if (adminAiThemeMessage) {
+      adminAiThemeMessage.textContent = "AI theme saved.";
+    }
+    showToast("AI theme saved", "success");
+  } catch (error) {
+    console.error("[RTN] handleAdminAiThemeSubmit error", error);
+    if (adminAiThemeMessage) {
+      adminAiThemeMessage.textContent = error?.message || "Unable to save AI theme.";
+    }
+  }
+}
+
+async function resetAdminAiThemeToDefaults() {
+  if (!isAdmin() || !supabase || !aiThemeSettingsPersistenceAvailable) {
+    return;
+  }
+
+  try {
+    const { error } = await supabase.from("ai_theme_settings").upsert(
+      {
+        key: "global",
+        settings: {}
+      },
+      { onConflict: "key" }
+    );
+    if (error) throw error;
+    aiThemeSettingsCache = {};
+    aiThemeSettingsHydrated = true;
+    populateAdminAiThemeForm({});
+    applyResolvedTheme();
+    updateAdminAiThemeStatus();
+    if (adminAiThemeMessage) {
+      adminAiThemeMessage.textContent = "AI theme reset to app theme defaults.";
+    }
+    showToast("AI theme reset", "success");
+  } catch (error) {
+    console.error("[RTN] resetAdminAiThemeToDefaults error", error);
+    if (adminAiThemeMessage) {
+      adminAiThemeMessage.textContent = error?.message || "Unable to reset AI theme.";
+    }
+  }
+}
+
 function normalizeRankRecord(rank = {}) {
   const themeKey = slugifyThemeKey(rank.theme_key || "blue") || "blue";
   return {
@@ -1589,6 +1852,8 @@ async function refreshCurrentRankState({ force = false } = {}) {
     currentRankState = null;
     reconciledHandsPlayedUserId = null;
     reconciledTradesMadeUserId = null;
+    aiThemeSettingsCache = {};
+    aiThemeSettingsHydrated = false;
     applyResolvedTheme();
     renderDrawerRankSummary(null);
     typeHomeRankWelcome("");
@@ -1597,6 +1862,7 @@ async function refreshCurrentRankState({ force = false } = {}) {
   }
 
   const ladder = await loadRankLadder(force);
+  await loadAiThemeSettings(force);
   await reconcileProfileHandProgress({ force });
   await reconcileProfileTradeProgress({ force });
   const storedHandsPlayed = Number(currentProfile?.hands_played_all_time);
@@ -2432,8 +2698,11 @@ async function loadAdminThemes(force = false) {
   if (adminThemesLoaded && !force) return;
   adminThemesLoaded = true;
   await loadThemeLibrary(force);
+  await loadAiThemeSettings(force);
   populateAdminThemeBaseOptions(adminThemeBaseSelect?.value || "blue");
   populateAdminRankThemeOptions(adminRankThemeSelect?.value || "blue");
+  populateAdminAiThemeForm(aiThemeSettingsCache);
+  updateAdminAiThemeStatus();
   if (!adminThemeListEl) return;
   adminThemeListEl.innerHTML = "";
   const themes = getThemeLibrary();
@@ -15115,6 +15384,7 @@ function applyTheme(theme) {
   }
   if (currentTheme === themeRecord.key && document.body.classList.contains(THEME_CLASS_MAP[next])) {
     applyThemeVariables(themeRecord);
+    applyAiThemeVariables(aiThemeSettingsCache);
     if (typeof window !== "undefined") {
       window.requestAnimationFrame(() => drawBankrollChart());
     } else {
@@ -15127,6 +15397,7 @@ function applyTheme(theme) {
   });
   document.body.classList.add(THEME_CLASS_MAP[next]);
   applyThemeVariables(themeRecord);
+  applyAiThemeVariables(aiThemeSettingsCache);
   currentTheme = themeRecord.key;
   if (typeof window !== "undefined") {
     window.requestAnimationFrame(() => drawBankrollChart());
@@ -15845,6 +16116,10 @@ const adminGamePreviewTitle = document.getElementById("admin-game-preview-title"
 const adminGamePreviewDescription = document.getElementById("admin-game-preview-description");
 const adminGamePreviewButton = document.getElementById("admin-game-preview-button");
 const adminGameModalMessage = document.getElementById("admin-game-modal-message");
+const adminAiThemeForm = document.getElementById("admin-ai-theme-form");
+const adminAiThemeMessage = document.getElementById("admin-ai-theme-message");
+const adminAiThemeStatus = document.getElementById("admin-ai-theme-status");
+const adminAiThemeResetButton = document.getElementById("admin-ai-theme-reset");
 const adminThemeForm = document.getElementById("admin-theme-form");
 const adminThemeListEl = document.getElementById("admin-theme-list");
 const adminThemeMessage = document.getElementById("admin-theme-message");
@@ -15952,6 +16227,40 @@ const DEFAULT_CUSTOM_THEME_SETTINGS = {
   radiusScale: 72,
   flatSurfaces: false
 };
+const DEFAULT_AI_THEME_FORM_VALUES = {
+  panelBackground: "#08142d",
+  panelBorderColor: "#63f0ff",
+  assistantMessageBackground: "#0a1840",
+  userMessageBackground: "#15386d",
+  assistantTextColor: "#f7fbff",
+  userTextColor: "#f7fbff",
+  rulesActiveBackground: "#a15d21",
+  rulesActiveBorderColor: "#ffc15e",
+  rulesInactiveBackground: "#384b71",
+  rulesInactiveBorderColor: "#94a7c4",
+  floatingButtonBackground: "#13315f",
+  floatingButtonTextColor: "#f7fbff",
+  badgeBackground: "#ffd166",
+  badgeTextColor: "#16110a"
+};
+const AI_THEME_VARIABLE_KEYS = [
+  "--assistant-panel-bg",
+  "--assistant-panel-flat-bg",
+  "--assistant-panel-border",
+  "--assistant-response-bg",
+  "--assistant-user-message-bg",
+  "--assistant-message-text",
+  "--assistant-response-text",
+  "--assistant-user-message-text",
+  "--assistant-rule-active-bg",
+  "--assistant-rule-active-border",
+  "--assistant-rule-inactive-bg",
+  "--assistant-rule-inactive-border",
+  "--assistant-fab-bg",
+  "--assistant-fab-text",
+  "--assistant-badge-bg",
+  "--assistant-badge-text"
+];
 const CUSTOM_THEME_VARIABLE_KEYS = [
   "--neon-cyan",
   "--neon-magenta",
@@ -16213,6 +16522,9 @@ let adminThemeOverrideTheme = null;
 let adminThemeOverrideStoredKey = null;
 let adminThemeOverrideUserId = null;
 let adminThemePreviewPage = "home";
+let aiThemeSettingsCache = {};
+let aiThemeSettingsHydrated = false;
+let aiThemeSettingsPersistenceAvailable = true;
 let adminPrizeCache = [];
 let rankLadderCache = [];
 let themeLibraryCache = [];
@@ -25239,6 +25551,19 @@ if (adminThemeForm) {
   });
 }
 
+if (adminAiThemeForm) {
+  populateAdminAiThemeForm({});
+  adminAiThemeForm.addEventListener("submit", (event) => {
+    void handleAdminAiThemeSubmit(event);
+  });
+}
+
+if (adminAiThemeResetButton) {
+  adminAiThemeResetButton.addEventListener("click", () => {
+    void resetAdminAiThemeToDefaults();
+  });
+}
+
 if (adminThemePreviewPageSelect) {
   adminThemePreviewPageSelect.addEventListener("change", () => {
     adminThemePreviewPage = adminThemePreviewPageSelect.value || "home";
@@ -29617,6 +29942,8 @@ async function bootstrapAuth(initialRoute) {
     updateAdminVisibility(currentUser);
     updateResetButtonVisibility(currentUser);
     markAppReady();
+    await loadAiThemeSettings(true);
+    applyResolvedTheme();
 
     // Ensure profile is loaded and applied
   await ensureProfileSynced({ force: true });
@@ -29682,6 +30009,8 @@ function setupAuthListener() {
               currentUser = user;
               updateAdminVisibility(currentUser);
               updateResetButtonVisibility(currentUser);
+              await loadAiThemeSettings(true).catch((err) => console.warn("[RTN] AI theme sync error:", err));
+              applyResolvedTheme();
               
               // If we're on auth callback, we need to:
               // 1. First sync the profile (before changing route)
@@ -29708,6 +30037,9 @@ function setupAuthListener() {
               }
             }
           } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
+            aiThemeSettingsCache = {};
+            aiThemeSettingsHydrated = false;
+            applyResolvedTheme();
             // Don't redirect if we're on a public auth page (auth, signup, forgot-password, callback)
             const isPublicAuthPage = currentRoute === "auth" || currentRoute === "signup" || 
                                     currentRoute === "forgot-password" || currentRoute === "reset-password" || currentRoute === "auth/callback";

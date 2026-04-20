@@ -2708,6 +2708,80 @@
                   </div>
                   <button type="button" class="primary" id="admin-theme-create-button">Create New</button>
                 </div>
+                <section class="design-theme-library">
+                  <div class="admin-listing-header">
+                    <div>
+                      <h3>AI Theme</h3>
+                      <p class="route-subheading">Override the assistant chat and button styling globally across every experience.</p>
+                    </div>
+                  </div>
+                  <p id="admin-ai-theme-status" class="route-subheading design-override-status"></p>
+                  <form id="admin-ai-theme-form" class="admin-form design-builder-form">
+                    <div class="design-color-grid">
+                      <label class="admin-field">
+                        <span>AI Main Background</span>
+                        <input type="color" name="panelBackground" value="#08142d" />
+                      </label>
+                      <label class="admin-field">
+                        <span>AI Panel Border</span>
+                        <input type="color" name="panelBorderColor" value="#63f0ff" />
+                      </label>
+                      <label class="admin-field">
+                        <span>AI Chat Background</span>
+                        <input type="color" name="assistantMessageBackground" value="#0a1840" />
+                      </label>
+                      <label class="admin-field">
+                        <span>User Chat Background</span>
+                        <input type="color" name="userMessageBackground" value="#15386d" />
+                      </label>
+                      <label class="admin-field">
+                        <span>AI Chat Text</span>
+                        <input type="color" name="assistantTextColor" value="#f7fbff" />
+                      </label>
+                      <label class="admin-field">
+                        <span>User Chat Text</span>
+                        <input type="color" name="userTextColor" value="#f7fbff" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Rules Active Background</span>
+                        <input type="color" name="rulesActiveBackground" value="#a15d21" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Rules Active Border</span>
+                        <input type="color" name="rulesActiveBorderColor" value="#ffc15e" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Rules Inactive Background</span>
+                        <input type="color" name="rulesInactiveBackground" value="#384b71" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Rules Inactive Border</span>
+                        <input type="color" name="rulesInactiveBorderColor" value="#94a7c4" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Floating Button Background</span>
+                        <input type="color" name="floatingButtonBackground" value="#13315f" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Floating Button Text</span>
+                        <input type="color" name="floatingButtonTextColor" value="#f7fbff" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Badge Background</span>
+                        <input type="color" name="badgeBackground" value="#ffd166" />
+                      </label>
+                      <label class="admin-field">
+                        <span>Badge Text</span>
+                        <input type="color" name="badgeTextColor" value="#16110a" />
+                      </label>
+                    </div>
+                    <div class="modal-actions admin-form-actions">
+                      <button type="button" class="secondary" id="admin-ai-theme-reset">Use Theme Defaults</button>
+                      <button type="submit" class="primary">Save AI Theme</button>
+                    </div>
+                    <p id="admin-ai-theme-message" class="admin-message" role="status" aria-live="polite"></p>
+                  </form>
+                </section>
                 <div class="design-theme-library">
                   <div class="admin-listing-header">
                     <h3>Saved Themes</h3>
