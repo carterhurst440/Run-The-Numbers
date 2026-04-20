@@ -15023,12 +15023,67 @@ body[data-theme-profile="rtn-green-room"] {
   --body-bg-size: auto;
   --body-bg-position: center;
   --app-overlay: none;
+  --table-rail-color: #4f341d;
+  --table-rail-highlight: #795634;
   --table-panel-bg: #184e31;
   --paytable-panel-bg: #205338;
   --betting-panel-bg: #1a4b31;
   --chip-bar-bg: #14442b;
   --menu-bg: #153d29;
   --bet-spot-bg: #245e3e;
+  --paytable-option-bg: rgba(20, 58, 37, 0.94);
+  --paytable-option-border: rgba(208, 190, 124, 0.32);
+  --paytable-option-shadow: none;
+  --paytable-option-border-hover: rgba(232, 223, 165, 0.68);
+  --paytable-option-shadow-hover: none;
+  --paytable-option-border-selected: rgba(245, 236, 188, 0.84);
+  --paytable-option-shadow-selected: inset 0 0 0 1px rgba(245, 236, 188, 0.12);
+  --paytable-option-name-color: rgba(243, 238, 216, 0.96);
+  --paytable-option-steps-color: rgba(221, 232, 212, 0.76);
+  --active-paytable-bg: #224f36;
+  --active-paytable-border: rgba(208, 190, 124, 0.34);
+  --active-paytable-shadow: none;
+  --active-paytable-label-color: rgba(216, 201, 135, 0.92);
+  --active-paytable-steps-color: rgba(231, 239, 222, 0.78);
+  --change-paytable-bg: rgba(57, 83, 46, 0.88);
+  --change-paytable-border: rgba(208, 190, 124, 0.32);
+  --change-paytable-border-hover: rgba(232, 223, 165, 0.78);
+  --change-paytable-shadow: none;
+  --chip-choice-border: rgba(246, 232, 179, 0.28);
+  --chip-choice-shadow: 0 8px 16px rgba(0, 0, 0, 0.22);
+  --chip-choice-shadow-hover: 0 0 0 2px rgba(232, 223, 165, 0.28), 0 10px 18px rgba(0, 0, 0, 0.2);
+  --chip-choice-active-shadow: 0 0 0 2px rgba(245, 236, 188, 0.3), 0 10px 18px rgba(0, 0, 0, 0.22);
+  --secondary-button-bg: #375a43;
+  --secondary-button-border: rgba(208, 190, 124, 0.3);
+  --secondary-button-shadow: none;
+  --secondary-button-shadow-hover: none;
+  --secondary-button-text: rgba(243, 238, 216, 0.95);
+  --primary-button-bg: #d8c987;
+  --primary-button-border: rgba(96, 66, 28, 0.36);
+  --primary-button-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
+  --primary-button-shadow-hover: 0 10px 18px rgba(0, 0, 0, 0.2);
+  --primary-button-text: #2b2412;
+  --deal-button-bg: #d8c987;
+  --deal-button-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
+  --deal-button-shadow-hover: 0 10px 18px rgba(0, 0, 0, 0.2);
+  --deal-button-text: #2b2412;
+  --toggle-bg: rgba(23, 58, 38, 0.96);
+  --toggle-border: rgba(208, 190, 124, 0.28);
+  --toggle-label-color: rgba(233, 240, 223, 0.84);
+  --toggle-visual-bg: rgba(255, 255, 255, 0.12);
+  --toggle-visual-border: rgba(208, 190, 124, 0.22);
+  --toggle-thumb-bg: #f3ead3;
+  --toggle-thumb-shadow: transparent;
+  --toggle-active-bg: rgba(40, 78, 52, 0.96);
+  --toggle-active-border: rgba(216, 201, 135, 0.48);
+  --toggle-active-shadow: none;
+  --toggle-active-label-color: rgba(243, 238, 216, 0.96);
+  --toggle-active-label-shadow: transparent;
+  --toggle-active-visual-bg: rgba(216, 201, 135, 0.22);
+  --toggle-active-visual-border: rgba(216, 201, 135, 0.42);
+  --toggle-active-visual-shadow: none;
+  --toggle-active-thumb-bg: #f5ecbc;
+  --toggle-active-thumb-shadow: none;
   --bet-spot-border: rgba(206, 193, 133, 0.38);
   --bet-spot-border-hover: rgba(232, 223, 165, 0.72);
   --bet-spot-border-active: rgba(245, 236, 188, 0.86);
@@ -15059,8 +15114,11 @@ body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .advanced-panel 
     var(--table-panel-bg);
   border: 1px solid rgba(208, 190, 124, 0.22);
   box-shadow:
+    0 0 0 10px var(--table-rail-color),
+    0 0 0 12px rgba(18, 9, 4, 0.78),
     inset 0 0 0 1px rgba(255, 255, 255, 0.03),
     inset 0 0 0 3px rgba(8, 24, 15, 0.28),
+    inset 0 0 0 4px rgba(121, 86, 52, 0.24),
     0 0 0 1px rgba(7, 19, 12, 0.5);
 }
 
@@ -15122,7 +15180,7 @@ body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .change-paytable
 }
 
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .paytable-option {
-  background: rgba(16, 50, 32, 0.86);
+  background: var(--paytable-option-bg);
   box-shadow: none;
 }
 
@@ -15141,6 +15199,25 @@ body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-spot.has-be
   transform: translateY(-1px);
 }
 
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .deal-mode-toggle,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .advanced-toggle,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .active-paytable,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .secondary,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .deal,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .primary {
+  border-radius: 0;
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .deal-mode-toggle,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .advanced-toggle {
+  box-shadow: none;
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .deal-mode-toggle .toggle-label,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .advanced-toggle .toggle-label {
+  letter-spacing: 0.12rem;
+}
+
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-bar {
   background:
     repeating-linear-gradient(
@@ -15152,7 +15229,49 @@ body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-bar {
     ),
     var(--chip-bar-bg);
   border-top: 1px solid rgba(208, 190, 124, 0.22);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    0 -6px 0 rgba(79, 52, 29, 0.92);
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-choice[data-tone="0"] {
+  background: radial-gradient(circle at 32% 32%, #f4dd63, #b88e16);
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-choice[data-tone="1"] {
+  background: radial-gradient(circle at 32% 32%, #f1a24d, #a5541e);
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-choice[data-tone="2"] {
+  background: radial-gradient(circle at 32% 32%, #cc63c7, #7f2d73);
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-choice[data-tone="3"] {
+  background: radial-gradient(circle at 32% 32%, #a56b6b, #5e3131);
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-choice[data-tone="4"] {
+  background: radial-gradient(circle at 32% 32%, #74d7eb, #2c6d88);
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-choice[data-tone="5"] {
+  background: radial-gradient(circle at 32% 32%, #ecebe8, #8a877f);
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-choice {
+  color: #1d160c;
+  text-shadow: none;
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .primary,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .deal {
+  text-transform: uppercase;
+  letter-spacing: 0.08rem;
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .secondary {
+  text-transform: uppercase;
+  letter-spacing: 0.06rem;
 }
 
 body[data-theme-profile="guess-10-deep-blue"] #red-black-view .beta-game-panel {
