@@ -3912,6 +3912,7 @@ async function loadShapeTraderPortfolioFromBackend() {
       shapeTradersLastInteractionAt = lastActiveAt;
     }
     shapeTradersLastPersistedAccountActiveAt = accountRow?.last_active_at || null;
+    shapeTradersLastStructuralSyncDrawId = Math.max(0, Math.floor(Number(accountRow?.last_structural_draw_id || 0)));
 
     const { data: positionRows, error: positionsError } = await applyShapeTraderAccountScopeFilter(supabase
       .from("shape_trader_positions_current")
@@ -3955,6 +3956,7 @@ function hasMatchingShapeTraderStructuralActivity({
   drawnAt,
   preSplitQuantity,
   preSplitPrice,
+  legacyPreSplitPrice = null,
   postSplitQuantity,
   postSplitPrice
 }) {
@@ -3974,11 +3976,17 @@ function hasMatchingShapeTraderStructuralActivity({
     }
     const quantity = Math.max(0, Math.round(Number(entry.quantity || 0)));
     const price = roundCurrencyValue(Number(entry.price || 0));
+    const acceptableSellPrices = [
+      roundCurrencyValue(preSplitPrice),
+      legacyPreSplitPrice === null || legacyPreSplitPrice === undefined
+        ? null
+        : roundCurrencyValue(legacyPreSplitPrice)
+    ].filter((value, index, allValues) => Number.isFinite(value) && allValues.indexOf(value) === index);
     if (
       entry.side === "sell"
       && entry.netProfit === null
       && quantity === preSplitQuantity
-      && price === roundCurrencyValue(preSplitPrice)
+      && acceptableSellPrices.includes(price)
     ) {
       hasSell = true;
     }
@@ -4070,6 +4078,7 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
       if (eventType === "split") {
         const splitPrice = roundCurrencyValue(Number(row?.[getShapeTraderDrawPriceFieldName(assetId, "new")] || 0));
         const previousPrice = roundCurrencyValue(splitPrice * SHAPE_TRADERS_SPLIT_FACTOR);
+        const legacyPreviousPrice = roundCurrencyValue(Number(row?.[getShapeTraderDrawPriceFieldName(assetId, "previous")] || 0));
         const postSplitQuantity = quantity * SHAPE_TRADERS_SPLIT_FACTOR;
         const nextAccountValue = roundCurrencyValue(getShapeTraderAccountValue());
         const structuralEventAt = getShapeTraderActivityTimestamp(row?.drawn_at || new Date().toISOString());
@@ -4083,6 +4092,7 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
             drawnAt: row?.drawn_at,
             preSplitQuantity: quantity,
             preSplitPrice: previousPrice,
+            legacyPreSplitPrice: legacyPreviousPrice,
             postSplitQuantity,
             postSplitPrice: splitPrice
           })
@@ -4134,8 +4144,8 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
   if (pendingActivityWrites.length) {
     await Promise.allSettled(pendingActivityWrites);
   }
-  await syncShapeTraderCurrentState({ throwOnError: false });
   shapeTradersLastStructuralSyncDrawId = latestProcessedDrawId;
+  await syncShapeTraderCurrentState({ throwOnError: false });
   if (latestProcessedAt) {
     shapeTradersLastPersistedAccountActiveAt = latestProcessedAt;
   }
@@ -4183,6 +4193,7 @@ async function syncShapeTraderCurrentState({ heartbeatOnly = false, throwOnError
     cash_balance: roundCurrencyValue(bankroll),
     holdings_value: roundCurrencyValue(getShapeTraderHoldingsValue()),
     account_value: roundCurrencyValue(getShapeTraderAccountValue()),
+    last_structural_draw_id: Math.max(0, Math.floor(Number(shapeTradersLastStructuralSyncDrawId || 0))),
     last_active_at: new Date(
       shapeTradersWindowActive
         ? Date.now()
@@ -4192,9 +4203,22 @@ async function syncShapeTraderCurrentState({ heartbeatOnly = false, throwOnError
   };
 
   try {
-    await supabase
+    const accountUpsertResult = await supabase
       .from("shape_trader_accounts_current")
       .upsert(accountPayload, { onConflict: "user_id,account_scope" });
+    if (accountUpsertResult?.error) {
+      if (isMissingColumnError(accountUpsertResult.error, "last_structural_draw_id")) {
+        const { last_structural_draw_id, ...legacyAccountPayload } = accountPayload;
+        const legacyUpsertResult = await supabase
+          .from("shape_trader_accounts_current")
+          .upsert(legacyAccountPayload, { onConflict: "user_id,account_scope" });
+        if (legacyUpsertResult?.error) {
+          throw legacyUpsertResult.error;
+        }
+      } else {
+        throw accountUpsertResult.error;
+      }
+    }
 
     if (!heartbeatOnly) {
       const positionPayload = SHAPE_TRADERS_ASSETS.map((asset) => ({
