@@ -44,7 +44,8 @@
     ></div>
     <section id="auth-view" class="route-view auth-view auth-screen" hidden>
       <div class="auth-card">
-        <h1>Welcome back</h1>
+        <h1 id="auth-login-title">Welcome back</h1>
+        <p id="auth-login-subtext" class="auth-description" hidden></p>
         <form id="auth-form" class="auth-form">
           <label for="auth-email">Email</label>
           <input type="email" id="auth-email" name="email" autocomplete="email" required />
@@ -3912,6 +3913,14 @@
         <div class="admin-theme-modal-layout">
           <form id="admin-login-theme-form" class="admin-form design-builder-form">
             <div class="design-color-grid">
+              <label class="admin-field">
+                <span>Header Text</span>
+                <input type="text" name="headerText" value="" placeholder="Carter's Casino" />
+              </label>
+              <label class="admin-field">
+                <span>Header Subtext</span>
+                <input type="text" name="headerSubtext" value="" placeholder="The premiere NEO casino experience" />
+              </label>
               <label class="admin-field">
                 <span>Page Background Start</span>
                 <input type="color" name="screenBackgroundStart" value="#08142d" />

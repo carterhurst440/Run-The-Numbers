@@ -969,6 +969,8 @@ function normalizeLoginThemeSettings(settings = {}) {
     return typeof value === "string" ? value.trim() : "";
   };
   return {
+    headerText: read("headerText"),
+    headerSubtext: read("headerSubtext"),
     screenBackgroundStart: read("screenBackgroundStart"),
     screenBackgroundEnd: read("screenBackgroundEnd"),
     cardBackground: read("cardBackground"),
@@ -996,6 +998,8 @@ function hasLoginThemeOverrides(settings = loginThemeSettingsCache) {
 function getResolvedLoginThemeFormValues(settings = loginThemeSettingsCache) {
   const overrides = normalizeLoginThemeSettings(settings);
   return {
+    headerText: overrides.headerText || DEFAULT_LOGIN_THEME_FORM_VALUES.headerText,
+    headerSubtext: overrides.headerSubtext || DEFAULT_LOGIN_THEME_FORM_VALUES.headerSubtext,
     screenBackgroundStart: overrides.screenBackgroundStart || DEFAULT_LOGIN_THEME_FORM_VALUES.screenBackgroundStart,
     screenBackgroundEnd: overrides.screenBackgroundEnd || DEFAULT_LOGIN_THEME_FORM_VALUES.screenBackgroundEnd,
     cardBackground: overrides.cardBackground || DEFAULT_LOGIN_THEME_FORM_VALUES.cardBackground,
@@ -1594,6 +1598,8 @@ function getAdminLoginThemeFormState() {
   }
   const formData = new FormData(adminLoginThemeForm);
   return normalizeLoginThemeSettings({
+    headerText: String(formData.get("headerText") || ""),
+    headerSubtext: String(formData.get("headerSubtext") || ""),
     screenBackgroundStart: String(formData.get("screenBackgroundStart") || ""),
     screenBackgroundEnd: String(formData.get("screenBackgroundEnd") || ""),
     cardBackground: String(formData.get("cardBackground") || ""),
@@ -1621,12 +1627,16 @@ function updateAdminLoginThemeStatus() {
     : "Auth pages are using the built-in standard login styling.";
 }
 
-function getAdminLoginThemePreviewMarkup() {
+function getAdminLoginThemePreviewMarkup(settings = loginThemeSettingsCache) {
+  const resolved = getResolvedLoginThemeFormValues(settings);
   return `
     <div class="design-login-preview-stage">
       <section class="design-login-preview-auth">
         <div class="auth-card">
-          <h1>Welcome back</h1>
+          <h1>${escapeAssistantHtml(resolved.headerText || "Welcome back")}</h1>
+          ${resolved.headerSubtext
+            ? `<p class="auth-description">${escapeAssistantHtml(resolved.headerSubtext)}</p>`
+            : ""}
           <form class="auth-form">
             <label>Email</label>
             <input type="email" value="carter@example.com" />
@@ -1651,14 +1661,29 @@ function getAdminLoginThemePreviewMarkup() {
   `;
 }
 
-function renderAdminLoginThemePreview() {
+function renderAdminLoginThemePreview(settings = loginThemeSettingsCache) {
   if (!(adminLoginThemePreviewModalEl instanceof HTMLElement)) return;
-  adminLoginThemePreviewModalEl.innerHTML = getAdminLoginThemePreviewMarkup();
+  adminLoginThemePreviewModalEl.innerHTML = getAdminLoginThemePreviewMarkup(settings);
 }
 
 function applyAdminLoginThemePreview(settings, target = adminLoginThemePreviewModalEl) {
   if (!(target instanceof HTMLElement)) return;
+  if (target === adminLoginThemePreviewModalEl) {
+    renderAdminLoginThemePreview(settings);
+  }
   applyLoginThemeVariables(settings, target);
+}
+
+function applyLoginThemeContent(settings = loginThemeSettingsCache) {
+  const resolved = getResolvedLoginThemeFormValues(settings);
+  if (authLoginTitleEl) {
+    authLoginTitleEl.textContent = resolved.headerText || "Welcome back";
+  }
+  if (authLoginSubtextEl) {
+    const hasSubtext = Boolean(String(resolved.headerSubtext || "").trim());
+    authLoginSubtextEl.hidden = !hasSubtext;
+    authLoginSubtextEl.textContent = hasSubtext ? resolved.headerSubtext : "";
+  }
 }
 
 function openAdminLoginThemeModal() {
@@ -1954,6 +1979,7 @@ async function handleAdminLoginThemeSubmit(event) {
     loginThemeSettingsCache = nextSettings;
     loginThemeSettingsHydrated = true;
     applyLoginThemeVariables(loginThemeSettingsCache);
+    applyLoginThemeContent(loginThemeSettingsCache);
     updateAdminLoginThemeStatus();
     if (adminLoginThemeMessage) {
       adminLoginThemeMessage.textContent = "Login theme saved.";
@@ -1986,6 +2012,7 @@ async function resetAdminLoginThemeToDefaults() {
     loginThemeSettingsHydrated = true;
     populateAdminLoginThemeForm({});
     applyLoginThemeVariables(loginThemeSettingsCache);
+    applyLoginThemeContent(loginThemeSettingsCache);
     updateAdminLoginThemeStatus();
     if (adminLoginThemeMessage) {
       adminLoginThemeMessage.textContent = "Login theme reset to standard defaults.";
@@ -7826,6 +7853,7 @@ function showAuthCallbackView() {
 function showAuthView(mode = "login") {
   console.info(`[RTN] showAuthView called with mode: ${mode}`);
   hideAllRoutes();
+  applyLoginThemeContent(loginThemeSettingsCache);
   if (appShell) {
     appShell.setAttribute("data-hidden", "true");
   }
@@ -15804,6 +15832,7 @@ function applyTheme(theme) {
     applyThemeVariables(themeRecord);
     applyAiThemeVariables(aiThemeSettingsCache);
     applyLoginThemeVariables(loginThemeSettingsCache);
+    applyLoginThemeContent(loginThemeSettingsCache);
     if (typeof window !== "undefined") {
       window.requestAnimationFrame(() => drawBankrollChart());
     } else {
@@ -15818,6 +15847,7 @@ function applyTheme(theme) {
   applyThemeVariables(themeRecord);
   applyAiThemeVariables(aiThemeSettingsCache);
   applyLoginThemeVariables(loginThemeSettingsCache);
+  applyLoginThemeContent(loginThemeSettingsCache);
   currentTheme = themeRecord.key;
   if (typeof window !== "undefined") {
     window.requestAnimationFrame(() => drawBankrollChart());
@@ -16245,6 +16275,8 @@ const profileRetryButtonDefaultLabel = profileRetryButton
   : "Retry loading profile";
 const toastContainer = document.getElementById("toast-container");
 const authView = document.getElementById("auth-view");
+const authLoginTitleEl = document.getElementById("auth-login-title");
+const authLoginSubtextEl = document.getElementById("auth-login-subtext");
 const authForm = document.getElementById("auth-form");
 const authEmailInput = document.getElementById("auth-email");
 const authErrorEl = document.getElementById("auth-error");
@@ -16678,6 +16710,8 @@ const DEFAULT_AI_THEME_FORM_VALUES = {
   badgeTextColor: "#16110a"
 };
 const DEFAULT_LOGIN_THEME_FORM_VALUES = {
+  headerText: "Welcome back",
+  headerSubtext: "",
   screenBackgroundStart: "#08142d",
   screenBackgroundEnd: "#050913",
   cardBackground: "#0e2c63",
@@ -30507,6 +30541,7 @@ async function bootstrapAuth(initialRoute) {
     markAppReady();
     await loadLoginThemeSettings(true);
     applyLoginThemeVariables(loginThemeSettingsCache);
+    applyLoginThemeContent(loginThemeSettingsCache);
     await loadAiThemeSettings(true);
     applyResolvedTheme();
 
@@ -30576,6 +30611,7 @@ function setupAuthListener() {
               updateResetButtonVisibility(currentUser);
               await loadLoginThemeSettings(true).catch((err) => console.warn("[RTN] Login theme sync error:", err));
               applyLoginThemeVariables(loginThemeSettingsCache);
+              applyLoginThemeContent(loginThemeSettingsCache);
               await loadAiThemeSettings(true).catch((err) => console.warn("[RTN] AI theme sync error:", err));
               applyResolvedTheme();
               
@@ -30607,7 +30643,10 @@ function setupAuthListener() {
             aiThemeSettingsCache = {};
             aiThemeSettingsHydrated = false;
             loginThemeSettingsHydrated = false;
-            void loadLoginThemeSettings(true).then(() => applyLoginThemeVariables(loginThemeSettingsCache));
+            void loadLoginThemeSettings(true).then(() => {
+              applyLoginThemeVariables(loginThemeSettingsCache);
+              applyLoginThemeContent(loginThemeSettingsCache);
+            });
             applyResolvedTheme();
             // Don't redirect if we're on a public auth page (auth, signup, forgot-password, callback)
             const isPublicAuthPage = currentRoute === "auth" || currentRoute === "signup" || 
@@ -30721,6 +30760,7 @@ async function initializeApp() {
     console.info(`[RTN] initializeApp waitForSupabaseReady result=${clientReady}`);
     await loadLoginThemeSettings(true);
     applyLoginThemeVariables(loginThemeSettingsCache);
+    applyLoginThemeContent(loginThemeSettingsCache);
 
     // Check if URL contains auth tokens/code (magic link callback)
     const hasAuthTokensInUrl = window.location.hash.includes("access_token=") || 
