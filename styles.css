@@ -1906,6 +1906,25 @@ body[data-app-state="loading"] #app-shell {
   gap: 0.7rem;
 }
 
+.shape-traders-admin-test-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.shape-traders-admin-price-input {
+  width: 7rem;
+  min-height: 2rem;
+  padding: 0.34rem 0.58rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, white 20%, transparent);
+  background: color-mix(in srgb, black 14%, transparent);
+  color: var(--text-light);
+  font: inherit;
+  font-size: 0.78rem;
+}
+
 .shape-traders-panel-heading h2 {
   margin: 0.15rem 0 0;
   font-size: 1.18rem;

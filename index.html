@@ -749,6 +749,39 @@
                   </div>
                   <div class="shape-traders-panel-heading-actions">
                     <p class="shape-traders-panel-meta">Reset to 100 after bankruptcy.</p>
+                    <div id="shape-traders-admin-test-controls" class="shape-traders-admin-test-controls" hidden>
+                      <input
+                        id="shape-traders-admin-price-input"
+                        class="shape-traders-admin-price-input"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        inputmode="decimal"
+                        placeholder="Set price"
+                        aria-label="Set selected asset price"
+                      />
+                      <button
+                        type="button"
+                        class="secondary shape-traders-mini-button"
+                        id="shape-traders-set-price-999"
+                      >
+                        999.00
+                      </button>
+                      <button
+                        type="button"
+                        class="secondary shape-traders-mini-button"
+                        id="shape-traders-set-price-101"
+                      >
+                        1.01
+                      </button>
+                      <button
+                        type="button"
+                        class="secondary shape-traders-mini-button"
+                        id="shape-traders-apply-price"
+                      >
+                        Apply
+                      </button>
+                    </div>
                     <button
                       type="button"
                       class="secondary shape-traders-mini-button"

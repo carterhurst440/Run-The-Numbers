@@ -3442,6 +3442,18 @@ function setShapeTraderResetProgress(message, { buttonLabel = "RESET", disableCo
     shapeTradersMarketResetButton.textContent = buttonLabel;
     shapeTradersMarketResetButton.disabled = disableControls;
   }
+  if (shapeTradersSetPrice999Button) {
+    shapeTradersSetPrice999Button.disabled = disableControls;
+  }
+  if (shapeTradersSetPrice101Button) {
+    shapeTradersSetPrice101Button.disabled = disableControls;
+  }
+  if (shapeTradersApplyPriceButton) {
+    shapeTradersApplyPriceButton.disabled = disableControls;
+  }
+  if (shapeTradersAdminPriceInput) {
+    shapeTradersAdminPriceInput.disabled = disableControls;
+  }
   if (shapeTradersBuyButton) {
     shapeTradersBuyButton.disabled = disableControls || shapeTradersBuyButton.disabled;
   }
@@ -3461,6 +3473,18 @@ function clearShapeTraderResetProgress() {
     shapeTradersMarketResetButton.textContent = "RESET";
     shapeTradersMarketResetButton.disabled = false;
   }
+  if (shapeTradersSetPrice999Button) {
+    shapeTradersSetPrice999Button.disabled = false;
+  }
+  if (shapeTradersSetPrice101Button) {
+    shapeTradersSetPrice101Button.disabled = false;
+  }
+  if (shapeTradersApplyPriceButton) {
+    shapeTradersApplyPriceButton.disabled = false;
+  }
+  if (shapeTradersAdminPriceInput) {
+    shapeTradersAdminPriceInput.disabled = false;
+  }
   if (shapeTradersLiquidateButton) {
     shapeTradersLiquidateButton.disabled = false;
   }
@@ -3471,6 +3495,76 @@ function clearShapeTraderResetProgress() {
 
 function markShapeTraderInteraction() {
   shapeTradersLastInteractionAt = Date.now();
+}
+
+async function adminSetShapeTraderMarketPrice(targetPrice, assetId = shapeTradersSelectedAsset) {
+  if (!isAdmin()) {
+    return null;
+  }
+  if (shapeTradersResetInFlight) {
+    setShapeTraderStatus("Shape Traders is resetting. Please wait for the reset to finish.");
+    return null;
+  }
+  if (shapeTradersTradeActionInFlight) {
+    setShapeTraderStatus("Shape Traders already has an action in progress.");
+    return null;
+  }
+
+  shapeTradersTradeActionInFlight = true;
+  renderShapeTradersControls();
+
+  const asset = getShapeTraderAssetConfig(assetId);
+  const normalizedTargetPrice = roundCurrencyValue(Number(targetPrice || 0));
+
+  try {
+    await syncShapeTraderExecutionPricesFromLatestDraw();
+    markShapeTraderInteraction();
+    if (!Number.isFinite(normalizedTargetPrice) || normalizedTargetPrice <= 0) {
+      setShapeTraderStatus("Enter a valid admin test price above 0.");
+      return null;
+    }
+
+    const latestRow = getLatestShapeTraderPersistedRow();
+    if (!latestRow?.draw_id) {
+      setShapeTraderStatus("No persisted Shape Traders draw is available yet. Wait for the first live draw.");
+      return null;
+    }
+
+    const nextRow = {
+      ...latestRow,
+      [getShapeTraderDrawPriceFieldName(assetId, "new")]: normalizedTargetPrice
+    };
+
+    const updateResult = await supabase
+      .from("shape_trader_draws")
+      .upsert(nextRow, { onConflict: "draw_id" });
+
+    if (updateResult?.error) {
+      throw updateResult.error;
+    }
+
+    shapeTradersRecentDrawRows = [
+      nextRow,
+      ...shapeTradersRecentDrawRows.filter((row) => Number(row?.draw_id || 0) !== Number(nextRow.draw_id || 0))
+    ].slice(0, 60);
+    applyShapeTraderDrawRowPriceSnapshot(nextRow);
+    await syncShapeTraderCurrentState({ throwOnError: true });
+    await refreshShapeTraderGlobalSnapshot();
+    renderShapeTraders();
+    setShapeTraderStatus(`Admin test: set ${asset.label} to ${formatCurrency(normalizedTargetPrice)}. The next live draw will continue from there.`);
+    return {
+      ok: true,
+      assetId,
+      price: normalizedTargetPrice
+    };
+  } catch (error) {
+    console.error("[RTN] Shape Traders admin price set failed", error);
+    setShapeTraderStatus(`Shape Traders admin price set failed: ${error?.message || "unknown error"}`);
+    return null;
+  } finally {
+    shapeTradersTradeActionInFlight = false;
+    renderShapeTradersControls();
+  }
 }
 
 function isShapeTraderWindowCurrentlyActive() {
@@ -5187,6 +5281,18 @@ function renderShapeTradersControls(now = Date.now()) {
     if (shapeTradersLiquidateButton) {
       shapeTradersLiquidateButton.disabled = true;
     }
+    if (shapeTradersSetPrice999Button) {
+      shapeTradersSetPrice999Button.disabled = true;
+    }
+    if (shapeTradersSetPrice101Button) {
+      shapeTradersSetPrice101Button.disabled = true;
+    }
+    if (shapeTradersApplyPriceButton) {
+      shapeTradersApplyPriceButton.disabled = true;
+    }
+    if (shapeTradersAdminPriceInput) {
+      shapeTradersAdminPriceInput.disabled = true;
+    }
     if (shapeTradersInactivityEl) {
       shapeTradersInactivityEl.textContent = "Trading is paused while the backend draw engine is being migrated.";
     }
@@ -5223,6 +5329,18 @@ function renderShapeTradersControls(now = Date.now()) {
       shapeTradersResetInFlight ||
       shapeTradersTradeActionInFlight ||
       !shapeTradersHasOpenHoldings();
+  }
+  if (shapeTradersSetPrice999Button) {
+    shapeTradersSetPrice999Button.disabled = shapeTradersResetInFlight || shapeTradersTradeActionInFlight;
+  }
+  if (shapeTradersSetPrice101Button) {
+    shapeTradersSetPrice101Button.disabled = shapeTradersResetInFlight || shapeTradersTradeActionInFlight;
+  }
+  if (shapeTradersApplyPriceButton) {
+    shapeTradersApplyPriceButton.disabled = shapeTradersResetInFlight || shapeTradersTradeActionInFlight;
+  }
+  if (shapeTradersAdminPriceInput) {
+    shapeTradersAdminPriceInput.disabled = shapeTradersResetInFlight || shapeTradersTradeActionInFlight;
   }
   if (shapeTradersInactivityEl) {
     const hasOpenHoldings = shapeTradersHasOpenHoldings();
@@ -6807,6 +6925,13 @@ function updateAdminVisibility(user = currentUser) {
       adminNavButton.removeAttribute("hidden");
     } else {
       adminNavButton.setAttribute("hidden", "");
+    }
+  }
+  if (shapeTradersAdminTestControls) {
+    if (adminVisible) {
+      shapeTradersAdminTestControls.removeAttribute("hidden");
+    } else {
+      shapeTradersAdminTestControls.setAttribute("hidden", "");
     }
   }
   renderGameLogoTargets();
@@ -15142,6 +15267,11 @@ const shapeTradersTradeBodyEl = document.getElementById("shape-traders-trade-bod
 const shapeTradersTradeHintEl = document.querySelector(".shape-traders-trade-sheet-hint");
 const shapeTradersLiquidateButton = document.getElementById("shape-traders-liquidate-nav");
 const shapeTradersMarketResetButton = document.getElementById("shape-traders-market-reset");
+const shapeTradersAdminTestControls = document.getElementById("shape-traders-admin-test-controls");
+const shapeTradersAdminPriceInput = document.getElementById("shape-traders-admin-price-input");
+const shapeTradersSetPrice999Button = document.getElementById("shape-traders-set-price-999");
+const shapeTradersSetPrice101Button = document.getElementById("shape-traders-set-price-101");
+const shapeTradersApplyPriceButton = document.getElementById("shape-traders-apply-price");
 const shapeTradersStatusEl = document.getElementById("shape-traders-status");
 const shapeTradersInactivityEl = document.getElementById("shape-traders-inactivity");
 const shapeTradersChartModal = document.getElementById("shape-traders-chart-modal");
@@ -28892,6 +29022,30 @@ if (shapeTradersMarketResetButton) {
     resetShapeTraderMarketPrices().catch((error) => {
       console.error("[RTN] Unhandled Shape Traders reset error", error);
     });
+  });
+}
+
+if (shapeTradersSetPrice999Button) {
+  shapeTradersSetPrice999Button.addEventListener("click", () => {
+    if (shapeTradersAdminPriceInput) {
+      shapeTradersAdminPriceInput.value = "999.00";
+    }
+    void adminSetShapeTraderMarketPrice(999);
+  });
+}
+
+if (shapeTradersSetPrice101Button) {
+  shapeTradersSetPrice101Button.addEventListener("click", () => {
+    if (shapeTradersAdminPriceInput) {
+      shapeTradersAdminPriceInput.value = "1.01";
+    }
+    void adminSetShapeTraderMarketPrice(1.01);
+  });
+}
+
+if (shapeTradersApplyPriceButton) {
+  shapeTradersApplyPriceButton.addEventListener("click", () => {
+    void adminSetShapeTraderMarketPrice(shapeTradersAdminPriceInput?.value);
   });
 }
 
