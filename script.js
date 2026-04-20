@@ -962,6 +962,60 @@ function getResolvedAiThemeFormValues(settings = aiThemeSettingsCache) {
   };
 }
 
+function normalizeLoginThemeSettings(settings = {}) {
+  const source = settings && typeof settings === "object" && !Array.isArray(settings) ? settings : {};
+  const read = (key) => {
+    const value = source[key];
+    return typeof value === "string" ? value.trim() : "";
+  };
+  return {
+    screenBackgroundStart: read("screenBackgroundStart"),
+    screenBackgroundEnd: read("screenBackgroundEnd"),
+    cardBackground: read("cardBackground"),
+    cardBorderColor: read("cardBorderColor"),
+    headingTextColor: read("headingTextColor"),
+    bodyTextColor: read("bodyTextColor"),
+    inputBackground: read("inputBackground"),
+    inputBorderColor: read("inputBorderColor"),
+    inputTextColor: read("inputTextColor"),
+    inputFocusColor: read("inputFocusColor"),
+    buttonBackground: read("buttonBackground"),
+    buttonBorderColor: read("buttonBorderColor"),
+    buttonTextColor: read("buttonTextColor"),
+    linkColor: read("linkColor"),
+    errorColor: read("errorColor"),
+    successColor: read("successColor"),
+    spinnerAccentColor: read("spinnerAccentColor")
+  };
+}
+
+function hasLoginThemeOverrides(settings = loginThemeSettingsCache) {
+  return Object.values(normalizeLoginThemeSettings(settings)).some(Boolean);
+}
+
+function getResolvedLoginThemeFormValues(settings = loginThemeSettingsCache) {
+  const overrides = normalizeLoginThemeSettings(settings);
+  return {
+    screenBackgroundStart: overrides.screenBackgroundStart || DEFAULT_LOGIN_THEME_FORM_VALUES.screenBackgroundStart,
+    screenBackgroundEnd: overrides.screenBackgroundEnd || DEFAULT_LOGIN_THEME_FORM_VALUES.screenBackgroundEnd,
+    cardBackground: overrides.cardBackground || DEFAULT_LOGIN_THEME_FORM_VALUES.cardBackground,
+    cardBorderColor: overrides.cardBorderColor || DEFAULT_LOGIN_THEME_FORM_VALUES.cardBorderColor,
+    headingTextColor: overrides.headingTextColor || DEFAULT_LOGIN_THEME_FORM_VALUES.headingTextColor,
+    bodyTextColor: overrides.bodyTextColor || DEFAULT_LOGIN_THEME_FORM_VALUES.bodyTextColor,
+    inputBackground: overrides.inputBackground || DEFAULT_LOGIN_THEME_FORM_VALUES.inputBackground,
+    inputBorderColor: overrides.inputBorderColor || DEFAULT_LOGIN_THEME_FORM_VALUES.inputBorderColor,
+    inputTextColor: overrides.inputTextColor || DEFAULT_LOGIN_THEME_FORM_VALUES.inputTextColor,
+    inputFocusColor: overrides.inputFocusColor || DEFAULT_LOGIN_THEME_FORM_VALUES.inputFocusColor,
+    buttonBackground: overrides.buttonBackground || DEFAULT_LOGIN_THEME_FORM_VALUES.buttonBackground,
+    buttonBorderColor: overrides.buttonBorderColor || DEFAULT_LOGIN_THEME_FORM_VALUES.buttonBorderColor,
+    buttonTextColor: overrides.buttonTextColor || DEFAULT_LOGIN_THEME_FORM_VALUES.buttonTextColor,
+    linkColor: overrides.linkColor || DEFAULT_LOGIN_THEME_FORM_VALUES.linkColor,
+    errorColor: overrides.errorColor || DEFAULT_LOGIN_THEME_FORM_VALUES.errorColor,
+    successColor: overrides.successColor || DEFAULT_LOGIN_THEME_FORM_VALUES.successColor,
+    spinnerAccentColor: overrides.spinnerAccentColor || DEFAULT_LOGIN_THEME_FORM_VALUES.spinnerAccentColor
+  };
+}
+
 function hasThemeOverrides(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length);
 }
@@ -1442,6 +1496,197 @@ function applyAiThemeVariables(settings = aiThemeSettingsCache, target = documen
   });
 }
 
+function getLoginThemeCssVariables(settings = loginThemeSettingsCache) {
+  const normalized = normalizeLoginThemeSettings(settings);
+  const variables = {};
+  const resolved = getResolvedLoginThemeFormValues(normalized);
+
+  variables["--auth-screen-bg"] = `linear-gradient(180deg, ${resolved.screenBackgroundStart} 0%, ${resolved.screenBackgroundEnd} 100%)`;
+  variables["--auth-card-bg"] = resolved.cardBackground;
+  variables["--auth-card-border"] = resolved.cardBorderColor;
+  variables["--auth-heading-color"] = resolved.headingTextColor;
+  variables["--auth-body-color"] = resolved.bodyTextColor;
+  variables["--auth-input-bg"] = resolved.inputBackground;
+  variables["--auth-input-border"] = resolved.inputBorderColor;
+  variables["--auth-input-text"] = resolved.inputTextColor;
+  variables["--auth-input-focus"] = resolved.inputFocusColor;
+  variables["--auth-button-bg"] = resolved.buttonBackground;
+  variables["--auth-button-border"] = resolved.buttonBorderColor;
+  variables["--auth-button-border-hover"] = resolved.buttonBorderColor;
+  variables["--auth-button-shadow-hover"] = `0 14px 26px ${rgba(resolved.buttonBorderColor, 0.28)}`;
+  variables["--auth-button-text"] = resolved.buttonTextColor;
+  variables["--auth-link-color"] = resolved.linkColor;
+  variables["--auth-link-hover-color"] = resolved.headingTextColor;
+  variables["--auth-error-color"] = resolved.errorColor;
+  variables["--auth-success-color"] = resolved.successColor;
+  variables["--auth-spinner-accent"] = resolved.spinnerAccentColor;
+  variables["--auth-card-shadow"] = `0 24px 50px ${rgba("#000000", 0.42)}, 0 0 0 1px ${rgba(resolved.cardBorderColor, 0.12)}`;
+
+  return variables;
+}
+
+function clearLoginThemeVariables(target = document.body) {
+  if (!target?.style) return;
+  LOGIN_THEME_VARIABLE_KEYS.forEach((key) => target.style.removeProperty(key));
+}
+
+function applyLoginThemeVariables(settings = loginThemeSettingsCache, target = document.body) {
+  if (!target?.style) return;
+  clearLoginThemeVariables(target);
+  const variables = getLoginThemeCssVariables(settings);
+  Object.entries(variables).forEach(([key, value]) => {
+    target.style.setProperty(key, value);
+  });
+}
+
+async function loadLoginThemeSettings(force = false) {
+  if (!force && loginThemeSettingsHydrated) {
+    return loginThemeSettingsCache;
+  }
+
+  if (!supabase || !loginThemeSettingsPersistenceAvailable) {
+    loginThemeSettingsCache = {};
+    loginThemeSettingsHydrated = false;
+    return loginThemeSettingsCache;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("login_theme_settings")
+      .select("settings")
+      .eq("key", "global")
+      .limit(1);
+    if (error) {
+      if (isMissingRelationError(error, "login_theme_settings")) {
+        loginThemeSettingsPersistenceAvailable = false;
+        loginThemeSettingsCache = {};
+        loginThemeSettingsHydrated = false;
+        return loginThemeSettingsCache;
+      }
+      throw error;
+    }
+    const row = Array.isArray(data) && data.length ? data[0] : null;
+    loginThemeSettingsCache = normalizeLoginThemeSettings(row?.settings || {});
+    loginThemeSettingsHydrated = true;
+    return loginThemeSettingsCache;
+  } catch (error) {
+    console.warn("[RTN] Unable to load login theme settings", error);
+    loginThemeSettingsCache = {};
+    loginThemeSettingsHydrated = false;
+    return loginThemeSettingsCache;
+  }
+}
+
+function populateAdminLoginThemeForm(settings = loginThemeSettingsCache) {
+  if (!adminLoginThemeForm) return;
+  const resolved = getResolvedLoginThemeFormValues(settings);
+  Object.entries(resolved).forEach(([key, value]) => {
+    const field = adminLoginThemeForm.elements.namedItem(key);
+    if (field instanceof HTMLInputElement) {
+      field.value = value;
+    }
+  });
+}
+
+function getAdminLoginThemeFormState() {
+  if (!adminLoginThemeForm) {
+    return normalizeLoginThemeSettings({});
+  }
+  const formData = new FormData(adminLoginThemeForm);
+  return normalizeLoginThemeSettings({
+    screenBackgroundStart: String(formData.get("screenBackgroundStart") || ""),
+    screenBackgroundEnd: String(formData.get("screenBackgroundEnd") || ""),
+    cardBackground: String(formData.get("cardBackground") || ""),
+    cardBorderColor: String(formData.get("cardBorderColor") || ""),
+    headingTextColor: String(formData.get("headingTextColor") || ""),
+    bodyTextColor: String(formData.get("bodyTextColor") || ""),
+    inputBackground: String(formData.get("inputBackground") || ""),
+    inputBorderColor: String(formData.get("inputBorderColor") || ""),
+    inputTextColor: String(formData.get("inputTextColor") || ""),
+    inputFocusColor: String(formData.get("inputFocusColor") || ""),
+    buttonBackground: String(formData.get("buttonBackground") || ""),
+    buttonBorderColor: String(formData.get("buttonBorderColor") || ""),
+    buttonTextColor: String(formData.get("buttonTextColor") || ""),
+    linkColor: String(formData.get("linkColor") || ""),
+    errorColor: String(formData.get("errorColor") || ""),
+    successColor: String(formData.get("successColor") || ""),
+    spinnerAccentColor: String(formData.get("spinnerAccentColor") || "")
+  });
+}
+
+function updateAdminLoginThemeStatus() {
+  if (!adminLoginThemeStatus) return;
+  adminLoginThemeStatus.textContent = hasLoginThemeOverrides(loginThemeSettingsCache)
+    ? "Login overrides are active for the full auth experience."
+    : "Auth pages are using the built-in standard login styling.";
+}
+
+function getAdminLoginThemePreviewMarkup() {
+  return `
+    <div class="design-login-preview-stage">
+      <section class="design-login-preview-auth">
+        <div class="auth-card">
+          <h1>Welcome back</h1>
+          <form class="auth-form">
+            <label>Email</label>
+            <input type="email" value="carter@example.com" />
+            <label>Password</label>
+            <input type="password" value="password123" />
+            <button type="button">Log In</button>
+            <p class="auth-error">Invalid login credentials.</p>
+          </form>
+          <p class="auth-switch">
+            New here?
+            <button type="button" class="auth-switch-button">Create an account</button>
+          </p>
+        </div>
+      </section>
+      <section class="design-login-preview-callback">
+        <div class="auth-callback-card" role="status" aria-live="polite">
+          <span class="auth-callback-spinner" aria-hidden="true"></span>
+          <p>Completing sign in…</p>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderAdminLoginThemePreview() {
+  if (!(adminLoginThemePreviewModalEl instanceof HTMLElement)) return;
+  adminLoginThemePreviewModalEl.innerHTML = getAdminLoginThemePreviewMarkup();
+}
+
+function applyAdminLoginThemePreview(settings, target = adminLoginThemePreviewModalEl) {
+  if (!(target instanceof HTMLElement)) return;
+  applyLoginThemeVariables(settings, target);
+}
+
+function openAdminLoginThemeModal() {
+  if (!adminLoginThemeModal) return;
+  populateAdminLoginThemeForm(loginThemeSettingsCache);
+  if (adminLoginThemeMessage) {
+    adminLoginThemeMessage.textContent = "";
+  }
+  renderAdminLoginThemePreview();
+  applyAdminLoginThemePreview(getAdminLoginThemeFormState(), adminLoginThemePreviewModalEl);
+  adminLoginThemeModal.hidden = false;
+  document.body.classList.add("modal-open");
+  const firstField = adminLoginThemeForm?.elements.namedItem("screenBackgroundStart");
+  if (firstField instanceof HTMLInputElement) {
+    window.setTimeout(() => firstField.focus(), 0);
+  }
+}
+
+function closeAdminLoginThemeModal() {
+  if (!adminLoginThemeModal) return;
+  adminLoginThemeModal.hidden = true;
+  document.body.classList.remove("modal-open");
+  populateAdminLoginThemeForm(loginThemeSettingsCache);
+  if (adminLoginThemeMessage) {
+    adminLoginThemeMessage.textContent = "";
+  }
+}
+
 async function loadAiThemeSettings(force = false) {
   if (!force && aiThemeSettingsHydrated) {
     return aiThemeSettingsCache;
@@ -1525,22 +1770,6 @@ function getAdminAiThemePreviewMarkup() {
   return `
     <div class="design-ai-preview-grid">
       <section class="design-ai-preview-card">
-        <p class="design-ai-preview-label">Closed State</p>
-        <div class="design-ai-preview-surface">
-          <button type="button" class="play-assistant-fab" aria-hidden="true" tabindex="-1">
-            <span class="play-assistant-rule-badge" aria-hidden="true">2</span>
-            <span class="play-assistant-fab-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-                <path d="M12 3.5c4.97 0 9 3.58 9 8 0 2.19-.99 4.18-2.6 5.62-.34.31-.55.75-.57 1.21l-.08 1.95c-.03.78-.85 1.28-1.55.94l-2.2-1.06c-.34-.16-.73-.2-1.09-.11-.61.15-1.25.23-1.91.23-4.97 0-9-3.58-9-8s4.03-8 9-8Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.7"></path>
-                <path d="M8.5 11.6h7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"></path>
-                <path d="M8.5 8.8h4.7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"></path>
-              </svg>
-            </span>
-            <span class="play-assistant-fab-label">AI</span>
-          </button>
-        </div>
-      </section>
-      <section class="design-ai-preview-card">
         <p class="design-ai-preview-label">Shape Traders Chat</p>
         <div class="design-ai-preview-surface">
           <section class="play-assistant-panel" aria-hidden="true">
@@ -1613,12 +1842,6 @@ function applyAdminAiThemePreview(settings, target = adminAiThemePreviewModalEl)
   applyAiThemeVariables(settings, target);
 }
 
-function renderAdminAiThemeCardPreview(settings = aiThemeSettingsCache) {
-  if (!(adminAiThemePreviewCardEl instanceof HTMLElement)) return;
-  adminAiThemePreviewCardEl.innerHTML = getAdminAiThemePreviewMarkup();
-  applyAdminAiThemePreview(settings, adminAiThemePreviewCardEl);
-}
-
 function openAdminAiThemeModal() {
   if (!adminAiThemeModal) return;
   populateAdminAiThemeForm(aiThemeSettingsCache);
@@ -1666,7 +1889,6 @@ async function handleAdminAiThemeSubmit(event) {
     aiThemeSettingsHydrated = true;
     applyResolvedTheme();
     updateAdminAiThemeStatus();
-    renderAdminAiThemeCardPreview(aiThemeSettingsCache);
     if (adminAiThemeMessage) {
       adminAiThemeMessage.textContent = "AI theme saved.";
     }
@@ -1699,7 +1921,6 @@ async function resetAdminAiThemeToDefaults() {
     populateAdminAiThemeForm({});
     applyResolvedTheme();
     updateAdminAiThemeStatus();
-    renderAdminAiThemeCardPreview(aiThemeSettingsCache);
     if (adminAiThemeMessage) {
       adminAiThemeMessage.textContent = "AI theme reset to app theme defaults.";
     }
@@ -1709,6 +1930,72 @@ async function resetAdminAiThemeToDefaults() {
     console.error("[RTN] resetAdminAiThemeToDefaults error", error);
     if (adminAiThemeMessage) {
       adminAiThemeMessage.textContent = error?.message || "Unable to reset AI theme.";
+    }
+  }
+}
+
+async function handleAdminLoginThemeSubmit(event) {
+  event.preventDefault();
+  if (!isAdmin() || !adminLoginThemeForm || !supabase || !loginThemeSettingsPersistenceAvailable) {
+    return;
+  }
+
+  const nextSettings = getAdminLoginThemeFormState();
+
+  try {
+    const { error } = await supabase.from("login_theme_settings").upsert(
+      {
+        key: "global",
+        settings: nextSettings
+      },
+      { onConflict: "key" }
+    );
+    if (error) throw error;
+    loginThemeSettingsCache = nextSettings;
+    loginThemeSettingsHydrated = true;
+    applyLoginThemeVariables(loginThemeSettingsCache);
+    updateAdminLoginThemeStatus();
+    if (adminLoginThemeMessage) {
+      adminLoginThemeMessage.textContent = "Login theme saved.";
+    }
+    showToast("Login theme saved", "success");
+    closeAdminLoginThemeModal();
+  } catch (error) {
+    console.error("[RTN] handleAdminLoginThemeSubmit error", error);
+    if (adminLoginThemeMessage) {
+      adminLoginThemeMessage.textContent = error?.message || "Unable to save login theme.";
+    }
+  }
+}
+
+async function resetAdminLoginThemeToDefaults() {
+  if (!isAdmin() || !supabase || !loginThemeSettingsPersistenceAvailable) {
+    return;
+  }
+
+  try {
+    const { error } = await supabase.from("login_theme_settings").upsert(
+      {
+        key: "global",
+        settings: {}
+      },
+      { onConflict: "key" }
+    );
+    if (error) throw error;
+    loginThemeSettingsCache = {};
+    loginThemeSettingsHydrated = true;
+    populateAdminLoginThemeForm({});
+    applyLoginThemeVariables(loginThemeSettingsCache);
+    updateAdminLoginThemeStatus();
+    if (adminLoginThemeMessage) {
+      adminLoginThemeMessage.textContent = "Login theme reset to standard defaults.";
+    }
+    showToast("Login theme reset", "success");
+    closeAdminLoginThemeModal();
+  } catch (error) {
+    console.error("[RTN] resetAdminLoginThemeToDefaults error", error);
+    if (adminLoginThemeMessage) {
+      adminLoginThemeMessage.textContent = error?.message || "Unable to reset login theme.";
     }
   }
 }
@@ -2827,11 +3114,13 @@ async function loadAdminThemes(force = false) {
   adminThemesLoaded = true;
   await loadThemeLibrary(force);
   await loadAiThemeSettings(force);
+  await loadLoginThemeSettings(force);
   populateAdminThemeBaseOptions(adminThemeBaseSelect?.value || "blue");
   populateAdminRankThemeOptions(adminRankThemeSelect?.value || "blue");
   populateAdminAiThemeForm(aiThemeSettingsCache);
   updateAdminAiThemeStatus();
-  renderAdminAiThemeCardPreview(aiThemeSettingsCache);
+  populateAdminLoginThemeForm(loginThemeSettingsCache);
+  updateAdminLoginThemeStatus();
   if (!adminThemeListEl) return;
   adminThemeListEl.innerHTML = "";
   const themes = getThemeLibrary();
@@ -15514,6 +15803,7 @@ function applyTheme(theme) {
   if (currentTheme === themeRecord.key && document.body.classList.contains(THEME_CLASS_MAP[next])) {
     applyThemeVariables(themeRecord);
     applyAiThemeVariables(aiThemeSettingsCache);
+    applyLoginThemeVariables(loginThemeSettingsCache);
     if (typeof window !== "undefined") {
       window.requestAnimationFrame(() => drawBankrollChart());
     } else {
@@ -15527,6 +15817,7 @@ function applyTheme(theme) {
   document.body.classList.add(THEME_CLASS_MAP[next]);
   applyThemeVariables(themeRecord);
   applyAiThemeVariables(aiThemeSettingsCache);
+  applyLoginThemeVariables(loginThemeSettingsCache);
   currentTheme = themeRecord.key;
   if (typeof window !== "undefined") {
     window.requestAnimationFrame(() => drawBankrollChart());
@@ -16251,10 +16542,18 @@ const adminAiThemeStatus = document.getElementById("admin-ai-theme-status");
 const adminAiThemeEditButton = document.getElementById("admin-ai-theme-edit");
 const adminAiThemeResetButton = document.getElementById("admin-ai-theme-reset");
 const adminAiThemeCancelButton = document.getElementById("admin-ai-theme-cancel");
-const adminAiThemePreviewCardEl = document.getElementById("admin-ai-theme-preview-card");
 const adminAiThemePreviewModalEl = document.getElementById("admin-ai-theme-preview-modal");
 const adminAiThemeModal = document.getElementById("admin-ai-theme-modal");
 const adminAiThemeCloseButton = document.getElementById("admin-ai-theme-close");
+const adminLoginThemeForm = document.getElementById("admin-login-theme-form");
+const adminLoginThemeMessage = document.getElementById("admin-login-theme-message");
+const adminLoginThemeStatus = document.getElementById("admin-login-theme-status");
+const adminLoginThemeEditButton = document.getElementById("admin-login-theme-edit");
+const adminLoginThemeResetButton = document.getElementById("admin-login-theme-reset");
+const adminLoginThemeCancelButton = document.getElementById("admin-login-theme-cancel");
+const adminLoginThemePreviewModalEl = document.getElementById("admin-login-theme-preview-modal");
+const adminLoginThemeModal = document.getElementById("admin-login-theme-modal");
+const adminLoginThemeCloseButton = document.getElementById("admin-login-theme-close");
 const adminThemeForm = document.getElementById("admin-theme-form");
 const adminThemeListEl = document.getElementById("admin-theme-list");
 const adminThemeMessage = document.getElementById("admin-theme-message");
@@ -16378,6 +16677,25 @@ const DEFAULT_AI_THEME_FORM_VALUES = {
   badgeBackground: "#ffd166",
   badgeTextColor: "#16110a"
 };
+const DEFAULT_LOGIN_THEME_FORM_VALUES = {
+  screenBackgroundStart: "#08142d",
+  screenBackgroundEnd: "#050913",
+  cardBackground: "#0e2c63",
+  cardBorderColor: "#63f0ff",
+  headingTextColor: "#f7fbff",
+  bodyTextColor: "#bfd5ff",
+  inputBackground: "#081848",
+  inputBorderColor: "#63f0ff",
+  inputTextColor: "#f7fbff",
+  inputFocusColor: "#72feff",
+  buttonBackground: "#2b6fd6",
+  buttonBorderColor: "#63f0ff",
+  buttonTextColor: "#f7fbff",
+  linkColor: "#63f0ff",
+  errorColor: "#ff5c8a",
+  successColor: "#5af78e",
+  spinnerAccentColor: "#63f0ff"
+};
 const AI_THEME_VARIABLE_KEYS = [
   "--assistant-panel-bg",
   "--assistant-panel-flat-bg",
@@ -16395,6 +16713,28 @@ const AI_THEME_VARIABLE_KEYS = [
   "--assistant-fab-text",
   "--assistant-badge-bg",
   "--assistant-badge-text"
+];
+const LOGIN_THEME_VARIABLE_KEYS = [
+  "--auth-screen-bg",
+  "--auth-card-bg",
+  "--auth-card-border",
+  "--auth-card-shadow",
+  "--auth-heading-color",
+  "--auth-body-color",
+  "--auth-input-bg",
+  "--auth-input-border",
+  "--auth-input-text",
+  "--auth-input-focus",
+  "--auth-button-bg",
+  "--auth-button-border",
+  "--auth-button-border-hover",
+  "--auth-button-shadow-hover",
+  "--auth-button-text",
+  "--auth-link-color",
+  "--auth-link-hover-color",
+  "--auth-error-color",
+  "--auth-success-color",
+  "--auth-spinner-accent"
 ];
 const CUSTOM_THEME_VARIABLE_KEYS = [
   "--neon-cyan",
@@ -16660,6 +17000,9 @@ let adminThemePreviewPage = "home";
 let aiThemeSettingsCache = {};
 let aiThemeSettingsHydrated = false;
 let aiThemeSettingsPersistenceAvailable = true;
+let loginThemeSettingsCache = {};
+let loginThemeSettingsHydrated = false;
+let loginThemeSettingsPersistenceAvailable = true;
 let adminPrizeCache = [];
 let rankLadderCache = [];
 let themeLibraryCache = [];
@@ -25690,7 +26033,6 @@ if (adminAiThemeForm) {
   populateAdminAiThemeForm({});
   renderAdminAiThemePreview();
   applyAdminAiThemePreview({}, adminAiThemePreviewModalEl);
-  renderAdminAiThemeCardPreview({});
   adminAiThemeForm.addEventListener("input", () => {
     applyAdminAiThemePreview(getAdminAiThemeFormState(), adminAiThemePreviewModalEl);
   });
@@ -25727,6 +26069,50 @@ if (adminAiThemeModal) {
   adminAiThemeModal.addEventListener("click", (event) => {
     if (event.target === adminAiThemeModal) {
       closeAdminAiThemeModal();
+    }
+  });
+}
+
+if (adminLoginThemeForm) {
+  populateAdminLoginThemeForm({});
+  renderAdminLoginThemePreview();
+  applyAdminLoginThemePreview({}, adminLoginThemePreviewModalEl);
+  adminLoginThemeForm.addEventListener("input", () => {
+    applyAdminLoginThemePreview(getAdminLoginThemeFormState(), adminLoginThemePreviewModalEl);
+  });
+  adminLoginThemeForm.addEventListener("submit", (event) => {
+    void handleAdminLoginThemeSubmit(event);
+  });
+}
+
+if (adminLoginThemeEditButton) {
+  adminLoginThemeEditButton.addEventListener("click", () => {
+    openAdminLoginThemeModal();
+  });
+}
+
+if (adminLoginThemeResetButton) {
+  adminLoginThemeResetButton.addEventListener("click", () => {
+    void resetAdminLoginThemeToDefaults();
+  });
+}
+
+if (adminLoginThemeCancelButton) {
+  adminLoginThemeCancelButton.addEventListener("click", () => {
+    closeAdminLoginThemeModal();
+  });
+}
+
+if (adminLoginThemeCloseButton) {
+  adminLoginThemeCloseButton.addEventListener("click", () => {
+    closeAdminLoginThemeModal();
+  });
+}
+
+if (adminLoginThemeModal) {
+  adminLoginThemeModal.addEventListener("click", (event) => {
+    if (event.target === adminLoginThemeModal) {
+      closeAdminLoginThemeModal();
     }
   });
 }
@@ -30019,6 +30405,11 @@ document.addEventListener("keydown", (event) => {
       event.preventDefault();
       return;
     }
+    if (adminLoginThemeModal && !adminLoginThemeModal.hidden) {
+      closeAdminLoginThemeModal();
+      event.preventDefault();
+      return;
+    }
     if (resetModal && !resetModal.hidden) {
       closeResetModal({ restoreFocus: true });
       event.preventDefault();
@@ -30114,6 +30505,8 @@ async function bootstrapAuth(initialRoute) {
     updateAdminVisibility(currentUser);
     updateResetButtonVisibility(currentUser);
     markAppReady();
+    await loadLoginThemeSettings(true);
+    applyLoginThemeVariables(loginThemeSettingsCache);
     await loadAiThemeSettings(true);
     applyResolvedTheme();
 
@@ -30181,6 +30574,8 @@ function setupAuthListener() {
               currentUser = user;
               updateAdminVisibility(currentUser);
               updateResetButtonVisibility(currentUser);
+              await loadLoginThemeSettings(true).catch((err) => console.warn("[RTN] Login theme sync error:", err));
+              applyLoginThemeVariables(loginThemeSettingsCache);
               await loadAiThemeSettings(true).catch((err) => console.warn("[RTN] AI theme sync error:", err));
               applyResolvedTheme();
               
@@ -30211,6 +30606,8 @@ function setupAuthListener() {
           } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
             aiThemeSettingsCache = {};
             aiThemeSettingsHydrated = false;
+            loginThemeSettingsHydrated = false;
+            void loadLoginThemeSettings(true).then(() => applyLoginThemeVariables(loginThemeSettingsCache));
             applyResolvedTheme();
             // Don't redirect if we're on a public auth page (auth, signup, forgot-password, callback)
             const isPublicAuthPage = currentRoute === "auth" || currentRoute === "signup" || 
@@ -30322,6 +30719,8 @@ async function initializeApp() {
 
     const clientReady = await waitForSupabaseReady();
     console.info(`[RTN] initializeApp waitForSupabaseReady result=${clientReady}`);
+    await loadLoginThemeSettings(true);
+    applyLoginThemeVariables(loginThemeSettingsCache);
 
     // Check if URL contains auth tokens/code (magic link callback)
     const hasAuthTokensInUrl = window.location.hash.includes("access_token=") || 

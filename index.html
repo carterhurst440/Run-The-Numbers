@@ -2725,7 +2725,25 @@
                       </div>
                       <span class="rank-theme-pill">AI</span>
                     </div>
-                    <div id="admin-ai-theme-preview-card" class="admin-theme-preview-swatch admin-ai-theme-preview-card"></div>
+                  </div>
+                </section>
+                <section class="design-theme-library">
+                  <div class="admin-listing-header">
+                    <div>
+                      <h3>Login Theme</h3>
+                      <p class="route-subheading">Style the auth experience independently from the in-app rank themes.</p>
+                    </div>
+                    <button type="button" class="secondary" id="admin-login-theme-edit">Edit</button>
+                  </div>
+                  <p id="admin-login-theme-status" class="route-subheading design-override-status"></p>
+                  <div class="admin-theme-card admin-ai-theme-card">
+                    <div class="admin-theme-card-header">
+                      <div>
+                        <h3>Universal Auth Override</h3>
+                        <p class="admin-theme-meta">Applies to login, signup, forgot password, reset password, and the auth callback screen.</p>
+                      </div>
+                      <span class="rank-theme-pill">AUTH</span>
+                    </div>
                   </div>
                 </section>
                 <div class="design-theme-library">
@@ -3873,6 +3891,111 @@
               </div>
             </div>
             <div id="admin-ai-theme-preview-modal" class="design-preview-shell design-ai-preview-shell"></div>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal"
+      id="admin-login-theme-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="admin-login-theme-modal-title"
+      hidden
+    >
+      <div class="modal-content admin-modal admin-theme-modal-content">
+        <div class="modal-header">
+          <h2 id="admin-login-theme-modal-title">Edit Login Theme</h2>
+          <button type="button" class="modal-close" id="admin-login-theme-close" aria-label="Close login theme builder">×</button>
+        </div>
+        <div class="admin-theme-modal-layout">
+          <form id="admin-login-theme-form" class="admin-form design-builder-form">
+            <div class="design-color-grid">
+              <label class="admin-field">
+                <span>Page Background Start</span>
+                <input type="color" name="screenBackgroundStart" value="#08142d" />
+              </label>
+              <label class="admin-field">
+                <span>Page Background End</span>
+                <input type="color" name="screenBackgroundEnd" value="#050913" />
+              </label>
+              <label class="admin-field">
+                <span>Card Background</span>
+                <input type="color" name="cardBackground" value="#0e2c63" />
+              </label>
+              <label class="admin-field">
+                <span>Card Border</span>
+                <input type="color" name="cardBorderColor" value="#63f0ff" />
+              </label>
+              <label class="admin-field">
+                <span>Heading Text</span>
+                <input type="color" name="headingTextColor" value="#f7fbff" />
+              </label>
+              <label class="admin-field">
+                <span>Body Text</span>
+                <input type="color" name="bodyTextColor" value="#bfd5ff" />
+              </label>
+              <label class="admin-field">
+                <span>Input Background</span>
+                <input type="color" name="inputBackground" value="#081848" />
+              </label>
+              <label class="admin-field">
+                <span>Input Border</span>
+                <input type="color" name="inputBorderColor" value="#63f0ff" />
+              </label>
+              <label class="admin-field">
+                <span>Input Text</span>
+                <input type="color" name="inputTextColor" value="#f7fbff" />
+              </label>
+              <label class="admin-field">
+                <span>Input Focus Ring</span>
+                <input type="color" name="inputFocusColor" value="#72feff" />
+              </label>
+              <label class="admin-field">
+                <span>Primary Button Background</span>
+                <input type="color" name="buttonBackground" value="#2b6fd6" />
+              </label>
+              <label class="admin-field">
+                <span>Primary Button Border</span>
+                <input type="color" name="buttonBorderColor" value="#63f0ff" />
+              </label>
+              <label class="admin-field">
+                <span>Primary Button Text</span>
+                <input type="color" name="buttonTextColor" value="#f7fbff" />
+              </label>
+              <label class="admin-field">
+                <span>Link Color</span>
+                <input type="color" name="linkColor" value="#63f0ff" />
+              </label>
+              <label class="admin-field">
+                <span>Error Color</span>
+                <input type="color" name="errorColor" value="#ff5c8a" />
+              </label>
+              <label class="admin-field">
+                <span>Success Color</span>
+                <input type="color" name="successColor" value="#5af78e" />
+              </label>
+              <label class="admin-field">
+                <span>Spinner Accent</span>
+                <input type="color" name="spinnerAccentColor" value="#63f0ff" />
+              </label>
+            </div>
+            <div class="modal-actions admin-form-actions">
+              <button type="button" class="secondary" id="admin-login-theme-cancel">Cancel</button>
+              <button type="button" class="secondary" id="admin-login-theme-reset">Use Theme Defaults</button>
+              <button type="submit" class="primary">Save Login Theme</button>
+            </div>
+            <p id="admin-login-theme-message" class="admin-message" role="status" aria-live="polite"></p>
+          </form>
+          <aside class="design-preview-panel">
+            <div class="design-preview-header">
+              <div>
+                <h3>Login Preview</h3>
+                <p>Preview the standalone auth style independently from the app theme.</p>
+              </div>
+            </div>
+            <div id="admin-login-theme-preview-modal" class="design-preview-shell design-login-preview-shell"></div>
           </aside>
         </div>
       </div>
