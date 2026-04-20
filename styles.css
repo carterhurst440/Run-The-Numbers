@@ -15004,13 +15004,28 @@ body[data-theme-profile="main-app-comfort"] {
 }
 
 body[data-theme-profile="rtn-green-room"] {
-  --body-bg: #184e31;
+  --body-bg:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.018) 0,
+      rgba(255, 255, 255, 0.018) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.032) 0,
+      rgba(0, 0, 0, 0.032) 1px,
+      transparent 1px,
+      transparent 5px
+    ),
+    #184e31;
   --body-bg-size: auto;
   --body-bg-position: center;
   --app-overlay: none;
-  --table-panel-bg: #1c5a39;
-  --paytable-panel-bg: #1f603d;
-  --betting-panel-bg: #1a5335;
+  --table-panel-bg: #184e31;
+  --paytable-panel-bg: #205338;
+  --betting-panel-bg: #1a4b31;
   --chip-bar-bg: #14442b;
   --menu-bg: #153d29;
   --bet-spot-bg: #245e3e;
@@ -15026,17 +15041,89 @@ body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .betting-panel,
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .paytable-panel,
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .advanced-panel {
   border-radius: 0;
-  background: var(--table-panel-bg);
-  box-shadow: inset 0 0 0 1px rgba(208, 190, 124, 0.14), 0 14px 24px rgba(0, 0, 0, 0.18);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.018) 0,
+      rgba(255, 255, 255, 0.018) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.03) 0,
+      rgba(0, 0, 0, 0.03) 1px,
+      transparent 1px,
+      transparent 5px
+    ),
+    var(--table-panel-bg);
+  border: 1px solid rgba(208, 190, 124, 0.22);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    inset 0 0 0 3px rgba(8, 24, 15, 0.28),
+    0 0 0 1px rgba(7, 19, 12, 0.5);
 }
 
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .betting-panel {
-  background: var(--betting-panel-bg);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.017) 0,
+      rgba(255, 255, 255, 0.017) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.03) 0,
+      rgba(0, 0, 0, 0.03) 1px,
+      transparent 1px,
+      transparent 5px
+    ),
+    var(--betting-panel-bg);
 }
 
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .paytable-panel,
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .advanced-panel {
-  background: var(--paytable-panel-bg);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.017) 0,
+      rgba(255, 255, 255, 0.017) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.028) 0,
+      rgba(0, 0, 0, 0.028) 1px,
+      transparent 1px,
+      transparent 5px
+    ),
+    var(--paytable-panel-bg);
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .paytable-panel-header h2,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .active-paytable-label,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bets-title,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bets-subtitle {
+  color: #d8c987;
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .paytable-panel-header p,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .active-paytable-steps,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .table-callout {
+  color: rgba(231, 239, 222, 0.78);
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .paytable-option,
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .change-paytable {
+  border-radius: 0;
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .paytable-option {
+  background: rgba(16, 50, 32, 0.86);
+  box-shadow: none;
 }
 
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-spot,
@@ -15055,9 +15142,17 @@ body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .bet-spot.has-be
 }
 
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-bar {
-  background: var(--chip-bar-bg);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.015) 0,
+      rgba(255, 255, 255, 0.015) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    var(--chip-bar-bg);
   border-top: 1px solid rgba(208, 190, 124, 0.22);
-  box-shadow: 0 -8px 18px rgba(0, 0, 0, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 body[data-theme-profile="guess-10-deep-blue"] #red-black-view .beta-game-panel {
