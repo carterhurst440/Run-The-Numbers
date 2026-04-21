@@ -1365,6 +1365,15 @@ body[data-app-state="loading"] #app-shell {
   text-shadow: none;
 }
 
+.home-contest-action.is-joined {
+  animation: none;
+  cursor: default;
+  appearance: none;
+  -webkit-appearance: none;
+  opacity: 1;
+  filter: none;
+}
+
 .contest-share-button {
   appearance: none;
   -webkit-appearance: none;

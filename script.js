@@ -14751,7 +14751,9 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
   if (playerEntry) {
     joinButton.textContent = status === "pending" ? "Joined" : "Joined";
     joinButton.classList.add("is-joined");
-    joinButton.disabled = true;
+    joinButton.disabled = false;
+    joinButton.setAttribute("aria-disabled", "true");
+    joinButton.tabIndex = -1;
   } else {
     joinButton.textContent = contestIsFull
       ? "Contest Full"
