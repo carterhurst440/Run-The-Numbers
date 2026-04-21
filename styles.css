@@ -323,49 +323,52 @@
   --deal-button-text: color-mix(in srgb, var(--chip-text-dark) 96%, transparent);
   --draws-scrollbar-track: color-mix(in srgb, var(--menu-bg) 58%, transparent);
   --draws-scrollbar-thumb: color-mix(in srgb, var(--neon-cyan) 42%, transparent);
-  --assistant-fab-border: var(--icon-button-border-color);
+  --assistant-fab-border: rgba(200, 172, 125, 0.3);
   --assistant-fab-highlight: rgba(255, 255, 255, 0.38);
-  --assistant-fab-bg: var(--icon-button-bg);
+  --assistant-fab-bg: linear-gradient(135deg, rgba(28, 30, 35, 0.98), rgba(14, 15, 18, 0.98));
   --assistant-fab-shadow:
     0 18px 34px rgba(0, 0, 0, 0.42),
-    0 0 0 1px color-mix(in srgb, var(--icon-button-border-color) 24%, transparent),
-    0 0 24px color-mix(in srgb, var(--icon-button-border-color) 18%, transparent);
+    0 0 0 1px rgba(200, 172, 125, 0.16),
+    0 0 20px rgba(200, 172, 125, 0.08);
   --assistant-fab-shadow-hover:
     0 24px 42px rgba(0, 0, 0, 0.48),
-    0 0 30px color-mix(in srgb, var(--icon-button-border-hover) 28%, transparent);
-  --assistant-fab-border-hover: var(--icon-button-border-hover);
+    0 0 26px rgba(200, 172, 125, 0.16);
+  --assistant-fab-border-hover: rgba(215, 195, 161, 0.6);
   --assistant-fab-text: var(--text-light);
-  --assistant-panel-border: color-mix(in srgb, var(--drawer-border) 90%, transparent);
+  --assistant-panel-border: rgba(124, 135, 152, 0.52);
   --assistant-panel-bg:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--neon-cyan) 12%, transparent), transparent 28%),
-    linear-gradient(180deg, color-mix(in srgb, var(--header-gradient) 92%, transparent), color-mix(in srgb, var(--menu-bg) 98%, black 2%));
-  --assistant-panel-flat-bg: rgba(4, 14, 38, 0.98);
-  --assistant-response-bg: rgba(10, 24, 64, 0.96);
+    radial-gradient(circle at top right, rgba(200, 172, 125, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(24, 27, 33, 0.98), rgba(11, 12, 15, 0.98));
+  --assistant-panel-flat-bg: rgba(13, 14, 17, 0.98);
+  --assistant-response-bg: linear-gradient(180deg, rgba(31, 35, 42, 0.96), rgba(20, 22, 27, 0.96));
   --assistant-panel-shadow: 0 30px 70px rgba(0, 0, 0, 0.54);
-  --assistant-message-bg: color-mix(in srgb, white 4%, transparent);
-  --assistant-message-border: color-mix(in srgb, white 8%, transparent);
-  --assistant-user-message-bg: linear-gradient(135deg, color-mix(in srgb, var(--neon-cyan) 18%, transparent), color-mix(in srgb, var(--header-gradient) 60%, transparent));
-  --assistant-user-message-border: color-mix(in srgb, var(--neon-cyan) 22%, transparent);
-  --assistant-system-message-bg: color-mix(in srgb, var(--gold) 8%, transparent);
-  --assistant-system-message-border: color-mix(in srgb, var(--gold) 18%, transparent);
-  --assistant-message-meta: color-mix(in srgb, white 65%, var(--muted) 35%);
+  --assistant-message-bg: linear-gradient(180deg, rgba(27, 30, 36, 0.92), rgba(18, 20, 24, 0.94));
+  --assistant-message-border: rgba(111, 120, 134, 0.26);
+  --assistant-user-message-bg: linear-gradient(135deg, rgba(50, 45, 39, 0.62), rgba(24, 26, 31, 0.96));
+  --assistant-user-message-border: rgba(200, 172, 125, 0.34);
+  --assistant-system-message-bg: linear-gradient(180deg, rgba(79, 66, 44, 0.22), rgba(31, 27, 21, 0.22));
+  --assistant-system-message-border: rgba(200, 172, 125, 0.26);
+  --assistant-message-meta: rgba(198, 192, 182, 0.72);
   --assistant-message-text: color-mix(in srgb, white 92%, transparent);
   --assistant-response-text: var(--assistant-message-text);
   --assistant-user-message-text: var(--assistant-message-text);
-  --assistant-muted-text: color-mix(in srgb, white 76%, var(--muted) 24%);
-  --assistant-plan-bg: color-mix(in srgb, var(--menu-bg) 76%, black 24%);
-  --assistant-plan-border: color-mix(in srgb, var(--neon-cyan) 18%, transparent);
-  --assistant-chip-bg: color-mix(in srgb, white 5%, transparent);
-  --assistant-chip-border: color-mix(in srgb, var(--neon-cyan) 26%, transparent);
-  --assistant-chip-border-hover: color-mix(in srgb, white 36%, var(--neon-cyan) 64%);
-  --assistant-input-bg: color-mix(in srgb, var(--menu-bg) 80%, black 20%);
-  --assistant-input-border: color-mix(in srgb, var(--neon-cyan) 24%, transparent);
+  --assistant-muted-text: rgba(197, 191, 182, 0.78);
+  --assistant-plan-bg: rgba(17, 18, 22, 0.94);
+  --assistant-plan-border: rgba(200, 172, 125, 0.2);
+  --assistant-chip-bg: rgba(255, 255, 255, 0.04);
+  --assistant-chip-border: rgba(200, 172, 125, 0.2);
+  --assistant-chip-border-hover: rgba(215, 195, 161, 0.46);
+  --assistant-input-bg: rgba(14, 15, 19, 0.96);
+  --assistant-input-border: rgba(200, 172, 125, 0.24);
+  --assistant-send-button-bg: linear-gradient(135deg, rgba(200, 172, 125, 0.96), rgba(152, 125, 82, 0.96));
+  --assistant-action-button-active-bg: linear-gradient(135deg, rgba(93, 81, 62, 0.94), rgba(54, 48, 40, 0.94));
+  --assistant-action-button-disabled-bg: linear-gradient(135deg, rgba(67, 73, 82, 0.88), rgba(45, 49, 56, 0.88));
   --assistant-rule-active-bg:
-    linear-gradient(180deg, rgba(255, 190, 110, 0.2), rgba(255, 132, 84, 0.12)),
-    radial-gradient(circle at top left, rgba(255, 221, 132, 0.18), transparent 52%);
-  --assistant-rule-active-border: rgba(255, 193, 94, 0.92);
-  --assistant-rule-inactive-bg: linear-gradient(180deg, rgba(115, 133, 170, 0.12), rgba(255, 255, 255, 0.02));
-  --assistant-rule-inactive-border: rgba(148, 167, 196, 0.22);
+    linear-gradient(180deg, rgba(200, 172, 125, 0.24), rgba(107, 89, 60, 0.16)),
+    radial-gradient(circle at top left, rgba(215, 195, 161, 0.14), transparent 52%);
+  --assistant-rule-active-border: rgba(215, 195, 161, 0.82);
+  --assistant-rule-inactive-bg: linear-gradient(180deg, rgba(70, 76, 86, 0.18), rgba(255, 255, 255, 0.02));
+  --assistant-rule-inactive-border: rgba(111, 120, 134, 0.3);
   --assistant-badge-bg: #ffd166;
   --assistant-badge-text: #16110a;
   --auth-screen-bg:
@@ -659,6 +662,7 @@ body.theme-orange {
 body {
   margin: 0;
   font-family: "Play", "Segoe UI", sans-serif;
+  background-color: #050607;
   background: var(--body-bg);
   background-size: var(--body-bg-size);
   background-position: var(--body-bg-position);
@@ -1813,7 +1817,12 @@ body[data-app-state="loading"] #app-shell {
 }
 
 #shape-traders-liquidate-nav {
-  box-shadow: 0 16px 30px color-mix(in srgb, var(--gold) 20%, transparent);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--gold) 10%, transparent);
+}
+
+#shape-traders-liquidate-nav:disabled {
+  border-color: color-mix(in srgb, var(--primary-button-disabled-border, rgba(255, 255, 255, 0.2)) 42%, transparent);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
 }
 
 .shape-traders-header-balance {
@@ -7468,7 +7477,7 @@ body.theme-angelic {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--header-gradient) 92%, transparent), color-mix(in srgb, var(--header-gradient) 78%, transparent)),
     radial-gradient(circle at top left, color-mix(in srgb, var(--neon-cyan) 10%, transparent), transparent 34%);
-  padding: clamp(0.55rem, 1.6vw, 0.85rem) clamp(1rem, 2.8vw, 1.6rem);
+  padding: calc(clamp(0.55rem, 1.6vw, 0.85rem) + env(safe-area-inset-top)) clamp(1rem, 2.8vw, 1.6rem) clamp(0.55rem, 1.6vw, 0.85rem);
   border-bottom: 1px solid color-mix(in srgb, var(--header-border-color) 72%, rgba(255, 255, 255, 0.08));
   box-shadow:
     0 12px 26px rgba(0, 0, 0, 0.32),
@@ -9732,6 +9741,10 @@ body.play-assistant-open .play-assistant-fab {
   background: color-mix(in srgb, var(--assistant-plan-bg) 88%, rgba(0, 0, 0, 0.16) 12%);
 }
 
+.play-assistant-rules[hidden] {
+  display: none !important;
+}
+
 .play-assistant-rules.is-collapsed {
   gap: 0;
 }
@@ -9812,15 +9825,15 @@ body.play-assistant-open .play-assistant-fab {
   padding: 0.72rem 0.76rem;
   border-radius: 16px;
   border: 1px solid var(--assistant-message-border);
-  background: linear-gradient(180deg, rgba(255, 163, 94, 0.12), rgba(255, 255, 255, 0.04));
+  background: linear-gradient(180deg, rgba(56, 60, 69, 0.4), rgba(255, 255, 255, 0.03));
 }
 
 .play-assistant-rule-card.is-enabled {
   border: 2px solid var(--assistant-rule-active-border);
   background: var(--assistant-rule-active-bg);
   box-shadow:
-    0 0 0 1px rgba(255, 235, 168, 0.18),
-    0 0 22px rgba(255, 176, 76, 0.22),
+    0 0 0 1px rgba(215, 195, 161, 0.14),
+    0 0 18px rgba(200, 172, 125, 0.16),
     inset 0 0 0 1px rgba(255, 242, 200, 0.08);
 }
 
@@ -10056,12 +10069,12 @@ body.play-assistant-open .play-assistant-fab {
 }
 
 .play-assistant-form textarea:focus-visible {
-  outline: 2px solid rgba(160, 248, 255, 0.48);
+  outline: 2px solid rgba(200, 172, 125, 0.42);
   outline-offset: 2px;
 }
 
 .play-assistant-form textarea::placeholder {
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(242, 240, 235, 0.68);
 }
 
 .play-assistant-send {
@@ -10881,7 +10894,7 @@ body.play-assistant-open .play-assistant-fab {
   }
 
   .header {
-    padding: 0.65rem clamp(0.8rem, 5vw, 1.2rem);
+    padding: calc(0.65rem + env(safe-area-inset-top)) clamp(0.8rem, 5vw, 1.2rem) 0.65rem;
   }
 
   .header-bar {
@@ -11031,7 +11044,7 @@ body.play-assistant-open .play-assistant-fab {
 
 @media (max-width: 420px) {
   .header {
-    padding: 0.5rem 0.68rem;
+    padding: calc(0.5rem + env(safe-area-inset-top)) 0.68rem 0.5rem;
   }
 
   .header-bar {

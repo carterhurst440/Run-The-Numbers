@@ -1556,13 +1556,13 @@ function getThemeCssVariables(theme) {
     "--secondary-button-disabled-border": rgba(colorMix(palette.secondaryButtonDisabled, 0.22, "#ffffff"), 0.78),
     "--secondary-button-disabled-shadow": `0 10px 22px ${rgba(colorMix(palette.secondaryButtonDisabled, 0.18, "#000000"), 0.16)}`,
     "--secondary-button-disabled-text": rgba("#d3d9e2", 0.9),
-    "--assistant-fab-bg": assistantFabSurface,
-    "--assistant-fab-border": rgba(palette.accent, 0.52),
-    "--assistant-fab-border-hover": rgba(palette.gold, 0.78),
-    "--assistant-fab-shadow": `0 18px 34px ${rgba("#000000", 0.42)}, 0 0 0 1px ${rgba(palette.accent, 0.22)}, 0 0 24px ${rgba(palette.accent, 0.16 + glow * 0.08)}`,
-    "--assistant-fab-shadow-hover": `0 24px 42px ${rgba("#000000", 0.48)}, 0 0 30px ${rgba(palette.accent, 0.22 + glow * 0.1)}`,
-    "--assistant-panel-flat-bg": rgba(palette.panelStart, 0.98),
-    "--assistant-response-bg": rgba(palette.panelEnd, 0.96),
+    "--assistant-fab-bg": `linear-gradient(135deg, ${rgba("#1c1e23", 0.98)}, ${rgba("#0e0f12", 0.98)})`,
+    "--assistant-fab-border": rgba("#c8ac7d", 0.32),
+    "--assistant-fab-border-hover": rgba("#d7c3a1", 0.62),
+    "--assistant-fab-shadow": `0 18px 34px ${rgba("#000000", 0.42)}, 0 0 0 1px ${rgba("#c8ac7d", 0.14)}, 0 0 20px ${rgba("#c8ac7d", 0.08 + glow * 0.03)}`,
+    "--assistant-fab-shadow-hover": `0 24px 42px ${rgba("#000000", 0.48)}, 0 0 26px ${rgba("#c8ac7d", 0.14 + glow * 0.04)}`,
+    "--assistant-panel-flat-bg": rgba("#0d0e11", 0.98),
+    "--assistant-response-bg": `linear-gradient(180deg, ${rgba("#1f232a", 0.96)}, ${rgba("#14161b", 0.96)})`,
     "--panel-start": palette.panelStart,
     "--panel-end": palette.panelEnd,
     "--hero-button-bg": heroButtonSurface,
@@ -21524,6 +21524,7 @@ function renderPlayAssistantRules() {
   };
   if (!shouldShow) {
     playAssistantRulesEl.hidden = true;
+    playAssistantRulesEl.setAttribute("aria-hidden", "true");
     playAssistantRulesEl.classList.add("is-collapsed");
     playAssistantRulesListEl.innerHTML = "";
     playAssistantRulesListEl.hidden = true;
@@ -21541,6 +21542,7 @@ function renderPlayAssistantRules() {
   playAssistantRulesListEl.hidden = playAssistantRulesCollapsed;
   playAssistantRulesToggleEl.setAttribute("aria-expanded", String(!playAssistantRulesCollapsed));
   playAssistantRulesEl.hidden = false;
+  playAssistantRulesEl.setAttribute("aria-hidden", "false");
 
   if (!shapeTradersAssistantRules.length) {
     playAssistantRulesListEl.innerHTML =
