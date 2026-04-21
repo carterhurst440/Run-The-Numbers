@@ -1755,6 +1755,10 @@ body[data-app-state="loading"] #app-shell {
   text-transform: uppercase;
 }
 
+.game-beta-pill[hidden] {
+  display: none;
+}
+
 .shape-traders-view {
   align-items: stretch;
   justify-content: center;
@@ -7295,37 +7299,37 @@ body.theme-angelic {
 .header-mode-select {
   width: 100%;
   min-width: 0;
-  border: 1px solid color-mix(in srgb, var(--icon-button-border-color) 62%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--header-gradient) 22%, transparent);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--text-light);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 8%, transparent);
-  padding: 0.46rem 1.9rem 0.46rem 0.72rem;
-  font-size: 0.74rem;
+  box-shadow: none;
+  padding: 0.28rem 1.25rem 0.28rem 0.2rem;
+  font-size: 0.66rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
-  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+  transition: color 0.18s ease, opacity 0.18s ease;
 }
 
 .header-mode-select-wrap::after {
   content: "";
   position: absolute;
-  right: 0.9rem;
+  right: 0.1rem;
   top: 50%;
-  width: 0.48rem;
-  height: 0.48rem;
-  border-right: 2px solid color-mix(in srgb, var(--text-light) 72%, var(--muted) 28%);
-  border-bottom: 2px solid color-mix(in srgb, var(--text-light) 72%, var(--muted) 28%);
+  width: 0.36rem;
+  height: 0.36rem;
+  border-right: 1.5px solid color-mix(in srgb, var(--text-light) 64%, var(--muted) 36%);
+  border-bottom: 1.5px solid color-mix(in srgb, var(--text-light) 64%, var(--muted) 36%);
   transform: translateY(-60%) rotate(45deg);
   pointer-events: none;
 }
 
 .header-mode-select:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--icon-button-border-color) 82%, white 18%);
+  outline: 1px solid color-mix(in srgb, var(--icon-button-border-color) 72%, white 28%);
   outline-offset: 2px;
 }
 
@@ -10685,13 +10689,13 @@ body.play-assistant-open .play-assistant-fab {
   }
 
   .header-mode-select {
-    padding: 0.38rem 1.95rem 0.38rem 0.65rem;
-    font-size: 0.63rem;
-    letter-spacing: 0.05em;
+    padding: 0.22rem 1.05rem 0.22rem 0.14rem;
+    font-size: 0.55rem;
+    letter-spacing: 0.1em;
   }
 
   .header-mode-select-wrap::after {
-    right: 0.72rem;
+    right: 0.04rem;
   }
 
   .icon-button,
@@ -10859,13 +10863,13 @@ body.play-assistant-open .play-assistant-fab {
   }
 
   .header-mode-select {
-    padding: 0.34rem 1.7rem 0.34rem 0.52rem;
-    font-size: 0.58rem;
-    letter-spacing: 0.04em;
+    padding: 0.18rem 0.95rem 0.18rem 0.08rem;
+    font-size: 0.5rem;
+    letter-spacing: 0.09em;
   }
 
   .header-mode-select-wrap::after {
-    right: 0.62rem;
+    right: 0.02rem;
   }
 
   .icon-button,
@@ -15199,6 +15203,14 @@ body[data-theme-profile="shape-traders-carbon"] .menu-toggle {
   color: rgba(241, 244, 251, 0.92);
 }
 
+body[data-theme-profile="main-app-comfort"] .header-mode-select,
+body[data-theme-profile="rtn-green-room"] .header-mode-select,
+body[data-theme-profile="guess-10-deep-blue"] .header-mode-select,
+body[data-theme-profile="shape-traders-carbon"] .header-mode-select {
+  border-radius: 0;
+  background: transparent;
+}
+
 body[data-theme-profile="main-app-comfort"] .notification-toggle,
 body[data-theme-profile="main-app-comfort"] .menu-toggle,
 body[data-theme-profile="rtn-green-room"] .notification-toggle,
@@ -15214,10 +15226,10 @@ body[data-theme-profile="main-app-comfort"] .header-mode-select,
 body[data-theme-profile="rtn-green-room"] .header-mode-select,
 body[data-theme-profile="guess-10-deep-blue"] .header-mode-select,
 body[data-theme-profile="shape-traders-carbon"] .header-mode-select {
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: transparent;
   box-shadow: none;
-  padding: 0.68rem 2.2rem 0.68rem 1rem;
-  font-size: 0.76rem;
+  padding: 0.28rem 1.25rem 0.28rem 0.2rem;
+  font-size: 0.66rem;
 }
 
 body[data-theme-profile="main-app-comfort"] .header-mode-select:hover,
@@ -15270,6 +15282,18 @@ body[data-theme-profile="shape-traders-carbon"] .menu-toggle:hover,
 body[data-theme-profile="shape-traders-carbon"] .menu-toggle:focus-visible {
   background: transparent;
   border-color: transparent;
+  box-shadow: none;
+}
+
+body[data-theme-profile="main-app-comfort"] .header-mode-select:hover,
+body[data-theme-profile="main-app-comfort"] .header-mode-select:focus-visible,
+body[data-theme-profile="rtn-green-room"] .header-mode-select:hover,
+body[data-theme-profile="rtn-green-room"] .header-mode-select:focus-visible,
+body[data-theme-profile="guess-10-deep-blue"] .header-mode-select:hover,
+body[data-theme-profile="guess-10-deep-blue"] .header-mode-select:focus-visible,
+body[data-theme-profile="shape-traders-carbon"] .header-mode-select:hover,
+body[data-theme-profile="shape-traders-carbon"] .header-mode-select:focus-visible {
+  background: transparent;
   box-shadow: none;
 }
 
@@ -15410,6 +15434,310 @@ body[data-theme-profile="main-app-comfort"] .home-rank-typing::after {
 body[data-theme-profile="main-app-comfort"] .home-contest-card,
 body[data-theme-profile="main-app-comfort"] .game-card {
   overflow: hidden;
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card {
+  position: relative;
+  isolation: isolate;
+  gap: 1.15rem;
+  min-height: 27rem;
+  padding: clamp(1.2rem, 2.4vw, 1.65rem);
+  transition:
+    transform 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    background 0.22s ease;
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card::before,
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card:hover,
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card:focus-within {
+  transform: translateY(-3px);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card .game-card-head {
+  gap: 0.7rem;
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card .game-card-kicker-row {
+  align-items: flex-start;
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card .game-card-title-row {
+  align-items: center;
+  gap: 0.95rem;
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card .game-card-logo-inline {
+  width: 3.4rem;
+  max-width: 3.4rem;
+  max-height: 3.4rem;
+  padding: 0.55rem;
+  border-radius: 1rem;
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card .game-card-title {
+  font-size: clamp(1.55rem, 2.5vw, 2.2rem);
+  line-height: 0.98;
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card .game-card-copy {
+  max-width: 24ch;
+  font-size: 1.02rem;
+  line-height: 1.72;
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card .home-button {
+  min-height: 3.7rem;
+  border-radius: 1.35rem;
+  letter-spacing: 0.18em;
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-primary {
+  border-color: rgba(150, 176, 141, 0.34);
+  background:
+    linear-gradient(180deg, rgba(243, 233, 191, 0.03), transparent 18%),
+    linear-gradient(180deg, rgba(18, 54, 36, 0.98), rgba(11, 33, 23, 0.99));
+  box-shadow:
+    0 20px 44px rgba(0, 0, 0, 0.3),
+    inset 0 0 0 1px rgba(220, 204, 156, 0.05);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-primary::before {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.02) 0,
+      rgba(255, 255, 255, 0.02) 1px,
+      transparent 1px,
+      transparent 5px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.012) 0,
+      rgba(255, 255, 255, 0.012) 1px,
+      transparent 1px,
+      transparent 7px
+    );
+  opacity: 0.42;
+  mix-blend-mode: screen;
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-primary::after {
+  inset: auto 0 0 0;
+  height: 1.15rem;
+  background:
+    linear-gradient(180deg, rgba(92, 62, 34, 0.98), rgba(46, 28, 14, 1)),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.04) 0,
+      rgba(255, 255, 255, 0.04) 1px,
+      transparent 1px,
+      transparent 8px
+    );
+  border-top: 1px solid rgba(197, 176, 118, 0.22);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-primary .game-card-kicker {
+  color: rgba(233, 214, 164, 0.82);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-primary .game-card-title {
+  color: #f2e8cd;
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-primary .game-card-copy {
+  color: rgba(226, 235, 220, 0.84);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-primary .game-card-logo-inline {
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 248, 220, 0.16), transparent 46%),
+    linear-gradient(180deg, rgba(17, 22, 18, 0.95), rgba(7, 9, 7, 0.98));
+  border: 1px solid rgba(194, 176, 126, 0.14);
+  box-shadow:
+    0 14px 28px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 240, 206, 0.05);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-primary .home-button {
+  background: linear-gradient(180deg, #0f6e38, #0a5a2d);
+  border: 1px solid rgba(194, 176, 126, 0.28);
+  color: #f4ebd4;
+  box-shadow:
+    0 18px 34px rgba(12, 58, 33, 0.32),
+    inset 0 1px 0 rgba(233, 221, 183, 0.14);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-primary .home-button:hover,
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-primary .home-button:focus-visible {
+  background: linear-gradient(180deg, #137942, #0c6434);
+  border-color: rgba(220, 204, 156, 0.44);
+  box-shadow:
+    0 20px 38px rgba(12, 58, 33, 0.38),
+    inset 0 1px 0 rgba(240, 231, 202, 0.16);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-beta {
+  border-color: rgba(117, 197, 255, 0.28);
+  background:
+    radial-gradient(circle at 85% 12%, rgba(118, 202, 255, 0.16), transparent 28%),
+    radial-gradient(circle at 10% 100%, rgba(171, 108, 255, 0.16), transparent 30%),
+    linear-gradient(180deg, rgba(41, 57, 110, 0.88), rgba(16, 20, 43, 0.96));
+  box-shadow:
+    0 22px 46px rgba(3, 8, 26, 0.42),
+    inset 0 1px 0 rgba(194, 230, 255, 0.06);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-beta::before {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.028), transparent 65%);
+  opacity: 0.75;
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-beta::after {
+  inset: auto 1.3rem 1.3rem auto;
+  width: 6.5rem;
+  height: 6.5rem;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(123, 212, 255, 0.18);
+  background:
+    linear-gradient(180deg, rgba(111, 221, 255, 0.08), rgba(162, 112, 255, 0.08)),
+    rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-beta .game-card-kicker {
+  color: rgba(196, 222, 255, 0.76);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-beta .game-card-title {
+  color: #f3f8ff;
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-beta .game-card-copy {
+  color: rgba(221, 234, 255, 0.8);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-beta .game-card-logo-inline {
+  background:
+    linear-gradient(180deg, rgba(132, 221, 255, 0.14), rgba(171, 111, 255, 0.08)),
+    rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(144, 210, 255, 0.18);
+  box-shadow: 0 16px 28px rgba(6, 10, 30, 0.3);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-beta .home-button {
+  background: linear-gradient(135deg, #68d9ff, #8b6cff 78%);
+  border: 1px solid rgba(186, 227, 255, 0.32);
+  color: #081220;
+  box-shadow: 0 18px 34px rgba(73, 126, 255, 0.24);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-beta .home-button:hover,
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-beta .home-button:focus-visible {
+  background: linear-gradient(135deg, #7ee6ff, #9a7cff 78%);
+  border-color: rgba(210, 240, 255, 0.42);
+  box-shadow: 0 20px 38px rgba(73, 126, 255, 0.3);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-beta .game-beta-pill {
+  border-color: rgba(136, 221, 255, 0.28);
+  background: rgba(107, 207, 255, 0.12);
+  color: #dff7ff;
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-shape-traders {
+  border-color: rgba(122, 223, 255, 0.26);
+  background:
+    radial-gradient(circle at 85% 14%, rgba(255, 220, 92, 0.12), transparent 20%),
+    radial-gradient(circle at 12% 10%, rgba(255, 88, 172, 0.16), transparent 28%),
+    linear-gradient(180deg, rgba(24, 26, 34, 0.96), rgba(8, 11, 18, 0.99));
+  box-shadow:
+    0 22px 48px rgba(0, 0, 0, 0.42),
+    inset 0 0 0 1px rgba(112, 226, 255, 0.05);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-shape-traders::before {
+  background:
+    linear-gradient(rgba(94, 224, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(94, 224, 255, 0.08) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: center;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.85), transparent 88%);
+  opacity: 0.45;
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-shape-traders::after {
+  inset: 1.15rem 1.15rem auto auto;
+  width: 4.6rem;
+  height: 4.6rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 220, 92, 0.22);
+  box-shadow: 0 0 24px rgba(255, 220, 92, 0.14);
+  background:
+    linear-gradient(135deg, rgba(255, 79, 157, 0.08), rgba(63, 240, 255, 0.1)),
+    rgba(255, 255, 255, 0.02);
+  transform: rotate(45deg);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-shape-traders .game-card-kicker {
+  color: rgba(128, 228, 255, 0.82);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-shape-traders .game-card-title {
+  color: #f5fbff;
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-shape-traders .game-card-copy {
+  color: rgba(219, 236, 244, 0.78);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-shape-traders .game-card-logo-inline {
+  background:
+    linear-gradient(180deg, rgba(255, 79, 157, 0.12), rgba(63, 240, 255, 0.08)),
+    rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(95, 214, 255, 0.18);
+  box-shadow:
+    0 0 24px rgba(63, 240, 255, 0.08),
+    0 12px 24px rgba(0, 0, 0, 0.28);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-shape-traders .home-button {
+  background:
+    linear-gradient(135deg, rgba(255, 79, 157, 0.15), rgba(63, 240, 255, 0.14)),
+    rgba(11, 16, 25, 0.94);
+  border: 1px solid rgba(86, 220, 255, 0.36);
+  color: #dffaff;
+  box-shadow:
+    0 0 0 1px rgba(255, 79, 157, 0.08),
+    0 18px 34px rgba(0, 0, 0, 0.34);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-shape-traders .home-button:hover,
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-shape-traders .home-button:focus-visible {
+  border-color: rgba(120, 235, 255, 0.48);
+  color: #f3fcff;
+  box-shadow:
+    0 0 0 1px rgba(255, 79, 157, 0.12),
+    0 0 24px rgba(63, 240, 255, 0.12),
+    0 20px 36px rgba(0, 0, 0, 0.38);
+}
+
+body[data-theme-profile="main-app-comfort"] .play-hub-view .game-card-shape-traders .game-beta-pill {
+  border-color: rgba(255, 220, 92, 0.24);
+  background: rgba(255, 220, 92, 0.1);
+  color: #fff2b9;
 }
 
 body[data-theme-profile="main-app-comfort"] .home-contest-card,
