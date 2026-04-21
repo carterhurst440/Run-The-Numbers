@@ -1355,16 +1355,6 @@ body[data-app-state="loading"] #app-shell {
   box-shadow: var(--primary-button-shadow-hover, var(--deal-button-shadow-hover));
 }
 
-.home-contest-action.is-joined,
-.home-contest-action.is-joined:disabled {
-  background: linear-gradient(135deg, rgba(56, 60, 69, 0.94), rgba(34, 37, 44, 0.94));
-  border-color: rgba(150, 158, 172, 0.42);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
-  color: rgba(247, 251, 255, 0.98);
-  -webkit-text-fill-color: rgba(247, 251, 255, 0.98);
-  text-shadow: none;
-}
-
 .home-contest-action.is-joined {
   animation: none;
   cursor: default;
@@ -4874,6 +4864,16 @@ body[data-app-state="loading"] #app-shell {
   box-shadow: var(--primary-button-shadow, var(--deal-button-shadow));
   border-color: var(--primary-button-border, var(--secondary-button-border));
   color: var(--primary-button-text, var(--text-light));
+}
+
+.home-button.home-primary.home-contest-action.is-joined,
+.home-button.home-primary.home-contest-action.is-joined:disabled {
+  background: linear-gradient(135deg, rgba(56, 60, 69, 0.94), rgba(34, 37, 44, 0.94));
+  border-color: rgba(150, 158, 172, 0.42);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
+  color: rgba(247, 251, 255, 0.98);
+  -webkit-text-fill-color: rgba(247, 251, 255, 0.98);
+  text-shadow: none;
 }
 
 .home-button.home-cta-button {
