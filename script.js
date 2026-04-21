@@ -4432,10 +4432,12 @@ function setShapeTraderStatus(message) {
 
 function setShapeTraderResetProgress(message, { buttonLabel = "RESET", disableControls = false } = {}) {
   setShapeTraderStatus(message);
-  const adminControlsDisabled = disableControls || !isAdmin();
+  const adminVisible = isAdmin();
+  const adminControlsDisabled = disableControls || !adminVisible;
   if (shapeTradersMarketResetButton) {
+    shapeTradersMarketResetButton.hidden = !adminVisible;
     shapeTradersMarketResetButton.textContent = buttonLabel;
-    shapeTradersMarketResetButton.disabled = disableControls;
+    shapeTradersMarketResetButton.disabled = disableControls || !adminVisible;
   }
   if (shapeTradersSetPrice999Button) {
     shapeTradersSetPrice999Button.disabled = adminControlsDisabled;
@@ -4466,8 +4468,9 @@ function setShapeTraderResetProgress(message, { buttonLabel = "RESET", disableCo
 function clearShapeTraderResetProgress() {
   const adminVisible = isAdmin();
   if (shapeTradersMarketResetButton) {
+    shapeTradersMarketResetButton.hidden = !adminVisible;
     shapeTradersMarketResetButton.textContent = "RESET";
-    shapeTradersMarketResetButton.disabled = false;
+    shapeTradersMarketResetButton.disabled = !adminVisible;
   }
   if (shapeTradersSetPrice999Button) {
     shapeTradersSetPrice999Button.disabled = !adminVisible;
@@ -6507,6 +6510,10 @@ function renderShapeTradersControls(now = Date.now()) {
       !shapeTradersHasOpenHoldings();
   }
   const adminControlsDisabled = !isAdmin() || shapeTradersResetInFlight || shapeTradersTradeActionInFlight;
+  if (shapeTradersMarketResetButton) {
+    shapeTradersMarketResetButton.hidden = !isAdmin();
+    shapeTradersMarketResetButton.disabled = adminControlsDisabled;
+  }
   if (shapeTradersSetPrice999Button) {
     shapeTradersSetPrice999Button.disabled = adminControlsDisabled;
   }
