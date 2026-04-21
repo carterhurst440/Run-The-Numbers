@@ -12721,6 +12721,10 @@ body.modal-open {
   gap: 1rem;
 }
 
+.route-shell.activity-log-shell {
+  width: min(100%, 1360px);
+}
+
 .account-chart-route-section {
   overflow: visible;
   width: 100%;
