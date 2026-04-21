@@ -2923,59 +2923,27 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
                       <span class="game-beta-pill beta-draw-beta-pill">Beta</span>
                     </div>
                     <h2>Cards Dealt</h2>
-                    <p class="guess10-panel-subcopy">Live draw telemetry, commission pacing, and reveal history in one control surface.</p>
                   </div>
                 </div>
-                <div class="guess10-draw-dashboard">
-                  <div class="guess10-draw-stage">
-                    <div class="guess10-stage-orbit">
-                      <span class="guess10-stage-orbit-ring guess10-stage-orbit-ring-a" aria-hidden="true"></span>
-                      <span class="guess10-stage-orbit-ring guess10-stage-orbit-ring-b" aria-hidden="true"></span>
-                      <span class="guess10-stage-orbit-core" aria-hidden="true"></span>
-                      <div class="draws beta-draws">
-                        <div class="card"><div class="card-face">Q</div></div>
-                        <div class="card"><div class="card-face">6</div></div>
-                        <div class="card"><div class="card-face">A</div></div>
-                      </div>
-                    </div>
+                <div class="beta-ladder-sticky-rail beta-ladder-sticky-rail-inline">
+                  <p class="beta-ladder-sticky-title">Commission Ladder</p>
+                  <div class="beta-ladder-sticky-track">
+                    <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">10%</span></span>
+                    <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">9%</span></span>
+                    <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">8%</span></span>
+                    <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">7%</span></span>
                   </div>
-                  <div class="guess10-ladder-panel">
-                    <div class="beta-ladder-sticky-rail beta-ladder-sticky-rail-inline">
-                      <div class="guess10-section-heading">
-                        <p class="beta-ladder-sticky-title">Commission Ladder</p>
-                        <span class="guess10-section-badge">10 draws max</span>
-                      </div>
-                      <div class="beta-ladder-sticky-track">
-                        <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">10%</span></span>
-                        <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">9%</span></span>
-                        <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">8%</span></span>
-                        <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">7%</span></span>
-                        <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">6%</span></span>
-                        <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">5%</span></span>
-                        <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">4%</span></span>
-                        <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">3%</span></span>
-                        <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">2%</span></span>
-                        <span class="beta-ladder-sticky-step"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label">1%</span></span>
-                      </div>
-                    </div>
-                    <div class="guess10-mini-metrics" aria-hidden="true">
-                      <div class="guess10-mini-metric">
-                        <span class="guess10-mini-label">Mode</span>
-                        <strong>Fresh deck</strong>
-                      </div>
-                      <div class="guess10-mini-metric">
-                        <span class="guess10-mini-label">Win path</span>
-                        <strong>Predict then scale</strong>
-                      </div>
-                    </div>
-                  </div>
+                </div>
+                <div class="draws beta-draws">
+                  <div class="card"><div class="card-face">Q</div></div>
+                  <div class="card"><div class="card-face">6</div></div>
+                  <div class="card"><div class="card-face">A</div></div>
                 </div>
               </section>
               <section class="beta-game-panel beta-table-panel beta-control-panel">
                 <div class="beta-table-header">
                   <div class="beta-control-heading">
                     <h2>Wager &amp; Pot</h2>
-                    <p class="guess10-panel-subcopy">Stage the base wager, monitor current and projected pot, then choose the next prediction lane.</p>
                     <div class="beta-action-group beta-action-group-wager">
                       <div class="beta-wager-primary">
                         <p class="beta-control-label">Wager</p>
@@ -3009,7 +2977,6 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
                       <h3 class="beta-prediction-title">Prediction</h3>
                       <span class="beta-control-multiplier">Multiplier 2X</span>
                     </div>
-                    <p class="guess10-panel-subcopy guess10-panel-subcopy-tight">Switch category, lock a value set, and let the live multiplier react before you draw.</p>
                   </div>
                   <div class="beta-action-group">
                     <p class="beta-control-label">Category</p>

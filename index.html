@@ -1036,50 +1036,26 @@
                       <span class="game-beta-pill beta-draw-beta-pill">Beta</span>
                     </div>
                     <h2 id="red-black-table-title">Cards Dealt</h2>
-                    <p class="guess10-panel-subcopy">Live draw telemetry, commission pacing, and reveal history in one control surface.</p>
                   </div>
                 </div>
-                <div class="guess10-draw-dashboard">
-                  <div class="guess10-draw-stage">
-                    <div class="guess10-stage-orbit">
-                      <span class="guess10-stage-orbit-ring guess10-stage-orbit-ring-a" aria-hidden="true"></span>
-                      <span class="guess10-stage-orbit-ring guess10-stage-orbit-ring-b" aria-hidden="true"></span>
-                      <span class="guess10-stage-orbit-core" aria-hidden="true"></span>
-                      <div id="red-black-draws" class="draws beta-draws" aria-label="Cards revealed this hand">
-                        <div class="beta-draw-placeholder">No cards drawn yet.</div>
-                      </div>
-                    </div>
+                <div class="beta-ladder-sticky-rail beta-ladder-sticky-rail-inline" aria-label="Commission progress">
+                  <p class="beta-ladder-sticky-title">Commission Ladder</p>
+                  <div class="beta-ladder-sticky-track">
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="1"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="10%">10%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="2"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="9%">9%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="3"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="8%">8%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="4"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="7%">7%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="5"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="6%">6%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="6"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="5%">5%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="7"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="4%">4%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="8"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="3%">3%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="9"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="2%">2%</span></span>
+                    <span class="beta-ladder-sticky-step" data-red-black-rung="10"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="1%">1%</span></span>
                   </div>
-                  <div class="guess10-ladder-panel">
-                    <div class="beta-ladder-sticky-rail beta-ladder-sticky-rail-inline" aria-label="Commission progress">
-                      <div class="guess10-section-heading">
-                        <p class="beta-ladder-sticky-title">Commission Ladder</p>
-                        <span class="guess10-section-badge">10 draws max</span>
-                      </div>
-                      <div class="beta-ladder-sticky-track">
-                        <span class="beta-ladder-sticky-step" data-red-black-rung="1"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="10%">10%</span></span>
-                        <span class="beta-ladder-sticky-step" data-red-black-rung="2"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="9%">9%</span></span>
-                        <span class="beta-ladder-sticky-step" data-red-black-rung="3"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="8%">8%</span></span>
-                        <span class="beta-ladder-sticky-step" data-red-black-rung="4"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="7%">7%</span></span>
-                        <span class="beta-ladder-sticky-step" data-red-black-rung="5"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="6%">6%</span></span>
-                        <span class="beta-ladder-sticky-step" data-red-black-rung="6"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="5%">5%</span></span>
-                        <span class="beta-ladder-sticky-step" data-red-black-rung="7"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="4%">4%</span></span>
-                        <span class="beta-ladder-sticky-step" data-red-black-rung="8"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="3%">3%</span></span>
-                        <span class="beta-ladder-sticky-step" data-red-black-rung="9"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="2%">2%</span></span>
-                        <span class="beta-ladder-sticky-step" data-red-black-rung="10"><span class="beta-ladder-sticky-fill"></span><span class="beta-ladder-sticky-label" data-mobile-label="1%">1%</span></span>
-                      </div>
-                    </div>
-                    <div class="guess10-mini-metrics" aria-hidden="true">
-                      <div class="guess10-mini-metric">
-                        <span class="guess10-mini-label">Mode</span>
-                        <strong>Fresh deck</strong>
-                      </div>
-                      <div class="guess10-mini-metric">
-                        <span class="guess10-mini-label">Win path</span>
-                        <strong>Predict then scale</strong>
-                      </div>
-                    </div>
-                  </div>
+                </div>
+
+                <div id="red-black-draws" class="draws beta-draws" aria-label="Cards revealed this hand">
+                  <div class="beta-draw-placeholder">No cards drawn yet.</div>
                 </div>
               </section>
 
@@ -1087,7 +1063,6 @@
                 <div class="beta-table-header">
                   <div class="beta-control-heading">
                     <h2 id="red-black-controls-title">Wager &amp; Pot</h2>
-                    <p class="guess10-panel-subcopy">Stage the base wager, monitor current and projected pot, then choose the next prediction lane.</p>
                     <div class="beta-action-group beta-action-group-wager">
                       <div id="red-black-wager-primary" class="beta-wager-primary">
                         <p class="beta-control-label">Wager</p>
@@ -1125,7 +1100,6 @@
                       <h3 class="beta-prediction-title">Prediction</h3>
                       <span id="red-black-multiplier-chip" class="beta-control-multiplier">Multiplier 2X</span>
                     </div>
-                    <p class="guess10-panel-subcopy guess10-panel-subcopy-tight">Switch category, lock a value set, and let the live multiplier react before you draw.</p>
                   </div>
                   <div class="beta-action-group">
                     <p class="beta-control-label">Category</p>
@@ -1153,14 +1127,12 @@
               <section class="beta-game-panel beta-inline-panel" aria-labelledby="red-black-history-title">
                 <p class="beta-game-panel-kicker">Hand Log</p>
                 <h2 id="red-black-history-title">Revealed History</h2>
-                <p class="guess10-panel-subcopy guess10-panel-subcopy-tight">Every successful read stacks the story of the hand here in sequence.</p>
                 <ul id="red-black-history" class="beta-game-list beta-history-list" aria-live="polite"></ul>
               </section>
 
               <section class="beta-game-panel" aria-labelledby="red-black-overview-title">
                 <p class="beta-game-panel-kicker">How It Works</p>
                 <h2 id="red-black-overview-title">Core Loop</h2>
-                <p class="guess10-panel-subcopy guess10-panel-subcopy-tight">Short rounds, escalating decisions, and a simple cash-out tension curve.</p>
                 <ol class="beta-game-list">
                   <li>Place one base wager.</li>
                   <li>Choose COLOR, SUIT, or RANK before each draw.</li>
@@ -1173,7 +1145,6 @@
               <section class="beta-game-panel" aria-labelledby="red-black-rules-title">
                 <p class="beta-game-panel-kicker">Rules</p>
                 <h2 id="red-black-rules-title">Selection Rules</h2>
-                <p class="guess10-panel-subcopy guess10-panel-subcopy-tight">The deck stays simple, but your range management changes with each category.</p>
                 <ul class="beta-game-list beta-game-list-bulleted">
                   <li>52-card standard deck. No Joker.</li>
                   <li>A fresh deck is shuffled before every draw.</li>
