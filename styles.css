@@ -15564,6 +15564,10 @@ body[data-theme-profile="main-app-comfort"] .route-shell {
   gap: 1.4rem;
 }
 
+body[data-theme-profile="main-app-comfort"] .route-shell.activity-log-shell {
+  width: min(100%, 1360px);
+}
+
 body[data-theme-profile="main-app-comfort"] .route-header h1,
 body[data-theme-profile="main-app-comfort"] .store-title,
 body[data-theme-profile="main-app-comfort"] .home-title {
