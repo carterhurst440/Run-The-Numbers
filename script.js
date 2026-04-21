@@ -16422,6 +16422,10 @@ function updateAdminThemeOverrideUI() {
     adminThemeClearOverrideButton.disabled = !overrideTheme;
   }
 
+  if (adminThemeUseDefaultsButton) {
+    adminThemeUseDefaultsButton.disabled = !overrideTheme;
+  }
+
   document.querySelectorAll("[data-admin-theme-try-on-key]").forEach((button) => {
     if (!(button instanceof HTMLButtonElement)) return;
     const isActive = Boolean(overrideTheme && button.dataset.adminThemeTryOnKey === overrideTheme.key);
@@ -17057,6 +17061,7 @@ const adminThemeMessage = document.getElementById("admin-theme-message");
 const adminThemePreviewEl = document.getElementById("admin-theme-preview");
 const adminThemePreviewPageSelect = document.getElementById("admin-theme-preview-page");
 const adminThemeOverrideStatus = document.getElementById("admin-theme-override-status");
+const adminThemeUseDefaultsButton = document.getElementById("admin-theme-use-defaults");
 const adminThemeCreateButton = document.getElementById("admin-theme-create-button");
 const adminThemeModal = document.getElementById("admin-theme-modal");
 const adminThemeModalTitle = document.getElementById("admin-theme-modal-title");
@@ -26708,6 +26713,12 @@ if (adminThemeCreateButton) {
   });
 }
 
+if (adminThemeUseDefaultsButton) {
+  adminThemeUseDefaultsButton.addEventListener("click", () => {
+    setAdminThemeOverride(null);
+  });
+}
+
 if (adminThemeProfileListEl) {
   adminThemeProfileListEl.addEventListener("click", (event) => {
     const editButton =
@@ -26725,7 +26736,7 @@ if (adminThemeProfileListEl) {
     if (tryOnButton instanceof HTMLElement) {
       const themeKey = tryOnButton.dataset.adminThemeTryOnKey || "";
       if (themeKey) {
-        setAdminThemeOverride(themeKey, { persist: true });
+        setAdminThemeOverride(themeKey, { persist: false });
       }
     }
   });

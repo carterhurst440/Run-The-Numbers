@@ -14508,6 +14508,14 @@ body.modal-open {
   margin-top: 0.85rem;
 }
 
+.design-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .admin-ai-theme-card {
   padding: 1rem;
 }
