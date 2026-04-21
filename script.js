@@ -1273,41 +1273,8 @@ async function loadThemeLibrary(force = false) {
 
   const builtinThemes = BUILTIN_THEME_LIBRARY.map((theme) => normalizeThemeRecord(theme));
 
-  if (!supabase) {
-    themeLibraryCache = builtinThemes.length ? builtinThemes : [getEmergencyThemeRecord(MAIN_APP_THEME_KEY)];
-    themeLibraryHydrated = true;
-    return themeLibraryCache;
-  }
-
-  try {
-    const queryPromise = supabase.from("themes").select("*").order("name", { ascending: true });
-    const timeoutPromise = new Promise((_, reject) => {
-      window.setTimeout(() => reject(new Error("Theme library request timed out.")), 8000);
-    });
-    const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
-    if (error) throw error;
-    const mergedThemes = [...builtinThemes];
-    const dbThemes = (Array.isArray(data) ? data : []).map((theme) => normalizeThemeRecord(theme));
-    dbThemes.forEach((theme) => {
-      const existingIndex = mergedThemes.findIndex((entry) => entry.key === theme.key);
-      if (existingIndex >= 0) {
-        mergedThemes[existingIndex] = theme;
-      } else {
-        mergedThemes.push(theme);
-      }
-    });
-    themeLibraryCache = mergedThemes
-      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
-    if (!themeLibraryCache.length) {
-      themeLibraryCache = builtinThemes.length ? builtinThemes : [getEmergencyThemeRecord(MAIN_APP_THEME_KEY)];
-    }
-    themeLibraryHydrated = true;
-  } catch (error) {
-    console.warn("[RTN] loadThemeLibrary failed", error);
-    if (!themeLibraryCache.length) {
-      themeLibraryCache = builtinThemes.length ? builtinThemes : [getEmergencyThemeRecord(MAIN_APP_THEME_KEY)];
-    }
-  }
+  themeLibraryCache = builtinThemes.length ? builtinThemes : [getEmergencyThemeRecord(MAIN_APP_THEME_KEY)];
+  themeLibraryHydrated = true;
 
   refreshAdminThemeOverrideThemeFromLibrary();
 
@@ -1652,18 +1619,12 @@ function clearThemeVariables(target = document.body) {
 function applyThemeVariables(theme, target = document.body) {
   if (!target?.style) return;
   clearThemeVariables(target);
-  const variables = getThemeCssVariables(theme);
-  Object.entries(variables).forEach(([key, value]) => {
-    target.style.setProperty(key, value);
-  });
 }
 
 function applyGlobalShellThemeVariables() {
-  const mainAppTheme = getMainAppThemeRecord();
-  if (!mainAppTheme) return;
   [headerEl, utilityPanel, notificationsPanel].forEach((element) => {
     if (!element) return;
-    applyThemeVariables(mainAppTheme, element);
+    clearThemeVariables(element);
   });
 }
 
@@ -1745,10 +1706,6 @@ function clearAiThemeVariables(target = document.body) {
 function applyAiThemeVariables(settings = aiThemeSettingsCache, target = document.body) {
   if (!target?.style) return;
   clearAiThemeVariables(target);
-  const variables = getAiThemeCssVariables(settings);
-  Object.entries(variables).forEach(([key, value]) => {
-    target.style.setProperty(key, value);
-  });
 }
 
 function getLoginThemeCssVariables(settings = loginThemeSettingsCache) {
@@ -1788,10 +1745,6 @@ function clearLoginThemeVariables(target = document.body) {
 function applyLoginThemeVariables(settings = loginThemeSettingsCache, target = document.body) {
   if (!target?.style) return;
   clearLoginThemeVariables(target);
-  const variables = getLoginThemeCssVariables(settings);
-  Object.entries(variables).forEach(([key, value]) => {
-    target.style.setProperty(key, value);
-  });
 }
 
 async function loadLoginThemeSettings(force = false) {
@@ -1799,37 +1752,9 @@ async function loadLoginThemeSettings(force = false) {
     return loginThemeSettingsCache;
   }
 
-  if (!supabase || !loginThemeSettingsPersistenceAvailable) {
-    loginThemeSettingsCache = {};
-    loginThemeSettingsHydrated = false;
-    return loginThemeSettingsCache;
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from("login_theme_settings")
-      .select("settings")
-      .eq("key", "global")
-      .limit(1);
-    if (error) {
-      if (isMissingRelationError(error, "login_theme_settings")) {
-        loginThemeSettingsPersistenceAvailable = false;
-        loginThemeSettingsCache = {};
-        loginThemeSettingsHydrated = false;
-        return loginThemeSettingsCache;
-      }
-      throw error;
-    }
-    const row = Array.isArray(data) && data.length ? data[0] : null;
-    loginThemeSettingsCache = normalizeLoginThemeSettings(row?.settings || {});
-    loginThemeSettingsHydrated = true;
-    return loginThemeSettingsCache;
-  } catch (error) {
-    console.warn("[RTN] Unable to load login theme settings", error);
-    loginThemeSettingsCache = {};
-    loginThemeSettingsHydrated = false;
-    return loginThemeSettingsCache;
-  }
+  loginThemeSettingsCache = {};
+  loginThemeSettingsHydrated = true;
+  return loginThemeSettingsCache;
 }
 
 function populateAdminLoginThemeForm(settings = loginThemeSettingsCache) {
@@ -1968,37 +1893,9 @@ async function loadAiThemeSettings(force = false) {
     return aiThemeSettingsCache;
   }
 
-  if (!supabase || !currentUser?.id || currentUser.id === GUEST_USER.id || !aiThemeSettingsPersistenceAvailable) {
-    aiThemeSettingsCache = {};
-    aiThemeSettingsHydrated = false;
-    return aiThemeSettingsCache;
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from("ai_theme_settings")
-      .select("settings")
-      .eq("key", "global")
-      .limit(1);
-    if (error) {
-      if (isMissingRelationError(error, "ai_theme_settings")) {
-        aiThemeSettingsPersistenceAvailable = false;
-        aiThemeSettingsCache = {};
-        aiThemeSettingsHydrated = false;
-        return aiThemeSettingsCache;
-      }
-      throw error;
-    }
-    const row = Array.isArray(data) && data.length ? data[0] : null;
-    aiThemeSettingsCache = normalizeAiThemeSettings(row?.settings || {});
-    aiThemeSettingsHydrated = true;
-    return aiThemeSettingsCache;
-  } catch (error) {
-    console.warn("[RTN] Unable to load AI theme settings", error);
-    aiThemeSettingsCache = {};
-    aiThemeSettingsHydrated = false;
-    return aiThemeSettingsCache;
-  }
+  aiThemeSettingsCache = {};
+  aiThemeSettingsHydrated = true;
+  return aiThemeSettingsCache;
 }
 
 function populateAdminAiThemeForm(settings = aiThemeSettingsCache) {
@@ -16142,7 +16039,7 @@ function applyTheme(theme) {
   if (!themeRecord) {
     return;
   }
-  const next = THEME_CLASS_MAP[themeRecord.base_theme] ? themeRecord.base_theme : "blue";
+  const next = "blue";
   if (!document.body) {
     currentTheme = themeRecord.key;
     return;
@@ -16241,10 +16138,6 @@ function syncAdminThemeOverrideForCurrentUser() {
 }
 
 function getResolvedThemeRecord() {
-  syncAdminThemeOverrideForCurrentUser();
-  if (isAdmin() && adminThemeOverrideTheme) {
-    return getThemeRecord(adminThemeOverrideTheme);
-  }
   const gameTheme = getGameThemeRecord(currentRoute);
   if (gameTheme) {
     return gameTheme;
@@ -16267,29 +16160,24 @@ function refreshAdminThemeOverrideThemeFromLibrary() {
 }
 
 function updateAdminThemeOverrideUI() {
-  const overrideTheme = isAdmin() && adminThemeOverrideTheme ? getThemeRecord(adminThemeOverrideTheme) : null;
   const activeTheme = getResolvedThemeRecord();
-  const themeLabel = GAME_THEME_KEYS[currentRoute] ? "game theme" : "main app theme";
 
   if (adminThemeOverrideStatus) {
-    adminThemeOverrideStatus.textContent = overrideTheme
-      ? `Trying on ${overrideTheme.name}. The active ${themeLabel} is temporarily overridden for you.`
-      : `Using ${activeTheme?.name || "Main App Comfort"} as the active ${themeLabel}.`;
+    adminThemeOverrideStatus.textContent = `Using ${activeTheme?.name || "Main App Comfort"} as the fixed built-in look.`;
   }
 
   if (adminThemeClearOverrideButton) {
-    adminThemeClearOverrideButton.disabled = !overrideTheme;
+    adminThemeClearOverrideButton.disabled = true;
   }
 
   if (adminThemeUseDefaultsButton) {
-    adminThemeUseDefaultsButton.disabled = !overrideTheme;
+    adminThemeUseDefaultsButton.disabled = true;
   }
 
   document.querySelectorAll("[data-admin-theme-try-on-key]").forEach((button) => {
     if (!(button instanceof HTMLButtonElement)) return;
-    const isActive = Boolean(overrideTheme && button.dataset.adminThemeTryOnKey === overrideTheme.key);
-    button.textContent = isActive ? "Trying On" : "Try On";
-    button.disabled = isActive;
+    button.textContent = "Built In";
+    button.disabled = true;
   });
 }
 
@@ -16303,27 +16191,23 @@ function applyResolvedTheme() {
 }
 
 function setAdminThemeOverride(theme, { persist = false } = {}) {
-  if (!isAdmin()) {
-    return;
-  }
-
-  if (!theme) {
-    adminThemeOverrideTheme = null;
-    adminThemeOverrideStoredKey = null;
-    persistAdminThemeOverride(null);
-    applyResolvedTheme();
-    return;
-  }
-
-  const record = getThemeRecord(theme);
-  adminThemeOverrideTheme = record;
-  adminThemeOverrideStoredKey = persist ? record.key : null;
-  persistAdminThemeOverride(persist ? record.key : null);
   applyResolvedTheme();
 }
 
 function initTheme() {
-  currentTheme = "blue";
+  currentTheme = MAIN_APP_THEME_KEY;
+  if (!document.body) {
+    return;
+  }
+  ALL_THEME_CLASSES.forEach((className) => {
+    document.body.classList.remove(className);
+  });
+  document.body.classList.add(THEME_CLASS_MAP.blue);
+  document.body.dataset.themeProfile = MAIN_APP_THEME_KEY;
+  clearThemeVariables(document.body);
+  clearAiThemeVariables(document.body);
+  clearLoginThemeVariables(document.body);
+  applyGlobalShellThemeVariables();
 }
 
 const bankrollEl = document.getElementById("bankroll");
@@ -27292,9 +27176,8 @@ adminTabButtons.forEach(button => {
       if (adminGamesContent) adminGamesContent.hidden = true;
       adminAnalyticsContent.hidden = true;
       if (adminContestsContent) adminContestsContent.hidden = true;
-      if (adminDesignContent) adminDesignContent.hidden = false;
+      if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
-      void loadAdminThemes(true);
     } else if (targetTab === "ranks") {
       adminPrizesContent.hidden = true;
       if (adminGamesContent) adminGamesContent.hidden = true;
