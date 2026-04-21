@@ -17862,6 +17862,14 @@ function getChipToneIndex(value) {
   return 5;
 }
 
+function getRunTheNumbersChipRackToneIndex(value) {
+  const rackIndex = chipDenominations.findIndex((entry) => Number(entry) === Number(value));
+  if (rackIndex >= 0) {
+    return Math.min(rackIndex, 3);
+  }
+  return 0;
+}
+
 function renderChipSelector() {
   if (!chipSelectorEl) return;
 
@@ -17872,7 +17880,7 @@ function renderChipSelector() {
           class="chip-choice"
           type="button"
           data-value="${value}"
-          data-tone="${getChipToneIndex(value)}"
+          data-tone="${getRunTheNumbersChipRackToneIndex(value)}"
           role="radio"
           aria-checked="${value === selectedChip ? "true" : "false"}"
         >
@@ -18427,7 +18435,7 @@ function addChipToSpot(key, value) {
   const chip = document.createElement("div");
   chip.className = "chip";
   chip.dataset.value = value;
-  chip.dataset.tone = String(getChipToneIndex(value));
+  chip.dataset.tone = String(getRunTheNumbersChipRackToneIndex(value));
   chip.textContent = value.toString();
   chip.setAttribute("aria-hidden", "true");
   const stackIndex = stackEl.children.length;
