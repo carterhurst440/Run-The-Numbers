@@ -17031,7 +17031,7 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card-hero 
   align-self: center;
   min-height: 2.2rem;
   width: 100%;
-  transform: translateY(0.45rem);
+  transform: translateY(0.8rem);
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-dump-pip.active {
