@@ -15485,6 +15485,7 @@ async function saveProfile(event) {
 
 function displayAuthScreen({ focus = true, replaceHash = false } = {}) {
   currentRoute = "auth";
+  applyResolvedTheme();
   showAuthView("login");
   updateAdminVisibility(null);
   updateResetButtonVisibility(null);
