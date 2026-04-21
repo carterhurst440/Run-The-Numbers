@@ -16929,8 +16929,8 @@ const DEFAULT_AI_THEME_FORM_VALUES = {
   badgeTextColor: "#171512"
 };
 const DEFAULT_LOGIN_THEME_FORM_VALUES = {
-  headerText: "Welcome back",
-  headerSubtext: "",
+  headerText: "CARTERS CASINO WELCOMES YOU",
+  headerSubtext: "The premiere NEO casino experience",
   screenBackgroundStart: "#17191e",
   screenBackgroundEnd: "#0f1115",
   cardBackground: "#20242c",
@@ -18836,6 +18836,9 @@ function renderRedBlackValueSelector() {
     button.textContent = item.short;
     button.dataset.category = redBlackCategory;
     button.dataset.valueKey = item.key;
+    if (redBlackCategory === "suit") {
+      button.classList.add("is-suit-value");
+    }
     const isSelected = redBlackSelectedValues.includes(item.key);
     button.classList.toggle("active", isSelected);
     button.setAttribute("aria-pressed", String(isSelected));

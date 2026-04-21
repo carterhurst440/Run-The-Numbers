@@ -4467,9 +4467,9 @@ body[data-app-state="loading"] #app-shell {
   background: var(--secondary-button-disabled-bg);
   border-color: var(--secondary-button-disabled-border);
   box-shadow: var(--secondary-button-disabled-shadow);
-  color: color-mix(in srgb, var(--secondary-button-disabled-text) 78%, transparent);
-  opacity: 0.82;
-  filter: saturate(0.82);
+  color: color-mix(in srgb, var(--secondary-button-disabled-text) 92%, white 8%);
+  opacity: 0.94;
+  filter: saturate(0.92) brightness(1.04);
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
@@ -4529,7 +4529,7 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .beta-value-grid.is-disabled {
-  opacity: 0.56;
+  opacity: 0.74;
   pointer-events: none;
 }
 
@@ -4540,9 +4540,9 @@ body[data-app-state="loading"] #app-shell {
   background: var(--secondary-button-disabled-bg);
   border: 1px solid var(--secondary-button-disabled-border);
   box-shadow: var(--secondary-button-disabled-shadow);
-  color: color-mix(in srgb, var(--secondary-button-disabled-text) 78%, transparent);
-  opacity: 0.84;
-  filter: saturate(0.84);
+  color: color-mix(in srgb, var(--secondary-button-disabled-text) 90%, white 10%);
+  opacity: 0.92;
+  filter: saturate(0.92) brightness(1.03);
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
@@ -4551,6 +4551,23 @@ body[data-app-state="loading"] #app-shell {
     color 0.2s ease,
     opacity 0.2s ease,
     filter 0.2s ease;
+}
+
+.secondary.beta-value-button.is-suit-value {
+  font-size: 1.42rem;
+  line-height: 1;
+  letter-spacing: 0;
+  font-weight: 800;
+}
+
+.secondary.beta-value-button.is-suit-value[data-value-key="hearts"],
+.secondary.beta-value-button.is-suit-value[data-value-key="diamonds"] {
+  color: color-mix(in srgb, #ffb2ba 78%, white 22%);
+}
+
+.secondary.beta-value-button.is-suit-value[data-value-key="clubs"],
+.secondary.beta-value-button.is-suit-value[data-value-key="spades"] {
+  color: rgba(246, 249, 255, 0.94);
 }
 
 .secondary.beta-value-button.active {
@@ -4566,6 +4583,10 @@ body[data-app-state="loading"] #app-shell {
   transform: translateY(-2px) scale(1.02);
   opacity: 1;
   filter: saturate(1.08);
+}
+
+.secondary.beta-value-button.is-suit-value.active {
+  font-size: 1.58rem;
 }
 
 .secondary.beta-value-button[data-category="color"][data-value-key="red"] {
@@ -7784,7 +7805,7 @@ body.theme-angelic {
 .carter-units {
   font-size: 0.82rem;
   font-weight: 700;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.68);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   line-height: 1;
