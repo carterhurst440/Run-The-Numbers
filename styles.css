@@ -17019,8 +17019,10 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card-hero 
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-dump-pip.active {
-  background: linear-gradient(90deg, rgba(76, 159, 255, 0.28), rgba(255, 225, 92, 0.16));
-  box-shadow: 0 0 8px rgba(255, 225, 92, 0.12);
+  background: linear-gradient(90deg, rgba(76, 159, 255, 0.82), rgba(255, 225, 92, 0.68));
+  box-shadow:
+    0 0 10px rgba(76, 159, 255, 0.22),
+    0 0 14px rgba(255, 225, 92, 0.24);
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card-price {
@@ -17235,29 +17237,32 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card h3 {
-    font-size: 0.66rem;
-    letter-spacing: 0.08em;
+    font-size: 0.58rem;
+    letter-spacing: 0.06em;
+    text-align: left;
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card p {
     min-height: 0.8rem;
     font-size: 0.52rem;
     line-height: 1.1;
+    text-align: left;
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card-price {
-    justify-self: center;
+    justify-self: start;
     font-size: clamp(0.92rem, 3.5vw, 1.08rem);
-    text-align: center;
+    text-align: left;
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card-meta {
-    justify-content: center;
+    justify-content: flex-start;
     gap: 0.2rem;
     font-size: 0.5rem;
     line-height: 1.15;
-    text-align: center;
+    text-align: left;
     flex-direction: column;
+    align-items: flex-start;
   }
 }
 
@@ -17267,12 +17272,14 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card h3 {
-    font-size: 0.58rem;
-    letter-spacing: 0.07em;
+    font-size: 0.5rem;
+    letter-spacing: 0.05em;
+    text-align: left;
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card p {
     font-size: 0.48rem;
+    text-align: left;
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card-hero {
@@ -17281,10 +17288,15 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card-price {
     font-size: 0.84rem;
+    justify-self: start;
+    text-align: left;
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card-meta {
     font-size: 0.46rem;
+    justify-content: flex-start;
+    text-align: left;
+    align-items: flex-start;
   }
 }
 
