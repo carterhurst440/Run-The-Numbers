@@ -15052,7 +15052,10 @@ body[data-theme-profile="main-app-comfort"] {
   --muted: #9da4b2;
 }
 
-body[data-theme-profile="main-app-comfort"] .header {
+body[data-theme-profile="main-app-comfort"] .header,
+body[data-theme-profile="rtn-green-room"] .header,
+body[data-theme-profile="guess-10-deep-blue"] .header,
+body[data-theme-profile="shape-traders-carbon"] .header {
   background: rgba(10, 11, 14, 0.92);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
@@ -15060,25 +15063,46 @@ body[data-theme-profile="main-app-comfort"] .header {
   -webkit-backdrop-filter: blur(18px);
 }
 
-body[data-theme-profile="main-app-comfort"] .header-bar {
+body[data-theme-profile="main-app-comfort"] .header-bar,
+body[data-theme-profile="rtn-green-room"] .header-bar,
+body[data-theme-profile="guess-10-deep-blue"] .header-bar,
+body[data-theme-profile="shape-traders-carbon"] .header-bar {
   width: min(1460px, 100%);
   margin: 0 auto;
   gap: 1rem;
 }
 
 body[data-theme-profile="main-app-comfort"] .bankroll,
-body[data-theme-profile="main-app-comfort"] .carter-cash {
+body[data-theme-profile="main-app-comfort"] .carter-cash,
+body[data-theme-profile="rtn-green-room"] .bankroll,
+body[data-theme-profile="rtn-green-room"] .carter-cash,
+body[data-theme-profile="guess-10-deep-blue"] .bankroll,
+body[data-theme-profile="guess-10-deep-blue"] .carter-cash,
+body[data-theme-profile="shape-traders-carbon"] .bankroll,
+body[data-theme-profile="shape-traders-carbon"] .carter-cash {
   padding: 0.25rem 0.1rem;
 }
 
 body[data-theme-profile="main-app-comfort"] .header-mode-select,
 body[data-theme-profile="main-app-comfort"] .icon-button,
-body[data-theme-profile="main-app-comfort"] .menu-toggle {
+body[data-theme-profile="main-app-comfort"] .menu-toggle,
+body[data-theme-profile="rtn-green-room"] .header-mode-select,
+body[data-theme-profile="rtn-green-room"] .icon-button,
+body[data-theme-profile="rtn-green-room"] .menu-toggle,
+body[data-theme-profile="guess-10-deep-blue"] .header-mode-select,
+body[data-theme-profile="guess-10-deep-blue"] .icon-button,
+body[data-theme-profile="guess-10-deep-blue"] .menu-toggle,
+body[data-theme-profile="shape-traders-carbon"] .header-mode-select,
+body[data-theme-profile="shape-traders-carbon"] .icon-button,
+body[data-theme-profile="shape-traders-carbon"] .menu-toggle {
   border-radius: 999px;
   background: #171920;
 }
 
-body[data-theme-profile="main-app-comfort"] .header-mode-select {
+body[data-theme-profile="main-app-comfort"] .header-mode-select,
+body[data-theme-profile="rtn-green-room"] .header-mode-select,
+body[data-theme-profile="guess-10-deep-blue"] .header-mode-select,
+body[data-theme-profile="shape-traders-carbon"] .header-mode-select {
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow: none;
   padding: 0.68rem 2.2rem 0.68rem 1rem;
@@ -15086,7 +15110,13 @@ body[data-theme-profile="main-app-comfort"] .header-mode-select {
 }
 
 body[data-theme-profile="main-app-comfort"] .icon-button,
-body[data-theme-profile="main-app-comfort"] .menu-toggle {
+body[data-theme-profile="main-app-comfort"] .menu-toggle,
+body[data-theme-profile="rtn-green-room"] .icon-button,
+body[data-theme-profile="rtn-green-room"] .menu-toggle,
+body[data-theme-profile="guess-10-deep-blue"] .icon-button,
+body[data-theme-profile="guess-10-deep-blue"] .menu-toggle,
+body[data-theme-profile="shape-traders-carbon"] .icon-button,
+body[data-theme-profile="shape-traders-carbon"] .menu-toggle {
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: none;
 }
