@@ -16981,30 +16981,24 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card.is-go
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card.is-cyan::after {
-  background:
-    linear-gradient(90deg, rgba(76, 159, 255, 0.9), rgba(76, 159, 255, 0.22) 46%, transparent 78%),
-    radial-gradient(circle at 18% 0%, rgba(76, 159, 255, 0.18), transparent 32%);
-  background-repeat: no-repeat;
-  background-size: calc(100% - 1.2rem) 2px, 100% 100%;
-  background-position: 0.6rem 0.55rem, center;
+  background: #4c9fff;
+  inset: 0.5rem 0.6rem auto;
+  height: 3px;
+  border-radius: 999px;
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card.is-magenta::after {
-  background:
-    linear-gradient(90deg, rgba(255, 74, 211, 0.9), rgba(255, 74, 211, 0.22) 46%, transparent 78%),
-    radial-gradient(circle at 18% 0%, rgba(255, 74, 211, 0.18), transparent 32%);
-  background-repeat: no-repeat;
-  background-size: calc(100% - 1.2rem) 2px, 100% 100%;
-  background-position: 0.6rem 0.55rem, center;
+  background: #ff4ad3;
+  inset: 0.5rem 0.6rem auto;
+  height: 3px;
+  border-radius: 999px;
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card.is-gold::after {
-  background:
-    linear-gradient(90deg, rgba(255, 225, 92, 0.9), rgba(255, 225, 92, 0.22) 46%, transparent 78%),
-    radial-gradient(circle at 18% 0%, rgba(255, 225, 92, 0.16), transparent 32%);
-  background-repeat: no-repeat;
-  background-size: calc(100% - 1.2rem) 2px, 100% 100%;
-  background-position: 0.6rem 0.55rem, center;
+  background: #ffe15c;
+  inset: 0.5rem 0.6rem auto;
+  height: 3px;
+  border-radius: 999px;
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card-head {
@@ -17235,23 +17229,21 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card.is-cyan::after,
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card.is-magenta::after,
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card.is-gold::after {
-    inset: 0;
-    border-radius: calc(1rem - 0.12rem);
+    inset: 0.42rem 0.45rem auto;
+    height: 3px;
+    border-radius: 999px;
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card.is-cyan::after {
-    background-size: calc(100% - 0.9rem) 2px, 100% 100%;
-    background-position: 0.45rem 0.48rem, center;
+    background: #4c9fff;
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card.is-magenta::after {
-    background-size: calc(100% - 0.9rem) 2px, 100% 100%;
-    background-position: 0.45rem 0.48rem, center;
+    background: #ff4ad3;
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card.is-gold::after {
-    background-size: calc(100% - 0.9rem) 2px, 100% 100%;
-    background-position: 0.45rem 0.48rem, center;
+    background: #ffe15c;
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card h3 {
