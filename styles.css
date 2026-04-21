@@ -3437,10 +3437,6 @@ body[data-app-state="loading"] #app-shell {
   order: 2;
 }
 
-.shape-traders-market-chart-button {
-  flex-shrink: 0;
-}
-
 #shape-traders-chart-title.is-cyan {
   color: #4c9fff;
 }
@@ -17223,7 +17219,8 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
 @media (max-width: 768px) {
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card {
     gap: 0.45rem;
-    padding: 0.72rem 0.52rem 0.72rem;
+    min-height: 12rem;
+    padding: 0.88rem 0.52rem 0.96rem;
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card.is-cyan::after,
@@ -17278,7 +17275,8 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
 
 @media (max-width: 560px) {
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card {
-    padding: 0.62rem 0.42rem 0.68rem;
+    min-height: 11rem;
+    padding: 0.76rem 0.42rem 0.86rem;
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card h3 {

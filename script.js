@@ -6724,14 +6724,9 @@ function renderShapeTraderOpenChart() {
   }
   const visibleSeries = getShapeTraderVisibleSeries(shapeTradersOpenChartSeries);
   const visibleCount = visibleSeries.length;
-  if (shapeTradersOpenChartAssetId === "market") {
-    shapeTradersChartSubtitleEl.textContent = `Combined Square, Triangle, and Circle price movement measured by draw. Showing the last ${visibleCount} move${visibleCount === 1 ? "" : "s"}. Pinch or trackpad-pinch to zoom.`;
-    shapeTradersChartSurfaceEl.innerHTML = renderShapeTraderMarketChartSvg(visibleSeries);
-  } else {
-    const asset = getShapeTraderAssetConfig(shapeTradersOpenChartAssetId);
-    shapeTradersChartSubtitleEl.textContent = `${asset.label} price movement measured by draw. Showing the last ${visibleCount} move${visibleCount === 1 ? "" : "s"}. Pinch or trackpad-pinch to zoom.`;
-    shapeTradersChartSurfaceEl.innerHTML = renderShapeTraderChartSvg(asset.id, visibleSeries);
-  }
+  const asset = getShapeTraderAssetConfig(shapeTradersOpenChartAssetId);
+  shapeTradersChartSubtitleEl.textContent = `${asset.label} price movement measured by draw. Showing the last ${visibleCount} move${visibleCount === 1 ? "" : "s"}. Pinch or trackpad-pinch to zoom.`;
+  shapeTradersChartSurfaceEl.innerHTML = renderShapeTraderChartSvg(asset.id, visibleSeries);
   if (shapeTradersChartZoomInButton) {
     shapeTradersChartZoomInButton.disabled = visibleCount >= shapeTradersOpenChartSeries.length;
   }
@@ -6742,28 +6737,6 @@ function renderShapeTraderOpenChart() {
 
 function appendShapeTraderChartPoint(drawRow, transitions = []) {
   if (!shapeTradersOpenChartAssetId || !Array.isArray(transitions) || !transitions.length) {
-    return;
-  }
-
-  if (shapeTradersOpenChartAssetId === "market") {
-    if (!drawRow?.draw_id) {
-      return;
-    }
-    const nextPoint = {
-      draw: Number(drawRow.draw_id),
-      square: roundCurrencyValue(Number(drawRow?.new_square_price || shapeTradersCurrentPrices.square || SHAPE_TRADERS_START_PRICE)),
-      triangle: roundCurrencyValue(Number(drawRow?.new_triangle_price || shapeTradersCurrentPrices.triangle || SHAPE_TRADERS_START_PRICE)),
-      circle: roundCurrencyValue(Number(drawRow?.new_circle_price || shapeTradersCurrentPrices.circle || SHAPE_TRADERS_START_PRICE))
-    };
-    const existingIndex = shapeTradersOpenChartSeries.findIndex((point) => Number(point.draw || 0) === nextPoint.draw);
-    if (existingIndex >= 0) {
-      shapeTradersOpenChartSeries[existingIndex] = nextPoint;
-    } else {
-      shapeTradersOpenChartSeries = [...shapeTradersOpenChartSeries, nextPoint]
-        .sort((left, right) => left.draw - right.draw)
-        .slice(-SHAPE_TRADERS_CHART_HISTORY_LIMIT);
-    }
-    renderShapeTraderOpenChart();
     return;
   }
 
@@ -6887,57 +6860,6 @@ async function loadShapeTraderPriceSeries(assetId) {
   return lastResetIndex >= 0 ? mappedRows.slice(lastResetIndex) : mappedRows;
 }
 
-async function loadShapeTraderCombinedPriceSeries() {
-  let rows = [];
-
-  if (supabase && shapeTradersDrawPersistenceAvailable) {
-    try {
-      const response = await supabase
-        .from("shape_trader_draws")
-        .select("draw_id,new_square_price,new_triangle_price,new_circle_price")
-        .order("draw_id", { ascending: false })
-        .limit(SHAPE_TRADERS_CHART_HISTORY_LIMIT);
-      if (response?.error) {
-        if (isMissingRelationError(response.error, "shape_trader_draws")) {
-          shapeTradersDrawPersistenceAvailable = false;
-        } else {
-          throw response.error;
-        }
-      } else {
-        rows = (Array.isArray(response?.data) ? [...response.data].reverse() : [])
-          .map((row) => {
-            const square = Number(row?.new_square_price);
-            const triangle = Number(row?.new_triangle_price);
-            const circle = Number(row?.new_circle_price);
-            if (![square, triangle, circle].every(Number.isFinite)) {
-              return null;
-            }
-            return {
-              draw: Number(row.draw_id || 0),
-              square: roundCurrencyValue(square),
-              triangle: roundCurrencyValue(triangle),
-              circle: roundCurrencyValue(circle)
-            };
-          })
-          .filter(Boolean);
-      }
-    } catch (error) {
-      console.error("[RTN] Unable to load Shape Traders combined price series", error);
-    }
-  }
-
-  if (!rows.length) {
-    rows = [{
-      draw: 0,
-      square: roundCurrencyValue(Number(shapeTradersCurrentPrices.square || SHAPE_TRADERS_START_PRICE)),
-      triangle: roundCurrencyValue(Number(shapeTradersCurrentPrices.triangle || SHAPE_TRADERS_START_PRICE)),
-      circle: roundCurrencyValue(Number(shapeTradersCurrentPrices.circle || SHAPE_TRADERS_START_PRICE))
-    }];
-  }
-
-  return rows;
-}
-
 function getShapeTraderVisibleSeries(series) {
   if (!Array.isArray(series) || !series.length) {
     return [];
@@ -7016,67 +6938,6 @@ function renderShapeTraderChartSvg(assetId, series) {
   `;
 }
 
-function renderShapeTraderMarketChartSvg(series) {
-  if (!Array.isArray(series) || !series.length) {
-    return '<div class="shape-traders-chart-empty">No market history yet.</div>';
-  }
-
-  const width = 760;
-  const height = 288;
-  const padding = { top: 34, right: 28, bottom: 42, left: 82 };
-  const assetKeys = ["square", "triangle", "circle"];
-  const priceValues = series.flatMap((point) => assetKeys.map((assetId) => Number(point?.[assetId] || 0)));
-  const draws = series.map((point) => Number(point.draw || 0));
-  const minPrice = Math.min(...priceValues);
-  const maxPrice = Math.max(...priceValues);
-  const safeMin = minPrice === maxPrice ? Math.max(0, minPrice - 1) : minPrice;
-  const safeMax = minPrice === maxPrice ? maxPrice + 1 : maxPrice;
-  const chartWidth = width - padding.left - padding.right;
-  const chartHeight = height - padding.top - padding.bottom;
-  const xForIndex = (index) => padding.left + (series.length === 1 ? chartWidth / 2 : (index / (series.length - 1)) * chartWidth);
-  const yForPrice = (price) => padding.top + (1 - ((price - safeMin) / Math.max(1, safeMax - safeMin))) * chartHeight;
-  const yTicks = [safeMin, safeMin + ((safeMax - safeMin) / 2), safeMax].map((value) => roundCurrencyValue(value));
-  const legendItems = SHAPE_TRADERS_ASSETS.map((asset, index) => `
-    <g transform="translate(${padding.left + (index * 136)}, 16)">
-      <line class="shape-traders-chart-line is-${asset.accent}" x1="0" y1="0" x2="24" y2="0"></line>
-      <text class="shape-traders-chart-legend-label" x="34" y="5">${asset.label}</text>
-    </g>
-  `).join("");
-
-  const lineMarkup = SHAPE_TRADERS_ASSETS.map((asset) => {
-    const points = series.map((point, index) => ({
-      x: xForIndex(index),
-      y: yForPrice(Number(point?.[asset.id] || 0)),
-      price: roundCurrencyValue(Number(point?.[asset.id] || 0))
-    }));
-    const linePath = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
-    const lastPoint = points[points.length - 1];
-    return `
-      <path class="shape-traders-chart-line is-${asset.accent}" d="${linePath}"></path>
-      ${points.map((point) => `
-        <circle class="shape-traders-chart-point is-${asset.accent}" cx="${point.x}" cy="${point.y}" r="3.6"></circle>
-      `).join("")}
-      <text class="shape-traders-chart-point-label is-${asset.accent}" x="${lastPoint.x}" y="${lastPoint.y - 12}" text-anchor="middle">${formatCurrency(lastPoint.price)}</text>
-    `;
-  }).join("");
-
-  return `
-    <svg class="shape-traders-chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Shape Traders combined asset price history by draw">
-      ${legendItems}
-      ${yTicks.map((value) => {
-        const y = yForPrice(value);
-        return `
-          <line class="shape-traders-chart-grid-line" x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}"></line>
-          <text class="shape-traders-chart-axis-label" x="${padding.left - 12}" y="${y + 5}" text-anchor="end">${formatCurrency(value)}</text>
-        `;
-      }).join("")}
-      ${lineMarkup}
-      <text class="shape-traders-chart-axis-label" x="${padding.left}" y="${height - 10}" text-anchor="start">Draw ${draws[0]}</text>
-      <text class="shape-traders-chart-axis-label" x="${width - padding.right}" y="${height - 10}" text-anchor="end">Draw ${draws[draws.length - 1]}</text>
-    </svg>
-  `;
-}
-
 async function openShapeTraderChart(assetId) {
   if (!shapeTradersChartModal || !shapeTradersChartSurfaceEl || !shapeTradersChartTitleEl || !shapeTradersChartSubtitleEl) {
     return;
@@ -7084,20 +6945,13 @@ async function openShapeTraderChart(assetId) {
 
   shapeTradersOpenChartAssetId = assetId;
   shapeTradersChartTitleEl.classList.remove("is-cyan", "is-magenta", "is-gold");
-  if (assetId === "market") {
-    if (shapeTradersChartSymbolEl) {
-      shapeTradersChartSymbolEl.hidden = true;
-    }
-    shapeTradersChartTitleEl.textContent = "Market Price Chart";
-  } else {
-    const asset = getShapeTraderAssetConfig(assetId);
-    if (shapeTradersChartSymbolEl) {
-      shapeTradersChartSymbolEl.hidden = false;
-      shapeTradersChartSymbolEl.className = `shape-traders-shape-icon shape-${asset.icon}`;
-    }
-    shapeTradersChartTitleEl.classList.add(`is-${asset.accent}`);
-    shapeTradersChartTitleEl.textContent = `${asset.label} Price Chart`;
+  const asset = getShapeTraderAssetConfig(assetId);
+  if (shapeTradersChartSymbolEl) {
+    shapeTradersChartSymbolEl.hidden = false;
+    shapeTradersChartSymbolEl.className = `shape-traders-shape-icon shape-${asset.icon}`;
   }
+  shapeTradersChartTitleEl.classList.add(`is-${asset.accent}`);
+  shapeTradersChartTitleEl.textContent = `${asset.label} Price Chart`;
   shapeTradersChartSubtitleEl.textContent = "Price movement measured in draws.";
   shapeTradersChartSurfaceEl.innerHTML = '<div class="shape-traders-chart-empty">Loading chart…</div>';
   shapeTradersChartVisibleCount = SHAPE_TRADERS_CHART_DEFAULT_VISIBLE_COUNT;
@@ -7107,9 +6961,7 @@ async function openShapeTraderChart(assetId) {
   shapeTradersChartModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
 
-  const series = assetId === "market"
-    ? await loadShapeTraderCombinedPriceSeries()
-    : await loadShapeTraderPriceSeries(assetId);
+  const series = await loadShapeTraderPriceSeries(assetId);
   if (shapeTradersOpenChartAssetId !== assetId) {
     return;
   }
@@ -16637,7 +16489,6 @@ const shapeTradersTradeBodyEl = document.getElementById("shape-traders-trade-bod
 const shapeTradersTradeHintEl = document.querySelector(".shape-traders-trade-sheet-hint");
 const shapeTradersLiquidateButton = document.getElementById("shape-traders-liquidate-nav");
 const shapeTradersMarketResetButton = document.getElementById("shape-traders-market-reset");
-const shapeTradersMarketChartButton = document.getElementById("shape-traders-market-chart-button");
 const shapeTradersAdminTestControls = document.getElementById("shape-traders-admin-test-controls");
 const shapeTradersAdminAssetSelectorEl = document.getElementById("shape-traders-admin-asset-selector");
 const shapeTradersAdminPriceInput = document.getElementById("shape-traders-admin-price-input");
@@ -30817,12 +30668,6 @@ if (shapeTradersMarketGridEl) {
 
   shapeTradersMarketGridEl.addEventListener("pointerdown", openChartFromMarketButton);
   shapeTradersMarketGridEl.addEventListener("click", openChartFromMarketButton);
-}
-
-if (shapeTradersMarketChartButton) {
-  shapeTradersMarketChartButton.addEventListener("click", () => {
-    void openShapeTraderChart("market");
-  });
 }
 
 if (shapeTradersDeckButton) {
