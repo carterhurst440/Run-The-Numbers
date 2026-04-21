@@ -1824,10 +1824,10 @@ body[data-app-state="loading"] #app-shell {
   min-width: 0;
   padding: 0.7rem 0.9rem;
   border-radius: 1.1rem;
-  border: 1px solid color-mix(in srgb, var(--gold) 18%, var(--header-border-color) 82%);
+  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.14) 68%, var(--header-border-color) 32%);
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--gold) 8%, transparent), transparent 48%),
-    color-mix(in srgb, var(--header-gradient) 88%, transparent);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.03), transparent 48%),
+    color-mix(in srgb, var(--header-gradient) 84%, rgba(255, 255, 255, 0.02));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
