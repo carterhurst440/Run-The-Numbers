@@ -3221,6 +3221,79 @@ body[data-app-state="loading"] #app-shell {
   letter-spacing: 0.06rem;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 0.14s ease,
+    box-shadow 0.18s ease,
+    filter 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.shape-traders-trade-bar .shape-traders-trade-actions button:not(.is-unavailable):not(:disabled) {
+  color: #effcff;
+  text-shadow: 0 0 12px rgba(92, 226, 255, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 16px 30px rgba(8, 10, 24, 0.28);
+}
+
+.shape-traders-trade-bar .shape-traders-trade-actions button:not(.is-unavailable):not(:disabled)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 0%, rgba(255, 255, 255, 0.14) 48%, transparent 100%);
+  transform: translateX(-140%);
+  opacity: 0;
+  transition: transform 0.22s ease, opacity 0.22s ease;
+  pointer-events: none;
+}
+
+.shape-traders-trade-bar .shape-traders-trade-actions button:not(.is-unavailable):not(:disabled):hover::before,
+.shape-traders-trade-bar .shape-traders-trade-actions button:not(.is-unavailable):not(:disabled):focus-visible::before {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.shape-traders-trade-bar #shape-traders-buy-button:not(.is-unavailable):not(:disabled) {
+  border-color: rgba(92, 230, 255, 0.5);
+  background:
+    linear-gradient(135deg, rgba(82, 235, 255, 0.28), rgba(69, 165, 255, 0.18)),
+    linear-gradient(180deg, rgba(15, 24, 42, 0.98), rgba(10, 15, 28, 0.98));
+  box-shadow:
+    inset 0 0 0 1px rgba(92, 230, 255, 0.16),
+    0 18px 34px rgba(47, 174, 255, 0.16);
+}
+
+.shape-traders-trade-bar #shape-traders-sell-button:not(.is-unavailable):not(:disabled) {
+  border-color: rgba(204, 112, 255, 0.52);
+  background:
+    linear-gradient(135deg, rgba(206, 108, 255, 0.24), rgba(255, 92, 214, 0.18)),
+    linear-gradient(180deg, rgba(22, 15, 42, 0.98), rgba(12, 10, 28, 0.98));
+  box-shadow:
+    inset 0 0 0 1px rgba(208, 112, 255, 0.16),
+    0 18px 34px rgba(189, 98, 255, 0.16);
+}
+
+.shape-traders-trade-bar #shape-traders-buy-button:not(.is-unavailable):not(:disabled):hover,
+.shape-traders-trade-bar #shape-traders-buy-button:not(.is-unavailable):not(:disabled):focus-visible {
+  border-color: rgba(125, 238, 255, 0.72);
+  box-shadow:
+    inset 0 0 0 1px rgba(125, 238, 255, 0.22),
+    0 20px 38px rgba(47, 174, 255, 0.22),
+    0 0 20px rgba(82, 235, 255, 0.1);
+}
+
+.shape-traders-trade-bar #shape-traders-sell-button:not(.is-unavailable):not(:disabled):hover,
+.shape-traders-trade-bar #shape-traders-sell-button:not(.is-unavailable):not(:disabled):focus-visible {
+  border-color: rgba(223, 143, 255, 0.72);
+  box-shadow:
+    inset 0 0 0 1px rgba(223, 143, 255, 0.22),
+    0 20px 38px rgba(189, 98, 255, 0.22),
+    0 0 20px rgba(255, 92, 214, 0.1);
 }
 
 .shape-traders-trade-bar .shape-traders-trade-actions button.is-pressing {
@@ -3233,12 +3306,16 @@ body[data-app-state="loading"] #app-shell {
 
 .shape-traders-trade-bar .shape-traders-trade-actions button.is-unavailable,
 .shape-traders-trade-bar .shape-traders-trade-actions button[aria-disabled="true"]:not(:disabled) {
-  opacity: 1;
-  color: var(--primary-button-disabled-text, rgba(255, 255, 255, 0.98));
-  -webkit-text-fill-color: var(--primary-button-disabled-text, rgba(255, 255, 255, 0.98));
-  border-color: var(--primary-button-disabled-border, color-mix(in srgb, var(--gold) 34%, var(--secondary-button-border) 66%));
-  background: var(--primary-button-disabled-bg, linear-gradient(135deg, color-mix(in srgb, var(--gold) 28%, white 72%), color-mix(in srgb, var(--menu-bg) 14%, white 86%)));
-  box-shadow: var(--primary-button-disabled-shadow, inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 10px 24px rgba(0, 0, 0, 0.16));
+  opacity: 0.72;
+  color: rgba(196, 203, 220, 0.72);
+  -webkit-text-fill-color: rgba(196, 203, 220, 0.72);
+  border-color: rgba(125, 135, 168, 0.18);
+  background:
+    linear-gradient(180deg, rgba(36, 40, 58, 0.86), rgba(19, 22, 34, 0.94)),
+    rgba(18, 20, 29, 0.92);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 8px 18px rgba(0, 0, 0, 0.14);
   filter: none;
   text-shadow: none;
 }
@@ -3248,7 +3325,9 @@ body[data-app-state="loading"] #app-shell {
 .shape-traders-trade-bar .shape-traders-trade-actions button[aria-disabled="true"]:not(:disabled):hover,
 .shape-traders-trade-bar .shape-traders-trade-actions button[aria-disabled="true"]:not(:disabled):focus-visible {
   transform: none;
-  box-shadow: var(--primary-button-disabled-shadow, inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 10px 24px rgba(0, 0, 0, 0.16));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 8px 18px rgba(0, 0, 0, 0.14);
 }
 
 .shape-traders-trade-bar.is-collapsed {
@@ -15477,6 +15556,159 @@ body[data-theme-profile="main-app-comfort"] .home-button,
 body[data-theme-profile="main-app-comfort"] .primary,
 body[data-theme-profile="main-app-comfort"] .deal {
   box-shadow: none;
+}
+
+body[data-theme-profile="main-app-comfort"] .home-hero-play-button {
+  min-width: clamp(14rem, 28vw, 18rem);
+  padding: 1.08rem 2.2rem;
+  border-radius: 1.35rem;
+  border: 1px solid rgba(172, 133, 255, 0.36);
+  background:
+    linear-gradient(135deg, rgba(149, 94, 255, 0.96), rgba(101, 214, 255, 0.92)),
+    #1a1c24;
+  color: #f7fbff;
+  letter-spacing: 0.16em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 18px 40px rgba(74, 102, 255, 0.22);
+  animation: none;
+}
+
+body[data-theme-profile="main-app-comfort"] .home-hero-play-button::before {
+  background:
+    linear-gradient(
+      115deg,
+      transparent 0%,
+      transparent 34%,
+      rgba(255, 255, 255, 0.3) 49%,
+      transparent 64%,
+      transparent 100%
+    );
+  animation: homeHeroShimmer 4.4s ease-in-out infinite;
+  opacity: 0.9;
+}
+
+body[data-theme-profile="main-app-comfort"] .home-hero-play-button:hover,
+body[data-theme-profile="main-app-comfort"] .home-hero-play-button:focus-visible {
+  transform: translateY(-4px) scale(1.01);
+  border-color: rgba(206, 181, 255, 0.54);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 24px 48px rgba(74, 102, 255, 0.28),
+    0 0 26px rgba(141, 92, 255, 0.16);
+}
+
+body[data-theme-profile="main-app-comfort"] .home-hero-play-button:active {
+  transform: translateY(-1px) scale(0.995);
+}
+
+body[data-theme-profile="main-app-comfort"] .auth-view,
+body[data-theme-profile="main-app-comfort"] .auth-callback-view {
+  background:
+    radial-gradient(circle at 18% 14%, rgba(141, 92, 255, 0.16), transparent 28%),
+    radial-gradient(circle at 82% 12%, rgba(97, 214, 255, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 14%),
+    #0d0f14;
+}
+
+body[data-theme-profile="main-app-comfort"] .auth-card,
+body[data-theme-profile="main-app-comfort"] .auth-callback-card {
+  background:
+    radial-gradient(circle at top right, rgba(146, 96, 255, 0.16), transparent 24%),
+    linear-gradient(180deg, rgba(30, 32, 40, 0.96), rgba(17, 19, 25, 0.98)),
+    #16181e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.7rem;
+  box-shadow:
+    0 28px 70px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+body[data-theme-profile="main-app-comfort"] .auth-card h1 {
+  font-family: "Sora", "Inter", system-ui, sans-serif;
+  font-size: clamp(1.85rem, 4vw, 2.3rem);
+  letter-spacing: -0.04em;
+  text-transform: none;
+  color: #f5f7fb;
+}
+
+body[data-theme-profile="main-app-comfort"] .auth-description,
+body[data-theme-profile="main-app-comfort"] .auth-switch {
+  color: rgba(221, 226, 236, 0.72);
+}
+
+body[data-theme-profile="main-app-comfort"] .auth-form {
+  gap: 0.9rem;
+}
+
+body[data-theme-profile="main-app-comfort"] .auth-form label {
+  font-size: 0.84rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(177, 187, 205, 0.8);
+}
+
+body[data-theme-profile="main-app-comfort"] .auth-form input {
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+    #12141a;
+  color: #f5f7fb;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+body[data-theme-profile="main-app-comfort"] .auth-form input:focus {
+  border-color: rgba(143, 198, 255, 0.46);
+  box-shadow:
+    0 0 0 3px rgba(141, 92, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+body[data-theme-profile="main-app-comfort"] .auth-form button {
+  min-height: 3.35rem;
+  margin-top: 0.7rem;
+  border-radius: 1.15rem;
+  border: 1px solid rgba(173, 135, 255, 0.34);
+  background:
+    linear-gradient(135deg, rgba(148, 95, 255, 0.96), rgba(103, 214, 255, 0.9)),
+    #1a1c24;
+  color: #f8fbff;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 16px 34px rgba(87, 102, 255, 0.22);
+}
+
+body[data-theme-profile="main-app-comfort"] .auth-form button:hover:not(:disabled),
+body[data-theme-profile="main-app-comfort"] .auth-form button:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(205, 182, 255, 0.46);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 22px 42px rgba(87, 102, 255, 0.28),
+    0 0 20px rgba(141, 92, 255, 0.12);
+}
+
+body[data-theme-profile="main-app-comfort"] .auth-form button:disabled {
+  opacity: 0.62;
+  box-shadow: none;
+}
+
+body[data-theme-profile="main-app-comfort"] .auth-switch-button,
+body[data-theme-profile="main-app-comfort"] .auth-inline-link {
+  color: #b998ff;
+  font-weight: 700;
+}
+
+body[data-theme-profile="main-app-comfort"] .auth-switch-button:hover,
+body[data-theme-profile="main-app-comfort"] .auth-switch-button:focus-visible,
+body[data-theme-profile="main-app-comfort"] .auth-inline-link:hover,
+body[data-theme-profile="main-app-comfort"] .auth-inline-link:focus-visible {
+  color: #d7c1ff;
 }
 
 body[data-theme-profile="main-app-comfort"] .drawer {

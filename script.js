@@ -20802,6 +20802,10 @@ function getCurrentPlayAssistantGameKey() {
   return getGameKeyForRoute(currentRoute) || GAME_KEYS.RUN_THE_NUMBERS;
 }
 
+function isShapeTradersPlayAssistantContext() {
+  return getCurrentPlayAssistantGameKey() === GAME_KEYS.SHAPE_TRADERS;
+}
+
 function getPlayAssistantConfig(gameKey = getCurrentPlayAssistantGameKey()) {
   return PLAY_ASSISTANT_CONFIG[resolveGameKey(gameKey)] || PLAY_ASSISTANT_CONFIG[GAME_KEYS.RUN_THE_NUMBERS];
 }
@@ -21603,7 +21607,7 @@ function renderPlayAssistantRules() {
   if (!playAssistantRulesEl || !playAssistantRulesListEl || !playAssistantRulesToggleEl || !playAssistantRulesLabelEl) {
     return;
   }
-  const shouldShow = getCurrentPlayAssistantGameKey() === GAME_KEYS.SHAPE_TRADERS;
+  const shouldShow = isShapeTradersPlayAssistantContext();
   const updateRuleBadge = (count = 0) => {
     if (!playAssistantRuleBadgeEl) return;
     const safeCount = Math.max(0, Math.round(Number(count || 0)));
@@ -22028,7 +22032,7 @@ async function getPlayAssistantState() {
 
 function updatePlayAssistantContext() {
   if (!playAssistantContextEl) return;
-  if (getCurrentPlayAssistantGameKey() === GAME_KEYS.SHAPE_TRADERS) {
+  if (isShapeTradersPlayAssistantContext()) {
     ensureShapeTraderAssistantRulesLoaded();
     const liveRules = shapeTradersAssistantRules.filter((rule) => rule.enabled).length;
     playAssistantContextEl.textContent = `${liveRules} live rule${liveRules === 1 ? "" : "s"} · account value ${formatCurrency(getShapeTraderAccountValue())}`;
@@ -22044,7 +22048,7 @@ function updatePlayAssistantRuleBadge() {
   if (!playAssistantRuleBadgeEl) {
     return;
   }
-  const isShapeTraders = getCurrentPlayAssistantGameKey() === GAME_KEYS.SHAPE_TRADERS;
+  const isShapeTraders = isShapeTradersPlayAssistantContext();
   if (isShapeTraders) {
     ensureShapeTraderAssistantRulesLoaded();
   }
@@ -22397,7 +22401,11 @@ function renderPlayAssistantThread() {
       article.appendChild(planWrap);
     }
 
-    if (message.ruleDraft && (message.ruleDraft.clearAll || message.ruleDraft.rules?.length)) {
+    if (
+      isShapeTradersPlayAssistantContext() &&
+      message.ruleDraft &&
+      (message.ruleDraft.clearAll || message.ruleDraft.rules?.length)
+    ) {
       const draftWrap = document.createElement("div");
       draftWrap.className = "play-assistant-rule-draft";
       const listMarkup = message.ruleDraft.clearAll
