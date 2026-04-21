@@ -15097,6 +15097,7 @@ body[data-theme-profile="shape-traders-carbon"] .icon-button,
 body[data-theme-profile="shape-traders-carbon"] .menu-toggle {
   border-radius: 999px;
   background: #171920;
+  color: rgba(241, 244, 251, 0.92);
 }
 
 body[data-theme-profile="main-app-comfort"] .header-mode-select,
@@ -15107,6 +15108,38 @@ body[data-theme-profile="shape-traders-carbon"] .header-mode-select {
   box-shadow: none;
   padding: 0.68rem 2.2rem 0.68rem 1rem;
   font-size: 0.76rem;
+}
+
+body[data-theme-profile="main-app-comfort"] .header-mode-select:hover,
+body[data-theme-profile="main-app-comfort"] .header-mode-select:focus-visible,
+body[data-theme-profile="main-app-comfort"] .icon-button:hover,
+body[data-theme-profile="main-app-comfort"] .icon-button:focus-visible,
+body[data-theme-profile="main-app-comfort"] .menu-toggle:hover,
+body[data-theme-profile="main-app-comfort"] .menu-toggle:focus-visible,
+body[data-theme-profile="rtn-green-room"] .header-mode-select:hover,
+body[data-theme-profile="rtn-green-room"] .header-mode-select:focus-visible,
+body[data-theme-profile="rtn-green-room"] .icon-button:hover,
+body[data-theme-profile="rtn-green-room"] .icon-button:focus-visible,
+body[data-theme-profile="rtn-green-room"] .menu-toggle:hover,
+body[data-theme-profile="rtn-green-room"] .menu-toggle:focus-visible,
+body[data-theme-profile="guess-10-deep-blue"] .header-mode-select:hover,
+body[data-theme-profile="guess-10-deep-blue"] .header-mode-select:focus-visible,
+body[data-theme-profile="guess-10-deep-blue"] .icon-button:hover,
+body[data-theme-profile="guess-10-deep-blue"] .icon-button:focus-visible,
+body[data-theme-profile="guess-10-deep-blue"] .menu-toggle:hover,
+body[data-theme-profile="guess-10-deep-blue"] .menu-toggle:focus-visible,
+body[data-theme-profile="shape-traders-carbon"] .header-mode-select:hover,
+body[data-theme-profile="shape-traders-carbon"] .header-mode-select:focus-visible,
+body[data-theme-profile="shape-traders-carbon"] .icon-button:hover,
+body[data-theme-profile="shape-traders-carbon"] .icon-button:focus-visible,
+body[data-theme-profile="shape-traders-carbon"] .menu-toggle:hover,
+body[data-theme-profile="shape-traders-carbon"] .menu-toggle:focus-visible {
+  border-color: rgba(255, 255, 255, 0.16);
+  background:
+    radial-gradient(circle at top, rgba(150, 96, 255, 0.18), transparent 70%),
+    #1b1f27;
+  color: #ffffff;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
 }
 
 body[data-theme-profile="main-app-comfort"] .icon-button,
@@ -15285,16 +15318,219 @@ body[data-theme-profile="main-app-comfort"] .drawer {
   -webkit-backdrop-filter: blur(18px);
 }
 
+body[data-theme-profile="main-app-comfort"] .drawer,
+body[data-theme-profile="rtn-green-room"] .drawer,
+body[data-theme-profile="guess-10-deep-blue"] .drawer,
+body[data-theme-profile="shape-traders-carbon"] .drawer {
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(19, 21, 28, 0.98), rgba(12, 14, 19, 0.98)),
+    rgba(16, 18, 23, 0.96);
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.44);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
 body[data-theme-profile="main-app-comfort"] .drawer-header h2,
-body[data-theme-profile="main-app-comfort"] .drawer-section h3 {
+body[data-theme-profile="main-app-comfort"] .drawer-section h3,
+body[data-theme-profile="rtn-green-room"] .drawer-header h2,
+body[data-theme-profile="rtn-green-room"] .drawer-section h3,
+body[data-theme-profile="guess-10-deep-blue"] .drawer-header h2,
+body[data-theme-profile="guess-10-deep-blue"] .drawer-section h3,
+body[data-theme-profile="shape-traders-carbon"] .drawer-header h2,
+body[data-theme-profile="shape-traders-carbon"] .drawer-section h3 {
   color: rgba(244, 246, 252, 0.94);
   text-transform: none;
   letter-spacing: -0.02em;
 }
 
 body[data-theme-profile="main-app-comfort"] .drawer-section,
-body[data-theme-profile="main-app-comfort"] .drawer-rank-summary {
+body[data-theme-profile="main-app-comfort"] .drawer-rank-summary,
+body[data-theme-profile="rtn-green-room"] .drawer-section,
+body[data-theme-profile="rtn-green-room"] .drawer-rank-summary,
+body[data-theme-profile="guess-10-deep-blue"] .drawer-section,
+body[data-theme-profile="guess-10-deep-blue"] .drawer-rank-summary,
+body[data-theme-profile="shape-traders-carbon"] .drawer-section,
+body[data-theme-profile="shape-traders-carbon"] .drawer-rank-summary {
   border-radius: 1.2rem;
+  border-color: rgba(255, 255, 255, 0.07);
+  background:
+    linear-gradient(180deg, rgba(31, 34, 43, 0.94), rgba(20, 22, 30, 0.96)),
+    #171a20;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 12px 28px rgba(0, 0, 0, 0.22);
+}
+
+body[data-theme-profile="main-app-comfort"] .drawer-link,
+body[data-theme-profile="main-app-comfort"] .drawer-action-button,
+body[data-theme-profile="rtn-green-room"] .drawer-link,
+body[data-theme-profile="rtn-green-room"] .drawer-action-button,
+body[data-theme-profile="guess-10-deep-blue"] .drawer-link,
+body[data-theme-profile="guess-10-deep-blue"] .drawer-action-button,
+body[data-theme-profile="shape-traders-carbon"] .drawer-link,
+body[data-theme-profile="shape-traders-carbon"] .drawer-action-button {
+  border-color: rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)),
+    #181b22;
+  color: rgba(240, 243, 250, 0.9);
+  border-radius: 1rem;
+  box-shadow: none;
+}
+
+body[data-theme-profile="main-app-comfort"] .drawer-link:hover,
+body[data-theme-profile="main-app-comfort"] .drawer-link:focus-visible,
+body[data-theme-profile="main-app-comfort"] .drawer-action-button:hover:not(:disabled),
+body[data-theme-profile="main-app-comfort"] .drawer-action-button:focus-visible:not(:disabled),
+body[data-theme-profile="rtn-green-room"] .drawer-link:hover,
+body[data-theme-profile="rtn-green-room"] .drawer-link:focus-visible,
+body[data-theme-profile="rtn-green-room"] .drawer-action-button:hover:not(:disabled),
+body[data-theme-profile="rtn-green-room"] .drawer-action-button:focus-visible:not(:disabled),
+body[data-theme-profile="guess-10-deep-blue"] .drawer-link:hover,
+body[data-theme-profile="guess-10-deep-blue"] .drawer-link:focus-visible,
+body[data-theme-profile="guess-10-deep-blue"] .drawer-action-button:hover:not(:disabled),
+body[data-theme-profile="guess-10-deep-blue"] .drawer-action-button:focus-visible:not(:disabled),
+body[data-theme-profile="shape-traders-carbon"] .drawer-link:hover,
+body[data-theme-profile="shape-traders-carbon"] .drawer-link:focus-visible,
+body[data-theme-profile="shape-traders-carbon"] .drawer-action-button:hover:not(:disabled),
+body[data-theme-profile="shape-traders-carbon"] .drawer-action-button:focus-visible:not(:disabled) {
+  border-color: rgba(189, 142, 255, 0.34);
+  background:
+    radial-gradient(circle at left top, rgba(147, 93, 255, 0.18), transparent 72%),
+    #1d2029;
+  color: #ffffff;
+  box-shadow: 0 14px 26px rgba(0, 0, 0, 0.22);
+}
+
+body[data-theme-profile="main-app-comfort"] .drawer-text-button,
+body[data-theme-profile="rtn-green-room"] .drawer-text-button,
+body[data-theme-profile="guess-10-deep-blue"] .drawer-text-button,
+body[data-theme-profile="shape-traders-carbon"] .drawer-text-button {
+  color: rgba(181, 189, 202, 0.86);
+  letter-spacing: 0.05em;
+}
+
+body[data-theme-profile="main-app-comfort"] .drawer-text-button:hover,
+body[data-theme-profile="main-app-comfort"] .drawer-text-button:focus-visible,
+body[data-theme-profile="rtn-green-room"] .drawer-text-button:hover,
+body[data-theme-profile="rtn-green-room"] .drawer-text-button:focus-visible,
+body[data-theme-profile="guess-10-deep-blue"] .drawer-text-button:hover,
+body[data-theme-profile="guess-10-deep-blue"] .drawer-text-button:focus-visible,
+body[data-theme-profile="shape-traders-carbon"] .drawer-text-button:hover,
+body[data-theme-profile="shape-traders-carbon"] .drawer-text-button:focus-visible {
+  color: #ffffff;
+}
+
+body[data-theme-profile="main-app-comfort"] .drawer-close,
+body[data-theme-profile="rtn-green-room"] .drawer-close,
+body[data-theme-profile="guess-10-deep-blue"] .drawer-close,
+body[data-theme-profile="shape-traders-carbon"] .drawer-close {
+  border-color: rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
+    #181b22;
+  color: rgba(240, 243, 250, 0.88);
+  box-shadow: none;
+}
+
+body[data-theme-profile="main-app-comfort"] .drawer-close:hover,
+body[data-theme-profile="main-app-comfort"] .drawer-close:focus-visible,
+body[data-theme-profile="rtn-green-room"] .drawer-close:hover,
+body[data-theme-profile="rtn-green-room"] .drawer-close:focus-visible,
+body[data-theme-profile="guess-10-deep-blue"] .drawer-close:hover,
+body[data-theme-profile="guess-10-deep-blue"] .drawer-close:focus-visible,
+body[data-theme-profile="shape-traders-carbon"] .drawer-close:hover,
+body[data-theme-profile="shape-traders-carbon"] .drawer-close:focus-visible {
+  border-color: rgba(189, 142, 255, 0.34);
+  background:
+    radial-gradient(circle at top, rgba(147, 93, 255, 0.16), transparent 72%),
+    #1d2029;
+  color: #ffffff;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
+}
+
+body[data-theme-profile="main-app-comfort"] .modal-content,
+body[data-theme-profile="rtn-green-room"] .modal-content,
+body[data-theme-profile="guess-10-deep-blue"] .modal-content,
+body[data-theme-profile="shape-traders-carbon"] .modal-content {
+  background:
+    radial-gradient(circle at top right, rgba(143, 92, 255, 0.14), transparent 24%),
+    linear-gradient(180deg, rgba(27, 29, 37, 0.98), rgba(18, 20, 26, 0.98)),
+    #16181e;
+  border-color: rgba(255, 255, 255, 0.07);
+  border-radius: 1.6rem;
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+body[data-theme-profile="main-app-comfort"] .modal-header,
+body[data-theme-profile="rtn-green-room"] .modal-header,
+body[data-theme-profile="guess-10-deep-blue"] .modal-header,
+body[data-theme-profile="shape-traders-carbon"] .modal-header {
+  padding-bottom: 0.95rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+body[data-theme-profile="main-app-comfort"] .modal-header h2,
+body[data-theme-profile="rtn-green-room"] .modal-header h2,
+body[data-theme-profile="guess-10-deep-blue"] .modal-header h2,
+body[data-theme-profile="shape-traders-carbon"] .modal-header h2 {
+  color: rgba(244, 246, 252, 0.96);
+  text-transform: none;
+  letter-spacing: -0.02em;
+  font-family: "Sora", "Inter", system-ui, sans-serif;
+}
+
+body[data-theme-profile="main-app-comfort"] .modal-body,
+body[data-theme-profile="rtn-green-room"] .modal-body,
+body[data-theme-profile="guess-10-deep-blue"] .modal-body,
+body[data-theme-profile="shape-traders-carbon"] .modal-body {
+  color: rgba(221, 226, 236, 0.84);
+}
+
+body[data-theme-profile="main-app-comfort"] .modal-close,
+body[data-theme-profile="main-app-comfort"] .modal-close-btn,
+body[data-theme-profile="rtn-green-room"] .modal-close,
+body[data-theme-profile="rtn-green-room"] .modal-close-btn,
+body[data-theme-profile="guess-10-deep-blue"] .modal-close,
+body[data-theme-profile="guess-10-deep-blue"] .modal-close-btn,
+body[data-theme-profile="shape-traders-carbon"] .modal-close,
+body[data-theme-profile="shape-traders-carbon"] .modal-close-btn {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
+    #181b22;
+  color: rgba(240, 243, 250, 0.88);
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+body[data-theme-profile="main-app-comfort"] .modal-close:hover,
+body[data-theme-profile="main-app-comfort"] .modal-close:focus-visible,
+body[data-theme-profile="main-app-comfort"] .modal-close-btn:hover,
+body[data-theme-profile="main-app-comfort"] .modal-close-btn:focus-visible,
+body[data-theme-profile="rtn-green-room"] .modal-close:hover,
+body[data-theme-profile="rtn-green-room"] .modal-close:focus-visible,
+body[data-theme-profile="rtn-green-room"] .modal-close-btn:hover,
+body[data-theme-profile="rtn-green-room"] .modal-close-btn:focus-visible,
+body[data-theme-profile="guess-10-deep-blue"] .modal-close:hover,
+body[data-theme-profile="guess-10-deep-blue"] .modal-close:focus-visible,
+body[data-theme-profile="guess-10-deep-blue"] .modal-close-btn:hover,
+body[data-theme-profile="guess-10-deep-blue"] .modal-close-btn:focus-visible,
+body[data-theme-profile="shape-traders-carbon"] .modal-close:hover,
+body[data-theme-profile="shape-traders-carbon"] .modal-close:focus-visible,
+body[data-theme-profile="shape-traders-carbon"] .modal-close-btn:hover,
+body[data-theme-profile="shape-traders-carbon"] .modal-close-btn:focus-visible {
+  border-color: rgba(189, 142, 255, 0.34);
+  background:
+    radial-gradient(circle at top, rgba(147, 93, 255, 0.16), transparent 72%),
+    #1d2029;
+  color: #ffffff;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
 }
 
 body[data-theme-profile="main-app-comfort"] .drawer-rank-icon-wrap,
