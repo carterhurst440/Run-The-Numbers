@@ -3474,6 +3474,27 @@ body[data-app-state="loading"] #app-shell {
   touch-action: none;
 }
 
+.shape-traders-chart-surface.is-cyan {
+  border-color: rgba(76, 159, 255, 0.34);
+  background:
+    radial-gradient(circle at 18% 18%, rgba(76, 159, 255, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(20, 32, 54, 0.96), rgba(10, 16, 28, 0.96));
+}
+
+.shape-traders-chart-surface.is-magenta {
+  border-color: rgba(255, 74, 211, 0.34);
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 74, 211, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(48, 20, 46, 0.96), rgba(24, 10, 24, 0.96));
+}
+
+.shape-traders-chart-surface.is-gold {
+  border-color: rgba(255, 225, 92, 0.34);
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 225, 92, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(48, 38, 18, 0.96), rgba(24, 18, 8, 0.96));
+}
+
 .shape-traders-chart-zoom-bar {
   display: flex;
   justify-content: center;

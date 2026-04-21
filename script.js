@@ -6842,12 +6842,14 @@ async function openShapeTraderChart(assetId) {
 
   shapeTradersOpenChartAssetId = assetId;
   shapeTradersChartTitleEl.classList.remove("is-cyan", "is-magenta", "is-gold");
+  shapeTradersChartSurfaceEl.classList.remove("is-cyan", "is-magenta", "is-gold");
   const asset = getShapeTraderAssetConfig(assetId);
   if (shapeTradersChartSymbolEl) {
     shapeTradersChartSymbolEl.hidden = false;
     shapeTradersChartSymbolEl.className = `shape-traders-shape-icon shape-${asset.icon}`;
   }
   shapeTradersChartTitleEl.classList.add(`is-${asset.accent}`);
+  shapeTradersChartSurfaceEl.classList.add(`is-${asset.accent}`);
   shapeTradersChartTitleEl.textContent = `${asset.label} Price Chart`;
   shapeTradersChartSubtitleEl.textContent = "Price movement measured in draws.";
   shapeTradersChartSurfaceEl.innerHTML = '<div class="shape-traders-chart-empty">Loading chart…</div>';
@@ -6876,6 +6878,7 @@ function closeShapeTraderChart() {
   shapeTradersChartModal.setAttribute("aria-hidden", "true");
   shapeTradersChartModal.hidden = true;
   document.body.classList.remove("modal-open");
+  shapeTradersChartSurfaceEl?.classList.remove("is-cyan", "is-magenta", "is-gold");
   shapeTradersOpenChartAssetId = null;
   shapeTradersOpenChartSeries = [];
   shapeTradersChartTouchZoomDistance = null;
