@@ -14620,20 +14620,9 @@ function renderPlayerContestRow(contest, participantStats = 0) {
       switchButton.type = "button";
       switchButton.className = "primary";
       const usingMode = isUsingContestMode(contest.id);
-      switchButton.textContent = status === "pending"
-        ? "Joined"
-        : usingMode
-          ? "Using This Mode"
-          : "Switch to Mode";
-      if (status === "pending" || usingMode) {
-        switchButton.classList.add("is-joined");
-      }
-      switchButton.disabled = status === "pending" || usingMode;
-      if (status !== "pending") {
-        switchButton.addEventListener("click", () => {
-          void switchToContestMode(contest.id, { navigateToPlay: true });
-        });
-      }
+      switchButton.textContent = usingMode ? "Using This Mode" : "Joined";
+      switchButton.classList.add("is-joined");
+      switchButton.disabled = true;
       actions.append(switchButton);
     } else {
       const joinButton = document.createElement("button");
