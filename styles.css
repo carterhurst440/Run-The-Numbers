@@ -5503,13 +5503,15 @@ body[data-app-state="loading"] #app-shell {
     border-top-left-radius: 1.15rem;
     border-top-right-radius: 1.15rem;
     gap: 0.62rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(123, 173, 255, 0.22);
     border-bottom: 0;
     background:
       linear-gradient(180deg, rgba(24, 27, 34, 0.985), rgba(10, 12, 17, 0.995)),
       linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
     background-size: auto, 28px 28px;
     box-shadow:
+      0 0 0 1px rgba(123, 173, 255, 0.08),
+      0 -8px 24px rgba(76, 159, 255, 0.12),
       0 -22px 38px rgba(0, 0, 0, 0.3),
       0 -10px 0 rgba(0, 0, 0, 0.16),
       0 0 0 1px rgba(255, 255, 255, 0.04),
@@ -5523,7 +5525,17 @@ body[data-app-state="loading"] #app-shell {
     right: 0;
     top: 0;
     height: 2px;
-    background: linear-gradient(90deg, rgba(255, 225, 92, 0.08), rgba(255, 225, 92, 0.55), rgba(255, 225, 92, 0.08));
+    background: linear-gradient(
+      90deg,
+      rgba(76, 159, 255, 0.14),
+      rgba(76, 159, 255, 0.55) 24%,
+      rgba(255, 74, 211, 0.48) 52%,
+      rgba(255, 225, 92, 0.55) 78%,
+      rgba(255, 225, 92, 0.14)
+    );
+    box-shadow:
+      0 0 12px rgba(76, 159, 255, 0.18),
+      0 0 16px rgba(255, 225, 92, 0.12);
     pointer-events: none;
   }
 
@@ -5534,10 +5546,11 @@ body[data-app-state="loading"] #app-shell {
     height: calc(100% - 0.85rem - env(safe-area-inset-bottom));
     border-radius: 1rem 1rem 0 0;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.01));
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(126, 169, 241, 0.14);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.025),
-      inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+      inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+      0 0 18px rgba(76, 159, 255, 0.06);
     pointer-events: none;
   }
 
@@ -17436,12 +17449,14 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
 
 @media (max-width: 768px) {
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar {
-    border-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(123, 173, 255, 0.24);
     background:
       linear-gradient(180deg, rgba(14, 17, 23, 0.992), rgba(6, 8, 12, 0.998)),
       linear-gradient(90deg, rgba(255, 255, 255, 0.016) 1px, transparent 1px);
     background-size: auto, 28px 28px;
     box-shadow:
+      0 0 0 1px rgba(123, 173, 255, 0.1),
+      0 -10px 28px rgba(76, 159, 255, 0.14),
       0 -26px 44px rgba(0, 0, 0, 0.34),
       0 -10px 0 rgba(0, 0, 0, 0.18),
       0 0 0 1px rgba(255, 255, 255, 0.05),
@@ -17449,15 +17464,26 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar::before {
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.05));
+    background: linear-gradient(
+      90deg,
+      rgba(76, 159, 255, 0.16),
+      rgba(76, 159, 255, 0.48) 24%,
+      rgba(255, 74, 211, 0.34) 52%,
+      rgba(255, 225, 92, 0.44) 78%,
+      rgba(255, 225, 92, 0.14)
+    );
+    box-shadow:
+      0 0 12px rgba(76, 159, 255, 0.16),
+      0 0 16px rgba(255, 225, 92, 0.1);
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar::after {
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.008));
-    border-color: rgba(255, 255, 255, 0.09);
+    border-color: rgba(124, 170, 241, 0.18);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.03),
-      inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+      inset 0 0 0 1px rgba(0, 0, 0, 0.18),
+      0 0 20px rgba(76, 159, 255, 0.08);
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card {
