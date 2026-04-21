@@ -3296,6 +3296,74 @@ body[data-app-state="loading"] #app-shell {
     0 0 20px rgba(255, 92, 214, 0.1);
 }
 
+.shape-traders-trade-bar[data-selected-asset="square"] #shape-traders-buy-button:not(.is-unavailable):not(:disabled),
+.shape-traders-trade-bar[data-selected-asset="square"] #shape-traders-sell-button:not(.is-unavailable):not(:disabled) {
+  border-color: #4c9fff;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, #4c9fff 48%, transparent), color-mix(in srgb, #4c9fff 26%, #0c1119)),
+    linear-gradient(180deg, rgba(14, 24, 44, 0.98), rgba(10, 15, 30, 0.98));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, #4c9fff 24%, transparent),
+    0 18px 34px color-mix(in srgb, #4c9fff 22%, transparent);
+}
+
+.shape-traders-trade-bar[data-selected-asset="triangle"] #shape-traders-buy-button:not(.is-unavailable):not(:disabled),
+.shape-traders-trade-bar[data-selected-asset="triangle"] #shape-traders-sell-button:not(.is-unavailable):not(:disabled) {
+  border-color: #ff4ad3;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, #ff4ad3 44%, transparent), color-mix(in srgb, #ff4ad3 22%, #140f1f)),
+    linear-gradient(180deg, rgba(23, 14, 44, 0.98), rgba(12, 10, 29, 0.98));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, #ff4ad3 22%, transparent),
+    0 18px 34px color-mix(in srgb, #ff4ad3 20%, transparent);
+}
+
+.shape-traders-trade-bar[data-selected-asset="circle"] #shape-traders-buy-button:not(.is-unavailable):not(:disabled),
+.shape-traders-trade-bar[data-selected-asset="circle"] #shape-traders-sell-button:not(.is-unavailable):not(:disabled) {
+  border-color: #ffe15c;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, #ffe15c 42%, transparent), color-mix(in srgb, #ffe15c 18%, #21190c)),
+    linear-gradient(180deg, rgba(42, 25, 12, 0.98), rgba(22, 14, 8, 0.98));
+  color: #fff7e4;
+  text-shadow: 0 0 12px color-mix(in srgb, #ffe15c 20%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, #ffe15c 22%, transparent),
+    0 18px 34px color-mix(in srgb, #ffe15c 18%, transparent);
+}
+
+.shape-traders-trade-bar[data-selected-asset="square"] #shape-traders-buy-button:not(.is-unavailable):not(:disabled):hover,
+.shape-traders-trade-bar[data-selected-asset="square"] #shape-traders-buy-button:not(.is-unavailable):not(:disabled):focus-visible,
+.shape-traders-trade-bar[data-selected-asset="square"] #shape-traders-sell-button:not(.is-unavailable):not(:disabled):hover,
+.shape-traders-trade-bar[data-selected-asset="square"] #shape-traders-sell-button:not(.is-unavailable):not(:disabled):focus-visible {
+  border-color: #4c9fff;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, #4c9fff 30%, transparent),
+    0 20px 38px color-mix(in srgb, #4c9fff 28%, transparent),
+    0 0 20px color-mix(in srgb, #4c9fff 18%, transparent);
+}
+
+.shape-traders-trade-bar[data-selected-asset="triangle"] #shape-traders-buy-button:not(.is-unavailable):not(:disabled):hover,
+.shape-traders-trade-bar[data-selected-asset="triangle"] #shape-traders-buy-button:not(.is-unavailable):not(:disabled):focus-visible,
+.shape-traders-trade-bar[data-selected-asset="triangle"] #shape-traders-sell-button:not(.is-unavailable):not(:disabled):hover,
+.shape-traders-trade-bar[data-selected-asset="triangle"] #shape-traders-sell-button:not(.is-unavailable):not(:disabled):focus-visible {
+  border-color: #ff4ad3;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, #ff4ad3 28%, transparent),
+    0 20px 38px color-mix(in srgb, #ff4ad3 26%, transparent),
+    0 0 20px color-mix(in srgb, #ff4ad3 18%, transparent);
+}
+
+.shape-traders-trade-bar[data-selected-asset="circle"] #shape-traders-buy-button:not(.is-unavailable):not(:disabled):hover,
+.shape-traders-trade-bar[data-selected-asset="circle"] #shape-traders-buy-button:not(.is-unavailable):not(:disabled):focus-visible,
+.shape-traders-trade-bar[data-selected-asset="circle"] #shape-traders-sell-button:not(.is-unavailable):not(:disabled):hover,
+.shape-traders-trade-bar[data-selected-asset="circle"] #shape-traders-sell-button:not(.is-unavailable):not(:disabled):focus-visible {
+  border-color: #ffe15c;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, #ffe15c 30%, transparent),
+    0 20px 38px color-mix(in srgb, #ffe15c 24%, transparent),
+    0 0 20px color-mix(in srgb, #ffe15c 16%, transparent);
+}
+
 .shape-traders-trade-bar .shape-traders-trade-actions button.is-pressing {
   transform: scale(0.96);
   filter: brightness(1.08);
@@ -3369,6 +3437,10 @@ body[data-app-state="loading"] #app-shell {
   order: 2;
 }
 
+.shape-traders-market-chart-button {
+  flex-shrink: 0;
+}
+
 #shape-traders-chart-title.is-cyan {
   color: #4c9fff;
 }
@@ -3437,6 +3509,15 @@ body[data-app-state="loading"] #app-shell {
   font-family: "Play", system-ui, sans-serif;
 }
 
+.shape-traders-chart-legend-label {
+  fill: rgba(240, 244, 250, 0.84);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: "Play", system-ui, sans-serif;
+}
+
 .shape-traders-chart-axis-label {
   font-weight: 700;
 }
@@ -3444,6 +3525,18 @@ body[data-app-state="loading"] #app-shell {
 .shape-traders-chart-point-label {
   font-size: 15px;
   font-weight: 700;
+}
+
+.shape-traders-chart-point-label.is-cyan {
+  fill: #4c9fff;
+}
+
+.shape-traders-chart-point-label.is-magenta {
+  fill: #ff4ad3;
+}
+
+.shape-traders-chart-point-label.is-gold {
+  fill: #ffe15c;
 }
 
 .shape-traders-chart-line {
@@ -4374,24 +4467,36 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .secondary.beta-category-button {
+  position: relative;
   background: var(--secondary-button-disabled-bg);
   border-color: var(--secondary-button-disabled-border);
   box-shadow: var(--secondary-button-disabled-shadow);
-  color: var(--secondary-button-disabled-text);
+  color: color-mix(in srgb, var(--secondary-button-disabled-text) 78%, transparent);
+  opacity: 0.82;
+  filter: saturate(0.82);
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
     transform 0.2s ease,
     background 0.2s ease,
-    color 0.2s ease;
+    color 0.2s ease,
+    opacity 0.2s ease,
+    filter 0.2s ease;
 }
 
 .secondary.beta-category-button.active {
-  border-color: var(--secondary-button-border);
-  background: var(--secondary-button-bg);
+  border-color: color-mix(in srgb, white 26%, var(--secondary-button-border) 74%);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, white 8%, transparent), transparent),
+    var(--secondary-button-bg);
   color: var(--secondary-button-text);
-  box-shadow: var(--secondary-button-shadow);
-  transform: translateY(-2px) scale(1.01);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--secondary-button-border) 26%, transparent),
+    var(--secondary-button-shadow),
+    0 14px 28px color-mix(in srgb, var(--secondary-button-border) 18%, transparent);
+  transform: translateY(-2px) scale(1.02);
+  opacity: 1;
+  filter: saturate(1.08);
 }
 
 .beta-value-grid {
@@ -4439,15 +4544,32 @@ body[data-app-state="loading"] #app-shell {
   background: var(--secondary-button-disabled-bg);
   border: 1px solid var(--secondary-button-disabled-border);
   box-shadow: var(--secondary-button-disabled-shadow);
-  color: var(--secondary-button-disabled-text);
+  color: color-mix(in srgb, var(--secondary-button-disabled-text) 78%, transparent);
+  opacity: 0.84;
+  filter: saturate(0.84);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease,
+    opacity 0.2s ease,
+    filter 0.2s ease;
 }
 
 .secondary.beta-value-button.active {
-  border-color: var(--secondary-button-border);
-  background: var(--secondary-button-bg);
+  border-color: color-mix(in srgb, white 26%, var(--secondary-button-border) 74%);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, white 8%, transparent), transparent),
+    var(--secondary-button-bg);
   color: var(--secondary-button-text);
-  box-shadow: var(--secondary-button-shadow);
-  transform: translateY(-1px) scale(1.01);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--secondary-button-border) 26%, transparent),
+    var(--secondary-button-shadow),
+    0 12px 24px color-mix(in srgb, var(--secondary-button-border) 16%, transparent);
+  transform: translateY(-2px) scale(1.02);
+  opacity: 1;
+  filter: saturate(1.08);
 }
 
 .secondary.beta-value-button[data-category="color"][data-value-key="red"] {
@@ -16623,35 +16745,30 @@ body[data-theme-profile="guess-10-deep-blue"] #red-black-view .beta-bet-spot-cir
 
 body[data-theme-profile="shape-traders-carbon"] {
   --body-bg:
-    linear-gradient(rgba(86, 220, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(181, 101, 255, 0.08) 1px, transparent 1px),
-    radial-gradient(circle at 18% 8%, rgba(178, 102, 255, 0.14), transparent 24%),
-    radial-gradient(circle at 78% 10%, rgba(72, 225, 255, 0.12), transparent 26%),
-    radial-gradient(circle at 50% 100%, rgba(255, 92, 214, 0.08), transparent 44%),
-    linear-gradient(180deg, #10081e 0%, #0a0d17 38%, #06080f 100%);
-  --body-bg-size: 54px 54px, 54px 54px, auto, auto, auto, 100% 100%;
-  --body-bg-position: 0 0, 0 0, left top, right top, center bottom, center;
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.05), transparent 18%),
+    linear-gradient(180deg, #16181d 0%, #0f1116 40%, #090b0f 100%);
+  --body-bg-size: 54px 54px, 54px 54px, auto, 100% 100%;
+  --body-bg-position: 0 0, 0 0, center top, center;
   --app-overlay:
-    radial-gradient(circle at 18% 10%, rgba(86, 220, 255, 0.16), transparent 34%),
-    radial-gradient(circle at 82% 12%, rgba(176, 95, 255, 0.15), transparent 30%),
-    radial-gradient(circle at 50% 120%, rgba(255, 92, 214, 0.08), transparent 50%);
+    radial-gradient(circle at 18% 10%, rgba(255, 255, 255, 0.035), transparent 30%),
+    radial-gradient(circle at 82% 12%, rgba(255, 255, 255, 0.03), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 14%);
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-panel {
   border-radius: 0.8rem;
-  border-color: rgba(111, 222, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.09);
   background:
-    radial-gradient(circle at top left, rgba(169, 97, 255, 0.09), transparent 26%),
-    radial-gradient(circle at top right, rgba(79, 230, 255, 0.08), transparent 24%),
-    linear-gradient(180deg, rgba(17, 12, 35, 0.96), rgba(9, 12, 24, 0.98)),
-    linear-gradient(90deg, rgba(84, 220, 255, 0.07) 1px, transparent 1px),
-    linear-gradient(rgba(190, 102, 255, 0.05) 1px, transparent 1px);
-  background-size: auto, auto, auto, 24px 24px, 24px 24px;
+    linear-gradient(180deg, rgba(34, 37, 44, 0.96), rgba(16, 18, 24, 0.98)),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: auto, 24px 24px, 24px 24px;
   box-shadow:
-    inset 0 0 0 1px rgba(86, 220, 255, 0.11),
-    inset 0 0 42px rgba(86, 220, 255, 0.06),
-    inset 0 0 72px rgba(181, 101, 255, 0.05),
-    0 0 26px rgba(86, 220, 255, 0.06);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 18px 40px rgba(0, 0, 0, 0.32);
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card,
@@ -16659,20 +16776,17 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-holding-card,
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-balance-list div {
   border-radius: 0.65rem;
   background:
-    linear-gradient(180deg, rgba(20, 16, 38, 0.9), rgba(9, 13, 24, 0.96)),
-    linear-gradient(135deg, rgba(179, 101, 255, 0.05), rgba(80, 226, 255, 0.04));
+    linear-gradient(180deg, rgba(30, 33, 40, 0.92), rgba(16, 18, 24, 0.96));
   box-shadow:
-    inset 0 0 0 1px rgba(94, 221, 255, 0.1),
-    inset 0 0 24px rgba(180, 101, 255, 0.04),
-    0 0 18px rgba(86, 220, 255, 0.06);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 14px 30px rgba(0, 0, 0, 0.22);
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-countdown-ring {
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-    inset 0 0 20px rgba(86, 220, 255, 0.12),
-    inset 0 0 42px rgba(179, 101, 255, 0.08),
-    0 0 28px rgba(86, 220, 255, 0.12);
+    inset 0 0 18px rgba(255, 255, 255, 0.05),
+    0 16px 32px rgba(0, 0, 0, 0.24);
 }
 
 @media (max-width: 768px) {
