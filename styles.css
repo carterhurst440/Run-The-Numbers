@@ -770,15 +770,15 @@ body[data-app-state="ready"] .loading-screen {
 @keyframes appBackgroundShimmer {
   0% {
     background-position: 135% 0, center;
-    opacity: 0.42;
+    opacity: 0.5;
   }
   50% {
     background-position: -35% 0, center;
-    opacity: 0.56;
+    opacity: 0.68;
   }
   100% {
     background-position: 135% 0, center;
-    opacity: 0.42;
+    opacity: 0.5;
   }
 }
 
@@ -806,16 +806,16 @@ body[data-app-state="ready"] .loading-screen {
     linear-gradient(
       115deg,
       transparent 0%,
-      rgba(255, 255, 255, 0.01) 40%,
-      rgba(255, 255, 255, 0.038) 50%,
-      rgba(255, 255, 255, 0.01) 60%,
+      rgba(255, 255, 255, 0.014) 40%,
+      rgba(255, 255, 255, 0.06) 50%,
+      rgba(255, 255, 255, 0.014) 60%,
       transparent 100%
     ),
     var(--app-overlay);
   background-size: 220% 100%, 100% 100%;
   background-position: 135% 0, center;
-  opacity: 0.48;
-  animation: appBackgroundShimmer 26s ease-in-out infinite;
+  opacity: 0.58;
+  animation: appBackgroundShimmer 22s ease-in-out infinite;
 }
 
 #app-shell {
@@ -5015,8 +5015,8 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .app::before {
-    opacity: 0.36;
-    animation-duration: 30s;
+    opacity: 0.44;
+    animation-duration: 26s;
   }
 
   .home-view {
@@ -18366,6 +18366,12 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
   border: 1px solid var(--betting-panel-border);
   background: var(--betting-panel-bg);
   box-shadow: var(--betting-panel-shadow);
+}
+
+.contests-shell .admin-contest-card,
+.contests-shell .contest-detail-card {
+  background: color-mix(in srgb, var(--betting-panel-bg) 78%, black 22%);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 }
 
 .admin-contest-card {
