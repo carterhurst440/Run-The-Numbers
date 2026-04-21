@@ -767,6 +767,21 @@ body[data-app-state="ready"] .loading-screen {
   }
 }
 
+@keyframes appBackgroundShimmer {
+  0% {
+    background-position: 135% 0, center;
+    opacity: 0.42;
+  }
+  50% {
+    background-position: -35% 0, center;
+    opacity: 0.56;
+  }
+  100% {
+    background-position: 135% 0, center;
+    opacity: 0.42;
+  }
+}
+
 .app {
   min-height: 100vh;
   width: 100%;
@@ -782,7 +797,25 @@ body[data-app-state="ready"] .loading-screen {
 }
 
 .app::before {
-  display: none;
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      115deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.01) 40%,
+      rgba(255, 255, 255, 0.038) 50%,
+      rgba(255, 255, 255, 0.01) 60%,
+      transparent 100%
+    ),
+    var(--app-overlay);
+  background-size: 220% 100%, 100% 100%;
+  background-position: 135% 0, center;
+  opacity: 0.48;
+  animation: appBackgroundShimmer 26s ease-in-out infinite;
 }
 
 #app-shell {
@@ -4982,7 +5015,8 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .app::before {
-    display: none;
+    opacity: 0.36;
+    animation-duration: 30s;
   }
 
   .home-view {
