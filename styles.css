@@ -15919,12 +15919,14 @@ body[data-theme-profile="shape-traders-carbon"] .drawer-link:hover,
 body[data-theme-profile="shape-traders-carbon"] .drawer-link:focus-visible,
 body[data-theme-profile="shape-traders-carbon"] .drawer-action-button:hover:not(:disabled),
 body[data-theme-profile="shape-traders-carbon"] .drawer-action-button:focus-visible:not(:disabled) {
-  border-color: rgba(189, 142, 255, 0.34);
+  border-color: rgba(210, 220, 236, 0.18);
   background:
-    radial-gradient(circle at left top, rgba(147, 93, 255, 0.18), transparent 72%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
     #1d2029;
   color: #ffffff;
-  box-shadow: 0 14px 26px rgba(0, 0, 0, 0.22);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025),
+    0 14px 26px rgba(0, 0, 0, 0.22);
 }
 
 body[data-theme-profile="main-app-comfort"] .drawer-text-button,
@@ -16749,6 +16751,120 @@ body[data-theme-profile="guess-10-deep-blue"] #red-black-view .beta-bet-spot {
 
 body[data-theme-profile="guess-10-deep-blue"] #red-black-view .beta-bet-spot-circle {
   border-radius: 1.25rem;
+}
+
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .beta-chip-bar {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 42%),
+    linear-gradient(135deg, rgba(72, 101, 156, 0.96), rgba(24, 34, 61, 0.98));
+  border-top-color: rgba(202, 228, 255, 0.24);
+  box-shadow:
+    0 -22px 44px rgba(10, 16, 30, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .chip-selector {
+  gap: clamp(0.5rem, 2vw, 0.85rem);
+}
+
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .chip-choice {
+  position: relative;
+  border-width: 1px;
+  border-color: rgba(214, 234, 255, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.02)),
+    linear-gradient(135deg, rgba(54, 73, 115, 0.96), rgba(25, 33, 55, 0.98));
+  color: rgba(247, 251, 255, 0.96);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -8px 16px rgba(10, 16, 30, 0.18),
+    0 10px 22px rgba(10, 16, 30, 0.24);
+  text-shadow: 0 1px 0 rgba(7, 10, 18, 0.4);
+}
+
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .chip-choice::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .chip-choice:hover:not(:disabled),
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .chip-choice:focus-visible {
+  transform: translateY(-3px) scale(1.03);
+  border-color: rgba(220, 239, 255, 0.44);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -10px 20px rgba(10, 16, 30, 0.16),
+    0 14px 26px rgba(10, 16, 30, 0.28),
+    0 0 0 3px rgba(176, 220, 255, 0.16);
+}
+
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .chip-choice.active {
+  border-color: rgba(236, 245, 255, 0.8);
+  color: #ffffff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -8px 18px rgba(10, 16, 30, 0.14),
+    0 16px 30px rgba(10, 16, 30, 0.32),
+    0 0 0 3px rgba(197, 230, 255, 0.2);
+}
+
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .chip-choice[data-tone="0"] {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02)),
+    linear-gradient(135deg, #8ec5ff, #3f6fdc);
+  color: #f8fbff;
+}
+
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .chip-choice[data-tone="1"] {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02)),
+    linear-gradient(135deg, #9cb3ff, #5c63de);
+  color: #fbfcff;
+}
+
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .chip-choice[data-tone="2"] {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02)),
+    linear-gradient(135deg, #8fe8ff, #3f9bda);
+  color: #f7fdff;
+}
+
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .chip-choice[data-tone="3"] {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.02)),
+    linear-gradient(135deg, #e7eefc, #9baad2);
+  color: #223150;
+  text-shadow: none;
+}
+
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .chip-choice.active[data-tone="0"] {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.03)),
+    linear-gradient(135deg, #a8d5ff, #4f84f0);
+}
+
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .chip-choice.active[data-tone="1"] {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.03)),
+    linear-gradient(135deg, #b2c3ff, #676ff0);
+}
+
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .chip-choice.active[data-tone="2"] {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.03)),
+    linear-gradient(135deg, #a6efff, #52afe8);
+}
+
+body[data-theme-profile="guess-10-deep-blue"] #red-black-view .chip-choice.active[data-tone="3"] {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.06)),
+    linear-gradient(135deg, #f4f8ff, #bcc9e5);
+  color: #1d2942;
 }
 
 body[data-theme-profile="shape-traders-carbon"] {
