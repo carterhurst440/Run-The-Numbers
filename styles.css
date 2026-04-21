@@ -16950,7 +16950,7 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-deck-panel {
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card {
   position: relative;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   gap: 0.55rem;
   padding: 1rem 1rem 0.9rem;
   border-color: rgba(255, 255, 255, 0.06);
@@ -16962,6 +16962,14 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card {
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.022),
     0 18px 28px rgba(0, 0, 0, 0.2);
+}
+
+body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card-head {
+  grid-row: 1;
+}
+
+body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card-split {
+  grid-row: 2;
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card.is-cyan,
@@ -17025,13 +17033,14 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card p {
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card-hero {
+  grid-row: 3;
   align-items: center;
   justify-self: center;
   justify-content: center;
   align-self: center;
   min-height: 2.2rem;
   width: 100%;
-  transform: translateY(0.8rem);
+  transform: none;
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-dump-pip.active {
@@ -17042,6 +17051,7 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-dump-pip.active {
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card-price {
+  grid-row: 4;
   justify-self: start;
   align-self: end;
   font-size: clamp(1.5rem, 2.5vw, 2.15rem);
@@ -17051,6 +17061,7 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card-price
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card-meta {
+  grid-row: 5;
   justify-content: flex-start;
   gap: 1rem;
   font-size: 0.64rem;
