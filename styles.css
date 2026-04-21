@@ -15977,6 +15977,33 @@ body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-bar {
     transform 0.18s ease;
 }
 
+@media (max-width: 720px) {
+  body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .table-panel,
+  body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .betting-panel {
+    border: 1px solid rgba(158, 145, 102, 0.14);
+    box-shadow:
+      0 0 0 6px var(--table-rail-color),
+      0 0 0 7px rgba(14, 8, 4, 0.62),
+      0 8px 18px rgba(0, 0, 0, 0.18),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+      inset 0 0 0 2px rgba(8, 24, 15, 0.24),
+      0 0 0 1px rgba(7, 19, 12, 0.36);
+  }
+
+  body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .table-panel::before,
+  body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .betting-panel::before {
+    inset: 8px;
+    border-color: rgba(150, 137, 97, 0.08);
+  }
+
+  body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-bar {
+    border-top: 1px solid rgba(150, 137, 97, 0.14);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.02),
+      0 -4px 0 rgba(52, 32, 18, 0.88);
+  }
+}
+
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-bar.insufficient-bankroll {
   border-top-color: rgba(225, 118, 92, 0.72);
   background:
