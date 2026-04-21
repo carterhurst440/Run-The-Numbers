@@ -12715,7 +12715,7 @@ body.modal-open {
 }
 
 .activity-log-shell {
-  width: min(100%, 1040px);
+  width: min(100%, 1360px);
   max-width: 100%;
   display: grid;
   gap: 1rem;
