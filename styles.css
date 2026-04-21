@@ -16391,46 +16391,56 @@ body[data-theme-profile="guess-10-deep-blue"] #red-black-view .beta-bet-spot-cir
 
 body[data-theme-profile="shape-traders-carbon"] {
   --body-bg:
-    linear-gradient(rgba(76, 159, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 74, 211, 0.07) 1px, transparent 1px),
-    radial-gradient(circle at 50% 0%, rgba(76, 159, 255, 0.12), transparent 34%),
-    linear-gradient(180deg, #0a0d12 0%, #090b10 44%, #05070a 100%);
-  --body-bg-size: 54px 54px, 54px 54px, auto, 100% 100%;
-  --body-bg-position: 0 0, 0 0, center top, center;
+    linear-gradient(rgba(86, 220, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(181, 101, 255, 0.08) 1px, transparent 1px),
+    radial-gradient(circle at 18% 8%, rgba(178, 102, 255, 0.14), transparent 24%),
+    radial-gradient(circle at 78% 10%, rgba(72, 225, 255, 0.12), transparent 26%),
+    radial-gradient(circle at 50% 100%, rgba(255, 92, 214, 0.08), transparent 44%),
+    linear-gradient(180deg, #10081e 0%, #0a0d17 38%, #06080f 100%);
+  --body-bg-size: 54px 54px, 54px 54px, auto, auto, auto, 100% 100%;
+  --body-bg-position: 0 0, 0 0, left top, right top, center bottom, center;
   --app-overlay:
-    radial-gradient(circle at 18% 10%, rgba(76, 159, 255, 0.18), transparent 34%),
-    radial-gradient(circle at 82% 12%, rgba(255, 74, 211, 0.16), transparent 32%),
-    radial-gradient(circle at 50% 120%, rgba(255, 225, 92, 0.08), transparent 58%);
+    radial-gradient(circle at 18% 10%, rgba(86, 220, 255, 0.16), transparent 34%),
+    radial-gradient(circle at 82% 12%, rgba(176, 95, 255, 0.15), transparent 30%),
+    radial-gradient(circle at 50% 120%, rgba(255, 92, 214, 0.08), transparent 50%);
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-panel {
   border-radius: 0.8rem;
-  border-color: rgba(120, 208, 255, 0.3);
+  border-color: rgba(111, 222, 255, 0.28);
   background:
-    linear-gradient(180deg, rgba(10, 15, 24, 0.96), rgba(7, 10, 18, 0.98)),
-    linear-gradient(90deg, rgba(76, 159, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(rgba(255, 74, 211, 0.06) 1px, transparent 1px);
-  background-size: auto, 24px 24px, 24px 24px;
+    radial-gradient(circle at top left, rgba(169, 97, 255, 0.09), transparent 26%),
+    radial-gradient(circle at top right, rgba(79, 230, 255, 0.08), transparent 24%),
+    linear-gradient(180deg, rgba(17, 12, 35, 0.96), rgba(9, 12, 24, 0.98)),
+    linear-gradient(90deg, rgba(84, 220, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(rgba(190, 102, 255, 0.05) 1px, transparent 1px);
+  background-size: auto, auto, auto, 24px 24px, 24px 24px;
   box-shadow:
-    inset 0 0 0 1px rgba(76, 159, 255, 0.12),
-    inset 0 0 48px rgba(76, 159, 255, 0.08),
-    0 0 28px rgba(76, 159, 255, 0.08);
+    inset 0 0 0 1px rgba(86, 220, 255, 0.11),
+    inset 0 0 42px rgba(86, 220, 255, 0.06),
+    inset 0 0 72px rgba(181, 101, 255, 0.05),
+    0 0 26px rgba(86, 220, 255, 0.06);
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card,
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-holding-card,
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-balance-list div {
   border-radius: 0.65rem;
+  background:
+    linear-gradient(180deg, rgba(20, 16, 38, 0.9), rgba(9, 13, 24, 0.96)),
+    linear-gradient(135deg, rgba(179, 101, 255, 0.05), rgba(80, 226, 255, 0.04));
   box-shadow:
-    inset 0 0 0 1px rgba(76, 159, 255, 0.1),
-    0 0 18px rgba(76, 159, 255, 0.08);
+    inset 0 0 0 1px rgba(94, 221, 255, 0.1),
+    inset 0 0 24px rgba(180, 101, 255, 0.04),
+    0 0 18px rgba(86, 220, 255, 0.06);
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-countdown-ring {
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-    inset 0 0 22px rgba(76, 159, 255, 0.14),
-    0 0 26px rgba(76, 159, 255, 0.16);
+    inset 0 0 20px rgba(86, 220, 255, 0.12),
+    inset 0 0 42px rgba(179, 101, 255, 0.08),
+    0 0 28px rgba(86, 220, 255, 0.12);
 }
 
 @media (max-width: 768px) {
