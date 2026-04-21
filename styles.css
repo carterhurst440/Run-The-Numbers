@@ -7347,6 +7347,9 @@ body.theme-angelic {
 
 .notification-toggle {
   position: relative;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .notification-toggle svg {
@@ -7703,6 +7706,13 @@ body.theme-angelic {
   color: var(--danger);
 }
 
+.bankroll-warning {
+  color: var(--danger);
+  text-shadow:
+    0 0 12px color-mix(in srgb, var(--danger) 36%, transparent),
+    0 0 24px color-mix(in srgb, var(--danger) 18%, transparent);
+}
+
 .bankroll-neutral {
   color: var(--text-light);
 }
@@ -7720,6 +7730,45 @@ body.theme-angelic {
   }
   100% {
     transform: scale(1);
+  }
+}
+
+@keyframes statusWarningPulse {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  35% {
+    transform: translateY(-1px);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(-4px);
+  }
+  70% {
+    transform: translateX(4px);
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes insufficientBankrollRackPulse {
+  0% {
+    transform: translateY(0);
+  }
+  20% {
+    transform: translateY(-1px);
+  }
+  40% {
+    transform: translateX(-4px);
+  }
+  65% {
+    transform: translateX(4px);
+  }
+  100% {
+    transform: translateY(0);
   }
 }
 
@@ -7743,23 +7792,23 @@ body.theme-angelic {
   width: 37px;
   height: 37px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--icon-button-border-color) 54%, transparent);
-  background: color-mix(in srgb, var(--header-gradient) 18%, transparent);
+  border: 0;
+  background: transparent;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 8%, transparent);
+  box-shadow: none;
   transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
 }
 
+.notification-toggle:hover,
+.notification-toggle:focus-visible,
 .menu-toggle:hover,
 .menu-toggle:focus-visible {
-  transform: translateY(-2px);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, white 10%, transparent),
-    0 10px 22px color-mix(in srgb, black 26%, transparent);
-  border-color: var(--icon-button-border-hover);
+  transform: translateY(-1px);
+  box-shadow: none;
+  border-color: transparent;
   outline: none;
 }
 
@@ -8936,6 +8985,19 @@ body.theme-angelic {
   padding: 0.6rem 0.8rem 0.4rem;
   color: var(--status-text-color);
   text-shadow: 0 0 10px var(--status-shadow);
+  transition:
+    color 0.18s ease,
+    text-shadow 0.18s ease,
+    transform 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.status-warning {
+  color: var(--danger);
+  text-shadow:
+    0 0 14px color-mix(in srgb, var(--danger) 45%, transparent),
+    0 0 28px color-mix(in srgb, var(--danger) 18%, transparent);
+  animation: statusWarningPulse 0.42s ease 2;
 }
 
 .hit {
@@ -15137,6 +15199,17 @@ body[data-theme-profile="shape-traders-carbon"] .menu-toggle {
   color: rgba(241, 244, 251, 0.92);
 }
 
+body[data-theme-profile="main-app-comfort"] .notification-toggle,
+body[data-theme-profile="main-app-comfort"] .menu-toggle,
+body[data-theme-profile="rtn-green-room"] .notification-toggle,
+body[data-theme-profile="rtn-green-room"] .menu-toggle,
+body[data-theme-profile="guess-10-deep-blue"] .notification-toggle,
+body[data-theme-profile="guess-10-deep-blue"] .menu-toggle,
+body[data-theme-profile="shape-traders-carbon"] .notification-toggle,
+body[data-theme-profile="shape-traders-carbon"] .menu-toggle {
+  background: transparent;
+}
+
 body[data-theme-profile="main-app-comfort"] .header-mode-select,
 body[data-theme-profile="rtn-green-room"] .header-mode-select,
 body[data-theme-profile="guess-10-deep-blue"] .header-mode-select,
@@ -15179,6 +15252,27 @@ body[data-theme-profile="shape-traders-carbon"] .menu-toggle:focus-visible {
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
 }
 
+body[data-theme-profile="main-app-comfort"] .notification-toggle:hover,
+body[data-theme-profile="main-app-comfort"] .notification-toggle:focus-visible,
+body[data-theme-profile="main-app-comfort"] .menu-toggle:hover,
+body[data-theme-profile="main-app-comfort"] .menu-toggle:focus-visible,
+body[data-theme-profile="rtn-green-room"] .notification-toggle:hover,
+body[data-theme-profile="rtn-green-room"] .notification-toggle:focus-visible,
+body[data-theme-profile="rtn-green-room"] .menu-toggle:hover,
+body[data-theme-profile="rtn-green-room"] .menu-toggle:focus-visible,
+body[data-theme-profile="guess-10-deep-blue"] .notification-toggle:hover,
+body[data-theme-profile="guess-10-deep-blue"] .notification-toggle:focus-visible,
+body[data-theme-profile="guess-10-deep-blue"] .menu-toggle:hover,
+body[data-theme-profile="guess-10-deep-blue"] .menu-toggle:focus-visible,
+body[data-theme-profile="shape-traders-carbon"] .notification-toggle:hover,
+body[data-theme-profile="shape-traders-carbon"] .notification-toggle:focus-visible,
+body[data-theme-profile="shape-traders-carbon"] .menu-toggle:hover,
+body[data-theme-profile="shape-traders-carbon"] .menu-toggle:focus-visible {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
 body[data-theme-profile="main-app-comfort"] .icon-button,
 body[data-theme-profile="main-app-comfort"] .menu-toggle,
 body[data-theme-profile="rtn-green-room"] .icon-button,
@@ -15189,6 +15283,17 @@ body[data-theme-profile="shape-traders-carbon"] .icon-button,
 body[data-theme-profile="shape-traders-carbon"] .menu-toggle {
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: none;
+}
+
+body[data-theme-profile="main-app-comfort"] .notification-toggle,
+body[data-theme-profile="main-app-comfort"] .menu-toggle,
+body[data-theme-profile="rtn-green-room"] .notification-toggle,
+body[data-theme-profile="rtn-green-room"] .menu-toggle,
+body[data-theme-profile="guess-10-deep-blue"] .notification-toggle,
+body[data-theme-profile="guess-10-deep-blue"] .menu-toggle,
+body[data-theme-profile="shape-traders-carbon"] .notification-toggle,
+body[data-theme-profile="shape-traders-carbon"] .menu-toggle {
+  border: 0;
 }
 
 body[data-theme-profile="main-app-comfort"] .app-main {
@@ -15865,6 +15970,31 @@ body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-bar {
     inset 0 1px 0 rgba(255, 255, 255, 0.02),
     0 -8px 0 rgba(52, 32, 18, 0.96),
     0 -10px 0 rgba(18, 9, 4, 0.82);
+  transition:
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease,
+    transform 0.18s ease;
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-bar.insufficient-bankroll {
+  border-top-color: rgba(225, 118, 92, 0.72);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.018) 0,
+      rgba(255, 255, 255, 0.018) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    linear-gradient(180deg, rgba(84, 36, 28, 0.97), rgba(55, 22, 15, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 240, 224, 0.05),
+    inset 0 0 0 1px rgba(214, 119, 90, 0.14),
+    0 -8px 0 rgba(52, 32, 18, 0.96),
+    0 -10px 0 rgba(18, 9, 4, 0.82),
+    0 0 0 2px rgba(214, 119, 90, 0.18);
+  animation: insufficientBankrollRackPulse 0.42s ease 2;
 }
 
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-choice {
@@ -15932,6 +16062,31 @@ body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-choice.act
 
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-selector {
   gap: clamp(0.45rem, 1.5vw, 0.8rem);
+  transition: filter 0.18s ease, transform 0.18s ease;
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-selector.insufficient-bankroll .chip-choice.active {
+  border-color: rgba(226, 136, 101, 0.92);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 244, 211, 0.2),
+    inset 0 12px 18px rgba(255, 248, 229, 0.12),
+    0 0 0 3px rgba(217, 124, 88, 0.22),
+    0 12px 22px rgba(24, 10, 4, 0.26);
+  filter: saturate(0.92) brightness(1.02);
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .status.status-warning {
+  color: #ffd8c4;
+  text-shadow:
+    0 0 12px rgba(205, 107, 82, 0.34),
+    0 0 24px rgba(205, 107, 82, 0.16);
+}
+
+body[data-theme-profile="rtn-green-room"] #run-the-numbers-view #bankroll.bankroll-warning {
+  color: #ffccae;
+  text-shadow:
+    0 0 12px rgba(214, 124, 88, 0.38),
+    0 0 22px rgba(214, 124, 88, 0.2);
 }
 
 body[data-theme-profile="rtn-green-room"] #run-the-numbers-view .chip-selector-row {

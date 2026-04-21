@@ -17275,6 +17275,7 @@ let lastBetLayout = [];
   let bankrollAnimating = false;
 let bankrollAnimationFrame = null;
 let bankrollDeltaTimeout = null;
+let insufficientBankrollSignalTimeout = null;
 let bankrollHistory = [];
 let persistentBankrollHistory = [];
 let persistentBankrollUserId = null;
@@ -20669,6 +20670,49 @@ function animateBankrollOutcome(delta) {
     bankrollAnimating = false;
     bankrollDeltaTimeout = null;
   }, 1400);
+}
+
+function clearInsufficientBankrollSignal() {
+  if (insufficientBankrollSignalTimeout !== null) {
+    clearTimeout(insufficientBankrollSignalTimeout);
+    insufficientBankrollSignalTimeout = null;
+  }
+
+  bankrollEl?.classList.remove("bankroll-warning", "bankroll-pulse");
+  chipBarEl?.classList.remove("insufficient-bankroll");
+  chipSelectorEl?.classList.remove("insufficient-bankroll");
+  statusEl?.classList.remove("status-warning");
+}
+
+function signalInsufficientBankroll(requiredAmount, message) {
+  if (statusEl) {
+    statusEl.textContent = message;
+    statusEl.classList.remove("status-warning");
+    void statusEl.offsetWidth;
+    statusEl.classList.add("status-warning");
+  }
+
+  showToast(
+    `Need ${formatCurrency(requiredAmount)} units available for that wager.`,
+    "error"
+  );
+
+  bankrollEl?.classList.remove("bankroll-positive", "bankroll-negative", "bankroll-neutral");
+  bankrollEl?.classList.remove("bankroll-warning", "bankroll-pulse");
+  chipBarEl?.classList.remove("insufficient-bankroll");
+  chipSelectorEl?.classList.remove("insufficient-bankroll");
+
+  if (bankrollEl) {
+    void bankrollEl.offsetWidth;
+    bankrollEl.classList.add("bankroll-warning", "bankroll-pulse");
+  }
+
+  chipBarEl?.classList.add("insufficient-bankroll");
+  chipSelectorEl?.classList.add("insufficient-bankroll");
+
+  insufficientBankrollSignalTimeout = window.setTimeout(() => {
+    clearInsufficientBankrollSignal();
+  }, 1600);
 }
 
 function updateStatsUI() {
@@ -25444,9 +25488,12 @@ function placeBet(key) {
   }
 
   if (selectedChip > bankroll) {
-    statusEl.textContent = `Insufficient bankroll for a ${formatCurrency(
-      selectedChip
-    )}-unit chip. Try a smaller denomination.`;
+    signalInsufficientBankroll(
+      selectedChip,
+      `Insufficient bankroll for a ${formatCurrency(
+        selectedChip
+      )}-unit chip. Try a smaller denomination.`
+    );
     return;
   }
 
@@ -25542,9 +25589,12 @@ rebetButton.addEventListener("click", () => {
   const outstanding = bets.reduce((sum, bet) => sum + bet.units, 0);
   const available = bankroll + outstanding;
   if (totalNeeded > available) {
-    statusEl.textContent = `Not enough bankroll to rebet ${formatCurrency(
-      totalNeeded
-    )} units. Reset your account or place smaller bets.`;
+    signalInsufficientBankroll(
+      totalNeeded,
+      `Not enough bankroll to rebet ${formatCurrency(
+        totalNeeded
+      )} units. Reset your account or place smaller bets.`
+    );
     return;
   }
 
