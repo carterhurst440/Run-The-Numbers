@@ -1357,10 +1357,11 @@ body[data-app-state="loading"] #app-shell {
 
 .home-contest-action.is-joined,
 .home-contest-action.is-joined:disabled {
-  background: var(--secondary-button-disabled-bg, var(--secondary-button-bg));
-  border-color: var(--secondary-button-disabled-border, var(--secondary-button-border));
-  box-shadow: var(--secondary-button-disabled-shadow, var(--secondary-button-shadow));
-  color: var(--secondary-button-disabled-text, rgba(247, 251, 255, 0.92));
+  background: linear-gradient(135deg, rgba(56, 60, 69, 0.94), rgba(34, 37, 44, 0.94));
+  border-color: rgba(150, 158, 172, 0.42);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
+  color: rgba(247, 251, 255, 0.98);
+  -webkit-text-fill-color: rgba(247, 251, 255, 0.98);
   text-shadow: none;
 }
 
@@ -7513,7 +7514,7 @@ body.theme-angelic {
   flex-shrink: 0;
   padding-left: clamp(0.45rem, 1.8vw, 0.8rem);
   margin-left: clamp(0.3rem, 1vw, 0.65rem);
-  border-left: 1px solid color-mix(in srgb, var(--header-border-color) 52%, transparent);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .header-mode-select-wrap {
