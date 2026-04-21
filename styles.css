@@ -7819,6 +7819,12 @@ body.theme-angelic {
   z-index: 2;
 }
 
+@media (min-width: 481px) {
+  .bankroll-units {
+    display: none;
+  }
+}
+
 .carter-cash-tooltip {
   position: absolute;
   top: calc(100% + 0.65rem);
