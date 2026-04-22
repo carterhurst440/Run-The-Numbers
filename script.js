@@ -7238,13 +7238,15 @@ async function executeShapeTraderTradeSecure({
 
   const normalizedQuantity = Math.max(1, Math.round(Number(quantity || 0)));
   const contestId = getShapeTraderCurrentContestId();
+  const expectedDrawId = getLatestShapeTraderDrawId();
   const rpcResult = await supabase.rpc("execute_shape_trader_trade", {
     _shape: assetId,
     _side: side,
     _quantity: normalizedQuantity,
     _contest_id: contestId,
     _reason: reason,
-    _award_carter_cash: awardCarterCash
+    _award_carter_cash: awardCarterCash,
+    _expected_draw_id: expectedDrawId > 0 ? expectedDrawId : null
   });
 
   if (rpcResult?.error) {
@@ -7622,7 +7624,12 @@ async function buyShapeTraderAsset({
     };
   } catch (error) {
     console.error("[RTN] Shape Traders buy failed", error);
-    setShapeTraderStatus("Unable to sync that buy to your account. The trade was canceled.");
+    const message = String(error?.message || error?.details || "");
+    if (/Market moved to a new draw/i.test(message)) {
+      setShapeTraderStatus("Market moved to a new draw. Confirm the latest price and try again.");
+    } else {
+      setShapeTraderStatus("Unable to sync that buy to your account. The trade was canceled.");
+    }
     return null;
   } finally {
     shapeTradersTradeActionInFlight = false;
@@ -7675,7 +7682,12 @@ async function sellShapeTraderAsset({
     };
   } catch (error) {
     console.error("[RTN] Shape Traders sell failed", error);
-    setShapeTraderStatus("Unable to sync that sale to your account. The trade was canceled.");
+    const message = String(error?.message || error?.details || "");
+    if (/Market moved to a new draw/i.test(message)) {
+      setShapeTraderStatus("Market moved to a new draw. Confirm the latest price and try again.");
+    } else {
+      setShapeTraderStatus("Unable to sync that sale to your account. The trade was canceled.");
+    }
     return null;
   } finally {
     shapeTradersTradeActionInFlight = false;

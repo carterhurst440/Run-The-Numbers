@@ -222,6 +222,7 @@ end;
 $$;
 
 drop function if exists public.execute_shape_trader_trade(text, text, integer, uuid, text, boolean);
+drop function if exists public.execute_shape_trader_trade(text, text, integer, uuid, text, boolean, bigint);
 
 create or replace function public.execute_shape_trader_trade(
   _shape text,
@@ -229,7 +230,8 @@ create or replace function public.execute_shape_trader_trade(
   _quantity integer,
   _contest_id uuid default null,
   _reason text default '',
-  _award_carter_cash boolean default true
+  _award_carter_cash boolean default true,
+  _expected_draw_id bigint default null
 )
 returns table (
   trade_id uuid,
@@ -259,6 +261,7 @@ declare
   v_side text := lower(coalesce(_side, 'buy'));
   v_quantity integer := greatest(coalesce(_quantity, 0), 0);
   v_price numeric;
+  v_market_draw_id bigint := null;
   v_total_value numeric;
   v_net_profit numeric := null;
   v_position public.shape_trader_positions_current%rowtype;
@@ -293,13 +296,21 @@ begin
     raise exception 'Quantity must be at least 1';
   end if;
 
-  select round(coalesce(current_price, 0)::numeric, 2)
-  into v_price
+  select
+    round(coalesce(current_price, 0)::numeric, 2),
+    last_draw_id
+  into
+    v_price,
+    v_market_draw_id
   from public.shape_trader_market_current
   where shape = _shape;
 
   if v_price is null then
     raise exception 'Current market price is unavailable';
+  end if;
+
+  if coalesce(_expected_draw_id, 0) > 0 and v_market_draw_id is distinct from _expected_draw_id then
+    raise exception 'Market moved to a new draw. Confirm the latest price and try again.';
   end if;
 
   if _contest_id is null then
@@ -523,7 +534,7 @@ end;
 $$;
 
 grant execute on function public.sync_shape_trader_account_state(uuid, timestamptz) to authenticated;
-grant execute on function public.execute_shape_trader_trade(text, text, integer, uuid, text, boolean) to authenticated;
+grant execute on function public.execute_shape_trader_trade(text, text, integer, uuid, text, boolean, bigint) to authenticated;
 
 drop function if exists public.apply_shape_trader_structural_event(bigint, text, text, uuid);
 
