@@ -153,7 +153,9 @@ begin
     );
   end if;
 
-  v_current_window_index := 0;
+  -- Start from the latest persisted window instead of rescanning from zero on every tick.
+  -- The old zero-based scan becomes O(total_windows) and slows into multi-second runtime.
+  v_current_window_index := greatest(0, v_latest_window_index);
   while v_now_ms >= public.shape_trader_window_end_ms(v_current_window_index) loop
     v_current_window_index := v_current_window_index + 1;
     if v_current_window_index > 100000 then
