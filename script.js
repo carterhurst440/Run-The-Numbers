@@ -4128,28 +4128,22 @@ function getShapeTraderDbAuthorityWindowState(now = Date.now()) {
   const tradeLocked =
     timeRemainingMs <= SHAPE_TRADERS_DB_TRADE_LOCK_PRE_DRAW_MS
     || msSinceLastDraw < SHAPE_TRADERS_DB_TRADE_LOCK_POST_DRAW_MS;
-  const timingKey = [
-    latestDrawId,
-    tradeLocked ? 1 : 0,
-    Math.ceil(timeRemainingMs / 1000),
-    Math.ceil(msSinceLastDraw / 1000),
-    awaitingNextDraw ? 1 : 0
-  ].join(":");
-  if (currentRoute === "shape-traders" && timingKey !== shapeTradersDebugLastTimingKey) {
-    logShapeTraderTiming("window-state", {
+  const lateDrawWarningActive = awaitingNextDraw && overdueMs >= SHAPE_TRADERS_TIMING_LATE_DRAW_WARNING_MS;
+  const timingKey = lateDrawWarningActive ? `${latestDrawId}:${Math.ceil(overdueMs / 1000)}` : "";
+  if (currentRoute === "shape-traders" && lateDrawWarningActive && timingKey !== shapeTradersDebugLastTimingKey) {
+    logShapeTraderTiming("late-draw-warning", {
       drawId: latestDrawId,
       windowIndex,
       sequenceInWindow,
       isDataDump,
-      tradeLocked,
-      msSinceLastDraw,
-      timeRemainingMs,
-      displayTimeRemainingMs,
+      overdueMs,
       nextDrawAt: new Date(nextDrawAtMs).toISOString(),
-      drawnAt: Number.isFinite(drawnAtMs) ? new Date(drawnAtMs).toISOString() : latestRow.drawn_at || null,
-      awaitingNextDraw
+      drawnAt: Number.isFinite(drawnAtMs) ? new Date(drawnAtMs).toISOString() : latestRow.drawn_at || null
     });
     shapeTradersDebugLastTimingKey = timingKey;
+    shapeTradersDebugLastLateWarningDrawId = latestDrawId;
+  } else if (!lateDrawWarningActive && shapeTradersDebugLastLateWarningDrawId !== latestDrawId) {
+    shapeTradersDebugLastTimingKey = "";
   }
 
   return {
@@ -5539,13 +5533,16 @@ async function tickShapeTraderDrawEngine() {
       throw rpcResult.error;
     }
     const result = Array.isArray(rpcResult.data) ? rpcResult.data[0] || null : rpcResult.data || null;
-    logShapeTraderTiming("tick-result", {
+    const tickDetails = {
       elapsedMs: Date.now() - tickStartedAt,
       processed: Number(result?.processed || 0),
       latestDrawId: result?.latest_draw_id ?? null,
       currentWindowIndex: result?.current_window_index ?? null,
       reason: result?.reason ?? null
-    });
+    };
+    if (shouldLogShapeTraderTick(tickDetails)) {
+      logShapeTraderTiming("tick-result", tickDetails);
+    }
     return {
       ok: true,
       result
@@ -5800,14 +5797,17 @@ async function hydrateShapeTradersFromDrawTable(
     shapeTradersPreviousCard = rows[1] ? mapShapeTraderDrawRowToCard(rows[1]) : null;
     shapeTradersProcessedWindowIndex = Math.floor(Number(latestRow.window_index || -1));
     shapeTradersProcessedVisibleCount = Math.floor(Number(latestRow.sequence_in_window || 0));
-    logShapeTraderTiming("hydrate-result", {
+    const hydrateDetails = {
       elapsedMs: Date.now() - hydrateStartedAt,
       changed: latestDrawId !== previousLatestDrawId,
       previousLatestDrawId,
       latestDrawId,
       rowCount: rows.length,
       historyLimit: shouldLoadExtendedHistory
-    });
+    };
+    if (shouldLogShapeTraderHydrate(hydrateDetails)) {
+      logShapeTraderTiming("hydrate-result", hydrateDetails);
+    }
     return {
       changed: latestDrawId !== previousLatestDrawId,
       latestDrawId,
@@ -7901,9 +7901,13 @@ async function synchronizeShapeTraders(now = Date.now()) {
       renderShapeTradersLiveSnapshot();
     }
   } finally {
-    logShapeTraderTiming("sync-pass-complete", {
-      elapsedMs: Date.now() - syncStartedAt
-    });
+    const syncElapsedMs = Date.now() - syncStartedAt;
+    if (drawStateChanged || syncElapsedMs >= SHAPE_TRADERS_TIMING_SLOW_SYNC_MS) {
+      logShapeTraderTiming("sync-pass-complete", {
+        elapsedMs: syncElapsedMs,
+        drawStateChanged
+      });
+    }
     shapeTradersSyncInFlight = false;
   }
 }
@@ -17625,6 +17629,10 @@ const SHAPE_TRADERS_ACTIVITY_PAGE_SIZE = 100;
 const SHAPE_TRADERS_GLOBAL_SYNC_MS = 5000;
 const SHAPE_TRADERS_HEARTBEAT_MS = 30000;
 const SHAPE_TRADERS_MAX_CATCH_UP_WINDOWS = 12;
+const SHAPE_TRADERS_TIMING_SLOW_TICK_MS = 400;
+const SHAPE_TRADERS_TIMING_SLOW_HYDRATE_MS = 300;
+const SHAPE_TRADERS_TIMING_SLOW_SYNC_MS = 600;
+const SHAPE_TRADERS_TIMING_LATE_DRAW_WARNING_MS = 2000;
 const SHAPE_TRADER_ASSISTANT_RULE_STORAGE_PREFIX = "shape-trader-assistant-rules";
 const SHAPE_TRADERS_CLIENT_ENGINE_PAUSED = false;
 const SHAPE_TRADERS_DB_DRAW_AUTHORITY = true;
@@ -17700,6 +17708,7 @@ let shapeTradersVisualPhaseStartedAt = 0;
 let shapeTradersVisualPhaseDurationMs = SHAPE_TRADERS_DRAW_INTERVAL_MS;
 let shapeTradersDebugLastHydratedDrawId = 0;
 let shapeTradersDebugLastTimingKey = "";
+let shapeTradersDebugLastLateWarningDrawId = 0;
 let shapeTradersGlobalSnapshot = {
   activeTraderCount: 0,
   marketCapByAsset: createEmptyShapeTraderMarketCap()
@@ -17718,6 +17727,21 @@ function logShapeTraderTiming(event, details = {}) {
     return;
   }
   console.info("[RTN][ST timing]", event, details);
+}
+
+function shouldLogShapeTraderTick(details = {}) {
+  return (
+    Number(details.processed || 0) > 0 ||
+    (details.reason && details.reason !== "busy") ||
+    Number(details.elapsedMs || 0) >= SHAPE_TRADERS_TIMING_SLOW_TICK_MS
+  );
+}
+
+function shouldLogShapeTraderHydrate(details = {}) {
+  return (
+    Boolean(details.changed) ||
+    Number(details.elapsedMs || 0) >= SHAPE_TRADERS_TIMING_SLOW_HYDRATE_MS
+  );
 }
 const PLAY_ASSISTANT_ROUTES = new Set(["run-the-numbers", "red-black", "shape-traders"]);
 const PLAY_ASSISTANT_CONFIG = {
