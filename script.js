@@ -7812,12 +7812,19 @@ async function synchronizeShapeTraders(now = Date.now()) {
       setShapeTraderStatus("Positions liquidated after 5 minutes with the tab/window inactive.");
     }
 
-    if (currentRoute === "shape-traders" && shapeTradersWindowActive && now - shapeTradersLastHeartbeatAt >= SHAPE_TRADERS_HEARTBEAT_MS) {
-      await syncShapeTraderCurrentState({ heartbeatOnly: true });
+    const shouldHeartbeatSync =
+      currentRoute === "shape-traders" &&
+      shapeTradersWindowActive &&
+      now - shapeTradersLastHeartbeatAt >= SHAPE_TRADERS_HEARTBEAT_MS;
+    const shouldRefreshGlobalSnapshot =
+      now - shapeTradersLastGlobalSyncAt >= SHAPE_TRADERS_GLOBAL_SYNC_MS;
+
+    if (shouldHeartbeatSync && !shapeTradersStateSyncInFlight) {
+      void syncShapeTraderCurrentState({ heartbeatOnly: true });
     }
 
-    if (now - shapeTradersLastGlobalSyncAt >= SHAPE_TRADERS_GLOBAL_SYNC_MS) {
-      await refreshShapeTraderGlobalSnapshot();
+    if (shouldRefreshGlobalSnapshot && !shapeTradersGlobalSyncInFlight) {
+      void refreshShapeTraderGlobalSnapshot();
     }
 
     renderShapeTraders();
