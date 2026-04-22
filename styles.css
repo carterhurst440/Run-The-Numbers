@@ -2961,7 +2961,7 @@ body[data-app-state="loading"] #app-shell {
 
 @media (min-width: 769px) {
   .shape-traders-holdings-list {
-    gap: 0.6rem;
+    gap: 0;
   }
 
   .shape-traders-holdings-header {
@@ -2969,15 +2969,11 @@ body[data-app-state="loading"] #app-shell {
   }
 
   .shape-traders-holding-card {
-    padding: 0.82rem 1rem 0.88rem 1.05rem;
-    border: 1px solid color-mix(in srgb, var(--betting-panel-border) 28%, transparent);
-    border-radius: 1rem;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.01)),
-      linear-gradient(180deg, rgba(16, 19, 26, 0.92), rgba(10, 12, 18, 0.96));
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.03),
-      0 12px 26px rgba(0, 0, 0, 0.16) !important;
+    padding: 0.74rem 0.2rem 0.78rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none !important;
     border-bottom: 1px solid color-mix(in srgb, var(--betting-panel-border) 28%, transparent);
   }
 
@@ -17592,13 +17588,8 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-total-field span 
 @media (min-width: 769px) {
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-holding-card {
     border-color: rgba(255, 255, 255, 0.06);
-    background:
-      linear-gradient(180deg, rgba(24, 27, 34, 0.96), rgba(12, 14, 18, 0.98)),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.016) 1px, transparent 1px);
-    background-size: auto, 26px 26px;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.03),
-      0 16px 28px rgba(0, 0, 0, 0.2) !important;
+    background: transparent;
+    box-shadow: none !important;
   }
 
   body[data-theme-profile="shape-traders-carbon"] .header-mode-select {
