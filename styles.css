@@ -1726,12 +1726,13 @@ body[data-app-state="loading"] #app-shell {
 .home-game-tile {
   position: relative;
   display: grid;
-  gap: 0.45rem;
+  justify-items: start;
+  gap: 0.85rem;
   width: 100%;
   text-align: left;
-  align-content: start;
-  min-height: 10.5rem;
-  padding: 1.15rem 1.15rem 1.2rem;
+  align-content: center;
+  min-height: 8.6rem;
+  padding: 1.15rem 1.2rem;
   border-radius: 1.45rem;
   border: 1px solid color-mix(in srgb, var(--betting-panel-border) 74%, white 26%);
   background: var(--betting-panel-bg);
@@ -1775,38 +1776,39 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .home-game-tile-kicker {
+  display: none;
+}
+
+.home-game-tile-logo {
   position: relative;
   z-index: 1;
-  font-size: 0.68rem;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.64);
+  width: auto;
+  max-width: min(100%, 7.25rem);
+  max-height: 3.4rem;
+  object-fit: contain;
+  filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.12));
 }
 
 .home-game-tile-title {
   position: relative;
   z-index: 1;
   font-family: "Audiowide", "Play", system-ui, sans-serif;
-  font-size: clamp(1.05rem, 2vw, 1.35rem);
-  letter-spacing: 0.08em;
+  font-size: clamp(0.98rem, 1.9vw, 1.28rem);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-light);
+  text-wrap: balance;
 }
 
 .home-game-tile-copy {
-  position: relative;
-  z-index: 1;
-  max-width: 22ch;
-  color: rgba(229, 235, 255, 0.82);
-  font-size: 0.88rem;
-  line-height: 1.45;
+  display: none;
 }
 
 .home-game-tile-rtn {
   border-color: color-mix(in srgb, #8ccf8b 58%, white 18%);
   background:
-    radial-gradient(circle at 85% 18%, rgba(212, 177, 90, 0.22), transparent 22%),
-    linear-gradient(145deg, rgba(18, 49, 32, 0.96), rgba(10, 17, 15, 0.98) 62%),
+    radial-gradient(circle at 84% 18%, rgba(212, 177, 90, 0.28), transparent 22%),
+    linear-gradient(145deg, rgba(20, 56, 35, 0.98), rgba(9, 18, 14, 0.98) 62%),
     var(--betting-panel-bg);
 }
 
@@ -1817,8 +1819,8 @@ body[data-app-state="loading"] #app-shell {
 .home-game-tile-g10 {
   border-color: color-mix(in srgb, #8caeff 54%, white 18%);
   background:
-    radial-gradient(circle at 82% 20%, rgba(255, 92, 92, 0.2), transparent 24%),
-    linear-gradient(145deg, rgba(17, 31, 66, 0.96), rgba(11, 16, 26, 0.98) 62%),
+    radial-gradient(circle at 82% 20%, rgba(255, 92, 92, 0.26), transparent 24%),
+    linear-gradient(145deg, rgba(23, 41, 86, 0.98), rgba(11, 16, 26, 0.98) 62%),
     var(--betting-panel-bg);
 }
 
@@ -1829,9 +1831,9 @@ body[data-app-state="loading"] #app-shell {
 .home-game-tile-shape {
   border-color: color-mix(in srgb, #f0cf74 58%, white 18%);
   background:
-    radial-gradient(circle at 22% 16%, rgba(255, 95, 176, 0.18), transparent 22%),
-    radial-gradient(circle at 84% 18%, rgba(92, 219, 255, 0.16), transparent 24%),
-    linear-gradient(145deg, rgba(27, 29, 36, 0.96), rgba(12, 14, 19, 0.98) 62%),
+    radial-gradient(circle at 22% 16%, rgba(255, 95, 176, 0.22), transparent 22%),
+    radial-gradient(circle at 84% 18%, rgba(92, 219, 255, 0.18), transparent 24%),
+    linear-gradient(145deg, rgba(33, 35, 43, 0.98), rgba(12, 14, 19, 0.98) 62%),
     var(--betting-panel-bg);
 }
 

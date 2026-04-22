@@ -3024,19 +3024,16 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
             <h1 class="home-title">Welcome to the Casino Floor</h1>
             <div class="home-actions home-game-tiles">
               <button type="button" class="home-game-tile home-game-tile-rtn">
-                <span class="home-game-tile-kicker">Original Game</span>
+                <img class="home-game-tile-logo" src="/assets/game-logos/run-the-numbers.svg" alt="Run the Numbers logo" />
                 <span class="home-game-tile-title">Run The Numbers</span>
-                <span class="home-game-tile-copy">Build the board and press the active paytable.</span>
               </button>
               <button type="button" class="home-game-tile home-game-tile-g10">
-                <span class="home-game-tile-kicker">Beta Table</span>
+                <img class="home-game-tile-logo" src="/assets/game-logos/guess-10.svg" alt="Guess 10 logo" />
                 <span class="home-game-tile-title">Guess 10</span>
-                <span class="home-game-tile-copy">Predict color, suit, or rank before the deck turns.</span>
               </button>
               <button type="button" class="home-game-tile home-game-tile-shape">
-                <span class="home-game-tile-kicker">Live Market</span>
+                <img class="home-game-tile-logo" src="/assets/game-logos/shape-traders.svg" alt="Shape Traders logo" />
                 <span class="home-game-tile-title">Shape Traders</span>
-                <span class="home-game-tile-copy">Trade shapes through the shared card-driven market.</span>
               </button>
             </div>
             <section class="home-rank-panel" aria-label="Current rank">
