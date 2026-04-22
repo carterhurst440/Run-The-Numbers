@@ -769,15 +769,15 @@ body[data-app-state="ready"] .loading-screen {
 
 @keyframes appBackgroundShimmer {
   0% {
-    background-position: 135% 0, center;
+    background-position: 135% -18%, center;
     opacity: 0.62;
   }
   50% {
-    background-position: -35% 0, center;
+    background-position: -35% 18%, center;
     opacity: 0.86;
   }
   100% {
-    background-position: 135% 0, center;
+    background-position: 135% -18%, center;
     opacity: 0.62;
   }
 }
@@ -813,7 +813,7 @@ body[data-app-state="ready"] .loading-screen {
     ),
     var(--app-overlay);
   background-size: 220% 100%, 100% 100%;
-  background-position: 135% 0, center;
+  background-position: 135% -18%, center;
   opacity: 0.72;
   animation: appBackgroundShimmer 16s ease-in-out infinite;
 }
@@ -18714,6 +18714,16 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
   gap: 0.8rem;
 }
 
+.contest-card-heading {
+  display: grid;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.contest-card-heading h3 {
+  margin: 0;
+}
+
 .admin-contest-header,
 .contest-result-row,
 .contest-leaderboard-row {
@@ -18760,6 +18770,29 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
   align-items: center;
   gap: 0.45rem;
   flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.contest-meta-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid var(--betting-panel-border);
+  color: var(--text-light);
+}
+
+.contest-meta-badge-entry {
+  border-color: rgba(255, 214, 102, 0.32);
+  color: rgba(255, 224, 138, 0.96);
+}
+
+.contest-meta-badge-joined {
+  border-color: rgba(96, 201, 136, 0.34);
+  color: #9af0b6;
 }
 
 .contest-rank-tag {
@@ -18954,6 +18987,71 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
   align-items: center;
 }
 
+.contest-card-hero {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--gold) 18%, var(--betting-panel-border) 82%);
+  background:
+    linear-gradient(180deg, rgba(255, 214, 102, 0.04), rgba(255, 214, 102, 0.01)),
+    color-mix(in srgb, var(--betting-panel-bg) 80%, black 20%);
+}
+
+.contest-card-hero .contest-prize-pill {
+  margin: 0;
+  font-size: 1.08rem;
+  letter-spacing: 0.1em;
+}
+
+.contest-card-hero-meta {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.contest-card-hero-meta .contest-prize-growth {
+  margin: 0;
+}
+
+.contest-description {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.contest-description-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.contest-description:not(.is-expanded) .contest-description-copy {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.contest-description-toggle {
+  justify-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: color-mix(in srgb, var(--gold) 80%, white 20%);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.contest-description-toggle:hover,
+.contest-description-toggle:focus-visible {
+  color: #ffffff;
+  outline: none;
+}
+
 .contest-actions .primary,
 .contest-actions .secondary {
   min-width: 11.5rem;
@@ -18976,6 +19074,15 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
 @media (max-width: 900px) {
   .contest-detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-contest-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .contest-status-meta {
+    justify-content: flex-start;
   }
 
   .contest-result-row {

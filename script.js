@@ -13763,6 +13763,42 @@ function getContestScheduleLabel(contest, statsOrCount = contestParticipantCount
   return `${formatContestDateTime(contest.starts_at)} - ${formatContestDateTime(contest.ends_at)}`;
 }
 
+function createContestMetaBadge(label, { tone = "neutral" } = {}) {
+  const badge = document.createElement("span");
+  badge.className = `contest-meta-badge contest-meta-badge-${tone}`;
+  badge.textContent = label;
+  return badge;
+}
+
+function createContestDescriptionSection(descriptionText = "") {
+  const resolvedText = String(descriptionText || "").trim();
+  if (!resolvedText) return null;
+
+  const wrap = document.createElement("div");
+  wrap.className = "contest-description";
+
+  const body = document.createElement("p");
+  body.className = "contest-description-copy";
+  body.textContent = resolvedText;
+  wrap.append(body);
+
+  if (resolvedText.length <= 140) {
+    return wrap;
+  }
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "contest-description-toggle";
+  toggle.textContent = "View All";
+  toggle.addEventListener("click", () => {
+    const expanded = wrap.classList.toggle("is-expanded");
+    toggle.textContent = expanded ? "Show Less" : "View All";
+  });
+
+  wrap.append(toggle);
+  return wrap;
+}
+
 function createContestThresholdProgress(contest, statsOrCount = 0, variant = "list") {
   if (!contest || !isThresholdContest(contest) || getContestStatus(contest) !== "pending") {
     return null;
@@ -14546,71 +14582,73 @@ function renderPlayerContestRow(contest, participantStats = 0) {
   const item = document.createElement("li");
   item.className = "admin-contest-card";
   const stats = normalizeContestPrizeStats(participantStats);
-
-  const header = document.createElement("div");
-  header.className = "admin-contest-header";
-  const title = document.createElement("h3");
-  title.textContent = contest.is_test ? `${contest.title || "Contest"} (Test)` : contest.title || "Contest";
-  const titleRow = document.createElement("div");
-  titleRow.className = "contest-card-title-row";
-  const entryFeeBadge = document.createElement("span");
-  entryFeeBadge.className = "contest-entry-fee-badge";
-  entryFeeBadge.textContent = formatContestEntryFeeLabelText(contest);
-  titleRow.append(title, entryFeeBadge);
-  const badge = document.createElement("span");
   const status = getContestStatus(contest);
-  badge.className = "contest-status-badge";
-  badge.dataset.status = status;
-  badge.textContent = getContestStatusLabel(status);
-  const badgeGroup = document.createElement("div");
-  badgeGroup.className = "contest-status-meta";
-  badgeGroup.append(badge);
-  const requiredRankTag = createContestRequiredRankTag(contest);
-  if (requiredRankTag) {
-    badgeGroup.append(requiredRankTag);
-  }
-  header.append(titleRow, badgeGroup);
-
-  const details = document.createElement("p");
-  details.className = "contest-window";
-  details.textContent = getContestScheduleLabel(contest, stats);
-
-  const meta = document.createElement("p");
-  meta.className = "contest-opt-in-copy";
-  const entryFeeAmount = getContestEntryFee(contest);
-  meta.textContent = `Highest credits wins • Requires ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash • Entry fee: ${formatCurrency(entryFeeAmount)} CC • Contestants: ${formatContestFill(contest, stats)}`;
-
-  const games = document.createElement("p");
-  games.className = "contest-prize-growth";
-  games.textContent = `Games: ${getContestGamesLabel(contest)}`;
-
-  const prize = document.createElement("p");
-  prize.className = "contest-prize-pill";
-  prize.textContent = `Prize Pot ${getContestPrizeHeadline(contest, stats)}`;
-
-  const growth = document.createElement("p");
-  growth.className = "contest-prize-growth";
-  growth.textContent = getContestPrizeGrowthCopy(contest);
-
-  const thresholdProgress = createContestThresholdProgress(contest, stats, "list");
-
-  const caption = document.createElement("p");
-  caption.className = "contest-prize-growth";
-  caption.textContent = String(contest.contest_details || "").trim();
-
-  const distribution = document.createElement("p");
-  distribution.className = "contest-prize-growth";
-  distribution.textContent = `Payouts: ${getContestPrizeDistributionCopy(contest, stats)}`;
-
-  const payoutTable = buildContestPayoutTable(contest, stats, "contest-card-payouts");
-
-  const actions = document.createElement("div");
-  actions.className = "contest-actions";
   const playerEntry = getContestEntryById(contest.id);
   const contestIsFull = stats.participants >= getContestLimit(contest);
   const requiredRankTier = getContestRequiredRankTier(contest);
   const requiredRank = getRankByTier(requiredRankTier);
   const meetsRankRequirement = getCurrentPlayerRankTier() >= requiredRankTier;
+  const allocations = normalizePrizeAllocations(contest?.prize_allocations);
+  const qualificationRequirement = formatCurrency(getContestQualificationRequirement(contest));
+
+  const header = document.createElement("div");
+  header.className = "admin-contest-header";
+  const headingWrap = document.createElement("div");
+  headingWrap.className = "contest-card-heading";
+  const title = document.createElement("h3");
+  title.textContent = contest.is_test ? `${contest.title || "Contest"} (Test)` : contest.title || "Contest";
+  const badgeGroup = document.createElement("div");
+  badgeGroup.className = "contest-status-meta";
+  const badge = document.createElement("span");
+  badge.className = "contest-status-badge";
+  badge.dataset.status = status;
+  badge.textContent = getContestStatusLabel(status);
+  badgeGroup.append(badge);
+  badgeGroup.append(createContestMetaBadge(formatContestEntryFeeLabelText(contest), { tone: "entry" }));
+  if (playerEntry) {
+    badgeGroup.append(createContestMetaBadge("Joined", { tone: "joined" }));
+  }
+  const requiredRankTag = createContestRequiredRankTag(contest);
+  if (requiredRankTag) {
+    badgeGroup.append(requiredRankTag);
+  }
+  const details = document.createElement("p");
+  details.className = "contest-window";
+  details.textContent = getContestScheduleLabel(contest, stats);
+  headingWrap.append(title, details);
+  header.append(headingWrap, badgeGroup);
+
+  const hero = document.createElement("div");
+  hero.className = "contest-card-hero";
+
+  const prize = document.createElement("p");
+  prize.className = "contest-prize-pill";
+  prize.textContent = `Prize Pot ${getContestPrizeHeadline(contest, stats)}`;
+  hero.append(prize);
+
+  if (allocations.length > 1) {
+    hero.append(buildContestPayoutTable(contest, stats, "contest-card-payouts"));
+  }
+
+  const heroMeta = document.createElement("div");
+  heroMeta.className = "contest-card-hero-meta";
+  const qualification = document.createElement("p");
+  qualification.className = "contest-prize-growth";
+  qualification.textContent = `Qualify with ${qualificationRequirement} Carter Cash`;
+  const games = document.createElement("p");
+  games.className = "contest-prize-growth";
+  games.textContent = `Games: ${getContestGamesLabel(contest)}`;
+  heroMeta.append(qualification, games);
+
+  const thresholdProgress = createContestThresholdProgress(contest, stats, "list");
+  const description = createContestDescriptionSection(contest.contest_details);
+
+  const formatMeta = document.createElement("p");
+  formatMeta.className = "contest-opt-in-copy";
+  formatMeta.textContent = "Highest credits wins";
+
+  const actions = document.createElement("div");
+  actions.className = "contest-actions";
 
   const leaderboardButton = document.createElement("button");
   leaderboardButton.type = "button";
@@ -14639,13 +14677,17 @@ function renderPlayerContestRow(contest, participantStats = 0) {
 
   if (status === "live" || status === "pending") {
     if (playerEntry) {
+      const usingMode = isUsingContestMode(contest.id);
       const switchButton = document.createElement("button");
       switchButton.type = "button";
-      switchButton.className = "primary";
-      const usingMode = isUsingContestMode(contest.id);
-      switchButton.textContent = usingMode ? "Using This Mode" : "Joined";
-      switchButton.classList.add("is-joined");
-      switchButton.disabled = true;
+      switchButton.className = usingMode ? "primary is-joined" : "primary";
+      switchButton.textContent = usingMode ? "Contest Mode Active" : "Switch To Mode";
+      switchButton.disabled = usingMode;
+      if (!usingMode) {
+        switchButton.addEventListener("click", () => {
+          void switchToContestMode(contest.id, { navigateToPlay: true });
+        });
+      }
       actions.append(switchButton);
     } else {
       const joinButton = document.createElement("button");
@@ -14685,16 +14727,11 @@ function renderPlayerContestRow(contest, participantStats = 0) {
   }
 
   actions.append(shareButton);
-
-  if (caption.textContent) {
-    item.append(header, details, prize, growth);
-    if (thresholdProgress) item.append(thresholdProgress);
-    item.append(caption, payoutTable, meta, games, distribution, actions);
-  } else {
-    item.append(header, details, prize, growth);
-    if (thresholdProgress) item.append(thresholdProgress);
-    item.append(payoutTable, meta, games, distribution, actions);
-  }
+  item.append(header, hero, heroMeta);
+  if (thresholdProgress) item.append(thresholdProgress);
+  item.append(formatMeta);
+  if (description) item.append(description);
+  item.append(actions);
   return item;
 }
 
