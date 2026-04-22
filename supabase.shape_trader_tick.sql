@@ -69,6 +69,7 @@ as $$
 declare
   v_cfg record;
   v_latest_row record;
+  v_lock_acquired boolean := false;
   v_now_ms bigint := floor(extract(epoch from clock_timestamp()) * 1000)::bigint;
   v_epoch_ms bigint;
   v_latest_window_index integer := -1;
@@ -95,6 +96,16 @@ declare
   v_candidate numeric(12,2);
   v_event_tags text[];
 begin
+  v_lock_acquired := pg_try_advisory_xact_lock(hashtextextended('public.shape_trader_tick', 0));
+  if not v_lock_acquired then
+    return jsonb_build_object(
+      'ok', true,
+      'processed', 0,
+      'latest_draw_id', null,
+      'reason', 'busy'
+    );
+  end if;
+
   select *
   into v_cfg
   from public.shape_trader_engine_config
