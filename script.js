@@ -7704,31 +7704,6 @@ async function synchronizeShapeTraders(now = Date.now()) {
 
     await hydrateShapeTradersFromDrawTable(now);
 
-    if (isShapeTradersDbDrawAuthorityEnabled()) {
-      const currentWindowIndex = getShapeTraderCurrentWindowIndex(now);
-      const startingWindowIndex = Math.max(0, shapeTradersProcessedWindowIndex);
-
-      if (currentWindowIndex >= 0) {
-        for (let windowIndex = startingWindowIndex; windowIndex <= currentWindowIndex; windowIndex += 1) {
-          if (shapeTradersResetInFlight || shapeTradersLocalResetMode) {
-            return;
-          }
-          const windowState = getShapeTraderWindowState(windowIndex, now);
-          const targetCount = windowIndex < currentWindowIndex ? windowState.cards.length : windowState.visibleCount;
-          const startSequence =
-            windowIndex === shapeTradersProcessedWindowIndex ? shapeTradersProcessedVisibleCount + 1 : 1;
-
-          for (let sequenceInWindow = startSequence; sequenceInWindow <= targetCount; sequenceInWindow += 1) {
-            if (shapeTradersResetInFlight || shapeTradersLocalResetMode) {
-              return;
-            }
-            const drawRow = await persistShapeTraderDrawRow(windowIndex, sequenceInWindow);
-            await applyShapeTraderDrawRow(drawRow);
-          }
-        }
-      }
-    }
-
     await maybeReconcileShapeTraderStructuralEvents();
     await evaluateShapeTraderAssistantRules();
 
