@@ -4122,7 +4122,7 @@ function getShapeTraderDbAuthorityWindowState(now = Date.now()) {
   const visualNextDrawAtMs = shapeTradersVisualPhaseStartedAt + shapeTradersVisualPhaseDurationMs;
   const overdueMs = Math.max(0, now - nextDrawAtMs);
   const awaitingNextDraw = overdueMs > 0 && overdueMs < nextDelayMs;
-  const displayTimeRemainingMs = visualPhaseTimeRemainingMs;
+  const displayTimeRemainingMs = timeRemainingMs;
   const cardsUntilDump = (9 - (windowIndex % 10) + 10) % 10;
   const msSinceLastDraw = Math.max(0, now - safeDrawnAtMs);
   const tradeLocked =
@@ -4138,7 +4138,7 @@ function getShapeTraderDbAuthorityWindowState(now = Date.now()) {
     previousCard: shapeTradersPreviousCard,
     phaseDurationMs: nextDelayMs,
     phaseTimeRemainingMs,
-    displayPhaseTimeRemainingMs: visualPhaseTimeRemainingMs,
+    displayPhaseTimeRemainingMs: phaseTimeRemainingMs,
     visualPhaseTimeRemainingMs,
     visualPhaseDurationMs: shapeTradersVisualPhaseDurationMs,
     timeRemainingMs,
@@ -6215,7 +6215,7 @@ function renderShapeTradersDeck(now = Date.now()) {
     const seconds = String(secondsRemaining % 60).padStart(2, "0");
     const currentCard = dbState.currentCard;
     const previousCard = dbState.previousCard;
-    const countdownProgress = Math.max(0, Math.min(1, dbState.displayPhaseTimeRemainingMs / Math.max(1, dbState.visualPhaseDurationMs || dbState.phaseDurationMs)));
+    const countdownProgress = Math.max(0, Math.min(1, dbState.displayPhaseTimeRemainingMs / Math.max(1, dbState.phaseDurationMs)));
 
     if (shapeTradersCountdownEl) {
       shapeTradersCountdownEl.textContent = isDumpReveal
