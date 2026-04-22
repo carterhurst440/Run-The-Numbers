@@ -4128,6 +4128,29 @@ function getShapeTraderDbAuthorityWindowState(now = Date.now()) {
   const tradeLocked =
     timeRemainingMs <= SHAPE_TRADERS_DB_TRADE_LOCK_PRE_DRAW_MS
     || msSinceLastDraw < SHAPE_TRADERS_DB_TRADE_LOCK_POST_DRAW_MS;
+  const timingKey = [
+    latestDrawId,
+    tradeLocked ? 1 : 0,
+    Math.ceil(timeRemainingMs / 1000),
+    Math.ceil(msSinceLastDraw / 1000),
+    awaitingNextDraw ? 1 : 0
+  ].join(":");
+  if (currentRoute === "shape-traders" && timingKey !== shapeTradersDebugLastTimingKey) {
+    logShapeTraderTiming("window-state", {
+      drawId: latestDrawId,
+      windowIndex,
+      sequenceInWindow,
+      isDataDump,
+      tradeLocked,
+      msSinceLastDraw,
+      timeRemainingMs,
+      displayTimeRemainingMs,
+      nextDrawAt: new Date(nextDrawAtMs).toISOString(),
+      drawnAt: Number.isFinite(drawnAtMs) ? new Date(drawnAtMs).toISOString() : latestRow.drawn_at || null,
+      awaitingNextDraw
+    });
+    shapeTradersDebugLastTimingKey = timingKey;
+  }
 
   return {
     windowIndex,
@@ -5514,9 +5537,16 @@ async function tickShapeTraderDrawEngine() {
       }
       throw rpcResult.error;
     }
+    const result = Array.isArray(rpcResult.data) ? rpcResult.data[0] || null : rpcResult.data || null;
+    logShapeTraderTiming("tick-result", {
+      processed: Number(result?.processed || 0),
+      latestDrawId: result?.latest_draw_id ?? null,
+      currentWindowIndex: result?.current_window_index ?? null,
+      reason: result?.reason ?? null
+    });
     return {
       ok: true,
-      result: Array.isArray(rpcResult.data) ? rpcResult.data[0] || null : rpcResult.data || null
+      result
     };
   } catch (error) {
     console.error("[RTN] Unable to tick Shape Traders draw engine", error);
@@ -5721,6 +5751,29 @@ async function hydrateShapeTradersFromDrawTable(now = Date.now()) {
     const latestRow = rows[0];
     shapeTradersRecentDrawRows = rows;
     shapeTradersTimelineEpochMs = getShapeTraderTimelineEpochFromRow(latestRow);
+
+    const latestDrawId = Math.max(0, Math.floor(Number(latestRow.draw_id || 0)));
+    if (latestDrawId && latestDrawId !== shapeTradersDebugLastHydratedDrawId) {
+      const drawnAtMs = Date.parse(latestRow.drawn_at || "");
+      const isDataDump = Boolean(latestRow.is_data_dump);
+      const sequenceInWindow = Math.max(1, Math.floor(Number(latestRow.sequence_in_window || 1)));
+      const nextDelayMs = isDataDump && sequenceInWindow < SHAPE_TRADERS_DUMP_CARDS
+        ? SHAPE_TRADERS_DUMP_CARD_INTERVAL_MS
+        : SHAPE_TRADERS_DRAW_INTERVAL_MS;
+      logShapeTraderTiming("hydrate-latest-row", {
+        drawId: latestDrawId,
+        windowIndex: Math.floor(Number(latestRow.window_index || -1)),
+        sequenceInWindow,
+        isDataDump,
+        drawnAt: latestRow.drawn_at || null,
+        rowAgeMs: Number.isFinite(drawnAtMs) ? Math.max(0, Date.now() - drawnAtMs) : null,
+        nextDelayMs,
+        msUntilExpectedNextDraw: Number.isFinite(drawnAtMs)
+          ? (drawnAtMs + nextDelayMs) - Date.now()
+          : null
+      });
+      shapeTradersDebugLastHydratedDrawId = latestDrawId;
+    }
 
     hasCanonicalMarketPrices = applyShapeTraderDrawRowPriceSnapshot(latestRow);
     if (!hasCanonicalMarketPrices) {
@@ -17563,6 +17616,8 @@ let shapeTradersActivityLoadedCount = 0;
 let shapeTradersVisualPhaseDrawId = null;
 let shapeTradersVisualPhaseStartedAt = 0;
 let shapeTradersVisualPhaseDurationMs = SHAPE_TRADERS_DRAW_INTERVAL_MS;
+let shapeTradersDebugLastHydratedDrawId = 0;
+let shapeTradersDebugLastTimingKey = "";
 let shapeTradersGlobalSnapshot = {
   activeTraderCount: 0,
   marketCapByAsset: createEmptyShapeTraderMarketCap()
@@ -17574,6 +17629,13 @@ function isShapeTradersClientEnginePaused() {
 
 function isShapeTradersDbDrawAuthorityEnabled() {
   return SHAPE_TRADERS_DB_DRAW_AUTHORITY;
+}
+
+function logShapeTraderTiming(event, details = {}) {
+  if (typeof console === "undefined" || currentRoute !== "shape-traders") {
+    return;
+  }
+  console.info("[RTN][ST timing]", event, details);
 }
 const PLAY_ASSISTANT_ROUTES = new Set(["run-the-numbers", "red-black", "shape-traders"]);
 const PLAY_ASSISTANT_CONFIG = {
