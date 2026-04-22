@@ -4095,13 +4095,12 @@ function getShapeTraderDbAuthorityWindowState(now = Date.now()) {
   const nextDrawAtMs = safeDrawnAtMs + nextDelayMs;
   const timeRemainingMs = Math.max(0, nextDrawAtMs - now);
   const phaseTimeRemainingMs = Math.max(0, nextDelayMs - Math.max(0, now - safeDrawnAtMs));
+  const visualPhaseElapsedMs = Math.max(0, now - shapeTradersVisualPhaseStartedAt);
+  const visualPhaseTimeRemainingMs = Math.max(0, shapeTradersVisualPhaseDurationMs - visualPhaseElapsedMs);
+  const visualNextDrawAtMs = shapeTradersVisualPhaseStartedAt + shapeTradersVisualPhaseDurationMs;
   const overdueMs = Math.max(0, now - nextDrawAtMs);
   const awaitingNextDraw = overdueMs > 0 && overdueMs < nextDelayMs;
-  const displayTimeRemainingMs = timeRemainingMs > 0
-    ? timeRemainingMs
-    : awaitingNextDraw
-      ? Math.max(0, nextDelayMs - overdueMs)
-      : 0;
+  const displayTimeRemainingMs = visualPhaseTimeRemainingMs;
   const cardsUntilDump = (9 - (windowIndex % 10) + 10) % 10;
   const msSinceLastDraw = Math.max(0, now - safeDrawnAtMs);
   const tradeLocked =
@@ -4117,14 +4116,14 @@ function getShapeTraderDbAuthorityWindowState(now = Date.now()) {
     previousCard: shapeTradersPreviousCard,
     phaseDurationMs: nextDelayMs,
     phaseTimeRemainingMs,
-    displayPhaseTimeRemainingMs: displayTimeRemainingMs,
-    visualPhaseTimeRemainingMs: phaseTimeRemainingMs,
-    visualPhaseDurationMs: nextDelayMs,
+    displayPhaseTimeRemainingMs: visualPhaseTimeRemainingMs,
+    visualPhaseTimeRemainingMs,
+    visualPhaseDurationMs: shapeTradersVisualPhaseDurationMs,
     timeRemainingMs,
-    visualTimeRemainingMs: timeRemainingMs,
+    visualTimeRemainingMs: visualPhaseTimeRemainingMs,
     displayTimeRemainingMs,
     nextDrawAtMs,
-    visualNextDrawAtMs: nextDrawAtMs,
+    visualNextDrawAtMs,
     cardsUntilDump,
     dumpProgress: isDataDump ? Math.min(SHAPE_TRADERS_DUMP_CARDS, sequenceInWindow) : 0,
     awaitingNextDraw
@@ -6225,7 +6224,7 @@ function renderShapeTradersDeck(now = Date.now()) {
     const seconds = String(secondsRemaining % 60).padStart(2, "0");
     const currentCard = dbState.currentCard;
     const previousCard = dbState.previousCard;
-    const countdownProgress = Math.max(0, Math.min(1, dbState.displayPhaseTimeRemainingMs / Math.max(1, dbState.phaseDurationMs)));
+    const countdownProgress = Math.max(0, Math.min(1, dbState.displayPhaseTimeRemainingMs / Math.max(1, dbState.visualPhaseDurationMs || dbState.phaseDurationMs)));
 
     if (shapeTradersCountdownEl) {
       shapeTradersCountdownEl.textContent = isDumpReveal
