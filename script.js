@@ -10607,65 +10607,23 @@ function closeRedeemModal() {
 async function submitRedeem(prize, contact) {
   if (!currentUser || !prize) throw new Error("Missing user or prize");
 
-  const currencyKey = (prize.cost_currency ?? "units").toLowerCase();
-  const costValue = Math.max(0, Math.round(Number(prize.cost ?? 0)));
-
   try {
-    // First: verify prize is still active before attempting purchase
-    const { data: prizeCheck, error: checkError } = await supabase
-      .from("prizes")
-      .select("id, active")
-      .eq("id", prize.id)
-      .single();
+    const { data, error } = await supabase.rpc("redeem_prize_secure", {
+      _prize_id: prize.id,
+      _shipping_address: contact.address,
+      _shipping_phone: contact.phone || null,
+      _contact_email: contact.email || null
+    });
 
-    if (checkError || !prizeCheck || prizeCheck.active === false) {
-      throw new Error("This prize was just claimed by someone else.");
+    if (error) {
+      throw error;
     }
 
-    // Second: insert purchase record with cost
-    const { error: purchaseError } = await supabase
-      .from("prize_purchases")
-      .insert({
-        prize_id: prize.id,
-        user_id: currentUser.id,
-        shipping_address: contact.address,
-        shipping_phone: contact.phone || null,
-        contact_email: contact.email || null,
-        cost: costValue
-      });
-
-    if (purchaseError) {
-      console.error("prize_purchases insert error", purchaseError);
-      throw new Error("Failed to record purchase. Please try again.");
+    const purchaseRow = Array.isArray(data) ? data[0] || null : data || null;
+    if (!purchaseRow?.purchase_id && !purchaseRow?.id) {
+      throw new Error("Purchase was not completed.");
     }
 
-    // Third: mark prize as sold (inactive)
-    const { error: prizeUpdateError, data: updateData } = await supabase
-      .from("prizes")
-      .update({ active: false })
-      .eq("id", prize.id)
-      .select();
-
-    if (prizeUpdateError) {
-      console.error("Failed to mark prize sold", prizeUpdateError);
-      // Don't throw - purchase already recorded, but warn user
-      showToast("Purchase recorded but prize may still show as available. Please refresh.", "warning");
-    }
-
-    if (!updateData || updateData.length === 0) {
-      console.warn("Prize update returned no data - prize may not have been marked inactive");
-    } else {
-      console.info("[RTN] Prize marked sold:", { prizeId: prize.id, updateData });
-    }
-
-    // Deduct cost locally and persist
-    if (currencyKey === "carter_cash") {
-      deductCarterCash(costValue);
-    } else {
-      bankroll = Math.max(0, bankroll - costValue);
-      handleBankrollChanged();
-    }
-    await persistBankroll();
     await ensureProfileSynced({ force: true });
 
     showToast(`Purchased ${prize.name}!`, "success");
