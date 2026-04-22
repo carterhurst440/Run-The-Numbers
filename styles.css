@@ -924,6 +924,7 @@ body[data-app-state="loading"] #app-shell {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
+  overflow: hidden;
 }
 
 .home-contests-header {
@@ -1499,7 +1500,8 @@ body[data-app-state="loading"] #app-shell {
     grid-template-areas:
       "title title"
       "actions actions"
-      "rank contests";
+      "rank contests"
+      "games games";
     align-items: start;
     gap: 1rem;
     min-height: 0;
@@ -1530,9 +1532,16 @@ body[data-app-state="loading"] #app-shell {
     max-height: 28rem;
   }
 
+  #home-view .home-games {
+    grid-area: games;
+    width: 100%;
+  }
+
   #home-view .home-live-contest-list {
     overflow-y: auto;
     padding-right: 0.2rem;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
