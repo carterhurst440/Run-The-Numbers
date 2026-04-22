@@ -336,6 +336,72 @@ begin
       v_latest_draw_id := (v_window_index * 10) + v_sequence;
       v_latest_window_index := v_window_index;
       v_latest_sequence_in_window := v_sequence;
+
+      insert into public.shape_trader_market_current (
+        shape,
+        game_id,
+        current_price,
+        last_draw_id,
+        last_window_index,
+        last_sequence_in_window,
+        last_card_label,
+        last_percentage,
+        last_event_type,
+        bankruptcy_triggered,
+        updated_at
+      )
+      values
+        (
+          'square',
+          v_game_id,
+          v_square_price,
+          v_latest_draw_id,
+          v_window_index,
+          v_sequence,
+          v_card.label,
+          v_card.percentage,
+          case when v_card.kind = 'macro' then 'macro_card' else 'asset_card' end,
+          'square_bankruptcy' = any(coalesce(v_event_tags, '{}'::text[])),
+          timezone('utc', now())
+        ),
+        (
+          'triangle',
+          v_game_id,
+          v_triangle_price,
+          v_latest_draw_id,
+          v_window_index,
+          v_sequence,
+          v_card.label,
+          v_card.percentage,
+          case when v_card.kind = 'macro' then 'macro_card' else 'asset_card' end,
+          'triangle_bankruptcy' = any(coalesce(v_event_tags, '{}'::text[])),
+          timezone('utc', now())
+        ),
+        (
+          'circle',
+          v_game_id,
+          v_circle_price,
+          v_latest_draw_id,
+          v_window_index,
+          v_sequence,
+          v_card.label,
+          v_card.percentage,
+          case when v_card.kind = 'macro' then 'macro_card' else 'asset_card' end,
+          'circle_bankruptcy' = any(coalesce(v_event_tags, '{}'::text[])),
+          timezone('utc', now())
+        )
+      on conflict (shape) do update
+      set
+        game_id = excluded.game_id,
+        current_price = excluded.current_price,
+        last_draw_id = excluded.last_draw_id,
+        last_window_index = excluded.last_window_index,
+        last_sequence_in_window = excluded.last_sequence_in_window,
+        last_card_label = excluded.last_card_label,
+        last_percentage = excluded.last_percentage,
+        last_event_type = excluded.last_event_type,
+        bankruptcy_triggered = excluded.bankruptcy_triggered,
+        updated_at = excluded.updated_at;
     end loop;
   end loop;
 
