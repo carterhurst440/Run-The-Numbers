@@ -4063,11 +4063,12 @@ function getShapeTraderDbAuthorityWindowState(now = Date.now()) {
       currentCard: null,
       previousCard: shapeTradersPreviousCard,
       phaseDurationMs: SHAPE_TRADERS_DRAW_INTERVAL_MS,
-      visualPhaseDurationMs: SHAPE_TRADERS_DRAW_INTERVAL_MS + SHAPE_TRADERS_DB_VISUAL_LAG_MS,
+      visualPhaseDurationMs: SHAPE_TRADERS_DRAW_INTERVAL_MS,
+      phaseTimeRemainingMs: SHAPE_TRADERS_DRAW_INTERVAL_MS,
       timeRemainingMs: SHAPE_TRADERS_DRAW_INTERVAL_MS,
-      visualTimeRemainingMs: SHAPE_TRADERS_DRAW_INTERVAL_MS + SHAPE_TRADERS_DB_VISUAL_LAG_MS,
+      visualTimeRemainingMs: SHAPE_TRADERS_DRAW_INTERVAL_MS,
       nextDrawAtMs: now + SHAPE_TRADERS_DRAW_INTERVAL_MS,
-      visualNextDrawAtMs: now + SHAPE_TRADERS_DRAW_INTERVAL_MS + SHAPE_TRADERS_DB_VISUAL_LAG_MS,
+      visualNextDrawAtMs: now + SHAPE_TRADERS_DRAW_INTERVAL_MS,
       cardsUntilDump: 10,
       dumpProgress: 0
     };
@@ -4090,12 +4091,7 @@ function getShapeTraderDbAuthorityWindowState(now = Date.now()) {
   }
   const nextDrawAtMs = safeDrawnAtMs + nextDelayMs;
   const timeRemainingMs = Math.max(0, nextDrawAtMs - now);
-  const visualNextDrawAtMs = nextDrawAtMs + SHAPE_TRADERS_DB_VISUAL_LAG_MS;
-  const visualTimeRemainingMs = Math.max(0, visualNextDrawAtMs - now);
-  const visualPhaseTimeRemainingMs = Math.max(
-    0,
-    (shapeTradersVisualPhaseStartedAt + shapeTradersVisualPhaseDurationMs) - now
-  );
+  const phaseTimeRemainingMs = Math.max(0, nextDelayMs - Math.max(0, now - safeDrawnAtMs));
   const cardsUntilDump = (9 - (windowIndex % 10) + 10) % 10;
   const msSinceLastDraw = Math.max(0, now - safeDrawnAtMs);
   const tradeLocked =
@@ -4110,12 +4106,13 @@ function getShapeTraderDbAuthorityWindowState(now = Date.now()) {
     currentCard: shapeTradersCurrentCard,
     previousCard: shapeTradersPreviousCard,
     phaseDurationMs: nextDelayMs,
-    visualPhaseTimeRemainingMs,
-    visualPhaseDurationMs: nextDelayMs + SHAPE_TRADERS_DB_VISUAL_LAG_MS,
+    phaseTimeRemainingMs,
+    visualPhaseTimeRemainingMs: phaseTimeRemainingMs,
+    visualPhaseDurationMs: nextDelayMs,
     timeRemainingMs,
-    visualTimeRemainingMs,
+    visualTimeRemainingMs: timeRemainingMs,
     nextDrawAtMs,
-    visualNextDrawAtMs,
+    visualNextDrawAtMs: nextDrawAtMs,
     cardsUntilDump,
     dumpProgress: isDataDump ? Math.min(SHAPE_TRADERS_DUMP_CARDS, sequenceInWindow) : 0
   };
@@ -6390,12 +6387,12 @@ function renderShapeTradersControls(now = Date.now()) {
   }
 
   if (shapeTradersBuyButton) {
-    shapeTradersBuyButton.disabled = windowState.tradeLocked || shapeTradersResetInFlight;
+    shapeTradersBuyButton.disabled = windowState.tradeLocked || shapeTradersResetInFlight || buyUnavailable;
     shapeTradersBuyButton.classList.toggle("is-unavailable", buyUnavailable);
     shapeTradersBuyButton.setAttribute("aria-disabled", String(windowState.tradeLocked || shapeTradersResetInFlight || buyUnavailable));
   }
   if (shapeTradersSellButton) {
-    shapeTradersSellButton.disabled = windowState.tradeLocked || shapeTradersResetInFlight;
+    shapeTradersSellButton.disabled = windowState.tradeLocked || shapeTradersResetInFlight || sellUnavailable;
     shapeTradersSellButton.classList.toggle("is-unavailable", sellUnavailable);
     shapeTradersSellButton.setAttribute("aria-disabled", String(windowState.tradeLocked || shapeTradersResetInFlight || sellUnavailable));
   }
@@ -6477,7 +6474,9 @@ function attemptShapeTraderTrade(side) {
     return;
   }
 
-  const windowState = getShapeTraderWindowState(getShapeTraderCurrentWindowIndex());
+  const windowState = isShapeTradersDbDrawAuthorityEnabled()
+    ? getShapeTraderDbAuthorityWindowState()
+    : getShapeTraderWindowState(getShapeTraderCurrentWindowIndex());
   if (windowState.tradeLocked) {
     setShapeTraderStatus("Trading is locked while the market card is drawing.");
     return;
@@ -6491,6 +6490,7 @@ function attemptShapeTraderTrade(side) {
 
   if (normalizedSide === "buy") {
     if (bankroll < totalCost) {
+      setShapeTraderStatus(`You need ${formatCurrency(totalCost)} to buy ${formatCurrency(quantity)} ${quantity === 1 ? "share" : "shares"} of ${getShapeTraderAssetConfig(assetId).label}.`);
       return;
     }
     void buyShapeTraderAsset();
@@ -6498,6 +6498,7 @@ function attemptShapeTraderTrade(side) {
   }
 
   if ((selectedHolding?.quantity || 0) < quantity) {
+    setShapeTraderStatus(`You only hold ${formatCurrency(selectedHolding?.quantity || 0)} ${selectedHolding?.quantity === 1 ? "share" : "shares"} of ${getShapeTraderAssetConfig(assetId).label}.`);
     return;
   }
   void sellShapeTraderAsset();
@@ -6562,6 +6563,16 @@ function pulseShapeTraderTradeButton(button) {
   window.setTimeout(() => {
     button.classList.remove("is-pressing");
   }, 180);
+}
+
+function isShapeTraderActionButtonBlocked(button) {
+  if (!(button instanceof HTMLButtonElement)) {
+    return true;
+  }
+  if (button.disabled) {
+    return true;
+  }
+  return button.getAttribute("aria-disabled") === "true" || button.classList.contains("is-unavailable");
 }
 
 function updateShapeTradersQuantity(nextValue) {
@@ -30392,11 +30403,19 @@ if (shapeTradersTradePanelEl) {
 
 if (shapeTradersBuyButton) {
   shapeTradersBuyButton.addEventListener("pointerdown", (event) => {
+    if (isShapeTraderActionButtonBlocked(shapeTradersBuyButton)) {
+      event.preventDefault();
+      return;
+    }
     event.preventDefault();
     pulseShapeTraderTradeButton(shapeTradersBuyButton);
     attemptShapeTraderTrade("buy");
   });
   shapeTradersBuyButton.addEventListener("click", (event) => {
+    if (isShapeTraderActionButtonBlocked(shapeTradersBuyButton)) {
+      event.preventDefault();
+      return;
+    }
     event.preventDefault();
     attemptShapeTraderTrade("buy");
   });
@@ -30404,11 +30423,19 @@ if (shapeTradersBuyButton) {
 
 if (shapeTradersSellButton) {
   shapeTradersSellButton.addEventListener("pointerdown", (event) => {
+    if (isShapeTraderActionButtonBlocked(shapeTradersSellButton)) {
+      event.preventDefault();
+      return;
+    }
     event.preventDefault();
     pulseShapeTraderTradeButton(shapeTradersSellButton);
     attemptShapeTraderTrade("sell");
   });
   shapeTradersSellButton.addEventListener("click", (event) => {
+    if (isShapeTraderActionButtonBlocked(shapeTradersSellButton)) {
+      event.preventDefault();
+      return;
+    }
     event.preventDefault();
     attemptShapeTraderTrade("sell");
   });
