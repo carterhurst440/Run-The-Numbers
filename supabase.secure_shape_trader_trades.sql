@@ -564,6 +564,7 @@ declare
   v_next_quantity integer := 0;
   v_next_average numeric := 0;
   v_claimed boolean := false;
+  v_split_factor integer := 10;
 begin
   if auth.uid() is null then
     raise exception 'Authentication required';
@@ -586,6 +587,11 @@ begin
   if not found then
     raise exception 'Shape Traders draw not found';
   end if;
+
+  select greatest(coalesce(cfg.split_factor, 10), 2)
+  into v_split_factor
+  from public.shape_trader_engine_config cfg
+  where cfg.id = true;
 
   if _contest_id is null then
     select
@@ -674,19 +680,6 @@ begin
   end if;
 
   if _event_type = 'split' then
-    v_previous_price := round(coalesce(
-      case _shape
-        when 'circle' then v_draw.previous_circle_price
-        when 'square' then v_draw.previous_square_price
-        when 'triangle' then v_draw.previous_triangle_price
-      end,
-      case _shape
-        when 'circle' then v_draw.new_circle_price
-        when 'square' then v_draw.new_square_price
-        when 'triangle' then v_draw.new_triangle_price
-      end * 10,
-      0
-    )::numeric, 2);
     v_new_price := round(coalesce(
       case _shape
         when 'circle' then v_draw.new_circle_price
@@ -695,8 +688,9 @@ begin
       end,
       0
     )::numeric, 2);
-    v_next_quantity := v_existing_quantity * 10;
-    v_next_average := case when v_existing_quantity > 0 then round(v_existing_average / 10.0, 2) else 0 end;
+    v_previous_price := round(coalesce(v_new_price * v_split_factor, 0)::numeric, 2);
+    v_next_quantity := v_existing_quantity * v_split_factor;
+    v_next_average := case when v_existing_quantity > 0 then round(v_existing_average / v_split_factor::numeric, 2) else 0 end;
 
     insert into public.shape_trader_positions_current (
       user_id,
