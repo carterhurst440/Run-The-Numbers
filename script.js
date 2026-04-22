@@ -5533,12 +5533,18 @@ async function tickShapeTraderDrawEngine() {
       throw rpcResult.error;
     }
     const result = Array.isArray(rpcResult.data) ? rpcResult.data[0] || null : rpcResult.data || null;
+    const latestPersistedAt = result?.latest_persisted_at || null;
+    const latestPersistedAtMs = Date.parse(latestPersistedAt || "");
     const tickDetails = {
       elapsedMs: Date.now() - tickStartedAt,
+      tickElapsedMs: Number(result?.tick_elapsed_ms || 0),
       processed: Number(result?.processed || 0),
       latestDrawId: result?.latest_draw_id ?? null,
       currentWindowIndex: result?.current_window_index ?? null,
-      reason: result?.reason ?? null
+      reason: result?.reason ?? null,
+      lockAcquired: result?.lock_acquired ?? null,
+      latestPersistedAt,
+      persistedAgeMs: Number.isFinite(latestPersistedAtMs) ? Math.max(0, Date.now() - latestPersistedAtMs) : null
     };
     if (shouldLogShapeTraderTick(tickDetails)) {
       logShapeTraderTiming("tick-result", tickDetails);
@@ -5768,6 +5774,7 @@ async function hydrateShapeTradersFromDrawTable(
     const latestDrawId = Math.max(0, Math.floor(Number(latestRow.draw_id || 0)));
     if (latestDrawId && latestDrawId !== shapeTradersDebugLastHydratedDrawId) {
       const drawnAtMs = Date.parse(latestRow.drawn_at || "");
+      const persistedAtMs = Date.parse(latestRow.persisted_at || latestRow.created_at || "");
       const isDataDump = Boolean(latestRow.is_data_dump);
       const sequenceInWindow = Math.max(1, Math.floor(Number(latestRow.sequence_in_window || 1)));
       const nextDelayMs = isDataDump && sequenceInWindow < SHAPE_TRADERS_DUMP_CARDS
@@ -5779,7 +5786,12 @@ async function hydrateShapeTradersFromDrawTable(
         sequenceInWindow,
         isDataDump,
         drawnAt: latestRow.drawn_at || null,
+        persistedAt: latestRow.persisted_at || latestRow.created_at || null,
         rowAgeMs: Number.isFinite(drawnAtMs) ? Math.max(0, Date.now() - drawnAtMs) : null,
+        persistedAgeMs: Number.isFinite(persistedAtMs) ? Math.max(0, Date.now() - persistedAtMs) : null,
+        persistenceLagMs: Number.isFinite(drawnAtMs) && Number.isFinite(persistedAtMs)
+          ? Math.max(0, persistedAtMs - drawnAtMs)
+          : null,
         nextDelayMs,
         msUntilExpectedNextDraw: Number.isFinite(drawnAtMs)
           ? (drawnAtMs + nextDelayMs) - Date.now()
@@ -17733,7 +17745,8 @@ function shouldLogShapeTraderTick(details = {}) {
   return (
     Number(details.processed || 0) > 0 ||
     (details.reason && details.reason !== "busy") ||
-    Number(details.elapsedMs || 0) >= SHAPE_TRADERS_TIMING_SLOW_TICK_MS
+    Number(details.elapsedMs || 0) >= SHAPE_TRADERS_TIMING_SLOW_TICK_MS ||
+    Number(details.tickElapsedMs || 0) >= SHAPE_TRADERS_TIMING_SLOW_TICK_MS
   );
 }
 

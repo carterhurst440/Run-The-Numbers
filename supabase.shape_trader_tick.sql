@@ -3,8 +3,14 @@ create extension if not exists pgcrypto;
 alter table public.shape_trader_draws
   add column if not exists deck_card_key text references public.shape_trader_deck_cards(card_key);
 
+alter table public.shape_trader_draws
+  add column if not exists persisted_at timestamptz not null default timezone('utc', now());
+
 create index if not exists shape_trader_draws_window_sequence_idx
   on public.shape_trader_draws (window_index, sequence_in_window);
+
+create index if not exists shape_trader_draws_persisted_at_idx
+  on public.shape_trader_draws (persisted_at desc);
 
 create or replace function public.shape_trader_window_is_dump(p_window_index integer)
 returns boolean
@@ -70,6 +76,8 @@ declare
   v_cfg record;
   v_latest_row record;
   v_lock_acquired boolean := false;
+  v_tick_started_at timestamptz := clock_timestamp();
+  v_tick_finished_at timestamptz;
   v_now_ms bigint := floor(extract(epoch from clock_timestamp()) * 1000)::bigint;
   v_epoch_ms bigint;
   v_latest_window_index integer := -1;
@@ -95,14 +103,20 @@ declare
   v_prev_circle numeric(12,2);
   v_candidate numeric(12,2);
   v_event_tags text[];
+  v_inserted_at timestamptz;
 begin
   v_lock_acquired := pg_try_advisory_xact_lock(hashtextextended('public.shape_trader_tick', 0));
   if not v_lock_acquired then
+    v_tick_finished_at := clock_timestamp();
     return jsonb_build_object(
       'ok', true,
+      'lock_acquired', false,
       'processed', 0,
       'latest_draw_id', null,
-      'reason', 'busy'
+      'reason', 'busy',
+      'tick_started_at', v_tick_started_at,
+      'tick_finished_at', v_tick_finished_at,
+      'tick_elapsed_ms', floor(extract(epoch from (v_tick_finished_at - v_tick_started_at)) * 1000)
     );
   end if;
 
@@ -296,6 +310,7 @@ begin
         percentage,
         card_label,
         drawn_at,
+        persisted_at,
         deck_card_key,
         previous_square_price,
         previous_triangle_price,
@@ -321,6 +336,7 @@ begin
             + case when v_is_dump then ((v_sequence - 1) * v_cfg.dump_card_interval_ms) else 0 end
           ) / 1000.0
         ),
+        clock_timestamp(),
         v_card.card_key,
         v_prev_square,
         v_prev_triangle,
@@ -331,6 +347,8 @@ begin
         to_jsonb(v_event_tags)
       )
       on conflict (draw_id) do nothing;
+
+      v_inserted_at := clock_timestamp();
 
       v_processed_count := v_processed_count + 1;
       v_latest_draw_id := (v_window_index * 10) + v_sequence;
@@ -405,11 +423,18 @@ begin
     end loop;
   end loop;
 
+  v_tick_finished_at := clock_timestamp();
   return jsonb_build_object(
     'ok', true,
+    'lock_acquired', true,
     'processed', v_processed_count,
     'latest_draw_id', coalesce(v_latest_draw_id, v_latest_row.draw_id),
     'current_window_index', v_current_window_index,
+    'reason', case when v_processed_count > 0 then 'processed' else 'noop' end,
+    'tick_started_at', v_tick_started_at,
+    'tick_finished_at', v_tick_finished_at,
+    'tick_elapsed_ms', floor(extract(epoch from (v_tick_finished_at - v_tick_started_at)) * 1000),
+    'latest_persisted_at', coalesce(v_inserted_at, v_latest_row.persisted_at, v_latest_row.created_at),
     'ran_at', now()
   );
 end;
