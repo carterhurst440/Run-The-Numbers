@@ -221,6 +221,8 @@ begin
 end;
 $$;
 
+drop function if exists public.execute_shape_trader_trade(text, text, integer, uuid, text, boolean);
+
 create or replace function public.execute_shape_trader_trade(
   _shape text,
   _side text,
@@ -231,11 +233,11 @@ create or replace function public.execute_shape_trader_trade(
 )
 returns table (
   trade_id uuid,
-  contest_id uuid,
-  account_scope text,
-  shape text,
-  trade_side text,
-  quantity integer,
+  resolved_contest_id uuid,
+  resolved_account_scope text,
+  resolved_shape text,
+  resolved_trade_side text,
+  resolved_quantity integer,
   price numeric,
   total_value numeric,
   net_profit numeric,
