@@ -7846,12 +7846,12 @@ async function synchronizeShapeTraders(now = Date.now()) {
   }
   shapeTradersSyncInFlight = true;
   const syncStartedAt = Date.now();
+  let drawStateChanged = false;
   try {
     if (shapeTradersResetInFlight || shapeTradersLocalResetMode) {
       return;
     }
 
-    let drawStateChanged = false;
     if (isShapeTradersDbDrawAuthorityEnabled()) {
       await tickShapeTraderDrawEngine();
     }
@@ -17632,7 +17632,7 @@ const SHAPE_TRADERS_MAX_CATCH_UP_WINDOWS = 12;
 const SHAPE_TRADERS_TIMING_SLOW_TICK_MS = 400;
 const SHAPE_TRADERS_TIMING_SLOW_HYDRATE_MS = 300;
 const SHAPE_TRADERS_TIMING_SLOW_SYNC_MS = 600;
-const SHAPE_TRADERS_TIMING_LATE_DRAW_WARNING_MS = 2000;
+const SHAPE_TRADERS_TIMING_LATE_DRAW_WARNING_MS = 5000;
 const SHAPE_TRADER_ASSISTANT_RULE_STORAGE_PREFIX = "shape-trader-assistant-rules";
 const SHAPE_TRADERS_CLIENT_ENGINE_PAUSED = false;
 const SHAPE_TRADERS_DB_DRAW_AUTHORITY = true;
