@@ -2952,6 +2952,141 @@ body[data-app-state="loading"] #app-shell {
   min-width: 8.5rem;
 }
 
+@media (min-width: 769px) {
+  .shape-traders-holdings-list {
+    gap: 0.6rem;
+  }
+
+  .shape-traders-holdings-header {
+    padding: 0 0.2rem 0.55rem;
+  }
+
+  .shape-traders-holding-card {
+    position: relative;
+    padding: 0.82rem 1rem 0.88rem 1.05rem;
+    border: 1px solid color-mix(in srgb, var(--betting-panel-border) 28%, transparent);
+    border-radius: 1rem;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.01)),
+      linear-gradient(180deg, rgba(16, 19, 26, 0.92), rgba(10, 12, 18, 0.96));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.03),
+      0 12px 26px rgba(0, 0, 0, 0.16) !important;
+    border-bottom: 1px solid color-mix(in srgb, var(--betting-panel-border) 28%, transparent);
+    overflow: hidden;
+  }
+
+  .shape-traders-holding-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.7rem;
+    bottom: 0.7rem;
+    width: 3px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    opacity: 0.9;
+  }
+
+  .shape-traders-holding-card.is-cyan::before {
+    background: linear-gradient(180deg, rgba(76, 159, 255, 0.98), rgba(76, 159, 255, 0.42));
+    box-shadow: 0 0 14px rgba(76, 159, 255, 0.28);
+  }
+
+  .shape-traders-holding-card.is-magenta::before {
+    background: linear-gradient(180deg, rgba(255, 74, 211, 0.98), rgba(255, 74, 211, 0.42));
+    box-shadow: 0 0 14px rgba(255, 74, 211, 0.28);
+  }
+
+  .shape-traders-holding-card.is-gold::before {
+    background: linear-gradient(180deg, rgba(255, 225, 92, 0.98), rgba(255, 225, 92, 0.42));
+    box-shadow: 0 0 14px rgba(255, 225, 92, 0.24);
+  }
+
+  .shape-traders-holding-card-main strong {
+    font-size: 0.94rem;
+    letter-spacing: 0.01em;
+  }
+
+  .shape-traders-holding-card-value {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: color-mix(in srgb, var(--text-light) 88%, white 12%);
+  }
+
+  .shape-traders-holding-card-price,
+  .shape-traders-holding-card-avg {
+    color: color-mix(in srgb, var(--text-light) 64%, transparent);
+  }
+
+  .shape-traders-activity-item {
+    position: relative;
+    padding: 0.68rem 0.35rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--betting-panel-border) 34%, transparent);
+    background: transparent;
+  }
+
+  .shape-traders-activity-item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.7rem;
+    bottom: 0.7rem;
+    width: 2px;
+    border-radius: 999px;
+    opacity: 0.72;
+  }
+
+  .shape-traders-activity-item.is-buy::before {
+    background: linear-gradient(180deg, rgba(108, 230, 150, 0.98), rgba(108, 230, 150, 0.24));
+    box-shadow: 0 0 12px rgba(108, 230, 150, 0.16);
+  }
+
+  .shape-traders-activity-item.is-sell::before {
+    background: linear-gradient(180deg, rgba(255, 124, 124, 0.98), rgba(255, 124, 124, 0.24));
+    box-shadow: 0 0 12px rgba(255, 124, 124, 0.14);
+  }
+
+  .shape-traders-activity-side {
+    justify-self: start;
+    min-width: 3.4rem;
+    padding: 0.3rem 0.62rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-align: center;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .shape-traders-activity-item.is-buy .shape-traders-activity-side {
+    color: #9cf0b3;
+    background: linear-gradient(180deg, rgba(57, 96, 72, 0.42), rgba(18, 31, 24, 0.5));
+    border-color: rgba(108, 230, 150, 0.18);
+  }
+
+  .shape-traders-activity-item.is-sell .shape-traders-activity-side {
+    color: #ff9b9b;
+    background: linear-gradient(180deg, rgba(102, 55, 55, 0.42), rgba(34, 18, 18, 0.5));
+    border-color: rgba(255, 124, 124, 0.18);
+  }
+
+  .shape-traders-activity-price,
+  .shape-traders-activity-total {
+    color: color-mix(in srgb, var(--text-light) 80%, transparent);
+  }
+
+  .shape-traders-activity-total {
+    font-weight: 700;
+  }
+
+  .shape-traders-activity-time {
+    color: color-mix(in srgb, var(--text-light) 50%, transparent);
+  }
+}
+
 .shape-traders-asset-selector {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3143,6 +3278,31 @@ body[data-app-state="loading"] #app-shell {
     0 -26px 48px rgba(0, 0, 0, 0.28),
     inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   transition: transform 160ms ease-out, box-shadow 160ms ease-out, background 160ms ease-out;
+  overflow: hidden;
+}
+
+.shape-traders-trade-bar::before {
+  content: "";
+  position: absolute;
+  left: -20%;
+  top: 0;
+  width: 140%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(76, 159, 255, 0.08),
+    rgba(76, 159, 255, 0.52) 24%,
+    rgba(255, 74, 211, 0.42) 50%,
+    rgba(255, 225, 92, 0.52) 76%,
+    rgba(255, 225, 92, 0.08)
+  );
+  box-shadow:
+    0 0 12px rgba(76, 159, 255, 0.16),
+    0 0 16px rgba(255, 225, 92, 0.1);
+  transform: translateX(0);
+  animation: shape-traders-trade-rail-drift 9s linear infinite;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .shape-traders-trade-bar-heading {
@@ -7566,6 +7726,20 @@ body.theme-angelic {
   }
 }
 
+@keyframes shape-traders-trade-rail-drift {
+  0% {
+    transform: translateX(-8%);
+  }
+
+  50% {
+    transform: translateX(8%);
+  }
+
+  100% {
+    transform: translateX(-8%);
+  }
+}
+
 @keyframes rankTypingCaretBlink {
   0%,
   45% {
@@ -7682,6 +7856,28 @@ body.theme-angelic {
 .header-mode-select:focus-visible {
   outline: 1px solid color-mix(in srgb, var(--icon-button-border-color) 72%, white 28%);
   outline-offset: 2px;
+}
+
+@media (min-width: 769px) {
+  .header-mode-select-wrap {
+    min-width: 220px;
+    max-width: 270px;
+  }
+
+  .header-mode-select {
+    padding: 0.42rem 1.5rem 0.42rem 0.32rem;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+  }
+
+  .header-mode-select-wrap::after {
+    right: 0.42rem;
+    width: 0.38rem;
+    height: 0.38rem;
+    border-right-width: 1.8px;
+    border-bottom-width: 1.8px;
+  }
 }
 
 .icon-button {
@@ -17401,6 +17597,20 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar {
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar::before {
+  background: linear-gradient(
+    90deg,
+    rgba(76, 159, 255, 0.12),
+    rgba(76, 159, 255, 0.48) 24%,
+    rgba(255, 74, 211, 0.34) 50%,
+    rgba(255, 225, 92, 0.44) 76%,
+    rgba(255, 225, 92, 0.12)
+  );
+  box-shadow:
+    0 0 12px rgba(76, 159, 255, 0.16),
+    0 0 18px rgba(255, 225, 92, 0.1);
+}
+
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-sheet-grabber {
   background: rgba(198, 206, 220, 0.54);
   box-shadow: none;
@@ -17411,6 +17621,48 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-selector-field sp
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-qty-field span,
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-total-field span {
   color: rgba(181, 191, 207, 0.66);
+}
+
+@media (min-width: 769px) {
+  body[data-theme-profile="shape-traders-carbon"] .shape-traders-holding-card {
+    border-color: rgba(255, 255, 255, 0.06);
+    background:
+      linear-gradient(180deg, rgba(24, 27, 34, 0.96), rgba(12, 14, 18, 0.98)),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.016) 1px, transparent 1px);
+    background-size: auto, 26px 26px;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.03),
+      0 16px 28px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  body[data-theme-profile="shape-traders-carbon"] .shape-traders-activity-item {
+    border-bottom-color: rgba(255, 255, 255, 0.05);
+  }
+
+  body[data-theme-profile="shape-traders-carbon"] .shape-traders-activity-side {
+    background: rgba(255, 255, 255, 0.025);
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  body[data-theme-profile="shape-traders-carbon"] .shape-traders-activity-item.is-buy .shape-traders-activity-side {
+    background: linear-gradient(180deg, rgba(24, 54, 40, 0.58), rgba(10, 20, 15, 0.68));
+    border-color: rgba(108, 230, 150, 0.18);
+  }
+
+  body[data-theme-profile="shape-traders-carbon"] .shape-traders-activity-item.is-sell .shape-traders-activity-side {
+    background: linear-gradient(180deg, rgba(60, 28, 28, 0.58), rgba(22, 10, 10, 0.68));
+    border-color: rgba(255, 124, 124, 0.18);
+  }
+
+  body[data-theme-profile="shape-traders-carbon"] .header-mode-select {
+    color: rgba(245, 248, 255, 0.96);
+    font-size: 0.78rem;
+  }
+
+  body[data-theme-profile="shape-traders-carbon"] .header-mode-select-wrap::after {
+    border-right-color: rgba(245, 248, 255, 0.72);
+    border-bottom-color: rgba(245, 248, 255, 0.72);
+  }
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-status {
