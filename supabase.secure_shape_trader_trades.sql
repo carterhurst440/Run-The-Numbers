@@ -485,9 +485,9 @@ create or replace function public.apply_shape_trader_structural_event(
 )
 returns table (
   applied boolean,
-  account_scope text,
-  shape text,
-  event_type text,
+  resolved_account_scope text,
+  resolved_shape text,
+  resolved_event_type text,
   position_quantity integer,
   position_average_price numeric,
   cash_balance numeric,
