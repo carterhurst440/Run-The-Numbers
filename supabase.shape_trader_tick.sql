@@ -337,3 +337,5 @@ begin
   );
 end;
 $$;
+
+grant execute on function public.shape_trader_tick() to authenticated;

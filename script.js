@@ -5494,6 +5494,32 @@ async function refreshShapeTraderGlobalSnapshot() {
   }
 }
 
+async function tickShapeTraderDrawEngine() {
+  if (!supabase || !isShapeTradersDbDrawAuthorityEnabled()) {
+    return { ok: false, reason: "unavailable" };
+  }
+
+  try {
+    const rpcResult = await supabase.rpc("shape_trader_tick");
+    if (rpcResult?.error) {
+      if (
+        isMissingFunctionError(rpcResult.error, "shape_trader_tick")
+        || isPermissionDeniedError(rpcResult.error)
+      ) {
+        return { ok: false, reason: "unavailable" };
+      }
+      throw rpcResult.error;
+    }
+    return {
+      ok: true,
+      result: Array.isArray(rpcResult.data) ? rpcResult.data[0] || null : rpcResult.data || null
+    };
+  } catch (error) {
+    console.error("[RTN] Unable to tick Shape Traders draw engine", error);
+    return { ok: false, reason: "error", error };
+  }
+}
+
 async function persistShapeTraderDrawRow(windowIndex, sequenceInWindow = 1) {
   const payload = buildShapeTraderDrawRow(windowIndex, sequenceInWindow);
   if (!payload) {
@@ -7670,6 +7696,10 @@ async function synchronizeShapeTraders(now = Date.now()) {
   try {
     if (shapeTradersResetInFlight || shapeTradersLocalResetMode) {
       return;
+    }
+
+    if (isShapeTradersDbDrawAuthorityEnabled()) {
+      await tickShapeTraderDrawEngine();
     }
 
     await hydrateShapeTradersFromDrawTable(now);
