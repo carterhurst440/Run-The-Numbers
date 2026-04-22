@@ -17525,9 +17525,24 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-activity-price,
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-activity-qty,
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-activity-total,
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-activity-percent,
-body[data-theme-profile="shape-traders-carbon"] .shape-traders-activity-profit,
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-activity-time {
   color: rgba(176, 187, 203, 0.74);
+}
+
+body[data-theme-profile="shape-traders-carbon"] .shape-traders-activity-profit {
+  color: rgba(176, 187, 203, 0.74);
+}
+
+body[data-theme-profile="shape-traders-carbon"] .shape-traders-activity-profit.gain {
+  color: #78ff8d;
+}
+
+body[data-theme-profile="shape-traders-carbon"] .shape-traders-activity-profit.loss {
+  color: #ff7b7b;
+}
+
+body[data-theme-profile="shape-traders-carbon"] .shape-traders-activity-profit.muted {
+  color: rgba(176, 187, 203, 0.46);
 }
 
 body[data-theme-profile="shape-traders-carbon"] .shape-traders-empty-state,

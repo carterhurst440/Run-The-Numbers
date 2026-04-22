@@ -4062,10 +4062,6 @@ function getShapeTraderDbAuthorityWindowState(now = Date.now()) {
       tradeLocked: false,
       currentCard: null,
       previousCard: shapeTradersPreviousCard,
-      displayWindowIndex: -1,
-      displayVisibleCount: 0,
-      displayCurrentCard: null,
-      displayPreviousCard: shapeTradersPreviousCard,
       phaseDurationMs: SHAPE_TRADERS_DRAW_INTERVAL_MS,
       visualPhaseDurationMs: SHAPE_TRADERS_DRAW_INTERVAL_MS,
       phaseTimeRemainingMs: SHAPE_TRADERS_DRAW_INTERVAL_MS,
@@ -4106,25 +4102,6 @@ function getShapeTraderDbAuthorityWindowState(now = Date.now()) {
     : awaitingNextDraw
       ? Math.max(0, nextDelayMs - overdueMs)
       : 0;
-  const shouldPreviewNextDraw = awaitingNextDraw && overdueMs >= SHAPE_TRADERS_DB_FALLBACK_FLIP_DELAY_MS;
-  let displayWindowIndex = windowIndex;
-  let displayVisibleCount = isDataDump ? sequenceInWindow : 1;
-  let displayCurrentCard = shapeTradersCurrentCard;
-  let displayPreviousCard = shapeTradersPreviousCard;
-
-  if (shouldPreviewNextDraw) {
-    const previewWindowIndex = awaitingAnotherDumpCard ? windowIndex : windowIndex + 1;
-    const previewSequenceInWindow = awaitingAnotherDumpCard ? sequenceInWindow + 1 : 1;
-    const previewCard = getShapeTraderCardForDraw(previewWindowIndex, previewSequenceInWindow);
-    if (previewCard) {
-      displayWindowIndex = previewWindowIndex;
-      displayVisibleCount = isShapeTraderDataDumpWindow(previewWindowIndex)
-        ? previewSequenceInWindow
-        : 1;
-      displayCurrentCard = previewCard;
-      displayPreviousCard = shapeTradersCurrentCard;
-    }
-  }
   const cardsUntilDump = (9 - (windowIndex % 10) + 10) % 10;
   const msSinceLastDraw = Math.max(0, now - safeDrawnAtMs);
   const tradeLocked =
@@ -4138,10 +4115,6 @@ function getShapeTraderDbAuthorityWindowState(now = Date.now()) {
     tradeLocked,
     currentCard: shapeTradersCurrentCard,
     previousCard: shapeTradersPreviousCard,
-    displayWindowIndex,
-    displayVisibleCount,
-    displayCurrentCard,
-    displayPreviousCard,
     phaseDurationMs: nextDelayMs,
     phaseTimeRemainingMs,
     displayPhaseTimeRemainingMs: displayTimeRemainingMs,
@@ -6244,14 +6217,14 @@ function renderShapeTradersDeck(now = Date.now()) {
 
   if (isShapeTradersDbDrawAuthorityEnabled()) {
     const dbState = getShapeTraderDbAuthorityWindowState(now);
-    const currentWindowIndex = dbState.displayWindowIndex ?? dbState.windowIndex;
-    const visibleCount = dbState.displayVisibleCount ?? dbState.visibleCount;
+    const currentWindowIndex = dbState.windowIndex;
+    const visibleCount = dbState.visibleCount;
     const isDumpReveal = dbState.isDataDump && dbState.dumpProgress > 0 && dbState.dumpProgress < SHAPE_TRADERS_DUMP_CARDS;
     const secondsRemaining = Math.ceil(dbState.displayTimeRemainingMs / 1000);
     const minutes = Math.floor(secondsRemaining / 60);
     const seconds = String(secondsRemaining % 60).padStart(2, "0");
-    const currentCard = dbState.displayCurrentCard ?? dbState.currentCard;
-    const previousCard = dbState.displayPreviousCard ?? dbState.previousCard;
+    const currentCard = dbState.currentCard;
+    const previousCard = dbState.previousCard;
     const countdownProgress = Math.max(0, Math.min(1, dbState.displayPhaseTimeRemainingMs / Math.max(1, dbState.phaseDurationMs)));
 
     if (shapeTradersCountdownEl) {
