@@ -909,14 +909,21 @@ body[data-app-state="loading"] #app-shell {
   padding-top: clamp(0.1rem, 0.8vw, 0.55rem);
 }
 
+#home-view .home-hero {
+  width: min(100%, 1360px);
+}
+
 .home-contests-panel {
   width: min(100%, 760px);
   text-align: left;
-  padding: clamp(0.2rem, 1vw, 0.4rem) 0 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+  padding: 1.15rem 1.2rem;
+  border-radius: 1.35rem;
+  border: 1px solid var(--betting-panel-border);
+  background: var(--betting-panel-bg);
+  box-shadow: var(--betting-panel-shadow);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
 }
 
 .home-contests-header {
@@ -958,6 +965,7 @@ body[data-app-state="loading"] #app-shell {
   padding: 0;
   display: grid;
   gap: 0.8rem;
+  min-height: 0;
 }
 
 .home-contest-card {
@@ -987,6 +995,20 @@ body[data-app-state="loading"] #app-shell {
     linear-gradient(135deg, color-mix(in srgb, white 5%, transparent), transparent 38%),
     radial-gradient(circle at 82% 18%, color-mix(in srgb, var(--gold) 14%, transparent), transparent 24%);
   pointer-events: none;
+}
+
+.home-contest-hero {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--gold) 22%, var(--betting-panel-border) 78%);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--gold) 6%, transparent), transparent),
+    color-mix(in srgb, var(--betting-panel-bg) 82%, black 18%);
 }
 
 .home-contest-card-top {
@@ -1037,21 +1059,33 @@ body[data-app-state="loading"] #app-shell {
 .home-contest-card-prize {
   position: relative;
   z-index: 1;
-  margin: 0.35rem 0 0;
+  margin: 0;
   color: var(--gold);
-  font-size: 0.84rem;
+  font-size: 0.96rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .home-contest-card-growth {
   position: relative;
   z-index: 1;
-  margin: 0.3rem 0 0;
+  margin: 0;
   color: var(--muted);
   font-size: 0.78rem;
   line-height: 1.4;
+}
+
+.home-contest-meta {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 0.22rem;
+  margin-top: 0.45rem;
+}
+
+.home-contest-badges {
+  align-items: flex-start;
 }
 
 .contest-threshold-progress {
@@ -1456,6 +1490,50 @@ body[data-app-state="loading"] #app-shell {
   transform: none;
   opacity: 0.92;
   outline: none;
+}
+
+@media (min-width: 980px) {
+  #home-view .home-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(380px, 0.92fr);
+    grid-template-areas:
+      "title title"
+      "actions actions"
+      "rank contests";
+    align-items: start;
+    gap: 1rem;
+    min-height: 0;
+  }
+
+  #home-view .home-title {
+    grid-area: title;
+    width: 100%;
+  }
+
+  #home-view .home-actions {
+    grid-area: actions;
+    width: 100%;
+  }
+
+  #home-view .home-rank-panel {
+    grid-area: rank;
+    width: 100%;
+    margin-top: 0;
+    min-height: 28rem;
+    max-height: 28rem;
+  }
+
+  #home-view .home-contests-panel {
+    grid-area: contests;
+    width: 100%;
+    min-height: 28rem;
+    max-height: 28rem;
+  }
+
+  #home-view .home-live-contest-list {
+    overflow-y: auto;
+    padding-right: 0.2rem;
+  }
 }
 
 .home-title {
@@ -5137,8 +5215,7 @@ body[data-app-state="loading"] #app-shell {
 
   .home-contests-panel {
     width: 100%;
-    padding: 0.35rem 0 0;
-    border-radius: 0;
+    padding: 1rem;
   }
 
   .home-contests-header {
@@ -5203,6 +5280,11 @@ body[data-app-state="loading"] #app-shell {
 
   .home-contest-card-prize {
     font-size: 0.82rem;
+  }
+
+  .home-contest-hero {
+    padding: 0.65rem 0.72rem;
+    border-radius: 0.9rem;
   }
 
   .home-contest-payouts {

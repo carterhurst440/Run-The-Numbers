@@ -14739,73 +14739,86 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
   const item = document.createElement("li");
   item.className = "home-contest-card";
   const stats = normalizeContestPrizeStats(participantStats);
+  const status = getContestStatus(contest);
+  const playerEntry = getContestEntryById(contest.id);
+  const contestIsFull = stats.participants >= getContestLimit(contest);
+  const requiredRankTier = getContestRequiredRankTier(contest);
+  const requiredRank = getRankByTier(requiredRankTier);
+  const meetsRankRequirement = getCurrentPlayerRankTier() >= requiredRankTier;
+  const allocations = normalizePrizeAllocations(contest?.prize_allocations);
 
   const top = document.createElement("div");
   top.className = "home-contest-card-top";
 
   const titleWrap = document.createElement("div");
   titleWrap.className = "home-contest-title-wrap";
-  const titleRow = document.createElement("div");
-  titleRow.className = "home-contest-title-row";
   const title = document.createElement("h3");
   title.className = "home-contest-card-title";
   title.textContent = contest.title || "Contest";
-  const entryFeeBadge = document.createElement("span");
-  entryFeeBadge.className = "contest-entry-fee-badge";
-  entryFeeBadge.textContent = formatContestEntryFeeLabelText(contest);
 
   const details = document.createElement("p");
   details.className = "home-contest-card-window";
-  details.textContent = getContestStatus(contest) === "pending" && isThresholdContest(contest)
-    ? `Starts when ${getContestStartRequirement(contest)} contestants join • ${getContestLengthHours(contest)} hour${getContestLengthHours(contest) === 1 ? "" : "s"} long`
-    : getContestScheduleLabel(contest, stats);
-  titleRow.append(title, entryFeeBadge);
-  titleWrap.append(titleRow, details);
+  details.textContent = getContestScheduleLabel(contest, stats);
+  titleWrap.append(title, details);
 
+  const badgeGroup = document.createElement("div");
+  badgeGroup.className = "contest-status-meta home-contest-badges";
   const badge = document.createElement("span");
-  const status = getContestStatus(contest);
   badge.className = "contest-status-badge";
   badge.dataset.status = status;
   badge.textContent = getContestStatusLabel(status);
-  const badgeGroup = document.createElement("div");
-  badgeGroup.className = "contest-status-meta";
   badgeGroup.append(badge);
+  badgeGroup.append(createContestMetaBadge(formatContestEntryFeeLabelText(contest), { tone: "entry" }));
+  if (playerEntry) {
+    badgeGroup.append(createContestMetaBadge("Joined", { tone: "joined" }));
+  }
   const requiredRankTag = createContestRequiredRankTag(contest);
   if (requiredRankTag) {
     badgeGroup.append(requiredRankTag);
   }
   top.append(titleWrap, badgeGroup);
 
+  const hero = document.createElement("div");
+  hero.className = "home-contest-hero";
   const prize = document.createElement("p");
   prize.className = "home-contest-card-prize";
   prize.textContent = `Prize Pot ${getContestPrizeHeadline(contest, stats)}`;
+  hero.append(prize);
+
+  if (allocations.length > 1) {
+    hero.append(buildContestPayoutTable(contest, stats, "home-contest-payouts"));
+  }
 
   const thresholdProgress = createContestThresholdProgress(contest, stats, "home");
 
+  const meta = document.createElement("div");
+  meta.className = "home-contest-meta";
+  const qualification = document.createElement("p");
+  qualification.className = "home-contest-card-growth";
+  qualification.textContent = `Qualify with ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash`;
   const games = document.createElement("p");
   games.className = "home-contest-card-growth";
   games.textContent = `Games: ${getContestGamesLabel(contest)}`;
-
-  const payouts = buildContestPayoutTable(contest, stats, "home-contest-payouts");
+  meta.append(qualification, games);
 
   const actions = document.createElement("div");
   actions.className = "home-contest-card-actions";
 
-  const playerEntry = getContestEntryById(contest.id);
-  const contestIsFull = stats.participants >= getContestLimit(contest);
-  const requiredRankTier = getContestRequiredRankTier(contest);
-  const requiredRank = getRankByTier(requiredRankTier);
-  const meetsRankRequirement = getCurrentPlayerRankTier() >= requiredRankTier;
   const joinButton = document.createElement("button");
   joinButton.type = "button";
   joinButton.className = "home-button home-primary home-contest-action is-spotlight";
 
   if (playerEntry) {
-    joinButton.textContent = status === "pending" ? "Joined" : "Joined";
-    joinButton.classList.add("is-joined");
-    joinButton.disabled = false;
-    joinButton.setAttribute("aria-disabled", "true");
-    joinButton.tabIndex = -1;
+    const usingMode = isUsingContestMode(contest.id);
+    joinButton.textContent = usingMode ? "Contest Mode Active" : "Switch To Mode";
+    joinButton.classList.toggle("is-joined", usingMode);
+    joinButton.disabled = usingMode;
+    joinButton.setAttribute("aria-disabled", String(usingMode));
+    if (!usingMode) {
+      joinButton.addEventListener("click", () => {
+        void switchToContestMode(contest.id, { navigateToPlay: true });
+      });
+    }
   } else {
     joinButton.textContent = contestIsFull
       ? "Contest Full"
@@ -14831,9 +14844,9 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
   });
 
   actions.append(joinButton, shareButton);
-  item.append(top, prize);
+  item.append(top, hero);
   if (thresholdProgress) item.append(thresholdProgress);
-  item.append(games, payouts, actions);
+  item.append(meta, actions);
   return item;
 }
 
