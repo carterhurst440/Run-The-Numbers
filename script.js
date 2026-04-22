@@ -11868,6 +11868,7 @@ function applyAccountSnapshot(snapshot, { resetHistory = false } = {}) {
   carterCashProgress = nextProgress;
   lastSyncedCarterCash = carterCash;
   lastSyncedCarterProgress = carterCashProgress;
+  clearPendingCarterCashPlaythrough();
   stopCarterCashAnimation();
   updateCarterCashDisplay();
 
@@ -14265,101 +14266,121 @@ async function optIntoContest(contest = currentContest) {
       return;
     }
 
-    const startingCredits = normalizeStoredCreditValue(contest.starting_credits || 0);
-    const startingCarterCash = Math.max(0, Math.round(Number(contest.starting_carter_cash || 0)));
-    const displayName = getContestDisplayName(currentProfile, currentUser.id);
-    let chargedProfile = null;
+    let insertedEntry = null;
+    const secureJoinResult = await supabase.rpc("join_contest_secure", {
+      _contest_id: contest.id
+    });
 
-    if (entryFee > 0) {
-      const nextNormalModeCarterCash = normalModeCarterCash - entryFee;
-      const profileVersion = currentProfile?.updated_at ?? null;
-      let deductQuery = supabase
-        .from("profiles")
-        .update({ carter_cash: nextNormalModeCarterCash })
-        .eq("id", currentUser.id)
-        .gte("carter_cash", entryFee);
-
-      if (profileVersion) {
-        deductQuery = deductQuery.eq("updated_at", profileVersion);
+    if (secureJoinResult?.error) {
+      if (!isMissingRpcError(secureJoinResult.error)) {
+        throw secureJoinResult.error;
       }
 
-      const { data: deductedProfile, error: deductError } = await deductQuery
-        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
-        .maybeSingle();
+      const startingCredits = normalizeStoredCreditValue(contest.starting_credits || 0);
+      const startingCarterCash = Math.max(0, Math.round(Number(contest.starting_carter_cash || 0)));
+      const displayName = getContestDisplayName(currentProfile, currentUser.id);
+      let chargedProfile = null;
 
-      if (deductError) throw deductError;
-      if (!deductedProfile) {
-        throw new Error("Your Normal Mode Carter Cash changed in another tab. Refresh and try joining again.");
-      }
-
-      chargedProfile = deductedProfile;
-      currentProfile = {
-        ...currentProfile,
-        ...deductedProfile
-      };
-      if (!isContestAccountMode()) {
-        carterCash = Math.max(0, Math.round(Number(deductedProfile.carter_cash ?? 0)));
-        carterCashProgress = Number.isFinite(Number(deductedProfile.carter_cash_progress))
-          ? Number(deductedProfile.carter_cash_progress)
-          : carterCashProgress;
-        lastSyncedCarterCash = carterCash;
-        lastSyncedCarterProgress = carterCashProgress;
-        handleCarterCashChanged();
-      }
-    }
-
-    const entryPayload = {
-      contest_id: contest.id,
-      user_id: currentUser.id,
-      pre_contest_credits: normalizeStoredCreditValue(currentProfile?.credits ?? INITIAL_BANKROLL),
-      pre_contest_carter_cash: Number.isFinite(Number(currentProfile?.carter_cash)) ? Math.round(Number(currentProfile.carter_cash)) : 0,
-      pre_contest_carter_cash_progress: Number.isFinite(Number(currentProfile?.carter_cash_progress))
-        ? Number(currentProfile.carter_cash_progress)
-        : 0,
-      starting_credits: startingCredits,
-      starting_carter_cash: startingCarterCash,
-      current_credits: startingCredits,
-      current_carter_cash: startingCarterCash,
-      current_carter_cash_progress: 0,
-      contest_history: buildContestHistory([], startingCredits, "Start", contest.starts_at || new Date().toISOString()),
-      display_name: displayName,
-      participant_email: currentUser.email || ""
-    };
-
-    const { error: entryError } = await supabase.from("contest_entries").insert(entryPayload);
-    if (entryError) {
-      if (entryFee > 0 && chargedProfile) {
-        const refundedAmount = Math.max(0, Math.round(Number(chargedProfile.carter_cash ?? 0))) + entryFee;
-        const { data: refundedProfile } = await supabase
+      if (entryFee > 0) {
+        const nextNormalModeCarterCash = normalModeCarterCash - entryFee;
+        const profileVersion = currentProfile?.updated_at ?? null;
+        let deductQuery = supabase
           .from("profiles")
-          .update({ carter_cash: refundedAmount })
+          .update({ carter_cash: nextNormalModeCarterCash })
           .eq("id", currentUser.id)
-          .eq("updated_at", chargedProfile.updated_at ?? null)
+          .gte("carter_cash", entryFee);
+
+        if (profileVersion) {
+          deductQuery = deductQuery.eq("updated_at", profileVersion);
+        }
+
+        const { data: deductedProfile, error: deductError } = await deductQuery
           .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
           .maybeSingle();
-        if (refundedProfile) {
-          currentProfile = {
-            ...currentProfile,
-            ...refundedProfile
-          };
-          if (!isContestAccountMode()) {
-            carterCash = Math.max(0, Math.round(Number(refundedProfile.carter_cash ?? 0)));
-            carterCashProgress = Number.isFinite(Number(refundedProfile.carter_cash_progress))
-              ? Number(refundedProfile.carter_cash_progress)
-              : carterCashProgress;
-            lastSyncedCarterCash = carterCash;
-            lastSyncedCarterProgress = carterCashProgress;
-            handleCarterCashChanged();
-          }
+
+        if (deductError) throw deductError;
+        if (!deductedProfile) {
+          throw new Error("Your Normal Mode Carter Cash changed in another tab. Refresh and try joining again.");
+        }
+
+        chargedProfile = deductedProfile;
+        currentProfile = {
+          ...currentProfile,
+          ...deductedProfile
+        };
+        if (!isContestAccountMode()) {
+          carterCash = Math.max(0, Math.round(Number(deductedProfile.carter_cash ?? 0)));
+          carterCashProgress = Number.isFinite(Number(deductedProfile.carter_cash_progress))
+            ? Number(deductedProfile.carter_cash_progress)
+            : carterCashProgress;
+          lastSyncedCarterCash = carterCash;
+          lastSyncedCarterProgress = carterCashProgress;
+          handleCarterCashChanged();
         }
       }
-      throw entryError;
+
+      const entryPayload = {
+        contest_id: contest.id,
+        user_id: currentUser.id,
+        pre_contest_credits: normalizeStoredCreditValue(currentProfile?.credits ?? INITIAL_BANKROLL),
+        pre_contest_carter_cash: Number.isFinite(Number(currentProfile?.carter_cash)) ? Math.round(Number(currentProfile.carter_cash)) : 0,
+        pre_contest_carter_cash_progress: Number.isFinite(Number(currentProfile?.carter_cash_progress))
+          ? Number(currentProfile.carter_cash_progress)
+          : 0,
+        starting_credits: startingCredits,
+        starting_carter_cash: startingCarterCash,
+        current_credits: startingCredits,
+        current_carter_cash: startingCarterCash,
+        current_carter_cash_progress: 0,
+        contest_history: buildContestHistory([], startingCredits, "Start", contest.starts_at || new Date().toISOString()),
+        display_name: displayName,
+        participant_email: currentUser.email || ""
+      };
+
+      const { error: entryError } = await supabase.from("contest_entries").insert(entryPayload);
+      if (entryError) {
+        if (entryFee > 0 && chargedProfile) {
+          const refundedAmount = Math.max(0, Math.round(Number(chargedProfile.carter_cash ?? 0))) + entryFee;
+          const { data: refundedProfile } = await supabase
+            .from("profiles")
+            .update({ carter_cash: refundedAmount })
+            .eq("id", currentUser.id)
+            .eq("updated_at", chargedProfile.updated_at ?? null)
+            .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
+            .maybeSingle();
+          if (refundedProfile) {
+            currentProfile = {
+              ...currentProfile,
+              ...refundedProfile
+            };
+            if (!isContestAccountMode()) {
+              carterCash = Math.max(0, Math.round(Number(refundedProfile.carter_cash ?? 0)));
+              carterCashProgress = Number.isFinite(Number(refundedProfile.carter_cash_progress))
+                ? Number(refundedProfile.carter_cash_progress)
+                : carterCashProgress;
+              lastSyncedCarterCash = carterCash;
+              lastSyncedCarterProgress = carterCashProgress;
+              handleCarterCashChanged();
+            }
+          }
+        }
+        throw entryError;
+      }
+
+      insertedEntry = {
+        ...entryPayload,
+        opted_in_at: new Date().toISOString()
+      };
+    } else {
+      insertedEntry = Array.isArray(secureJoinResult.data)
+        ? secureJoinResult.data[0] || null
+        : secureJoinResult.data || null;
+      await ensureProfileSynced({ force: true });
     }
 
-    const insertedEntry = {
-      ...entryPayload,
-      opted_in_at: new Date().toISOString()
-    };
+    if (!insertedEntry) {
+      throw new Error("Unable to create contest entry.");
+    }
     userContestEntries = [...userContestEntries, insertedEntry];
     contestEntryMap.set(insertedEntry.contest_id, insertedEntry);
     if (currentContest?.id === insertedEntry.contest_id) {
@@ -17288,6 +17309,7 @@ let carterCash = 0;
   let carterCashDeltaTimeout = null;
   let lastSyncedCarterCash = 0;
   let lastSyncedCarterProgress = 0;
+  let pendingCarterCashPlaythrough = 0;
 let advancedMode = true; // Always enabled - all bets always available
   let handPaused = false;
   let awaitingManualDeal = false;
@@ -18173,6 +18195,31 @@ function normalizeCarterCashProgressValue(value) {
   return Math.max(0, Math.round(Number(value)));
 }
 
+function clearPendingCarterCashPlaythrough() {
+  pendingCarterCashPlaythrough = 0;
+}
+
+function addPendingCarterCashPlaythrough(amount) {
+  if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
+    return;
+  }
+  pendingCarterCashPlaythrough = normalizeCarterCashProgressValue(
+    pendingCarterCashPlaythrough + Number(amount)
+  );
+}
+
+function buildPendingCarterCashSyncPayload() {
+  const playthroughDelta = normalizeCarterCashProgressValue(pendingCarterCashPlaythrough);
+  const syncedProgress = normalizeCarterCashProgressValue(lastSyncedCarterProgress);
+  const syncedCash = Math.max(0, Math.round(Number(lastSyncedCarterCash || 0)));
+  const currentCashValue = Math.max(0, Math.round(Number(carterCash || 0)));
+  const expectedCashGain = Math.floor((syncedProgress + playthroughDelta) / 1000);
+  return {
+    playthroughDelta,
+    carterCashAdjustment: currentCashValue - syncedCash - expectedCashGain
+  };
+}
+
 function applyAuthoritativeAccountSnapshotForMode(
   mode,
   { normalProfile = null, contestEntry = null, resetHistory = false } = {}
@@ -18214,6 +18261,7 @@ async function persistBankroll({
 } = {}) {
   if (!currentUser) return null;
   const normalizedBankroll = normalizeStoredCreditValue(bankroll);
+  const { playthroughDelta, carterCashAdjustment } = buildPendingCarterCashSyncPayload();
 
   const updates = {};
   if (Number.isFinite(normalizedBankroll) && normalizedBankroll !== lastSyncedBankroll) {
@@ -18268,15 +18316,37 @@ async function persistBankroll({
         "display_name",
         "participant_email"
       ].join(", ");
-      const { data: updatedContestEntry, error: contestEntryError } = await supabase
-        .from("contest_entries")
-        .update(contestSnapshot)
-        .eq("contest_id", activeContest.id)
-        .eq("user_id", currentUser.id)
-        .select(contestSelectFields)
-        .maybeSingle();
-      if (contestEntryError) {
-        throw contestEntryError;
+      let updatedContestEntry = null;
+      let contestEntryError = null;
+
+      const secureContestSave = await supabase.rpc("save_contest_entry_snapshot", {
+        _contest_id: activeContest.id,
+        _current_credits: contestSnapshot.current_credits,
+        _playthrough_delta: playthroughDelta,
+        _carter_cash_adjustment: carterCashAdjustment,
+        _contest_history: contestSnapshot.contest_history,
+        _display_name: contestSnapshot.display_name,
+        _participant_email: contestSnapshot.participant_email
+      });
+
+      if (secureContestSave?.error) {
+        if (!isMissingRpcError(secureContestSave.error)) {
+          throw secureContestSave.error;
+        }
+        ({ data: updatedContestEntry, error: contestEntryError } = await supabase
+          .from("contest_entries")
+          .update(contestSnapshot)
+          .eq("contest_id", activeContest.id)
+          .eq("user_id", currentUser.id)
+          .select(contestSelectFields)
+          .maybeSingle());
+        if (contestEntryError) {
+          throw contestEntryError;
+        }
+      } else {
+        updatedContestEntry = Array.isArray(secureContestSave.data)
+          ? secureContestSave.data[0] || null
+          : secureContestSave.data || null;
       }
 
       const persistedContestEntry = updatedContestEntry ? {
@@ -18299,12 +18369,27 @@ async function persistBankroll({
     } else {
       const profileSelectFields =
         "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, updated_at";
-      let { data, error } = await supabase
-        .from("profiles")
-        .update(updates)
-        .eq("id", currentUser.id)
-        .select(profileSelectFields)
-        .maybeSingle();
+      let { data, error } = await supabase.rpc("save_player_balance_snapshot", {
+        _credits: normalizedBankroll,
+        _playthrough_delta: playthroughDelta,
+        _carter_cash_adjustment: carterCashAdjustment,
+        _expected_updated_at: currentProfile?.updated_at ?? null
+      });
+
+      if (error) {
+        if (!isMissingRpcError(error)) {
+          throw error;
+        }
+        ({ data, error } = await supabase
+          .from("profiles")
+          .update(updates)
+          .eq("id", currentUser.id)
+          .select(profileSelectFields)
+          .maybeSingle());
+      }
+      if (Array.isArray(data)) {
+        data = data[0] || null;
+      }
 
       if (error) {
         throw error;
@@ -25232,6 +25317,7 @@ function applyPlaythrough(amount) {
     return;
   }
 
+  addPendingCarterCashPlaythrough(amount);
   carterCashProgress = normalizeCarterCashProgressValue(carterCashProgress + amount);
   const earned = Math.floor(carterCashProgress / 1000);
   if (earned > 0) {
