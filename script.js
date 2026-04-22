@@ -908,6 +908,10 @@ function isAdmin(user = currentUser) {
   return user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 }
 
+function isGuestRuntimeUser(user = currentUser) {
+  return !user?.id || user.id === GUEST_USER.id;
+}
+
 function showToast(message, tone = "info") {
   if (!toastContainer) return;
   const toast = document.createElement("div");
@@ -4934,7 +4938,7 @@ async function loadShapeTraderActivityPage({ offset = 0, append = false } = {}) 
 }
 
 async function loadShapeTraderPortfolioFromBackend() {
-  if (!supabase || !currentUser?.id || !shapeTradersStatePersistenceAvailable) {
+  if (!supabase || isGuestRuntimeUser() || !shapeTradersStatePersistenceAvailable) {
     return;
   }
 
@@ -5085,7 +5089,7 @@ async function claimShapeTraderStructuralEvent({
   assetId,
   eventType
 }) {
-  if (!supabase || !currentUser?.id || !shapeTradersStructuralEventPersistenceAvailable) {
+  if (!supabase || isGuestRuntimeUser() || !shapeTradersStructuralEventPersistenceAvailable) {
     return {
       claimed: true,
       durable: false
@@ -5146,7 +5150,7 @@ async function claimShapeTraderStructuralEvent({
 }
 
 async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeTradersLastPersistedAccountActiveAt) {
-  if (!supabase || !currentUser?.id || !shapeTradersStatePersistenceAvailable) {
+  if (!supabase || isGuestRuntimeUser() || !shapeTradersStatePersistenceAvailable) {
     return false;
   }
 
@@ -5288,7 +5292,7 @@ async function syncShapeTraderCurrentState({ heartbeatOnly = false, throwOnError
     await new Promise((resolve) => window.setTimeout(resolve, 50));
   }
 
-  if (!supabase || !currentUser?.id || !shapeTradersStatePersistenceAvailable) {
+  if (!supabase || isGuestRuntimeUser() || !shapeTradersStatePersistenceAvailable) {
     return false;
   }
   shapeTradersStateSyncInFlight = true;
@@ -6333,6 +6337,31 @@ function renderShapeTradersControls(now = Date.now()) {
     shapeTradersTradePanelEl.dataset.selectedAsset = selectedAssetConfig.id;
     shapeTradersTradePanelEl.dataset.selectedAccent = selectedAssetConfig.accent;
   }
+  if (isGuestRuntimeUser()) {
+    const quantity = Math.max(1, Math.round(Number(shapeTradersQuantityInput?.value || 1)));
+    const currentPrice = Number(shapeTradersCurrentPrices[shapeTradersSelectedAsset] || 0);
+    const totalCost = roundCurrencyValue(currentPrice * quantity);
+    if (shapeTradersTradeValueEl) {
+      shapeTradersTradeValueEl.textContent = formatCurrency(totalCost);
+    }
+    if (shapeTradersBuyButton) {
+      shapeTradersBuyButton.disabled = true;
+      shapeTradersBuyButton.classList.add("is-unavailable");
+      shapeTradersBuyButton.setAttribute("aria-disabled", "true");
+    }
+    if (shapeTradersSellButton) {
+      shapeTradersSellButton.disabled = true;
+      shapeTradersSellButton.classList.add("is-unavailable");
+      shapeTradersSellButton.setAttribute("aria-disabled", "true");
+    }
+    if (shapeTradersLiquidateButton) {
+      shapeTradersLiquidateButton.disabled = true;
+    }
+    if (shapeTradersInactivityEl) {
+      shapeTradersInactivityEl.textContent = "Sign in to trade Shape Traders.";
+    }
+    return;
+  }
   if (isShapeTradersClientEnginePaused()) {
     const quantity = Math.max(1, Math.round(Number(shapeTradersQuantityInput?.value || 1)));
     const currentPrice = Number(shapeTradersCurrentPrices[shapeTradersSelectedAsset] || 0);
@@ -7203,7 +7232,7 @@ async function executeShapeTraderTradeSecure({
   reason = "",
   awardCarterCash = true
 } = {}) {
-  if (!supabase || !currentUser?.id) {
+  if (!supabase || isGuestRuntimeUser()) {
     throw new Error("Shape Traders is unavailable right now.");
   }
 
