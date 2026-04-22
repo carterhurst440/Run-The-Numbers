@@ -6732,6 +6732,12 @@ function renderShapeTradersLiveSnapshot() {
   }
 }
 
+function renderShapeTradersDrawArrival(now = Date.now()) {
+  renderShapeTradersDeck(now);
+  renderShapeTradersControls(now);
+  renderShapeTradersLiveSnapshot();
+}
+
 function renderShapeTraderOpenChart() {
   if (
     !shapeTradersOpenChartAssetId ||
@@ -7830,6 +7836,9 @@ async function synchronizeShapeTraders(now = Date.now()) {
 
     const hydration = await hydrateShapeTradersFromDrawTable(now);
     drawStateChanged = Boolean(hydration?.changed);
+    if (drawStateChanged) {
+      renderShapeTradersDrawArrival(now);
+    }
 
     await maybeReconcileShapeTraderStructuralEvents();
     await evaluateShapeTraderAssistantRules();
