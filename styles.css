@@ -2177,8 +2177,12 @@ body[data-app-state="loading"] #app-shell {
   padding: clamp(1.05rem, 2.4vw, 1.45rem);
   border-radius: 1.5rem;
   border: 1px solid var(--betting-panel-border);
-  background: var(--betting-panel-bg);
-  box-shadow: inset 0 0 56px rgba(63, 240, 255, 0.16);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.012)),
+    color-mix(in srgb, var(--betting-panel-bg) 92%, white 8%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 56px rgba(63, 240, 255, 0.16);
   overflow: hidden;
 }
 
@@ -2313,7 +2317,7 @@ body[data-app-state="loading"] #app-shell {
 
 .shape-traders-market-card {
   min-height: 100%;
-  background: linear-gradient(180deg, rgba(10, 10, 12, 0.98), rgba(20, 20, 24, 0.96));
+  background: linear-gradient(180deg, rgba(18, 20, 28, 0.98), rgba(30, 34, 46, 0.96));
   grid-template-rows: auto auto auto auto;
   align-content: stretch;
   gap: 0.78rem;
@@ -3423,12 +3427,55 @@ body[data-app-state="loading"] #app-shell {
   z-index: 1;
 }
 
+.shape-traders-trade-bar::after {
+  content: "";
+  position: absolute;
+  top: -42%;
+  bottom: -56%;
+  left: -18%;
+  width: 42%;
+  background: linear-gradient(
+    118deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.035) 18%,
+    rgba(255, 255, 255, 0.24) 34%,
+    rgba(255, 255, 255, 0.06) 49%,
+    rgba(255, 255, 255, 0) 64%
+  );
+  transform: translate3d(-128%, 0, 0) rotate(12deg);
+  transform-origin: center;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  animation: shape-traders-trade-sheen 5.2s ease-in-out infinite;
+}
+
 .shape-traders-trade-bar-heading {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   min-height: 1rem;
+}
+
+@keyframes shape-traders-trade-sheen {
+  0% {
+    transform: translate3d(-128%, 0, 0) rotate(12deg);
+    opacity: 0;
+  }
+  14% {
+    opacity: 0.82;
+  }
+  34% {
+    transform: translate3d(225%, 0, 0) rotate(12deg);
+    opacity: 0.16;
+  }
+  100% {
+    transform: translate3d(225%, 0, 0) rotate(12deg);
+    opacity: 0;
+  }
 }
 
 .shape-traders-trade-sheet-toggle {
@@ -3472,6 +3519,8 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .shape-traders-trade-bar-body {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
