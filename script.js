@@ -3022,8 +3022,22 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
         <section class="app-page home-view design-theme-preview-page design-theme-preview-home-page">
           <div class="home-hero">
             <h1 class="home-title">Welcome to the Casino Floor</h1>
-            <div class="home-actions">
-              <button type="button" class="home-button home-primary home-cta-button home-hero-play-button">Play</button>
+            <div class="home-actions home-game-tiles">
+              <button type="button" class="home-game-tile home-game-tile-rtn">
+                <span class="home-game-tile-kicker">Original Game</span>
+                <span class="home-game-tile-title">Run The Numbers</span>
+                <span class="home-game-tile-copy">Build the board and press the active paytable.</span>
+              </button>
+              <button type="button" class="home-game-tile home-game-tile-g10">
+                <span class="home-game-tile-kicker">Beta Table</span>
+                <span class="home-game-tile-title">Guess 10</span>
+                <span class="home-game-tile-copy">Predict color, suit, or rank before the deck turns.</span>
+              </button>
+              <button type="button" class="home-game-tile home-game-tile-shape">
+                <span class="home-game-tile-kicker">Live Market</span>
+                <span class="home-game-tile-title">Shape Traders</span>
+                <span class="home-game-tile-copy">Trade shapes through the shared card-driven market.</span>
+              </button>
             </div>
             <section class="home-rank-panel" aria-label="Current rank">
               <div class="home-rank-header">
@@ -3070,18 +3084,25 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
                 <button type="button" class="home-contests-link">See All Contests</button>
               </div>
               <ul class="home-live-contest-list">
-                <li class="home-contest-card">
-                  <div class="home-contest-card-top">
-                    <div class="home-contest-title-wrap">
-                      <div class="home-contest-title-row">
-                        <h3 class="home-contest-card-title">Weekly Bankroll Sprint</h3>
-                        <span class="contest-entry-fee-badge">25 Units</span>
-                      </div>
-                      <p class="home-contest-card-window">Ends Sunday at 10 PM</p>
+                <li class="admin-contest-card">
+                  <div class="admin-contest-header">
+                    <div class="contest-card-heading">
+                      <h3>Weekly Bankroll Sprint</h3>
+                      <p class="contest-window">Ends Sunday at 10 PM</p>
+                    </div>
+                    <div class="contest-status-meta">
+                      <span class="contest-status-badge" data-status="live">Live</span>
+                      <span class="contest-entry-fee-badge">25 CC</span>
                     </div>
                   </div>
-                  <p class="home-contest-card-prize">$250 Prize Pool</p>
-                  <div class="contest-threshold-progress contest-threshold-progress-home">
+                  <div class="contest-card-hero">
+                    <p class="contest-prize-pill">Prize Pot $250</p>
+                  </div>
+                  <div class="contest-card-hero-meta">
+                    <p class="contest-prize-growth">Qualify with 100 Carter Cash</p>
+                    <p class="contest-prize-growth">Games: Run The Numbers, Guess 10</p>
+                  </div>
+                  <div class="contest-threshold-progress contest-threshold-progress-list">
                     <p class="contest-threshold-progress-title">Boost unlock at 50 players</p>
                     <div class="contest-threshold-progress-bar">
                       <span class="contest-threshold-progress-fill" style="width: 68%"></span>
@@ -14888,7 +14909,7 @@ async function renderHomeContestPromos() {
   try {
     const counts = await loadContestParticipantCounts(liveContests);
     liveContests.forEach((contest) => {
-      homeLiveContestListEl.appendChild(renderHomeContestPromoCard(contest, counts[contest.id] || 0));
+      homeLiveContestListEl.appendChild(renderPlayerContestRow(contest, counts[contest.id] || 0));
     });
   } catch (error) {
     console.error("[RTN] renderHomeContestPromos error", error);

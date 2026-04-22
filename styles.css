@@ -967,6 +967,11 @@ body[data-app-state="loading"] #app-shell {
   display: grid;
   gap: 0.8rem;
   min-height: 0;
+  align-content: start;
+}
+
+.home-live-contest-list > .admin-contest-card {
+  margin: 0;
 }
 
 .home-contest-card {
@@ -1500,8 +1505,7 @@ body[data-app-state="loading"] #app-shell {
     grid-template-areas:
       "title title"
       "actions actions"
-      "rank contests"
-      "games games";
+      "rank contests";
     align-items: start;
     gap: 1rem;
     min-height: 0;
@@ -1530,11 +1534,6 @@ body[data-app-state="loading"] #app-shell {
     width: 100%;
     min-height: 28rem;
     max-height: 28rem;
-  }
-
-  #home-view .home-games {
-    grid-area: games;
-    width: 100%;
   }
 
   #home-view .home-live-contest-list {
@@ -1715,6 +1714,129 @@ body[data-app-state="loading"] #app-shell {
   justify-content: center;
   gap: clamp(1.2rem, 4vw, 2rem);
   margin-top: clamp(1rem, 3vw, 1.8rem);
+}
+
+.home-game-tiles {
+  width: min(100%, 1320px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(0.9rem, 2vw, 1.2rem);
+}
+
+.home-game-tile {
+  position: relative;
+  display: grid;
+  gap: 0.45rem;
+  width: 100%;
+  text-align: left;
+  align-content: start;
+  min-height: 10.5rem;
+  padding: 1.15rem 1.15rem 1.2rem;
+  border-radius: 1.45rem;
+  border: 1px solid color-mix(in srgb, var(--betting-panel-border) 74%, white 26%);
+  background: var(--betting-panel-bg);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 18px 38px rgba(0, 0, 0, 0.24);
+  overflow: hidden;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+  cursor: pointer;
+}
+
+.home-game-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(130deg, rgba(255, 255, 255, 0.08), transparent 42%);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.home-game-tile::after {
+  content: "";
+  position: absolute;
+  inset: auto -18% -38% 42%;
+  height: 78%;
+  border-radius: 999px;
+  filter: blur(34px);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.home-game-tile:hover,
+.home-game-tile:focus-visible {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.11),
+    0 22px 46px rgba(0, 0, 0, 0.28);
+}
+
+.home-game-tile-kicker {
+  position: relative;
+  z-index: 1;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.64);
+}
+
+.home-game-tile-title {
+  position: relative;
+  z-index: 1;
+  font-family: "Audiowide", "Play", system-ui, sans-serif;
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-light);
+}
+
+.home-game-tile-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 22ch;
+  color: rgba(229, 235, 255, 0.82);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.home-game-tile-rtn {
+  border-color: color-mix(in srgb, #8ccf8b 58%, white 18%);
+  background:
+    radial-gradient(circle at 85% 18%, rgba(212, 177, 90, 0.22), transparent 22%),
+    linear-gradient(145deg, rgba(18, 49, 32, 0.96), rgba(10, 17, 15, 0.98) 62%),
+    var(--betting-panel-bg);
+}
+
+.home-game-tile-rtn::after {
+  background: rgba(132, 198, 119, 0.32);
+}
+
+.home-game-tile-g10 {
+  border-color: color-mix(in srgb, #8caeff 54%, white 18%);
+  background:
+    radial-gradient(circle at 82% 20%, rgba(255, 92, 92, 0.2), transparent 24%),
+    linear-gradient(145deg, rgba(17, 31, 66, 0.96), rgba(11, 16, 26, 0.98) 62%),
+    var(--betting-panel-bg);
+}
+
+.home-game-tile-g10::after {
+  background: rgba(102, 157, 255, 0.34);
+}
+
+.home-game-tile-shape {
+  border-color: color-mix(in srgb, #f0cf74 58%, white 18%);
+  background:
+    radial-gradient(circle at 22% 16%, rgba(255, 95, 176, 0.18), transparent 22%),
+    radial-gradient(circle at 84% 18%, rgba(92, 219, 255, 0.16), transparent 24%),
+    linear-gradient(145deg, rgba(27, 29, 36, 0.96), rgba(12, 14, 19, 0.98) 62%),
+    var(--betting-panel-bg);
+}
+
+.home-game-tile-shape::after {
+  background: rgba(240, 207, 116, 0.34);
 }
 
 .home-games {
@@ -5356,6 +5478,19 @@ body[data-app-state="loading"] #app-shell {
     width: 100%;
     margin-top: 1.45rem;
     gap: 0.8rem;
+  }
+
+  .home-game-tiles {
+    grid-template-columns: 1fr;
+  }
+
+  .home-game-tile {
+    min-height: 0;
+    padding: 1rem 1rem 1.05rem;
+  }
+
+  .home-game-tile-copy {
+    max-width: none;
   }
 
   .home-games {

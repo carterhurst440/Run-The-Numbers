@@ -542,9 +542,21 @@
         <section id="home-view" class="route-view app-page home-view" hidden aria-labelledby="home-title">
           <div class="home-hero">
             <h1 id="home-title" class="home-title">Welcome to the Casino Floor</h1>
-            <div class="home-actions">
-              <button type="button" class="home-button home-primary home-cta-button home-hero-play-button" data-route-target="play">
-                Play
+            <div class="home-actions home-game-tiles" aria-label="Choose a game">
+              <button type="button" class="home-game-tile home-game-tile-rtn" data-route-target="run-the-numbers" data-game-id="game_001">
+                <span class="home-game-tile-kicker">Original Game</span>
+                <span class="home-game-tile-title">Run The Numbers</span>
+                <span class="home-game-tile-copy">Build the board and press the active paytable.</span>
+              </button>
+              <button type="button" class="home-game-tile home-game-tile-g10" data-route-target="red-black" data-game-id="game_002">
+                <span class="home-game-tile-kicker">Beta Table</span>
+                <span class="home-game-tile-title">Guess 10</span>
+                <span class="home-game-tile-copy">Predict color, suit, or rank before the deck turns.</span>
+              </button>
+              <button type="button" class="home-game-tile home-game-tile-shape" data-route-target="shape-traders" data-game-id="game_003">
+                <span class="home-game-tile-kicker">Live Market</span>
+                <span class="home-game-tile-title">Shape Traders</span>
+                <span class="home-game-tile-copy">Trade shapes through the shared card-driven market.</span>
               </button>
             </div>
             <section id="home-rank-panel" class="home-rank-panel" hidden aria-labelledby="home-rank-title">
@@ -602,89 +614,6 @@
                 <button type="button" class="home-contests-link" data-route-target="contests">See All Contests</button>
               </div>
               <ul id="home-live-contest-list" class="home-live-contest-list" aria-live="polite"></ul>
-            </section>
-            <section class="home-games" aria-label="Available games">
-              <article class="game-card game-card-primary" data-game-card="game_001">
-                <div class="game-card-head">
-                  <div class="game-card-kicker-row">
-                    <p class="game-card-kicker" data-game-kicker-for="game_001">Original Game</p>
-                    <span class="game-beta-pill" data-game-pill-for="game_001" hidden>Beta</span>
-                  </div>
-                  <div class="game-card-title-row">
-                    <img
-                      class="game-card-logo game-card-logo-inline"
-                      data-game-logo-for="game_001"
-                      src="/assets/game-logos/run-the-numbers.svg"
-                      alt="Run the Numbers logo"
-                    />
-                    <h2 class="game-card-title">RUN THE NUMBERS</h2>
-                  </div>
-                </div>
-                <p class="game-card-copy" data-game-description-for="game_001">Build your wager board, fade the bust card, and press number hits across the active paytable.</p>
-                <button
-                  type="button"
-                  class="home-button home-cta-button"
-                  data-route-target="run-the-numbers"
-                  data-game-id="game_001"
-                  data-game-button-for="game_001"
-                >
-                  Play Run the Numbers
-                </button>
-              </article>
-              <article class="game-card game-card-beta" data-game-card="game_002">
-                <div class="game-card-head">
-                  <div class="game-card-kicker-row">
-                    <p class="game-card-kicker" data-game-kicker-for="game_002">New Beta Game</p>
-                    <span class="game-beta-pill" data-game-pill-for="game_002" hidden>Beta</span>
-                  </div>
-                  <div class="game-card-title-row">
-                    <img
-                      class="game-card-logo game-card-logo-inline"
-                      data-game-logo-for="game_002"
-                      src="/assets/game-logos/guess-10.svg"
-                      alt="Guess 10 logo"
-                    />
-                    <h2 class="game-card-title">GUESS 10</h2>
-                  </div>
-                </div>
-                <p class="game-card-copy" data-game-description-for="game_002">Predict by color, suit, or rank, multiply the live pot on every hit, and cash out before the deck turns on you.</p>
-                <button
-                  type="button"
-                  class="home-button home-cta-button"
-                  data-route-target="red-black"
-                  data-game-id="game_002"
-                  data-game-button-for="game_002"
-                >
-                  Play Guess 10
-                </button>
-              </article>
-              <article class="game-card game-card-shape-traders" data-game-card="game_003">
-                <div class="game-card-head">
-                  <div class="game-card-kicker-row">
-                    <p class="game-card-kicker" data-game-kicker-for="game_003">Admin Preview</p>
-                    <span class="game-beta-pill" data-game-pill-for="game_003" hidden>Beta</span>
-                  </div>
-                  <div class="game-card-title-row">
-                    <img
-                      class="game-card-logo game-card-logo-inline"
-                      data-game-logo-for="game_003"
-                      src="/assets/game-logos/shape-traders.svg"
-                      alt="Shape Traders logo"
-                    />
-                    <h2 class="game-card-title">SHAPE TRADERS</h2>
-                  </div>
-                </div>
-                <p class="game-card-copy" data-game-description-for="game_003">Trade Circles, Squares, and Triangles against a shared live card-driven market with timed data dumps and isolated game accounting.</p>
-                <button
-                  type="button"
-                  class="home-button home-cta-button"
-                  data-route-target="shape-traders"
-                  data-game-id="game_003"
-                  data-game-button-for="game_003"
-                >
-                  Play Shape Traders
-                </button>
-              </article>
             </section>
           </div>
         </section>
