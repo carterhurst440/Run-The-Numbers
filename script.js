@@ -5709,18 +5709,27 @@ async function applyShapeTraderDrawRow(row) {
   }
 }
 
-async function hydrateShapeTradersFromDrawTable(now = Date.now()) {
+async function hydrateShapeTradersFromDrawTable(
+  now = Date.now(),
+  { historyLimit = null } = {}
+) {
   if (shapeTradersLocalResetMode) {
-    return;
+    return { changed: false, latestDrawId: 0, rowCount: 0 };
   }
   let hasCanonicalMarketPrices = false;
+  const previousLatestDrawId = Number(shapeTradersRecentDrawRows?.[0]?.draw_id || 0);
+  const shouldLoadExtendedHistory = Number.isFinite(Number(historyLimit))
+    ? Math.max(2, Math.floor(Number(historyLimit)))
+    : ((shapeTradersRecentModal && !shapeTradersRecentModal.hidden) || (shapeTradersDeckModal && !shapeTradersDeckModal.hidden))
+      ? 60
+      : 12;
 
   if (!supabase || !shapeTradersDrawPersistenceAvailable) {
     resetShapeTradersDerivedState();
     shapeTradersTimelineEpochMs = now;
     shapeTradersRecentDrawRows = [];
     shapeTradersCurrentPrices = createInitialShapeTraderPrices();
-    return;
+    return { changed: previousLatestDrawId !== 0, latestDrawId: 0, rowCount: 0 };
   }
 
   try {
@@ -5728,13 +5737,13 @@ async function hydrateShapeTradersFromDrawTable(now = Date.now()) {
       .from("shape_trader_draws")
       .select("*")
       .order("draw_id", { ascending: false })
-      .limit(60);
+      .limit(shouldLoadExtendedHistory);
 
     if (error) {
       if (isMissingRelationError(error, "shape_trader_draws")) {
         shapeTradersDrawPersistenceAvailable = false;
         shapeTradersTimelineEpochMs = now;
-        return;
+        return { changed: false, latestDrawId: previousLatestDrawId, rowCount: 0 };
       }
       throw error;
     }
@@ -5745,7 +5754,7 @@ async function hydrateShapeTradersFromDrawTable(now = Date.now()) {
       shapeTradersTimelineEpochMs = now;
       shapeTradersRecentDrawRows = [];
       shapeTradersCurrentPrices = createInitialShapeTraderPrices();
-      return;
+      return { changed: previousLatestDrawId !== 0, latestDrawId: 0, rowCount: 0 };
     }
 
     const latestRow = rows[0];
@@ -5784,8 +5793,18 @@ async function hydrateShapeTradersFromDrawTable(now = Date.now()) {
     shapeTradersPreviousCard = rows[1] ? mapShapeTraderDrawRowToCard(rows[1]) : null;
     shapeTradersProcessedWindowIndex = Math.floor(Number(latestRow.window_index || -1));
     shapeTradersProcessedVisibleCount = Math.floor(Number(latestRow.sequence_in_window || 0));
+    return {
+      changed: latestDrawId !== previousLatestDrawId,
+      latestDrawId,
+      rowCount: rows.length
+    };
   } catch (error) {
     console.error("[RTN] Unable to hydrate Shape Traders draw state", error);
+    return {
+      changed: false,
+      latestDrawId: previousLatestDrawId,
+      rowCount: Array.isArray(shapeTradersRecentDrawRows) ? shapeTradersRecentDrawRows.length : 0
+    };
   }
 }
 
@@ -6699,6 +6718,18 @@ function renderShapeTraders() {
   }
   renderShapeTradersAssetSelector();
   renderShapeTradersControls();
+}
+
+function renderShapeTradersLiveSnapshot() {
+  renderShapeTraderMarket();
+  renderShapeTradersBalances();
+  renderShapeTradersHoldings();
+  if (shapeTradersRecentModal && !shapeTradersRecentModal.hidden) {
+    renderShapeTraderRecentDraws();
+  }
+  if (shapeTradersDeckModal && !shapeTradersDeckModal.hidden) {
+    renderShapeTraderDeckList();
+  }
 }
 
 function renderShapeTraderOpenChart() {
@@ -7792,11 +7823,13 @@ async function synchronizeShapeTraders(now = Date.now()) {
       return;
     }
 
+    let drawStateChanged = false;
     if (isShapeTradersDbDrawAuthorityEnabled()) {
       await tickShapeTraderDrawEngine();
     }
 
-    await hydrateShapeTradersFromDrawTable(now);
+    const hydration = await hydrateShapeTradersFromDrawTable(now);
+    drawStateChanged = Boolean(hydration?.changed);
 
     await maybeReconcileShapeTraderStructuralEvents();
     await evaluateShapeTraderAssistantRules();
@@ -7827,7 +7860,9 @@ async function synchronizeShapeTraders(now = Date.now()) {
       void refreshShapeTraderGlobalSnapshot();
     }
 
-    renderShapeTraders();
+    if (drawStateChanged) {
+      renderShapeTradersLiveSnapshot();
+    }
   } finally {
     shapeTradersSyncInFlight = false;
   }
