@@ -99,13 +99,15 @@ before insert or update or delete on public.shape_trader_trades
 for each row
 execute function public.guard_shape_trader_mutation();
 
+drop function if exists public.sync_shape_trader_account_state(uuid, timestamptz);
+
 create or replace function public.sync_shape_trader_account_state(
   _contest_id uuid default null,
   _last_active_at timestamptz default null
 )
 returns table (
   contest_id uuid,
-  account_scope text,
+  resolved_account_scope text,
   cash_balance numeric,
   holdings_value numeric,
   account_value numeric,
