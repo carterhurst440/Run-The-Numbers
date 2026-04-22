@@ -7864,10 +7864,6 @@ async function synchronizeShapeTraders(now = Date.now()) {
       return;
     }
 
-    if (isShapeTradersDbDrawAuthorityEnabled()) {
-      await tickShapeTraderDrawEngine();
-    }
-
     const hydration = await hydrateShapeTradersFromDrawTable(now);
     drawStateChanged = Boolean(hydration?.changed);
     if (drawStateChanged) {
