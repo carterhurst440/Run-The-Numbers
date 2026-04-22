@@ -5526,6 +5526,7 @@ async function tickShapeTraderDrawEngine() {
     return { ok: false, reason: "unavailable" };
   }
 
+  const tickStartedAt = Date.now();
   try {
     const rpcResult = await supabase.rpc("shape_trader_tick");
     if (rpcResult?.error) {
@@ -5539,6 +5540,7 @@ async function tickShapeTraderDrawEngine() {
     }
     const result = Array.isArray(rpcResult.data) ? rpcResult.data[0] || null : rpcResult.data || null;
     logShapeTraderTiming("tick-result", {
+      elapsedMs: Date.now() - tickStartedAt,
       processed: Number(result?.processed || 0),
       latestDrawId: result?.latest_draw_id ?? null,
       currentWindowIndex: result?.current_window_index ?? null,
@@ -5550,6 +5552,10 @@ async function tickShapeTraderDrawEngine() {
     };
   } catch (error) {
     console.error("[RTN] Unable to tick Shape Traders draw engine", error);
+    logShapeTraderTiming("tick-error", {
+      elapsedMs: Date.now() - tickStartedAt,
+      message: String(error?.message || error?.details || error || "unknown error")
+    });
     return { ok: false, reason: "error", error };
   }
 }
@@ -5716,6 +5722,7 @@ async function hydrateShapeTradersFromDrawTable(
   if (shapeTradersLocalResetMode) {
     return { changed: false, latestDrawId: 0, rowCount: 0 };
   }
+  const hydrateStartedAt = Date.now();
   let hasCanonicalMarketPrices = false;
   const previousLatestDrawId = Number(shapeTradersRecentDrawRows?.[0]?.draw_id || 0);
   const shouldLoadExtendedHistory = Number.isFinite(Number(historyLimit))
@@ -5793,6 +5800,14 @@ async function hydrateShapeTradersFromDrawTable(
     shapeTradersPreviousCard = rows[1] ? mapShapeTraderDrawRowToCard(rows[1]) : null;
     shapeTradersProcessedWindowIndex = Math.floor(Number(latestRow.window_index || -1));
     shapeTradersProcessedVisibleCount = Math.floor(Number(latestRow.sequence_in_window || 0));
+    logShapeTraderTiming("hydrate-result", {
+      elapsedMs: Date.now() - hydrateStartedAt,
+      changed: latestDrawId !== previousLatestDrawId,
+      previousLatestDrawId,
+      latestDrawId,
+      rowCount: rows.length,
+      historyLimit: shouldLoadExtendedHistory
+    });
     return {
       changed: latestDrawId !== previousLatestDrawId,
       latestDrawId,
@@ -5800,6 +5815,12 @@ async function hydrateShapeTradersFromDrawTable(
     };
   } catch (error) {
     console.error("[RTN] Unable to hydrate Shape Traders draw state", error);
+    logShapeTraderTiming("hydrate-error", {
+      elapsedMs: Date.now() - hydrateStartedAt,
+      previousLatestDrawId,
+      historyLimit: shouldLoadExtendedHistory,
+      message: String(error?.message || error?.details || error || "unknown error")
+    });
     return {
       changed: false,
       latestDrawId: previousLatestDrawId,
@@ -7824,6 +7845,7 @@ async function synchronizeShapeTraders(now = Date.now()) {
     return;
   }
   shapeTradersSyncInFlight = true;
+  const syncStartedAt = Date.now();
   try {
     if (shapeTradersResetInFlight || shapeTradersLocalResetMode) {
       return;
@@ -7837,7 +7859,13 @@ async function synchronizeShapeTraders(now = Date.now()) {
     const hydration = await hydrateShapeTradersFromDrawTable(now);
     drawStateChanged = Boolean(hydration?.changed);
     if (drawStateChanged) {
+      const paintStartedAt = Date.now();
       renderShapeTradersDrawArrival(now);
+      logShapeTraderTiming("draw-arrival-render", {
+        drawId: hydration?.latestDrawId ?? null,
+        renderElapsedMs: Date.now() - paintStartedAt,
+        syncElapsedMs: Date.now() - syncStartedAt
+      });
     }
 
     await maybeReconcileShapeTraderStructuralEvents();
@@ -7873,6 +7901,9 @@ async function synchronizeShapeTraders(now = Date.now()) {
       renderShapeTradersLiveSnapshot();
     }
   } finally {
+    logShapeTraderTiming("sync-pass-complete", {
+      elapsedMs: Date.now() - syncStartedAt
+    });
     shapeTradersSyncInFlight = false;
   }
 }
