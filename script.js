@@ -5375,61 +5375,74 @@ async function syncShapeTraderCurrentState({ heartbeatOnly = false, throwOnError
   shapeTradersStateSyncInFlight = true;
 
   const contestId = getShapeTraderCurrentContestId();
-  const accountScope = getShapeTraderAccountScope();
-  const accountPayload = {
-    user_id: currentUser.id,
-    game_id: GAME_KEYS.SHAPE_TRADERS,
-    contest_id: contestId,
-    account_scope: accountScope,
-    cash_balance: roundCurrencyValue(bankroll),
-    holdings_value: roundCurrencyValue(getShapeTraderHoldingsValue()),
-    account_value: roundCurrencyValue(getShapeTraderAccountValue()),
-    last_structural_draw_id: Math.max(0, Math.floor(Number(shapeTradersLastStructuralSyncDrawId || 0))),
-    last_active_at: new Date(
-      shapeTradersWindowActive
-        ? Date.now()
-        : (shapeTradersLastBecameInactiveAt || shapeTradersLastInteractionAt)
-    ).toISOString(),
-    updated_at: new Date().toISOString()
-  };
+  const lastActiveAt = new Date(
+    shapeTradersWindowActive
+      ? Date.now()
+      : (shapeTradersLastBecameInactiveAt || shapeTradersLastInteractionAt)
+  ).toISOString();
 
   try {
-    const accountUpsertResult = await supabase
-      .from("shape_trader_accounts_current")
-      .upsert(accountPayload, { onConflict: "user_id,account_scope" });
-    if (accountUpsertResult?.error) {
-      if (isMissingColumnError(accountUpsertResult.error, "last_structural_draw_id")) {
-        const { last_structural_draw_id, ...legacyAccountPayload } = accountPayload;
-        const legacyUpsertResult = await supabase
-          .from("shape_trader_accounts_current")
-          .upsert(legacyAccountPayload, { onConflict: "user_id,account_scope" });
-        if (legacyUpsertResult?.error) {
-          throw legacyUpsertResult.error;
-        }
-      } else {
-        throw accountUpsertResult.error;
-      }
-    }
+    const secureSync = await supabase.rpc("sync_shape_trader_account_state", {
+      _contest_id: contestId,
+      _last_active_at: lastActiveAt
+    });
 
-    if (!heartbeatOnly) {
-      const positionPayload = SHAPE_TRADERS_ASSETS.map((asset) => ({
+    if (secureSync?.error) {
+      if (!isMissingRpcError(secureSync.error)) {
+        throw secureSync.error;
+      }
+
+      const accountScope = getShapeTraderAccountScope();
+      const accountPayload = {
         user_id: currentUser.id,
         game_id: GAME_KEYS.SHAPE_TRADERS,
         contest_id: contestId,
         account_scope: accountScope,
-        shape: asset.id,
-        quantity: Math.max(0, Math.round(Number(shapeTradersHoldings[asset.id]?.quantity || 0))),
-        average_price: roundCurrencyValue(Number(shapeTradersHoldings[asset.id]?.averagePrice || 0)),
+        cash_balance: roundCurrencyValue(bankroll),
+        holdings_value: roundCurrencyValue(getShapeTraderHoldingsValue()),
+        account_value: roundCurrencyValue(getShapeTraderAccountValue()),
+        last_structural_draw_id: Math.max(0, Math.floor(Number(shapeTradersLastStructuralSyncDrawId || 0))),
+        last_active_at: lastActiveAt,
         updated_at: new Date().toISOString()
-      }));
-      await supabase
-        .from("shape_trader_positions_current")
-        .upsert(positionPayload, { onConflict: "user_id,account_scope,shape" });
+      };
+
+      const accountUpsertResult = await supabase
+        .from("shape_trader_accounts_current")
+        .upsert(accountPayload, { onConflict: "user_id,account_scope" });
+      if (accountUpsertResult?.error) {
+        if (isMissingColumnError(accountUpsertResult.error, "last_structural_draw_id")) {
+          const { last_structural_draw_id, ...legacyAccountPayload } = accountPayload;
+          const legacyUpsertResult = await supabase
+            .from("shape_trader_accounts_current")
+            .upsert(legacyAccountPayload, { onConflict: "user_id,account_scope" });
+          if (legacyUpsertResult?.error) {
+            throw legacyUpsertResult.error;
+          }
+        } else {
+          throw accountUpsertResult.error;
+        }
+      }
+
+      if (!heartbeatOnly) {
+        const positionPayload = SHAPE_TRADERS_ASSETS.map((asset) => ({
+          user_id: currentUser.id,
+          game_id: GAME_KEYS.SHAPE_TRADERS,
+          contest_id: contestId,
+          account_scope: accountScope,
+          shape: asset.id,
+          quantity: Math.max(0, Math.round(Number(shapeTradersHoldings[asset.id]?.quantity || 0))),
+          average_price: roundCurrencyValue(Number(shapeTradersHoldings[asset.id]?.averagePrice || 0)),
+          updated_at: new Date().toISOString()
+        }));
+        await supabase
+          .from("shape_trader_positions_current")
+          .upsert(positionPayload, { onConflict: "user_id,account_scope,shape" });
+      }
     }
 
     shapeTradersLastHeartbeatAt = Date.now();
     shapeTradersLastGlobalSyncAt = 0;
-    shapeTradersLastPersistedAccountActiveAt = accountPayload.last_active_at;
+    shapeTradersLastPersistedAccountActiveAt = lastActiveAt;
   } catch (error) {
     if (
       isMissingRelationError(error, "shape_trader_accounts_current") ||
@@ -5845,7 +5858,18 @@ async function appendShapeTraderActivity(entry) {
   shapeTradersActivity.unshift(entry);
   shapeTradersActivityLoadedCount = shapeTradersActivity.length;
   renderShapeTradersActivity();
-  await recordShapeTraderTrade(entry);
+  try {
+    await recordShapeTraderTrade(entry);
+  } catch (error) {
+    console.warn("[RTN] Unable to persist Shape Traders activity entry", error);
+  }
+}
+
+function prependShapeTraderActivity(entry) {
+  if (!entry) return;
+  shapeTradersActivity.unshift(entry);
+  shapeTradersActivityLoadedCount = shapeTradersActivity.length;
+  renderShapeTradersActivity();
 }
 
 async function executeShapeTraderAssetSplit(assetId, preSplitPrice) {
@@ -7096,69 +7120,29 @@ async function liquidateShapeTraderAsset(
   const holding = shapeTradersHoldings[assetId];
   if (!holding || holding.quantity <= 0) return null;
   const isBankruptcyReset = String(reason || "").toLowerCase() === "bankruptcy reset";
-
-  const currentPrice = roundCurrencyValue(
-    priceOverride === null
-      ? Number(shapeTradersCurrentPrices[assetId] || 0)
-      : Number(priceOverride || 0)
-  );
   const quantity = holding.quantity;
-  const totalValue = roundCurrencyValue(quantity * currentPrice);
-  const netProfit = roundCurrencyValue((currentPrice - holding.averagePrice) * quantity);
-  const previousBankroll = bankroll;
-  const previousHolding = {
-    quantity: Number(holding.quantity || 0),
-    averagePrice: roundCurrencyValue(Number(holding.averagePrice || 0))
-  };
-  const previousCarterCash = carterCash;
-  const previousCarterCashProgress = carterCashProgress;
+  const result = await executeShapeTraderTradeSecure({
+    assetId,
+    side: "sell",
+    quantity,
+    reason,
+    awardCarterCash: !isBankruptcyReset
+  });
 
-  bankroll = roundCurrencyValue(bankroll + totalValue);
-  handleBankrollChanged();
-  shapeTradersHoldings[assetId] = {
-    quantity: 0,
-    averagePrice: 0
-  };
-  if (!isBankruptcyReset) {
-    applyShapeTraderCarterCashProgress(netProfit);
-  }
-  if (persistAccount) {
-    try {
-      await persistBankroll({
-        recordContestHistory: persistContestHistory && isContestAccountMode(),
-        contestHistoryLabel: "Trade",
-        contestCreditsValue: bankroll,
-        throwOnError: true
-      });
-    } catch (error) {
-      bankroll = previousBankroll;
-      handleBankrollChanged();
-      shapeTradersHoldings[assetId] = previousHolding;
-      carterCash = previousCarterCash;
-      carterCashProgress = previousCarterCashProgress;
-      handleCarterCashChanged();
-      renderShapeTraders();
-      throw error;
-    }
-  }
   if (showToast) {
-    showShapeTraderTradeToast(totalValue);
+    showShapeTraderTradeToast(Number(result.total_value || 0));
   }
 
-  const entry = createShapeTraderActivityEntry({
+  prependShapeTraderActivity(createShapeTraderActivityEntry({
     side: "sell",
     assetId,
     quantity,
-    totalValue,
-    price: currentPrice,
-    netProfit,
+    totalValue: Number(result.total_value || 0),
+    price: Number(result.price || 0),
+    netProfit: result.net_profit === null ? null : Number(result.net_profit || 0),
     reason
-  });
-  try {
-    await appendShapeTraderActivity(entry);
-  } catch (error) {
-    console.warn("[RTN] Unable to append Shape Traders liquidation activity", error);
-  }
+  }));
+
   if (syncState) {
     try {
       await syncShapeTraderCurrentState();
@@ -7166,12 +7150,13 @@ async function liquidateShapeTraderAsset(
       console.warn("[RTN] Unable to sync Shape Traders state after liquidation", error);
     }
   }
+  renderShapeTraders();
   return {
     assetId,
     quantity,
-    totalValue,
-    netProfit,
-    price: currentPrice
+    totalValue: Number(result.total_value || 0),
+    netProfit: result.net_profit === null ? null : Number(result.net_profit || 0),
+    price: Number(result.price || 0)
   };
 }
 
@@ -7194,6 +7179,111 @@ function restoreShapeTraderTradeStateSnapshot(snapshot) {
   carterCash = snapshot.carterCash;
   carterCashProgress = snapshot.carterCashProgress;
   handleCarterCashChanged();
+}
+
+function applyShapeTraderTradeServerResult(result, assetId) {
+  if (!result || !assetId) return null;
+
+  const nextCashBalance = roundCurrencyValue(Number(result.cash_balance ?? bankroll));
+  const nextCarterCash = Math.max(0, Math.round(Number(result.carter_cash ?? carterCash)));
+  const nextCarterCashProgress = normalizeCarterCashProgressValue(
+    Number(result.carter_cash_progress ?? carterCashProgress)
+  );
+  const nextQuantity = Math.max(0, Math.round(Number(result.position_quantity ?? 0)));
+  const nextAveragePrice = roundCurrencyValue(Number(result.position_average_price ?? 0));
+
+  shapeTradersHoldings[assetId] = {
+    quantity: nextQuantity,
+    averagePrice: nextAveragePrice
+  };
+
+  if (isContestAccountMode()) {
+    const activeEntry = getModeContestEntry();
+    if (activeEntry) {
+      applyAuthoritativeAccountSnapshotForMode(currentAccountMode, {
+        contestEntry: {
+          ...activeEntry,
+          current_credits: nextCashBalance,
+          current_carter_cash: nextCarterCash,
+          current_carter_cash_progress: nextCarterCashProgress,
+          display_name: getContestDisplayName(currentProfile, currentUser?.id),
+          participant_email: currentUser?.email || ""
+        }
+      });
+    } else {
+      bankroll = nextCashBalance;
+      handleBankrollChanged();
+      carterCash = nextCarterCash;
+      carterCashProgress = nextCarterCashProgress;
+      lastSyncedCarterCash = carterCash;
+      lastSyncedCarterProgress = carterCashProgress;
+      clearPendingCarterCashPlaythrough();
+      handleCarterCashChanged();
+    }
+  } else if (currentProfile) {
+    applyAuthoritativeAccountSnapshotForMode(currentAccountMode, {
+      normalProfile: {
+        ...currentProfile,
+        credits: nextCashBalance,
+        carter_cash: nextCarterCash,
+        carter_cash_progress: nextCarterCashProgress,
+        updated_at: result.balance_updated_at || currentProfile.updated_at
+      }
+    });
+  } else {
+    bankroll = nextCashBalance;
+    handleBankrollChanged();
+    carterCash = nextCarterCash;
+    carterCashProgress = nextCarterCashProgress;
+    lastSyncedCarterCash = carterCash;
+    lastSyncedCarterProgress = carterCashProgress;
+    clearPendingCarterCashPlaythrough();
+    handleCarterCashChanged();
+  }
+
+  syncCurrentModeShadowState();
+  return {
+    cashBalance: nextCashBalance,
+    carterCash: nextCarterCash,
+    carterCashProgress: nextCarterCashProgress,
+    quantity: nextQuantity,
+    averagePrice: nextAveragePrice
+  };
+}
+
+async function executeShapeTraderTradeSecure({
+  assetId,
+  side,
+  quantity,
+  reason = "",
+  awardCarterCash = true
+} = {}) {
+  if (!supabase || !currentUser?.id) {
+    throw new Error("Shape Traders is unavailable right now.");
+  }
+
+  const normalizedQuantity = Math.max(1, Math.round(Number(quantity || 0)));
+  const contestId = getShapeTraderCurrentContestId();
+  const rpcResult = await supabase.rpc("execute_shape_trader_trade", {
+    _shape: assetId,
+    _side: side,
+    _quantity: normalizedQuantity,
+    _contest_id: contestId,
+    _reason: reason,
+    _award_carter_cash: awardCarterCash
+  });
+
+  if (rpcResult?.error) {
+    throw rpcResult.error;
+  }
+
+  const result = Array.isArray(rpcResult.data) ? rpcResult.data[0] || null : rpcResult.data || null;
+  if (!result) {
+    throw new Error("Shape Traders trade did not return a result.");
+  }
+
+  applyShapeTraderTradeServerResult(result, assetId);
+  return result;
 }
 
 async function commitShapeTraderAccountBalance({ contestHistoryLabel = "Trade" } = {}) {
@@ -7232,7 +7322,6 @@ async function liquidateAllShapeTraderHoldingsWithOptions(
   try {
     await syncShapeTraderExecutionPricesFromLatestDraw();
     await waitForShapeTraderSyncIdle();
-    const previousState = createShapeTraderTradeStateSnapshot();
     const openAssets = SHAPE_TRADERS_ASSETS.filter((asset) => Number(shapeTradersHoldings[asset.id]?.quantity || 0) > 0);
     const totalSteps = openAssets.length;
     let completedSteps = 0;
@@ -7274,27 +7363,20 @@ async function liquidateAllShapeTraderHoldingsWithOptions(
       }
     }
     if (liquidatedAnyPosition) {
-      try {
-        if (typeof onProgress === "function") {
-          onProgress({
-            completed: totalSteps,
-            total: totalSteps,
-            percent: 100,
-            label: "Finalizing liquidation…"
-          });
-        }
-        await commitShapeTraderAccountBalance();
-        await syncShapeTraderCurrentState({ throwOnError: true });
-      } catch (error) {
-        await rollbackShapeTraderCommittedState(previousState);
-        throw error;
+      if (typeof onProgress === "function") {
+        onProgress({
+          completed: totalSteps,
+          total: totalSteps,
+          percent: 100,
+          label: "Finalizing liquidation…"
+        });
       }
       showShapeTraderTradeToast(bundledLiquidationTotal, "Liquidation Total");
     }
     renderShapeTraders();
   } catch (error) {
     console.error("[RTN] Liquidate all failed", error);
-    setShapeTraderStatus("Unable to sync liquidation to your account. No changes were saved.");
+    setShapeTraderStatus("Liquidation stopped before every position could be closed. Refresh to verify your current holdings.");
   } finally {
     shapeTradersTradeActionInFlight = false;
     renderShapeTradersControls();
@@ -7535,60 +7617,35 @@ async function buyShapeTraderAsset({
   shapeTradersTradeActionInFlight = true;
   renderShapeTradersControls();
   try {
-  await syncShapeTraderExecutionPricesFromLatestDraw();
-  const price = Number(shapeTradersCurrentPrices[assetId] || 0);
-  const totalValue = roundCurrencyValue(quantity * price);
-  if (bankroll < totalValue) {
-    return null;
-  }
+    await syncShapeTraderExecutionPricesFromLatestDraw();
+    const result = await executeShapeTraderTradeSecure({
+      assetId,
+      side: "buy",
+      quantity,
+      reason,
+      awardCarterCash: false
+    });
+    if (showToast) {
+      showShapeTraderTradeToast(-Number(result.total_value || 0));
+    }
 
-  const holding = shapeTradersHoldings[assetId];
-  const existingQuantity = Number(holding?.quantity || 0);
-  const existingCostBasis = existingQuantity * Number(holding?.averagePrice || 0);
-  const nextQuantity = existingQuantity + quantity;
-  const nextAveragePrice = nextQuantity > 0
-    ? roundCurrencyValue((existingCostBasis + totalValue) / nextQuantity)
-    : 0;
-  const previousState = createShapeTraderTradeStateSnapshot();
-
-  bankroll = roundCurrencyValue(bankroll - totalValue);
-  handleBankrollChanged();
-  shapeTradersHoldings[assetId] = {
-    quantity: nextQuantity,
-    averagePrice: nextAveragePrice
-  };
-  try {
-    await commitShapeTraderAccountBalance();
+    prependShapeTraderActivity(createShapeTraderActivityEntry({
+      side: "buy",
+      assetId,
+      quantity,
+      totalValue: Number(result.total_value || 0),
+      price: Number(result.price || 0),
+      reason
+    }));
+    markShapeTraderInteraction();
     await syncShapeTraderCurrentState({ throwOnError: true });
-  } catch (error) {
-    await rollbackShapeTraderCommittedState(previousState);
-    throw error;
-  }
-  if (showToast) {
-    showShapeTraderTradeToast(-totalValue);
-  }
-
-  const entry = createShapeTraderActivityEntry({
-    side: "buy",
-    assetId,
-    quantity,
-    totalValue,
-    price,
-    reason
-  });
-  try {
-    await appendShapeTraderActivity(entry);
-  } catch (error) {
-    console.warn("[RTN] Unable to append Shape Traders buy activity", error);
-  }
-  markShapeTraderInteraction();
-  renderShapeTraders();
-  return {
-    assetId,
-    quantity,
-    totalValue,
-    price
-  };
+    renderShapeTraders();
+    return {
+      assetId,
+      quantity,
+      totalValue: Number(result.total_value || 0),
+      price: Number(result.price || 0)
+    };
   } catch (error) {
     console.error("[RTN] Shape Traders buy failed", error);
     setShapeTraderStatus("Unable to sync that buy to your account. The trade was canceled.");
@@ -7611,59 +7668,37 @@ async function sellShapeTraderAsset({
   shapeTradersTradeActionInFlight = true;
   renderShapeTradersControls();
   try {
-  await syncShapeTraderExecutionPricesFromLatestDraw();
-  const holding = shapeTradersHoldings[assetId];
-  if (!holding || holding.quantity < quantity) {
-    return null;
-  }
+    await syncShapeTraderExecutionPricesFromLatestDraw();
+    const result = await executeShapeTraderTradeSecure({
+      assetId,
+      side: "sell",
+      quantity,
+      reason,
+      awardCarterCash: true
+    });
+    if (showToast) {
+      showShapeTraderTradeToast(Number(result.total_value || 0));
+    }
 
-  const price = Number(shapeTradersCurrentPrices[assetId] || 0);
-  const totalValue = roundCurrencyValue(quantity * price);
-  const netProfit = roundCurrencyValue((price - holding.averagePrice) * quantity);
-  const previousState = createShapeTraderTradeStateSnapshot();
-
-  bankroll = roundCurrencyValue(bankroll + totalValue);
-  handleBankrollChanged();
-  const nextQuantity = holding.quantity - quantity;
-  shapeTradersHoldings[assetId] = {
-    quantity: nextQuantity,
-    averagePrice: nextQuantity > 0 ? holding.averagePrice : 0
-  };
-  applyShapeTraderCarterCashProgress(netProfit);
-  try {
-    await commitShapeTraderAccountBalance();
+    prependShapeTraderActivity(createShapeTraderActivityEntry({
+      side: "sell",
+      assetId,
+      quantity,
+      totalValue: Number(result.total_value || 0),
+      price: Number(result.price || 0),
+      netProfit: result.net_profit === null ? null : Number(result.net_profit || 0),
+      reason
+    }));
+    markShapeTraderInteraction();
     await syncShapeTraderCurrentState({ throwOnError: true });
-  } catch (error) {
-    await rollbackShapeTraderCommittedState(previousState);
-    throw error;
-  }
-  if (showToast) {
-    showShapeTraderTradeToast(totalValue);
-  }
-
-  const entry = createShapeTraderActivityEntry({
-    side: "sell",
-    assetId,
-    quantity,
-    totalValue,
-    price,
-    netProfit,
-    reason
-  });
-  try {
-    await appendShapeTraderActivity(entry);
-  } catch (error) {
-    console.warn("[RTN] Unable to append Shape Traders sell activity", error);
-  }
-  markShapeTraderInteraction();
-  renderShapeTraders();
-  return {
-    assetId,
-    quantity,
-    totalValue,
-    netProfit,
-    price
-  };
+    renderShapeTraders();
+    return {
+      assetId,
+      quantity,
+      totalValue: Number(result.total_value || 0),
+      netProfit: result.net_profit === null ? null : Number(result.net_profit || 0),
+      price: Number(result.price || 0)
+    };
   } catch (error) {
     console.error("[RTN] Shape Traders sell failed", error);
     setShapeTraderStatus("Unable to sync that sale to your account. The trade was canceled.");
