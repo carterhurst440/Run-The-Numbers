@@ -4,6 +4,15 @@
 -- the browser can no longer spoof balances, holdings, or trade history by
 -- writing snapshots directly.
 
+alter table public.shape_trader_trades
+  add column if not exists contest_id uuid references public.contests(id) on delete set null;
+
+alter table public.shape_trader_trades
+  add column if not exists trade_reason text not null default '';
+
+create index if not exists idx_shape_trader_trades_contest_id_executed_at
+  on public.shape_trader_trades (contest_id, executed_at desc);
+
 create or replace function public.is_rtn_admin()
 returns boolean
 language sql
