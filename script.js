@@ -2515,7 +2515,7 @@ async function refreshCurrentRankState({ force = false } = {}) {
     aiThemeSettingsHydrated = false;
     applyResolvedTheme();
     renderDrawerRankSummary(null);
-    typeHomeRankWelcome("");
+    typeHomeAboutIntro(homeAboutIntroEl?.dataset.fullCopy || homeAboutIntroEl?.textContent || "");
     renderHomeRankPanel();
     renderHomeRankLadder();
     return null;
@@ -2537,7 +2537,7 @@ async function refreshCurrentRankState({ force = false } = {}) {
   currentRankState = resolveRankState(handsPlayed, contestWins, tradesMade, ladder);
   applyResolvedTheme();
   renderDrawerRankSummary(currentRankState.currentRank);
-  typeHomeRankWelcome(getHomeRankTypingCopy(currentRankState.currentRank));
+  typeHomeAboutIntro(homeAboutIntroEl?.dataset.fullCopy || homeAboutIntroEl?.textContent || "");
   renderHomeRankPanel();
   renderHomeRankLadder();
   void refreshRankPlayerCounts();
@@ -3607,7 +3607,7 @@ async function handleAdminThemeSubmit(event) {
   }
 }
 
-function stopHomeRankTyping() {
+function stopHomeAboutTyping() {
   rankWelcomeTypingToken += 1;
   if (rankWelcomeTypingTimer) {
     clearTimeout(rankWelcomeTypingTimer);
@@ -3615,38 +3615,33 @@ function stopHomeRankTyping() {
   }
 }
 
-function typeHomeRankWelcome(copy = "") {
-  if (!homeRankTypingEl) return;
-  stopHomeRankTyping();
+function typeHomeAboutIntro(copy = "") {
+  if (!homeAboutIntroEl) return;
+  stopHomeAboutTyping();
+  if (!homeAboutIntroEl.dataset.fullCopy) {
+    homeAboutIntroEl.dataset.fullCopy = String(homeAboutIntroEl.textContent || "").trim();
+  }
   const nextCopy = String(copy || "").trim();
   if (!nextCopy) {
-    if (homeRankTerminalEl) {
-      homeRankTerminalEl.hidden = true;
-    }
-    homeRankTypingEl.hidden = true;
-    homeRankTypingEl.textContent = "";
+    homeAboutIntroEl.classList.remove("is-typing");
+    homeAboutIntroEl.textContent = "";
     return;
   }
 
   const token = rankWelcomeTypingToken;
-  if (homeRankTerminalEl) {
-    homeRankTerminalEl.hidden = false;
-  }
-  homeRankTypingEl.hidden = false;
-  homeRankTypingEl.textContent = "";
+  homeAboutIntroEl.classList.add("is-typing");
+  homeAboutIntroEl.textContent = "";
   let index = 0;
 
   const tick = () => {
     if (token !== rankWelcomeTypingToken) return;
     index += 1;
-    homeRankTypingEl.textContent = nextCopy.slice(0, index);
+    homeAboutIntroEl.textContent = nextCopy.slice(0, index);
     if (index < nextCopy.length) {
       rankWelcomeTypingTimer = setTimeout(tick, index < 8 ? 18 : 24);
     } else {
-      rankWelcomeTypingTimer = setTimeout(() => {
-        if (token !== rankWelcomeTypingToken) return;
-        typeHomeRankWelcome(nextCopy);
-      }, 5000);
+      homeAboutIntroEl.classList.remove("is-typing");
+      rankWelcomeTypingTimer = null;
     }
   };
 
@@ -17180,8 +17175,6 @@ const carterCashTooltip = document.getElementById("carter-cash-tooltip");
 const dashboardRunsEl = document.getElementById("dashboard-runs");
 const homeRankPanelEl = document.getElementById("home-rank-panel");
 const homeRankTitleEl = document.getElementById("home-rank-title");
-const homeRankTerminalEl = document.getElementById("home-rank-terminal");
-const homeRankTypingEl = document.getElementById("home-rank-typing");
 const homeRankHandsProgressTextEl = document.getElementById("home-rank-hands-progress-text");
 const homeRankHandsProgressBarEl = document.getElementById("home-rank-hands-progress-bar");
 const homeRankWinsProgressTextEl = document.getElementById("home-rank-wins-progress-text");
@@ -17190,6 +17183,7 @@ const homeRankTradesProgressCardEl = document.getElementById("home-rank-trades-p
 const homeRankTradesProgressTextEl = document.getElementById("home-rank-trades-progress-text");
 const homeRankTradesProgressBarEl = document.getElementById("home-rank-trades-progress-bar");
 const homeAboutPanelEl = document.querySelector("#home-view .home-about-panel");
+const homeAboutIntroEl = document.getElementById("home-about-intro");
 const homeAboutToggleButton = document.getElementById("home-about-toggle");
 const homeRankLadderButton = document.getElementById("home-rank-ladder-button");
 const homeRankLadderPanelEl = document.getElementById("home-rank-ladder");
