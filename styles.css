@@ -1850,7 +1850,7 @@ body[data-app-state="loading"] #app-shell {
   #home-view .home-rank-panel {
     gap: 0.38rem;
     margin-top: 0.35rem;
-    padding-bottom: 0.45rem;
+    padding-bottom: 0.2rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   }
 
@@ -1866,7 +1866,7 @@ body[data-app-state="loading"] #app-shell {
   #home-view .home-about-panel,
   #home-view .home-casino-floor,
   #home-view .home-contests-panel {
-    margin-top: 0.55rem;
+    margin-top: 0.25rem;
     padding-top: 0.55rem;
   }
 
@@ -8279,6 +8279,12 @@ body.theme-angelic {
   border: 1px solid var(--betting-panel-border);
   background: var(--betting-panel-bg);
   box-shadow: var(--betting-panel-shadow);
+  opacity: 0.52;
+  transition:
+    opacity 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .admin-rank-card {
@@ -8311,6 +8317,7 @@ body.theme-angelic {
 .rank-ladder-title-row h3,
 .admin-rank-heading h3 {
   margin: 0;
+  color: rgba(248, 251, 255, 0.72);
 }
 
 .rank-ladder-requirements,
@@ -8329,16 +8336,23 @@ body.theme-angelic {
 }
 
 .rank-ladder-item.is-current {
-  border-color: rgba(255, 255, 255, 0.64);
-  background: rgba(255, 255, 255, 0.075);
+  border-color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.11);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 0 22px rgba(255, 255, 255, 0.08);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 0 26px rgba(255, 255, 255, 0.1);
+  opacity: 1;
 }
 
+.rank-ladder-item.is-current .rank-ladder-title-row h3,
 .rank-ladder-item.is-current .rank-ladder-tier,
-.rank-ladder-item.is-current .rank-ladder-requirements {
+.rank-ladder-item.is-current .rank-ladder-requirements,
+.rank-ladder-item.is-current .rank-ladder-player-count {
   color: rgba(248, 251, 255, 0.78);
+}
+
+.rank-ladder-item.is-current .rank-ladder-title-row h3 {
+  color: rgba(248, 251, 255, 0.98);
 }
 
 .rank-ladder-progress {
@@ -19754,6 +19768,24 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
   transition: color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
 }
 
+.drawer-link-game {
+  padding-left: 0;
+}
+
+.drawer-link-game-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.drawer-link-game-logo {
+  width: 1.8rem;
+  height: 1.8rem;
+  object-fit: contain;
+  flex: 0 0 auto;
+  opacity: 0.96;
+}
+
 .drawer-link::after {
   content: "";
   position: absolute;
@@ -19773,6 +19805,11 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
   color: color-mix(in srgb, var(--text-light) 94%, white 6%);
   transform: translateX(4px);
   outline: none;
+}
+
+.drawer-link:hover .drawer-link-game-logo,
+.drawer-link:focus-visible .drawer-link-game-logo {
+  opacity: 1;
 }
 
 .drawer-link:hover::after,

@@ -290,9 +290,24 @@
         <section class="drawer-section" aria-label="Navigation">
           <div class="drawer-nav">
             <button type="button" data-route-target="home" class="drawer-link">Home</button>
-            <button type="button" data-route-target="run-the-numbers" class="drawer-link">Run The Numbers</button>
-            <button type="button" data-route-target="red-black" class="drawer-link">Guess 10</button>
-            <button type="button" data-route-target="shape-traders" class="drawer-link">Shape Traders</button>
+            <button type="button" data-route-target="run-the-numbers" class="drawer-link drawer-link-game">
+              <span class="drawer-link-game-inner">
+                <img class="drawer-link-game-logo" src="/assets/game-logos/run-the-numbers.svg" alt="" aria-hidden="true" />
+                <span>Run The Numbers</span>
+              </span>
+            </button>
+            <button type="button" data-route-target="red-black" class="drawer-link drawer-link-game">
+              <span class="drawer-link-game-inner">
+                <img class="drawer-link-game-logo" src="/assets/game-logos/guess-10.svg" alt="" aria-hidden="true" />
+                <span>Guess 10</span>
+              </span>
+            </button>
+            <button type="button" data-route-target="shape-traders" class="drawer-link drawer-link-game">
+              <span class="drawer-link-game-inner">
+                <img class="drawer-link-game-logo" src="/assets/game-logos/shape-traders.svg" alt="" aria-hidden="true" />
+                <span>Shape Traders</span>
+              </span>
+            </button>
             <button type="button" data-route-target="contests" id="drawer-contest-link" class="drawer-link drawer-contest-link" hidden>
               <span>Contests</span>
               <span id="drawer-contest-timer" class="drawer-contest-timer">Details</span>
