@@ -3654,7 +3654,7 @@ function typeHomeRankWelcome(copy = "") {
 }
 
 function renderDrawerRankSummary(rank) {
-  if (!drawerRankSummaryEl || !drawerRankNameEl || !drawerRankIconEl || !drawerRankIconFallbackEl) return;
+  if (!drawerRankSummaryEl || !drawerRankNameEl) return;
   if (!rank || !currentUser?.id || currentUser.id === GUEST_USER.id) {
     drawerRankSummaryEl.hidden = true;
     clearThemeVariables(drawerRankSummaryEl);
@@ -3664,16 +3664,21 @@ function renderDrawerRankSummary(rank) {
   drawerRankSummaryEl.hidden = false;
   clearThemeVariables(drawerRankSummaryEl);
   drawerRankNameEl.textContent = `${rank.name} · Tier ${rank.tier}`;
-  if (rank.icon_url) {
-    drawerRankIconEl.src = rank.icon_url;
-    drawerRankIconEl.alt = `${rank.name} icon`;
-    drawerRankIconEl.hidden = false;
-    drawerRankIconFallbackEl.hidden = true;
-  } else {
-    drawerRankIconEl.hidden = true;
-    drawerRankIconFallbackEl.hidden = false;
-    drawerRankIconFallbackEl.textContent = String(rank.tier);
-  }
+}
+
+function syncDrawerRouteState() {
+  if (!drawerRouteButtons.length) return;
+
+  drawerRouteButtons.forEach((button) => {
+    const target = button.dataset.routeTarget || "";
+    const isActive = target === currentRoute;
+    button.classList.toggle("is-active", isActive);
+    if (isActive) {
+      button.setAttribute("aria-current", "page");
+    } else {
+      button.removeAttribute("aria-current");
+    }
+  });
 }
 
 function getStoredAnnouncedRankTier(userId = currentUser?.id) {
@@ -8898,6 +8903,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
 
   currentRoute = resolvedRoute;
+  syncDrawerRouteState();
   applyResolvedTheme();
   updatePlayAssistantVisibility();
   markAppReady();
@@ -17195,6 +17201,7 @@ const drawerRankSummaryEl = document.getElementById("drawer-rank-summary");
 const drawerRankIconEl = document.getElementById("drawer-rank-icon");
 const drawerRankIconFallbackEl = document.getElementById("drawer-rank-icon-fallback");
 const drawerRankNameEl = document.getElementById("drawer-rank-name");
+const drawerRouteButtons = Array.from(document.querySelectorAll(".drawer-nav [data-route-target]"));
 const prizeListEl = document.getElementById("prize-list");
 const adminNavButton = document.getElementById("admin-nav");
 const drawerContestLink = document.getElementById("drawer-contest-link");

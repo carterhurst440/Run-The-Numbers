@@ -1866,8 +1866,13 @@ body[data-app-state="loading"] #app-shell {
   #home-view .home-about-panel,
   #home-view .home-casino-floor,
   #home-view .home-contests-panel {
-    margin-top: 0.25rem;
+    margin-top: 0.15rem;
     padding-top: 0.55rem;
+  }
+
+  #home-view .home-about-panel {
+    border-top: 0;
+    padding-top: 0.3rem;
   }
 
   #home-view .home-about-title,
@@ -7610,7 +7615,7 @@ body.theme-angelic {
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  color: rgba(248, 251, 255, 0.72);
+  color: var(--neon-cyan);
   font-family: "Play", system-ui, sans-serif;
   font-size: 0.7rem;
   font-weight: 800;
@@ -7620,7 +7625,7 @@ body.theme-angelic {
 
 .home-rank-ladder-button:hover,
 .home-rank-ladder-button:focus-visible {
-  color: var(--text-light);
+  color: color-mix(in srgb, var(--neon-cyan) 72%, white 28%);
   outline: none;
 }
 
@@ -8232,7 +8237,7 @@ body.theme-angelic {
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  color: rgba(248, 251, 255, 0.72);
+  color: var(--neon-cyan);
   font-family: "Play", system-ui, sans-serif;
   font-size: 0.7rem;
   font-weight: 800;
@@ -8242,7 +8247,7 @@ body.theme-angelic {
 
 .home-about-toggle:hover,
 .home-about-toggle:focus-visible {
-  color: var(--text-light);
+  color: color-mix(in srgb, var(--neon-cyan) 72%, white 28%);
   outline: none;
 }
 
@@ -12848,41 +12853,10 @@ body.play-assistant-open .play-assistant-fab {
 
 .drawer-rank-summary {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.75rem;
-  align-items: center;
-  margin: -0.2rem 0 0.95rem;
-  padding: 0.35rem 0 0.1rem;
+  gap: 0.18rem;
+  margin: -0.1rem 0 0.9rem;
+  padding: 0 0 0.85rem;
   border-bottom: 1px solid color-mix(in srgb, var(--drawer-border) 42%, transparent);
-}
-
-.drawer-rank-icon-wrap {
-  width: 38px;
-  height: 38px;
-  border-radius: 0.95rem;
-  border: 1px solid color-mix(in srgb, var(--drawer-border) 60%, transparent);
-  background: color-mix(in srgb, var(--header-gradient) 16%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 8%, transparent);
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-}
-
-.drawer-rank-icon {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.drawer-rank-icon-fallback {
-  font-size: 0.96rem;
-  font-weight: 700;
-  color: var(--neon-cyan);
-}
-
-.drawer-rank-copy {
-  display: grid;
-  gap: 0.08rem;
 }
 
 .drawer-rank-label,
@@ -12898,8 +12872,9 @@ body.play-assistant-open .play-assistant-fab {
 }
 
 .drawer-rank-name {
-  font-size: 0.92rem;
-  color: var(--text-light);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--text-light) 92%, white 8%);
 }
 
 .notifications-list {
@@ -17547,7 +17522,7 @@ body[data-theme-profile="shape-traders-carbon"] .drawer-link,
 body[data-theme-profile="shape-traders-carbon"] .drawer-action-button {
   background: transparent;
   color: rgba(240, 243, 250, 0.9);
-  border-radius: 0;
+  border-radius: 1.05rem;
   box-shadow: none;
 }
 
@@ -17567,14 +17542,22 @@ body[data-theme-profile="shape-traders-carbon"] .drawer-link:hover,
 body[data-theme-profile="shape-traders-carbon"] .drawer-link:focus-visible,
 body[data-theme-profile="shape-traders-carbon"] .drawer-action-button:hover:not(:disabled),
 body[data-theme-profile="shape-traders-carbon"] .drawer-action-button:focus-visible:not(:disabled) {
-  border-color: rgba(210, 220, 236, 0.18);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
-    #1d2029;
+  border-color: color-mix(in srgb, var(--drawer-border) 68%, transparent);
+  background: color-mix(in srgb, white 6%, transparent);
   color: #ffffff;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+}
+
+body[data-theme-profile="main-app-comfort"] .drawer-link.is-active,
+body[data-theme-profile="rtn-green-room"] .drawer-link.is-active,
+body[data-theme-profile="guess-10-deep-blue"] .drawer-link.is-active,
+body[data-theme-profile="shape-traders-carbon"] .drawer-link.is-active {
+  background: rgba(244, 246, 252, 0.98);
+  border-color: rgba(244, 246, 252, 0.98);
+  color: #171a20;
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.025),
-    0 14px 26px rgba(0, 0, 0, 0.22);
+    0 14px 34px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 
 body[data-theme-profile="main-app-comfort"] .drawer-text-button,
@@ -19743,7 +19726,7 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
 
 .drawer-nav {
   display: grid;
-  gap: 0.1rem;
+  gap: 0.25rem;
 }
 
 .drawer-admin-actions {
@@ -19754,57 +19737,93 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
 
 .drawer-link {
   position: relative;
-  border: 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--drawer-border) 28%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.72rem;
+  width: 100%;
+  border: 1px solid transparent;
   background: transparent;
-  color: var(--text-light);
-  padding: 0.88rem 1.4rem 0.88rem 0;
-  border-radius: 0;
+  color: rgba(240, 243, 250, 0.9);
+  padding: 0.68rem 0.82rem;
+  border-radius: 0.95rem;
   text-align: left;
   font-size: 0.96rem;
   font-weight: 600;
   letter-spacing: 0.01em;
   cursor: pointer;
-  transition: color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
 }
 
-.drawer-link-game {
-  padding-left: 0;
-}
-
-.drawer-link-game-inner {
+.drawer-link-inner {
   display: inline-flex;
   align-items: center;
-  gap: 0.8rem;
+  gap: 0.68rem;
+  min-width: 0;
+}
+
+.drawer-link-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer-link-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.62rem;
+  border: 1px solid color-mix(in srgb, var(--drawer-border) 44%, transparent);
+  background: color-mix(in srgb, white 4%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: rgba(240, 243, 250, 0.9);
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.drawer-link-icon svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.drawer-link-icon-game {
+  background: color-mix(in srgb, white 3%, transparent);
 }
 
 .drawer-link-game-logo {
-  width: 1.8rem;
-  height: 1.8rem;
+  width: 1.55rem;
+  height: 1.55rem;
   object-fit: contain;
   flex: 0 0 auto;
   opacity: 0.96;
 }
 
-.drawer-link::after {
-  content: "";
-  position: absolute;
-  right: 0.2rem;
-  top: 50%;
-  width: 0.45rem;
-  height: 0.45rem;
-  border-top: 1.5px solid color-mix(in srgb, var(--muted) 70%, transparent);
-  border-right: 1.5px solid color-mix(in srgb, var(--muted) 70%, transparent);
-  transform: translateY(-50%) rotate(45deg);
-  transition: transform 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
-  opacity: 0.68;
-}
-
 .drawer-link:hover,
 .drawer-link:focus-visible {
-  color: color-mix(in srgb, var(--text-light) 94%, white 6%);
-  transform: translateX(4px);
+  color: #ffffff;
+  border-color: color-mix(in srgb, var(--drawer-border) 68%, transparent);
+  background: color-mix(in srgb, white 6%, transparent);
+  transform: translateX(2px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
   outline: none;
+}
+
+.drawer-link:hover .drawer-link-icon,
+.drawer-link:focus-visible .drawer-link-icon {
+  border-color: color-mix(in srgb, white 18%, transparent);
+  background: color-mix(in srgb, white 10%, transparent);
 }
 
 .drawer-link:hover .drawer-link-game-logo,
@@ -19812,10 +19831,31 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
   opacity: 1;
 }
 
-.drawer-link:hover::after,
-.drawer-link:focus-visible::after {
-  border-color: color-mix(in srgb, var(--gold) 72%, white 28%);
-  transform: translate(2px, -50%) rotate(45deg);
+.drawer-link.is-active {
+  background: rgba(244, 246, 252, 0.98);
+  border-color: rgba(244, 246, 252, 0.98);
+  color: #171a20;
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.drawer-link.is-active .drawer-link-icon {
+  border-color: rgba(23, 26, 32, 0.08);
+  background: rgba(23, 26, 32, 0.06);
+  color: #171a20;
+}
+
+.drawer-link-meta {
+  flex: 0 0 auto;
+  font-size: 0.74rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(214, 191, 126, 0.88);
+}
+
+.drawer-link.is-active .drawer-link-meta {
+  color: rgba(23, 26, 32, 0.68);
 }
 
 .drawer-text-button {
@@ -19839,19 +19879,11 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
 }
 
 .drawer-contest-link {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding-right: 2rem;
+  padding-right: 0.95rem;
 }
 
 .drawer-contest-timer {
-  font-size: 0.82rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--gold);
-  opacity: 0.9;
+  opacity: 0.95;
 }
 
 .contests-shell {
