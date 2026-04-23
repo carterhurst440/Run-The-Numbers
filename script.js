@@ -2589,13 +2589,13 @@ function renderHomeRankPanel() {
   }
 }
 
-function buildHomeRankLadderProgressMarkup(rank) {
+function buildHomeRankLadderProgressMarkup(rank, classBase = "home-rank-ladder") {
   if (!currentRankState?.currentRank || rank?.tier !== currentRankState.currentRank.tier) return "";
   const { nextRank, handsPlayed, contestWins, tradesMade } = currentRankState;
   if (!nextRank) {
     return `
-      <span class="home-rank-ladder-progress">
-        <span class="home-rank-ladder-progress-complete">Top tier reached</span>
+      <span class="${classBase}-progress">
+        <span class="${classBase}-progress-complete">Top tier reached</span>
       </span>
     `;
   }
@@ -2621,15 +2621,15 @@ function buildHomeRankLadderProgressMarkup(rank) {
   if (!progressItems.length) return "";
 
   return `
-    <span class="home-rank-ladder-progress" aria-label="Progress toward ${escapeAssistantHtml(nextRank.name)}">
+    <span class="${classBase}-progress" aria-label="Progress toward ${escapeAssistantHtml(nextRank.name)}">
       ${progressItems.map((item) => `
-        <span class="home-rank-ladder-progress-row">
-          <span class="home-rank-ladder-progress-label">
+        <span class="${classBase}-progress-row">
+          <span class="${classBase}-progress-label">
             <span>${escapeAssistantHtml(item.label)}</span>
             <span>${formatRankRequirementValue(item.current)} / ${formatRankRequirementValue(item.required)}</span>
           </span>
-          <span class="home-rank-ladder-progress-track" aria-hidden="true">
-            <span class="home-rank-ladder-progress-fill" style="width: ${getRankProgressPercent(item.current, item.required).toFixed(2)}%;"></span>
+          <span class="${classBase}-progress-track" aria-hidden="true">
+            <span class="${classBase}-progress-fill" style="width: ${getRankProgressPercent(item.current, item.required).toFixed(2)}%;"></span>
           </span>
         </span>
       `).join("")}
@@ -3734,8 +3734,9 @@ async function renderRankLadderModal() {
 
   rankLadderListEl.innerHTML = "";
   ladder.forEach((rank) => {
+    const isCurrentRank = currentRankState?.currentRank?.tier === rank.tier;
     const item = document.createElement("li");
-    item.className = "rank-ladder-item";
+    item.className = `rank-ladder-item${isCurrentRank ? " is-current" : ""}`;
     item.innerHTML = `
       <div class="rank-ladder-tier">Tier ${rank.tier}</div>
       <div class="rank-ladder-body">
@@ -3744,6 +3745,7 @@ async function renderRankLadderModal() {
         </div>
         <p class="rank-ladder-requirements">${buildRankRequirementsCopy(rank)}</p>
         ${renderRankPlayerCountText(rank)}
+        ${buildHomeRankLadderProgressMarkup(rank, "rank-ladder")}
       </div>
     `;
     rankLadderListEl.appendChild(item);
