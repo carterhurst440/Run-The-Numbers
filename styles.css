@@ -17958,6 +17958,13 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
 }
 
 @media (max-width: 768px) {
+  .shape-traders-trade-bar::after,
+  body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar::after {
+    animation: none;
+    opacity: 0;
+    display: none;
+  }
+
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar {
     border-color: rgba(123, 173, 255, 0.24);
     background:
@@ -17985,15 +17992,6 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
     box-shadow:
       0 0 12px rgba(76, 159, 255, 0.16),
       0 0 16px rgba(255, 225, 92, 0.1);
-  }
-
-  body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar::after {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.008));
-    border-color: rgba(124, 170, 241, 0.18);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.03),
-      inset 0 0 0 1px rgba(0, 0, 0, 0.18),
-      0 0 20px rgba(76, 159, 255, 0.08);
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card {
@@ -18056,6 +18054,7 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
   .shape-traders-trade-bar::after {
     animation: none;
     opacity: 0;
+    display: none;
   }
 
   body[data-theme-profile="shape-traders-carbon"] .shape-traders-market-card {
