@@ -2229,6 +2229,27 @@ function interpolateRankWelcome(rank, profile = currentProfile) {
   return String(rank?.welcome_phrase || "").replace(/\{name\}/g, playerName);
 }
 
+function getHomeRankTypingCopy(rank, profile = currentProfile) {
+  const copy = interpolateRankWelcome(rank, profile);
+  const strippedCopy = copy.replace(/^welcome,\s*[^.!?]+[.!?]\s*/i, "").trim();
+  return strippedCopy || copy;
+}
+
+function getRankPlayerCount(rank) {
+  const tier = Math.max(1, Math.round(Number(rank?.tier || 1)));
+  return rankPlayerCountByTier.get(tier) || 0;
+}
+
+function renderRankPlayerCountText(rank, className = "rank-ladder-player-count") {
+  const playerCount = rankPlayerCountsLoaded ? getRankPlayerCount(rank) : null;
+  const tagName = className.startsWith("home-") ? "span" : "p";
+  const text = playerCount == null
+    ? "Player count unavailable"
+    : `${playerCount} player${playerCount === 1 ? "" : "s"} in this rank`;
+  const stateClass = playerCount == null ? " is-unavailable" : "";
+  return `<${tagName} class="${className}${stateClass}">${text}</${tagName}>`;
+}
+
 function resolveRankState(handsPlayed = 0, contestWins = 0, tradesMade = 0, ladder = getRankLadder()) {
   const sorted = [...ladder].sort((a, b) => a.tier - b.tier);
   const progressHands = Math.max(0, Math.round(Number(handsPlayed || 0)));
@@ -2284,6 +2305,44 @@ async function loadRankLadder(force = false) {
   }
 
   return rankLadderCache;
+}
+
+async function loadRankPlayerCounts(force = false) {
+  if (!force && rankPlayerCountsLoaded) {
+    return rankPlayerCountByTier;
+  }
+  if (!supabase || (!rankPlayerCountsAvailable && !force)) {
+    return rankPlayerCountByTier;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("get_rank_player_counts");
+    if (error) throw error;
+    rankPlayerCountByTier = (Array.isArray(data) ? data : []).reduce((map, row) => {
+      const tier = Math.max(1, Math.round(Number(row?.rank_tier || row?.tier || 1)));
+      map.set(tier, Math.max(0, Math.round(Number(row?.player_count || 0))));
+      return map;
+    }, new Map());
+    rankPlayerCountsLoaded = true;
+    rankPlayerCountsAvailable = true;
+  } catch (error) {
+    if (rankPlayerCountsAvailable) {
+      console.warn("[RTN] rank player counts are unavailable", error);
+    }
+    rankPlayerCountsAvailable = false;
+    rankPlayerCountsLoaded = false;
+    rankPlayerCountByTier = new Map();
+  }
+
+  return rankPlayerCountByTier;
+}
+
+async function refreshRankPlayerCounts({ force = false } = {}) {
+  await loadRankPlayerCounts(force);
+  renderHomeRankLadder();
+  if (rankLadderModal && !rankLadderModal.hidden) {
+    await renderRankLadderModal();
+  }
 }
 
 async function fetchHandsPlayedCount(userId) {
@@ -2458,6 +2517,7 @@ async function refreshCurrentRankState({ force = false } = {}) {
     renderDrawerRankSummary(null);
     typeHomeRankWelcome("");
     renderHomeRankPanel();
+    renderHomeRankLadder();
     return null;
   }
 
@@ -2477,8 +2537,10 @@ async function refreshCurrentRankState({ force = false } = {}) {
   currentRankState = resolveRankState(handsPlayed, contestWins, tradesMade, ladder);
   applyResolvedTheme();
   renderDrawerRankSummary(currentRankState.currentRank);
-  typeHomeRankWelcome(interpolateRankWelcome(currentRankState.currentRank));
+  typeHomeRankWelcome(getHomeRankTypingCopy(currentRankState.currentRank));
   renderHomeRankPanel();
+  renderHomeRankLadder();
+  void refreshRankPlayerCounts();
   void renderRankLadderModal();
   await renderHomeContestPromos();
   if (playerLiveContestListEl && playerEndedContestListEl) {
@@ -2505,43 +2567,12 @@ function renderHomeRankPanel() {
     return;
   }
 
-  const { currentRank, nextRank, handsPlayed, contestWins, tradesMade } = currentRankState;
-  const handsRequirement = nextRank ? nextRank.required_hands_played : currentRank.required_hands_played;
-  const winsRequirement = nextRank ? nextRank.required_contest_wins : currentRank.required_contest_wins;
-  const tradesRequirement = nextRank ? nextRank.required_trades_made : currentRank.required_trades_made;
-  const showTradesProgress = tradesRequirement > 0;
+  const { currentRank } = currentRankState;
 
   homeRankPanelEl.hidden = false;
   clearThemeVariables(homeRankPanelEl);
   if (homeRankTitleEl) {
-    homeRankTitleEl.textContent = `${currentRank.name} · Tier ${currentRank.tier}`;
-  }
-  if (homeRankHandsProgressTextEl) {
-    homeRankHandsProgressTextEl.textContent = nextRank
-      ? `${formatRankRequirementValue(handsPlayed)} / ${formatRankRequirementValue(handsRequirement)}`
-      : `${formatRankRequirementValue(handsPlayed)} all time`;
-  }
-  if (homeRankWinsProgressTextEl) {
-    homeRankWinsProgressTextEl.textContent = nextRank
-      ? `${formatRankRequirementValue(contestWins)} / ${formatRankRequirementValue(winsRequirement)}`
-      : `${formatRankRequirementValue(contestWins)} all time`;
-  }
-  if (homeRankHandsProgressBarEl) {
-    homeRankHandsProgressBarEl.style.width = `${getRankProgressPercent(handsPlayed, nextRank ? handsRequirement : Math.max(handsPlayed, 1))}%`;
-  }
-  if (homeRankWinsProgressBarEl) {
-    homeRankWinsProgressBarEl.style.width = `${getRankProgressPercent(contestWins, nextRank ? winsRequirement : Math.max(contestWins, 1))}%`;
-  }
-  if (homeRankTradesProgressCardEl) {
-    homeRankTradesProgressCardEl.hidden = !showTradesProgress;
-  }
-  if (homeRankTradesProgressTextEl) {
-    homeRankTradesProgressTextEl.textContent = nextRank
-      ? `${formatRankRequirementValue(tradesMade)} / ${formatRankRequirementValue(tradesRequirement)}`
-      : `${formatRankRequirementValue(tradesMade)} all time`;
-  }
-  if (homeRankTradesProgressBarEl) {
-    homeRankTradesProgressBarEl.style.width = `${getRankProgressPercent(tradesMade, nextRank ? tradesRequirement : Math.max(tradesMade, 1))}%`;
+    homeRankTitleEl.textContent = `Welcome, ${getRankDisplayName()}`;
   }
 
   if (homeRankIconEl && homeRankIconFallbackEl) {
@@ -2556,6 +2587,111 @@ function renderHomeRankPanel() {
       homeRankIconFallbackEl.textContent = String(currentRank.tier);
     }
   }
+}
+
+function buildHomeRankLadderProgressMarkup(rank) {
+  if (!currentRankState?.currentRank || rank?.tier !== currentRankState.currentRank.tier) return "";
+  const { nextRank, handsPlayed, contestWins, tradesMade } = currentRankState;
+  if (!nextRank) {
+    return `
+      <span class="home-rank-ladder-progress">
+        <span class="home-rank-ladder-progress-complete">Top tier reached</span>
+      </span>
+    `;
+  }
+
+  const progressItems = [
+    {
+      label: "Hands",
+      current: handsPlayed,
+      required: nextRank.required_hands_played
+    },
+    {
+      label: "Wins",
+      current: contestWins,
+      required: nextRank.required_contest_wins
+    },
+    {
+      label: "Trades",
+      current: tradesMade,
+      required: nextRank.required_trades_made
+    }
+  ].filter((item) => item.required > 0);
+
+  if (!progressItems.length) return "";
+
+  return `
+    <span class="home-rank-ladder-progress" aria-label="Progress toward ${escapeAssistantHtml(nextRank.name)}">
+      ${progressItems.map((item) => `
+        <span class="home-rank-ladder-progress-row">
+          <span class="home-rank-ladder-progress-label">
+            <span>${escapeAssistantHtml(item.label)}</span>
+            <span>${formatRankRequirementValue(item.current)} / ${formatRankRequirementValue(item.required)}</span>
+          </span>
+          <span class="home-rank-ladder-progress-track" aria-hidden="true">
+            <span class="home-rank-ladder-progress-fill" style="width: ${getRankProgressPercent(item.current, item.required).toFixed(2)}%;"></span>
+          </span>
+        </span>
+      `).join("")}
+    </span>
+  `;
+}
+
+function renderHomeRankLadder() {
+  if (!homeRankLadderPanelEl || !homeRankLadderListEl) return;
+
+  if (!currentRankState?.currentRank || !currentUser?.id || currentUser.id === GUEST_USER.id) {
+    homeRankLadderPanelEl.hidden = true;
+    homeRankLadderListEl.innerHTML = "";
+    if (homeRankLadderCurrentEl) homeRankLadderCurrentEl.textContent = "";
+    return;
+  }
+
+  const ladder = getRankLadder();
+  if (!ladder.length) {
+    homeRankLadderPanelEl.hidden = true;
+    homeRankLadderListEl.innerHTML = "";
+    return;
+  }
+
+  const { currentRank } = currentRankState;
+  homeRankLadderPanelEl.hidden = false;
+  if (homeRankLadderCurrentEl) {
+    homeRankLadderCurrentEl.textContent = `${currentRank.name} · Tier ${currentRank.tier}`;
+  }
+
+  homeRankLadderListEl.innerHTML = ladder.map((rank, index) => {
+    const rankStateClass = rank.tier === currentRank.tier
+      ? "is-current"
+      : rank.tier < currentRank.tier
+        ? "is-complete"
+        : "is-locked";
+    return `
+      <li
+        class="home-rank-ladder-rung ${rankStateClass}"
+        style="--rung-index: ${index};"
+        role="button"
+        tabindex="0"
+        data-rank-tier="${escapeAssistantHtml(String(rank.tier))}"
+        aria-label="Open full rank ladder"
+      >
+        <span class="home-rank-ladder-node" aria-hidden="true">${escapeAssistantHtml(String(rank.tier))}</span>
+        <span class="home-rank-ladder-copy">
+          <span class="home-rank-ladder-name">${escapeAssistantHtml(rank.name)}</span>
+          <span class="home-rank-ladder-requirements">${escapeAssistantHtml(buildRankRequirementsCopy(rank))}</span>
+          ${renderRankPlayerCountText(rank, "home-rank-ladder-count")}
+          ${buildHomeRankLadderProgressMarkup(rank)}
+        </span>
+      </li>
+    `;
+  }).join("");
+
+  window.requestAnimationFrame(() => {
+    const currentRung = homeRankLadderListEl.querySelector(".home-rank-ladder-rung.is-current");
+    if (currentRung) {
+      currentRung.scrollIntoView({ block: "nearest", inline: "center" });
+    }
+  });
 }
 
 function buildRankRequirementsCopy(rank) {
@@ -3594,24 +3730,10 @@ async function renderRankLadderModal() {
   if (!rankLadderListEl) return;
   await loadThemeLibrary(true);
   const ladder = await loadRankLadder(true);
-  let playerCounts = new Map();
-
-  try {
-    const players = await loadAdminRankPlayerSummaries();
-    playerCounts = players.reduce((map, player) => {
-      const playerRankState = resolveRankState(player.handsPlayed, player.contestWins, player.tradesMade, ladder);
-      const rankId = playerRankState.currentRank?.id || `tier-${playerRankState.currentRank?.tier || 1}`;
-      map.set(rankId, (map.get(rankId) || 0) + 1);
-      return map;
-    }, new Map());
-  } catch (error) {
-    console.warn("[RTN] unable to load rank ladder player counts", error);
-  }
+  await loadRankPlayerCounts();
 
   rankLadderListEl.innerHTML = "";
   ladder.forEach((rank) => {
-    const rankKey = rank.id || `tier-${rank.tier}`;
-    const playerCount = playerCounts.get(rankKey) || 0;
     const item = document.createElement("li");
     item.className = "rank-ladder-item";
     item.innerHTML = `
@@ -3621,7 +3743,7 @@ async function renderRankLadderModal() {
           <h3>${rank.name}</h3>
         </div>
         <p class="rank-ladder-requirements">${buildRankRequirementsCopy(rank)}</p>
-        <p class="rank-ladder-player-count">${playerCount} player${playerCount === 1 ? "" : "s"} in this rank</p>
+        ${renderRankPlayerCountText(rank)}
       </div>
     `;
     rankLadderListEl.appendChild(item);
@@ -3792,6 +3914,13 @@ function createInitialShapeTraderPrices() {
 function createEmptyShapeTraderMarketCap() {
   return SHAPE_TRADERS_ASSETS.reduce((accumulator, asset) => {
     accumulator[asset.id] = 0;
+    return accumulator;
+  }, {});
+}
+
+function createEmptyShapeTraderSparklineSeries() {
+  return SHAPE_TRADERS_ASSETS.reduce((accumulator, asset) => {
+    accumulator[asset.id] = [];
     return accumulator;
   }, {});
 }
@@ -4780,7 +4909,8 @@ function createShapeTraderActivityEntry({
     accountValue: roundCurrencyValue(accountValue),
     contestId: isContestAccountMode() ? getModeContest()?.id || null : null,
     reason,
-    createdAt
+    createdAt,
+    localOnly: true
   };
 }
 
@@ -4888,8 +5018,71 @@ function mapShapeTraderTradeRowToActivity(row) {
     accountValue: roundCurrencyValue(Number(row?.new_account_value || 0)),
     contestId: row?.contest_id || null,
     reason: row?.trade_reason || "",
-    createdAt: row?.executed_at || row?.created_at || new Date().toISOString()
+    createdAt: row?.executed_at || row?.created_at || new Date().toISOString(),
+    localOnly: false
   };
+}
+
+function getShapeTraderActivityMergeKey(entry) {
+  if (!entry) return "";
+  return [
+    String(entry.side || "").toLowerCase(),
+    String(entry.assetId || ""),
+    roundCurrencyValue(Number(entry.price || 0)).toFixed(2),
+    roundCurrencyValue(Number(entry.quantity || 0)).toFixed(2),
+    roundCurrencyValue(Number(entry.totalValue || 0)).toFixed(2),
+    String(entry.reason || "")
+  ].join("|");
+}
+
+function mergeShapeTraderActivityRows(primaryRows = [], fallbackRows = []) {
+  const nextRows = [];
+  const seenIds = new Set();
+  const primaryKeys = new Set();
+  const addPrimaryEntry = (entry) => {
+    if (!entry) return;
+    const id = String(entry.id || "");
+    if (id && seenIds.has(id)) {
+      return;
+    }
+    if (id) seenIds.add(id);
+    const key = getShapeTraderActivityMergeKey(entry);
+    if (key) primaryKeys.add(key);
+    nextRows.push(entry);
+  };
+  const addFallbackEntry = (entry) => {
+    if (!entry) return;
+    const id = String(entry.id || "");
+    const key = getShapeTraderActivityMergeKey(entry);
+    if ((id && seenIds.has(id)) || (key && primaryKeys.has(key))) {
+      return;
+    }
+    if (id) seenIds.add(id);
+    nextRows.push(entry);
+  };
+
+  primaryRows.forEach(addPrimaryEntry);
+  fallbackRows.forEach(addFallbackEntry);
+  return nextRows.sort((left, right) => {
+    const rightTime = Date.parse(right?.createdAt || "") || 0;
+    const leftTime = Date.parse(left?.createdAt || "") || 0;
+    return rightTime - leftTime;
+  });
+}
+
+function getRecentLocalShapeTraderActivityEntries(maxAgeMs = 15000) {
+  const now = Date.now();
+  return Array.isArray(shapeTradersActivity)
+    ? shapeTradersActivity.filter((entry) => {
+        const createdAtMs = Date.parse(entry?.createdAt || "");
+        return (
+          entry?.localOnly === true &&
+          Number.isFinite(createdAtMs) &&
+          now - createdAtMs >= 0 &&
+          now - createdAtMs <= maxAgeMs
+        );
+      })
+    : [];
 }
 
 async function loadShapeTraderActivityPage({ offset = 0, append = false } = {}) {
@@ -4941,7 +5134,10 @@ async function loadShapeTraderActivityPage({ offset = 0, append = false } = {}) 
         }
       });
     } else {
-      shapeTradersActivity = mappedRows;
+      shapeTradersActivity = mergeShapeTraderActivityRows(
+        mappedRows,
+        getRecentLocalShapeTraderActivityEntries()
+      );
     }
     shapeTradersActivityLoadedCount = shapeTradersActivity.length;
     shapeTradersActivityHasMore = mappedRows.length === SHAPE_TRADERS_ACTIVITY_PAGE_SIZE;
@@ -5432,6 +5628,7 @@ async function refreshShapeTraderGlobalSnapshot() {
         });
         shapeTradersGlobalSnapshot = {
           activeTraderCount: Math.max(0, Math.round(Number(snapshotRow.active_trader_count || 0))),
+          quantityByAsset: aggregateQuantityByAsset,
           marketCapByAsset
         };
         shapeTradersLastGlobalSyncAt = Date.now();
@@ -5441,6 +5638,7 @@ async function refreshShapeTraderGlobalSnapshot() {
       if (isPermissionDeniedError(snapshotError)) {
         shapeTradersGlobalSnapshot = {
           activeTraderCount: 0,
+          quantityByAsset: createEmptyShapeTraderMarketCap(),
           marketCapByAsset: createEmptyShapeTraderMarketCap()
         };
         return;
@@ -5460,6 +5658,7 @@ async function refreshShapeTraderGlobalSnapshot() {
       if (isPermissionDeniedError(accountsError)) {
         shapeTradersGlobalSnapshot = {
           activeTraderCount: 0,
+          quantityByAsset: createEmptyShapeTraderMarketCap(),
           marketCapByAsset: createEmptyShapeTraderMarketCap()
         };
         return;
@@ -5479,6 +5678,7 @@ async function refreshShapeTraderGlobalSnapshot() {
       if (isPermissionDeniedError(positionsError)) {
         shapeTradersGlobalSnapshot = {
           activeTraderCount: 0,
+          quantityByAsset: createEmptyShapeTraderMarketCap(),
           marketCapByAsset: createEmptyShapeTraderMarketCap()
         };
         return;
@@ -5505,6 +5705,12 @@ async function refreshShapeTraderGlobalSnapshot() {
 
     shapeTradersGlobalSnapshot = {
       activeTraderCount: activeTraderIds.size,
+      quantityByAsset: SHAPE_TRADERS_ASSETS.reduce((accumulator, asset) => {
+        accumulator[asset.id] = (Array.isArray(positionRows) ? positionRows : [])
+          .filter((row) => row?.shape === asset.id && activeTraderIds.has(row.user_id))
+          .reduce((sum, row) => sum + Math.max(0, Math.round(Number(row.quantity || 0))), 0);
+        return accumulator;
+      }, {}),
       marketCapByAsset
     };
     shapeTradersLastGlobalSyncAt = Date.now();
@@ -5730,9 +5936,7 @@ async function hydrateShapeTradersFromDrawTable(
   const previousLatestDrawId = Number(shapeTradersRecentDrawRows?.[0]?.draw_id || 0);
   const shouldLoadExtendedHistory = Number.isFinite(Number(historyLimit))
     ? Math.max(2, Math.floor(Number(historyLimit)))
-    : ((shapeTradersRecentModal && !shapeTradersRecentModal.hidden) || (shapeTradersDeckModal && !shapeTradersDeckModal.hidden))
-      ? 60
-      : 12;
+    : 12;
 
   if (!supabase || !shapeTradersDrawPersistenceAvailable) {
     resetShapeTradersDerivedState();
@@ -6033,11 +6237,13 @@ async function applyShapeTraderCard(card) {
 function renderShapeTraderMarket() {
   if (!shapeTradersMarketGridEl) return;
   shapeTradersMarketGridEl.innerHTML = "";
+  hydrateShapeTraderSparklineSeries();
 
   SHAPE_TRADERS_ASSETS.forEach((asset) => {
     const currentPrice = roundCurrencyValue(shapeTradersCurrentPrices[asset.id] || SHAPE_TRADERS_START_PRICE);
     const holding = shapeTradersHoldings[asset.id];
     const splitNotice = getShapeTraderSplitNotice(asset.id);
+    const sparklineSeries = getShapeTraderSparklineSeries(asset.id);
     const card =
       shapeTradersCurrentCard?.assetId === asset.id || shapeTradersCurrentCard?.kind === "macro"
         ? shapeTradersCurrentCard
@@ -6053,18 +6259,15 @@ function renderShapeTraderMarket() {
             <p>${cardLabel}</p>
           </div>
         </div>
-        <button type="button" class="secondary shape-traders-chart-button" data-shape-trader-chart="${asset.id}" aria-label="Open ${asset.label} price chart" title="Open ${asset.label} price chart">
-          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none">
-            <path d="M4 18h16" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
-            <path d="M6 15l4-4 3 2 5-6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
       </div>
       ${splitNotice ? `<div class="shape-traders-market-card-split">${escapeAssistantHtml(splitNotice.label)}</div>` : ""}
       <div class="shape-traders-market-card-hero">
         <span class="shape-traders-shape-icon shape-${asset.icon}"></span>
+        <div class="shape-traders-market-card-price">${formatCurrency(currentPrice)}</div>
       </div>
-      <div class="shape-traders-market-card-price">${formatCurrency(currentPrice)}</div>
+      <button type="button" class="shape-traders-sparkline-button is-${asset.accent}" data-shape-trader-chart="${asset.id}" aria-label="Open ${asset.label} price chart" title="Open ${asset.label} price chart">
+        ${renderShapeTraderSparklineSvg(asset, sparklineSeries)}
+      </button>
       <div class="shape-traders-market-card-meta">
         <span>Owned: ${formatCurrency(holding?.quantity || 0)}</span>
         <span>Avg: ${formatCurrency(holding?.averagePrice || 0)}</span>
@@ -6072,6 +6275,200 @@ function renderShapeTraderMarket() {
     `;
     shapeTradersMarketGridEl.appendChild(item);
   });
+}
+
+function getShapeTraderSparklineSeries(assetId) {
+  const cachedSeries = shapeTradersSparklineSeriesByAsset?.[assetId];
+  if (Array.isArray(cachedSeries) && cachedSeries.length) {
+    return cachedSeries.slice(-SHAPE_TRADERS_SPARKLINE_VISIBLE_COUNT);
+  }
+  return [{
+    draw: shapeTradersDebugLastHydratedDrawId || shapeTradersProcessedWindowIndex || 0,
+    price: roundCurrencyValue(Number(shapeTradersCurrentPrices[assetId] || SHAPE_TRADERS_START_PRICE))
+  }];
+}
+
+function buildShapeTraderSmoothPath(points = []) {
+  if (!Array.isArray(points) || !points.length) return "";
+  if (points.length === 1) {
+    const point = points[0];
+    return `M ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+  }
+  if (points.length === 2) {
+    return [
+      `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`,
+      `L ${points[1].x.toFixed(2)} ${points[1].y.toFixed(2)}`
+    ].join(" ");
+  }
+  const commands = [`M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`];
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const previous = points[index - 1] || points[index];
+    const current = points[index];
+    const next = points[index + 1];
+    const following = points[index + 2] || next;
+    const cp1 = {
+      x: current.x + (next.x - previous.x) / 6,
+      y: current.y + (next.y - previous.y) / 6
+    };
+    const cp2 = {
+      x: next.x - (following.x - current.x) / 6,
+      y: next.y - (following.y - current.y) / 6
+    };
+    commands.push(
+      `C ${cp1.x.toFixed(2)} ${cp1.y.toFixed(2)} ${cp2.x.toFixed(2)} ${cp2.y.toFixed(2)} ${next.x.toFixed(2)} ${next.y.toFixed(2)}`
+    );
+  }
+  return commands.join(" ");
+}
+
+function getShapeTraderPriceFieldNames(assetId) {
+  if (assetId === "square") {
+    return {
+      previous: "previous_square_price",
+      next: "new_square_price"
+    };
+  }
+  if (assetId === "triangle") {
+    return {
+      previous: "previous_triangle_price",
+      next: "new_triangle_price"
+    };
+  }
+  return {
+    previous: "previous_circle_price",
+    next: "new_circle_price"
+  };
+}
+
+function mapShapeTraderDrawRowsToPriceSeries(drawRows = [], assetId) {
+  if (!Array.isArray(drawRows) || !assetId) return [];
+  const fieldNames = getShapeTraderPriceFieldNames(assetId);
+  const rows = drawRows
+    .map((row, index) => {
+      const nextPrice = Number(row?.[fieldNames.next]);
+      const previousPrice = Number(row?.[fieldNames.previous]);
+      if (!Number.isFinite(nextPrice)) {
+        return null;
+      }
+      return {
+        draw: Number(row?.draw_id || index + 1),
+        price: roundCurrencyValue(nextPrice),
+        previousPrice: Number.isFinite(previousPrice) ? roundCurrencyValue(previousPrice) : null,
+        splitTriggered: Array.isArray(row?.bankruptcy_split) && row.bankruptcy_split.includes(`${assetId}_split`),
+        bankruptcyTriggered: Array.isArray(row?.bankruptcy_split) && row.bankruptcy_split.includes(`${assetId}_bankruptcy`)
+      };
+    })
+    .filter(Boolean);
+
+  const changedRows = rows.length > 1
+    ? rows.filter((row, index, allRows) => {
+        const isLastRow = index === allRows.length - 1;
+        const changedPrice =
+          Number.isFinite(Number(row.previousPrice)) &&
+          roundCurrencyValue(Number(row.previousPrice)) !== roundCurrencyValue(Number(row.price));
+        return changedPrice || isLastRow;
+      })
+    : rows;
+
+  let lastResetIndex = -1;
+  for (let index = changedRows.length - 1; index >= 0; index -= 1) {
+    if (changedRows[index].splitTriggered || changedRows[index].bankruptcyTriggered) {
+      lastResetIndex = index;
+      break;
+    }
+  }
+
+  return lastResetIndex >= 0 ? changedRows.slice(lastResetIndex) : changedRows;
+}
+
+function renderShapeTraderSparklineSvg(asset, series = []) {
+  const normalizedSeries = Array.isArray(series) && series.length
+    ? series.slice(-SHAPE_TRADERS_SPARKLINE_VISIBLE_COUNT)
+    : [{ draw: 0, price: SHAPE_TRADERS_START_PRICE }];
+  const width = 260;
+  const height = 104;
+  const padding = { top: 10, right: 8, bottom: 10, left: 8 };
+  const prices = normalizedSeries.map((point) => Math.max(0, Number(point.price || 0)));
+  const minPrice = Math.min(...prices);
+  const maxPrice = Math.max(...prices);
+  const safeMin = minPrice === maxPrice ? Math.max(0, minPrice - 1) : minPrice;
+  const safeMax = minPrice === maxPrice ? maxPrice + 1 : maxPrice;
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const xForIndex = (index) => padding.left + (normalizedSeries.length === 1 ? chartWidth / 2 : (index / (normalizedSeries.length - 1)) * chartWidth);
+  const yForPrice = (price) => padding.top + (1 - ((Math.max(0, Number(price || 0)) - safeMin) / Math.max(1, safeMax - safeMin))) * chartHeight;
+  const points = normalizedSeries.map((point, index) => ({
+    x: xForIndex(index),
+    y: yForPrice(point.price)
+  }));
+  const linePath = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+  const lastPoint = points[points.length - 1] || { x: width / 2, y: height / 2 };
+  const accentClass = `is-${asset.accent}`;
+
+  return `
+    <svg class="shape-traders-sparkline-svg ${accentClass}" viewBox="0 0 ${width} ${height}" aria-hidden="true" focusable="false">
+      ${Array.from({ length: 3 }, (_, index) => {
+        const y = padding.top + (chartHeight * index) / 2;
+        return `<line class="shape-traders-sparkline-grid-line" x1="${padding.left}" y1="${y.toFixed(2)}" x2="${width - padding.right}" y2="${y.toFixed(2)}"></line>`;
+      }).join("")}
+      <path class="shape-traders-sparkline-line ${accentClass}" d="${linePath}"></path>
+      ${points.map((point) => `
+        <circle class="shape-traders-sparkline-point ${accentClass}" cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="2.7"></circle>
+      `).join("")}
+      <circle class="shape-traders-sparkline-point ${accentClass}" cx="${lastPoint.x.toFixed(2)}" cy="${lastPoint.y.toFixed(2)}" r="3.6"></circle>
+    </svg>
+  `;
+}
+
+async function hydrateShapeTraderSparklineSeries({ force = false } = {}) {
+  if (!supabase || !shapeTradersDrawPersistenceAvailable || shapeTradersSparklineHydrationInFlight) {
+    return;
+  }
+  const now = Date.now();
+  if (!force && now - shapeTradersSparklineLastHydratedAt < 12000) {
+    return;
+  }
+  shapeTradersSparklineHydrationInFlight = true;
+  shapeTradersSparklineLastHydratedAt = now;
+
+  try {
+    const response = await supabase
+      .from("shape_trader_draws")
+      .select("draw_id,previous_square_price,previous_triangle_price,previous_circle_price,new_square_price,new_triangle_price,new_circle_price,bankruptcy_split")
+      .order("draw_id", { ascending: false })
+      .limit(Math.max(SHAPE_TRADERS_SPARKLINE_VISIBLE_COUNT * 4, 120));
+    if (response?.error) {
+      if (isMissingRelationError(response.error, "shape_trader_draws")) {
+        shapeTradersDrawPersistenceAvailable = false;
+      } else {
+        throw response.error;
+      }
+      return;
+    }
+
+    const rows = Array.isArray(response?.data) ? [...response.data].reverse() : [];
+    const nextSeries = createEmptyShapeTraderSparklineSeries();
+    SHAPE_TRADERS_ASSETS.forEach((asset) => {
+      nextSeries[asset.id] = mapShapeTraderDrawRowsToPriceSeries(rows, asset.id)
+        .slice(-SHAPE_TRADERS_SPARKLINE_VISIBLE_COUNT);
+    });
+
+    SHAPE_TRADERS_ASSETS.forEach((asset) => {
+      if (!nextSeries[asset.id].length) {
+        nextSeries[asset.id].push({
+          draw: shapeTradersDebugLastHydratedDrawId || 0,
+          price: roundCurrencyValue(Number(shapeTradersCurrentPrices[asset.id] || SHAPE_TRADERS_START_PRICE))
+        });
+      }
+    });
+
+    shapeTradersSparklineSeriesByAsset = nextSeries;
+    renderShapeTraderMarket();
+  } catch (error) {
+    console.error("[RTN] Unable to load Shape Traders sparkline series", error);
+  } finally {
+    shapeTradersSparklineHydrationInFlight = false;
+  }
 }
 
 function renderShapeTradersBalances() {
@@ -6238,7 +6635,16 @@ function renderShapeTradersAssetSelector() {
 
 function renderShapeTraderMarketCap() {
   if (!shapeTradersMarketCapBarsEl) return;
-  const marketCapByAsset = shapeTradersGlobalSnapshot?.marketCapByAsset || createEmptyShapeTraderMarketCap();
+  const quantityByAsset = shapeTradersGlobalSnapshot?.quantityByAsset || null;
+  const marketCapByAsset = quantityByAsset
+    ? SHAPE_TRADERS_ASSETS.reduce((accumulator, asset) => {
+        accumulator[asset.id] = roundCurrencyValue(
+          Math.max(0, Number(quantityByAsset[asset.id] || 0)) *
+          Math.max(0, Number(shapeTradersCurrentPrices[asset.id] || 0))
+        );
+        return accumulator;
+      }, {})
+    : (shapeTradersGlobalSnapshot?.marketCapByAsset || createEmptyShapeTraderMarketCap());
   const totalMarketValue = Object.values(marketCapByAsset).reduce(
     (sum, value) => sum + Number(value || 0),
     0
@@ -6743,9 +7149,6 @@ function renderShapeTraders() {
   renderShapeTradersActivity();
   renderShapeTraderMarketCap();
   renderShapeTradersDeck();
-  if (shapeTradersRecentModal && !shapeTradersRecentModal.hidden) {
-    renderShapeTraderRecentDraws();
-  }
   if (shapeTradersDeckModal && !shapeTradersDeckModal.hidden) {
     renderShapeTraderDeckList();
   }
@@ -6757,9 +7160,7 @@ function renderShapeTradersLiveSnapshot() {
   renderShapeTraderMarket();
   renderShapeTradersBalances();
   renderShapeTradersHoldings();
-  if (shapeTradersRecentModal && !shapeTradersRecentModal.hidden) {
-    renderShapeTraderRecentDraws();
-  }
+  renderShapeTraderMarketCap();
   if (shapeTradersDeckModal && !shapeTradersDeckModal.hidden) {
     renderShapeTraderDeckList();
   }
@@ -6795,7 +7196,33 @@ function renderShapeTraderOpenChart() {
 }
 
 function appendShapeTraderChartPoint(drawRow, transitions = []) {
-  if (!shapeTradersOpenChartAssetId || !Array.isArray(transitions) || !transitions.length) {
+  if (!Array.isArray(transitions) || !transitions.length) {
+    return;
+  }
+  transitions.forEach((transition) => {
+    if (!transition?.assetId || !drawRow?.draw_id) return;
+    const nextSparkPoint = {
+      draw: Number(drawRow.draw_id),
+      price: roundCurrencyValue(Number(transition.newPrice || SHAPE_TRADERS_START_PRICE)),
+      splitTriggered: Boolean(transition.splitTriggered),
+      bankruptcyTriggered: Boolean(transition.bankruptcyTriggered)
+    };
+    const existingSeries = Array.isArray(shapeTradersSparklineSeriesByAsset[transition.assetId])
+      ? shapeTradersSparklineSeriesByAsset[transition.assetId]
+      : [];
+    const existingIndex = existingSeries.findIndex((point) => Number(point.draw || 0) === nextSparkPoint.draw);
+    const nextSeries = [...existingSeries];
+    if (existingIndex >= 0) {
+      nextSeries[existingIndex] = nextSparkPoint;
+    } else {
+      nextSeries.push(nextSparkPoint);
+    }
+    shapeTradersSparklineSeriesByAsset[transition.assetId] = nextSeries
+      .sort((left, right) => Number(left.draw || 0) - Number(right.draw || 0))
+      .slice(-SHAPE_TRADERS_SPARKLINE_VISIBLE_COUNT);
+  });
+
+  if (!shapeTradersOpenChartAssetId) {
     return;
   }
 
@@ -6846,47 +7273,7 @@ async function loadShapeTraderPriceSeries(assetId) {
         }
       } else {
         const drawRows = Array.isArray(response?.data) ? [...response.data].reverse() : [];
-        rows = drawRows
-          .map((row) => {
-            const nextFieldName =
-              assetId === "square"
-                ? "new_square_price"
-                : assetId === "triangle"
-                  ? "new_triangle_price"
-                  : "new_circle_price";
-            const previousFieldName =
-              assetId === "square"
-                ? "previous_square_price"
-                : assetId === "triangle"
-                  ? "previous_triangle_price"
-                  : "previous_circle_price";
-            const nextPrice = Number(row?.[nextFieldName]);
-            const previousPrice = Number(row?.[previousFieldName]);
-            if (!Number.isFinite(nextPrice)) {
-              return null;
-            }
-            return {
-              draw_id: Number(row.draw_id || 0),
-              shape: assetId,
-              previous_price: Number.isFinite(previousPrice)
-                ? roundCurrencyValue(previousPrice)
-                : null,
-              new_price: roundCurrencyValue(nextPrice),
-              split_triggered: Array.isArray(row?.bankruptcy_split) && row.bankruptcy_split.includes(`${assetId}_split`),
-              bankruptcy_triggered: Array.isArray(row?.bankruptcy_split) && row.bankruptcy_split.includes(`${assetId}_bankruptcy`)
-            };
-          })
-          .filter(Boolean);
-
-        if (rows.length > 1) {
-          rows = rows.filter((row, index, allRows) => {
-            const isLastRow = index === allRows.length - 1;
-            const changedPrice =
-              Number.isFinite(Number(row.previous_price)) &&
-              roundCurrencyValue(Number(row.previous_price)) !== roundCurrencyValue(Number(row.new_price));
-            return changedPrice || isLastRow;
-          });
-        }
+        rows = mapShapeTraderDrawRowsToPriceSeries(drawRows, assetId);
       }
     } catch (error) {
       console.error("[RTN] Unable to load Shape Traders draw-based price series", error);
@@ -6895,28 +7282,19 @@ async function loadShapeTraderPriceSeries(assetId) {
 
   if (!rows.length) {
     rows = [{
-      draw_id: 0,
-      shape: assetId,
-      new_price: roundCurrencyValue(Number(shapeTradersCurrentPrices[assetId] || SHAPE_TRADERS_START_PRICE))
+      draw: 0,
+      price: roundCurrencyValue(Number(shapeTradersCurrentPrices[assetId] || SHAPE_TRADERS_START_PRICE))
     }];
   }
 
   const mappedRows = rows.map((row, index) => ({
-    draw: Number(row.draw_id || index + 1),
-    price: roundCurrencyValue(Number(row.new_price || SHAPE_TRADERS_START_PRICE)),
-    splitTriggered: Boolean(row.split_triggered),
-    bankruptcyTriggered: Boolean(row.bankruptcy_triggered),
+    draw: Number(row.draw || index + 1),
+    price: roundCurrencyValue(Number(row.price || SHAPE_TRADERS_START_PRICE)),
+    splitTriggered: Boolean(row.splitTriggered),
+    bankruptcyTriggered: Boolean(row.bankruptcyTriggered),
     label: asset.label
   }));
-
-  let lastResetIndex = -1;
-  for (let index = mappedRows.length - 1; index >= 0; index -= 1) {
-    if (mappedRows[index].splitTriggered || mappedRows[index].bankruptcyTriggered) {
-      lastResetIndex = index;
-      break;
-    }
-  }
-  return lastResetIndex >= 0 ? mappedRows.slice(lastResetIndex) : mappedRows;
+  return mappedRows;
 }
 
 function getShapeTraderVisibleSeries(series) {
@@ -7100,11 +7478,39 @@ function renderShapeTraderDeckPairRows(cards, pairSpec, { assetId = null, kind =
   }).join("");
 }
 
+async function loadShapeTraderRecentDrawRowsForModal(limit = 100) {
+  if (!shapeTradersRecentListEl) return;
+  if (!supabase || !shapeTradersDrawPersistenceAvailable) {
+    renderShapeTraderRecentDraws();
+    return;
+  }
+
+  shapeTradersRecentListEl.innerHTML = '<div class="shape-traders-chart-empty">Loading recent draws...</div>';
+  try {
+    const { data, error } = await supabase
+      .from("shape_trader_draws")
+      .select("*")
+      .order("draw_id", { ascending: false })
+      .limit(Math.max(1, Math.round(Number(limit) || 100)));
+    if (error) {
+      if (isMissingRelationError(error, "shape_trader_draws")) {
+        shapeTradersDrawPersistenceAvailable = false;
+        renderShapeTraderRecentDraws();
+        return;
+      }
+      throw error;
+    }
+    shapeTradersRecentDrawRows = Array.isArray(data) ? data : [];
+    renderShapeTraderRecentDraws();
+  } catch (error) {
+    console.error("[RTN] Unable to load Shape Traders recent draws", error);
+    shapeTradersRecentListEl.innerHTML = '<div class="shape-traders-chart-empty">Unable to load recent draws.</div>';
+  }
+}
+
 function renderShapeTraderRecentDraws() {
   if (!shapeTradersRecentListEl) return;
-  const displayRows = shapeTradersRecentDrawRows.length > 1
-    ? shapeTradersRecentDrawRows.slice(1)
-    : shapeTradersRecentDrawRows;
+  const displayRows = Array.isArray(shapeTradersRecentDrawRows) ? shapeTradersRecentDrawRows : [];
 
   if (!displayRows.length) {
     shapeTradersRecentListEl.innerHTML = '<div class="shape-traders-chart-empty">No recent draws yet.</div>';
@@ -7116,7 +7522,7 @@ function renderShapeTraderRecentDraws() {
     return `
       <article class="shape-traders-recent-item">
         <div class="shape-traders-recent-info">
-          <span class="shape-traders-recent-index">${index === 0 ? "L" : `L-${index}`}</span>
+          <span class="shape-traders-recent-index">${index === 0 ? "Latest" : `-${index}`}</span>
           <span class="shape-traders-recent-draw">Draw ${row.draw_id}</span>
         </div>
         <div class="shape-traders-recent-card">${buildShapeTraderDeckCardMarkup(card, { muted: false })}</div>
@@ -7127,11 +7533,14 @@ function renderShapeTraderRecentDraws() {
 
 function openShapeTraderRecentDraws() {
   if (!shapeTradersRecentModal) return;
-  renderShapeTraderRecentDraws();
+  if (shapeTradersRecentListEl) {
+    shapeTradersRecentListEl.innerHTML = '<div class="shape-traders-chart-empty">Loading recent draws...</div>';
+  }
   shapeTradersRecentModal.hidden = false;
   shapeTradersRecentModal.classList.add("is-open");
   shapeTradersRecentModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
+  void loadShapeTraderRecentDrawRowsForModal(100);
 }
 
 function closeShapeTraderRecentDraws() {
@@ -7738,6 +8147,7 @@ async function buyShapeTraderAsset({
     }));
     markShapeTraderInteraction();
     await syncShapeTraderCurrentState({ throwOnError: true });
+    void loadShapeTraderActivityPage({ offset: 0, append: false });
     renderShapeTraders();
     return {
       assetId,
@@ -7795,6 +8205,7 @@ async function sellShapeTraderAsset({
     }));
     markShapeTraderInteraction();
     await syncShapeTraderCurrentState({ throwOnError: true });
+    void loadShapeTraderActivityPage({ offset: 0, append: false });
     renderShapeTraders();
     return {
       assetId,
@@ -8417,13 +8828,13 @@ async function setRoute(route, { replaceHash = false } = {}) {
   const requestedGameKey = getGameKeyForRoute(nextRoute);
   if (requestedGameKey && !isGameVisibleToUser(requestedGameKey, currentUser)) {
     showToast("This game is currently admin only.", "error");
-    nextRoute = "play";
+    nextRoute = "home";
   }
   if (requestedGameKey && isContestAccountMode(currentAccountMode)) {
     const modeContest = getModeContest(currentAccountMode);
     if (modeContest && !contestAllowsGame(modeContest, requestedGameKey)) {
       showToast(`This contest bankroll can only be used for ${getContestGamesLabel(modeContest)}.`, "error");
-      nextRoute = "play";
+      nextRoute = "home";
     }
   }
 
@@ -8912,6 +9323,7 @@ async function ensureProfileSynced({ force = false } = {}) {
   lastProfileSync = Date.now();
   currentRankState = null;
   renderHomeRankPanel();
+  renderHomeRankLadder();
   return appliedFallback;
 }
 
@@ -13884,6 +14296,7 @@ function renderContestModal() {
     const canOptIn = Boolean(contest) && status !== "ended" && !currentContestEntry && meetsRankRequirement;
     contestOptInButton.hidden = !contest;
     contestOptInButton.disabled = !canOptIn;
+    contestOptInButton.classList.toggle("is-joined", Boolean(currentContestEntry));
     if (currentContestEntry) {
       contestOptInButton.textContent = "Joined";
     } else if (status === "ended") {
@@ -13892,9 +14305,9 @@ function renderContestModal() {
       const requiredRank = getRankByTier(requiredRankTier);
       contestOptInButton.textContent = requiredRank ? `${requiredRank.name} Required` : "Rank Required";
     } else if (status === "pending") {
-      contestOptInButton.textContent = `Join Pending Contest`;
+      contestOptInButton.textContent = "Confirm Join";
     } else {
-      contestOptInButton.textContent = "Add Contest Mode";
+      contestOptInButton.textContent = "Confirm Join";
     }
   }
   renderContestLeaderboard();
@@ -14915,7 +15328,6 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
   const requiredRankTier = getContestRequiredRankTier(contest);
   const requiredRank = getRankByTier(requiredRankTier);
   const meetsRankRequirement = getCurrentPlayerRankTier() >= requiredRankTier;
-  const allocations = normalizePrizeAllocations(contest?.prize_allocations);
 
   const top = document.createElement("div");
   top.className = "home-contest-card-top";
@@ -14955,22 +15367,6 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
   prize.textContent = `Prize Pot ${getContestPrizeHeadline(contest, stats)}`;
   hero.append(prize);
 
-  if (allocations.length > 1) {
-    hero.append(buildContestPayoutTable(contest, stats, "home-contest-payouts"));
-  }
-
-  const thresholdProgress = createContestThresholdProgress(contest, stats, "home");
-
-  const meta = document.createElement("div");
-  meta.className = "home-contest-meta";
-  const qualification = document.createElement("p");
-  qualification.className = "home-contest-card-growth";
-  qualification.textContent = `Qualify with ${formatCurrency(getContestQualificationRequirement(contest))} Carter Cash`;
-  const games = document.createElement("p");
-  games.className = "home-contest-card-growth";
-  games.textContent = `Games: ${getContestGamesLabel(contest)}`;
-  meta.append(qualification, games);
-
   const actions = document.createElement("div");
   actions.className = "home-contest-card-actions";
 
@@ -14980,13 +15376,13 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
 
   if (playerEntry) {
     const usingMode = isUsingContestMode(contest.id);
-    joinButton.textContent = usingMode ? "Contest Mode Active" : "Switch To Mode";
+    joinButton.textContent = usingMode ? "Contest Mode Active" : "View Contest";
     joinButton.classList.toggle("is-joined", usingMode);
     joinButton.disabled = usingMode;
     joinButton.setAttribute("aria-disabled", String(usingMode));
     if (!usingMode) {
       joinButton.addEventListener("click", () => {
-        void switchToContestMode(contest.id, { navigateToPlay: true });
+        void showContestDetails(contest.id);
       });
     }
   } else {
@@ -14994,29 +15390,17 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
       ? "Contest Full"
       : !meetsRankRequirement
         ? `${requiredRank?.name || "Rank"} Required`
-        : `Join Now for ${formatContestEntryFeeText(contest)}`;
+        : "Join Now";
     joinButton.disabled = contestIsFull || !meetsRankRequirement;
     if (!contestIsFull && meetsRankRequirement) {
       joinButton.addEventListener("click", () => {
-        void optIntoContest(contest);
+        void showContestDetails(contest.id);
       });
     }
   }
 
-  const shareButton = document.createElement("button");
-  shareButton.type = "button";
-  shareButton.className = "contest-share-button";
-  shareButton.textContent = "Share";
-  shareButton.setAttribute("aria-label", `Share ${contest.title || "contest"}`);
-  shareButton.title = "Share contest";
-  shareButton.addEventListener("click", () => {
-    void shareContestLink(contest);
-  });
-
-  actions.append(joinButton, shareButton);
-  item.append(top, hero);
-  if (thresholdProgress) item.append(thresholdProgress);
-  item.append(meta, actions);
+  actions.append(joinButton);
+  item.append(top, hero, actions);
   return item;
 }
 
@@ -15058,7 +15442,7 @@ async function renderHomeContestPromos() {
   try {
     const counts = await loadContestParticipantCounts(liveContests);
     liveContests.forEach((contest) => {
-      homeLiveContestListEl.appendChild(renderPlayerContestRow(contest, counts[contest.id] || 0));
+      homeLiveContestListEl.appendChild(renderHomeContestPromoCard(contest, counts[contest.id] || 0));
     });
   } catch (error) {
     console.error("[RTN] renderHomeContestPromos error", error);
@@ -16763,7 +17147,6 @@ const adminView = document.getElementById("admin-view");
 const profileView = document.getElementById("profile-view");
 const routeViews = {
   home: homeView,
-  play: playView,
   "shape-traders": shapeTradersView,
   "run-the-numbers": runTheNumbersView,
   "red-black": redBlackView,
@@ -16778,7 +17161,7 @@ const headerEl = document.querySelector(".header");
 const chipBarEl = runTheNumbersView ? runTheNumbersView.querySelector(".chip-bar") : null;
 const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout") : null;
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
-const TABLE_ROUTES = new Set(["home", "play", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin"]);
+const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
@@ -16798,7 +17181,12 @@ const homeRankWinsProgressBarEl = document.getElementById("home-rank-wins-progre
 const homeRankTradesProgressCardEl = document.getElementById("home-rank-trades-progress-card");
 const homeRankTradesProgressTextEl = document.getElementById("home-rank-trades-progress-text");
 const homeRankTradesProgressBarEl = document.getElementById("home-rank-trades-progress-bar");
+const homeAboutPanelEl = document.querySelector("#home-view .home-about-panel");
+const homeAboutToggleButton = document.getElementById("home-about-toggle");
 const homeRankLadderButton = document.getElementById("home-rank-ladder-button");
+const homeRankLadderPanelEl = document.getElementById("home-rank-ladder");
+const homeRankLadderListEl = document.getElementById("home-rank-ladder-list");
+const homeRankLadderCurrentEl = document.getElementById("home-rank-ladder-current");
 const homeRankIconEl = document.getElementById("home-rank-icon");
 const homeRankIconFallbackEl = document.getElementById("home-rank-icon-fallback");
 const drawerRankSummaryEl = document.getElementById("drawer-rank-summary");
@@ -17506,6 +17894,9 @@ let loginThemeSettingsHydrated = false;
 let loginThemeSettingsPersistenceAvailable = true;
 let adminPrizeCache = [];
 let rankLadderCache = [];
+let rankPlayerCountByTier = new Map();
+let rankPlayerCountsLoaded = false;
+let rankPlayerCountsAvailable = true;
 let themeLibraryCache = [];
 let themeLibraryHydrated = false;
 let gameAssetLibraryCache = {};
@@ -17633,6 +18024,7 @@ const SHAPE_TRADERS_SPLIT_FACTOR = 10;
 const SHAPE_TRADERS_SPLIT_FLASH_MS = 5000;
 const SHAPE_TRADERS_CHART_DEFAULT_VISIBLE_COUNT = 100;
 const SHAPE_TRADERS_CHART_HISTORY_LIMIT = 1000;
+const SHAPE_TRADERS_SPARKLINE_VISIBLE_COUNT = 25;
 const SHAPE_TRADERS_ACTIVITY_PAGE_SIZE = 100;
 const SHAPE_TRADERS_GLOBAL_SYNC_MS = 5000;
 const SHAPE_TRADERS_HEARTBEAT_MS = 30000;
@@ -17705,6 +18097,9 @@ let shapeTradersOpenChartAssetId = null;
 let shapeTradersOpenChartSeries = [];
 let shapeTradersChartVisibleCount = SHAPE_TRADERS_CHART_DEFAULT_VISIBLE_COUNT;
 let shapeTradersChartTouchZoomDistance = null;
+let shapeTradersSparklineSeriesByAsset = createEmptyShapeTraderSparklineSeries();
+let shapeTradersSparklineHydrationInFlight = false;
+let shapeTradersSparklineLastHydratedAt = 0;
 let shapeTradersTradeSheetCollapsed = null;
 let shapeTradersTradeSheetTouchStartY = null;
 let shapeTradersTradeSheetLastTogglePointerUpAt = 0;
@@ -17719,6 +18114,7 @@ let shapeTradersDebugLastTimingKey = "";
 let shapeTradersDebugLastLateWarningDrawId = 0;
 let shapeTradersGlobalSnapshot = {
   activeTraderCount: 0,
+  quantityByAsset: createEmptyShapeTraderMarketCap(),
   marketCapByAsset: createEmptyShapeTraderMarketCap()
 };
 
@@ -23977,17 +24373,53 @@ function renderGuess10ReviewCards(entry) {
     .join("");
 }
 
+function getReviewCardLabel(card) {
+  if (!card) return "";
+  return [card.label, card.suit || card.suitName].filter(Boolean).join("");
+}
+
+function renderClassicDrawnCardsReviewCard(entry) {
+  const drawnCards = Array.isArray(entry.drawnCards) ? entry.drawnCards : [];
+  if (!drawnCards.length) {
+    return "";
+  }
+
+  return `
+    <article class="review-hand-card review-hand-drawn-card">
+      <div class="review-hand-card-topline">
+        <span class="review-hand-card-title">Drawn Cards</span>
+        <span class="review-hand-card-pill review-hand-neutral">${escapeAssistantHtml(`${drawnCards.length} cards`)}</span>
+      </div>
+      <p class="review-hand-card-sequence">${escapeAssistantHtml(drawnCards.map(getReviewCardLabel).filter(Boolean).join("  "))}</p>
+    </article>
+  `;
+}
+
 function renderClassicHandReviewCards(entry) {
   const bets = Array.isArray(entry.bets) ? entry.bets : [];
+  const drawnCardsCard = renderClassicDrawnCardsReviewCard(entry);
   if (!bets.length) {
+    const stopperText = [entry.stopperLabel, entry.stopperSuit].filter(Boolean).join(" ") || "Not saved";
+    const netToneClass =
+      entry.net > 0 ? "review-hand-positive" : entry.net < 0 ? "review-hand-negative" : "review-hand-neutral";
     return `
-      <article class="review-hand-card review-hand-card-empty">
-        <p>No wager rows were saved for this hand.</p>
+      <article class="review-hand-card">
+        <div class="review-hand-card-topline">
+          <span class="review-hand-card-title">Saved Hand Summary</span>
+          <span class="review-hand-card-pill review-hand-neutral">Bet rows unavailable</span>
+        </div>
+        <div class="review-hand-field-grid review-hand-field-grid-compact">
+          ${buildHandReviewField("Stopper", stopperText)}
+          ${buildHandReviewField("Wager", formatCurrency(entry.totalWager))}
+          ${buildHandReviewField("Return", formatCurrency(entry.totalReturn))}
+          ${buildHandReviewField("Net", formatSignedCurrency(entry.net), { toneClass: netToneClass })}
+        </div>
       </article>
+      ${drawnCardsCard}
     `;
   }
 
-  return bets
+  return `${drawnCardsCard}${bets
     .map((bet) => {
       const wager = Math.max(0, Math.round(Number(bet.units || 0)));
       const totalReturn = Math.max(0, Math.round(Number(bet.paid || 0)));
@@ -24009,7 +24441,7 @@ function renderClassicHandReviewCards(entry) {
         </article>
       `;
     })
-    .join("");
+    .join("")}`;
 }
 
 function formatActivityLogTimestamp(value) {
@@ -24964,6 +25396,8 @@ async function fetchHandReviewEntry(reviewId) {
     totalWager: roundCurrencyValue(Number(handRow?.total_wager || 0)),
     totalReturn: roundCurrencyValue(Number(handRow?.total_paid || 0)),
     net: roundCurrencyValue(Number(handRow?.net || 0)),
+    stopperLabel: handRow?.stopper_label || null,
+    stopperSuit: handRow?.stopper_suit || null,
     drawnCards: sanitizeStoredDrawnCards(handRow?.drawn_cards),
     handHistory: [],
     bets: []
@@ -25007,6 +25441,33 @@ async function fetchHandReviewEntry(reviewId) {
   };
 }
 
+function mergeHandReviewEntryWithFallback(entry, fallbackEntry) {
+  if (!entry || !fallbackEntry) {
+    return entry;
+  }
+
+  const isGuess10 = (entry.gameKey || "") === GAME_KEYS.GUESS_10;
+  if (isGuess10) {
+    if (!Array.isArray(entry.handHistory) || !entry.handHistory.length) {
+      entry.handHistory = Array.isArray(fallbackEntry.handHistory)
+        ? fallbackEntry.handHistory.map((step) => ({ ...step }))
+        : [];
+    }
+  } else if (!Array.isArray(entry.bets) || !entry.bets.length) {
+    entry.bets = Array.isArray(fallbackEntry.bets)
+      ? fallbackEntry.bets.map((bet) => ({ ...bet }))
+      : [];
+  }
+
+  if (!Array.isArray(entry.drawnCards) || !entry.drawnCards.length) {
+    entry.drawnCards = Array.isArray(fallbackEntry.drawnCards)
+      ? fallbackEntry.drawnCards.map((card) => ({ ...card }))
+      : [];
+  }
+
+  return entry;
+}
+
 async function openHandReviewModal(reviewId, trigger = null) {
   if (!handReviewModal || !handReviewListEl) {
     return;
@@ -25022,7 +25483,7 @@ async function openHandReviewModal(reviewId, trigger = null) {
   }
 
   try {
-    const entry = await fetchHandReviewEntry(reviewId);
+    const entry = mergeHandReviewEntryWithFallback(await fetchHandReviewEntry(reviewId), cachedEntry);
     if (requestToken !== handReviewRequestToken) {
       return;
     }
@@ -26587,6 +27048,30 @@ if (contestEmailOptInInput) {
 
 if (homeRankLadderButton) {
   homeRankLadderButton.addEventListener("click", () => {
+    void openRankLadderModal();
+  });
+}
+
+if (homeAboutPanelEl && homeAboutToggleButton) {
+  homeAboutToggleButton.addEventListener("click", () => {
+    const expanded = homeAboutPanelEl.classList.toggle("is-expanded");
+    homeAboutToggleButton.setAttribute("aria-expanded", String(expanded));
+    homeAboutToggleButton.textContent = expanded ? "Show Less" : "Read More";
+  });
+}
+
+if (homeRankLadderListEl) {
+  homeRankLadderListEl.addEventListener("click", (event) => {
+    const rung = event.target instanceof Element ? event.target.closest(".home-rank-ladder-rung") : null;
+    if (!rung) return;
+    void openRankLadderModal();
+  });
+
+  homeRankLadderListEl.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const rung = event.target instanceof Element ? event.target.closest(".home-rank-ladder-rung") : null;
+    if (!rung) return;
+    event.preventDefault();
     void openRankLadderModal();
   });
 }

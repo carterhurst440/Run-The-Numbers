@@ -290,7 +290,9 @@
         <section class="drawer-section" aria-label="Navigation">
           <div class="drawer-nav">
             <button type="button" data-route-target="home" class="drawer-link">Home</button>
-            <button type="button" data-route-target="play" class="drawer-link">Play</button>
+            <button type="button" data-route-target="run-the-numbers" class="drawer-link">Run The Numbers</button>
+            <button type="button" data-route-target="red-black" class="drawer-link">Guess 10</button>
+            <button type="button" data-route-target="shape-traders" class="drawer-link">Shape Traders</button>
             <button type="button" data-route-target="contests" id="drawer-contest-link" class="drawer-link drawer-contest-link" hidden>
               <span>Contests</span>
               <span id="drawer-contest-timer" class="drawer-contest-timer">Details</span>
@@ -541,72 +543,77 @@
       <main class="app-main">
         <section id="home-view" class="route-view app-page home-view" hidden aria-labelledby="home-title">
           <div class="home-hero">
-            <h1 id="home-title" class="home-title">Welcome to the Casino Floor</h1>
-            <div class="home-actions home-game-tiles" aria-label="Choose a game">
-              <button type="button" class="home-game-tile home-game-tile-rtn" data-route-target="run-the-numbers" data-game-id="game_001">
-                <img class="home-game-tile-logo" data-game-logo-for="game_001" src="/assets/game-logos/run-the-numbers.svg" alt="Run the Numbers logo" />
-                <span class="home-game-tile-title">Run The Numbers</span>
-              </button>
-              <button type="button" class="home-game-tile home-game-tile-g10" data-route-target="red-black" data-game-id="game_002">
-                <img class="home-game-tile-logo" data-game-logo-for="game_002" src="/assets/game-logos/guess-10.svg" alt="Guess 10 logo" />
-                <span class="home-game-tile-title">Guess 10</span>
-              </button>
-              <button type="button" class="home-game-tile home-game-tile-shape" data-route-target="shape-traders" data-game-id="game_003">
-                <img class="home-game-tile-logo" data-game-logo-for="game_003" src="/assets/game-logos/shape-traders.svg" alt="Shape Traders logo" />
-                <span class="home-game-tile-title">Shape Traders</span>
-              </button>
-            </div>
+            <h1 id="home-title" class="sr-only">Casino Floor</h1>
             <section id="home-rank-panel" class="home-rank-panel" hidden aria-labelledby="home-rank-title">
-              <div class="home-rank-header">
-                <div>
-                  <p class="home-rank-eyebrow">Current Rank</p>
-                  <div class="home-rank-title-row">
-                    <div class="home-rank-icon-wrap home-rank-icon-inline">
-                      <img id="home-rank-icon" class="home-rank-icon" alt="" hidden />
-                      <div id="home-rank-icon-fallback" class="home-rank-icon-fallback" aria-hidden="true">1</div>
-                    </div>
-                    <h2 id="home-rank-title" class="home-rank-title">Accountant</h2>
-                  </div>
-                </div>
-                <button type="button" id="home-rank-ladder-button" class="link-button">Rank Ladder</button>
-              </div>
+              <p class="home-rank-eyebrow">Player Progress</p>
+              <h2 id="home-rank-title" class="home-rank-title">Welcome, Player</h2>
               <div id="home-rank-terminal" class="home-rank-terminal" hidden aria-live="polite">
                 <p id="home-rank-typing" class="home-rank-typing" hidden></p>
               </div>
-              <div class="home-rank-progress-grid">
-                <div class="rank-progress-card">
-                  <div class="rank-progress-label-row">
-                    <span>Hands Played</span>
-                    <span id="home-rank-hands-progress-text">0 / 0</span>
-                  </div>
-                  <div class="rank-progress-track" aria-hidden="true">
-                    <div id="home-rank-hands-progress-bar" class="rank-progress-fill"></div>
-                  </div>
-                </div>
-                <div class="rank-progress-card">
-                  <div class="rank-progress-label-row">
-                    <span>Contest Victories</span>
-                    <span id="home-rank-wins-progress-text">0 / 0</span>
-                  </div>
-                  <div class="rank-progress-track" aria-hidden="true">
-                    <div id="home-rank-wins-progress-bar" class="rank-progress-fill"></div>
-                  </div>
-                </div>
-                <div id="home-rank-trades-progress-card" class="rank-progress-card" hidden>
-                  <div class="rank-progress-label-row">
-                    <span>Trades Made</span>
-                    <span id="home-rank-trades-progress-text">0 / 0</span>
-                  </div>
-                  <div class="rank-progress-track" aria-hidden="true">
-                    <div id="home-rank-trades-progress-bar" class="rank-progress-fill"></div>
-                  </div>
-                </div>
+              <button type="button" id="home-rank-ladder-button" class="home-rank-ladder-button">View Rank Progress</button>
+            </section>
+            <aside id="home-rank-ladder" class="home-rank-ladder" hidden aria-label="Tier ladder">
+              <div class="home-rank-ladder-head">
+                <p class="home-rank-eyebrow">Tier Ladder</p>
+                <p id="home-rank-ladder-current" class="home-rank-ladder-current">Tier 1</p>
+              </div>
+              <ol id="home-rank-ladder-list" class="home-rank-ladder-list"></ol>
+            </aside>
+            <section class="home-about-panel" aria-labelledby="home-about-title">
+              <p class="home-rank-eyebrow">About. Us</p>
+              <h2 id="home-about-title" class="home-about-title">Hi, I’m Carter—the mind behind the madness.</h2>
+              <div id="home-about-copy" class="home-about-copy">
+                <p>After years of struggling with crippling gambling addiction I realized there was only one way out for me, BECOME THE HOUSE. That's what this is, my attempt to flip the cosmic fortunes in my favor, unfortunately that comes at your expense, and I do genuinely apologize for that. But its dogs eating dogs out there, and I'm sick of being munched.</p>
+                <p>I’ve created a collection of completely original games, invented by me, offering a full range of dynamic outcomes. This isn’t a place where the odds are handed to you—it’s a place where you shape them.</p>
+              </div>
+              <button type="button" id="home-about-toggle" class="home-about-toggle" aria-expanded="false" aria-controls="home-about-copy">Read More</button>
+            </section>
+            <section class="home-casino-floor" aria-labelledby="home-casino-floor-title">
+              <div class="home-casino-floor-head">
+                <p class="home-rank-eyebrow">Casino Floor</p>
+                <h2 id="home-casino-floor-title" class="home-casino-floor-title">Choose a game.</h2>
+              </div>
+              <div class="home-actions home-game-tiles" aria-label="Choose a game">
+                <button type="button" class="home-game-tile home-game-tile-rtn" data-route-target="run-the-numbers" data-game-id="game_001">
+                  <span class="home-game-tile-head">
+                    <span class="home-game-tile-title-row">
+                      <img class="home-game-tile-logo" data-game-logo-for="game_001" src="/assets/game-logos/run-the-numbers.svg" alt="Run the Numbers logo" />
+                      <span class="home-game-tile-title">Run The Numbers</span>
+                    </span>
+                  </span>
+                  <span class="home-game-tile-copy" data-game-description-for="game_001">Build your wager board, fade the bust card, and press number hits across the active paytable.</span>
+                  <span class="home-game-tile-cta">Play Run The Numbers</span>
+                </button>
+                <button type="button" class="home-game-tile home-game-tile-g10" data-route-target="red-black" data-game-id="game_002">
+                  <span class="home-game-tile-head">
+                    <span class="home-game-tile-streak" aria-hidden="true">
+                      <span></span><span></span><span></span><span></span><span></span>
+                      <span></span><span></span><span></span><span></span><span></span>
+                    </span>
+                    <span class="home-game-tile-title-row">
+                      <img class="home-game-tile-logo" data-game-logo-for="game_002" src="/assets/game-logos/guess-10.svg" alt="Guess 10 logo" />
+                      <span class="home-game-tile-title">Guess 10</span>
+                    </span>
+                  </span>
+                  <span class="home-game-tile-copy" data-game-description-for="game_002">Predict by color, suit, or rank, multiply the live pot on every hit, and cash out before the deck turns on you.</span>
+                  <span class="home-game-tile-cta">Play Guess 10</span>
+                </button>
+                <button type="button" class="home-game-tile home-game-tile-shape" data-route-target="shape-traders" data-game-id="game_003">
+                  <span class="home-game-tile-head">
+                    <span class="home-game-tile-title-row">
+                      <img class="home-game-tile-logo" data-game-logo-for="game_003" src="/assets/game-logos/shape-traders.svg" alt="Shape Traders logo" />
+                      <span class="home-game-tile-title">Shape Traders</span>
+                    </span>
+                  </span>
+                  <span class="home-game-tile-copy" data-game-description-for="game_003">Trade Circles, Squares, and Triangles against a shared live card-driven market with timed data dumps and isolated game accounting.</span>
+                  <span class="home-game-tile-cta">Play Shape Traders</span>
+                </button>
               </div>
             </section>
             <section id="home-live-contests" class="home-contests-panel" hidden aria-labelledby="home-live-contests-title">
               <div class="home-contests-header">
                 <div>
-                  <h2 id="home-live-contests-title" class="home-contests-title">Contest Spotlight</h2>
+                  <h2 id="home-live-contests-title" class="home-contests-title">CONTEST SPOTLIGHT</h2>
                 </div>
                 <button type="button" class="home-contests-link" data-route-target="contests">See All Contests</button>
               </div>
