@@ -18044,7 +18044,7 @@ const SHAPE_TRADERS_ASSETS = [
   { id: "triangle", label: "Triangle", accent: "magenta", icon: "triangle" },
   { id: "circle", label: "Circle", accent: "gold", icon: "circle" }
 ];
-const SHAPE_TRADERS_MOVEMENTS = [5, 10, 15, 20, 25, 30, 40, 50, 100, -5, -9, -13, -17, -20, -23, -30, -33, -50];
+const SHAPE_TRADERS_MOVEMENTS = [5, 10, 15, 20, 25, 30, 40, 50, 100, -5, -10, -15, -20, -25, -30, -40, -50, -50, -50];
 const SHAPE_TRADERS_MACRO_CARDS = [
   { label: "Macro +5%", percentage: 5 },
   { label: "Macro +10%", percentage: 10 },
@@ -18052,12 +18052,12 @@ const SHAPE_TRADERS_MACRO_CARDS = [
   { label: "Macro +20%", percentage: 20 },
   { label: "Macro +25%", percentage: 25 },
   { label: "Macro -5%", percentage: -5 },
-  { label: "Macro -9%", percentage: -9 },
-  { label: "Macro -13%", percentage: -13 },
-  { label: "Macro -17%", percentage: -17 },
+  { label: "Macro -10%", percentage: -10 },
+  { label: "Macro -15%", percentage: -15 },
   { label: "Macro -20%", percentage: -20 },
+  { label: "Macro -25%", percentage: -25 },
   { label: "Animal Spirits +50%", percentage: 50 },
-  { label: "Market Panic -33%", percentage: -33 }
+  { label: "Market Panic -50%", percentage: -50 }
 ].map((card) => ({
   ...card,
   kind: "macro",
@@ -22561,6 +22561,11 @@ async function getPlayAssistantState() {
       rulesSummary: config.rulesSummary,
       betCatalog: [],
       gameReference: {
+        deck: {
+          totalCards: (SHAPE_TRADERS_ASSETS.length * SHAPE_TRADERS_MOVEMENTS.length) + SHAPE_TRADERS_MACRO_CARDS.length,
+          assetCards: SHAPE_TRADERS_ASSETS.length * SHAPE_TRADERS_MOVEMENTS.length,
+          macroCards: SHAPE_TRADERS_MACRO_CARDS.length
+        },
         assets: SHAPE_TRADERS_ASSETS.map((asset) => ({
           id: asset.id,
           label: asset.label,

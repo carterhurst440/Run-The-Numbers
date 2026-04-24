@@ -71,6 +71,11 @@ create table if not exists public.shape_trader_deck_cards (
   )
 );
 
+update public.shape_trader_deck_cards
+set
+  enabled = false,
+  updated_at = now();
+
 insert into public.shape_trader_deck_cards (card_key, kind, shape, percentage, label, sort_order)
 values
   ('square_5', 'asset', 'square', 5, 'Square +5%', 10),
@@ -83,14 +88,15 @@ values
   ('square_50', 'asset', 'square', 50, 'Square +50%', 80),
   ('square_100', 'asset', 'square', 100, 'Square +100%', 90),
   ('square_m5', 'asset', 'square', -5, 'Square -5%', 100),
-  ('square_m9', 'asset', 'square', -9, 'Square -9%', 110),
-  ('square_m13', 'asset', 'square', -13, 'Square -13%', 120),
-  ('square_m17', 'asset', 'square', -17, 'Square -17%', 130),
-  ('square_m20', 'asset', 'square', -20, 'Square -20%', 140),
-  ('square_m23', 'asset', 'square', -23, 'Square -23%', 150),
-  ('square_m30', 'asset', 'square', -30, 'Square -30%', 160),
-  ('square_m33', 'asset', 'square', -33, 'Square -33%', 170),
-  ('square_m50', 'asset', 'square', -50, 'Square -50%', 180),
+  ('square_m10', 'asset', 'square', -10, 'Square -10%', 110),
+  ('square_m15', 'asset', 'square', -15, 'Square -15%', 120),
+  ('square_m20', 'asset', 'square', -20, 'Square -20%', 130),
+  ('square_m25', 'asset', 'square', -25, 'Square -25%', 140),
+  ('square_m30', 'asset', 'square', -30, 'Square -30%', 150),
+  ('square_m40', 'asset', 'square', -40, 'Square -40%', 160),
+  ('square_m50_1', 'asset', 'square', -50, 'Square -50%', 170),
+  ('square_m50_2', 'asset', 'square', -50, 'Square -50%', 180),
+  ('square_m50_3', 'asset', 'square', -50, 'Square -50%', 190),
 
   ('triangle_5', 'asset', 'triangle', 5, 'Triangle +5%', 210),
   ('triangle_10', 'asset', 'triangle', 10, 'Triangle +10%', 220),
@@ -102,14 +108,15 @@ values
   ('triangle_50', 'asset', 'triangle', 50, 'Triangle +50%', 280),
   ('triangle_100', 'asset', 'triangle', 100, 'Triangle +100%', 290),
   ('triangle_m5', 'asset', 'triangle', -5, 'Triangle -5%', 300),
-  ('triangle_m9', 'asset', 'triangle', -9, 'Triangle -9%', 310),
-  ('triangle_m13', 'asset', 'triangle', -13, 'Triangle -13%', 320),
-  ('triangle_m17', 'asset', 'triangle', -17, 'Triangle -17%', 330),
-  ('triangle_m20', 'asset', 'triangle', -20, 'Triangle -20%', 340),
-  ('triangle_m23', 'asset', 'triangle', -23, 'Triangle -23%', 350),
-  ('triangle_m30', 'asset', 'triangle', -30, 'Triangle -30%', 360),
-  ('triangle_m33', 'asset', 'triangle', -33, 'Triangle -33%', 370),
-  ('triangle_m50', 'asset', 'triangle', -50, 'Triangle -50%', 380),
+  ('triangle_m10', 'asset', 'triangle', -10, 'Triangle -10%', 310),
+  ('triangle_m15', 'asset', 'triangle', -15, 'Triangle -15%', 320),
+  ('triangle_m20', 'asset', 'triangle', -20, 'Triangle -20%', 330),
+  ('triangle_m25', 'asset', 'triangle', -25, 'Triangle -25%', 340),
+  ('triangle_m30', 'asset', 'triangle', -30, 'Triangle -30%', 350),
+  ('triangle_m40', 'asset', 'triangle', -40, 'Triangle -40%', 360),
+  ('triangle_m50_1', 'asset', 'triangle', -50, 'Triangle -50%', 370),
+  ('triangle_m50_2', 'asset', 'triangle', -50, 'Triangle -50%', 380),
+  ('triangle_m50_3', 'asset', 'triangle', -50, 'Triangle -50%', 390),
 
   ('circle_5', 'asset', 'circle', 5, 'Circle +5%', 410),
   ('circle_10', 'asset', 'circle', 10, 'Circle +10%', 420),
@@ -121,14 +128,15 @@ values
   ('circle_50', 'asset', 'circle', 50, 'Circle +50%', 480),
   ('circle_100', 'asset', 'circle', 100, 'Circle +100%', 490),
   ('circle_m5', 'asset', 'circle', -5, 'Circle -5%', 500),
-  ('circle_m9', 'asset', 'circle', -9, 'Circle -9%', 510),
-  ('circle_m13', 'asset', 'circle', -13, 'Circle -13%', 520),
-  ('circle_m17', 'asset', 'circle', -17, 'Circle -17%', 530),
-  ('circle_m20', 'asset', 'circle', -20, 'Circle -20%', 540),
-  ('circle_m23', 'asset', 'circle', -23, 'Circle -23%', 550),
-  ('circle_m30', 'asset', 'circle', -30, 'Circle -30%', 560),
-  ('circle_m33', 'asset', 'circle', -33, 'Circle -33%', 570),
-  ('circle_m50', 'asset', 'circle', -50, 'Circle -50%', 580),
+  ('circle_m10', 'asset', 'circle', -10, 'Circle -10%', 510),
+  ('circle_m15', 'asset', 'circle', -15, 'Circle -15%', 520),
+  ('circle_m20', 'asset', 'circle', -20, 'Circle -20%', 530),
+  ('circle_m25', 'asset', 'circle', -25, 'Circle -25%', 540),
+  ('circle_m30', 'asset', 'circle', -30, 'Circle -30%', 550),
+  ('circle_m40', 'asset', 'circle', -40, 'Circle -40%', 560),
+  ('circle_m50_1', 'asset', 'circle', -50, 'Circle -50%', 570),
+  ('circle_m50_2', 'asset', 'circle', -50, 'Circle -50%', 580),
+  ('circle_m50_3', 'asset', 'circle', -50, 'Circle -50%', 590),
 
   ('macro_5', 'macro', null, 5, 'Macro +5%', 610),
   ('macro_10', 'macro', null, 10, 'Macro +10%', 620),
@@ -136,12 +144,12 @@ values
   ('macro_20', 'macro', null, 20, 'Macro +20%', 640),
   ('macro_25', 'macro', null, 25, 'Macro +25%', 650),
   ('macro_m5', 'macro', null, -5, 'Macro -5%', 660),
-  ('macro_m9', 'macro', null, -9, 'Macro -9%', 670),
-  ('macro_m13', 'macro', null, -13, 'Macro -13%', 680),
-  ('macro_m17', 'macro', null, -17, 'Macro -17%', 690),
-  ('macro_m20', 'macro', null, -20, 'Macro -20%', 700),
+  ('macro_m10', 'macro', null, -10, 'Macro -10%', 670),
+  ('macro_m15', 'macro', null, -15, 'Macro -15%', 680),
+  ('macro_m20', 'macro', null, -20, 'Macro -20%', 690),
+  ('macro_m25', 'macro', null, -25, 'Macro -25%', 700),
   ('macro_50', 'macro', null, 50, 'Animal Spirits +50%', 710),
-  ('macro_m33', 'macro', null, -33, 'Market Panic -33%', 720)
+  ('macro_m50', 'macro', null, -50, 'Market Panic -50%', 720)
 on conflict (card_key) do update
 set
   kind = excluded.kind,

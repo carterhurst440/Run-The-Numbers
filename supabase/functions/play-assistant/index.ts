@@ -293,6 +293,7 @@ Game facts:
 - Shape Traders has three assets: Square, Triangle, and Circle.
 - The game runs on a repeating 15-second draw cadence.
 - The shared persisted deck contains both asset-specific move cards and macro cards that move all three assets together.
+- The deck has 69 cards total: 57 asset cards and 12 macro cards.
 - Every 5 cards, the game enters a short data-dump sequence that reveals that batch in order.
 - Trades execute at the latest persisted market price.
 - Buys and sells use whole units only.
