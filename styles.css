@@ -21109,3 +21109,661 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
     letter-spacing: 0.12em;
   }
 }
+
+/* ===========================
+   Header / Auth / Rank Shell Refresh
+   =========================== */
+
+.header {
+  background:
+    linear-gradient(180deg, rgba(15, 0, 24, 0.98), rgba(10, 0, 16, 0.98)),
+    radial-gradient(circle at 18% 0%, rgba(199, 125, 255, 0.12), transparent 32%);
+  border-bottom: 1px solid rgba(61, 26, 92, 0.58);
+  box-shadow:
+    0 12px 26px rgba(0, 0, 0, 0.26),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.header-bar {
+  gap: 0.85rem;
+}
+
+.header-leading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-width: 0;
+  margin-right: auto;
+}
+
+.header-metrics {
+  margin-right: 0;
+}
+
+.header-actions {
+  padding-left: 0.85rem;
+  margin-left: 0;
+  border-left: 1px solid rgba(61, 26, 92, 0.52);
+}
+
+.header-mode-select-wrap {
+  min-width: 160px;
+  max-width: 200px;
+  padding: 0;
+  border: 1px solid rgba(61, 26, 92, 0.44);
+  border-radius: 0.48rem;
+  background: rgba(31, 13, 46, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.header-mode-select {
+  min-height: 36px;
+  padding: 0.5rem 1.9rem 0.5rem 0.72rem;
+  color: #e0c4ff;
+  line-height: 1.1;
+}
+
+.header-mode-select-wrap::after {
+  right: 0.72rem;
+  border-right-color: rgba(224, 196, 255, 0.8);
+  border-bottom-color: rgba(224, 196, 255, 0.8);
+}
+
+.header-mode-select option,
+.header-mode-select optgroup {
+  background: #140020;
+  color: #e0c4ff;
+}
+
+.header-mode-select:hover,
+.header-mode-select:focus-visible {
+  color: #f2ddff;
+}
+
+.header-mode-select-wrap:hover,
+.header-mode-select-wrap:focus-within {
+  border-color: rgba(199, 125, 255, 0.42);
+  background: rgba(41, 17, 60, 0.78);
+}
+
+.bankroll-label,
+.bankroll-units,
+.carter-label,
+.carter-units {
+  color: rgba(147, 129, 168, 0.86);
+}
+
+.bankroll-value {
+  color: #f2ddff;
+  text-shadow: none;
+}
+
+.carter-value {
+  color: #c77dff;
+  text-shadow: 0 0 10px rgba(199, 125, 255, 0.28);
+}
+
+.notification-toggle,
+.menu-toggle {
+  width: 36px;
+  height: 36px;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(61, 26, 92, 0.44);
+  background: rgba(31, 13, 46, 0.55);
+  box-shadow: none;
+}
+
+.notification-toggle:hover,
+.notification-toggle:focus-visible,
+.menu-toggle:hover,
+.menu-toggle:focus-visible {
+  background: rgba(31, 13, 46, 0.92);
+  border-color: rgba(199, 125, 255, 0.44);
+  transform: translateY(-1px);
+}
+
+.notification-toggle svg,
+.menu-icon,
+.menu-icon::before,
+.menu-icon::after {
+  color: #c77dff;
+  background: #c77dff;
+}
+
+.menu-icon,
+.menu-icon::before,
+.menu-icon::after {
+  width: 18px;
+  height: 1.6px;
+}
+
+.menu-icon::before {
+  top: -5px;
+}
+
+.menu-icon::after {
+  top: 5px;
+}
+
+.carter-cash-tooltip {
+  background: rgba(16, 0, 24, 0.98);
+  border-color: rgba(61, 26, 92, 0.65);
+  color: #e0c4ff;
+}
+
+.carter-cash-tooltip::before {
+  background: rgba(16, 0, 24, 0.98);
+  border-top-color: rgba(61, 26, 92, 0.65);
+  border-left-color: rgba(61, 26, 92, 0.65);
+}
+
+.rank-ladder-modal {
+  border-radius: 0.18rem;
+  border: 1px solid rgba(61, 26, 92, 0.65);
+  background:
+    linear-gradient(180deg, rgba(16, 0, 24, 0.98), rgba(10, 0, 16, 0.98)),
+    radial-gradient(circle at top right, rgba(199, 125, 255, 0.1), transparent 24%);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.38);
+}
+
+.rank-ladder-modal .modal-header {
+  border-bottom: 1px solid rgba(61, 26, 92, 0.45);
+}
+
+.rank-ladder-modal .modal-header h2 {
+  font-family: "Orbitron", "Play", system-ui, sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e0c4ff;
+}
+
+.rank-ladder-body {
+  color: #9381a8;
+  gap: 0.78rem;
+}
+
+.rank-ladder-copy {
+  color: #9381a8;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.rank-ladder-list {
+  gap: 0.58rem;
+}
+
+.rank-ladder-item {
+  gap: 0.46rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid rgba(61, 26, 92, 0.34);
+  border-radius: 0.08rem;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.rank-ladder-item.is-current {
+  border-color: rgba(199, 125, 255, 0.48);
+  background: rgba(199, 125, 255, 0.05);
+}
+
+.rank-ladder-tier {
+  color: #5d456f;
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+}
+
+.rank-ladder-title-row h3 {
+  font-family: "Orbitron", "Play", system-ui, sans-serif;
+  color: #e0c4ff;
+  letter-spacing: 0.04em;
+  font-size: 0.84rem;
+}
+
+.rank-ladder-requirements,
+.rank-ladder-player-count {
+  color: #9381a8;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.rank-ladder .home-rank-ladder-progress-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(61, 26, 92, 0.58);
+}
+
+.rank-ladder .home-rank-ladder-progress-fill {
+  background: linear-gradient(90deg, #c77dff, #9b40ff);
+}
+
+.rank-ladder-modal .modal-actions {
+  border-top: 1px solid rgba(61, 26, 92, 0.45);
+  padding-top: 0.78rem;
+}
+
+.rank-ladder-modal .primary {
+  min-height: 2.4rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.08rem;
+  border-color: rgba(61, 26, 92, 0.5);
+  background: rgba(41, 17, 60, 0.92);
+  color: #c8a6ff;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  box-shadow: none;
+}
+
+.rank-ladder-modal .modal-close {
+  border-radius: 0.08rem;
+}
+
+.modal-content.rank-ladder-modal {
+  border-radius: 0.08rem !important;
+}
+
+.rank-ladder-list .rank-ladder-item {
+  border-radius: 0.08rem !important;
+  background: rgba(255, 255, 255, 0.015) !important;
+  box-shadow: none !important;
+}
+
+.rank-ladder-list .rank-ladder-item.is-current {
+  border-radius: 0.08rem !important;
+  background: rgba(199, 125, 255, 0.05) !important;
+  box-shadow: none !important;
+}
+
+.rank-ladder-modal .modal-close,
+.rank-ladder-modal .primary {
+  border-radius: 0.08rem !important;
+}
+
+.auth-view,
+.auth-callback-view {
+  background:
+    radial-gradient(circle at 18% 14%, rgba(199, 125, 255, 0.12), transparent 28%),
+    radial-gradient(circle at 82% 12%, rgba(155, 64, 255, 0.1), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 14%),
+    #0a0010;
+}
+
+.auth-card,
+.auth-callback-card {
+  background:
+    radial-gradient(circle at top right, rgba(199, 125, 255, 0.14), transparent 22%),
+    linear-gradient(180deg, rgba(16, 0, 24, 0.97), rgba(10, 0, 16, 0.98)),
+    #100018;
+  border: 1px solid rgba(61, 26, 92, 0.62);
+  border-radius: 0.95rem;
+  box-shadow:
+    0 28px 70px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.auth-card h1,
+.auth-callback-card p {
+  font-family: "Orbitron", "Play", system-ui, sans-serif;
+  color: #e0c4ff;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.auth-description,
+.auth-switch {
+  color: #9381a8;
+}
+
+.auth-form label {
+  color: #5d456f;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.74rem;
+}
+
+.auth-form input {
+  border-radius: 0.7rem;
+  border: 1px solid rgba(61, 26, 92, 0.58);
+  background: rgba(31, 13, 46, 0.55);
+  color: #f2ddff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.auth-form input:focus {
+  border-color: rgba(199, 125, 255, 0.68);
+  box-shadow: 0 0 0 3px rgba(199, 125, 255, 0.12);
+}
+
+.auth-form button {
+  min-height: 3.15rem;
+  border-radius: 0.72rem;
+  border: 1px solid rgba(199, 125, 255, 0.38);
+  background: linear-gradient(135deg, rgba(199, 125, 255, 0.96), rgba(155, 64, 255, 0.92));
+  color: #f8f1ff;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  box-shadow: none;
+}
+
+.auth-form button:hover:not(:disabled),
+.auth-form button:focus-visible {
+  border-color: rgba(224, 196, 255, 0.5);
+  box-shadow: 0 18px 34px rgba(91, 32, 126, 0.22);
+}
+
+.auth-switch-button,
+.auth-inline-link {
+  color: #c77dff;
+  font-weight: 700;
+}
+
+.auth-switch-button:hover,
+.auth-switch-button:focus-visible,
+.auth-inline-link:hover,
+.auth-inline-link:focus-visible {
+  color: #f2ddff;
+}
+
+.auth-callback-spinner {
+  border-color: rgba(199, 125, 255, 0.2);
+  border-top-color: #c77dff;
+}
+
+@media (max-width: 720px) {
+  .header-bar {
+    gap: 0.55rem;
+  }
+
+  .header-leading {
+    gap: 0.55rem;
+  }
+
+  .header-actions {
+    padding-left: 0.55rem;
+  }
+
+  .header-mode-select-wrap {
+    min-width: 128px;
+    max-width: 148px;
+  }
+
+  .header-mode-select {
+    min-height: 34px;
+    padding: 0.46rem 1.65rem 0.46rem 0.6rem;
+    font-size: 0.58rem;
+    letter-spacing: 0.12em;
+  }
+
+  .header-mode-select-wrap::after {
+    right: 0.58rem;
+  }
+}
+
+/* ===========================
+   Shell Corrections
+   =========================== */
+
+.utility-panel {
+  left: 0;
+  right: auto;
+  border-right: 1px solid rgba(61, 26, 92, 0.65);
+  border-left: 0;
+  box-shadow: 14px 0 42px rgba(0, 0, 0, 0.3);
+  transform: translateX(calc(-100% - 72px));
+}
+
+.notifications-panel {
+  right: 0;
+  left: auto;
+}
+
+.notification-toggle svg {
+  width: 18px;
+  height: 18px;
+  color: #c77dff;
+  background: transparent;
+}
+
+.menu-icon,
+.menu-icon::before,
+.menu-icon::after {
+  background: #c77dff;
+}
+
+.notifications-panel {
+  background:
+    linear-gradient(180deg, rgba(16, 0, 24, 0.985), rgba(10, 0, 16, 0.98)),
+    radial-gradient(circle at top right, rgba(199, 125, 255, 0.12), transparent 28%);
+  border-left: 1px solid rgba(61, 26, 92, 0.65);
+  box-shadow: -14px 0 42px rgba(0, 0, 0, 0.34);
+}
+
+.notifications-panel .drawer-header {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(61, 26, 92, 0.45);
+}
+
+.notifications-panel .drawer-header h2 {
+  font-family: "Orbitron", "Play", system-ui, sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #c77dff;
+}
+
+.notifications-panel .drawer-toolbar {
+  margin: 0 0 0.9rem;
+}
+
+.notifications-panel .drawer-action-button {
+  padding: 0.34rem 0.56rem;
+  border-radius: 0.3rem;
+  border-color: rgba(61, 26, 92, 0.42);
+  background: rgba(31, 13, 46, 0.52);
+  color: #9a80b4;
+  font-size: 0.56rem;
+  letter-spacing: 0.16em;
+  box-shadow: none;
+}
+
+.notifications-panel .drawer-action-button:hover:not(:disabled),
+.notifications-panel .drawer-action-button:focus-visible:not(:disabled) {
+  border-color: rgba(199, 125, 255, 0.34);
+  background: rgba(41, 17, 60, 0.72);
+  color: #c8a6ff;
+  box-shadow: none;
+}
+
+.notifications-panel .drawer-section {
+  padding-top: 0.9rem;
+  border-top-color: rgba(61, 26, 92, 0.42);
+}
+
+.notifications-panel .drawer-section h3 {
+  font-family: "Orbitron", "Play", system-ui, sans-serif;
+  font-size: 0.84rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #e0c4ff;
+}
+
+.notifications-panel .drawer-subhead {
+  color: #9381a8;
+  font-size: 0.8rem;
+}
+
+.notification-item-empty {
+  border-radius: 0.7rem;
+  border: 1px dashed rgba(61, 26, 92, 0.62);
+  background: rgba(255, 255, 255, 0.02);
+  color: #9381a8;
+}
+
+.notification-card {
+  border-radius: 0.7rem;
+  border: 1px solid rgba(61, 26, 92, 0.56);
+  background:
+    linear-gradient(180deg, rgba(20, 4, 30, 0.96), rgba(12, 0, 18, 0.98)),
+    rgba(255, 255, 255, 0.02);
+  color: #e0c4ff;
+  box-shadow: none;
+}
+
+.notification-card:hover,
+.notification-card:focus-visible {
+  border-color: rgba(199, 125, 255, 0.44);
+  background: linear-gradient(180deg, rgba(25, 6, 38, 0.98), rgba(14, 0, 22, 0.98));
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.22);
+  transform: translateY(-1px);
+}
+
+.notification-item.is-unread .notification-card {
+  border-color: rgba(199, 125, 255, 0.72);
+  box-shadow: 0 14px 34px rgba(91, 32, 126, 0.18);
+}
+
+.notification-card-title {
+  color: #f2ddff;
+  font-family: "Orbitron", "Play", system-ui, sans-serif;
+  font-size: 0.86rem;
+  letter-spacing: 0.04em;
+}
+
+.notification-card-status {
+  color: #c77dff;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+}
+
+.notification-card-detail {
+  color: #b39bc9;
+}
+
+.notification-card-meta {
+  color: #7d6891;
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+}
+
+.auth-view,
+.auth-callback-view {
+  padding: clamp(1.4rem, 4vw, 3.4rem);
+}
+
+.auth-card,
+.auth-callback-card {
+  max-width: 460px;
+  border-radius: 0.8rem;
+}
+
+.auth-card h1 {
+  font-size: clamp(1.35rem, 4vw, 1.9rem);
+  line-height: 1.15;
+}
+
+.auth-description {
+  max-width: 34ch;
+  color: #b39bc9;
+}
+
+.auth-form {
+  gap: 0.68rem;
+}
+
+.auth-form input {
+  min-height: 3rem;
+}
+
+.auth-form button {
+  margin-top: 0.65rem;
+}
+
+/* ===========================
+   Minimal Notifications
+   =========================== */
+
+.notifications-list {
+  gap: 0;
+}
+
+.notification-item-empty {
+  padding: 0.45rem 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #7d6891;
+  font-size: 0.72rem;
+}
+
+.notification-card {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: 100%;
+  padding: 0.62rem 0;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(61, 26, 92, 0.34) !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  gap: 0.18rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.notification-card:hover,
+.notification-card:focus-visible {
+  border: 0 !important;
+  border-bottom: 1px solid rgba(199, 125, 255, 0.34) !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  transform: none;
+}
+
+.notification-item:last-child .notification-card {
+  border-bottom: 0 !important;
+}
+
+.notification-item.is-unread .notification-card {
+  border-bottom-color: rgba(199, 125, 255, 0.62) !important;
+  box-shadow: none !important;
+}
+
+.notification-card-top {
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.notification-card-title {
+  color: #dcc3f8;
+  font-family: "Share Tech Mono", "Play", monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.notification-card-status {
+  color: #9a80b4;
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.notification-card-detail {
+  color: #9b87b0;
+  font-family: "Play", system-ui, sans-serif;
+  font-size: 0.62rem;
+  line-height: 1.3;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.notification-card-meta {
+  color: #6f5a84;
+  font-size: 0.54rem;
+  letter-spacing: 0.12em;
+}

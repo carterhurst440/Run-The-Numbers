@@ -193,39 +193,52 @@
       <div class="app">
       <header class="header" role="banner">
         <div class="header-bar">
-          <div class="header-metrics" role="status" aria-live="polite">
-            <div class="bankroll">
-              <div class="bankroll-main">
-                <span class="bankroll-label">Bank:</span>
-                <span id="bankroll" class="bankroll-value">1000</span>
-                <span class="bankroll-units">units</span>
+          <div class="header-leading">
+            <button
+              type="button"
+              class="menu-toggle"
+              id="menu-toggle"
+              aria-expanded="false"
+              aria-controls="utility-panel"
+            >
+              <span class="sr-only">Open menu</span>
+              <span class="menu-icon" aria-hidden="true"></span>
+              <span id="menu-contest-badge" class="menu-contest-badge" hidden></span>
+            </button>
+            <div class="header-metrics" role="status" aria-live="polite">
+              <div class="bankroll">
+                <div class="bankroll-main">
+                  <span class="bankroll-label">Bank:</span>
+                  <span id="bankroll" class="bankroll-value">1000</span>
+                  <span class="bankroll-units">units</span>
+                </div>
               </div>
-            </div>
-            <div class="carter-cash" aria-live="polite">
-              <span class="carter-label">CC:</span>
-              <span id="carter-cash" class="carter-value">0</span>
-              <button
-                type="button"
-                id="carter-cash-info-button"
-                class="info-icon carter-cash-info-button"
-                aria-label="How Carter Cash is earned"
-                aria-expanded="false"
-                aria-controls="carter-cash-tooltip"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"></circle>
-                  <path d="M12 10.2v5.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path>
-                  <circle cx="12" cy="7.2" r="1.1" fill="currentColor"></circle>
-                </svg>
-              </button>
-              <div
-                id="carter-cash-tooltip"
-                class="carter-cash-tooltip"
-                role="tooltip"
-              >
-                1 dollar Carter Cash is earned with each 1000 of bets placed through the game.
+              <div class="carter-cash" aria-live="polite">
+                <span class="carter-label">CC:</span>
+                <span id="carter-cash" class="carter-value">0</span>
+                <button
+                  type="button"
+                  id="carter-cash-info-button"
+                  class="info-icon carter-cash-info-button"
+                  aria-label="How Carter Cash is earned"
+                  aria-expanded="false"
+                  aria-controls="carter-cash-tooltip"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"></circle>
+                    <path d="M12 10.2v5.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path>
+                    <circle cx="12" cy="7.2" r="1.1" fill="currentColor"></circle>
+                  </svg>
+                </button>
+                <div
+                  id="carter-cash-tooltip"
+                  class="carter-cash-tooltip"
+                  role="tooltip"
+                >
+                  1 dollar Carter Cash is earned with each 1000 of bets placed through the game.
+                </div>
+                <span id="carter-cash-delta" class="carter-delta" aria-hidden="true"></span>
               </div>
-              <span id="carter-cash-delta" class="carter-delta" aria-hidden="true"></span>
             </div>
           </div>
           <div class="header-actions">
@@ -248,17 +261,6 @@
                 <path d="M9.8 18.2a2.4 2.4 0 0 0 4.4 0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path>
               </svg>
               <span id="notification-badge" class="notification-badge" hidden></span>
-            </button>
-            <button
-              type="button"
-              class="menu-toggle"
-              id="menu-toggle"
-              aria-expanded="false"
-              aria-controls="utility-panel"
-            >
-              <span class="sr-only">Open menu</span>
-              <span class="menu-icon" aria-hidden="true"></span>
-              <span id="menu-contest-badge" class="menu-contest-badge" hidden></span>
             </button>
           </div>
         </div>
