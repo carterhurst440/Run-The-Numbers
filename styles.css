@@ -20641,3 +20641,471 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
     min-height: 0;
   }
 }
+
+/* ===========================
+   Home Blueprint Refresh
+   =========================== */
+
+#home-view {
+  --home-blueprint-bg: #0a0010;
+  --home-blueprint-bg-2: #100018;
+  --home-blueprint-bg-3: #140020;
+  --home-blueprint-border: #3d1a5c;
+  --home-blueprint-border-soft: rgba(61, 26, 92, 0.58);
+  --home-blueprint-accent: #c77dff;
+  --home-blueprint-accent-2: #9b40ff;
+  --home-blueprint-text: #e0c4ff;
+  --home-blueprint-text-dim: #9381a8;
+  --home-blueprint-text-faint: #5d456f;
+  --home-blueprint-surface: linear-gradient(180deg, rgba(16, 0, 24, 0.96), rgba(10, 0, 16, 0.96));
+  --home-blueprint-surface-2: linear-gradient(180deg, rgba(19, 0, 32, 0.98), rgba(12, 0, 18, 0.98));
+  justify-content: flex-start;
+  padding: clamp(1rem, 2vw, 1.65rem);
+  color: var(--home-blueprint-text);
+}
+
+#home-view .home-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18rem;
+  grid-template-areas:
+    "welcome ladder"
+    "about ladder"
+    "floor ladder"
+    "contests ladder";
+  align-items: start;
+  gap: 1rem 1.35rem;
+  width: min(100%, 1380px);
+}
+
+#home-view .home-rank-panel {
+  grid-area: welcome;
+  width: 100%;
+  align-items: flex-start;
+  text-align: left;
+  gap: 0.35rem;
+  padding: 0 0 1rem;
+  border-bottom: 1px solid var(--home-blueprint-border-soft);
+  background: transparent;
+  box-shadow: none;
+}
+
+#home-view .home-about-panel {
+  grid-area: about;
+  width: 100%;
+  text-align: left;
+  margin-top: 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--home-blueprint-border-soft);
+  border-radius: 0.7rem;
+  background: var(--home-blueprint-surface);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+#home-view .home-casino-floor {
+  grid-area: floor;
+  width: 100%;
+  text-align: left;
+  margin-top: 0;
+  padding: 0;
+  border: 0;
+}
+
+#home-view .home-contests-panel {
+  grid-area: contests;
+  margin-top: 0;
+  padding-top: 1rem;
+}
+
+#home-view .home-rank-ladder {
+  grid-area: ladder;
+  width: 100%;
+  min-width: 0;
+  padding: 1rem 0.95rem;
+  border: 1px solid var(--home-blueprint-border-soft);
+  border-radius: 0.75rem;
+  background: var(--home-blueprint-surface-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+#home-view .home-rank-eyebrow,
+#home-view .home-contests-title,
+#home-view .home-casino-floor .home-rank-eyebrow {
+  color: var(--home-blueprint-text-faint);
+  font-size: 0.68rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+#home-view .home-rank-title {
+  margin: 0;
+  font-family: "Orbitron", "Play", system-ui, sans-serif;
+  font-size: clamp(2rem, 4vw, 2.55rem);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--home-blueprint-text);
+}
+
+#home-view .home-rank-ladder-button,
+#home-view .home-about-toggle,
+#home-view .home-contests-link {
+  color: #c8a6ff;
+}
+
+#home-view .home-rank-ladder-button:hover,
+#home-view .home-rank-ladder-button:focus-visible,
+#home-view .home-about-toggle:hover,
+#home-view .home-about-toggle:focus-visible,
+#home-view .home-contests-link:hover,
+#home-view .home-contests-link:focus-visible {
+  color: #f2ddff;
+}
+
+#home-view .home-about-title {
+  margin: 0 0 0.45rem;
+  font-family: "Share Tech Mono", "Play", monospace;
+  font-size: 0.95rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--home-blueprint-accent);
+}
+
+#home-view .home-about-copy,
+#home-view .home-about-copy p {
+  color: var(--home-blueprint-text-dim);
+}
+
+#home-view .home-about-copy p {
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+#home-view .home-about-copy p.is-typing::after {
+  background: var(--home-blueprint-accent);
+}
+
+#home-view .home-casino-floor-head,
+#home-view .home-contests-header {
+  margin-bottom: 0.85rem;
+}
+
+#home-view .home-game-tiles {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+#home-view .home-game-tile {
+  min-height: 9.6rem;
+  padding: 1rem 0.9rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--home-blueprint-border-soft);
+  background: var(--home-blueprint-surface);
+  box-shadow: none;
+}
+
+#home-view .home-game-tile::after {
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid transparent;
+  opacity: 1;
+}
+
+#home-view .home-game-tile:hover,
+#home-view .home-game-tile:focus-visible {
+  background: linear-gradient(180deg, rgba(24, 3, 36, 0.98), rgba(12, 0, 18, 0.98));
+  border-color: rgba(199, 125, 255, 0.36);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
+}
+
+#home-view .home-game-tile-rtn::after,
+#home-view .home-game-tile-g10::after,
+#home-view .home-game-tile-shape::after {
+  border-color: rgba(199, 125, 255, 0.14);
+}
+
+#home-view .home-game-tile-head {
+  gap: 0.7rem;
+}
+
+#home-view .home-game-tile-title-row {
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.7rem;
+}
+
+#home-view .home-game-tile-logo {
+  width: 3.65rem;
+  height: 3.65rem;
+  filter: drop-shadow(0 8px 20px rgba(155, 64, 255, 0.18));
+}
+
+#home-view .home-game-tile-title {
+  font-family: "Orbitron", "Play", system-ui, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-align: center;
+  color: var(--home-blueprint-text);
+}
+
+#home-view .home-contests-header {
+  align-items: end;
+}
+
+#home-view .home-contest-card {
+  border-radius: 0.85rem;
+  border-color: var(--home-blueprint-border-soft);
+  background: var(--home-blueprint-surface);
+}
+
+#home-view .home-contest-card-title {
+  font-family: "Orbitron", "Play", system-ui, sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+}
+
+#home-view .home-contest-card-window,
+#home-view .home-contest-card-growth {
+  color: var(--home-blueprint-text-dim);
+}
+
+#home-view .home-contest-card-prize {
+  color: var(--home-blueprint-accent);
+  font-family: "Orbitron", "Play", system-ui, sans-serif;
+  font-size: 0.98rem;
+  letter-spacing: 0.14em;
+}
+
+#home-view .home-rank-ladder-head {
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--home-blueprint-border-soft);
+  margin-bottom: 0.7rem;
+}
+
+#home-view .home-rank-ladder-current {
+  color: var(--home-blueprint-accent);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#home-view .home-rank-ladder-rung {
+  border-color: rgba(61, 26, 92, 0.38);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+#home-view .home-rank-ladder-rung.is-current {
+  border-color: rgba(199, 125, 255, 0.7);
+  background: rgba(199, 125, 255, 0.08);
+  box-shadow: none;
+}
+
+#home-view .home-rank-ladder-node {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(199, 125, 255, 0.18);
+}
+
+#home-view .home-rank-ladder-rung.is-current .home-rank-ladder-node {
+  background: rgba(199, 125, 255, 0.16);
+  border-color: rgba(199, 125, 255, 0.34);
+}
+
+#home-view .home-rank-ladder-name {
+  color: var(--home-blueprint-text);
+}
+
+#home-view .home-rank-ladder-requirements,
+#home-view .home-rank-ladder-count,
+#home-view .home-rank-ladder-progress-label {
+  color: var(--home-blueprint-text-dim);
+}
+
+#home-view .home-rank-ladder-progress-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(61, 26, 92, 0.58);
+}
+
+#home-view .home-rank-ladder-progress-fill {
+  background: linear-gradient(90deg, var(--home-blueprint-accent), var(--home-blueprint-accent-2));
+}
+
+.utility-panel {
+  background: linear-gradient(180deg, rgba(15, 0, 24, 0.98), rgba(10, 0, 16, 0.98));
+  border-right: 1px solid rgba(61, 26, 92, 0.65);
+  box-shadow: 14px 0 42px rgba(0, 0, 0, 0.3);
+}
+
+.utility-panel .drawer-header {
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid rgba(61, 26, 92, 0.45);
+}
+
+.utility-panel .drawer-header h2 {
+  font-family: "Orbitron", "Play", system-ui, sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #c77dff;
+}
+
+.utility-panel .drawer-rank-summary {
+  margin: 0.2rem 0 1rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.utility-panel .drawer-rank-label {
+  color: rgba(123, 107, 138, 0.9);
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.utility-panel .drawer-rank-name {
+  color: #e0c4ff;
+  font-family: "Orbitron", "Play", system-ui, sans-serif;
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+}
+
+.utility-panel .drawer-nav {
+  gap: 0.18rem;
+}
+
+.utility-panel .drawer-link {
+  padding: 0.66rem 0.78rem;
+  border-radius: 0.45rem;
+  border: 1px solid transparent;
+  color: rgba(224, 196, 255, 0.72);
+  font-size: 0.84rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.utility-panel .drawer-link-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  color: rgba(199, 125, 255, 0.82);
+}
+
+.utility-panel .drawer-link-icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.utility-panel .drawer-link-game-logo {
+  width: 1rem;
+  height: 1rem;
+}
+
+.utility-panel .drawer-link:hover,
+.utility-panel .drawer-link:focus-visible {
+  transform: none;
+  background: rgba(31, 13, 46, 0.9);
+  border-color: rgba(61, 26, 92, 0.46);
+  box-shadow: none;
+  color: #f0ddff;
+}
+
+.utility-panel .drawer-link:hover .drawer-link-icon,
+.utility-panel .drawer-link:focus-visible .drawer-link-icon {
+  background: transparent;
+  border-color: transparent;
+  color: #f0ddff;
+}
+
+.utility-panel .drawer-link.is-active {
+  background: rgba(31, 13, 46, 0.96);
+  border-color: rgba(61, 26, 92, 0.52);
+  border-left: 2px solid #c77dff;
+  color: #c77dff;
+  box-shadow: none;
+}
+
+.utility-panel .drawer-link.is-active .drawer-link-icon {
+  background: transparent;
+  border-color: transparent;
+  color: #c77dff;
+}
+
+.utility-panel .drawer-link-meta {
+  color: rgba(123, 107, 138, 0.88);
+  font-size: 0.62rem;
+}
+
+.utility-panel .drawer-link.is-active .drawer-link-meta {
+  color: rgba(199, 125, 255, 0.9);
+}
+
+.utility-panel .drawer-admin-actions {
+  border-top-color: rgba(61, 26, 92, 0.42);
+}
+
+.utility-panel .drawer-text-button {
+  color: #c77dff;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+}
+
+.utility-panel .drawer-text-button:hover,
+.utility-panel .drawer-text-button:focus-visible {
+  color: #f0ddff;
+}
+
+@media (max-width: 1120px) {
+  #home-view .home-hero {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "welcome"
+      "about"
+      "floor"
+      "contests";
+  }
+
+  #home-view .home-rank-ladder {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  #home-view {
+    padding: 0.95rem;
+  }
+
+  #home-view .home-rank-panel {
+    padding-bottom: 0.8rem;
+  }
+
+  #home-view .home-rank-title {
+    font-size: 2rem;
+  }
+
+  #home-view .home-about-panel {
+    padding: 0.88rem 0.9rem;
+  }
+
+  #home-view .home-game-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem;
+  }
+
+  #home-view .home-game-tile {
+    min-height: 6.8rem;
+    padding: 0.65rem 0.45rem;
+    border-radius: 0.7rem;
+  }
+
+  #home-view .home-game-tile-logo {
+    width: 2.35rem;
+    height: 2.35rem;
+  }
+
+  #home-view .home-game-tile-title {
+    font-size: 0.58rem;
+    letter-spacing: 0.12em;
+  }
+}
