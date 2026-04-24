@@ -8972,9 +8972,9 @@ body.theme-angelic {
   color: var(--text-light);
   box-shadow: none;
   padding: 0.24rem 0.9rem 0.24rem 0.18rem;
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
@@ -9011,9 +9011,9 @@ body.theme-angelic {
 
   .header-mode-select {
     padding: 0.42rem 1.1rem 0.42rem 0.32rem;
-    font-size: 0.76rem;
+    font-size: 0.8rem;
     font-weight: 800;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.1em;
   }
 
   .header-mode-select-wrap::after {
@@ -16987,7 +16987,7 @@ body[data-theme-profile="shape-traders-carbon"] .header-mode-select {
   border-color: transparent;
   box-shadow: none;
   padding: 0.24rem 0.9rem 0.24rem 0.18rem;
-  font-size: 0.62rem;
+  font-size: 0.7rem;
 }
 
 body[data-theme-profile="main-app-comfort"] .header-mode-select:hover,
@@ -17310,92 +17310,78 @@ body[data-theme-profile="main-app-comfort"] .home-hero-play-button:active {
 body[data-theme-profile="main-app-comfort"] .auth-view,
 body[data-theme-profile="main-app-comfort"] .auth-callback-view {
   background:
-    radial-gradient(circle at 18% 14%, rgba(141, 92, 255, 0.16), transparent 28%),
-    radial-gradient(circle at 82% 12%, rgba(97, 214, 255, 0.12), transparent 24%),
+    radial-gradient(circle at 18% 14%, rgba(199, 125, 255, 0.12), transparent 28%),
+    radial-gradient(circle at 82% 12%, rgba(155, 64, 255, 0.1), transparent 24%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 14%),
-    #0d0f14;
+    #0a0010;
 }
 
 body[data-theme-profile="main-app-comfort"] .auth-card,
 body[data-theme-profile="main-app-comfort"] .auth-callback-card {
   background:
-    radial-gradient(circle at top right, rgba(146, 96, 255, 0.16), transparent 24%),
-    linear-gradient(180deg, rgba(30, 32, 40, 0.96), rgba(17, 19, 25, 0.98)),
-    #16181e;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 1.7rem;
+    radial-gradient(circle at top right, rgba(199, 125, 255, 0.12), transparent 20%),
+    linear-gradient(180deg, rgba(17, 1, 27, 0.98), rgba(10, 0, 16, 0.99)),
+    #110019;
+  border: 1px solid rgba(61, 26, 92, 0.62);
+  border-radius: 0.28rem;
   box-shadow:
-    0 28px 70px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+    0 24px 56px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 body[data-theme-profile="main-app-comfort"] .auth-card h1 {
-  font-family: "Sora", "Inter", system-ui, sans-serif;
-  font-size: clamp(1.85rem, 4vw, 2.3rem);
-  letter-spacing: -0.04em;
-  text-transform: none;
-  color: #f5f7fb;
+  font-family: "Orbitron", "Play", system-ui, sans-serif;
+  font-size: clamp(1.45rem, 4vw, 1.95rem);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #e0c4ff;
 }
 
 body[data-theme-profile="main-app-comfort"] .auth-description,
 body[data-theme-profile="main-app-comfort"] .auth-switch {
-  color: rgba(221, 226, 236, 0.72);
-}
-
-body[data-theme-profile="main-app-comfort"] .auth-form {
-  gap: 0.9rem;
+  color: #9381a8;
 }
 
 body[data-theme-profile="main-app-comfort"] .auth-form label {
-  font-size: 0.84rem;
-  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(177, 187, 205, 0.8);
+  color: #5d456f;
 }
 
 body[data-theme-profile="main-app-comfort"] .auth-form input {
-  border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
-    #12141a;
-  color: #f5f7fb;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border-radius: 0.18rem;
+  border: 1px solid rgba(61, 26, 92, 0.58);
+  background: rgba(28, 10, 42, 0.62);
+  color: #f2ddff;
+  box-shadow: none;
 }
 
 body[data-theme-profile="main-app-comfort"] .auth-form input:focus {
-  border-color: rgba(143, 198, 255, 0.46);
-  box-shadow:
-    0 0 0 3px rgba(141, 92, 255, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-color: rgba(199, 125, 255, 0.68);
+  box-shadow: 0 0 0 3px rgba(199, 125, 255, 0.12);
 }
 
 body[data-theme-profile="main-app-comfort"] .auth-form button {
-  min-height: 3.35rem;
-  margin-top: 0.7rem;
-  border-radius: 1.15rem;
-  border: 1px solid rgba(173, 135, 255, 0.34);
-  background:
-    linear-gradient(135deg, rgba(148, 95, 255, 0.96), rgba(103, 214, 255, 0.9)),
-    #1a1c24;
-  color: #f8fbff;
+  min-height: 3rem;
+  margin-top: 0.4rem;
+  border-radius: 0.18rem;
+  border: 1px solid rgba(199, 125, 255, 0.4);
+  background: linear-gradient(180deg, rgba(104, 41, 151, 0.96), rgba(78, 27, 119, 0.98));
+  color: #f8f1ff;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 16px 34px rgba(87, 102, 255, 0.22);
+  box-shadow: none;
 }
 
 body[data-theme-profile="main-app-comfort"] .auth-form button:hover:not(:disabled),
 body[data-theme-profile="main-app-comfort"] .auth-form button:focus-visible {
-  transform: translateY(-2px);
-  border-color: rgba(205, 182, 255, 0.46);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 22px 42px rgba(87, 102, 255, 0.28),
-    0 0 20px rgba(141, 92, 255, 0.12);
+  transform: none;
+  border-color: rgba(224, 196, 255, 0.5);
+  background: linear-gradient(180deg, rgba(118, 54, 168, 0.98), rgba(88, 34, 131, 0.99));
+  box-shadow: none;
 }
 
 body[data-theme-profile="main-app-comfort"] .auth-form button:disabled {
@@ -17405,7 +17391,7 @@ body[data-theme-profile="main-app-comfort"] .auth-form button:disabled {
 
 body[data-theme-profile="main-app-comfort"] .auth-switch-button,
 body[data-theme-profile="main-app-comfort"] .auth-inline-link {
-  color: #b998ff;
+  color: #c8a6ff;
   font-weight: 700;
 }
 
@@ -20998,8 +20984,8 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
 }
 
 .utility-panel .drawer-link-game-logo {
-  width: 1rem;
-  height: 1rem;
+  width: 1.75rem;
+  height: 1.75rem;
 }
 
 .utility-panel .drawer-link:hover,
@@ -21019,10 +21005,10 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
 }
 
 .utility-panel .drawer-link.is-active {
-  background: rgba(31, 13, 46, 0.96);
-  border-color: rgba(61, 26, 92, 0.52);
-  border-left: 2px solid #c77dff;
-  color: #c77dff;
+  background: rgba(244, 246, 252, 0.98);
+  border-color: rgba(244, 246, 252, 0.98);
+  border-left: 0;
+  color: #171a20;
   box-shadow: none;
 }
 
@@ -21032,13 +21018,18 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
   color: #c77dff;
 }
 
+.utility-panel .drawer-link.is-active .drawer-link-game-logo {
+  opacity: 1;
+  filter: brightness(0) saturate(100%) invert(52%) sepia(74%) saturate(1616%) hue-rotate(236deg) brightness(100%) contrast(101%);
+}
+
 .utility-panel .drawer-link-meta {
   color: rgba(123, 107, 138, 0.88);
   font-size: 0.62rem;
 }
 
 .utility-panel .drawer-link.is-active .drawer-link-meta {
-  color: rgba(199, 125, 255, 0.9);
+  color: rgba(95, 76, 126, 0.76);
 }
 
 .utility-panel .drawer-admin-actions {
@@ -21099,6 +21090,23 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
     border-radius: 0.7rem;
   }
 
+  #home-view .home-contests-header {
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 0.38rem;
+  }
+
+  #home-view .home-contests-title {
+    display: block;
+    text-align: left;
+    line-height: 1.1;
+    letter-spacing: 0.2em;
+  }
+
+  #home-view .home-contests-link {
+    align-self: flex-start;
+  }
+
   #home-view .home-game-tile-logo {
     width: 2.35rem;
     height: 2.35rem;
@@ -21152,21 +21160,28 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
   min-width: 160px;
   max-width: 200px;
   padding: 0;
-  border: 1px solid rgba(61, 26, 92, 0.44);
-  border-radius: 0.48rem;
-  background: rgba(31, 13, 46, 0.55);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  border-bottom: 1px solid rgba(199, 125, 255, 0.34);
 }
 
 .header-mode-select {
   min-height: 36px;
-  padding: 0.5rem 1.9rem 0.5rem 0.72rem;
+  padding: 0.4rem 1.15rem 0.4rem 0;
   color: #e0c4ff;
   line-height: 1.1;
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background-color: transparent;
+  border: 0;
+  font-weight: 700;
 }
 
 .header-mode-select-wrap::after {
-  right: 0.72rem;
+  right: 0.1rem;
   border-right-color: rgba(224, 196, 255, 0.8);
   border-bottom-color: rgba(224, 196, 255, 0.8);
 }
@@ -21175,17 +21190,25 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
 .header-mode-select optgroup {
   background: #140020;
   color: #e0c4ff;
+  font-size: 0.9rem;
 }
 
 .header-mode-select:hover,
 .header-mode-select:focus-visible {
   color: #f2ddff;
+  outline: none;
 }
 
 .header-mode-select-wrap:hover,
 .header-mode-select-wrap:focus-within {
-  border-color: rgba(199, 125, 255, 0.42);
-  background: rgba(41, 17, 60, 0.78);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.header-mode-select-wrap:hover,
+.header-mode-select-wrap:focus-within {
+  border-bottom-color: rgba(224, 196, 255, 0.52);
 }
 
 .bankroll-label,
@@ -21491,13 +21514,13 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
 
   .header-mode-select {
     min-height: 34px;
-    padding: 0.46rem 1.65rem 0.46rem 0.6rem;
+    padding: 0.46rem 1.1rem 0.46rem 0;
     font-size: 0.58rem;
     letter-spacing: 0.12em;
   }
 
   .header-mode-select-wrap::after {
-    right: 0.58rem;
+    right: 0.08rem;
   }
 }
 
@@ -21655,12 +21678,13 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
 .auth-card,
 .auth-callback-card {
   max-width: 460px;
-  border-radius: 0.8rem;
+  border-radius: 0.28rem;
 }
 
 .auth-card h1 {
-  font-size: clamp(1.35rem, 4vw, 1.9rem);
+  font-size: clamp(1.35rem, 4vw, 1.85rem);
   line-height: 1.15;
+  letter-spacing: 0.04em;
 }
 
 .auth-description {
@@ -21674,10 +21698,12 @@ body[data-theme-profile="shape-traders-carbon"] .shape-traders-trade-bar .shape-
 
 .auth-form input {
   min-height: 3rem;
+  border-radius: 0.18rem;
 }
 
 .auth-form button {
   margin-top: 0.65rem;
+  border-radius: 0.18rem;
 }
 
 /* ===========================

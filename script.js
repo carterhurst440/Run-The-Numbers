@@ -17561,24 +17561,24 @@ const DEFAULT_AI_THEME_FORM_VALUES = {
 };
 const DEFAULT_LOGIN_THEME_FORM_VALUES = {
   headerText: "CARTERS CASINO WELCOMES YOU",
-  headerSubtext: "The premiere NEO casino experience",
-  screenBackgroundStart: "#17191e",
-  screenBackgroundEnd: "#0f1115",
-  cardBackground: "#20242c",
-  cardBorderColor: "#7c8798",
-  headingTextColor: "#f2f0eb",
-  bodyTextColor: "#c6c0b6",
-  inputBackground: "#181c23",
-  inputBorderColor: "#727c8c",
-  inputTextColor: "#f2f0eb",
-  inputFocusColor: "#c8ac7d",
-  buttonBackground: "#b89a6a",
-  buttonBorderColor: "#d7c3a1",
-  buttonTextColor: "#141310",
-  linkColor: "#d7c3a1",
-  errorColor: "#d97d7d",
-  successColor: "#87b48e",
-  spinnerAccentColor: "#d7c3a1"
+  headerSubtext: "Enter the floor and run the numbers.",
+  screenBackgroundStart: "#0b0112",
+  screenBackgroundEnd: "#12001e",
+  cardBackground: "#13001e",
+  cardBorderColor: "#3d1a5c",
+  headingTextColor: "#e0c4ff",
+  bodyTextColor: "#9381a8",
+  inputBackground: "#1b0a29",
+  inputBorderColor: "#4f2a74",
+  inputTextColor: "#f2ddff",
+  inputFocusColor: "#c77dff",
+  buttonBackground: "#4a1f70",
+  buttonBorderColor: "#7d3ac0",
+  buttonTextColor: "#f8f1ff",
+  linkColor: "#c8a6ff",
+  errorColor: "#ff8aa8",
+  successColor: "#89d6ac",
+  spinnerAccentColor: "#c77dff"
 };
 const AI_THEME_VARIABLE_KEYS = [
   "--assistant-panel-bg",
@@ -20190,6 +20190,15 @@ async function fetchShapeTraderTradeRecords({
   return allRecords;
 }
 
+function isShapeTraderRealizedPnlRecord(row) {
+  if (row?.contest_id) return false;
+  const rawNetProfit = row?.net_profit;
+  if (rawNetProfit === null || rawNetProfit === undefined || rawNetProfit === "") {
+    return false;
+  }
+  return Number.isFinite(Number(rawNetProfit));
+}
+
 async function fetchAdminGameHandsRecords({
   startAt = null,
   endAt = null,
@@ -20950,8 +20959,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
 
       todayTrades.forEach((row) => {
         const dayKey = formatAnalyticsDateKey(row?.executed_at);
-        const tradeSide = String(row?.trade_side || "").trim().toLowerCase();
-        if (dayKey !== todayKey || row?.contest_id || tradeSide !== "sell") {
+        if (dayKey !== todayKey || !isShapeTraderRealizedPnlRecord(row)) {
           return;
         }
         const pnl = roundCurrencyValue(Number(row?.net_profit || 0));
@@ -21028,10 +21036,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
       });
 
       allTrades.forEach((row) => {
-        const tradeSide = String(row?.trade_side || "").trim().toLowerCase();
-        if (row?.contest_id || tradeSide !== "sell") {
-          return;
-        }
+        if (!isShapeTraderRealizedPnlRecord(row)) return;
         const dayKey = formatAnalyticsDateKey(row?.executed_at);
         const bucket = ensureDay(dayKey, row?.executed_at || `${dayKey}T12:00:00`);
         const pnl = roundCurrencyValue(Number(row?.net_profit || 0));
@@ -28290,10 +28295,7 @@ function buildRealizedPnlBucketsFromRawRecords(
   });
 
   tradeRecords.forEach((trade) => {
-    const tradeSide = String(trade?.trade_side || "").trim().toLowerCase();
-    if (tradeSide !== "sell") {
-      return;
-    }
+    if (!isShapeTraderRealizedPnlRecord(trade)) return;
     const dayKey = formatAnalyticsDateKey(trade?.executed_at);
     if (!dayKey) return;
     const bucket = ensureDay(dayKey, String(trade?.executed_at || `${dayKey}T12:00:00`));
@@ -28715,8 +28717,7 @@ function buildAdminPnlChartPoints({
   const filteredTrades = tradeRecords.filter((record) => {
     const userId = record?.user_id;
     if (!selectedSet.has(userId)) return false;
-    const tradeSide = String(record?.trade_side || "").trim().toLowerCase();
-    if (tradeSide !== "sell") return false;
+    if (!isShapeTraderRealizedPnlRecord(record)) return false;
     return gameFilter === "all" || gameFilter === GAME_KEYS.SHAPE_TRADERS;
   });
 
@@ -29284,11 +29285,32 @@ async function loadPlayerBankrollHistory(userId) {
   const buildPnlPointsFromRawRecords = async () => {
     const startDate = getAnalyticsPeriodStart(playerBankrollPeriod);
     const endDate = new Date();
-    const { handRecords, tradeRecords } = await loadAdminAnalyticsRawRecords({
-      startAt: startDate,
-      endAt: endDate,
-      userIds: [userId]
-    });
+    const { handRecords, tradeRecords } = currentUser?.id === userId
+      ? await (async () => {
+          const [directHandRecords, directTradeRecords] = await Promise.all([
+            fetchGameHandsRecords({
+              startAt: startDate,
+              endAt,
+              userIds: [userId],
+              fields: ["user_id", "created_at", "game_id", "net", "mode_type", "contest_id"]
+            }),
+            fetchShapeTraderTradeRecords({
+              startAt: startDate,
+              endAt,
+              userId,
+              fields: ["executed_at", "trade_side", "net_profit", "contest_id", "trade_reason"]
+            })
+          ]);
+          return {
+            handRecords: directHandRecords,
+            tradeRecords: directTradeRecords
+          };
+        })()
+      : await loadAdminAnalyticsRawRecords({
+          startAt: startDate,
+          endAt,
+          userIds: [userId]
+        });
     const effectiveStart =
       startDate ||
       (handRecords.length > 0
@@ -29307,8 +29329,7 @@ async function loadPlayerBankrollHistory(userId) {
     });
 
     tradeRecords.forEach((record) => {
-      const tradeSide = String(record?.trade_side || "").trim().toLowerCase();
-      if (tradeSide !== "sell") return;
+      if (!isShapeTraderRealizedPnlRecord(record)) return;
       const executedAt = new Date(record?.executed_at || 0);
       const bucketIndex = buckets.findIndex((bucket) => executedAt >= bucket.start && executedAt < bucket.end);
       if (bucketIndex < 0) return;

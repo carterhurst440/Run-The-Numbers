@@ -156,6 +156,15 @@ function roundCurrencyValue(value: number) {
   return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 }
 
+function isShapeTraderRealizedPnlTrade(trade: TradeRow) {
+  if (trade?.contest_id) return false;
+  const rawNetProfit = trade?.net_profit;
+  if (rawNetProfit === null || rawNetProfit === undefined || rawNetProfit === "") {
+    return false;
+  }
+  return Number.isFinite(Number(rawNetProfit));
+}
+
 function getAnalyticsDayRange(dateInput: string | Date | null | undefined) {
   const dayKey = getAnalyticsDayKey(dateInput);
   if (!dayKey) {
@@ -622,8 +631,7 @@ Deno.serve(async (request) => {
 
       todayTrades.forEach((trade) => {
         const dayKey = getAnalyticsDayKey(trade?.executed_at);
-        const tradeSide = String(trade?.trade_side || "").trim().toLowerCase();
-        if (dayKey !== todayRange.dayKey || trade?.contest_id || tradeSide !== "sell") {
+        if (dayKey !== todayRange.dayKey || !isShapeTraderRealizedPnlTrade(trade)) {
           return;
         }
         liveToday.pnlShapeTraders = roundCurrencyValue(
