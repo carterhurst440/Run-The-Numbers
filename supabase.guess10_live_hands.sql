@@ -23,12 +23,16 @@ create table if not exists public.guess10_live_hands (
   total_wager numeric not null default 0,
   total_paid numeric not null default 0,
   net numeric not null default 0,
+  commission_percentage numeric not null default 0,
   commission_kept numeric not null default 0,
   new_account_value numeric,
   drawn_cards jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.guess10_live_hands
+  add column if not exists commission_percentage numeric not null default 0;
 
 create index if not exists idx_guess10_live_hands_user_started_at
   on public.guess10_live_hands (user_id, started_at desc);
@@ -69,6 +73,7 @@ insert into public.guess10_live_hands (
   total_wager,
   total_paid,
   net,
+  commission_percentage,
   commission_kept,
   new_account_value,
   drawn_cards,
@@ -112,6 +117,18 @@ select
   coalesce(gh.total_wager, 0) as total_wager,
   coalesce(gh.total_paid, 0) as total_paid,
   coalesce(gh.net, 0) as net,
+  case
+    when coalesce(gh.commission_kept, 0) > 0
+      and round((coalesce(gh.total_paid, 0) + coalesce(gh.commission_kept, 0) - coalesce(gh.total_wager, 0))::numeric, 2) > 0
+      then round(
+        (
+          coalesce(gh.commission_kept, 0)
+          / round((coalesce(gh.total_paid, 0) + coalesce(gh.commission_kept, 0) - coalesce(gh.total_wager, 0))::numeric, 2)
+        )::numeric * 100,
+        2
+      )
+    else 0
+  end as commission_percentage,
   coalesce(gh.commission_kept, 0) as commission_kept,
   gh.new_account_value,
   coalesce(gh.drawn_cards, '[]'::jsonb) as drawn_cards,
@@ -138,6 +155,7 @@ set
   total_wager = excluded.total_wager,
   total_paid = excluded.total_paid,
   net = excluded.net,
+  commission_percentage = excluded.commission_percentage,
   commission_kept = excluded.commission_kept,
   new_account_value = excluded.new_account_value,
   drawn_cards = excluded.drawn_cards,
@@ -198,6 +216,10 @@ set
   selection_label = coalesce(fd.selection_label, ghl.selection_label),
   draw_count = greatest(coalesce(dr.draw_count, 0), ghl.draw_count),
   current_rung = greatest(coalesce(dr.correct_draws, 0), ghl.current_rung),
+  commission_percentage = round(
+    public.guess10_commission_rate(greatest(coalesce(dr.correct_draws, 0), ghl.current_rung))::numeric * 100,
+    2
+  ),
   last_draw_at = coalesce(dr.last_draw_at, ghl.last_draw_at),
   status = coalesce(dr.final_status, ghl.status),
   result = case

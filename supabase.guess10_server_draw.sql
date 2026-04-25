@@ -477,6 +477,7 @@ begin
     total_wager,
     total_paid,
     net,
+    commission_percentage,
     commission_kept,
     new_account_value,
     drawn_cards,
@@ -498,6 +499,7 @@ begin
     0,
     0,
     v_wager,
+    0,
     0,
     0,
     0,
@@ -599,6 +601,7 @@ begin
       current_pot = v_ending_pot,
       current_rung = v_next_rung,
       draw_count = v_next_draw_count,
+      commission_percentage = round(public.guess10_commission_rate(v_next_rung)::numeric * 100, 2),
       last_draw_at = v_now,
       total_cards = v_next_draw_count,
       drawn_cards = coalesce(drawn_cards, '[]'::jsonb) || jsonb_build_object(
@@ -696,6 +699,7 @@ begin
       total_cards = v_next_draw_count,
       total_paid = 0,
       net = round(-coalesce(v_hand.total_wager, 0)::numeric, 2),
+      commission_percentage = round(public.guess10_commission_rate(v_next_rung)::numeric * 100, 2),
       commission_kept = 0,
       drawn_cards = coalesce(drawn_cards, '[]'::jsonb) || jsonb_build_object(
         'label', v_card.label,
@@ -928,6 +932,7 @@ begin
     total_cards = greatest(coalesce(draw_count, 0), coalesce(total_cards, 0)),
     total_paid = v_payout,
     net = round((v_payout - coalesce(v_hand.total_wager, 0))::numeric, 2),
+    commission_percentage = round(v_commission_rate::numeric * 100, 2),
     commission_kept = v_commission,
     new_account_value = v_balance.cash_balance,
     updated_at = v_now

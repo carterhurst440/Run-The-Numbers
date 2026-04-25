@@ -16330,7 +16330,7 @@ async function fetchActiveGuess10HandForCurrentUser() {
 
   const { data: handRow, error: handError } = await supabase
     .from("guess10_live_hands")
-    .select("id, user_id, status, result, mode_type, contest_id, selection_category, selection_values, selection_label, current_pot, current_rung, draw_count, started_at, last_draw_at, ended_at, total_cards, total_wager, total_paid, net, commission_kept, new_account_value, drawn_cards")
+    .select("id, user_id, status, result, mode_type, contest_id, selection_category, selection_values, selection_label, current_pot, current_rung, draw_count, started_at, last_draw_at, ended_at, total_cards, total_wager, total_paid, net, commission_percentage, commission_kept, new_account_value, drawn_cards")
     .eq("user_id", currentUser.id)
     .eq("status", "active")
     .order("started_at", { ascending: false })
