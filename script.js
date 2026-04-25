@@ -5369,6 +5369,10 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
     return false;
   }
 
+  if (!shapeTradersHasOpenHoldings()) {
+    return false;
+  }
+
   const rows = [];
   const pageSize = 1000;
   let page = 0;
@@ -5575,6 +5579,15 @@ async function syncShapeTraderCurrentState({ heartbeatOnly = false, throwOnError
         await supabase
           .from("shape_trader_positions_current")
           .upsert(positionPayload, { onConflict: "user_id,account_scope,shape" });
+      }
+    } else {
+      const syncRow = Array.isArray(secureSync.data) ? secureSync.data[0] || null : secureSync.data || null;
+      if (syncRow?.latest_draw_id !== undefined && syncRow?.latest_draw_id !== null) {
+        shapeTradersLastStructuralSyncDrawId = Math.max(0, Math.floor(Number(syncRow.latest_draw_id || 0)));
+      }
+      if (syncRow?.state_changed) {
+        await loadShapeTraderPortfolioFromBackend();
+        renderShapeTraders();
       }
     }
 
@@ -6097,8 +6110,6 @@ async function syncShapeTraderExecutionPricesFromLatestDraw() {
         : shapeTradersPreviousCard;
       renderShapeTraders();
     }
-
-    await maybeReconcileShapeTraderStructuralEvents(latestDrawId);
 
     return {
       ok: true,
@@ -8289,19 +8300,7 @@ async function synchronizeShapeTraders(now = Date.now()) {
       });
     }
 
-    await maybeReconcileShapeTraderStructuralEvents();
     await evaluateShapeTraderAssistantRules();
-
-    if (
-      !shapeTradersWindowActive &&
-      shapeTradersHasOpenHoldings() &&
-      shapeTradersLastBecameInactiveAt &&
-      Date.now() - shapeTradersLastBecameInactiveAt >= SHAPE_TRADERS_INACTIVITY_MS
-    ) {
-      void liquidateAllShapeTraderHoldings("Inactivity liquidation");
-      markShapeTraderInteraction();
-      setShapeTraderStatus("Positions liquidated after 5 minutes with the tab/window inactive.");
-    }
 
     const shouldHeartbeatSync =
       currentRoute === "shape-traders" &&
@@ -8350,7 +8349,9 @@ function startShapeTradersClock() {
   void synchronizeShapeTraders();
   shapeTradersTimerId = window.setInterval(() => {
     void synchronizeShapeTraders();
-  }, isShapeTradersDbDrawAuthorityEnabled() ? 250 : 250);
+  }, isShapeTradersDbDrawAuthorityEnabled()
+    ? SHAPE_TRADERS_DB_SYNC_INTERVAL_MS
+    : SHAPE_TRADERS_LOCAL_SYNC_INTERVAL_MS);
   const animateShapeTradersClock = () => {
     if (currentRoute !== "shape-traders" || shapeTradersLocalResetMode) {
       shapeTradersAnimationFrameId = null;
@@ -8372,9 +8373,11 @@ async function initializeShapeTraders() {
     if (!shapeTradersTimerId) {
       startShapeTradersClock();
     }
+    if (!isShapeTradersClientEnginePaused()) {
+      await syncShapeTraderCurrentState();
+    }
     await loadShapeTraderPortfolioFromBackend();
     await hydrateShapeTradersFromDrawTable();
-    await reconcileShapeTraderHoldingsFromPersistedEvents();
     await refreshShapeTraderGlobalSnapshot();
     if (isShapeTradersClientEnginePaused()) {
       setShapeTraderStatus("Shape Traders is paused client-side while the backend draw engine is being migrated.");
@@ -8389,33 +8392,11 @@ async function initializeShapeTraders() {
   }
   shapeTradersInitialized = true;
   updateShapeTraderWindowActivityState();
-  await loadShapeTraderPortfolioFromBackend();
-  const shouldLiquidateInactivePortfolio =
-    shapeTradersHasOpenHoldings() &&
-    !shapeTradersWindowActive &&
-    shapeTradersLastBecameInactiveAt &&
-    Date.now() - shapeTradersLastBecameInactiveAt >= SHAPE_TRADERS_INACTIVITY_MS;
-  const preservedHoldings = shouldLiquidateInactivePortfolio
-    ? JSON.parse(JSON.stringify(shapeTradersHoldings))
-    : null;
-  if (shouldLiquidateInactivePortfolio) {
-    shapeTradersHoldings = createEmptyShapeTraderHoldings();
-  }
-  await hydrateShapeTradersFromDrawTable();
-  if (shouldLiquidateInactivePortfolio && preservedHoldings) {
-    shapeTradersHoldings = preservedHoldings;
-    await reconcileShapeTraderHoldingsFromPersistedEvents();
-  } else {
-    await reconcileShapeTraderHoldingsFromPersistedEvents();
-  }
-  if (shouldLiquidateInactivePortfolio && preservedHoldings) {
-    await liquidateAllShapeTraderHoldings("Inactivity liquidation");
-    markShapeTraderInteraction();
-    setShapeTraderStatus("Positions liquidated at the live market price after 5 minutes with the tab/window inactive.");
-  }
   if (!isShapeTradersClientEnginePaused()) {
     await syncShapeTraderCurrentState();
   }
+  await loadShapeTraderPortfolioFromBackend();
+  await hydrateShapeTradersFromDrawTable();
   await refreshShapeTraderGlobalSnapshot();
   renderShapeTradersAssetSelector();
   setShapeTraderStatus(isShapeTradersClientEnginePaused()
@@ -18109,6 +18090,8 @@ const SHAPE_TRADERS_SPARKLINE_VISIBLE_COUNT = 25;
 const SHAPE_TRADERS_ACTIVITY_PAGE_SIZE = 100;
 const SHAPE_TRADERS_GLOBAL_SYNC_MS = 5000;
 const SHAPE_TRADERS_HEARTBEAT_MS = 30000;
+const SHAPE_TRADERS_DB_SYNC_INTERVAL_MS = 1000;
+const SHAPE_TRADERS_LOCAL_SYNC_INTERVAL_MS = 250;
 const SHAPE_TRADERS_MAX_CATCH_UP_WINDOWS = 12;
 const SHAPE_TRADERS_TIMING_SLOW_TICK_MS = 400;
 const SHAPE_TRADERS_TIMING_SLOW_HYDRATE_MS = 300;
@@ -19816,7 +19799,8 @@ async function finalizeGuess10Hand({
   stopperCard = null,
   result,
   endingBankroll = null,
-  skipHandLog = false
+  skipHandLog = false,
+  serverSettled = false
 }) {
   try {
     const resolvedEndingBankroll = Number.isFinite(Number(endingBankroll))
@@ -19830,12 +19814,14 @@ async function finalizeGuess10Hand({
     handleBankrollChanged();
     animateBankrollOutcome(net);
     recordBankrollHistoryPoint();
-    applyPlaythrough(completedBet);
-    await persistBankroll({
-      recordContestHistory: isContestAccountMode(),
-      contestHistoryLabel: "Guess 10 Hand",
-      contestCreditsValue: resolvedEndingBankroll
-    });
+    if (!serverSettled) {
+      applyPlaythrough(completedBet);
+      await persistBankroll({
+        recordContestHistory: isContestAccountMode(),
+        contestHistoryLabel: "Guess 10 Hand",
+        contestCreditsValue: resolvedEndingBankroll
+      });
+    }
     await incrementProfileHandProgress(1);
     await ensureProfileSynced({ force: true });
     if (!skipHandLog) {
@@ -20185,6 +20171,7 @@ async function dealGuess10Card() {
         card: entry.card ? { ...entry.card } : null
       }));
       const drawnCards = handHistory.map((entry) => entry.card).filter(Boolean);
+      applyGuess10ServerAccountSnapshot(drawResult);
       redBlackSettlementPending = true;
       finishGuess10Hand(
         `${nextCard.label}${nextCard.suit} missed ${selectionLabel}. Hand over. Place a new wager to start again.`,
@@ -20212,7 +20199,8 @@ async function dealGuess10Card() {
         stopperCard: nextCard,
         result: "loss",
         endingBankroll: getGuess10ServerResultBalance(drawResult),
-        skipHandLog: true
+        skipHandLog: true,
+        serverSettled: true
       });
       return;
     }
@@ -20272,6 +20260,7 @@ async function withdrawGuess10Hand() {
     }
     const drawnCards = handHistory.map((entry) => entry.card).filter(Boolean);
 
+    applyGuess10ServerAccountSnapshot(cashoutResult);
     redBlackSettlementPending = true;
     finishGuess10Hand(
       `You cashed out for ${formatCurrency(payout)} after a ${Math.max(1, redBlackRung)}-card streak. Commission: ${formatPercent(
@@ -20301,7 +20290,8 @@ async function withdrawGuess10Hand() {
       stopperCard: null,
       result: "cashout",
       endingBankroll: getGuess10ServerResultBalance(cashoutResult),
-      skipHandLog: true
+      skipHandLog: true,
+      serverSettled: true
     });
   } catch (error) {
     console.error("[RTN] Guess 10 cashout failed", error);

@@ -349,6 +349,70 @@ begin
 end;
 $$;
 
+create or replace function public.guess10_apply_playthrough_reward(
+  _mode_type text,
+  _contest_id uuid,
+  _current_credits numeric,
+  _playthrough_delta numeric
+)
+returns table(
+  cash_balance numeric,
+  carter_cash integer,
+  carter_cash_progress integer,
+  balance_updated_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_mode_type text := lower(trim(coalesce(_mode_type, 'normal')));
+  v_profile public.profiles%rowtype;
+  v_entry public.contest_entries%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  if v_mode_type = 'contest' then
+    if _contest_id is null then
+      raise exception 'Contest id is required for contest mode.';
+    end if;
+
+    v_entry := public.save_contest_entry_snapshot(
+      _contest_id,
+      round(coalesce(_current_credits, 0)::numeric, 2),
+      greatest(coalesce(_playthrough_delta, 0), 0),
+      0,
+      null,
+      null,
+      null
+    );
+
+    return query
+    select
+      round(coalesce(v_entry.current_credits, 0)::numeric, 2),
+      greatest(coalesce(v_entry.current_carter_cash, 0), 0)::integer,
+      greatest(coalesce(v_entry.current_carter_cash_progress, 0), 0)::integer,
+      coalesce(v_entry.updated_at, timezone('utc', now()));
+  else
+    v_profile := public.save_player_balance_snapshot(
+      round(coalesce(_current_credits, 0)::numeric, 2),
+      greatest(coalesce(_playthrough_delta, 0), 0),
+      0,
+      null
+    );
+
+    return query
+    select
+      round(coalesce(v_profile.credits, 0)::numeric, 2),
+      greatest(coalesce(v_profile.carter_cash, 0), 0)::integer,
+      greatest(coalesce(v_profile.carter_cash_progress, 0), 0)::integer,
+      coalesce(v_profile.updated_at, timezone('utc', now()));
+  end if;
+end;
+$$;
+
 create or replace function public.start_guess10_hand(
   _wager_amount numeric,
   _selection_category text,
@@ -645,7 +709,12 @@ begin
 
     select *
     into v_balance
-    from public.guess10_get_account_snapshot(v_hand.mode_type, v_hand.contest_id);
+    from public.guess10_apply_playthrough_reward(
+      v_hand.mode_type,
+      v_hand.contest_id,
+      coalesce(v_hand.new_account_value, 0),
+      coalesce(v_hand.total_wager, 0)
+    );
 
     update public.guess10_live_hands
     set new_account_value = v_balance.cash_balance
@@ -842,6 +911,15 @@ begin
   into v_balance
   from public.guess10_apply_balance_delta(v_hand.mode_type, v_hand.contest_id, v_payout);
 
+  select *
+  into v_balance
+  from public.guess10_apply_playthrough_reward(
+    v_hand.mode_type,
+    v_hand.contest_id,
+    coalesce(v_balance.cash_balance, 0),
+    coalesce(v_hand.total_wager, 0)
+  );
+
   update public.guess10_live_hands
   set
     status = 'cashout',
@@ -952,6 +1030,7 @@ grant execute on function public.guess10_draw_random_card() to authenticated;
 grant execute on function public.guess10_card_matches(text, jsonb, text, text, text) to authenticated;
 grant execute on function public.guess10_get_account_snapshot(text, uuid) to authenticated;
 grant execute on function public.guess10_apply_balance_delta(text, uuid, numeric) to authenticated;
+grant execute on function public.guess10_apply_playthrough_reward(text, uuid, numeric, numeric) to authenticated;
 grant execute on function public.start_guess10_hand(numeric, text, jsonb, text, uuid) to authenticated;
 grant execute on function public.draw_guess10_card(uuid, text, jsonb) to authenticated;
 grant execute on function public.cashout_guess10_hand(uuid) to authenticated;
