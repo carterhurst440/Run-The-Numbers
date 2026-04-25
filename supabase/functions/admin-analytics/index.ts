@@ -7,12 +7,6 @@ const corsHeaders = {
 
 const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL") || "carterwarrenhurst@gmail.com";
 
-type RunRow = {
-  score?: number | null;
-  created_at?: string | null;
-  metadata?: Record<string, unknown> | null;
-};
-
 type HandRow = {
   user_id?: string | null;
   created_at?: string | null;
@@ -62,59 +56,6 @@ function getPeriodStart(period: string) {
   return null;
 }
 
-function isNormalModeRun(run: RunRow) {
-  const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
-  const accountMode = String(metadata?.account_mode || "").trim().toLowerCase();
-  const contestId = metadata?.contest_id;
-  const hasExplicitContestMode = accountMode === "contest";
-  const isContestLinked = Boolean(contestId);
-  const isNormalOrLegacyRun = !accountMode || accountMode === "normal";
-  return isNormalOrLegacyRun && !isContestLinked && !hasExplicitContestMode;
-}
-
-function getRunModeKey(run: RunRow) {
-  const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
-  const accountMode = String(metadata?.account_mode || "").trim().toLowerCase();
-  const contestId = String(metadata?.contest_id || "").trim();
-  if (contestId || accountMode === "contest") {
-    return contestId ? `contest:${contestId}` : "contest:unknown";
-  }
-  return "normal";
-}
-
-function getContestIdFromRun(run: RunRow) {
-  const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
-  const contestId = String(metadata?.contest_id || "").trim();
-  return contestId || null;
-}
-
-function getRunResolvedAt(run: RunRow) {
-  const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
-  const resolvedAt = typeof metadata?.resolved_at === "string" ? metadata.resolved_at : null;
-  return resolvedAt || run?.created_at || null;
-}
-
-function compareRunsByResolvedAt(a: RunRow, b: RunRow) {
-  const aResolvedAt = getRunResolvedAt(a);
-  const bResolvedAt = getRunResolvedAt(b);
-  const aTime = aResolvedAt ? new Date(aResolvedAt).getTime() : Number.NaN;
-  const bTime = bResolvedAt ? new Date(bResolvedAt).getTime() : Number.NaN;
-  const aHasTime = Number.isFinite(aTime);
-  const bHasTime = Number.isFinite(bTime);
-  if (aHasTime && bHasTime && aTime !== bTime) {
-    return aTime - bTime;
-  }
-  if (aHasTime !== bHasTime) {
-    return aHasTime ? -1 : 1;
-  }
-  const aCreatedAt = a?.created_at ? new Date(a.created_at).getTime() : Number.NaN;
-  const bCreatedAt = b?.created_at ? new Date(b.created_at).getTime() : Number.NaN;
-  if (Number.isFinite(aCreatedAt) && Number.isFinite(bCreatedAt) && aCreatedAt !== bCreatedAt) {
-    return aCreatedAt - bCreatedAt;
-  }
-  return 0;
-}
-
 function formatBucketLabel(date: Date, bucketMinutes: number) {
   return date.toLocaleTimeString("en-US", {
     timeZone: ANALYTICS_TIME_ZONE,
@@ -129,10 +70,6 @@ function formatDayBucketLabel(date: Date) {
     month: "short",
     day: "numeric"
   });
-}
-
-function getModeLabel(run: RunRow) {
-  return getRunModeKey(run) === "normal" ? "Normal Mode" : "Contest Mode";
 }
 
 function getAnalyticsDayKey(dateInput: string | Date | null | undefined) {
@@ -362,34 +299,6 @@ async function loadDailyProfitLossRows(
   return allRows;
 }
 
-async function loadRunsForUser(supabase: ReturnType<typeof createClient>, userId: string) {
-  const allRuns: RunRow[] = [];
-  const pageSize = 1000;
-  let page = 0;
-  let hasMore = true;
-
-  while (hasMore) {
-    const { data, error } = await supabase
-      .from("game_runs")
-      .select("score, created_at, metadata")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true })
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-
-    if (error) throw error;
-
-    if (Array.isArray(data) && data.length) {
-      allRuns.push(...data);
-      hasMore = data.length === pageSize;
-      page += 1;
-    } else {
-      hasMore = false;
-    }
-  }
-
-  return allRuns;
-}
-
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -537,35 +446,8 @@ Deno.serve(async (request) => {
       throw new Error("userId is required.");
     }
 
-    const allRuns = await loadRunsForUser(supabase, userId);
-    const startDate = getPeriodStart(period);
-    const runsInPeriod = startDate
-      ? allRuns.filter((run) => {
-          const createdAt = run?.created_at ? new Date(run.created_at) : null;
-          return createdAt && !Number.isNaN(createdAt.getTime()) && createdAt >= startDate;
-        })
-      : allRuns;
-
     if (action === "player_bankroll_history") {
-      const points = runsInPeriod
-        .filter((run) => isNormalModeRun(run))
-        .sort(compareRunsByResolvedAt)
-        .map((run, index) => {
-          const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
-          const endingBankroll = Number(metadata?.ending_bankroll);
-          if (!Number.isFinite(endingBankroll)) {
-            return null;
-          }
-
-          return {
-            value: Number(endingBankroll.toFixed(2)),
-            created_at: getRunResolvedAt(run),
-            fallbackIndex: index
-          };
-        })
-        .filter(Boolean);
-
-      return new Response(JSON.stringify({ points }), {
+      return new Response(JSON.stringify({ points: [] }), {
         status: 200,
         headers: {
           ...corsHeaders,

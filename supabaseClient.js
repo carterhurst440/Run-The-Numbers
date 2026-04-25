@@ -121,7 +121,6 @@ const mockDatabase = {
   profiles: [mockProfile],
   runs: [],
   prizes: [],
-  game_runs: [],
   bet_plays: [],
   shape_trader_draws: [],
   shape_trader_market_current: [

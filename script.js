@@ -8895,6 +8895,11 @@ async function setRoute(route, { replaceHash = false } = {}) {
     renderRedBlackSummary();
     updateRedBlackActionState();
     updateRedBlackPaytableHighlight();
+    try {
+      await resumeActiveGuess10Hand({ force: true });
+    } catch (error) {
+      console.warn("[RTN] Unable to resume active Guess 10 hand", error);
+    }
   }
 
   currentRoute = resolvedRoute;
@@ -10887,30 +10892,6 @@ async function loadDashboard(force = false) {
         dashboardProfileRetryTimer = null;
         loadDashboard(true);
       }, 1000);
-    }
-  }
-  const { data: runs, error: runsError } = await supabase
-    .from("game_runs")
-    .select("*")
-    .eq("user_id", currentUser.id)
-    .order("created_at", { ascending: false })
-    .limit(10);
-  if (runsError) {
-    console.error(runsError);
-    showToast("Unable to load game runs", "error");
-  } else if (dashboardRunsEl) {
-    dashboardRunsEl.innerHTML = "";
-    if (runs.length === 0) {
-      const empty = document.createElement("li");
-      empty.textContent = "No game runs recorded yet.";
-      dashboardRunsEl.appendChild(empty);
-    } else {
-      runs.forEach((run) => {
-        const item = document.createElement("li");
-        const date = run.created_at ? new Date(run.created_at).toLocaleString() : "";
-        item.innerHTML = `<span class="run-score">Score: ${run.score}</span><span class="run-date">${date}</span>`;
-        dashboardRunsEl.appendChild(item);
-      });
     }
   }
 }
@@ -13370,33 +13351,6 @@ function buildContestHistory(baseHistory = [], creditsValue, label = "Checkpoint
   return history;
 }
 
-function getRunResolvedAt(run) {
-  const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
-  const resolvedAt = typeof metadata?.resolved_at === "string" ? metadata.resolved_at : null;
-  return resolvedAt || run?.created_at || null;
-}
-
-function compareRunsByResolvedAt(a, b) {
-  const aResolvedAt = getRunResolvedAt(a);
-  const bResolvedAt = getRunResolvedAt(b);
-  const aTime = aResolvedAt ? new Date(aResolvedAt).getTime() : Number.NaN;
-  const bTime = bResolvedAt ? new Date(bResolvedAt).getTime() : Number.NaN;
-  const aHasTime = Number.isFinite(aTime);
-  const bHasTime = Number.isFinite(bTime);
-  if (aHasTime && bHasTime && aTime !== bTime) {
-    return aTime - bTime;
-  }
-  if (aHasTime !== bHasTime) {
-    return aHasTime ? -1 : 1;
-  }
-  const aCreatedAt = a?.created_at ? new Date(a.created_at).getTime() : Number.NaN;
-  const bCreatedAt = b?.created_at ? new Date(b.created_at).getTime() : Number.NaN;
-  if (Number.isFinite(aCreatedAt) && Number.isFinite(bCreatedAt) && aCreatedAt !== bCreatedAt) {
-    return aCreatedAt - bCreatedAt;
-  }
-  return 0;
-}
-
 async function fetchContestJourneyEventStream(contestId, userId) {
   if (!contestId || !userId || !supabase) {
     return [];
@@ -13553,42 +13507,6 @@ async function loadContestJourneyPoints(contest, entry) {
       const sharedHistoryPoints = getContestHistoryHandPoints(entry.contest_history);
       if (sharedHistoryPoints.length) {
         points.push(...sharedHistoryPoints);
-      } else if (entry.user_id === currentUser?.id) {
-        const allRuns = [];
-        const pageSize = 1000;
-        let page = 0;
-        let hasMore = true;
-
-        while (hasMore) {
-          const { data, error } = await supabase
-            .from("game_runs")
-            .select("created_at, metadata")
-            .eq("user_id", entry.user_id)
-            .contains("metadata", { contest_id: contest.id })
-            .order("created_at", { ascending: true })
-            .range(page * pageSize, (page + 1) * pageSize - 1);
-
-          if (error) throw error;
-
-          if (Array.isArray(data) && data.length) {
-            allRuns.push(...data);
-            hasMore = data.length === pageSize;
-            page += 1;
-          } else {
-            hasMore = false;
-          }
-        }
-
-        allRuns.sort(compareRunsByResolvedAt).forEach((run, index) => {
-          const metadata = run?.metadata && typeof run.metadata === "object" ? run.metadata : {};
-          const endingBankroll = normalizeJourneyValue(metadata?.ending_bankroll);
-          if (!Number.isFinite(endingBankroll)) return;
-          points.push({
-            label: `Hand ${index + 1}`,
-            value: endingBankroll,
-            created_at: getRunResolvedAt(run)
-          });
-        });
       }
     }
   } catch (error) {
@@ -16283,10 +16201,6 @@ function applySignedOutState(reason = "unknown", { focusInput = true } = {}) {
   updateRebetButtonState();
   updatePauseButton();
 
-  if (dashboardRunsEl) {
-    dashboardRunsEl.innerHTML = "";
-  }
-
   if (appShell) {
     appShell.setAttribute("data-hidden", "true");
   }
@@ -16324,61 +16238,223 @@ async function handleSignOut() {
   }
 }
 
-export async function logGameRun(score, metadata = {}) {
-  const endingBankrollSnapshot = bankroll;
-  const endingCarterCashSnapshot = carterCash;
-  const accountModeSnapshot = getAccountModeValue();
-  const contestIdSnapshot = isContestAccountMode() ? currentAccountMode.contestId : null;
-  const resolvedAtSnapshot = new Date().toISOString();
-  const { data: userResponse, error: logRunUserError } = await supabase.auth.getUser();
-  if (logRunUserError) {
-    console.error("[RTN] logGameRun getUser error", logRunUserError);
-  }
-  const sessionUser = userResponse?.user ?? null;
-  if (!sessionUser) {
-    throw new Error("User not logged in");
-  }
-  const enrichedMetadata = {
-    ...metadata,
-    game_id: resolveGameKey(metadata?.game_id || metadata?.gameKey || metadata?.game_key),
-    recorded_score: roundCurrencyValue(score),
-    ending_bankroll: endingBankrollSnapshot,
-    ending_carter_cash: endingCarterCashSnapshot,
-    resolved_at: resolvedAtSnapshot,
-    account_mode: accountModeSnapshot,
-    contest_id: contestIdSnapshot
-  };
-  let runScore = Number.isFinite(Number(score)) ? roundCurrencyValue(score) : 0;
-  let { error: insertError } = await supabase.from("game_runs").insert({
-    user_id: sessionUser.id,
-    score: runScore,
-    metadata: enrichedMetadata
-  });
-
-  if (insertError) {
-    const fallbackScore = Math.round(runScore);
-    ({ error: insertError } = await supabase.from("game_runs").insert({
-      user_id: sessionUser.id,
-      score: fallbackScore,
-      metadata: enrichedMetadata
-    }));
-  }
-
-  if (insertError) {
-    throw insertError;
-  }
-
-  if (sessionUser.id === currentUser?.id) {
-    invalidateAccountChartHistory();
-  }
-}
-
 function getHandModeTypeSnapshot(mode = currentAccountMode) {
   return isContestAccountMode(mode) ? "contest" : "normal";
 }
 
 function getHandContestIdSnapshot(mode = currentAccountMode) {
   return isContestAccountMode(mode) ? mode.contestId : null;
+}
+
+const GUESS10_SERVER_RPC_MISSING = "__guess10_server_rpc_missing__";
+
+function normalizeGuess10ServerResult(result) {
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
+    return null;
+  }
+  return result;
+}
+
+function normalizeGuess10SelectionValues(category, values = []) {
+  const safeValues = Array.isArray(values) ? values.map((value) => String(value ?? "").trim()).filter(Boolean) : [];
+  if (category === "color" || category === "suit") {
+    return safeValues.map((value) => value.toLowerCase());
+  }
+  return safeValues.map((value) => value.toUpperCase());
+}
+
+function isGuess10ActiveHandConflict(error) {
+  const message = String(error?.message || error?.details || error?.hint || "").toLowerCase();
+  return message.includes("active guess 10 hand") && message.includes("already");
+}
+
+function getGuess10ServerResultBalance(result) {
+  const nextBalance = normalizeStoredCreditValue(Number(result?.cash_balance ?? bankroll));
+  return Number.isFinite(nextBalance) ? nextBalance : normalizeStoredCreditValue(bankroll);
+}
+
+function applyGuess10ServerAccountSnapshot(result) {
+  const nextBalance = getGuess10ServerResultBalance(result);
+  const nextCarterCash = Math.max(0, Math.round(Number(result?.carter_cash ?? carterCash)));
+  const nextCarterCashProgress = normalizeCarterCashProgressValue(
+    Number(result?.carter_cash_progress ?? carterCashProgress)
+  );
+  const nextUpdatedAt = result?.balance_updated_at || null;
+
+  if (isContestAccountMode()) {
+    const activeEntry = getModeContestEntry();
+    if (activeEntry) {
+      applyAuthoritativeAccountSnapshotForMode(currentAccountMode, {
+        contestEntry: {
+          ...activeEntry,
+          current_credits: nextBalance,
+          current_carter_cash: nextCarterCash,
+          current_carter_cash_progress: nextCarterCashProgress,
+          updated_at: nextUpdatedAt || activeEntry.updated_at || null,
+          display_name: getContestDisplayName(currentProfile, currentUser?.id),
+          participant_email: currentUser?.email || ""
+        }
+      });
+    } else {
+      bankroll = nextBalance;
+      handleBankrollChanged();
+      carterCash = nextCarterCash;
+      carterCashProgress = nextCarterCashProgress;
+      handleCarterCashChanged();
+    }
+  } else if (currentProfile) {
+    applyAuthoritativeAccountSnapshotForMode(currentAccountMode, {
+      normalProfile: {
+        ...currentProfile,
+        credits: nextBalance,
+        carter_cash: nextCarterCash,
+        carter_cash_progress: nextCarterCashProgress,
+        updated_at: nextUpdatedAt || currentProfile.updated_at || null
+      }
+    });
+  } else {
+    bankroll = nextBalance;
+    handleBankrollChanged();
+    carterCash = nextCarterCash;
+    carterCashProgress = nextCarterCashProgress;
+    handleCarterCashChanged();
+  }
+
+  return nextBalance;
+}
+
+async function invokeGuess10ServerRpc(functionName, args = {}) {
+  if (!supabase || isGuestRuntimeUser()) {
+    return GUESS10_SERVER_RPC_MISSING;
+  }
+
+  const { data, error } = await supabase.rpc(functionName, args);
+  if (error) {
+    if (isMissingRpcError(error)) {
+      return GUESS10_SERVER_RPC_MISSING;
+    }
+    throw error;
+  }
+
+  if (Array.isArray(data)) {
+    return normalizeGuess10ServerResult(data[0] || null);
+  }
+  return normalizeGuess10ServerResult(data);
+}
+
+async function fetchActiveGuess10HandForCurrentUser() {
+  if (!supabase || !currentUser?.id || isGuestRuntimeUser()) {
+    return null;
+  }
+
+  const { data: handRow, error: handError } = await supabase
+    .from("guess10_live_hands")
+    .select("id, user_id, status, result, mode_type, contest_id, selection_category, selection_values, selection_label, current_pot, current_rung, draw_count, started_at, last_draw_at, ended_at, total_cards, total_wager, total_paid, net, commission_kept, new_account_value, drawn_cards")
+    .eq("user_id", currentUser.id)
+    .eq("status", "active")
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (handError) {
+    if (isMissingRelationError(handError, "guess10_live_hands")) {
+      return GUESS10_SERVER_RPC_MISSING;
+    }
+    throw handError;
+  }
+
+  return handRow || null;
+}
+
+async function resumeActiveGuess10Hand({ force = false } = {}) {
+  if (!supabase || !currentUser?.id || isGuestRuntimeUser()) {
+    return null;
+  }
+  if (redBlackSettlementPending) {
+    return null;
+  }
+  if (!force && redBlackHandActive && redBlackServerHandId) {
+    return null;
+  }
+
+  const handRow = await fetchActiveGuess10HandForCurrentUser();
+  if (handRow === GUESS10_SERVER_RPC_MISSING) {
+    return GUESS10_SERVER_RPC_MISSING;
+  }
+  if (!handRow) {
+    return null;
+  }
+
+  const { data: drawRows, error: drawError } = await supabase
+    .from("guess10_draw_plays")
+    .select("draw_index, placed_at, wager_amount, prediction_category, prediction_values, selection_label, multiplier, drawn_card_label, drawn_card_suit, drawn_card_suit_name, drawn_card_color, was_correct, starting_pot, ending_pot")
+    .eq("hand_id", handRow.id)
+    .order("draw_index", { ascending: true });
+
+  if (drawError) {
+    if (isMissingRelationError(drawError, "guess10_draw_plays")) {
+      return GUESS10_SERVER_RPC_MISSING;
+    }
+    throw drawError;
+  }
+
+  redBlackServerHandId = handRow.id;
+  redBlackHandActive = true;
+  redBlackAwaitingDecision = false;
+  redBlackSettlementPending = false;
+  redBlackBet = roundCurrencyValue(Number(handRow.total_wager || 0));
+  redBlackLastBet = redBlackBet;
+  redBlackCurrentPot = roundCurrencyValue(Number(handRow.current_pot || redBlackBet));
+  redBlackRung = Math.max(0, Math.round(Number(handRow.current_rung || 0)));
+  redBlackCategory = String(handRow.selection_category || "color").trim().toLowerCase() || "color";
+  redBlackSelectedValues = normalizeGuess10SelectionValues(redBlackCategory, handRow.selection_values);
+  clearRedBlackDraws();
+  clearRedBlackHistory();
+
+  (Array.isArray(drawRows) ? drawRows : [])
+    .sort((a, b) => Number(a?.draw_index || 0) - Number(b?.draw_index || 0))
+    .forEach((row) => {
+      const card = sanitizeGuess10AssistantCard({
+        label: row?.drawn_card_label,
+        suit: row?.drawn_card_suit,
+        suitName: row?.drawn_card_suit_name,
+        color: row?.drawn_card_color
+      });
+      appendRedBlackCard(card);
+      appendRedBlackHistoryEntry({
+        card,
+        matched: Boolean(row?.was_correct),
+        multiplier: roundCurrencyValue(Number(row?.multiplier || 0)),
+        selectionLabel: String(row?.selection_label || handRow.selection_label || ""),
+        category: String(row?.prediction_category || handRow.selection_category || redBlackCategory).toLowerCase(),
+        selectedValues: normalizeGuess10SelectionValues(
+          String(row?.prediction_category || handRow.selection_category || redBlackCategory).toLowerCase(),
+          row?.prediction_values
+        ),
+        wagerAmount: roundCurrencyValue(Number(row?.wager_amount || handRow.total_wager || 0)),
+        startingPot: roundCurrencyValue(Number(row?.starting_pot || 0)),
+        potAfter: roundCurrencyValue(Number(row?.ending_pot || 0))
+      });
+    });
+
+  renderRedBlackValueSelector();
+  renderRedBlackSummary();
+  updateRedBlackPaytableHighlight();
+  updateRedBlackActionState();
+
+  const commissionRate = getGuess10CommissionRate();
+  const selectionLabel = String(handRow.selection_label || getGuess10SelectionLabel());
+  if (redBlackRung > 0) {
+    setRedBlackStatus(
+      `Resumed active hand. ${selectionLabel} is live, pot is ${formatCurrency(redBlackCurrentPot)}, and commission is ${formatPercent(commissionRate)} of winnings.`
+    );
+  } else {
+    setRedBlackStatus(
+      `Resumed active hand. ${selectionLabel} is locked in for ${formatCurrency(redBlackBet)}. Draw when you're ready.`
+    );
+  }
+
+  return handRow;
 }
 
 function sanitizeGuess10AssistantCard(card = null) {
@@ -17172,7 +17248,6 @@ const dashboardCreditsEl = document.getElementById("dashboard-credits");
 const dashboardCarterEl = document.getElementById("dashboard-carter-cash");
 const carterCashInfoButton = document.getElementById("carter-cash-info-button");
 const carterCashTooltip = document.getElementById("carter-cash-tooltip");
-const dashboardRunsEl = document.getElementById("dashboard-runs");
 const homeRankPanelEl = document.getElementById("home-rank-panel");
 const homeRankTitleEl = document.getElementById("home-rank-title");
 const homeRankHandsProgressTextEl = document.getElementById("home-rank-hands-progress-text");
@@ -17795,10 +17870,13 @@ let redBlackAwaitingDecision = false;
 let redBlackSettlementPending = false;
 let redBlackDeck = [];
 let redBlackCurrentPot = 0;
+let redBlackServerHandId = null;
+let guess10ServerStartPending = false;
 let redBlackCategory = "color";
 let redBlackSelectedValues = ["red"];
 let redBlackLastBet = 0;
 let redBlackHandHistoryEntries = [];
+let redBlackRenderedBetStackAmount = null;
 let stats = {
   hands: 0,
   wagered: 0,
@@ -18675,15 +18753,30 @@ function shuffle(deck) {
 }
 
 function getDisplayedHeaderBankrollValue() {
+  const stagedGuess10Reserve = getGuess10StagedReserve();
+  const snapshotCredits = Number(getCurrentAccountSnapshot(currentAccountMode)?.credits);
+  if (stagedGuess10Reserve > 0 && Number.isFinite(snapshotCredits)) {
+    return normalizeStoredCreditValue(snapshotCredits - stagedGuess10Reserve);
+  }
   if (shouldDisplayLocalBankroll()) {
-    return normalizeStoredCreditValue(bankroll);
+    return normalizeStoredCreditValue(bankroll - stagedGuess10Reserve);
   }
-  const accountSnapshot = getCurrentAccountSnapshot(currentAccountMode);
-  const snapshotCredits = Number(accountSnapshot?.credits);
   if (Number.isFinite(snapshotCredits)) {
-    return normalizeStoredCreditValue(snapshotCredits);
+    return normalizeStoredCreditValue(snapshotCredits - stagedGuess10Reserve);
   }
-  return bankroll;
+  return normalizeStoredCreditValue(bankroll - stagedGuess10Reserve);
+}
+
+function getGuess10StagedReserve() {
+  return redBlackBet > 0 && !redBlackHandActive && !redBlackSettlementPending && !guess10ServerStartPending
+    ? roundCurrencyValue(redBlackBet)
+    : 0;
+}
+
+function getGuess10AvailableToStage() {
+  const snapshotCredits = Number(getCurrentAccountSnapshot(currentAccountMode)?.credits);
+  const baseCredits = Number.isFinite(snapshotCredits) ? snapshotCredits : bankroll;
+  return Math.max(0, normalizeStoredCreditValue(baseCredits - getGuess10StagedReserve()));
 }
 
 function shouldDisplayLocalBankroll() {
@@ -19004,7 +19097,7 @@ async function persistBankroll({
 
 function handleBankrollChanged() {
   updateBankroll();
-  updateDashboardCreditsDisplay(bankroll);
+  updateDashboardCreditsDisplay(getDisplayedHeaderBankrollValue());
   updatePlayAssistantContext();
   syncCurrentModeShadowState();
 }
@@ -19382,14 +19475,15 @@ function updateRedBlackMultiplierChip() {
 
 function handleGuess10BetSpotPress() {
   if (redBlackHandActive || redBlackSettlementPending) return;
-  if (redBlackSelectedChip > bankroll) {
+  const availableToStage = getGuess10AvailableToStage();
+  const nextBetAmount = roundCurrencyValue(redBlackBet + redBlackSelectedChip);
+  if (redBlackSelectedChip > availableToStage) {
     setRedBlackStatus(`Not enough bankroll for a ${formatCurrency(redBlackSelectedChip)} unit chip.`);
     showToast("Not enough funds", "error");
     return;
   }
-  bankroll = roundCurrencyValue(bankroll - redBlackSelectedChip);
+  redBlackBet = nextBetAmount;
   handleBankrollChanged();
-  redBlackBet += redBlackSelectedChip;
   renderRedBlackSummary();
   updateRedBlackActionState();
   setRedBlackStatus(`Added ${formatCurrency(redBlackSelectedChip)} to the wager. Current bet: ${formatCurrency(redBlackBet)}.`);
@@ -19416,10 +19510,12 @@ function ensureRedBlackDrawPlaceholder() {
   }
 }
 
-function clearRedBlackDraws() {
+function clearRedBlackDraws({ showPlaceholder = true } = {}) {
   if (!redBlackDrawsEl) return;
   redBlackDrawsEl.innerHTML = "";
-  ensureRedBlackDrawPlaceholder();
+  if (showPlaceholder) {
+    ensureRedBlackDrawPlaceholder();
+  }
 }
 
 function clearRedBlackHistory() {
@@ -19643,7 +19739,13 @@ function renderRedBlackChipStack(stackEl, amount) {
 }
 
 function renderRedBlackBetStack() {
-  renderRedBlackChipStack(redBlackChipStackEl, redBlackBet);
+  const normalizedAmount = roundCurrencyValue(Number(redBlackBet || 0));
+  const stackIsEmpty = !redBlackChipStackEl || redBlackChipStackEl.children.length === 0;
+  if (!stackIsEmpty && redBlackRenderedBetStackAmount === normalizedAmount) {
+    return;
+  }
+  renderRedBlackChipStack(redBlackChipStackEl, normalizedAmount);
+  redBlackRenderedBetStackAmount = normalizedAmount;
 }
 
 function resetGuess10Hand({ keepBet = true } = {}) {
@@ -19653,12 +19755,14 @@ function resetGuess10Hand({ keepBet = true } = {}) {
   redBlackSettlementPending = false;
   redBlackDeck = [];
   redBlackCurrentPot = 0;
+  redBlackServerHandId = null;
   redBlackCategory = "color";
   redBlackSelectedValues = ["red"];
   if (!keepBet) {
     redBlackBet = 0;
     redBlackLastBet = 0;
   }
+  redBlackRenderedBetStackAmount = null;
   clearRedBlackDraws();
   clearRedBlackHistory();
   renderRedBlackValueSelector();
@@ -19673,9 +19777,11 @@ function finishGuess10Hand(message, { clearBet = false } = {}) {
   redBlackAwaitingDecision = false;
   redBlackDeck = [];
   redBlackCurrentPot = 0;
+  redBlackServerHandId = null;
   if (clearBet) {
     redBlackBet = 0;
   }
+  redBlackRenderedBetStackAmount = null;
   setRedBlackStatus(message);
   renderRedBlackSummary();
   updateRedBlackPaytableHighlight();
@@ -19708,10 +19814,14 @@ async function finalizeGuess10Hand({
   net,
   commissionKept = 0,
   stopperCard = null,
-  result
+  result,
+  endingBankroll = null,
+  skipHandLog = false
 }) {
   try {
-    const resolvedEndingBankroll = getResolvedContestHandEndingBankroll(net);
+    const resolvedEndingBankroll = Number.isFinite(Number(endingBankroll))
+      ? normalizeStoredCreditValue(endingBankroll)
+      : getResolvedContestHandEndingBankroll(net);
     stats.hands += 1;
     stats.wagered += completedBet;
     stats.paid += totalReturn;
@@ -19728,26 +19838,21 @@ async function finalizeGuess10Hand({
     });
     await incrementProfileHandProgress(1);
     await ensureProfileSynced({ force: true });
-    await logStandaloneGameHand({
-      gameKey: GAME_KEYS.GUESS_10,
-      stopperCard,
-      totalCards: completedCards,
-      totalWager: completedBet,
-      totalPaid: totalReturn,
-      net,
-      commissionKept,
-      handHistory
-    });
-    await logGameRun(net, {
-      gameKey: GAME_KEYS.GUESS_10,
-      totalCards: completedCards,
-      totalWager: completedBet,
-      totalPaid: totalReturn,
-      result
-    });
+    if (!skipHandLog) {
+      await logStandaloneGameHand({
+        gameKey: GAME_KEYS.GUESS_10,
+        stopperCard,
+        totalCards: completedCards,
+        totalWager: completedBet,
+        totalPaid: totalReturn,
+        net,
+        commissionKept,
+        handHistory
+      });
+    }
   } catch (error) {
     console.error(error);
-    showToast("Could not record game run", "error");
+    showToast("Could not record Guess 10 hand", "error");
   } finally {
     redBlackSettlementPending = false;
     renderRedBlackValueSelector();
@@ -19755,7 +19860,7 @@ async function finalizeGuess10Hand({
   }
 }
 
-async function dealGuess10Card() {
+async function dealGuess10CardLegacy() {
   if (redBlackBet <= 0 || !isRedBlackSelectionValid()) {
     return;
   }
@@ -19776,7 +19881,7 @@ async function dealGuess10Card() {
     redBlackRung = 0;
     redBlackCurrentPot = redBlackBet;
     redBlackHandActive = true;
-    clearRedBlackDraws();
+    clearRedBlackDraws({ showPlaceholder: false });
     clearRedBlackHistory();
   }
 
@@ -19865,12 +19970,11 @@ function rebetGuess10Hand() {
   if (redBlackHandActive || redBlackSettlementPending || redBlackLastBet <= 0) {
     return;
   }
-  if (redBlackLastBet > bankroll) {
+  const availableToStage = getGuess10AvailableToStage();
+  if (redBlackLastBet > availableToStage) {
     setRedBlackStatus(`Not enough bankroll to rebet ${formatCurrency(redBlackLastBet)}.`);
     return;
   }
-  bankroll = roundCurrencyValue(bankroll - redBlackLastBet);
-  handleBankrollChanged();
   redBlackBet = redBlackLastBet;
   redBlackCurrentPot = 0;
   handleBankrollChanged();
@@ -19879,7 +19983,7 @@ function rebetGuess10Hand() {
   setRedBlackStatus(`Rebet loaded for ${formatCurrency(redBlackBet)}. Choose your prediction and draw.`);
 }
 
-async function withdrawGuess10Hand() {
+async function withdrawGuess10HandLegacy() {
   if (redBlackSettlementPending || !redBlackHandActive || redBlackRung <= 0 || redBlackCurrentPot <= 0) {
     return;
   }
@@ -19931,6 +20035,278 @@ async function withdrawGuess10Hand() {
     stopperCard: null,
     result: "cashout"
   });
+}
+
+async function startGuess10HandServer() {
+  guess10ServerStartPending = true;
+  try {
+    const result = await invokeGuess10ServerRpc("start_guess10_hand", {
+      _wager_amount: roundCurrencyValue(redBlackBet),
+      _selection_category: redBlackCategory,
+      _selection_values: [...redBlackSelectedValues],
+      _mode_type: getHandModeTypeSnapshot(),
+      _contest_id: getHandContestIdSnapshot()
+    });
+
+    if (result === GUESS10_SERVER_RPC_MISSING) {
+      return GUESS10_SERVER_RPC_MISSING;
+    }
+    if (!result?.hand_id) {
+      throw new Error("Guess 10 start hand did not return a hand id.");
+    }
+
+    applyGuess10ServerAccountSnapshot(result);
+    redBlackServerHandId = result.hand_id;
+    redBlackLastBet = roundCurrencyValue(Number(result.total_wager || result.wager_amount || redBlackBet));
+    redBlackRung = Math.max(0, Math.round(Number(result.current_rung || 0)));
+    redBlackCurrentPot = roundCurrencyValue(Number(result.current_pot || redBlackBet));
+    redBlackHandActive = true;
+    clearRedBlackDraws({ showPlaceholder: false });
+    clearRedBlackHistory();
+    renderRedBlackSummary();
+    updateRedBlackPaytableHighlight();
+    updateRedBlackActionState();
+    return result;
+  } finally {
+    guess10ServerStartPending = false;
+  }
+}
+
+async function drawGuess10CardServer() {
+  if (!redBlackServerHandId) {
+    throw new Error("Guess 10 hand is missing a server hand id.");
+  }
+
+  const result = await invokeGuess10ServerRpc("draw_guess10_card", {
+    _hand_id: redBlackServerHandId,
+    _selection_category: redBlackCategory,
+    _selection_values: [...redBlackSelectedValues]
+  });
+
+  if (result === GUESS10_SERVER_RPC_MISSING) {
+    return GUESS10_SERVER_RPC_MISSING;
+  }
+  if (!result?.card) {
+    throw new Error("Guess 10 draw did not return a card.");
+  }
+
+  return result;
+}
+
+async function cashoutGuess10HandServer() {
+  if (!redBlackServerHandId) {
+    throw new Error("Guess 10 hand is missing a server hand id.");
+  }
+
+  const result = await invokeGuess10ServerRpc("cashout_guess10_hand", {
+    _hand_id: redBlackServerHandId
+  });
+
+  if (result === GUESS10_SERVER_RPC_MISSING) {
+    return GUESS10_SERVER_RPC_MISSING;
+  }
+  return result;
+}
+
+async function dealGuess10Card() {
+  if (redBlackBet <= 0 || !isRedBlackSelectionValid()) {
+    return;
+  }
+  if (!redBlackHandActive) {
+    const canStart = await guardAgainstShapeTraderExposureBeforeGameStart(GAME_KEYS.GUESS_10);
+    if (!canStart) {
+      return;
+    }
+  }
+  if (!canUseCurrentFundsForGame(GAME_KEYS.GUESS_10)) {
+    const contest = getModeContest(currentAccountMode);
+    setRedBlackStatus(`This contest bankroll can only be used for ${getContestGamesLabel(contest)}.`);
+    showToast(`This contest bankroll can only be used for ${getContestGamesLabel(contest)}.`, "error");
+    return;
+  }
+
+  try {
+    if (!redBlackHandActive) {
+      try {
+        const startResult = await startGuess10HandServer();
+        if (startResult === GUESS10_SERVER_RPC_MISSING) {
+          return dealGuess10CardLegacy();
+        }
+      } catch (startError) {
+        if (isGuess10ActiveHandConflict(startError)) {
+          const resumedHand = await resumeActiveGuess10Hand({ force: true });
+          if (resumedHand === GUESS10_SERVER_RPC_MISSING) {
+            return dealGuess10CardLegacy();
+          }
+          if (!redBlackServerHandId) {
+            throw startError;
+          }
+        } else {
+          throw startError;
+        }
+      }
+    }
+
+    const drawResult = await drawGuess10CardServer();
+    if (drawResult === GUESS10_SERVER_RPC_MISSING) {
+      throw new Error("Guess 10 draw RPC is unavailable after hand start.");
+    }
+
+    const nextCard = sanitizeGuess10AssistantCard(drawResult.card);
+    const cardEl = appendRedBlackCard(nextCard);
+    const selectionLabel = String(drawResult.selection_label || getGuess10SelectionLabel());
+    const selectionCategory = String(drawResult.selection_category || redBlackCategory || "color").toLowerCase();
+    const selectionValues = Array.isArray(drawResult.selection_values)
+      ? drawResult.selection_values.map((value) => String(value ?? ""))
+      : [...redBlackSelectedValues];
+    const startingPot = roundCurrencyValue(Number(drawResult.starting_pot || redBlackCurrentPot));
+    const nextPot = roundCurrencyValue(Number(drawResult.ending_pot || 0));
+    const multiplier = roundCurrencyValue(Number(drawResult.multiplier || getRedBlackMultiplier()));
+    const matched = Boolean(drawResult.matched);
+
+    appendRedBlackHistoryEntry({
+      card: nextCard,
+      matched,
+      multiplier,
+      selectionLabel,
+      category: selectionCategory,
+      selectedValues: selectionValues,
+      wagerAmount: redBlackBet,
+      startingPot,
+      potAfter: nextPot
+    });
+
+    if (!matched) {
+      const completedBet = redBlackBet;
+      const handId = redBlackServerHandId;
+      const completedCards = Math.max(1, Math.round(Number(drawResult.draw_count || redBlackHistoryEl?.children.length || 1)));
+      const handHistory = redBlackHandHistoryEntries.map((entry) => ({
+        ...entry,
+        card: entry.card ? { ...entry.card } : null
+      }));
+      const drawnCards = handHistory.map((entry) => entry.card).filter(Boolean);
+      redBlackSettlementPending = true;
+      finishGuess10Hand(
+        `${nextCard.label}${nextCard.suit} missed ${selectionLabel}. Hand over. Place a new wager to start again.`,
+        { clearBet: true }
+      );
+      addHistoryEntry({
+        id: handId,
+        gameKey: GAME_KEYS.GUESS_10,
+        gameLabel: getGameLabel(GAME_KEYS.GUESS_10),
+        drawnCards,
+        handHistory,
+        totalWager: completedBet,
+        totalReturn: 0,
+        net: roundCurrencyValue(Number(drawResult.net || -completedBet)),
+        commissionKept: 0
+      });
+      await finalizeGuess10Hand({
+        completedBet,
+        completedCards,
+        drawnCards,
+        handHistory,
+        totalReturn: 0,
+        net: roundCurrencyValue(Number(drawResult.net || -completedBet)),
+        commissionKept: 0,
+        stopperCard: nextCard,
+        result: "loss",
+        endingBankroll: getGuess10ServerResultBalance(drawResult),
+        skipHandLog: true
+      });
+      return;
+    }
+
+    redBlackCurrentPot = roundCurrencyValue(Number(drawResult.current_pot || nextPot));
+    redBlackRung = Math.max(0, Math.round(Number(drawResult.current_rung || redBlackRung + 1)));
+    redBlackHandActive = true;
+    if (cardEl) {
+      cardEl.classList.add("card-match");
+    }
+    renderRedBlackSummary();
+    updateRedBlackPaytableHighlight();
+    const commissionRate = getGuess10CommissionRate();
+    setRedBlackStatus(
+      `${nextCard.label}${nextCard.suit} matched ${selectionLabel}. Pot is now ${formatCurrency(
+        redBlackCurrentPot
+      )}. Adjust your selection, draw again, or cash out. Current commission: ${formatPercent(commissionRate)} of winnings.`
+    );
+    updateRedBlackActionState();
+  } catch (error) {
+    console.error("[RTN] Guess 10 server draw failed", error);
+    showToast(error?.message || "Unable to draw a Guess 10 card", "error");
+  }
+}
+
+async function withdrawGuess10Hand() {
+  if (redBlackSettlementPending || !redBlackHandActive || redBlackRung <= 0 || redBlackCurrentPot <= 0) {
+    return;
+  }
+
+  if (!redBlackServerHandId) {
+    return withdrawGuess10HandLegacy();
+  }
+
+  try {
+    const cashoutResult = await cashoutGuess10HandServer();
+    if (cashoutResult === GUESS10_SERVER_RPC_MISSING) {
+      return withdrawGuess10HandLegacy();
+    }
+
+    const completedBet = redBlackBet;
+    const handId = redBlackServerHandId;
+    const completedCards = Math.max(1, Math.round(Number(cashoutResult.draw_count || redBlackHistoryEl?.children.length || redBlackRung)));
+    const commissionRate = Number(cashoutResult.commission_rate || getGuess10CommissionRate());
+    const commission = roundCurrencyValue(Number(cashoutResult.commission_kept || 0));
+    const payout = roundCurrencyValue(Number(cashoutResult.payout || cashoutResult.total_paid || 0));
+    const handHistory = redBlackHandHistoryEntries.map((entry) => ({
+      ...entry,
+      card: entry.card ? { ...entry.card } : null
+    }));
+    const finalDraw = handHistory[handHistory.length - 1];
+    if (finalDraw) {
+      finalDraw.handResult = "cashout";
+      finalDraw.cashoutPayout = payout;
+      finalDraw.commissionKept = commission;
+      finalDraw.netHandProfit = roundCurrencyValue(payout - completedBet);
+    }
+    const drawnCards = handHistory.map((entry) => entry.card).filter(Boolean);
+
+    redBlackSettlementPending = true;
+    finishGuess10Hand(
+      `You cashed out for ${formatCurrency(payout)} after a ${Math.max(1, redBlackRung)}-card streak. Commission: ${formatPercent(
+        commissionRate
+      )} on winnings (${formatCurrency(commission)}).`,
+      { clearBet: true }
+    );
+    addHistoryEntry({
+      id: handId,
+      gameKey: GAME_KEYS.GUESS_10,
+      gameLabel: getGameLabel(GAME_KEYS.GUESS_10),
+      drawnCards,
+      handHistory,
+      totalWager: completedBet,
+      totalReturn: payout,
+      net: roundCurrencyValue(Number(cashoutResult.net || (payout - completedBet))),
+      commissionKept: commission
+    });
+    await finalizeGuess10Hand({
+      completedBet,
+      completedCards,
+      drawnCards,
+      handHistory,
+      totalReturn: payout,
+      net: roundCurrencyValue(Number(cashoutResult.net || (payout - completedBet))),
+      commissionKept: commission,
+      stopperCard: null,
+      result: "cashout",
+      endingBankroll: getGuess10ServerResultBalance(cashoutResult),
+      skipHandLog: true
+    });
+  } catch (error) {
+    console.error("[RTN] Guess 10 cashout failed", error);
+    showToast(error?.message || "Unable to cash out Guess 10 hand", "error");
+  }
 }
 
 function getGuess10CommissionRate() {
@@ -21077,41 +21453,6 @@ function ensureBankrollChartLiveRefresh() {
     }
     void loadPersistentBankrollHistory({ force: true });
   }, refreshIntervalMs);
-}
-
-async function loadGameRunsForUser(userId, { startAt = null } = {}) {
-  const allRuns = [];
-  const pageSize = 1000;
-  let page = 0;
-  let hasMore = true;
-
-  while (hasMore) {
-    let query = supabase
-      .from("game_runs")
-      .select("score, created_at, metadata")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true })
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-
-    if (startAt) {
-      query = query.gte("created_at", startAt.toISOString());
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      throw error;
-    }
-
-    if (Array.isArray(data) && data.length) {
-      allRuns.push(...data);
-      hasMore = data.length === pageSize;
-      page += 1;
-    } else {
-      hasMore = false;
-    }
-  }
-
-  return allRuns;
 }
 
 function updatePauseButton() {
@@ -26046,22 +26387,6 @@ async function endHand(stopperCard, context = {}) {
   await logRunTheNumbersHandAndBets(stopperCard, context, betSnapshots, netThisHand, {
     gameKey: GAME_KEYS.RUN_THE_NUMBERS
   });
-  const metadata = {
-    stopper: stopperCard.label,
-    suit: stopperCard.suitName ?? null,
-    totalCards: context.totalCards ?? null,
-    bets: betSnapshots.map((bet) => ({
-      key: bet.key,
-      type: bet.type,
-      units: bet.units,
-      hits: bet.hits,
-      paid: bet.paid
-    }))
-  };
-  logGameRun(netThisHand, metadata).catch((error) => {
-    console.error(error);
-    showToast("Could not record game run", "error");
-  });
   resetBets();
   setBettingEnabled(true);
   updateAutoDealToggleUI();
@@ -29381,23 +29706,7 @@ async function loadPlayerBankrollHistory(userId) {
       }
     }
 
-    try {
-      const data = await invokeAdminAnalytics("player_bankroll_history", {
-        userId,
-        period: playerBankrollPeriod
-      });
-      const points = Array.isArray(data?.points) ? data.points : [];
-      if (points.length) {
-        return {
-          points,
-          mode: "legacy_bankroll"
-        };
-      }
-      return { points: [], mode: "pnl" };
-    } catch (legacyError) {
-      console.warn("[RTN] player_bankroll_history fallback failed", legacyError);
-      return { points: [], mode: "pnl" };
-    }
+    return { points: [], mode: "pnl" };
   }
 }
 
@@ -31096,10 +31405,9 @@ if (redBlackClearBetButton) {
   redBlackClearBetButton.addEventListener("click", (event) => {
     event.stopPropagation();
     if (redBlackHandActive || redBlackSettlementPending || redBlackBet === 0) return;
-    bankroll = roundCurrencyValue(bankroll + redBlackBet);
-    handleBankrollChanged();
     redBlackBet = 0;
     redBlackCurrentPot = 0;
+    handleBankrollChanged();
     renderRedBlackSummary();
     updateRedBlackActionState();
     setRedBlackStatus("Wager cleared. Select a chip and tap the bet spot to build your hand.");
