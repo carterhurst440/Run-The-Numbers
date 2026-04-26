@@ -13,7 +13,7 @@
       rel="stylesheet"
     />
   </head>
-  <body class="theme-blue" data-app-state="loading">
+  <body data-app-state="loading">
     <div id="loading-screen" class="loading-screen" role="status" aria-live="polite">
       <div class="loading-emblem" aria-hidden="true">
         <span class="loading-ring ring-outer"></span>
@@ -1252,15 +1252,15 @@
           </div>
         </section>
 
-        <div id="red-black-chip-bar" class="chip-bar beta-chip-bar" aria-label="RED BLACK chip rack and actions" hidden>
-          <div class="chip-selector-row beta-chip-selector-row">
-            <button type="button" class="chip-rack-edit" id="red-black-chip-rack-edit">Edit</button>
-            <div id="red-black-chip-selector" class="chip-selector" role="radiogroup" aria-label="Choose chip denomination"></div>
+        <div id="red-black-chip-bar" class="chip-bar chip-rack beta-chip-bar" aria-label="RED BLACK chip rack and actions" hidden>
+          <div class="chip-selector-row chip-rack__row beta-chip-selector-row">
+            <button type="button" class="chip-rack-edit chip-rack__edit" id="red-black-chip-rack-edit">Edit</button>
+            <div id="red-black-chip-selector" class="chip-selector chip-rack__selector" role="radiogroup" aria-label="Choose chip denomination"></div>
           </div>
-          <div class="chip-actions beta-chip-actions">
-            <button type="button" id="red-black-rebet" class="primary" disabled>Rebet</button>
-            <button type="button" id="red-black-draw" class="primary" disabled>Draw</button>
-            <button type="button" id="red-black-withdraw" class="primary" disabled>Cash Out</button>
+          <div class="chip-actions chip-rack__actions beta-chip-actions">
+            <button type="button" id="red-black-rebet" class="primary chip-rack__button" disabled>Rebet</button>
+            <button type="button" id="red-black-draw" class="primary chip-rack__button chip-rack__button--primary" disabled>Draw</button>
+            <button type="button" id="red-black-withdraw" class="primary chip-rack__button" disabled>Cash Out</button>
           </div>
         </div>
 
@@ -2157,29 +2157,29 @@
           </form>
         </aside>
 
-        <div class="chip-bar" aria-label="Bet controls">
-          <div class="chip-selector-row">
-            <button type="button" class="chip-rack-edit" id="chip-rack-edit">Edit</button>
+        <div class="chip-bar chip-rack" aria-label="Bet controls">
+          <div class="chip-selector-row chip-rack__row">
+            <button type="button" class="chip-rack-edit chip-rack__edit" id="chip-rack-edit">Edit</button>
             <div
-              class="chip-selector"
+              class="chip-selector chip-rack__selector"
               id="chip-selector"
               role="radiogroup"
               aria-label="Choose chip denomination"
             ></div>
           </div>
-          <div class="chip-actions">
+          <div class="chip-actions chip-rack__actions">
             <button
               type="button"
               id="clear-bets-footer"
-              class="clear-bets primary"
+              class="clear-bets primary chip-rack__button"
               data-action="clear-bets"
             >
               Clear
             </button>
-            <button type="button" id="rebet-button" class="primary" hidden>
+            <button type="button" id="rebet-button" class="primary chip-rack__button" hidden>
               Rebet
             </button>
-            <button id="deal-button" class="deal" disabled>Deal Hand</button>
+            <button id="deal-button" class="deal chip-rack__button chip-rack__button--primary" disabled>Deal Hand</button>
           </div>
         </div>
         </section>
@@ -2815,68 +2815,9 @@
               <section class="route-section admin-list-section design-builder-section">
                 <div class="admin-listing-header">
                   <div>
-                    <h2>Color Theme Builder</h2>
-                    <p class="route-subheading">Build one comforting main app theme, distinct game personalities, and smaller rank-only accent treatments.</p>
-                    <p id="admin-theme-override-status" class="route-subheading design-override-status"></p>
+                    <h2>Design</h2>
+                    <p class="route-subheading">Theme customization has been removed. The app now uses one fixed visual system from the base stylesheet.</p>
                   </div>
-                  <div class="design-header-actions">
-                    <button type="button" class="secondary" id="admin-theme-use-defaults">Use Defaults</button>
-                    <button type="button" class="primary" id="admin-theme-create-button">Create New</button>
-                  </div>
-                </div>
-                <section class="design-theme-library">
-                  <div class="admin-listing-header">
-                    <div>
-                      <h3>Theme Profiles</h3>
-                      <p class="route-subheading">Global App plus one distinct profile for each game experience.</p>
-                    </div>
-                  </div>
-                  <ul id="admin-theme-profile-list" class="admin-prize-list admin-theme-list" aria-live="polite"></ul>
-                </section>
-                <section class="design-theme-library">
-                  <div class="admin-listing-header">
-                    <div>
-                      <h3>AI Theme</h3>
-                      <p class="route-subheading">Override the assistant chat and button styling globally across every experience.</p>
-                    </div>
-                    <button type="button" class="secondary" id="admin-ai-theme-edit">Edit</button>
-                  </div>
-                  <p id="admin-ai-theme-status" class="route-subheading design-override-status"></p>
-                  <div class="admin-theme-card admin-ai-theme-card">
-                    <div class="admin-theme-card-header">
-                      <div>
-                        <h3>Universal Assistant Override</h3>
-                        <p class="admin-theme-meta">Applies to the AI chat, floating button, rules, and badge across all games.</p>
-                      </div>
-                      <span class="rank-theme-pill">AI</span>
-                    </div>
-                  </div>
-                </section>
-                <section class="design-theme-library">
-                  <div class="admin-listing-header">
-                    <div>
-                      <h3>Login Theme</h3>
-                      <p class="route-subheading">Style the auth experience independently from the app and game themes.</p>
-                    </div>
-                    <button type="button" class="secondary" id="admin-login-theme-edit">Edit</button>
-                  </div>
-                  <p id="admin-login-theme-status" class="route-subheading design-override-status"></p>
-                  <div class="admin-theme-card admin-ai-theme-card">
-                    <div class="admin-theme-card-header">
-                      <div>
-                        <h3>Universal Auth Override</h3>
-                        <p class="admin-theme-meta">Applies to login, signup, forgot password, reset password, and the auth callback screen.</p>
-                      </div>
-                      <span class="rank-theme-pill">AUTH</span>
-                    </div>
-                  </div>
-                </section>
-                <div class="design-theme-library">
-                  <div class="admin-listing-header">
-                    <h3>Saved Themes</h3>
-                  </div>
-                  <p class="route-subheading">Recommended profiles: Main App Comfort, RTN Green Room, Guess 10 Deep Blue, and Shape Traders Carbon.</p>
-                  <ul id="admin-theme-list" class="admin-prize-list admin-theme-list" aria-live="polite"></ul>
                 </div>
               </section>
             </section>
@@ -3757,404 +3698,6 @@
         </div>
         <div class="modal-actions">
           <button type="button" id="rank-ladder-ok" class="primary">OK</button>
-        </div>
-      </div>
-    </div>
-
-    <div
-      class="modal"
-      id="admin-theme-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="admin-theme-modal-title"
-      hidden
-    >
-      <div class="modal-content admin-modal admin-theme-modal-content">
-        <div class="modal-header">
-          <h2 id="admin-theme-modal-title">Create theme</h2>
-          <button type="button" class="modal-close" id="admin-theme-close" aria-label="Close theme builder">×</button>
-        </div>
-        <div class="admin-theme-modal-layout">
-          <form id="admin-theme-form" class="admin-form design-builder-form">
-            <input type="hidden" name="themeId" />
-            <input type="hidden" name="themeSourceKey" />
-            <input type="hidden" name="themeSourceBuiltin" value="0" />
-            <label class="admin-field">
-              <span>Theme Name</span>
-              <input type="text" name="themeName" placeholder="Midnight Arcade" required />
-            </label>
-            <label class="admin-field">
-              <span>Theme Key</span>
-              <input type="text" name="themeKey" placeholder="midnight-arcade" />
-              <span class="admin-hint">Leave blank to auto-generate from the name.</span>
-            </label>
-            <label class="admin-field">
-              <span>Base Theme</span>
-              <select name="baseTheme" id="admin-theme-base-select"></select>
-            </label>
-            <div class="design-color-grid">
-              <label class="admin-field">
-                <span>Primary Accent</span>
-                <input type="color" name="accentColor" value="#63f0ff" />
-              </label>
-              <label class="admin-field">
-                <span>Secondary Accent</span>
-                <input type="color" name="accentSecondaryColor" value="#f857c1" />
-              </label>
-              <label class="admin-field">
-                <span>Tertiary Accent</span>
-                <input type="color" name="accentTertiaryColor" value="#8b80ff" />
-              </label>
-              <label class="admin-field">
-                <span>Hero Button</span>
-                <input type="color" name="heroButtonColor" value="#f7bfdc" />
-              </label>
-              <label class="admin-field">
-                <span>Primary Button</span>
-                <input type="color" name="primaryButtonColor" value="#4f9bff" />
-              </label>
-              <label class="admin-field">
-                <span>Action Color</span>
-                <input type="color" name="actionColor" value="#4f9bff" />
-              </label>
-              <label class="admin-field">
-                <span>Primary Disabled</span>
-                <input type="color" name="primaryButtonDisabledColor" value="#7f9dc7" />
-              </label>
-              <label class="admin-field">
-                <span>Secondary Button</span>
-                <input type="color" name="secondaryButtonColor" value="#2b6fd6" />
-              </label>
-              <label class="admin-field">
-                <span>Secondary Disabled</span>
-                <input type="color" name="secondaryButtonDisabledColor" value="#647da3" />
-              </label>
-              <label class="admin-field">
-                <span>Progress Start</span>
-                <input type="color" name="progressStartColor" value="#63f0ff" />
-              </label>
-              <label class="admin-field">
-                <span>Progress End</span>
-                <input type="color" name="progressEndColor" value="#8b80ff" />
-              </label>
-              <label class="admin-field">
-                <span>Gold / Highlight</span>
-                <input type="color" name="goldColor" value="#ffd166" />
-              </label>
-              <label class="admin-field">
-                <span>Muted Text</span>
-                <input type="color" name="mutedColor" value="#bfd5ff" />
-              </label>
-              <label class="admin-field">
-                <span>Success</span>
-                <input type="color" name="successColor" value="#5af78e" />
-              </label>
-              <label class="admin-field">
-                <span>Danger</span>
-                <input type="color" name="dangerColor" value="#ff5c8a" />
-              </label>
-              <label class="admin-field">
-                <span>Page Background Start</span>
-                <input type="color" name="bgStartColor" value="#08142d" />
-              </label>
-              <label class="admin-field">
-                <span>Page Background End</span>
-                <input type="color" name="bgEndColor" value="#050913" />
-              </label>
-              <label class="admin-field">
-                <span>Panel Start</span>
-                <input type="color" name="panelStartColor" value="#0e2c63" />
-              </label>
-              <label class="admin-field">
-                <span>Panel End</span>
-                <input type="color" name="panelEndColor" value="#08142d" />
-              </label>
-              <label class="admin-field">
-                <span>Header Start</span>
-                <input type="color" name="headerStartColor" value="#15386d" />
-              </label>
-              <label class="admin-field">
-                <span>Header End</span>
-                <input type="color" name="headerEndColor" value="#0b1b3d" />
-              </label>
-            </div>
-            <div class="design-settings-grid">
-              <label class="admin-field">
-                <span>Glow Strength</span>
-                <input type="range" name="glowStrength" min="0" max="100" step="1" value="48" />
-              </label>
-              <label class="admin-field">
-                <span>Surface Contrast</span>
-                <input type="range" name="surfaceContrast" min="0" max="100" step="1" value="58" />
-              </label>
-              <label class="admin-field">
-                <span>Roundness</span>
-                <input type="range" name="radiusScale" min="0" max="100" step="1" value="72" />
-              </label>
-              <label class="admin-field admin-toggle-field design-toggle-field">
-                <span>Surface Style</span>
-                <span class="admin-toggle-control">
-                  <input type="checkbox" name="flatSurfaces" />
-                  <span>Use flat surfaces instead of gradients.</span>
-                </span>
-              </label>
-            </div>
-            <div class="modal-actions admin-form-actions">
-              <button type="button" class="secondary" id="admin-theme-cancel">Cancel</button>
-              <button type="button" class="secondary" id="admin-theme-clear-override">Use Assigned Theme</button>
-              <button type="button" class="secondary" id="admin-theme-try-on">Try On Theme</button>
-              <button type="submit" class="primary" id="admin-theme-save">Save theme</button>
-            </div>
-            <p id="admin-theme-message" class="admin-message" role="status" aria-live="polite"></p>
-          </form>
-          <aside class="design-preview-panel">
-            <div class="design-preview-header">
-              <div>
-                <h3>Page Preview</h3>
-                <p>See the real home and play compositions as you tune the theme.</p>
-              </div>
-              <label class="admin-field design-preview-select-field">
-                <span>Page</span>
-                <select id="admin-theme-preview-page">
-                  <option value="home">Home</option>
-                  <option value="play">Play</option>
-                  <option value="rtn">RTN Table</option>
-                  <option value="guess10">Guess 10 Table</option>
-                </select>
-              </label>
-            </div>
-            <div id="admin-theme-preview" class="design-preview-shell design-theme-live-preview-shell"></div>
-          </aside>
-        </div>
-      </div>
-    </div>
-
-    <div
-      class="modal"
-      id="admin-ai-theme-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="admin-ai-theme-modal-title"
-      hidden
-    >
-      <div class="modal-content admin-modal admin-theme-modal-content">
-        <div class="modal-header">
-          <h2 id="admin-ai-theme-modal-title">Edit AI Theme</h2>
-          <button type="button" class="modal-close" id="admin-ai-theme-close" aria-label="Close AI theme builder">×</button>
-        </div>
-        <div class="admin-theme-modal-layout">
-          <form id="admin-ai-theme-form" class="admin-form design-builder-form">
-            <div class="design-color-grid">
-              <label class="admin-field">
-                <span>AI Main Background</span>
-                <input type="color" name="panelBackground" value="#16191f" />
-              </label>
-              <label class="admin-field">
-                <span>AI Panel Border</span>
-                <input type="color" name="panelBorderColor" value="#7c8798" />
-              </label>
-              <label class="admin-field">
-                <span>AI Chat Background</span>
-                <input type="color" name="assistantMessageBackground" value="#20252d" />
-              </label>
-              <label class="admin-field">
-                <span>User Chat Background</span>
-                <input type="color" name="userMessageBackground" value="#2a303a" />
-              </label>
-              <label class="admin-field">
-                <span>AI Chat Text</span>
-                <input type="color" name="assistantTextColor" value="#f2f0eb" />
-              </label>
-              <label class="admin-field">
-                <span>User Chat Text</span>
-                <input type="color" name="userTextColor" value="#f7f5f0" />
-              </label>
-              <label class="admin-field">
-                <span>Chat Message Outline</span>
-                <input type="color" name="chatMessageOutlineColor" value="#6f7886" />
-              </label>
-              <label class="admin-field">
-                <span>Rules Section Outline</span>
-                <input type="color" name="rulesSectionOutlineColor" value="#7c8798" />
-              </label>
-              <label class="admin-field">
-                <span>Text Input Outline</span>
-                <input type="color" name="textInputOutlineColor" value="#7c8798" />
-              </label>
-              <label class="admin-field">
-                <span>Rules Active Background</span>
-                <input type="color" name="rulesActiveBackground" value="#3a414d" />
-              </label>
-              <label class="admin-field">
-                <span>Rules Active Border</span>
-                <input type="color" name="rulesActiveBorderColor" value="#b8c0cd" />
-              </label>
-              <label class="admin-field">
-                <span>Rules Inactive Background</span>
-                <input type="color" name="rulesInactiveBackground" value="#232831" />
-              </label>
-              <label class="admin-field">
-                <span>Rules Inactive Border</span>
-                <input type="color" name="rulesInactiveBorderColor" value="#616b79" />
-              </label>
-              <label class="admin-field">
-                <span>Floating Button Background</span>
-                <input type="color" name="floatingButtonBackground" value="#262c35" />
-              </label>
-              <label class="admin-field">
-                <span>Floating Button Text</span>
-                <input type="color" name="floatingButtonTextColor" value="#f3f1ec" />
-              </label>
-              <label class="admin-field">
-                <span>Send Button Background</span>
-                <input type="color" name="sendButtonBackground" value="#b89a6a" />
-              </label>
-              <label class="admin-field">
-                <span>Active Button Background</span>
-                <input type="color" name="activeButtonBackground" value="#5a6472" />
-              </label>
-              <label class="admin-field">
-                <span>Disabled Button Background</span>
-                <input type="color" name="disabledButtonBackground" value="#434b57" />
-              </label>
-              <label class="admin-field">
-                <span>Badge Background</span>
-                <input type="color" name="badgeBackground" value="#c8ac7d" />
-              </label>
-              <label class="admin-field">
-                <span>Badge Text</span>
-                <input type="color" name="badgeTextColor" value="#171512" />
-              </label>
-            </div>
-            <div class="modal-actions admin-form-actions">
-              <button type="button" class="secondary" id="admin-ai-theme-cancel">Cancel</button>
-              <button type="button" class="secondary" id="admin-ai-theme-reset">Use Theme Defaults</button>
-              <button type="submit" class="primary">Save AI Theme</button>
-            </div>
-            <p id="admin-ai-theme-message" class="admin-message" role="status" aria-live="polite"></p>
-          </form>
-          <aside class="design-preview-panel">
-            <div class="design-preview-header">
-              <div>
-                <h3>Shape Traders Preview</h3>
-                <p>See the floating AI button, live chat, and an active rule state side by side.</p>
-              </div>
-            </div>
-            <div id="admin-ai-theme-preview-modal" class="design-preview-shell design-ai-preview-shell"></div>
-          </aside>
-        </div>
-      </div>
-    </div>
-
-    <div
-      class="modal"
-      id="admin-login-theme-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="admin-login-theme-modal-title"
-      hidden
-    >
-      <div class="modal-content admin-modal admin-theme-modal-content">
-        <div class="modal-header">
-          <h2 id="admin-login-theme-modal-title">Edit Login Theme</h2>
-          <button type="button" class="modal-close" id="admin-login-theme-close" aria-label="Close login theme builder">×</button>
-        </div>
-        <div class="admin-theme-modal-layout">
-          <form id="admin-login-theme-form" class="admin-form design-builder-form">
-            <div class="design-color-grid">
-              <label class="admin-field">
-                <span>Header Text</span>
-                <input type="text" name="headerText" value="" placeholder="Carter's Casino" />
-              </label>
-              <label class="admin-field">
-                <span>Header Subtext</span>
-                <input type="text" name="headerSubtext" value="" placeholder="The premiere NEO casino experience" />
-              </label>
-              <label class="admin-field">
-                <span>Page Background Start</span>
-                <input type="color" name="screenBackgroundStart" value="#17191e" />
-              </label>
-              <label class="admin-field">
-                <span>Page Background End</span>
-                <input type="color" name="screenBackgroundEnd" value="#0f1115" />
-              </label>
-              <label class="admin-field">
-                <span>Card Background</span>
-                <input type="color" name="cardBackground" value="#20242c" />
-              </label>
-              <label class="admin-field">
-                <span>Card Border</span>
-                <input type="color" name="cardBorderColor" value="#7c8798" />
-              </label>
-              <label class="admin-field">
-                <span>Heading Text</span>
-                <input type="color" name="headingTextColor" value="#f2f0eb" />
-              </label>
-              <label class="admin-field">
-                <span>Body Text</span>
-                <input type="color" name="bodyTextColor" value="#c6c0b6" />
-              </label>
-              <label class="admin-field">
-                <span>Input Background</span>
-                <input type="color" name="inputBackground" value="#181c23" />
-              </label>
-              <label class="admin-field">
-                <span>Input Border</span>
-                <input type="color" name="inputBorderColor" value="#727c8c" />
-              </label>
-              <label class="admin-field">
-                <span>Input Text</span>
-                <input type="color" name="inputTextColor" value="#f2f0eb" />
-              </label>
-              <label class="admin-field">
-                <span>Input Focus Ring</span>
-                <input type="color" name="inputFocusColor" value="#c8ac7d" />
-              </label>
-              <label class="admin-field">
-                <span>Primary Button Background</span>
-                <input type="color" name="buttonBackground" value="#b89a6a" />
-              </label>
-              <label class="admin-field">
-                <span>Primary Button Border</span>
-                <input type="color" name="buttonBorderColor" value="#d7c3a1" />
-              </label>
-              <label class="admin-field">
-                <span>Primary Button Text</span>
-                <input type="color" name="buttonTextColor" value="#141310" />
-              </label>
-              <label class="admin-field">
-                <span>Link Color</span>
-                <input type="color" name="linkColor" value="#d7c3a1" />
-              </label>
-              <label class="admin-field">
-                <span>Error Color</span>
-                <input type="color" name="errorColor" value="#d97d7d" />
-              </label>
-              <label class="admin-field">
-                <span>Success Color</span>
-                <input type="color" name="successColor" value="#87b48e" />
-              </label>
-              <label class="admin-field">
-                <span>Spinner Accent</span>
-                <input type="color" name="spinnerAccentColor" value="#d7c3a1" />
-              </label>
-            </div>
-            <div class="modal-actions admin-form-actions">
-              <button type="button" class="secondary" id="admin-login-theme-cancel">Cancel</button>
-              <button type="button" class="secondary" id="admin-login-theme-reset">Use Theme Defaults</button>
-              <button type="submit" class="primary">Save Login Theme</button>
-            </div>
-            <p id="admin-login-theme-message" class="admin-message" role="status" aria-live="polite"></p>
-          </form>
-          <aside class="design-preview-panel">
-            <div class="design-preview-header">
-              <div>
-                <h3>Login Preview</h3>
-                <p>Preview the standalone auth style independently from the app theme.</p>
-              </div>
-            </div>
-            <div id="admin-login-theme-preview-modal" class="design-preview-shell design-login-preview-shell"></div>
-          </aside>
         </div>
       </div>
     </div>

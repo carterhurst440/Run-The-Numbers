@@ -1231,9 +1231,9 @@ function humanizeThemeKey(themeKey) {
 
 function getEmergencyThemeRecord(themeKey = "blue") {
   return normalizeThemeRecord({
-    key: slugifyThemeKey(themeKey || "blue") || "blue",
-    name: humanizeThemeKey(themeKey || "blue"),
-    base_theme: THEME_CLASS_MAP[themeKey] ? themeKey : "blue",
+    key: MAIN_APP_THEME_KEY,
+    name: "Default",
+    base_theme: "blue",
     palette: DEFAULT_CUSTOM_THEME_PALETTE,
     settings: DEFAULT_CUSTOM_THEME_SETTINGS
   });
@@ -1241,61 +1241,48 @@ function getEmergencyThemeRecord(themeKey = "blue") {
 
 function normalizeThemeRecord(theme = {}) {
   const source = theme && typeof theme === "object" ? theme : {};
-  const key = slugifyThemeKey(source.key || source.name || source.base_theme || "blue") || "blue";
-  const baseThemeCandidate = String(source.base_theme || key || "blue").trim();
-  const baseTheme = THEME_CLASS_MAP[baseThemeCandidate] ? baseThemeCandidate : "blue";
+  const key = MAIN_APP_THEME_KEY;
   return {
     id: source.id || null,
     key,
-    name: String(source.name || humanizeThemeKey(key)).trim() || humanizeThemeKey(key),
-    base_theme: baseTheme,
-    palette: normalizeThemePalette(source.palette || {}),
-    settings: normalizeThemeSettings(source.settings || {}),
-    is_builtin: Boolean(source.is_builtin)
+    name: "Default",
+    base_theme: "blue",
+    palette: normalizeThemePalette(source.palette || DEFAULT_CUSTOM_THEME_PALETTE),
+    settings: normalizeThemeSettings(source.settings || DEFAULT_CUSTOM_THEME_SETTINGS),
+    is_builtin: true
   };
 }
 
 function getThemeLibrary() {
-  return themeLibraryCache;
+  return themeLibraryCache.length ? themeLibraryCache : [getEmergencyThemeRecord()];
 }
 
 function getThemeRecord(themeKey) {
   if (themeKey && typeof themeKey === "object") {
     return normalizeThemeRecord(themeKey);
   }
-  const key = slugifyThemeKey(themeKey || "blue") || "blue";
-  const builtinMatch = BUILTIN_THEME_LIBRARY
-    .map((theme) => normalizeThemeRecord(theme))
-    .find((theme) => theme.key === key);
-  return getThemeLibrary().find((theme) => theme.key === key) || builtinMatch || getThemeLibrary()[0] || getEmergencyThemeRecord(key);
+  return getThemeLibrary()[0] || getEmergencyThemeRecord();
 }
 
 async function loadThemeLibrary(force = false) {
-  if (!force && themeLibraryHydrated) {
+  if (!force && themeLibraryHydrated && themeLibraryCache.length) {
     return themeLibraryCache;
   }
-
-  const builtinThemes = BUILTIN_THEME_LIBRARY.map((theme) => normalizeThemeRecord(theme));
-
-  themeLibraryCache = builtinThemes.length ? builtinThemes : [getEmergencyThemeRecord(MAIN_APP_THEME_KEY)];
+  themeLibraryCache = [getEmergencyThemeRecord()];
   themeLibraryHydrated = true;
-
-  refreshAdminThemeOverrideThemeFromLibrary();
-
   return themeLibraryCache;
 }
 
 function getMainAppThemeRecord() {
-  return getThemeRecord(MAIN_APP_THEME_KEY);
+  return getThemeLibrary()[0] || getEmergencyThemeRecord();
 }
 
 function getGameThemeRecord(route = currentRoute) {
-  const themeKey = GAME_THEME_KEYS[route] || "";
-  return themeKey ? getThemeRecord(themeKey) : null;
+  return null;
 }
 
 function getRankAccentThemeRecord(rank = currentRankState?.currentRank) {
-  return rank?.theme_key ? getThemeRecord(rank.theme_key) : null;
+  return null;
 }
 
 function parseCssColor(color) {
@@ -2020,8 +2007,7 @@ function renderAdminAiThemePreview(target = adminAiThemePreviewModalEl) {
 
 function applyAdminAiThemePreview(settings, target = adminAiThemePreviewModalEl) {
   if (!(target instanceof HTMLElement)) return;
-  const baseTheme = getResolvedThemeRecord() || getThemeRecord("blue");
-  applyThemeVariables(baseTheme, target);
+  clearThemeVariables(target);
   applyAiThemeVariables(settings, target);
 }
 
@@ -3047,19 +3033,19 @@ function getAdminThemePreviewMarkup(page = adminThemePreviewPage) {
               </section>
             </div>
           </div>
-          <div class="chip-bar beta-chip-bar" aria-label="Guess 10 chip rack">
-            <div class="chip-selector-row beta-chip-selector-row">
-              <div class="chip-selector">
+          <div class="chip-bar chip-rack beta-chip-bar" aria-label="Guess 10 chip rack">
+            <div class="chip-selector-row chip-rack__row beta-chip-selector-row">
+              <div class="chip-selector chip-rack__selector">
                 <button type="button" class="chip-choice active" data-tone="0">5</button>
                 <button type="button" class="chip-choice" data-tone="1">10</button>
                 <button type="button" class="chip-choice" data-tone="2">25</button>
                 <button type="button" class="chip-choice" data-tone="3">100</button>
               </div>
             </div>
-            <div class="chip-actions beta-chip-actions">
-              <button type="button" class="primary">Rebet</button>
-              <button type="button" class="primary">Draw</button>
-              <button type="button" class="primary">Cash Out</button>
+            <div class="chip-actions chip-rack__actions beta-chip-actions">
+              <button type="button" class="primary chip-rack__button">Rebet</button>
+              <button type="button" class="primary chip-rack__button chip-rack__button--primary">Draw</button>
+              <button type="button" class="primary chip-rack__button">Cash Out</button>
             </div>
           </div>
           <button type="button" class="play-assistant-fab" aria-hidden="true" tabindex="-1">
@@ -3486,34 +3472,7 @@ function renderAdminThemeRow(theme) {
 }
 
 async function loadAdminThemes(force = false) {
-  if (!isAdmin()) {
-    if (adminThemeListEl) adminThemeListEl.innerHTML = "";
-    if (adminThemeProfileListEl) adminThemeProfileListEl.innerHTML = "";
-    return;
-  }
-  if (adminThemesLoaded && !force) return;
   adminThemesLoaded = true;
-  await loadThemeLibrary(force);
-  await loadAiThemeSettings(force);
-  await loadLoginThemeSettings(force);
-  populateAdminThemeBaseOptions(adminThemeBaseSelect?.value || "blue");
-  populateAdminRankThemeOptions(adminRankThemeSelect?.value || "blue");
-  populateAdminAiThemeForm(aiThemeSettingsCache);
-  updateAdminAiThemeStatus();
-  populateAdminLoginThemeForm(loginThemeSettingsCache);
-  updateAdminLoginThemeStatus();
-  renderAdminThemeProfileList();
-  if (!adminThemeListEl) return;
-  adminThemeListEl.innerHTML = "";
-  const themes = getThemeLibrary();
-  if (!themes.length) {
-    adminThemeListEl.innerHTML = '<li class="admin-prize-empty">No themes available.</li>';
-    return;
-  }
-  themes.forEach((theme) => {
-    adminThemeListEl.appendChild(renderAdminThemeRow(theme));
-  });
-  updateAdminThemeOverrideUI();
 }
 
 async function handleAdminThemeDelete(theme) {
@@ -8854,6 +8813,9 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
 
   currentRoute = resolvedRoute;
+  if (document.body) {
+    document.body.dataset.route = resolvedRoute;
+  }
   applyResolvedTheme(resolvedRoute);
 
   const shouldShowAppShell = TABLE_ROUTES.has(resolvedRoute);
@@ -17280,40 +17242,18 @@ async function drawRtnCardServer() {
 }
 
 function applyTheme(theme) {
-  const themeRecord = getThemeRecord(theme);
-  if (!themeRecord) {
-    return;
-  }
-  const next = "blue";
   if (!document.body) {
-    currentTheme = themeRecord.key;
-    return;
-  }
-  if (currentTheme === themeRecord.key && document.body.classList.contains(THEME_CLASS_MAP[next])) {
-    document.body.dataset.themeProfile = themeRecord.key;
-    applyThemeVariables(themeRecord);
-    applyGlobalShellThemeVariables();
-    applyAiThemeVariables(aiThemeSettingsCache);
-    applyLoginThemeVariables(loginThemeSettingsCache);
-    applyLoginThemeContent(loginThemeSettingsCache);
-    if (typeof window !== "undefined") {
-      window.requestAnimationFrame(() => drawBankrollChart());
-    } else {
-      drawBankrollChart();
-    }
     return;
   }
   ALL_THEME_CLASSES.forEach((className) => {
     document.body.classList.remove(className);
   });
-  document.body.classList.add(THEME_CLASS_MAP[next]);
-  document.body.dataset.themeProfile = themeRecord.key;
-  applyThemeVariables(themeRecord);
+  delete document.body.dataset.themeProfile;
+  clearThemeVariables(document.body);
   applyGlobalShellThemeVariables();
   applyAiThemeVariables(aiThemeSettingsCache);
   applyLoginThemeVariables(loginThemeSettingsCache);
   applyLoginThemeContent(loginThemeSettingsCache);
-  currentTheme = themeRecord.key;
   if (typeof window !== "undefined") {
     window.requestAnimationFrame(() => drawBankrollChart());
   } else {
@@ -17405,10 +17345,8 @@ function refreshAdminThemeOverrideThemeFromLibrary() {
 }
 
 function updateAdminThemeOverrideUI() {
-  const activeTheme = getResolvedThemeRecord();
-
   if (adminThemeOverrideStatus) {
-    adminThemeOverrideStatus.textContent = `Using ${activeTheme?.name || "Main App Comfort"} as the fixed built-in look.`;
+    adminThemeOverrideStatus.textContent = "";
   }
 
   if (adminThemeClearOverrideButton) {
@@ -17427,11 +17365,7 @@ function updateAdminThemeOverrideUI() {
 }
 
 function applyResolvedTheme(route = currentRoute) {
-  const resolvedTheme = getResolvedThemeRecord(route);
-  if (!resolvedTheme) {
-    return;
-  }
-  applyTheme(resolvedTheme);
+  applyTheme();
   updateAdminThemeOverrideUI();
 }
 
@@ -17447,11 +17381,11 @@ function initTheme() {
   ALL_THEME_CLASSES.forEach((className) => {
     document.body.classList.remove(className);
   });
-  document.body.classList.add(THEME_CLASS_MAP.blue);
-  document.body.dataset.themeProfile = MAIN_APP_THEME_KEY;
+  delete document.body.dataset.themeProfile;
   clearThemeVariables(document.body);
   clearAiThemeVariables(document.body);
   clearLoginThemeVariables(document.body);
+  applyLoginThemeContent(loginThemeSettingsCache);
   applyGlobalShellThemeVariables();
 }
 
@@ -18245,6 +18179,7 @@ const LOGIN_THEME_VARIABLE_KEYS = [
   "--auth-spinner-accent"
 ];
 const CUSTOM_THEME_VARIABLE_KEYS = [
+  "--accent",
   "--neon-cyan",
   "--neon-magenta",
   "--neon-violet",
@@ -18353,6 +18288,10 @@ const CUSTOM_THEME_VARIABLE_KEYS = [
   "--assistant-fab-border-hover",
   "--assistant-fab-shadow",
   "--assistant-fab-shadow-hover",
+  "--assistant-panel-flat-bg",
+  "--assistant-response-bg",
+  "--panel-start",
+  "--panel-end",
   "--hero-button-bg",
   "--hero-button-border",
   "--hero-button-shadow",
