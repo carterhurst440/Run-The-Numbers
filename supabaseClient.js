@@ -122,6 +122,7 @@ const mockDatabase = {
   runs: [],
   prizes: [],
   bet_plays: [],
+  rtn_live_hands: [],
   shape_trader_draws: [],
   shape_trader_market_current: [
     {

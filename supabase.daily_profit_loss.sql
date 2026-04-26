@@ -35,18 +35,40 @@ declare
 begin
   with hand_totals as (
     select
-      gh.user_id,
-      timezone('America/Denver', gh.created_at)::date as profit_date,
-      sum(case when gh.game_id = 'game_001' then coalesce(gh.net, 0) else 0 end)::numeric(12,2) as pnl_rtn,
-      sum(case when gh.game_id = 'game_002' then coalesce(gh.net, 0) else 0 end)::numeric(12,2) as pnl_g10
-    from public.game_hands gh
-    where timezone('America/Denver', gh.created_at)::date = target_date
-      and coalesce(gh.contest_id::text, '') = ''
+      hands.user_id,
+      hands.profit_date,
+      sum(case when hands.game_id = 'game_001' then coalesce(hands.net, 0) else 0 end)::numeric(12,2) as pnl_rtn,
+      sum(case when hands.game_id = 'game_002' then coalesce(hands.net, 0) else 0 end)::numeric(12,2) as pnl_g10
+    from (
+      select
+        rlh.user_id,
+        timezone('America/Denver', rlh.started_at)::date as profit_date,
+        rlh.game_id,
+        rlh.net,
+        rlh.contest_id,
+        rlh.mode_type
+      from public.rtn_live_hands rlh
+      where rlh.status <> 'active'
+
+      union all
+
+      select
+        gh.user_id,
+        timezone('America/Denver', gh.created_at)::date as profit_date,
+        gh.game_id,
+        gh.net,
+        gh.contest_id,
+        gh.mode_type
+      from public.game_hands gh
+      where coalesce(gh.game_id, 'game_001') <> 'game_001'
+    ) hands
+    where hands.profit_date = target_date
+      and coalesce(hands.contest_id::text, '') = ''
       and (
-        gh.mode_type is null
-        or lower(gh.mode_type) = 'normal'
+        hands.mode_type is null
+        or lower(hands.mode_type) = 'normal'
       )
-    group by gh.user_id, timezone('America/Denver', gh.created_at)::date
+    group by hands.user_id, hands.profit_date
   ),
   trade_totals as (
     select

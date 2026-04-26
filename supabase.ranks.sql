@@ -4,31 +4,47 @@ alter table public.profiles
 alter table public.profiles
   add column if not exists hands_played_all_time integer not null default 0;
 
-update public.profiles p
-set contest_wins = coalesce(w.win_count, 0)
-from (
-  select user_id, count(*)::integer as win_count
-  from public.contest_medals
-  group by user_id
-) w
-where p.id = w.user_id;
+do $$
+begin
+  perform set_config('rtn.allow_sensitive_balance_write', '1', true);
 
-update public.profiles
-set contest_wins = 0
-where contest_wins is null;
+  update public.profiles p
+  set contest_wins = coalesce(w.win_count, 0)
+  from (
+    select user_id, count(*)::integer as win_count
+    from public.contest_medals
+    group by user_id
+  ) w
+  where p.id = w.user_id;
 
-update public.profiles p
-set hands_played_all_time = coalesce(h.hand_count, 0)
-from (
-  select user_id, count(*)::integer as hand_count
-  from public.game_hands
-  group by user_id
-) h
-where p.id = h.user_id;
+  update public.profiles
+  set contest_wins = 0
+  where contest_wins is null;
 
-update public.profiles
-set hands_played_all_time = 0
-where hands_played_all_time is null;
+  update public.profiles p
+  set hands_played_all_time = coalesce(h.hand_count, 0)
+  from (
+    select merged.user_id, count(*)::integer as hand_count
+    from (
+      select user_id
+      from public.game_hands
+      where coalesce(game_id, 'game_001') <> 'game_001'
+
+      union all
+
+      select user_id
+      from public.rtn_live_hands
+      where status <> 'active'
+    ) merged
+    group by merged.user_id
+  ) h
+  where p.id = h.user_id;
+
+  update public.profiles
+  set hands_played_all_time = 0
+  where hands_played_all_time is null;
+end
+$$;
 
 create table if not exists public.ranks (
   id uuid primary key default gen_random_uuid(),
@@ -258,6 +274,8 @@ language plpgsql
 security definer
 as $$
 begin
+  perform set_config('rtn.allow_sensitive_balance_write', '1', true);
+
   with ranked as (
     select
       p.id as user_id,
@@ -286,6 +304,8 @@ language plpgsql
 security definer
 as $$
 begin
+  perform set_config('rtn.allow_sensitive_balance_write', '1', true);
+
   update public.profiles as p
   set hands_played_all_time = greatest(
     0,
@@ -312,6 +332,8 @@ language plpgsql
 security definer
 as $$
 begin
+  perform set_config('rtn.allow_sensitive_balance_write', '1', true);
+
   if target_user_id is null then
     update public.profiles p
     set hands_played_all_time = greatest(
@@ -319,8 +341,18 @@ begin
       coalesce(h.hand_count, 0)
     )
     from (
-      select user_id, count(*)::integer as hand_count
-      from public.game_hands
+      select merged.user_id, count(*)::integer as hand_count
+      from (
+        select user_id
+        from public.game_hands
+        where coalesce(game_id, 'game_001') <> 'game_001'
+
+        union all
+
+        select user_id
+        from public.rtn_live_hands
+        where status <> 'active'
+      ) merged
       group by user_id
     ) h
     where p.id = h.user_id;
@@ -336,8 +368,19 @@ begin
   )
   from (
     select count(*)::integer as hand_count
-    from public.game_hands
-    where user_id = target_user_id
+    from (
+      select user_id
+      from public.game_hands
+      where user_id = target_user_id
+        and coalesce(game_id, 'game_001') <> 'game_001'
+
+      union all
+
+      select user_id
+      from public.rtn_live_hands
+      where user_id = target_user_id
+        and status <> 'active'
+    ) merged
   ) h
   where p.id = target_user_id;
 
@@ -653,17 +696,39 @@ begin
 
   return query
   select
-    gh.user_id,
-    gh.created_at,
-    gh.game_id,
-    gh.net,
-    gh.mode_type,
-    gh.contest_id
-  from public.game_hands gh
-  where (start_at is null or gh.created_at >= start_at)
-    and (end_at is null or gh.created_at <= end_at)
-    and (target_user_ids is null or gh.user_id = any(target_user_ids))
-  order by gh.created_at asc;
+    merged.user_id,
+    merged.created_at,
+    merged.game_id,
+    merged.net,
+    merged.mode_type,
+    merged.contest_id
+  from (
+    select
+      rlh.user_id,
+      rlh.started_at as created_at,
+      rlh.game_id,
+      rlh.net,
+      rlh.mode_type,
+      rlh.contest_id
+    from public.rtn_live_hands rlh
+    where rlh.status <> 'active'
+
+    union all
+
+    select
+      gh.user_id,
+      gh.created_at,
+      gh.game_id,
+      gh.net,
+      gh.mode_type,
+      gh.contest_id
+    from public.game_hands gh
+    where coalesce(gh.game_id, 'game_001') <> 'game_001'
+  ) merged
+  where (start_at is null or merged.created_at >= start_at)
+    and (end_at is null or merged.created_at <= end_at)
+    and (target_user_ids is null or merged.user_id = any(target_user_ids))
+  order by merged.created_at asc;
 end;
 $$;
 

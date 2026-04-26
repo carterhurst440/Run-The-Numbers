@@ -44,6 +44,37 @@ begin
   with merged as (
     select
       'hand'::text as entry_type,
+      rlh.id::text as id,
+      rlh.started_at as created_at,
+      rlh.game_id,
+      rlh.mode_type,
+      rlh.contest_id,
+      rlh.total_cards::integer as total_cards,
+      coalesce(rlh.stopper_card ->> 'label', null) as stopper_label,
+      coalesce(rlh.stopper_card ->> 'suitName', rlh.stopper_card ->> 'suit') as stopper_suit,
+      rlh.total_wager,
+      rlh.total_paid,
+      rlh.net,
+      rlh.commission_kept,
+      rlh.new_account_value,
+      rlh.drawn_cards,
+      null::text as trade_side,
+      null::text as shape,
+      null::numeric as quantity,
+      null::numeric as total_value,
+      null::numeric as shape_price,
+      null::numeric as net_profit,
+      null::text as event_type,
+      null::numeric as amount,
+      null::numeric as previous_balance
+    from public.rtn_live_hands rlh
+    where rlh.user_id = target_user_id
+      and rlh.status <> 'active'
+
+    union all
+
+    select
+      'hand'::text as entry_type,
       gh.id::text as id,
       gh.created_at,
       gh.game_id,
@@ -69,6 +100,7 @@ begin
       null::numeric as previous_balance
     from public.game_hands gh
     where gh.user_id = target_user_id
+      and coalesce(gh.game_id, 'game_001') <> 'game_001'
 
     union all
 
