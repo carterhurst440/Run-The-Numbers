@@ -59,9 +59,13 @@ begin
     new.credits is distinct from old.credits or
     new.carter_cash is distinct from old.carter_cash or
     new.carter_cash_progress is distinct from old.carter_cash_progress or
+    new.run_the_numbers_hands_played_all_time is distinct from old.run_the_numbers_hands_played_all_time or
+    new.guess10_hands_played_all_time is distinct from old.guess10_hands_played_all_time or
     new.hands_played_all_time is distinct from old.hands_played_all_time or
+    new.total_progress_events is distinct from old.total_progress_events or
     new.contest_wins is distinct from old.contest_wins or
     new.trades_made_all_time is distinct from old.trades_made_all_time or
+    new.current_rank is distinct from old.current_rank or
     new.current_rank_tier is distinct from old.current_rank_tier or
     new.current_rank_id is distinct from old.current_rank_id
   then

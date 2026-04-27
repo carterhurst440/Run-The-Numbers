@@ -2238,14 +2238,14 @@ function renderRankPlayerCountText(rank, className = "rank-ladder-player-count")
 
 function resolveRankState(handsPlayed = 0, contestWins = 0, tradesMade = 0, ladder = getRankLadder()) {
   const sorted = [...ladder].sort((a, b) => a.tier - b.tier);
-  const progressHands = Math.max(0, Math.round(Number(handsPlayed || 0)));
+  const progressEvents = Math.max(0, Math.round(Number(handsPlayed || 0)));
   const progressWins = Math.max(0, Math.round(Number(contestWins || 0)));
   const progressTrades = Math.max(0, Math.round(Number(tradesMade || 0)));
   let currentRank = sorted[0] || normalizeRankRecord(DEFAULT_RANK_LADDER[0]);
 
   sorted.forEach((rank) => {
     if (
-      progressHands >= rank.required_hands_played &&
+      progressEvents >= rank.required_hands_played &&
       progressWins >= rank.required_contest_wins &&
       progressTrades >= rank.required_trades_made
     ) {
@@ -2258,7 +2258,7 @@ function resolveRankState(handsPlayed = 0, contestWins = 0, tradesMade = 0, ladd
     ladder: sorted,
     currentRank,
     nextRank,
-    handsPlayed: progressHands,
+    totalProgressEvents: progressEvents,
     contestWins: progressWins,
     tradesMade: progressTrades
   };
@@ -2331,46 +2331,113 @@ async function refreshRankPlayerCounts({ force = false } = {}) {
   }
 }
 
-async function fetchHandsPlayedCount(userId) {
-  if (!userId || !supabase) return 0;
+function applyProfileProgressSnapshot(row = null) {
+  if (!row || !currentProfile) return;
+
+  currentProfile.run_the_numbers_hands_played_all_time = Math.max(
+    0,
+    Math.round(
+      Number(
+        row.run_the_numbers_hands_played_all_time
+          ?? currentProfile.run_the_numbers_hands_played_all_time
+          ?? 0
+      )
+    )
+  );
+  currentProfile.guess10_hands_played_all_time = Math.max(
+    0,
+    Math.round(
+      Number(
+        row.guess10_hands_played_all_time
+          ?? currentProfile.guess10_hands_played_all_time
+          ?? 0
+      )
+    )
+  );
+  currentProfile.trades_made_all_time = Math.max(
+    0,
+    Math.round(Number(row.trades_made_all_time ?? currentProfile.trades_made_all_time ?? 0))
+  );
+  currentProfile.total_progress_events = Math.max(
+    0,
+    Math.round(
+      Number(
+        row.total_progress_events
+          ?? row.hands_played_all_time
+          ?? currentProfile.total_progress_events
+          ?? currentProfile.hands_played_all_time
+          ?? 0
+      )
+    )
+  );
+  currentProfile.hands_played_all_time = currentProfile.total_progress_events;
+  currentProfile.current_rank_tier = Math.max(
+    1,
+    Math.round(Number(row.current_rank_tier ?? currentProfile.current_rank_tier ?? 1))
+  );
+  currentProfile.current_rank_id = row.current_rank_id ?? currentProfile.current_rank_id ?? null;
+  currentProfile.current_rank = Math.max(
+    1,
+    Math.round(Number(row.current_rank ?? currentProfile.current_rank ?? 1))
+  );
+  currentProfile.updated_at = row.updated_at || currentProfile.updated_at || null;
+}
+
+async function fetchProfileProgressSummary(userId) {
+  if (!userId || !supabase) {
+    return {
+      runTheNumbersHands: 0,
+      guess10Hands: 0,
+      tradesMade: 0,
+      totalProgressEvents: 0
+    };
+  }
   try {
-    const { count: gameHandCount, error } = await supabase
-      .from("game_hands")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .neq("game_id", GAME_KEYS.RUN_THE_NUMBERS);
-    if (error) throw error;
-    const { count: rtnHandCount, error: rtnCountError } = await supabase
-      .from("rtn_live_hands")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .neq("status", "active");
-    if (rtnCountError && !isMissingRelationError(rtnCountError, "rtn_live_hands")) {
-      throw rtnCountError;
-    }
-    return Math.max(0, Number(gameHandCount || 0)) + Math.max(0, Number(rtnHandCount || 0));
+    const [
+      { count: rtnHandCount, error: rtnCountError },
+      { count: guess10HandCount, error: guess10CountError },
+      { count: tradeCount, error: tradeCountError }
+    ] = await Promise.all([
+      supabase
+        .from("rtn_live_hands")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .neq("status", "active"),
+      supabase
+        .from("guess10_live_hands")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .neq("status", "active"),
+      supabase
+        .from("shape_trader_trades")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+    ]);
+    if (rtnCountError && !isMissingRelationError(rtnCountError, "rtn_live_hands")) throw rtnCountError;
+    if (guess10CountError && !isMissingRelationError(guess10CountError, "guess10_live_hands")) throw guess10CountError;
+    if (tradeCountError && !isMissingRelationError(tradeCountError, "shape_trader_trades")) throw tradeCountError;
+
+    const runTheNumbersHands = Math.max(0, Number(rtnHandCount || 0));
+    const guess10Hands = Math.max(0, Number(guess10HandCount || 0));
+    const tradesMade = Math.max(0, Number(tradeCount || 0));
+    return {
+      runTheNumbersHands,
+      guess10Hands,
+      tradesMade,
+      totalProgressEvents: runTheNumbersHands + guess10Hands + tradesMade
+    };
   } catch (error) {
-    console.error("[RTN] fetchHandsPlayedCount error", error);
-    return 0;
+    console.error("[RTN] fetchProfileProgressSummary error", error);
+    return {
+      runTheNumbersHands: 0,
+      guess10Hands: 0,
+      tradesMade: 0,
+      totalProgressEvents: 0
+    };
   }
 }
 
-async function fetchTradesMadeCount(userId) {
-  if (!userId || !supabase) return 0;
-  try {
-    const { count, error } = await supabase
-      .from("shape_trader_trades")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId);
-    if (error) throw error;
-    return Math.max(0, Number(count || 0));
-  } catch (error) {
-    console.error("[RTN] fetchTradesMadeCount error", error);
-    return 0;
-  }
-}
-
-async function incrementProfileHandProgress(handIncrement = 1) {
+async function incrementProfileHandProgress(handIncrement = 1, gameKey = null) {
   if (!currentUser?.id || currentUser.id === GUEST_USER.id || !supabase) {
     return null;
   }
@@ -2378,22 +2445,12 @@ async function incrementProfileHandProgress(handIncrement = 1) {
   try {
     const { data, error } = await supabase.rpc("increment_profile_hands_played", {
       target_user_id: currentUser.id,
-      hand_increment: handIncrement
+      hand_increment: handIncrement,
+      target_game_id: resolveGameKey(gameKey) || null
     });
     if (error) throw error;
     const row = Array.isArray(data) ? data[0] : data;
-    if (row && currentProfile) {
-      currentProfile.hands_played_all_time = Math.max(
-        0,
-        Math.round(Number(row.hands_played_all_time || currentProfile.hands_played_all_time || 0))
-      );
-      currentProfile.current_rank_tier = Math.max(
-        1,
-        Math.round(Number(row.current_rank_tier || currentProfile.current_rank_tier || 1))
-      );
-      currentProfile.current_rank_id = row.current_rank_id || currentProfile.current_rank_id || null;
-      currentProfile.updated_at = row.updated_at || currentProfile.updated_at || null;
-    }
+    applyProfileProgressSnapshot(row);
     return row || null;
   } catch (error) {
     console.error("[RTN] incrementProfileHandProgress error", error);
@@ -2415,18 +2472,7 @@ async function reconcileProfileHandProgress({ force = false } = {}) {
     });
     if (error) throw error;
     const row = Array.isArray(data) ? data[0] : data;
-    if (row && currentProfile) {
-      currentProfile.hands_played_all_time = Math.max(
-        0,
-        Math.round(Number(row.hands_played_all_time || currentProfile.hands_played_all_time || 0))
-      );
-      currentProfile.current_rank_tier = Math.max(
-        1,
-        Math.round(Number(row.current_rank_tier || currentProfile.current_rank_tier || 1))
-      );
-      currentProfile.current_rank_id = row.current_rank_id || currentProfile.current_rank_id || null;
-      currentProfile.updated_at = row.updated_at || currentProfile.updated_at || null;
-    }
+    applyProfileProgressSnapshot(row);
     reconciledHandsPlayedUserId = currentUser.id;
     return row || null;
   } catch (error) {
@@ -2447,18 +2493,7 @@ async function incrementProfileTradeProgress(tradeIncrement = 1) {
     });
     if (error) throw error;
     const row = Array.isArray(data) ? data[0] : data;
-    if (row && currentProfile) {
-      currentProfile.trades_made_all_time = Math.max(
-        0,
-        Math.round(Number(row.trades_made_all_time || currentProfile.trades_made_all_time || 0))
-      );
-      currentProfile.current_rank_tier = Math.max(
-        1,
-        Math.round(Number(row.current_rank_tier || currentProfile.current_rank_tier || 1))
-      );
-      currentProfile.current_rank_id = row.current_rank_id || currentProfile.current_rank_id || null;
-      currentProfile.updated_at = row.updated_at || currentProfile.updated_at || null;
-    }
+    applyProfileProgressSnapshot(row);
     return row || null;
   } catch (error) {
     console.error("[RTN] incrementProfileTradeProgress error", error);
@@ -2480,18 +2515,7 @@ async function reconcileProfileTradeProgress({ force = false } = {}) {
     });
     if (error) throw error;
     const row = Array.isArray(data) ? data[0] : data;
-    if (row && currentProfile) {
-      currentProfile.trades_made_all_time = Math.max(
-        0,
-        Math.round(Number(row.trades_made_all_time || currentProfile.trades_made_all_time || 0))
-      );
-      currentProfile.current_rank_tier = Math.max(
-        1,
-        Math.round(Number(row.current_rank_tier || currentProfile.current_rank_tier || 1))
-      );
-      currentProfile.current_rank_id = row.current_rank_id || currentProfile.current_rank_id || null;
-      currentProfile.updated_at = row.updated_at || currentProfile.updated_at || null;
-    }
+    applyProfileProgressSnapshot(row);
     reconciledTradesMadeUserId = currentUser.id;
     return row || null;
   } catch (error) {
@@ -2520,16 +2544,28 @@ async function refreshCurrentRankState({ force = false } = {}) {
   await loadAiThemeSettings(force);
   await reconcileProfileHandProgress({ force });
   await reconcileProfileTradeProgress({ force });
-  const storedHandsPlayed = Number(currentProfile?.hands_played_all_time);
-  const handsPlayed = Number.isFinite(storedHandsPlayed)
-    ? Math.max(0, Math.round(storedHandsPlayed))
-    : await fetchHandsPlayedCount(currentUser.id);
+  const storedTotalProgressEvents = Number(currentProfile?.total_progress_events ?? currentProfile?.hands_played_all_time);
+  let totalProgressEvents = Number.isFinite(storedTotalProgressEvents)
+    ? Math.max(0, Math.round(storedTotalProgressEvents))
+    : null;
   const contestWins = Math.max(0, Math.round(Number(currentProfile?.contest_wins || 0)));
   const storedTradesMade = Number(currentProfile?.trades_made_all_time);
-  const tradesMade = Number.isFinite(storedTradesMade)
+  let tradesMade = Number.isFinite(storedTradesMade)
     ? Math.max(0, Math.round(storedTradesMade))
-    : await fetchTradesMadeCount(currentUser.id);
-  currentRankState = resolveRankState(handsPlayed, contestWins, tradesMade, ladder);
+    : null;
+  if (totalProgressEvents == null || tradesMade == null) {
+    const fallbackProgress = await fetchProfileProgressSummary(currentUser.id);
+    if (currentProfile) {
+      currentProfile.run_the_numbers_hands_played_all_time = fallbackProgress.runTheNumbersHands;
+      currentProfile.guess10_hands_played_all_time = fallbackProgress.guess10Hands;
+      currentProfile.trades_made_all_time = fallbackProgress.tradesMade;
+      currentProfile.total_progress_events = fallbackProgress.totalProgressEvents;
+      currentProfile.hands_played_all_time = fallbackProgress.totalProgressEvents;
+    }
+    totalProgressEvents = fallbackProgress.totalProgressEvents;
+    tradesMade = fallbackProgress.tradesMade;
+  }
+  currentRankState = resolveRankState(totalProgressEvents, contestWins, tradesMade, ladder);
   applyResolvedTheme();
   renderDrawerRankSummary(currentRankState.currentRank);
   typeHomeAboutIntro(homeAboutIntroEl?.dataset.fullCopy || homeAboutIntroEl?.textContent || "");
@@ -2586,7 +2622,7 @@ function renderHomeRankPanel() {
 
 function buildHomeRankLadderProgressMarkup(rank, classBase = "home-rank-ladder") {
   if (!currentRankState?.currentRank || rank?.tier !== currentRankState.currentRank.tier) return "";
-  const { nextRank, handsPlayed, contestWins, tradesMade } = currentRankState;
+  const { nextRank, totalProgressEvents, contestWins, tradesMade } = currentRankState;
   if (!nextRank) {
     return `
       <span class="${classBase}-progress">
@@ -2597,8 +2633,8 @@ function buildHomeRankLadderProgressMarkup(rank, classBase = "home-rank-ladder")
 
   const progressItems = [
     {
-      label: "Hands",
-      current: handsPlayed,
+      label: "Progress Events",
+      current: totalProgressEvents,
       required: nextRank.required_hands_played
     },
     {
@@ -2692,7 +2728,7 @@ function renderHomeRankLadder() {
 function buildRankRequirementsCopy(rank) {
   const requirements = [];
   if (rank.required_hands_played > 0) {
-    requirements.push(`${formatRankRequirementValue(rank.required_hands_played)} hands played`);
+    requirements.push(`${formatRankRequirementValue(rank.required_hands_played)} progress events`);
   }
   if (rank.required_contest_wins > 0) {
     requirements.push(`${formatRankRequirementValue(rank.required_contest_wins)} contest victories`);
@@ -9071,7 +9107,7 @@ async function fetchProfileWithRetries(
     try {
       const fetchPromise = supabase
         .from("profiles")
-        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
+        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
         .eq("id", userId)
         .maybeSingle();
 
@@ -9207,7 +9243,7 @@ async function provisionProfileForUser(user) {
       .from("profiles")
       .insert([profileInsert])
       .select(
-        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at"
+        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at"
       )
       .maybeSingle();
 
@@ -14756,7 +14792,7 @@ async function optIntoContest(contest = currentContest) {
         }
 
         const { data: deductedProfile, error: deductError } = await deductQuery
-          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
+          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
           .maybeSingle();
 
         if (deductError) throw deductError;
@@ -14769,6 +14805,7 @@ async function optIntoContest(contest = currentContest) {
           ...currentProfile,
           ...deductedProfile
         };
+        applyProfileProgressSnapshot(deductedProfile);
         if (!isContestAccountMode()) {
           carterCash = Math.max(0, Math.round(Number(deductedProfile.carter_cash ?? 0)));
           carterCashProgress = Number.isFinite(Number(deductedProfile.carter_cash_progress))
@@ -14807,13 +14844,14 @@ async function optIntoContest(contest = currentContest) {
             .update({ carter_cash: refundedAmount })
             .eq("id", currentUser.id)
             .eq("updated_at", chargedProfile.updated_at ?? null)
-            .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
+            .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
             .maybeSingle();
           if (refundedProfile) {
             currentProfile = {
               ...currentProfile,
               ...refundedProfile
             };
+            applyProfileProgressSnapshot(refundedProfile);
             if (!isContestAccountMode()) {
               carterCash = Math.max(0, Math.round(Number(refundedProfile.carter_cash ?? 0)));
               carterCashProgress = Number.isFinite(Number(refundedProfile.carter_cash_progress))
@@ -15762,7 +15800,7 @@ async function loadProfile() {
     console.info("[RTN] loadProfile: fetching profile from database");
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("username, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, receive_contest_start_emails")
+      .select("username, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails")
       .eq("id", user.id)
       .single();
 
@@ -15814,16 +15852,8 @@ async function loadProfile() {
       profileMessage.className = "profile-status-message";
     }
     if (currentProfile && currentProfile.id === user.id) {
-      currentProfile.hands_played_all_time = Math.max(
-        0,
-        Math.round(Number(profile?.hands_played_all_time ?? currentProfile.hands_played_all_time ?? 0))
-      );
+      applyProfileProgressSnapshot(profile);
       currentProfile.contest_wins = profile?.contest_wins ?? 0;
-      currentProfile.current_rank_tier = Math.max(
-        1,
-        Math.round(Number(profile?.current_rank_tier ?? currentProfile.current_rank_tier ?? 1))
-      );
-      currentProfile.current_rank_id = profile?.current_rank_id ?? currentProfile.current_rank_id ?? null;
       currentProfile.receive_contest_start_emails = profile?.receive_contest_start_emails ?? true;
     }
     renderContestEmailPreference();
@@ -18422,8 +18452,13 @@ let currentTheme = "blue";
     credits: INITIAL_BANKROLL,
     carter_cash: 0,
     carter_cash_progress: 0,
+    run_the_numbers_hands_played_all_time: 0,
+    guess10_hands_played_all_time: 0,
+    total_progress_events: 0,
     hands_played_all_time: 0,
+    trades_made_all_time: 0,
     contest_wins: 0,
+    current_rank: 1,
     current_rank_tier: 1,
     current_rank_id: null,
     first_name: "Guest",
@@ -19509,7 +19544,7 @@ async function persistBankroll({
       return appliedSnapshot;
     } else {
       const profileSelectFields =
-        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, hands_played_all_time, contest_wins, current_rank_tier, current_rank_id, updated_at";
+        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, updated_at";
       let { data, error } = await supabase.rpc("save_player_balance_snapshot", {
         _credits: normalizedBankroll,
         _playthrough_delta: playthroughDelta,
@@ -20355,7 +20390,7 @@ async function finalizeGuess10Hand({
         contestCreditsValue: resolvedEndingBankroll
       });
     }
-    await incrementProfileHandProgress(1);
+    await incrementProfileHandProgress(1, GAME_KEYS.GUESS_10);
     await ensureProfileSynced({ force: true });
     if (!skipHandLog) {
       await logStandaloneGameHand({
@@ -27020,7 +27055,7 @@ async function endHand(stopperCard, context = {}) {
     contestHistoryLabel: `Hand ${stats.hands}`,
     contestCreditsValue: resolvedEndingBankroll
   });
-  await incrementProfileHandProgress(1);
+  await incrementProfileHandProgress(1, GAME_KEYS.RUN_THE_NUMBERS);
   await ensureProfileSynced({ force: true });
   await refreshGameAssetsFromBackend().catch((err) => console.warn("[RTN] Game asset sync error:", err));
   await logRunTheNumbersHandAndBets(stopperCard, context, betSnapshots, netThisHand, {
@@ -27274,7 +27309,7 @@ async function dealHandServer() {
         currentOpeningLayout = [];
         animateBankrollOutcome(netThisHand);
         recordBankrollHistoryPoint();
-        await incrementProfileHandProgress(1);
+        await incrementProfileHandProgress(1, GAME_KEYS.RUN_THE_NUMBERS);
         await ensureProfileSynced({ force: true });
         await refreshGameAssetsFromBackend().catch((err) => console.warn("[RTN] Game asset sync error:", err));
 

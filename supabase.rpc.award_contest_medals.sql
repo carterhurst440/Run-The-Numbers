@@ -46,30 +46,13 @@ begin
     from inserted_medals im
     where p.id = im.user_id
     returning p.id
-  ),
-  recomputed_profiles as (
-    update public.profiles p
-    set
-      current_rank_id = ranked.rank_id,
-      current_rank_tier = ranked.tier
-    from (
-      select
-        p2.id as user_id,
-        r.id as rank_id,
-        r.tier,
-        row_number() over (partition by p2.id order by r.tier desc) as rn
-      from public.profiles p2
-      join public.ranks r
-        on coalesce(p2.hands_played_all_time, 0) >= coalesce(r.required_hands_played, 0)
-       and coalesce(p2.contest_wins, 0) >= coalesce(r.required_contest_wins, 0)
-      where p2.id in (select id from updated_profiles)
-    ) ranked
-    where p.id = ranked.user_id
-      and ranked.rn = 1
-    returning p.id
   )
   select count(*) into inserted_count
   from inserted_medals;
+
+  if inserted_count > 0 then
+    perform public.recompute_all_profile_ranks();
+  end if;
 
   return inserted_count;
 end;
