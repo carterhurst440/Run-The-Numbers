@@ -610,7 +610,7 @@ body[data-route="shape-traders"] {
 }
 
 html {
-  overflow-x: hidden; /* clip fixed elements that translate off-screen (e.g. drawer) on mobile */
+  overflow-x: clip; /* clip fixed elements off-screen (e.g. drawer) without creating a scroll container */
 }
 
 body {
@@ -9123,10 +9123,11 @@ body.theme-angelic {
 }
 
 .icon-button {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 0;
-  border: 0;
+  border: 0 !important;
+  outline: none !important;
   background: transparent;
   color: #959568;
   display: inline-flex;
@@ -9134,8 +9135,10 @@ body.theme-angelic {
   justify-content: center;
   padding: 0;
   cursor: pointer;
-  box-shadow: none;
+  box-shadow: none !important;
   transition: color 0.15s ease;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .icon-button:hover,
@@ -9149,14 +9152,15 @@ body.theme-angelic {
 
 .notification-toggle {
   position: relative;
-  border: 0;
+  border: 0 !important;
+  outline: none !important;
   background: transparent;
-  box-shadow: none;
+  box-shadow: none !important;
 }
 
 .notification-toggle svg {
-  width: 16px;
-  height: 16px;
+  width: 19px;
+  height: 19px;
 }
 
 .notification-badge {
@@ -9597,18 +9601,21 @@ body.theme-angelic {
 
 .menu-toggle {
   position: relative;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 0;
-  border: 0;
+  border: 0 !important;
+  outline: none !important;
   background: transparent;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  box-shadow: none;
+  box-shadow: none !important;
   cursor: pointer;
   transition: opacity 0.15s ease;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .menu-toggle:hover,
