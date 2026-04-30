@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Audiowide&family=Play:wght@400;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
   </head>
@@ -201,16 +201,18 @@
               <span class="menu-icon" aria-hidden="true"></span>
               <span id="menu-contest-badge" class="menu-contest-badge" hidden></span>
             </button>
+            <span class="nav-brand" aria-hidden="true">// CARTER'S CASINO</span>
+          </div>
+          <div class="header-actions">
             <div class="header-metrics" role="status" aria-live="polite">
               <div class="bankroll">
                 <div class="bankroll-main">
-                  <span class="bankroll-label">Bank:</span>
+                  <span class="bankroll-label">BANK</span>
                   <span id="bankroll" class="bankroll-value">1000</span>
-                  <span class="bankroll-units">units</span>
                 </div>
               </div>
               <div class="carter-cash" aria-live="polite">
-                <span class="carter-label">CC:</span>
+                <span class="carter-label">CC</span>
                 <span id="carter-cash" class="carter-value">0</span>
                 <button
                   type="button"
@@ -236,8 +238,6 @@
                 <span id="carter-cash-delta" class="carter-delta" aria-hidden="true"></span>
               </div>
             </div>
-          </div>
-          <div class="header-actions">
             <div class="header-mode-select-wrap">
               <label for="account-mode-select" class="sr-only">Choose active account mode</label>
               <select id="account-mode-select" class="header-mode-select" aria-label="Choose active account mode">
@@ -396,6 +396,24 @@
           <div class="drawer-admin-actions">
             <button type="button" id="reset-account" class="drawer-text-button" aria-label="Reset account" hidden>
               Reset
+            </button>
+          </div>
+        </section>
+        <section class="drawer-section drawer-settings-section" aria-label="Settings">
+          <div class="drawer-settings-label">// SETTINGS</div>
+          <div class="drawer-toggle-row" id="new-ui-toggle-row">
+            <span class="drawer-toggle-label">NEW UI</span>
+            <button
+              type="button"
+              id="new-ui-toggle"
+              class="drawer-toggle-btn"
+              role="switch"
+              aria-checked="false"
+              aria-label="Use new UI"
+            >
+              <span class="drawer-toggle-track">
+                <span class="drawer-toggle-thumb"></span>
+              </span>
             </button>
           </div>
         </section>
@@ -630,72 +648,157 @@
 
       <main class="app-main">
         <section id="home-view" class="route-view app-page home-view" hidden aria-labelledby="home-title">
-          <div class="home-hero">
-            <h1 id="home-title" class="sr-only">Casino Floor</h1>
-            <section id="home-rank-panel" class="home-rank-panel" hidden aria-labelledby="home-rank-title">
-              <p class="home-rank-eyebrow">Player Progress</p>
-              <h2 id="home-rank-title" class="home-rank-title">Welcome, Player</h2>
-              <button type="button" id="home-rank-ladder-button" class="home-rank-ladder-button">View Rank Progress</button>
-            </section>
-            <aside id="home-rank-ladder" class="home-rank-ladder" hidden aria-label="Tier ladder">
-              <div class="home-rank-ladder-head">
-                <p class="home-rank-eyebrow">Tier Ladder</p>
-                <p id="home-rank-ladder-current" class="home-rank-ladder-current">Tier 1</p>
+          <h1 id="home-title" class="sr-only">Casino Floor</h1>
+          <canvas id="home-dot-canvas" class="home-neural-bg" aria-hidden="true"></canvas>
+          <div class="home-layout">
+
+            <!-- MAIN COLUMN -->
+            <div class="home-main">
+
+              <!-- PLAYER HERO -->
+              <div class="home-player-hero">
+                <div class="hph-meta">AUTHENTICATED PLAYER</div>
+                <h2 class="hph-name" id="hph-name">—</h2>
+                <div class="hph-sub" id="hph-sub"></div>
+                <div class="hph-badges" id="hph-badges"></div>
               </div>
-              <ol id="home-rank-ladder-list" class="home-rank-ladder-list"></ol>
-            </aside>
-            <section class="home-about-panel" aria-labelledby="home-about-title">
-              <p class="home-rank-eyebrow">About. Us</p>
-              <h2 id="home-about-title" class="home-about-title">Hi, I’m Carter—the mind behind the madness.</h2>
-              <div id="home-about-copy" class="home-about-copy">
-                <p id="home-about-intro">After years of struggling with crippling gambling addiction I realized there was only one way out for me, BECOME THE HOUSE.</p>
-                <p>That's what this is, my attempt to flip the cosmic fortunes in my favor, unfortunately that comes at your expense, and I do genuinely apologize for that. But its dogs eating dogs out there, and I'm sick of being munched.</p>
-                <p>I’ve created a collection of completely original games, invented by me, offering a full range of dynamic outcomes. This isn’t a place where the odds are handed to you—it’s a place where you shape them.</p>
-              </div>
-              <button type="button" id="home-about-toggle" class="home-about-toggle" aria-expanded="false" aria-controls="home-about-copy">Read More</button>
-            </section>
-            <section class="home-casino-floor" aria-labelledby="home-casino-floor-title">
-              <div class="home-casino-floor-head">
-                <p class="home-rank-eyebrow">Casino Floor</p>
-                <h2 id="home-casino-floor-title" class="sr-only">Choose a game.</h2>
-              </div>
-              <div class="home-actions home-game-tiles" aria-label="Choose a game">
-                <button type="button" class="home-game-tile home-game-tile-rtn" data-route-target="run-the-numbers" data-game-id="game_001">
-                  <span class="home-game-tile-head">
-                    <span class="home-game-tile-title-row">
-                      <img class="home-game-tile-logo" data-game-logo-for="game_001" src="/assets/game-logos/run-the-numbers.svg" alt="Run the Numbers logo" />
-                      <span class="home-game-tile-title">Run The Numbers</span>
-                    </span>
-                  </span>
-                </button>
-                <button type="button" class="home-game-tile home-game-tile-g10" data-route-target="red-black" data-game-id="game_002">
-                  <span class="home-game-tile-head">
-                    <span class="home-game-tile-title-row">
-                      <img class="home-game-tile-logo" data-game-logo-for="game_002" src="/assets/game-logos/guess-10.svg" alt="Guess 10 logo" />
-                      <span class="home-game-tile-title">Guess 10</span>
-                    </span>
-                  </span>
-                </button>
-                <button type="button" class="home-game-tile home-game-tile-shape" data-route-target="shape-traders" data-game-id="game_003">
-                  <span class="home-game-tile-head">
-                    <span class="home-game-tile-title-row">
-                      <img class="home-game-tile-logo" data-game-logo-for="game_003" src="/assets/game-logos/shape-traders.svg" alt="Shape Traders logo" />
-                      <span class="home-game-tile-title">Shape Traders</span>
-                    </span>
-                  </span>
-                </button>
-              </div>
-            </section>
-            <section id="home-live-contests" class="home-contests-panel" hidden aria-labelledby="home-live-contests-title">
-              <div class="home-contests-header">
-                <div>
-                  <h2 id="home-live-contests-title" class="home-contests-title">CONTEST SPOTLIGHT</h2>
+
+              <!-- STAT BLOCKS -->
+              <div class="home-stat-blocks" role="status" aria-live="polite">
+                <div class="home-stat-block">
+                  <div class="hsb-label">RTN</div>
+                  <div id="hsb-rtn" class="hsb-val">—</div>
+                  <div class="hsb-sub">HANDS PLAYED</div>
                 </div>
-                <button type="button" class="home-contests-link" data-route-target="contests">See All Contests</button>
+                <div class="home-stat-block">
+                  <div class="hsb-label">GUESS 10</div>
+                  <div id="hsb-g10" class="hsb-val">—</div>
+                  <div class="hsb-sub">HANDS PLAYED</div>
+                </div>
+                <div class="home-stat-block">
+                  <div class="hsb-label">SHAPE TRADERS</div>
+                  <div id="hsb-st" class="hsb-val">—</div>
+                  <div class="hsb-sub">TRADES MADE</div>
+                </div>
               </div>
-              <ul id="home-live-contest-list" class="home-live-contest-list" aria-live="polite"></ul>
-            </section>
-          </div>
+
+              <!-- CASINO FLOOR -->
+              <div class="home-section-hdr">
+                <div class="home-section-label">// CASINO FLOOR</div>
+              </div>
+              <div class="home-game-cards" aria-label="Choose a game">
+                <button type="button" class="home-game-card home-game-card-rtn" data-route-target="run-the-numbers" data-game-id="game_001">
+                  <div class="hgc-top">
+                    <div class="hgc-glyph">RTN</div>
+                    <div class="hgc-live"><span class="hgc-live-dot"></span><span class="hgc-live-txt">LIVE</span></div>
+                  </div>
+                  <div class="hgc-name">RUN THE NUMBERS</div>
+                  <div id="hgc-rtn-count" class="hgc-count">— hands played</div>
+                </button>
+                <button type="button" class="home-game-card home-game-card-g10" data-route-target="red-black" data-game-id="game_002">
+                  <div class="hgc-top">
+                    <div class="hgc-glyph">?10</div>
+                    <div class="hgc-status">OPEN</div>
+                  </div>
+                  <div class="hgc-name">GUESS 10</div>
+                  <div id="hgc-g10-count" class="hgc-count">— hands played</div>
+                </button>
+                <button type="button" class="home-game-card home-game-card-shape" data-route-target="shape-traders" data-game-id="game_003">
+                  <div class="hgc-top">
+                    <div class="hgc-glyph hgc-glyph-shapes">□△○</div>
+                    <div class="hgc-status">OPEN</div>
+                  </div>
+                  <div class="hgc-name">SHAPE TRADERS</div>
+                  <div id="hgc-st-count" class="hgc-count">— trades made</div>
+                </button>
+              </div>
+
+              <!-- QUOTE BLOCK -->
+              <div class="home-quote-block">
+                <p class="home-quote-text">Hi, I'm Carter—the mind behind the madness.</p>
+                <div class="home-quote-expanded" id="home-about-expanded" hidden>
+                  <p>After years of struggling with crippling gambling addiction I realized there was only one way out for me, BECOME THE HOUSE.</p>
+                  <p>That's what this is, my attempt to flip the cosmic fortunes in my favor, unfortunately that comes at your expense, and I do genuinely apologize for that. But it's dogs eating dogs out there, and I'm sick of being munched.</p>
+                  <p>I've created a collection of completely original games, invented by me, offering a full range of dynamic outcomes. This isn't a place where the odds are handed to you—it's a place where you shape them.</p>
+                </div>
+                <p class="home-quote-attr">— CARTER HURST, FOUNDER &amp; THE HOUSE</p>
+                <button type="button" id="home-about-read-more" class="home-quote-read-more">READ MORE</button>
+              </div>
+
+              <!-- CONTEST SPOTLIGHT -->
+              <section id="home-live-contests" class="home-contests-panel" hidden aria-labelledby="home-live-contests-title">
+                <div class="home-section-hdr">
+                  <h2 id="home-live-contests-title" class="home-section-label">// CONTEST SPOTLIGHT</h2>
+                  <button type="button" class="home-section-link" data-route-target="contests">SEE ALL</button>
+                </div>
+                <ul id="home-live-contest-list" class="home-live-contest-list" aria-live="polite"></ul>
+              </section>
+
+            </div><!-- /home-main -->
+
+            <!-- SIDEBAR -->
+            <aside class="home-sidebar">
+
+              <!-- TIER LADDER -->
+              <div class="home-sb-block">
+                <div class="home-sb-label">// TIER LADDER</div>
+                <!-- Hidden rank panel preserved for JS compatibility -->
+                <section id="home-rank-panel" class="home-rank-panel" hidden aria-labelledby="home-rank-title">
+                  <h2 id="home-rank-title" class="home-rank-title sr-only">Rank</h2>
+                  <button type="button" id="home-rank-ladder-button" class="home-rank-ladder-button sr-only">View Rank Progress</button>
+                </section>
+                <aside id="home-rank-ladder" class="home-rank-ladder" hidden aria-label="Tier ladder">
+                  <div class="home-rank-ladder-head">
+                    <p id="home-rank-ladder-current" class="home-rank-ladder-current">Tier 1</p>
+                  </div>
+                  <ol id="home-rank-ladder-list" class="home-rank-ladder-list"></ol>
+                </aside>
+              </div>
+
+              <!-- RECENT ACTIVITY -->
+              <div class="home-sb-block">
+                <div class="home-sb-label">// RECENT ACTIVITY</div>
+                <ul id="home-sidebar-activity" class="home-sb-activity" aria-live="polite">
+                  <li class="home-sb-activity-empty">Loading activity…</li>
+                </ul>
+              </div>
+
+              <!-- SYSTEM -->
+              <div class="home-sb-block">
+                <div class="home-sb-label">// SYSTEM</div>
+                <div class="home-sb-system">
+                  <div class="hss-row"><span class="hss-key">MODE</span><span id="hss-mode" class="hss-val">NORMAL</span></div>
+                  <div class="hss-row"><span class="hss-key">SESSION</span><span id="hss-session" class="hss-val">ACTIVE</span></div>
+                  <div class="hss-row"><span class="hss-key">SERVER</span><span class="hss-val">RTN-01</span></div>
+                </div>
+              </div>
+
+              <!-- P&L CHART -->
+              <div class="home-sb-block home-sb-chart-block">
+                <div class="home-sb-label-row">
+                  <div class="home-sb-label">// P&amp;L</div>
+                  <div class="home-sb-chart-filters">
+                    <button type="button" class="home-sb-chart-btn is-active" data-home-pnl-period="week">1W</button>
+                    <button type="button" class="home-sb-chart-btn" data-home-pnl-period="month">1M</button>
+                    <button type="button" class="home-sb-chart-btn" data-home-pnl-period="90days">3M</button>
+                    <button type="button" class="home-sb-chart-btn" data-home-pnl-period="all">ALL</button>
+                  </div>
+                </div>
+                <div class="home-sb-chart-game-filters">
+                  <button type="button" class="home-sb-chart-game-btn is-active" data-home-pnl-game="all">All</button>
+                  <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlRtn">RTN</button>
+                  <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlG10">G10</button>
+                  <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlShapeTraders">ST</button>
+                </div>
+                <div id="home-pnl-total" class="home-sb-pnl-total">—</div>
+                <div class="home-sb-chart-wrap">
+                  <canvas id="home-pnl-chart" class="home-sb-chart-canvas"></canvas>
+                </div>
+              </div>
+
+            </aside><!-- /home-sidebar -->
+
+          </div><!-- /home-layout -->
         </section>
 
         <section id="play-view" class="route-view app-page home-view play-hub-view" hidden aria-labelledby="play-title">
@@ -2832,61 +2935,61 @@
             </section>
           </div>
         </section>
+
+        <section id="profile-view" class="route-view app-page profile-view" hidden>
+          <div class="profile-page-wrapper">
+            <div class="profile-header">
+              <h1>Profile</h1>
+              <p class="profile-subtitle">Manage your account information</p>
+              <div class="profile-actions profile-header-actions">
+                <button type="button" data-action="sign-out" class="profile-btn profile-btn-secondary">Sign out</button>
+              </div>
+            </div>
+
+            <form id="profile-form" class="profile-form-card">
+              <div class="profile-input-group">
+                <label for="profile-first-name">First Name</label>
+                <input type="text" id="profile-first-name" name="firstName" autocomplete="given-name" disabled required />
+              </div>
+
+              <div class="profile-input-group">
+                <label for="profile-last-name">Last Name</label>
+                <input type="text" id="profile-last-name" name="lastName" autocomplete="family-name" disabled required />
+              </div>
+
+              <div class="profile-input-group">
+                <label for="profile-email">Username or Email</label>
+                <input type="text" id="profile-email" name="email" autocomplete="username" disabled readonly />
+              </div>
+
+              <div class="profile-reset-panel">
+                <p class="profile-reset-copy">Need to change your password?</p>
+                <button type="button" id="profile-reset-password-button" class="profile-btn profile-btn-secondary">
+                  Reset Password
+                </button>
+              </div>
+
+              <div id="profile-message" class="profile-status-message"></div>
+
+              <div class="profile-actions">
+                <button type="button" id="profile-edit-button" class="profile-btn profile-btn-primary">Edit</button>
+                <button type="button" id="profile-cancel-button" class="profile-btn profile-btn-secondary" hidden>Cancel</button>
+                <button type="submit" id="profile-save-button" class="profile-btn profile-btn-primary" hidden>Save</button>
+              </div>
+            </form>
+
+            <section class="profile-medals-card" aria-labelledby="profile-medals-title">
+              <div class="profile-medals-header">
+                <h2 id="profile-medals-title">Contest Medals</h2>
+                <p>Winner medals earned from finished contests.</p>
+              </div>
+              <ul id="profile-contest-medals" class="profile-contest-medals"></ul>
+            </section>
+          </div>
+        </section>
+
       </main>
     </div>
-    </section>
-
-    <section id="profile-view" class="route-view profile-view" hidden>
-      <div class="profile-page-wrapper">
-        <div class="profile-header">
-          <h1>Profile</h1>
-          <p class="profile-subtitle">Manage your account information</p>
-          <div class="profile-actions profile-header-actions">
-            <button type="button" data-route-target="home" class="profile-btn profile-btn-secondary">Home</button>
-            <button type="button" data-action="sign-out" class="profile-btn profile-btn-secondary">Sign out</button>
-          </div>
-        </div>
-        
-        <form id="profile-form" class="profile-form-card">
-          <div class="profile-input-group">
-            <label for="profile-first-name">First Name</label>
-            <input type="text" id="profile-first-name" name="firstName" autocomplete="given-name" disabled required />
-          </div>
-          
-          <div class="profile-input-group">
-            <label for="profile-last-name">Last Name</label>
-            <input type="text" id="profile-last-name" name="lastName" autocomplete="family-name" disabled required />
-          </div>
-          
-          <div class="profile-input-group">
-            <label for="profile-email">Username or Email</label>
-            <input type="text" id="profile-email" name="email" autocomplete="username" disabled readonly />
-          </div>
-
-          <div class="profile-reset-panel">
-            <p class="profile-reset-copy">Need to change your password?</p>
-            <button type="button" id="profile-reset-password-button" class="profile-btn profile-btn-secondary">
-              Reset Password
-            </button>
-          </div>
-          
-          <div id="profile-message" class="profile-status-message"></div>
-          
-          <div class="profile-actions">
-            <button type="button" id="profile-edit-button" class="profile-btn profile-btn-primary">Edit</button>
-            <button type="button" id="profile-cancel-button" class="profile-btn profile-btn-secondary" hidden>Cancel</button>
-            <button type="submit" id="profile-save-button" class="profile-btn profile-btn-primary" hidden>Save</button>
-          </div>
-        </form>
-
-        <section class="profile-medals-card" aria-labelledby="profile-medals-title">
-          <div class="profile-medals-header">
-            <h2 id="profile-medals-title">Contest Medals</h2>
-            <p>Winner medals earned from finished contests.</p>
-          </div>
-          <ul id="profile-contest-medals" class="profile-contest-medals"></ul>
-        </section>
-      </div>
     </section>
 
     <div
@@ -3796,6 +3899,26 @@
         </div>
         <div class="modal-actions">
           <button type="button" id="rank-up-ok" class="primary">Keep Climbing</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HOME SIDEBAR TRADE DETAIL MODAL -->
+    <div
+      class="modal"
+      id="home-trade-detail-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="home-trade-detail-title"
+      hidden
+    >
+      <div class="modal-content home-trade-detail-sheet">
+        <div class="modal-header">
+          <h2 id="home-trade-detail-title">Trade Detail</h2>
+          <button type="button" class="modal-close" id="home-trade-detail-close" aria-label="Close trade detail">×</button>
+        </div>
+        <div class="modal-body home-trade-detail-body">
+          <div id="home-trade-detail-rows" class="home-trade-detail-rows"></div>
         </div>
       </div>
     </div>

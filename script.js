@@ -2571,6 +2571,7 @@ async function refreshCurrentRankState({ force = false } = {}) {
   typeHomeAboutIntro(homeAboutIntroEl?.dataset.fullCopy || homeAboutIntroEl?.textContent || "");
   renderHomeRankPanel();
   renderHomeRankLadder();
+  refreshHomeDashboard();
   void refreshRankPlayerCounts();
   void renderRankLadderModal();
   await renderHomeContestPromos();
@@ -2692,11 +2693,9 @@ function renderHomeRankLadder() {
   }
 
   homeRankLadderListEl.innerHTML = ladder.map((rank, index) => {
-    const rankStateClass = rank.tier === currentRank.tier
-      ? "is-current"
-      : rank.tier < currentRank.tier
-        ? "is-complete"
-        : "is-locked";
+    const isCurrent = rank.tier === currentRank.tier;
+    const rankStateClass = isCurrent ? "is-current" : rank.tier < currentRank.tier ? "is-complete" : "is-locked";
+    const reqs = buildRankRequirementsCopy(rank);
     return `
       <li
         class="home-rank-ladder-rung ${rankStateClass}"
@@ -2709,18 +2708,20 @@ function renderHomeRankLadder() {
         <span class="home-rank-ladder-node" aria-hidden="true">${escapeAssistantHtml(String(rank.tier))}</span>
         <span class="home-rank-ladder-copy">
           <span class="home-rank-ladder-name">${escapeAssistantHtml(rank.name)}</span>
-          <span class="home-rank-ladder-requirements">${escapeAssistantHtml(buildRankRequirementsCopy(rank))}</span>
-          ${renderRankPlayerCountText(rank, "home-rank-ladder-count")}
-          ${buildHomeRankLadderProgressMarkup(rank)}
+          <span class="home-rank-ladder-requirements">${escapeAssistantHtml(reqs)}</span>
         </span>
+        ${isCurrent ? '<span class="home-rank-ladder-arrow" aria-hidden="true">←</span>' : ""}
       </li>
     `;
   }).join("");
 
   window.requestAnimationFrame(() => {
     const currentRung = homeRankLadderListEl.querySelector(".home-rank-ladder-rung.is-current");
-    if (currentRung) {
-      currentRung.scrollIntoView({ block: "nearest", inline: "center" });
+    const sidebar = document.querySelector(".home-sidebar");
+    if (currentRung && sidebar) {
+      const rungTop = currentRung.offsetTop;
+      const sidebarScroll = rungTop - sidebar.clientHeight / 2;
+      sidebar.scrollTop = Math.max(0, sidebarScroll);
     }
   });
 }
@@ -4898,6 +4899,7 @@ function createShapeTraderActivityEntry({
   totalValue,
   price,
   netProfit = null,
+  avgPurchasePrice = null,
   reason = "",
   createdAt = new Date().toISOString(),
   accountValue = getShapeTraderAccountValue()
@@ -4912,6 +4914,7 @@ function createShapeTraderActivityEntry({
     totalValue: roundCurrencyValue(totalValue),
     price: roundCurrencyValue(price),
     netProfit: netProfit === null ? null : roundCurrencyValue(netProfit),
+    avgPurchasePrice: avgPurchasePrice === null ? null : roundCurrencyValue(avgPurchasePrice),
     accountValue: roundCurrencyValue(accountValue),
     contestId: isContestAccountMode() ? getModeContest()?.id || null : null,
     reason,
@@ -4974,14 +4977,15 @@ async function recordShapeTraderTrade(entry) {
     total_value: roundCurrencyValue(entry.totalValue),
     net_profit: entry.netProfit === null ? null : roundCurrencyValue(entry.netProfit),
     new_account_value: roundCurrencyValue(entry.accountValue),
+    avg_purchase_price: entry.avgPurchasePrice === null || entry.avgPurchasePrice === undefined ? null : roundCurrencyValue(entry.avgPurchasePrice),
     trade_reason: entry.reason || ""
   };
 
   try {
     const { error } = await supabase.from("shape_trader_trades").insert(payload);
     if (error) {
-      if (isMissingColumnError(error, "trade_reason")) {
-        const { trade_reason, ...legacyPayload } = payload;
+      if (isMissingColumnError(error, "avg_purchase_price") || isMissingColumnError(error, "trade_reason")) {
+        const { avg_purchase_price, trade_reason, ...legacyPayload } = payload;
         const retryResult = await supabase.from("shape_trader_trades").insert(legacyPayload);
         if (!retryResult?.error) {
           invalidateAccountChartHistory();
@@ -5021,6 +5025,7 @@ function mapShapeTraderTradeRowToActivity(row) {
     totalValue: roundCurrencyValue(Number(row?.total_value || 0)),
     price: roundCurrencyValue(Number(row?.shape_price || 0)),
     netProfit: row?.net_profit === null || row?.net_profit === undefined ? null : roundCurrencyValue(Number(row.net_profit || 0)),
+    avgPurchasePrice: row?.avg_purchase_price === null || row?.avg_purchase_price === undefined ? null : roundCurrencyValue(Number(row.avg_purchase_price || 0)),
     accountValue: roundCurrencyValue(Number(row?.new_account_value || 0)),
     contestId: row?.contest_id || null,
     reason: row?.trade_reason || "",
@@ -8218,6 +8223,7 @@ async function sellShapeTraderAsset({
       totalValue: Number(result.total_value || 0),
       price: Number(result.price || 0),
       netProfit: result.net_profit === null ? null : Number(result.net_profit || 0),
+      avgPurchasePrice: shapeTradersHoldings[assetId]?.averagePrice ?? null,
       reason
     }));
     markShapeTraderInteraction();
@@ -8949,6 +8955,10 @@ async function setRoute(route, { replaceHash = false } = {}) {
 
   if (resolvedRoute === "home") {
     await loadDashboard();
+    if (currentUser?.id && currentUser.id !== GUEST_USER.id) {
+      void loadActivityLogPage({ force: true });
+      void loadPersistentBankrollHistory({ force: true });
+    }
   } else if (resolvedRoute === "store") {
     await loadPrizeShop();
   } else if (resolvedRoute === "admin") {
@@ -17747,7 +17757,7 @@ const headerEl = document.querySelector(".header");
 const chipBarEl = runTheNumbersView ? runTheNumbersView.querySelector(".chip-bar") : null;
 const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout") : null;
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
-const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin"]);
+const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
@@ -22076,6 +22086,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
   persistentBankrollUserId = currentUser.id;
   updateBankrollChartFilterUI();
   drawBankrollChart();
+  drawHomePnlChart();
 }
 
 function ensureBankrollChartLiveRefresh() {
@@ -25491,6 +25502,7 @@ function mapShapeTraderTradeRowToActivityLogEntry(row) {
     price: mapped.price,
     totalValue: mapped.totalValue,
     netProfit: mapped.netProfit,
+    avgPurchasePrice: mapped.avgPurchasePrice ?? null,
     newAccountValue: mapped.accountValue
   };
 }
@@ -26292,6 +26304,7 @@ async function loadActivityLogPage({ force = false, append = false } = {}) {
   } finally {
     activityLogLoading = false;
     renderActivityLogPage();
+    renderHomeSidebarActivity();
   }
 }
 
@@ -27645,6 +27658,26 @@ chipEditorModal?.addEventListener("click", (event) => {
   }
 });
 
+// ---- NEW UI TOGGLE ----
+const NEW_UI_KEY = "rtn_new_ui";
+const newUiToggleBtn = document.getElementById("new-ui-toggle");
+
+function applyNewUiState(enabled) {
+  document.body.setAttribute("data-ui", enabled ? "new" : "classic");
+  if (newUiToggleBtn) newUiToggleBtn.setAttribute("aria-checked", enabled ? "true" : "false");
+}
+
+// Init from localStorage
+applyNewUiState(localStorage.getItem(NEW_UI_KEY) === "1");
+
+if (newUiToggleBtn) {
+  newUiToggleBtn.addEventListener("click", () => {
+    const next = newUiToggleBtn.getAttribute("aria-checked") !== "true";
+    localStorage.setItem(NEW_UI_KEY, next ? "1" : "0");
+    applyNewUiState(next);
+  });
+}
+
 if (resetAccountButton) {
   resetAccountButton.addEventListener("click", () => {
     if (dealing) return;
@@ -27655,6 +27688,16 @@ if (resetAccountButton) {
 if (profileRetryButton) {
   profileRetryButton.addEventListener("click", () => {
     void retryProfileLoad("profile-retry:manual");
+  });
+}
+
+const readMoreBtn = document.getElementById("home-about-read-more");
+const readMoreExpanded = document.getElementById("home-about-expanded");
+if (readMoreBtn && readMoreExpanded) {
+  readMoreBtn.addEventListener("click", () => {
+    const isOpen = !readMoreExpanded.hidden;
+    readMoreExpanded.hidden = isOpen;
+    readMoreBtn.textContent = isOpen ? "READ MORE" : "READ LESS";
   });
 }
 
@@ -33236,3 +33279,441 @@ async function initializeApp() {
 }
 
 initializeApp();
+
+/* ============================================================
+   HOME DASHBOARD — STAT CARDS, SIDEBAR ACTIVITY, P&L CHART
+   ============================================================ */
+
+const homeSidebarActivityEl = document.getElementById("home-sidebar-activity");
+const homePnlTotalEl = document.getElementById("home-pnl-total");
+const homePnlChartCanvas = document.getElementById("home-pnl-chart");
+let homePnlChartPeriod = "week";
+let homePnlChartGame = "all";
+let homePnlCtx = homePnlChartCanvas ? homePnlChartCanvas.getContext("2d") : null;
+let homePnlHoverBars = [];
+
+function renderHomePlayerHero() {
+  if (!currentProfile) return;
+  const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const firstName = currentProfile.first_name || "";
+  const lastName = currentProfile.last_name || "";
+  const fullName = [firstName, lastName].filter(Boolean).join("\n");
+  const nameEl = document.getElementById("hph-name");
+  if (nameEl) {
+    const rankNum = Number(currentProfile.current_rank || 1);
+    const rankBadge = `<span class="hph-rank-badge">#${rankNum}</span>`;
+    nameEl.innerHTML = firstName
+      ? `${escapeAssistantHtml(firstName)}${rankBadge}<br><span style="color:#c8c0a8">${escapeAssistantHtml(lastName)}</span>`
+      : escapeAssistantHtml(fullName || "—");
+  }
+
+  const rawUsername = currentProfile.username || "";
+  const displayHandle = rawUsername.includes("@")
+    ? rawUsername.split("@")[0]
+    : rawUsername;
+  const username = displayHandle ? `@${displayHandle}` : "";
+  const memberYear = currentUser?.created_at
+    ? `member since ${new Date(currentUser.created_at).getFullYear()}`
+    : "";
+  setEl("hph-sub", [username, memberYear].filter(Boolean).join(" · "));
+
+  const contestWins = Math.max(0, Math.round(Number(currentProfile.contest_wins || 0)));
+  const rankTier = Math.max(1, Math.round(Number(currentProfile.current_rank_tier || currentProfile.current_rank || 1)));
+  const rankName = currentRankState?.currentRank?.name || `Tier ${rankTier}`;
+
+  const badgesEl = document.getElementById("hph-badges");
+  if (badgesEl) {
+    const badges = [
+      { text: rankName.toUpperCase(), accent: true },
+      { text: `TIER ${rankTier}` },
+      { text: `${contestWins} WIN${contestWins === 1 ? "" : "S"}` },
+    ];
+    badgesEl.innerHTML = badges.map(b =>
+      `<span class="hph-badge${b.accent ? " hph-badge-accent" : ""}">${escapeAssistantHtml(b.text)}</span>`
+    ).join("");
+  }
+}
+
+function renderHomeStatCards() {
+  if (!currentProfile) return;
+
+  const rtnHands = Math.max(0, Math.round(Number(currentProfile.run_the_numbers_hands_played_all_time || 0)));
+  const g10Hands = Math.max(0, Math.round(Number(currentProfile.guess10_hands_played_all_time || 0)));
+  const stTrades = Math.max(0, Math.round(Number(currentProfile.trades_made_all_time || 0)));
+  const totalHands = Math.max(0, Math.round(Number(currentProfile.total_progress_events || currentProfile.hands_played_all_time || rtnHands + g10Hands)));
+  const rankTier = Math.max(1, Math.round(Number(currentProfile.current_rank_tier || currentProfile.current_rank || 1)));
+  const rankName = currentRankState?.currentRank?.name || `Tier ${rankTier}`;
+
+  const fmt = (n) => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(n);
+  const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+  setEl("hsb-rtn", fmt(rtnHands));
+  setEl("hsb-g10", fmt(g10Hands));
+  setEl("hsb-st", fmt(stTrades));
+
+  // Rank — show current_rank from profiles
+  const rankNum = Number(currentProfile.current_rank || 1);
+  setEl("hsb-rank", `#${rankNum}`);
+  setEl("hsb-rank-sub", rankName.toUpperCase());
+
+  // Game card counts
+  setEl("hgc-rtn-count", `${fmt(rtnHands)} hands played`);
+  setEl("hgc-g10-count", `${fmt(g10Hands)} hands played`);
+  setEl("hgc-st-count", `${fmt(stTrades)} trades made`);
+}
+
+function renderHomeSystemBlock() {
+  const modeEl = document.getElementById("hss-mode");
+  const sessionEl = document.getElementById("hss-session");
+  if (modeEl) {
+    const modeSelect = document.getElementById("account-mode-select");
+    modeEl.textContent = modeSelect ? modeSelect.value.toUpperCase().replace(/_/g, " ") : "NORMAL";
+  }
+  if (sessionEl) {
+    sessionEl.textContent = currentUser && currentUser.id !== (typeof GUEST_USER !== "undefined" ? GUEST_USER.id : null) ? "ACTIVE" : "GUEST";
+  }
+}
+
+function formatHomeSidebarTimestamp(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  const dy = String(d.getDate()).padStart(2, "0");
+  const hr = String(d.getHours()).padStart(2, "0");
+  const mn = String(d.getMinutes()).padStart(2, "0");
+  return `${mo}/${dy} ${hr}:${mn}`;
+}
+
+function openHomeTradeDetailModal(entry) {
+  const modal = document.getElementById("home-trade-detail-modal");
+  const rowsEl = document.getElementById("home-trade-detail-rows");
+  if (!modal || !rowsEl) return;
+
+  const side = entry.side === "sell" ? "SELL" : "BUY";
+  const pl = entry.netProfit === null || entry.netProfit === undefined ? null : Number(entry.netProfit);
+  const plText = pl === null ? "—" : pl >= 0 ? `+${formatCurrency(Math.abs(pl))}` : `-${formatCurrency(Math.abs(pl))}`;
+  const plClass = pl === null ? "" : pl > 0 ? " is-win" : pl < 0 ? " is-loss" : "";
+
+  const isSell = entry.side === "sell";
+  const avgPrice = entry.avgPurchasePrice;
+  const avgPriceText = avgPrice !== null && avgPrice !== undefined ? formatCurrency(avgPrice) : "—";
+
+  const rows = [
+    ["TYPE", side],
+    ["ASSET", escapeAssistantHtml(entry.assetLabel || entry.assetId || "—")],
+    ["QTY", formatCurrency(entry.quantity || 0)],
+    isSell ? ["AVG PURCHASE PRICE", avgPriceText] : null,
+    [isSell ? "SELL PRICE" : "BUY PRICE", formatCurrency(entry.price || 0)],
+    ["TOTAL VALUE", formatCurrency(entry.totalValue || 0)],
+    ["P/L", plText, plClass],
+    ["ACCOUNT VALUE", formatCurrency(entry.newAccountValue || 0)],
+    ["TIME", formatHomeSidebarTimestamp(entry.createdAt)],
+  ].filter(Boolean);
+
+  rowsEl.innerHTML = rows.map(([k, v, cls = ""]) =>
+    `<div class="htd-row">
+      <span class="htd-key">${k}</span>
+      <span class="htd-val${escapeAssistantHtml(cls)}">${v}</span>
+    </div>`
+  ).join("");
+
+  modal.hidden = false;
+  document.getElementById("home-trade-detail-close")?.focus();
+}
+
+function closeHomeTradeDetailModal() {
+  const modal = document.getElementById("home-trade-detail-modal");
+  if (modal) modal.hidden = true;
+}
+
+(function wireHomeTradeDetailModal() {
+  const closeBtn = document.getElementById("home-trade-detail-close");
+  if (closeBtn) closeBtn.addEventListener("click", closeHomeTradeDetailModal);
+  const modal = document.getElementById("home-trade-detail-modal");
+  if (modal) {
+    modal.addEventListener("click", (e) => { if (e.target === modal) closeHomeTradeDetailModal(); });
+    modal.addEventListener("keydown", (e) => { if (e.key === "Escape") closeHomeTradeDetailModal(); });
+  }
+})();
+
+function renderHomeSidebarActivity() {
+  if (!homeSidebarActivityEl) return;
+  const entries = activityLogEntries.slice(0, 25);
+  if (!entries.length) {
+    homeSidebarActivityEl.innerHTML = '<li class="home-sb-activity-empty">No activity yet.</li>';
+    return;
+  }
+  homeSidebarActivityEl.innerHTML = entries.map((entry, idx) => {
+    let label = "";
+    let resultClass = "is-neutral";
+    let resultText = "";
+    let isTrade = false;
+
+    if (entry.gameKey === GAME_KEYS.RUN_THE_NUMBERS || entry.gameKey === GAME_KEYS.GUESS_10) {
+      const gameShort = entry.gameKey === GAME_KEYS.RUN_THE_NUMBERS ? "RTN" : "G10";
+      const handNum = entry.handNumber || entry.handId?.slice(-4) || "—";
+      label = `${escapeAssistantHtml(gameShort)} · <b>#${escapeAssistantHtml(String(handNum))}</b>`;
+      const net = Number(entry.net ?? 0);
+      resultClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
+      resultText = net > 0 ? "WIN" : net < 0 ? "LOSS" : "PUSH";
+    } else if (entry.entryType === "trade") {
+      isTrade = true;
+      const side = entry.side === "sell" ? "SELL" : "BUY";
+      label = `ST · <b>${escapeAssistantHtml(side)}</b>`;
+      const pl = Number(entry.netProfit ?? 0);
+      resultClass = pl > 0 ? "is-win" : pl < 0 ? "is-loss" : "is-neutral";
+      resultText = pl >= 0 ? `+${formatCurrency(Math.abs(pl))}` : `-${formatCurrency(Math.abs(pl))}`;
+    } else {
+      label = `<b>ACCOUNT</b>`;
+      resultText = formatSignedCurrency(entry.amount || 0);
+      resultClass = "is-neutral";
+    }
+
+    const handId = entry.handId || null;
+    const ts = formatHomeSidebarTimestamp(entry.createdAt);
+    const isClickable = handId || isTrade;
+    const dataAttrs = handId ? ` data-hand-review-id="${escapeAssistantHtml(handId)}"` : "";
+    const tradeAttr = isTrade ? ` data-activity-idx="${idx}"` : "";
+
+    return `<li class="home-sb-activity-item${isClickable ? " is-clickable" : ""}"${dataAttrs}${tradeAttr}${isClickable ? ' tabindex="0" role="button"' : ""}>
+      <span class="home-sb-act-left">${label}</span>
+      <span class="home-sb-act-right ${resultClass}">${escapeAssistantHtml(resultText)}</span>
+      <span class="home-sb-act-time">${escapeAssistantHtml(ts)}</span>
+    </li>`;
+  }).join("");
+
+  homeSidebarActivityEl.querySelectorAll("[data-hand-review-id]").forEach((item) => {
+    const activate = () => {
+      const handId = item.dataset.handReviewId;
+      if (handId && typeof openHandReviewModal === "function") openHandReviewModal(handId);
+    };
+    item.addEventListener("click", activate);
+    item.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } });
+  });
+
+  homeSidebarActivityEl.querySelectorAll("[data-activity-idx]").forEach((item) => {
+    const activate = () => {
+      const idx = Number(item.dataset.activityIdx);
+      const entry = activityLogEntries[idx];
+      if (entry) openHomeTradeDetailModal(entry);
+    };
+    item.addEventListener("click", activate);
+    item.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } });
+  });
+}
+
+function getHomePnlFilteredPoints() {
+  const fallbackDayKey = formatAnalyticsDateKey(new Date());
+  const source = persistentBankrollHistory.length
+    ? persistentBankrollHistory
+    : [{ dayKey: fallbackDayKey, pnlTotal: 0 }];
+  const todayKey = formatAnalyticsDateKey(new Date());
+  let startDayKey = null;
+  if (homePnlChartPeriod === "week") startDayKey = shiftAnalyticsDateKey(todayKey, -6);
+  else if (homePnlChartPeriod === "month") startDayKey = shiftAnalyticsDateKey(todayKey, -29);
+  else if (homePnlChartPeriod === "90days") startDayKey = shiftAnalyticsDateKey(todayKey, -89);
+  const periodFiltered = startDayKey ? source.filter((p) => !p?.dayKey || p.dayKey >= startDayKey) : source;
+  if (homePnlChartGame === "all") return periodFiltered;
+  return periodFiltered.map((p) => ({ ...p, pnlTotal: Number(p?.[homePnlChartGame] ?? 0) }));
+}
+
+function drawHomePnlChart() {
+  if (!homePnlChartCanvas || !homePnlCtx) return;
+  const points = getHomePnlFilteredPoints();
+  const values = points.map((p) => Number(p?.pnlTotal ?? p?.dayNet ?? 0));
+  const totalPnl = roundCurrencyValue(values.reduce((s, v) => s + v, 0));
+
+  if (homePnlTotalEl) {
+    homePnlTotalEl.textContent = totalPnl >= 0 ? `+${formatCurrency(totalPnl)}` : formatSignedCurrency(totalPnl);
+    homePnlTotalEl.className = "home-sb-pnl-total" + (totalPnl > 0 ? " is-positive" : totalPnl < 0 ? " is-negative" : "");
+  }
+
+  const rect = homePnlChartCanvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const dpr = window.devicePixelRatio || 1;
+  homePnlChartCanvas.width = rect.width * dpr;
+  homePnlChartCanvas.height = rect.height * dpr;
+  const ctx = homePnlCtx;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, homePnlChartCanvas.width, homePnlChartCanvas.height);
+  ctx.scale(dpr, dpr);
+
+  const w = rect.width;
+  const h = rect.height;
+  const pad = { top: 6, right: 4, bottom: 4, left: 4 };
+  const chartW = Math.max(1, w - pad.left - pad.right);
+  const chartH = Math.max(1, h - pad.top - pad.bottom);
+  const maxAbs = Math.max(...values.map(Math.abs), 1);
+  const zeroY = pad.top + chartH / 2;
+  const n = values.length;
+  const barSpacing = 2;
+  const barW = n > 1 ? Math.max(2, (chartW - barSpacing * (n - 1)) / n) : chartW;
+
+  values.forEach((val, i) => {
+    const x = pad.left + i * (barW + barSpacing);
+    const barH = Math.max(1, (Math.abs(val) / maxAbs) * (chartH / 2 - 2));
+    const y = val >= 0 ? zeroY - barH : zeroY;
+    ctx.fillStyle = val >= 0 ? "#c8ff00" : "#ff6b6b";
+    ctx.globalAlpha = 0.85;
+    ctx.fillRect(x, y, barW, barH);
+    ctx.globalAlpha = 1;
+  });
+
+  // zero line
+  ctx.strokeStyle = "rgba(200, 255, 0, 0.25)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, zeroY);
+  ctx.lineTo(w - pad.right, zeroY);
+  ctx.stroke();
+}
+
+function refreshHomeDashboard() {
+  renderHomePlayerHero();
+  renderHomeStatCards();
+  renderHomeSidebarActivity();
+  renderHomeSystemBlock();
+  drawHomePnlChart();
+}
+
+// Hook into the existing render pipeline
+const _origRenderHomeRankPanel = typeof renderHomeRankPanel === "function" ? renderHomeRankPanel : null;
+if (_origRenderHomeRankPanel) {
+  const _wrapped = function() {
+    _origRenderHomeRankPanel();
+    renderHomeStatCards();
+  };
+  // Override only if safe
+  try { renderHomeRankPanel = _wrapped; } catch(e) {}
+}
+
+// Period filter buttons
+document.querySelectorAll("[data-home-pnl-period]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    homePnlChartPeriod = btn.dataset.homePnlPeriod;
+    document.querySelectorAll("[data-home-pnl-period]").forEach((b) => b.classList.toggle("is-active", b === btn));
+    drawHomePnlChart();
+  });
+});
+
+// Game filter buttons
+document.querySelectorAll("[data-home-pnl-game]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    homePnlChartGame = btn.dataset.homePnlGame;
+    document.querySelectorAll("[data-home-pnl-game]").forEach((b) => b.classList.toggle("is-active", b === btn));
+    drawHomePnlChart();
+  });
+});
+
+// Redraw chart on resize
+window.addEventListener("resize", () => {
+  if (currentRoute === "home") drawHomePnlChart();
+}, { passive: true });
+
+// ─── RIPPLE DOT GRID BACKGROUND ───────────────────────────────────────────────
+(function initRippleGrid() {
+  const canvas = document.getElementById("home-dot-canvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const SPACING  = 16;   // dense grid
+  const BASE_R   = 0.65; // resting dot radius — small and sharp
+  const MAX_R    = 2.1;  // peak radius when ripple hits
+  const BASE_A   = 0.06; // nearly invisible at rest
+  const MAX_A    = 0.62; // bright and sharp at peak
+  const SPEED    = 85;   // px/s — ripple expansion speed
+  const BAND     = 80;   // px — wave front thickness
+  const BEAT_MS  = 4200; // ms between ripples
+
+  let w = 0, h = 0, dpr = 1;
+  let animId = null;
+  let ripples = [];  // { cx, cy, born }
+  let nextBeat = 0;
+
+  function spawnRipple(ts) {
+    const cx = Math.random() * w;
+    const cy = Math.random() * h;
+    ripples.push({ cx, cy, born: ts });
+  }
+
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    w = rect.width; h = rect.height;
+    canvas.width  = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function tick(ts) {
+    animId = requestAnimationFrame(tick);
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width && rect.height && (rect.width !== w || rect.height !== h)) resize();
+    if (!w || !h) return;
+
+    if (ts >= nextBeat) {
+      spawnRipple(ts);
+      nextBeat = ts + BEAT_MS;
+    }
+
+    // Cull dead ripples (past canvas diagonal)
+    const maxR = Math.hypot(w, h);
+    ripples = ripples.filter(r => (ts - r.born) * 0.001 * SPEED < maxR * 1.1);
+
+    ctx.clearRect(0, 0, w, h);
+
+    for (let gx = SPACING / 2; gx < w + SPACING; gx += SPACING) {
+      for (let gy = SPACING / 2; gy < h + SPACING; gy += SPACING) {
+        let peak = 0;
+
+        for (const r of ripples) {
+          const elapsed = (ts - r.born) * 0.001;
+          const radius  = elapsed * SPEED;
+          const dist    = Math.hypot(gx - r.cx, gy - r.cy);
+          const delta   = Math.abs(dist - radius);
+
+          if (delta < BAND) {
+            // Sharp leading edge, quick trailing falloff
+            const raw  = 1 - delta / BAND;
+            const wave = raw * raw * (3 - 2 * raw); // smooth-step → crisp peak
+            // Attenuate as ripple travels far from origin
+            const fade = Math.max(0, 1 - radius / (maxR * 1.4));
+            peak = Math.max(peak, wave * fade);
+          }
+        }
+
+        const r_dot = BASE_R + peak * (MAX_R - BASE_R);
+        const a     = BASE_A + peak * (MAX_A - BASE_A);
+
+        ctx.beginPath();
+        ctx.arc(gx, gy, r_dot, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(200,255,0,${a.toFixed(3)})`;
+        ctx.fill();
+      }
+    }
+  }
+
+  function start() {
+    if (animId) return;
+    resize();
+    nextBeat = performance.now() + 400; // slight delay before first beat
+    animId = requestAnimationFrame(tick);
+  }
+
+  function stop() {
+    if (animId) { cancelAnimationFrame(animId); animId = null; }
+    if (w && h) ctx.clearRect(0, 0, w, h);
+    ripples = [];
+    echoQueued = false;
+  }
+
+  new MutationObserver(() => {
+    document.body.dataset.route === "home" ? start() : stop();
+  }).observe(document.body, { attributes: true, attributeFilter: ["data-route"] });
+
+  window.addEventListener("resize", () => { if (animId) resize(); }, { passive: true });
+
+  if (document.body.dataset.route === "home") start();
+})();
