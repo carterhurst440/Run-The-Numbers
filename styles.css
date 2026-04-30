@@ -20202,20 +20202,36 @@ body.modal-open {
 .home-stat-block {
   padding: 20px 20px 18px;
   border-right: 1px solid #252520;
-  cursor: pointer;
-  text-align: left;
-  font-family: inherit;
+}
+
+.hsb-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.hsb-chart-btn {
   background: transparent;
-  transition: background 0.15s;
+  border: none;
+  padding: 2px 0 2px 6px;
+  cursor: pointer;
+  color: #52523e;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+  flex-shrink: 0;
 }
 
-.home-stat-block:hover {
-  background: rgba(255, 255, 255, 0.03);
+.hsb-chart-btn svg {
+  width: 14px;
+  height: 12px;
+  display: block;
 }
 
-button.home-stat-block:first-child:hover { background: rgba(200, 255, 0, 0.04); }
-button.home-stat-block:nth-child(2):hover { background: rgba(0, 229, 255, 0.03); }
-button.home-stat-block:last-child:hover { background: rgba(255, 127, 216, 0.03); }
+.hsb-chart-btn:hover {
+  color: #c8ff00;
+}
 
 .hph-rank-badge {
   font-size: 0.55em;
@@ -20236,8 +20252,8 @@ button.home-stat-block:last-child:hover { background: rgba(255, 127, 216, 0.03);
   letter-spacing: 0.18em;
   color: #686850;
   text-transform: uppercase;
-  margin-bottom: 8px;
 }
+
 
 .hsb-val {
   font-size: 32px;
