@@ -219,8 +219,8 @@
                   id="carter-cash-info-button"
                   class="info-icon carter-cash-info-button"
                   aria-label="How Carter Cash is earned"
-                  aria-expanded="false"
-                  aria-controls="carter-cash-tooltip"
+                  aria-haspopup="dialog"
+                  aria-controls="carter-cash-modal"
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                     <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"></circle>
@@ -228,13 +228,6 @@
                     <circle cx="12" cy="7.2" r="1.1" fill="currentColor"></circle>
                   </svg>
                 </button>
-                <div
-                  id="carter-cash-tooltip"
-                  class="carter-cash-tooltip"
-                  role="tooltip"
-                >
-                  1 dollar Carter Cash is earned with each 1000 of bets placed through the game.
-                </div>
                 <span id="carter-cash-delta" class="carter-delta" aria-hidden="true"></span>
               </div>
             </div>
@@ -3926,5 +3919,22 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
     <script type="module" src="script.js?v=20260409-contest-game-ids"></script>
+
+  <div class="modal info-modal" id="carter-cash-modal" role="dialog" aria-modal="true" aria-labelledby="carter-cash-modal-title" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="carter-cash-modal-title">Carter Cash</h2>
+        <button type="button" class="modal-close" id="carter-cash-modal-close" aria-label="Close Carter Cash info">×</button>
+      </div>
+      <div class="modal-body">
+        <p>Carter Cash (CC) is a premium currency earned through gameplay activity:</p>
+        <ul class="cc-earn-list">
+          <li><strong>1 CC</strong> per <strong>1,000 units</strong> wagered in <strong>Guess 10</strong> or <strong>RTN</strong></li>
+          <li><strong>1 CC</strong> per <strong>1,000 units</strong> of PNL differential on <strong>Shape Traders</strong> trade sells</li>
+        </ul>
+        <p>Use Carter Cash to redeem prizes in the store.</p>
+      </div>
+    </div>
+  </div>
   </body>
 </html>

@@ -8980,7 +8980,7 @@ body.theme-angelic {
   background: #121211;
   padding: 0 20px;
   padding-top: env(safe-area-inset-top, 0px);
-  height: calc(54px + env(safe-area-inset-top, 0px));
+  height: calc(50px + env(safe-area-inset-top, 0px));
   border-bottom: 1px solid #2e2e22;
   box-shadow: none;
   position: sticky;
@@ -8994,7 +8994,7 @@ body.theme-angelic {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 54px;
+  height: 50px;
   gap: 14px;
   flex-wrap: nowrap;
 }
@@ -13471,6 +13471,30 @@ body.play-assistant-open .play-assistant-fab {
   line-height: 1.6;
   color: color-mix(in srgb, var(--text-light) 88%, var(--muted) 12%);
   font-size: clamp(0.9rem, 2vw, 1rem);
+}
+
+.info-modal .modal-body p {
+  margin: 0 0 0.75rem;
+}
+
+.info-modal .modal-body p:last-child {
+  margin-bottom: 0;
+}
+
+.cc-earn-list {
+  margin: 0 0 0.75rem;
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.cc-earn-list li {
+  color: color-mix(in srgb, var(--text-light) 94%, var(--accent) 6%);
+}
+
+.cc-earn-list strong {
+  color: var(--text-light);
 }
 
 .analytics-section {
@@ -20050,7 +20074,7 @@ body.modal-open {
 /* dot-grid texture on home page */
 #home-view {
   background-color: #111110;
-  min-height: calc(100vh - 54px);
+  min-height: calc(100vh - 50px);
   position: relative;
   overflow-x: clip;
 }
@@ -20084,7 +20108,7 @@ body.modal-open {
 .home-layout {
   display: grid;
   grid-template-columns: 1fr 320px;
-  min-height: calc(100vh - 54px);
+  min-height: calc(100vh - 50px);
   align-items: start;
   position: relative;
   z-index: 1;
@@ -20299,8 +20323,8 @@ body.modal-open {
 .home-sidebar {
   padding: 0 20px 20px;
   position: sticky;
-  top: 54px;
-  max-height: calc(100vh - 54px);
+  top: 50px;
+  max-height: calc(100vh - 50px);
   overflow-y: auto;
   z-index: 1;
 }

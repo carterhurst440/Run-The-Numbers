@@ -15981,11 +15981,18 @@ function cancelProfileEdit() {
   setProfileEditMode(false);
 }
 
-function setCarterCashTooltipOpen(isOpen) {
-  const wrapper = carterCashInfoButton?.closest(".carter-cash");
-  if (!wrapper || !carterCashInfoButton) return;
-  wrapper.classList.toggle("is-tooltip-open", Boolean(isOpen));
-  carterCashInfoButton.setAttribute("aria-expanded", String(Boolean(isOpen)));
+function openCarterCashModal() {
+  const modal = document.getElementById("carter-cash-modal");
+  if (!modal) return;
+  modal.hidden = false;
+  document.getElementById("carter-cash-modal-close")?.focus();
+}
+
+function closeCarterCashModal() {
+  const modal = document.getElementById("carter-cash-modal");
+  if (!modal) return;
+  modal.hidden = true;
+  carterCashInfoButton?.focus();
 }
 
 async function saveProfile(event) {
@@ -17764,7 +17771,6 @@ const dashboardEmailEl = document.getElementById("dashboard-email");
 const dashboardCreditsEl = document.getElementById("dashboard-credits");
 const dashboardCarterEl = document.getElementById("dashboard-carter-cash");
 const carterCashInfoButton = document.getElementById("carter-cash-info-button");
-const carterCashTooltip = document.getElementById("carter-cash-tooltip");
 const homeRankPanelEl = document.getElementById("home-rank-panel");
 const homeRankTitleEl = document.getElementById("home-rank-title");
 const homeRankHandsProgressTextEl = document.getElementById("home-rank-hands-progress-text");
@@ -28034,9 +28040,20 @@ if (carterCashInfoButton) {
   carterCashInfoButton.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    const wrapper = carterCashInfoButton.closest(".carter-cash");
-    const isOpen = wrapper?.classList.contains("is-tooltip-open");
-    setCarterCashTooltipOpen(!isOpen);
+    openCarterCashModal();
+  });
+}
+
+const carterCashModalEl = document.getElementById("carter-cash-modal");
+const carterCashModalClose = document.getElementById("carter-cash-modal-close");
+
+if (carterCashModalClose) {
+  carterCashModalClose.addEventListener("click", () => closeCarterCashModal());
+}
+
+if (carterCashModalEl) {
+  carterCashModalEl.addEventListener("click", (event) => {
+    if (event.target === carterCashModalEl) closeCarterCashModal();
   });
 }
 
@@ -32791,7 +32808,11 @@ document.addEventListener("keydown", (event) => {
       event.preventDefault();
       return;
     }
-    setCarterCashTooltipOpen(false);
+    if (carterCashModalEl && !carterCashModalEl.hidden) {
+      closeCarterCashModal();
+      event.preventDefault();
+      return;
+    }
     if (shapeTradersModeSwitchModal && !shapeTradersModeSwitchModal.hidden) {
       closeShapeTradersModeSwitchModal({ restoreFocus: true, confirmed: false });
       event.preventDefault();
@@ -32865,13 +32886,6 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-document.addEventListener("click", (event) => {
-  if (!carterCashInfoButton) return;
-  const wrapper = carterCashInfoButton.closest(".carter-cash");
-  if (!wrapper) return;
-  if (event.target instanceof Node && wrapper.contains(event.target)) return;
-  setCarterCashTooltipOpen(false);
-});
 
   updateAdminVisibility(currentUser);
   updateResetButtonVisibility(currentUser);
