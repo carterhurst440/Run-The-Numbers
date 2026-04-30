@@ -20230,7 +20230,7 @@ body.modal-open {
 }
 
 .hsb-chart-btn:hover {
-  color: #c8ff00;
+  color: #d8d0b8;
 }
 
 .hph-rank-badge {
@@ -20461,12 +20461,12 @@ body.modal-open {
 }
 
 /* Per-game accent top stripe */
-.home-game-card-rtn  { border-top-color: #c8ff00; }
+.home-game-card-rtn  { border-top-color: #e8a020; }
 .home-game-card-g10  { border-top-color: #00e5ff; }
 .home-game-card-shape { border-top-color: #d06aaf; }
 
 /* Per-game hover */
-.home-game-card-rtn:hover  { border-color: #c8ff00; background: rgba(200, 255, 0, 0.05); }
+.home-game-card-rtn:hover  { border-color: #e8a020; background: rgba(232, 160, 32, 0.06); }
 .home-game-card-g10:hover  { border-color: #00e5ff; background: rgba(0, 229, 255, 0.04); }
 .home-game-card-shape:hover { border-color: #d06aaf; background: rgba(208, 106, 175, 0.05); }
 
@@ -20496,7 +20496,7 @@ body.modal-open {
   letter-spacing: 2px;
 }
 
-.home-game-card-rtn .hgc-glyph  { color: #c8ff00; }
+.home-game-card-rtn .hgc-glyph  { color: #e8a020; }
 .home-game-card-g10 .hgc-glyph  { color: #00e5ff; }
 .home-game-card-shape .hgc-glyph { color: #d06aaf; }
 
@@ -20535,7 +20535,7 @@ body.modal-open {
   font-weight: 400;
 }
 
-.home-game-card-rtn .hgc-name  { color: #a8cc00; }
+.home-game-card-rtn .hgc-name  { color: #c07818; }
 .home-game-card-g10 .hgc-name  { color: #00b8cc; }
 .home-game-card-shape .hgc-name { color: #a85890; }
 
@@ -21088,19 +21088,19 @@ body.modal-open {
    ============================================================ */
 
 body[data-ui="new"][data-route="run-the-numbers"] {
-  --route-accent: #c8ff00;
+  --route-accent: #e8a020;
   --route-accent-secondary: #a0cc00;
   --route-accent-tertiary: #8ab800;
-  --route-gold: #c8ff00;
+  --route-gold: #e8a020;
   --route-muted: #a0b070;
-  --route-success: #c8ff00;
+  --route-success: #e8a020;
   --route-danger: #ff4d4d;
   --route-bg-start: #0a0a08;
   --route-bg-end: #0d0d0a;
-  --route-primary-button: #c8ff00;
+  --route-primary-button: #e8a020;
   --route-secondary-button: #1e1e18;
 
-  --rtn-felt-highlight: rgba(200, 255, 0, 0.04);
+  --rtn-felt-highlight: rgba(232, 160, 32, 0.04);
   --rtn-felt-thread: transparent;
   --rtn-rack-shadow: rgba(0, 0, 0, 0.6);
 
@@ -21127,7 +21127,7 @@ body[data-ui="new"] #run-the-numbers-view .table-panel {
   border-radius: 2px;
   background: #0e0e0c;
   box-shadow:
-    0 0 0 1px rgba(200, 255, 0, 0.04),
+    0 0 0 1px rgba(232, 160, 32, 0.04),
     0 24px 48px rgba(0, 0, 0, 0.48);
 }
 
@@ -21149,7 +21149,7 @@ body[data-ui="new"] #run-the-numbers-view .dealer-header {
 body[data-ui="new"] #run-the-numbers-view .dealer-game-tag {
   font-size: 9px;
   letter-spacing: 0.22em;
-  color: #c8ff00;
+  color: #e8a020;
   font-weight: 600;
   text-transform: uppercase;
   background: transparent;
@@ -21173,7 +21173,7 @@ body[data-ui="new"] #run-the-numbers-view .card {
   border-radius: 4px;
   background: #f8f8f0;
   color: #111;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(200,255,0,0.3);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(232,160,32,0.3);
 }
 
 body[data-ui="new"] #run-the-numbers-view .card.card-red,
@@ -21213,8 +21213,8 @@ body[data-ui="new"] #run-the-numbers-view .status {
 
 body[data-ui="new"] #run-the-numbers-view .status.is-win,
 body[data-ui="new"] #run-the-numbers-view .status.win {
-  color: #c8ff00;
-  text-shadow: 0 0 12px rgba(200,255,0,0.35);
+  color: #e8a020;
+  text-shadow: 0 0 12px rgba(232,160,32,0.35);
 }
 
 body[data-ui="new"] #run-the-numbers-view .status.is-loss,
@@ -21251,16 +21251,16 @@ body[data-ui="new"] #run-the-numbers-view .bet-spot {
 
 body[data-ui="new"] #run-the-numbers-view .bet-spot:hover:not(:disabled),
 body[data-ui="new"] #run-the-numbers-view .bet-spot:focus-visible {
-  border-color: rgba(200, 255, 0, 0.4);
-  background: rgba(200, 255, 0, 0.04);
+  border-color: rgba(232, 160, 32, 0.4);
+  background: rgba(232, 160, 32, 0.04);
   box-shadow: none;
   transform: none;
 }
 
 body[data-ui="new"] #run-the-numbers-view .bet-spot.has-bet {
-  border-color: #c8ff00;
-  background: rgba(200, 255, 0, 0.06);
-  box-shadow: 0 0 10px rgba(200, 255, 0, 0.12), inset 0 0 0 1px rgba(200, 255, 0, 0.1);
+  border-color: #e8a020;
+  background: rgba(232, 160, 32, 0.06);
+  box-shadow: 0 0 10px rgba(232, 160, 32, 0.12), inset 0 0 0 1px rgba(232, 160, 32, 0.1);
 }
 
 body[data-ui="new"] #run-the-numbers-view .bet-label {
@@ -21271,7 +21271,7 @@ body[data-ui="new"] #run-the-numbers-view .bet-label {
 }
 
 body[data-ui="new"] #run-the-numbers-view .bet-spot.has-bet .bet-label {
-  color: #c8ff00;
+  color: #e8a020;
 }
 
 body[data-ui="new"] #run-the-numbers-view .bet-total {
@@ -21282,8 +21282,8 @@ body[data-ui="new"] #run-the-numbers-view .bet-total {
 }
 
 body[data-ui="new"] #run-the-numbers-view .bet-spot.has-bet .bet-total {
-  color: #c8ff00;
-  text-shadow: 0 0 8px rgba(200, 255, 0, 0.4);
+  color: #e8a020;
+  text-shadow: 0 0 8px rgba(232, 160, 32, 0.4);
 }
 
 body[data-ui="new"] #run-the-numbers-view .bet-payout {
@@ -21309,11 +21309,11 @@ body[data-ui="new"] #run-the-numbers-view .card-suit.diamonds {
 
 body[data-ui="new"] #run-the-numbers-view .card-suit.spades,
 body[data-ui="new"] #run-the-numbers-view .card-suit.clubs {
-  color: rgba(200, 255, 0, 0.65);
+  color: rgba(232, 160, 32, 0.65);
 }
 
 body[data-ui="new"] #run-the-numbers-view .specific-card-bet.has-bet .card-rank {
-  color: #c8ff00;
+  color: #e8a020;
 }
 
 /* ---- Bust bets ---- */
@@ -21330,16 +21330,16 @@ body[data-ui="new"] #run-the-numbers-view .bust-bet::after {
 }
 
 body[data-ui="new"] #run-the-numbers-view .bust-bet:hover:not(:disabled) {
-  border-color: rgba(200, 255, 0, 0.35);
-  background: rgba(200, 255, 0, 0.04);
+  border-color: rgba(232, 160, 32, 0.35);
+  background: rgba(232, 160, 32, 0.04);
   box-shadow: none;
   transform: none;
 }
 
 body[data-ui="new"] #run-the-numbers-view .bust-bet.has-bet {
-  border-color: #c8ff00;
-  background: rgba(200, 255, 0, 0.06);
-  box-shadow: 0 0 10px rgba(200, 255, 0, 0.12);
+  border-color: #e8a020;
+  background: rgba(232, 160, 32, 0.06);
+  box-shadow: 0 0 10px rgba(232, 160, 32, 0.12);
 }
 
 /* ---- Count bets ---- */
@@ -21356,9 +21356,9 @@ body[data-ui="new"] #run-the-numbers-view .count-bet::after {
 }
 
 body[data-ui="new"] #run-the-numbers-view .count-bet.has-bet {
-  border-color: #c8ff00;
-  background: rgba(200, 255, 0, 0.06);
-  box-shadow: 0 0 10px rgba(200, 255, 0, 0.12);
+  border-color: #e8a020;
+  background: rgba(232, 160, 32, 0.06);
+  box-shadow: 0 0 10px rgba(232, 160, 32, 0.12);
 }
 
 /* ---- Paytable ---- */
@@ -21370,7 +21370,7 @@ body[data-ui="new"] #run-the-numbers-view .active-paytable {
 }
 
 body[data-ui="new"] #run-the-numbers-view .active-paytable-name {
-  color: #c8ff00;
+  color: #e8a020;
   font-size: 8px;
   letter-spacing: 0.16em;
 }
@@ -21397,7 +21397,7 @@ body[data-ui="new"] #run-the-numbers-view .bets-panel td {
 }
 
 body[data-ui="new"] #run-the-numbers-view .bets-panel tr.is-hit td {
-  color: #c8ff00;
+  color: #e8a020;
 }
 
 /* ---- Chip bar ---- */
@@ -21439,7 +21439,7 @@ body[data-ui="new"] #run-the-numbers-view .chip-choice::before {
   position: absolute;
   inset: 3px;
   border-radius: 50%;
-  border: 1px dashed rgba(200, 255, 0, 0.15);
+  border: 1px dashed rgba(232, 160, 32, 0.15);
   pointer-events: none;
 }
 
@@ -21448,33 +21448,33 @@ body[data-ui="new"] #run-the-numbers-view .chip-choice::after {
 }
 
 body[data-ui="new"] #run-the-numbers-view .chip-choice:hover {
-  border-color: rgba(200, 255, 0, 0.5);
-  color: #c8ff00;
+  border-color: rgba(232, 160, 32, 0.5);
+  color: #e8a020;
   background: radial-gradient(circle at 38% 32%, #2a2a20, #161610);
 }
 
 body[data-ui="new"] #run-the-numbers-view .chip-choice.active {
-  border-color: #c8ff00;
-  background: radial-gradient(circle at 38% 32%, rgba(200,255,0,0.18), rgba(200,255,0,0.04));
-  color: #c8ff00;
-  box-shadow: 0 0 14px rgba(200, 255, 0, 0.3), inset 0 1px 0 rgba(200,255,0,0.12);
+  border-color: #e8a020;
+  background: radial-gradient(circle at 38% 32%, rgba(232,160,32,0.18), rgba(232,160,32,0.04));
+  color: #e8a020;
+  box-shadow: 0 0 14px rgba(232, 160, 32, 0.3), inset 0 1px 0 rgba(232,160,32,0.12);
 }
 
 body[data-ui="new"] #run-the-numbers-view .chip-choice.active::before {
-  border-color: rgba(200, 255, 0, 0.35);
+  border-color: rgba(232, 160, 32, 0.35);
 }
 
 /* ---- Chips stacked on bet spots — solid circles, no bleed-through ---- */
 body[data-ui="new"] #run-the-numbers-view .chip {
   border-radius: 50%;
-  border: 2px solid #7aaa00;
-  background: radial-gradient(circle at 38% 32%, #2a3a00, #1a2800);
-  color: #c8ff00;
+  border: 2px solid #b07018;
+  background: radial-gradient(circle at 38% 32%, #3a2800, #281800);
+  color: #e8a020;
   font-family: inherit;
   font-size: 7px;
   font-weight: 800;
   letter-spacing: 0;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.6), inset 0 1px 0 rgba(200,255,0,0.15);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6), inset 0 1px 0 rgba(232,160,32,0.15);
   isolation: isolate;
 }
 
@@ -21482,7 +21482,7 @@ body[data-ui="new"] #run-the-numbers-view .chip {
 body[data-ui="new"] #run-the-numbers-view .bet-spot.has-bet {
   border-color: transparent;
   background: transparent;
-  box-shadow: 0 0 14px rgba(200, 255, 0, 0.08);
+  box-shadow: 0 0 14px rgba(232, 160, 32, 0.08);
 }
 
 /* ---- Action buttons (Clear, Rebet, Deal) ---- */
@@ -21511,24 +21511,24 @@ body[data-ui="new"] #run-the-numbers-view .chip-rack__button {
 }
 
 body[data-ui="new"] #run-the-numbers-view .chip-rack__button:hover:not(:disabled) {
-  border-color: rgba(200, 255, 0, 0.35);
-  color: #c8ff00;
-  background: rgba(200, 255, 0, 0.04);
+  border-color: rgba(232, 160, 32, 0.35);
+  color: #e8a020;
+  background: rgba(232, 160, 32, 0.04);
 }
 
 body[data-ui="new"] #run-the-numbers-view .chip-rack__button--primary {
-  border-color: #c8ff00;
-  background: #c8ff00;
+  border-color: #e8a020;
+  background: #e8a020;
   color: #0a0a08;
   font-weight: 800;
-  box-shadow: 0 0 16px rgba(200, 255, 0, 0.25);
+  box-shadow: 0 0 16px rgba(232, 160, 32, 0.25);
 }
 
 body[data-ui="new"] #run-the-numbers-view .chip-rack__button--primary:hover:not(:disabled) {
-  background: #d4ff1a;
-  border-color: #d4ff1a;
+  background: #f0b030;
+  border-color: #f0b030;
   color: #0a0a08;
-  box-shadow: 0 0 24px rgba(200, 255, 0, 0.4);
+  box-shadow: 0 0 24px rgba(232, 160, 32, 0.4);
 }
 
 body[data-ui="new"] #run-the-numbers-view .chip-rack__button:disabled {
@@ -21550,8 +21550,8 @@ body[data-ui="new"] #run-the-numbers-view .deal-mode-toggle .toggle-track {
 }
 
 body[data-ui="new"] #run-the-numbers-view .deal-mode-toggle input:checked ~ .toggle-track {
-  background: rgba(200, 255, 0, 0.15);
-  border-color: #c8ff00;
+  background: rgba(232, 160, 32, 0.15);
+  border-color: #e8a020;
 }
 
 body[data-ui="new"] #run-the-numbers-view .deal-mode-toggle .toggle-thumb {
@@ -21559,7 +21559,7 @@ body[data-ui="new"] #run-the-numbers-view .deal-mode-toggle .toggle-thumb {
 }
 
 body[data-ui="new"] #run-the-numbers-view .deal-mode-toggle input:checked ~ .toggle-track .toggle-thumb {
-  background: #c8ff00;
+  background: #e8a020;
 }
 
 /* ---- Section dividers ---- */
@@ -21580,8 +21580,8 @@ body[data-ui="new"] #run-the-numbers-view .table-panel::after {
       180deg,
       transparent,
       transparent 3px,
-      rgba(200, 255, 0, 0.008) 3px,
-      rgba(200, 255, 0, 0.008) 4px
+      rgba(232, 160, 32, 0.008) 3px,
+      rgba(232, 160, 32, 0.008) 4px
     );
   z-index: 0;
 }
@@ -21593,10 +21593,10 @@ body[data-ui="new"] #run-the-numbers-view .table-panel::after {
 body[data-ui="new"][data-route="shape-traders"] {
   --route-accent: #00e5ff;
   --route-accent-secondary: #ff2d78;
-  --route-accent-tertiary: #c8ff00;
-  --route-gold: #c8ff00;
+  --route-accent-tertiary: #d06aaf;
+  --route-gold: #d06aaf;
   --route-muted: #8a8a62;
-  --route-success: #c8ff00;
+  --route-success: #d06aaf;
   --route-danger: #ff4444;
   --route-bg-start: #0a0a08;
   --route-bg-end: #0a0a08;
@@ -21604,15 +21604,15 @@ body[data-ui="new"][data-route="shape-traders"] {
   --route-panel-end: #0e0e0c;
   --neon-cyan: #00e5ff;
   --neon-magenta: #ff2d78;
-  --gold: #c8ff00;
+  --gold: #d06aaf;
   background: #0a0a08;
 }
 
 /* ---- Page background with grid ---- */
 body[data-ui="new"] #shape-traders-view {
   background:
-    repeating-linear-gradient(0deg, transparent, transparent 71px, rgba(200,255,0,0.025) 72px),
-    repeating-linear-gradient(90deg, transparent, transparent 71px, rgba(200,255,0,0.025) 72px),
+    repeating-linear-gradient(0deg, transparent, transparent 71px, rgba(208,106,175,0.025) 72px),
+    repeating-linear-gradient(90deg, transparent, transparent 71px, rgba(208,106,175,0.025) 72px),
     #0a0a08;
 }
 
@@ -21630,7 +21630,7 @@ body[data-ui="new"] #shape-traders-view .shape-traders-header {
 body[data-ui="new"] #shape-traders-view .shape-traders-panel-kicker {
   font-size: 8px;
   letter-spacing: 0.22em;
-  color: #c8ff00;
+  color: #d06aaf;
   background: transparent;
   border: none;
   padding: 0;
@@ -21638,7 +21638,7 @@ body[data-ui="new"] #shape-traders-view .shape-traders-panel-kicker {
 
 body[data-ui="new"] #shape-traders-view .shape-traders-account-total,
 body[data-ui="new"] #shape-traders-view #shape-traders-account-total {
-  color: #c8ff00;
+  color: #d06aaf;
   font-weight: 700;
 }
 
@@ -21744,15 +21744,15 @@ body[data-ui="new"] #shape-traders-view .shape-traders-market-card.is-magenta .s
 
 /* Gold (circle) card */
 body[data-ui="new"] #shape-traders-view .shape-traders-market-card.is-gold {
-  border-color: rgba(200, 255, 0, 0.2);
+  border-color: rgba(208, 106, 175, 0.2);
 }
 body[data-ui="new"] #shape-traders-view .shape-traders-market-card.is-gold .shape-traders-market-card-price {
-  color: #c8ff00;
+  color: #d06aaf;
 }
 body[data-ui="new"] #shape-traders-view .shape-traders-market-card.is-gold .shape-traders-shape-icon {
-  border-color: #c8ff00;
-  color: #c8ff00;
-  box-shadow: 0 0 12px rgba(200, 255, 0, 0.25);
+  border-color: #d06aaf;
+  color: #d06aaf;
+  box-shadow: 0 0 12px rgba(208, 106, 175, 0.25);
 }
 
 /* ---- Sparklines ---- */
@@ -21769,8 +21769,8 @@ body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-line.is-cyan { 
 body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-point.is-cyan { fill: #00e5ff; }
 body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-line.is-magenta { stroke: #ff2d78; }
 body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-point.is-magenta { fill: #ff2d78; }
-body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-line.is-gold { stroke: #c8ff00; }
-body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-point.is-gold { fill: #c8ff00; }
+body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-line.is-gold { stroke: #d06aaf; }
+body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-point.is-gold { fill: #d06aaf; }
 
 /* ---- Holdings panel ---- */
 body[data-ui="new"] #shape-traders-view .shape-traders-holdings-panel {
@@ -21845,7 +21845,7 @@ body[data-ui="new"] #shape-traders-view .shape-traders-activity-item.is-sell .sh
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-activity-profit.gain {
-  color: #c8ff00;
+  color: #d06aaf;
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-activity-profit.loss {
@@ -21870,9 +21870,9 @@ body[data-ui="new"] #shape-traders-view .shape-traders-draw-card-face {
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-draw-card-face.is-positive {
-  background: #1a2e00;
-  border: 1px solid rgba(200, 255, 0, 0.4);
-  color: #c8ff00;
+  background: #2e1020;
+  border: 1px solid rgba(208, 106, 175, 0.4);
+  color: #d06aaf;
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-draw-card-face.is-negative {
@@ -21890,8 +21890,8 @@ body[data-ui="new"] #shape-traders-view .shape-traders-draw-card-face.is-muted {
 
 /* Countdown ring */
 body[data-ui="new"] #shape-traders-view .shape-traders-countdown-ring {
-  --theme-action-color: #c8ff00;
-  color: #c8ff00;
+  --theme-action-color: #d06aaf;
+  color: #d06aaf;
   background: #0e0e0c;
   box-shadow: inset 0 0 0 1px #2a2a22;
 }
@@ -21900,7 +21900,7 @@ body[data-ui="new"] #shape-traders-view .shape-traders-countdown-ring::after {
   box-shadow: inset 0 0 0 1px #1a1a14;
 }
 body[data-ui="new"] #shape-traders-view .shape-traders-countdown-ring::before {
-  box-shadow: 0 0 14px rgba(200, 255, 0, 0.3);
+  box-shadow: 0 0 14px rgba(208, 106, 175, 0.3);
 }
 
 /* ---- Global/market-cap panel ---- */
@@ -21918,7 +21918,7 @@ body[data-ui="new"] #shape-traders-view .shape-traders-market-cap-bar.is-magenta
   background: rgba(255, 45, 120, 0.18);
 }
 body[data-ui="new"] #shape-traders-view .shape-traders-market-cap-bar.is-gold .shape-traders-market-cap-track {
-  background: rgba(200, 255, 0, 0.18);
+  background: rgba(208, 106, 175, 0.18);
 }
 
 /* ---- Trade bar (fixed bottom) ---- */
@@ -21930,7 +21930,7 @@ body[data-ui="new"] #shape-traders-view .shape-traders-trade-bar {
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-trade-bar::before {
-  background: linear-gradient(90deg, #00e5ff, #ff2d78 50%, #c8ff00);
+  background: linear-gradient(90deg, #00e5ff, #ff2d78 50%, #d06aaf);
   height: 1px;
   opacity: 0.5;
 }
@@ -21976,10 +21976,10 @@ body[data-ui="new"] #shape-traders-view .shape-traders-asset-button.active[data-
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-asset-button.active[data-shape-trader-asset="circle"] {
-  border: 1px solid #c8ff00 !important;
-  background: rgba(200, 255, 0, 0.06) !important;
-  color: #c8ff00 !important;
-  box-shadow: 0 0 10px rgba(200, 255, 0, 0.15) !important;
+  border: 1px solid #d06aaf !important;
+  background: rgba(208, 106, 175, 0.06) !important;
+  color: #d06aaf !important;
+  box-shadow: 0 0 10px rgba(208, 106, 175, 0.15) !important;
 }
 
 /* ---- Qty stepper ---- */
@@ -21999,8 +21999,8 @@ body[data-ui="new"] #shape-traders-view .shape-traders-qty-button {
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-qty-button:hover {
-  border-color: rgba(200, 255, 0, 0.4);
-  color: #c8ff00;
+  border-color: rgba(208, 106, 175, 0.4);
+  color: #d06aaf;
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-total-field {
@@ -22050,19 +22050,19 @@ body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-
   background: rgba(255,45,120,0.08); box-shadow: 0 0 12px rgba(255,45,120,0.2);
 }
 
-/* Circle → lime (#c8ff00) */
+/* Circle → rose (#d06aaf) */
 body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-shape-trader-asset="circle"].active) #shape-traders-buy-button {
-  background: #c8ff00; border-color: #c8ff00; color: #0a0a08; font-weight: 800;
-  box-shadow: 0 0 14px rgba(200,255,0,0.25);
+  background: #d06aaf; border-color: #d06aaf; color: #fff; font-weight: 800;
+  box-shadow: 0 0 14px rgba(208,106,175,0.25);
 }
 body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-shape-trader-asset="circle"].active) #shape-traders-buy-button:hover:not(:disabled) {
-  background: #d4ff1a; box-shadow: 0 0 22px rgba(200,255,0,0.4);
+  background: #da80bc; box-shadow: 0 0 22px rgba(208,106,175,0.4);
 }
 body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-shape-trader-asset="circle"].active) #shape-traders-sell-button {
-  background: transparent; border: 1px solid #c8ff00; color: #c8ff00; box-shadow: none;
+  background: transparent; border: 1px solid #d06aaf; color: #d06aaf; box-shadow: none;
 }
 body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-shape-trader-asset="circle"].active) #shape-traders-sell-button:hover:not(:disabled) {
-  background: rgba(200,255,0,0.06); box-shadow: 0 0 12px rgba(200,255,0,0.2);
+  background: rgba(208,106,175,0.06); box-shadow: 0 0 12px rgba(208,106,175,0.2);
 }
 
 /* ---- Status message ---- */
@@ -22087,9 +22087,9 @@ body[data-ui="new"] #shape-traders-view .shape-traders-dump-pip {
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-dump-pip.active {
-  background: #c8ff00;
-  border-color: #c8ff00;
-  box-shadow: 0 0 6px rgba(200, 255, 0, 0.4);
+  background: #d06aaf;
+  border-color: #d06aaf;
+  box-shadow: 0 0 6px rgba(208, 106, 175, 0.4);
 }
 
 /* ---- Liquidate button ---- */
@@ -22129,7 +22129,7 @@ body[data-ui="new"] #red-black-view .beta-game-panel {
 /* ---- Kicker / eyebrow labels ---- */
 body[data-ui="new"] #red-black-view .beta-game-eyebrow,
 body[data-ui="new"] #red-black-view .beta-game-panel-kicker {
-  color: #c8ff00;
+  color: #00e5ff;
   background: transparent;
   border: none;
   font-size: 8px;
@@ -22139,8 +22139,8 @@ body[data-ui="new"] #red-black-view .beta-game-panel-kicker {
 /* ---- BETA pill ---- */
 body[data-ui="new"] #red-black-view .beta-draw-beta-pill {
   background: transparent;
-  border: 1px solid rgba(200, 255, 0, 0.4);
-  color: #c8ff00;
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  color: #00e5ff;
   border-radius: 2px;
 }
 
@@ -22160,12 +22160,12 @@ body[data-ui="new"] #red-black-view .beta-ladder-sticky-title {
   color: #686850;
 }
 body[data-ui="new"] #red-black-view .beta-ladder-sticky-step {
-  --rung-fill-idle: rgba(200, 255, 0, 0.18);
-  --rung-fill-active: rgba(200, 255, 0, 0.95);
-  --rung-glow: rgba(200, 255, 0, 0.3);
+  --rung-fill-idle: rgba(0, 229, 255, 0.18);
+  --rung-fill-active: rgba(0, 229, 255, 0.95);
+  --rung-glow: rgba(0, 229, 255, 0.3);
 }
 body[data-ui="new"] #red-black-view .beta-ladder-sticky-step::before {
-  background: rgba(200, 255, 0, 0.12);
+  background: rgba(0, 229, 255, 0.12);
 }
 body[data-ui="new"] #red-black-view .beta-ladder-sticky-fill {
   border-radius: 2px;
@@ -22174,8 +22174,8 @@ body[data-ui="new"] #red-black-view .beta-ladder-sticky-label {
   color: #686850;
 }
 body[data-ui="new"] #red-black-view .beta-ladder-sticky-step.is-current .beta-ladder-sticky-label {
-  color: #c8ff00;
-  text-shadow: 0 0 8px rgba(200, 255, 0, 0.5);
+  color: #00e5ff;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.5);
   font-weight: 700;
 }
 
@@ -22189,9 +22189,9 @@ body[data-ui="new"] #red-black-view .beta-draw-area {
 /* ---- Multiplier badge ---- */
 body[data-ui="new"] #red-black-view .beta-control-multiplier {
   border-radius: 2px;
-  border-color: rgba(200, 255, 0, 0.3);
-  background: rgba(200, 255, 0, 0.08);
-  color: #c8ff00;
+  border-color: rgba(0, 229, 255, 0.3);
+  background: rgba(0, 229, 255, 0.08);
+  color: #00e5ff;
 }
 
 /* ---- Control headings ---- */
@@ -22218,8 +22218,8 @@ body[data-ui="new"] #red-black-view .beta-bet-spot-circle {
 }
 body[data-ui="new"] #red-black-view .beta-bet-spot.is-filled,
 body[data-ui="new"] #red-black-view .beta-bet-spot:not(.is-empty) {
-  border-color: rgba(200, 255, 0, 0.3);
-  background: rgba(200, 255, 0, 0.04);
+  border-color: rgba(0, 229, 255, 0.3);
+  background: rgba(0, 229, 255, 0.04);
   animation: none;
 }
 
@@ -22243,7 +22243,7 @@ body[data-ui="new"] #red-black-view .beta-selection-hint {
   color: #686850;
 }
 body[data-ui="new"] #red-black-view .beta-selection-summary {
-  color: #c8ff00;
+  color: #00e5ff;
 }
 
 /* ---- Category buttons ---- */
@@ -22257,9 +22257,9 @@ body[data-ui="new"] #red-black-view .secondary.beta-category-button {
   opacity: 1;
 }
 body[data-ui="new"] #red-black-view .secondary.beta-category-button.active {
-  background: rgba(200, 255, 0, 0.06);
-  border-color: rgba(200, 255, 0, 0.5);
-  color: #c8ff00;
+  background: rgba(0, 229, 255, 0.06);
+  border-color: rgba(0, 229, 255, 0.5);
+  color: #00e5ff;
   box-shadow: none;
   transform: none;
   filter: none;
@@ -22276,15 +22276,15 @@ body[data-ui="new"] #red-black-view .secondary.beta-value-button {
   opacity: 1;
 }
 body[data-ui="new"] #red-black-view .secondary.beta-value-button.active {
-  background: rgba(200, 255, 0, 0.06);
-  border-color: rgba(200, 255, 0, 0.5);
-  color: #c8ff00;
+  background: rgba(0, 229, 255, 0.06);
+  border-color: rgba(0, 229, 255, 0.5);
+  color: #00e5ff;
   box-shadow: none;
   transform: none;
 }
 body[data-ui="new"] #red-black-view .secondary.beta-value-button:hover {
-  border-color: rgba(200, 255, 0, 0.3);
-  color: #a8d800;
+  border-color: rgba(0, 229, 255, 0.3);
+  color: #33edff;
 }
 
 /* ---- Status / summary ---- */
@@ -22325,21 +22325,21 @@ body[data-ui="new"] #red-black-chip-bar .chip-rack__button {
   transition: border-color 0.12s, color 0.12s, background 0.12s;
 }
 body[data-ui="new"] #red-black-chip-bar .chip-rack__button--primary {
-  border-color: #c8ff00;
-  background: #c8ff00;
+  border-color: #00e5ff;
+  background: #00e5ff;
   color: #0a0a08;
   font-weight: 800;
-  box-shadow: 0 0 16px rgba(200, 255, 0, 0.25);
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.25);
 }
 body[data-ui="new"] #red-black-chip-bar .chip-rack__button--primary:hover:not(:disabled) {
-  background: #d4ff1a;
-  border-color: #d4ff1a;
-  box-shadow: 0 0 24px rgba(200, 255, 0, 0.4);
+  background: #33edff;
+  border-color: #33edff;
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.4);
 }
 body[data-ui="new"] #red-black-chip-bar .chip-rack__button:not(.chip-rack__button--primary):hover:not(:disabled) {
-  border-color: rgba(200, 255, 0, 0.35);
-  color: #c8ff00;
-  background: rgba(200, 255, 0, 0.04);
+  border-color: rgba(0, 229, 255, 0.35);
+  color: #00e5ff;
+  background: rgba(0, 229, 255, 0.04);
 }
 body[data-ui="new"] #red-black-chip-bar .chip-rack__button:disabled {
   opacity: 0.3;
@@ -22378,7 +22378,7 @@ body[data-ui="new"] #red-black-chip-bar .chip-choice::before {
   position: absolute;
   inset: 3px;
   border-radius: 50%;
-  border: 1px dashed rgba(200, 255, 0, 0.15);
+  border: 1px dashed rgba(0, 229, 255, 0.15);
   pointer-events: none;
 }
 
@@ -22387,33 +22387,33 @@ body[data-ui="new"] #red-black-chip-bar .chip-choice::after {
 }
 
 body[data-ui="new"] #red-black-chip-bar .chip-choice:hover {
-  border-color: rgba(200, 255, 0, 0.5);
-  color: #c8ff00;
-  background: radial-gradient(circle at 38% 32%, #2a2a20, #161610);
+  border-color: rgba(0, 229, 255, 0.5);
+  color: #00e5ff;
+  background: radial-gradient(circle at 38% 32%, #002a2a, #001616);
 }
 
 body[data-ui="new"] #red-black-chip-bar .chip-choice.active {
-  border-color: #c8ff00;
-  background: radial-gradient(circle at 38% 32%, rgba(200,255,0,0.18), rgba(200,255,0,0.04));
-  color: #c8ff00;
-  box-shadow: 0 0 14px rgba(200, 255, 0, 0.3), inset 0 1px 0 rgba(200,255,0,0.12);
+  border-color: #00e5ff;
+  background: radial-gradient(circle at 38% 32%, rgba(0,229,255,0.18), rgba(0,229,255,0.04));
+  color: #00e5ff;
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.3), inset 0 1px 0 rgba(0,229,255,0.12);
 }
 
 body[data-ui="new"] #red-black-chip-bar .chip-choice.active::before {
-  border-color: rgba(200, 255, 0, 0.35);
+  border-color: rgba(0, 229, 255, 0.35);
 }
 
 /* ---- Stacked chips on bet spot ---- */
 body[data-ui="new"] #red-black-view .chip {
   border-radius: 50%;
-  border: 2px solid #7aaa00;
-  background: radial-gradient(circle at 38% 32%, #2a3a00, #1a2800);
-  color: #c8ff00;
+  border: 2px solid #00aacc;
+  background: radial-gradient(circle at 38% 32%, #002a30, #001820);
+  color: #00e5ff;
   font-family: inherit;
   font-size: 7px;
   font-weight: 800;
   letter-spacing: 0;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.6), inset 0 1px 0 rgba(200,255,0,0.15);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6), inset 0 1px 0 rgba(0,229,255,0.15);
   isolation: isolate;
 }
 
@@ -22435,20 +22435,20 @@ body[data-ui="new"] #red-black-view .beta-bet-spot.is-empty {
     45deg,
     transparent,
     transparent 6px,
-    rgba(200, 255, 0, 0.025) 6px,
-    rgba(200, 255, 0, 0.025) 7px
+    rgba(0, 229, 255, 0.025) 6px,
+    rgba(0, 229, 255, 0.025) 7px
   );
   animation: g10-bet-pulse 2.4s ease-in-out infinite;
 }
 
 @keyframes g10-bet-pulse {
   0%, 100% { border-color: #2a2a22; box-shadow: none; }
-  50% { border-color: rgba(200, 255, 0, 0.25); box-shadow: 0 0 12px rgba(200, 255, 0, 0.08); }
+  50% { border-color: rgba(0, 229, 255, 0.25); box-shadow: 0 0 12px rgba(0, 229, 255, 0.08); }
 }
 
 /* ---- Payout display ---- */
 body[data-ui="new"] #red-black-view .beta-current-payout {
-  color: #c8ff00;
+  color: #00e5ff;
 }
 
 /* ==========================================================================
