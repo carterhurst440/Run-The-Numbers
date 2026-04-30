@@ -609,6 +609,10 @@ body[data-route="shape-traders"] {
   box-sizing: border-box;
 }
 
+html {
+  overflow-x: hidden; /* clip fixed elements that translate off-screen (e.g. drawer) on mobile */
+}
+
 body {
   margin: 0;
   font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
@@ -8987,6 +8991,7 @@ body.theme-angelic {
   z-index: 12;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  overflow: clip; /* prevent icon borders from bleeding outside header bounds */
 }
 
 .header-bar {
@@ -10965,6 +10970,7 @@ button:disabled {
   background: var(--header-gradient);
   border-top: 2px solid var(--chip-bar-border);
   padding: var(--chip-bar-padding);
+  padding-bottom: calc(clamp(0.45rem, 1.2vw, 0.75rem) + env(safe-area-inset-bottom, 0px));
   box-shadow: var(--chip-bar-shadow);
   z-index: 8;
   display: flex;
@@ -20389,6 +20395,8 @@ body.modal-open {
   text-align: left;
   font-family: inherit;
   transition: border-color 0.15s;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .home-game-card:hover {
@@ -20949,11 +20957,17 @@ body.modal-open {
 @media (max-width: 900px) {
   .home-layout {
     grid-template-columns: 1fr;
+    background: transparent; /* let canvas show through on mobile */
+  }
+
+  .home-layout::after {
+    display: none; /* hide the column divider on mobile */
   }
 
   .home-sidebar {
     position: static;
     max-height: none;
+    min-width: 0;
     border-top: 1px solid #252520;
     border-right: none;
   }
