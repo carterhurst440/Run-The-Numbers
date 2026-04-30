@@ -20069,7 +20069,7 @@ body.modal-open {
 
 #home-view {
   position: relative;
-  overflow: hidden;
+  overflow: clip; /* clip canvas without creating a scroll container (preserves sticky) */
 }
 
 .home-layout {
@@ -20100,6 +20100,7 @@ body.modal-open {
   padding: 0;
   border-right: 1px solid #252520;
   min-width: 0;
+  overflow: hidden;
 }
 
 /* ---- PLAYER HERO ---- */
@@ -20230,7 +20231,7 @@ body.modal-open {
 }
 
 /* ---- INNER SECTIONS PADDING ---- */
-.home-section-hdr,
+.home-main > .home-section-hdr,
 .home-game-cards,
 .home-quote-block,
 #home-live-contests {
