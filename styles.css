@@ -20433,19 +20433,26 @@ button.home-stat-block:last-child:hover { background: rgba(255, 127, 216, 0.03);
 .home-game-card {
   background: #171714;
   border: 1px solid #2e2e22;
+  border-top-width: 2px;
   border-radius: 8px;
   padding: 16px 14px;
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  transition: border-color 0.15s;
+  transition: border-color 0.18s, background 0.18s;
   min-width: 0;
   overflow: hidden;
 }
 
-.home-game-card:hover {
-  border-color: #686850;
-}
+/* Per-game accent top stripe */
+.home-game-card-rtn  { border-top-color: #c8ff00; }
+.home-game-card-g10  { border-top-color: #00e5ff; }
+.home-game-card-shape { border-top-color: #d06aaf; }
+
+/* Per-game hover */
+.home-game-card-rtn:hover  { border-color: #c8ff00; background: rgba(200, 255, 0, 0.05); }
+.home-game-card-g10:hover  { border-color: #00e5ff; background: rgba(0, 229, 255, 0.04); }
+.home-game-card-shape:hover { border-color: #d06aaf; background: rgba(208, 106, 175, 0.05); }
 
 .home-game-card.is-active,
 .home-game-card[data-route-target].is-active {
@@ -20473,9 +20480,9 @@ button.home-stat-block:last-child:hover { background: rgba(255, 127, 216, 0.03);
   letter-spacing: 2px;
 }
 
-.home-game-card-rtn .hgc-glyph {
-  color: #c8ff00;
-}
+.home-game-card-rtn .hgc-glyph  { color: #c8ff00; }
+.home-game-card-g10 .hgc-glyph  { color: #00e5ff; }
+.home-game-card-shape .hgc-glyph { color: #d06aaf; }
 
 .hgc-live {
   display: flex;
@@ -20512,9 +20519,9 @@ button.home-stat-block:last-child:hover { background: rgba(255, 127, 216, 0.03);
   font-weight: 400;
 }
 
-.home-game-card-rtn .hgc-name {
-  color: #a8cc00;
-}
+.home-game-card-rtn .hgc-name  { color: #a8cc00; }
+.home-game-card-g10 .hgc-name  { color: #00b8cc; }
+.home-game-card-shape .hgc-name { color: #a85890; }
 
 .hgc-count {
   font-size: 9px;
