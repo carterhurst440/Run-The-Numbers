@@ -609,10 +609,6 @@ body[data-route="shape-traders"] {
   box-sizing: border-box;
 }
 
-html {
-  overflow-x: clip; /* clip fixed elements off-screen (e.g. drawer) without creating a scroll container */
-}
-
 body {
   margin: 0;
   font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
@@ -8983,7 +8979,7 @@ body.theme-angelic {
   background: #121211;
   padding: 0 20px;
   padding-top: env(safe-area-inset-top, 0px);
-  height: calc(44px + env(safe-area-inset-top, 0px));
+  height: calc(54px + env(safe-area-inset-top, 0px));
   border-bottom: 1px solid #2e2e22;
   box-shadow: none;
   position: sticky;
@@ -8991,14 +8987,13 @@ body.theme-angelic {
   z-index: 12;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  overflow: clip; /* prevent icon borders from bleeding outside header bounds */
 }
 
 .header-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 44px;
+  height: 54px;
   gap: 14px;
   flex-wrap: nowrap;
 }
@@ -20054,7 +20049,7 @@ body.modal-open {
 /* dot-grid texture on home page */
 #home-view {
   background-color: #111110;
-  min-height: calc(100vh - 44px);
+  min-height: calc(100vh - 54px);
   position: relative;
   overflow-x: clip;
 }
@@ -20088,7 +20083,7 @@ body.modal-open {
 .home-layout {
   display: grid;
   grid-template-columns: 1fr 320px;
-  min-height: calc(100vh - 44px);
+  min-height: calc(100vh - 54px);
   align-items: start;
   position: relative;
   z-index: 1;
@@ -20303,8 +20298,8 @@ body.modal-open {
 .home-sidebar {
   padding: 0 20px 20px;
   position: sticky;
-  top: 44px;
-  max-height: calc(100vh - 44px);
+  top: 54px;
+  max-height: calc(100vh - 54px);
   overflow-y: auto;
   z-index: 1;
 }
