@@ -16003,7 +16003,7 @@ async function openGameActivityChart(gameId) {
   const GAMES = {
     game_001: { title: "RTN ACTIVITY", subtitle: "Hands per day — last 30 days", unit: "hands", accent: "#e8a020" },
     game_002: { title: "GUESS 10 ACTIVITY", subtitle: "Hands per day — last 30 days", unit: "hands", accent: "#00e5ff" },
-    game_003: { title: "SHAPE TRADERS ACTIVITY", subtitle: "Trades per day — last 30 days", unit: "trades", accent: "#d06aaf" }
+    game_003: { title: "SHAPE TRADERS ACTIVITY", subtitle: "Trades per day — last 30 days", unit: "trades", accent: "#c8ff00" }
   };
   const game = GAMES[gameId] || GAMES.game_001;
 

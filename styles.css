@@ -20463,12 +20463,12 @@ body.modal-open {
 /* Per-game accent top stripe */
 .home-game-card-rtn  { border-top-color: #e8a020; }
 .home-game-card-g10  { border-top-color: #00e5ff; }
-.home-game-card-shape { border-top-color: #d06aaf; }
+.home-game-card-shape { border-top-color: #c8ff00; }
 
 /* Per-game hover */
 .home-game-card-rtn:hover  { border-color: #e8a020; background: rgba(232, 160, 32, 0.06); }
 .home-game-card-g10:hover  { border-color: #00e5ff; background: rgba(0, 229, 255, 0.04); }
-.home-game-card-shape:hover { border-color: #d06aaf; background: rgba(208, 106, 175, 0.05); }
+.home-game-card-shape:hover { border-color: #c8ff00; background: rgba(200, 255, 0, 0.05); }
 
 .home-game-card.is-active,
 .home-game-card[data-route-target].is-active {
@@ -20498,7 +20498,7 @@ body.modal-open {
 
 .home-game-card-rtn .hgc-glyph  { color: #e8a020; }
 .home-game-card-g10 .hgc-glyph  { color: #00e5ff; }
-.home-game-card-shape .hgc-glyph { color: #d06aaf; }
+.home-game-card-shape .hgc-glyph { color: #c8ff00; }
 
 .hgc-live {
   display: flex;
@@ -21100,6 +21100,26 @@ body[data-ui="new"][data-route="run-the-numbers"] {
   --route-primary-button: #e8a020;
   --route-secondary-button: #1e1e18;
 
+  /* Override global vars so all RTN UI resolves to amber */
+  --gold: #e8a020;
+  --success: #e8a020;
+  --theme-action-color: #e8a020;
+  --deal-button-bg: linear-gradient(135deg, #e8a020, #b07010);
+  --deal-button-shadow: 0 12px 28px rgba(232, 160, 32, 0.22);
+  --deal-button-shadow-hover: 0 16px 34px rgba(232, 160, 32, 0.3);
+  --bet-spot-border-hover: #e8a020;
+  --bet-spot-border-active: #e8a020;
+  --bet-spot-active-shadow: 0 0 18px rgba(232, 160, 32, 0.24);
+  --paytable-option-border-hover: #e8a020;
+  --paytable-option-border-selected: #e8a020;
+  --active-paytable-border: #e8a020;
+  --change-paytable-border: #e8a020;
+  --change-paytable-border-hover: #e8a020;
+  --change-paytable-bg: rgba(232, 160, 32, 0.12);
+  --change-paytable-shadow: 0 8px 24px rgba(232, 160, 32, 0.14);
+  --secondary-button-bg: rgba(232, 160, 32, 0.08);
+  --table-callout-shadow: rgba(232, 160, 32, 0.2);
+
   --rtn-felt-highlight: rgba(232, 160, 32, 0.04);
   --rtn-felt-thread: transparent;
   --rtn-rack-shadow: rgba(0, 0, 0, 0.6);
@@ -21593,10 +21613,10 @@ body[data-ui="new"] #run-the-numbers-view .table-panel::after {
 body[data-ui="new"][data-route="shape-traders"] {
   --route-accent: #00e5ff;
   --route-accent-secondary: #ff2d78;
-  --route-accent-tertiary: #d06aaf;
-  --route-gold: #d06aaf;
+  --route-accent-tertiary: #c8ff00;
+  --route-gold: #c8ff00;
   --route-muted: #8a8a62;
-  --route-success: #d06aaf;
+  --route-success: #c8ff00;
   --route-danger: #ff4444;
   --route-bg-start: #0a0a08;
   --route-bg-end: #0a0a08;
@@ -21604,15 +21624,15 @@ body[data-ui="new"][data-route="shape-traders"] {
   --route-panel-end: #0e0e0c;
   --neon-cyan: #00e5ff;
   --neon-magenta: #ff2d78;
-  --gold: #d06aaf;
+  --gold: #c8ff00;
   background: #0a0a08;
 }
 
 /* ---- Page background with grid ---- */
 body[data-ui="new"] #shape-traders-view {
   background:
-    repeating-linear-gradient(0deg, transparent, transparent 71px, rgba(208,106,175,0.025) 72px),
-    repeating-linear-gradient(90deg, transparent, transparent 71px, rgba(208,106,175,0.025) 72px),
+    repeating-linear-gradient(0deg, transparent, transparent 71px, rgba(200,255,0,0.025) 72px),
+    repeating-linear-gradient(90deg, transparent, transparent 71px, rgba(200,255,0,0.025) 72px),
     #0a0a08;
 }
 
@@ -21630,7 +21650,7 @@ body[data-ui="new"] #shape-traders-view .shape-traders-header {
 body[data-ui="new"] #shape-traders-view .shape-traders-panel-kicker {
   font-size: 8px;
   letter-spacing: 0.22em;
-  color: #d06aaf;
+  color: #c8ff00;
   background: transparent;
   border: none;
   padding: 0;
@@ -21638,7 +21658,7 @@ body[data-ui="new"] #shape-traders-view .shape-traders-panel-kicker {
 
 body[data-ui="new"] #shape-traders-view .shape-traders-account-total,
 body[data-ui="new"] #shape-traders-view #shape-traders-account-total {
-  color: #d06aaf;
+  color: #c8ff00;
   font-weight: 700;
 }
 
@@ -21744,15 +21764,15 @@ body[data-ui="new"] #shape-traders-view .shape-traders-market-card.is-magenta .s
 
 /* Gold (circle) card */
 body[data-ui="new"] #shape-traders-view .shape-traders-market-card.is-gold {
-  border-color: rgba(208, 106, 175, 0.2);
+  border-color: rgba(200, 255, 0, 0.2);
 }
 body[data-ui="new"] #shape-traders-view .shape-traders-market-card.is-gold .shape-traders-market-card-price {
-  color: #d06aaf;
+  color: #c8ff00;
 }
 body[data-ui="new"] #shape-traders-view .shape-traders-market-card.is-gold .shape-traders-shape-icon {
-  border-color: #d06aaf;
-  color: #d06aaf;
-  box-shadow: 0 0 12px rgba(208, 106, 175, 0.25);
+  border-color: #c8ff00;
+  color: #c8ff00;
+  box-shadow: 0 0 12px rgba(200, 255, 0, 0.25);
 }
 
 /* ---- Sparklines ---- */
@@ -21769,8 +21789,8 @@ body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-line.is-cyan { 
 body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-point.is-cyan { fill: #00e5ff; }
 body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-line.is-magenta { stroke: #ff2d78; }
 body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-point.is-magenta { fill: #ff2d78; }
-body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-line.is-gold { stroke: #d06aaf; }
-body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-point.is-gold { fill: #d06aaf; }
+body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-line.is-gold { stroke: #c8ff00; }
+body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-point.is-gold { fill: #c8ff00; }
 
 /* ---- Holdings panel ---- */
 body[data-ui="new"] #shape-traders-view .shape-traders-holdings-panel {
@@ -21845,7 +21865,7 @@ body[data-ui="new"] #shape-traders-view .shape-traders-activity-item.is-sell .sh
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-activity-profit.gain {
-  color: #d06aaf;
+  color: #c8ff00;
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-activity-profit.loss {
@@ -21871,8 +21891,8 @@ body[data-ui="new"] #shape-traders-view .shape-traders-draw-card-face {
 
 body[data-ui="new"] #shape-traders-view .shape-traders-draw-card-face.is-positive {
   background: #2e1020;
-  border: 1px solid rgba(208, 106, 175, 0.4);
-  color: #d06aaf;
+  border: 1px solid rgba(200, 255, 0, 0.4);
+  color: #c8ff00;
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-draw-card-face.is-negative {
@@ -21890,8 +21910,8 @@ body[data-ui="new"] #shape-traders-view .shape-traders-draw-card-face.is-muted {
 
 /* Countdown ring */
 body[data-ui="new"] #shape-traders-view .shape-traders-countdown-ring {
-  --theme-action-color: #d06aaf;
-  color: #d06aaf;
+  --theme-action-color: #c8ff00;
+  color: #c8ff00;
   background: #0e0e0c;
   box-shadow: inset 0 0 0 1px #2a2a22;
 }
@@ -21900,7 +21920,7 @@ body[data-ui="new"] #shape-traders-view .shape-traders-countdown-ring::after {
   box-shadow: inset 0 0 0 1px #1a1a14;
 }
 body[data-ui="new"] #shape-traders-view .shape-traders-countdown-ring::before {
-  box-shadow: 0 0 14px rgba(208, 106, 175, 0.3);
+  box-shadow: 0 0 14px rgba(200, 255, 0, 0.3);
 }
 
 /* ---- Global/market-cap panel ---- */
@@ -21918,7 +21938,7 @@ body[data-ui="new"] #shape-traders-view .shape-traders-market-cap-bar.is-magenta
   background: rgba(255, 45, 120, 0.18);
 }
 body[data-ui="new"] #shape-traders-view .shape-traders-market-cap-bar.is-gold .shape-traders-market-cap-track {
-  background: rgba(208, 106, 175, 0.18);
+  background: rgba(200, 255, 0, 0.18);
 }
 
 /* ---- Trade bar (fixed bottom) ---- */
@@ -21930,7 +21950,7 @@ body[data-ui="new"] #shape-traders-view .shape-traders-trade-bar {
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-trade-bar::before {
-  background: linear-gradient(90deg, #00e5ff, #ff2d78 50%, #d06aaf);
+  background: linear-gradient(90deg, #00e5ff, #ff2d78 50%, #c8ff00);
   height: 1px;
   opacity: 0.5;
 }
@@ -21976,10 +21996,10 @@ body[data-ui="new"] #shape-traders-view .shape-traders-asset-button.active[data-
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-asset-button.active[data-shape-trader-asset="circle"] {
-  border: 1px solid #d06aaf !important;
-  background: rgba(208, 106, 175, 0.06) !important;
-  color: #d06aaf !important;
-  box-shadow: 0 0 10px rgba(208, 106, 175, 0.15) !important;
+  border: 1px solid #c8ff00 !important;
+  background: rgba(200, 255, 0, 0.06) !important;
+  color: #c8ff00 !important;
+  box-shadow: 0 0 10px rgba(200, 255, 0, 0.15) !important;
 }
 
 /* ---- Qty stepper ---- */
@@ -21999,8 +22019,8 @@ body[data-ui="new"] #shape-traders-view .shape-traders-qty-button {
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-qty-button:hover {
-  border-color: rgba(208, 106, 175, 0.4);
-  color: #d06aaf;
+  border-color: rgba(200, 255, 0, 0.4);
+  color: #c8ff00;
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-total-field {
@@ -22050,19 +22070,19 @@ body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-
   background: rgba(255,45,120,0.08); box-shadow: 0 0 12px rgba(255,45,120,0.2);
 }
 
-/* Circle → rose (#d06aaf) */
+/* Circle → global accent */
 body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-shape-trader-asset="circle"].active) #shape-traders-buy-button {
-  background: #d06aaf; border-color: #d06aaf; color: #fff; font-weight: 800;
-  box-shadow: 0 0 14px rgba(208,106,175,0.25);
+  background: #c8ff00; border-color: #c8ff00; color: #000; font-weight: 800;
+  box-shadow: 0 0 14px rgba(200, 255, 0, 0.25);
 }
 body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-shape-trader-asset="circle"].active) #shape-traders-buy-button:hover:not(:disabled) {
-  background: #da80bc; box-shadow: 0 0 22px rgba(208,106,175,0.4);
+  background: #b8ee00; box-shadow: 0 0 22px rgba(200,255,0,0.4);
 }
 body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-shape-trader-asset="circle"].active) #shape-traders-sell-button {
-  background: transparent; border: 1px solid #d06aaf; color: #d06aaf; box-shadow: none;
+  background: transparent; border: 1px solid #c8ff00; color: #c8ff00; box-shadow: none;
 }
 body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-shape-trader-asset="circle"].active) #shape-traders-sell-button:hover:not(:disabled) {
-  background: rgba(208,106,175,0.06); box-shadow: 0 0 12px rgba(208,106,175,0.2);
+  background: rgba(200,255,0,0.06); box-shadow: 0 0 12px rgba(200,255,0,0.2);
 }
 
 /* ---- Status message ---- */
@@ -22087,9 +22107,9 @@ body[data-ui="new"] #shape-traders-view .shape-traders-dump-pip {
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-dump-pip.active {
-  background: #d06aaf;
-  border-color: #d06aaf;
-  box-shadow: 0 0 6px rgba(208, 106, 175, 0.4);
+  background: #c8ff00;
+  border-color: #c8ff00;
+  box-shadow: 0 0 6px rgba(200, 255, 0, 0.4);
 }
 
 /* ---- Liquidate button ---- */
