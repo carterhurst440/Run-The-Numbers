@@ -20202,7 +20202,20 @@ body.modal-open {
 .home-stat-block {
   padding: 20px 20px 18px;
   border-right: 1px solid #252520;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  background: transparent;
+  transition: background 0.15s;
 }
+
+.home-stat-block:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+button.home-stat-block:first-child:hover { background: rgba(200, 255, 0, 0.04); }
+button.home-stat-block:nth-child(2):hover { background: rgba(0, 229, 255, 0.03); }
+button.home-stat-block:last-child:hover { background: rgba(255, 127, 216, 0.03); }
 
 .hph-rank-badge {
   font-size: 0.55em;
@@ -20420,7 +20433,7 @@ body.modal-open {
 .home-game-card {
   background: #171714;
   border: 1px solid #2e2e22;
-  border-radius: 8px 8px 0 0;
+  border-radius: 8px;
   padding: 16px 14px;
   cursor: pointer;
   text-align: left;
@@ -20510,48 +20523,6 @@ body.modal-open {
   letter-spacing: 0.04em;
 }
 
-.home-game-card-wrap {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.hgc-activity-btn {
-  background: #111110;
-  border: 1px solid #2e2e22;
-  border-top: none;
-  border-radius: 0 0 8px 8px;
-  padding: 7px 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  font-family: inherit;
-  text-align: left;
-  transition: background 0.15s;
-  min-width: 0;
-}
-
-.hgc-activity-btn:hover {
-  background: #171714;
-}
-
-.hgc-activity-btn:hover .hgc-chart-icon {
-  color: #c8ff00;
-}
-
-.home-game-card-rtn ~ .hgc-activity-btn:hover .hgc-chart-icon { color: #c8ff00; }
-.home-game-card-g10 ~ .hgc-activity-btn:hover .hgc-chart-icon { color: #00e5ff; }
-.home-game-card-shape ~ .hgc-activity-btn:hover .hgc-chart-icon { color: #ff7fd8; }
-
-.hgc-chart-icon {
-  flex-shrink: 0;
-  width: 13px;
-  height: 11px;
-  color: #686850;
-  transition: color 0.15s;
-}
 
 .game-activity-modal-content {
   width: min(520px, 95vw);
