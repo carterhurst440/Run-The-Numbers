@@ -680,30 +680,45 @@
                 <div class="home-section-label">// CASINO FLOOR</div>
               </div>
               <div class="home-game-cards" aria-label="Choose a game">
-                <button type="button" class="home-game-card home-game-card-rtn" data-route-target="run-the-numbers" data-game-id="game_001">
-                  <div class="hgc-top">
-                    <div class="hgc-glyph">RTN</div>
-                    <div class="hgc-live"><span class="hgc-live-dot"></span><span class="hgc-live-txt">LIVE</span></div>
-                  </div>
-                  <div class="hgc-name">RUN THE NUMBERS</div>
-                  <div id="hgc-rtn-count" class="hgc-count">— hands played</div>
-                </button>
-                <button type="button" class="home-game-card home-game-card-g10" data-route-target="red-black" data-game-id="game_002">
-                  <div class="hgc-top">
-                    <div class="hgc-glyph">?10</div>
-                    <div class="hgc-status">OPEN</div>
-                  </div>
-                  <div class="hgc-name">GUESS 10</div>
-                  <div id="hgc-g10-count" class="hgc-count">— hands played</div>
-                </button>
-                <button type="button" class="home-game-card home-game-card-shape" data-route-target="shape-traders" data-game-id="game_003">
-                  <div class="hgc-top">
-                    <div class="hgc-glyph hgc-glyph-shapes">□△○</div>
-                    <div class="hgc-status">OPEN</div>
-                  </div>
-                  <div class="hgc-name">SHAPE TRADERS</div>
-                  <div id="hgc-st-count" class="hgc-count">— trades made</div>
-                </button>
+                <div class="home-game-card-wrap">
+                  <button type="button" class="home-game-card home-game-card-rtn" data-route-target="run-the-numbers" data-game-id="game_001">
+                    <div class="hgc-top">
+                      <div class="hgc-glyph">RTN</div>
+                      <div class="hgc-live"><span class="hgc-live-dot"></span><span class="hgc-live-txt">LIVE</span></div>
+                    </div>
+                    <div class="hgc-name">RUN THE NUMBERS</div>
+                  </button>
+                  <button type="button" class="hgc-activity-btn" data-chart-game="game_001" aria-label="View RTN daily activity chart">
+                    <span id="hgc-rtn-count" class="hgc-count">— hands played</span>
+                    <svg class="hgc-chart-icon" viewBox="0 0 12 10" aria-hidden="true" fill="none"><rect x="0" y="6" width="2" height="4" fill="currentColor" opacity="0.5"/><rect x="3.5" y="3" width="2" height="7" fill="currentColor" opacity="0.7"/><rect x="7" y="1" width="2" height="9" fill="currentColor"/><rect x="10.5" y="4" width="2" height="6" fill="currentColor" opacity="0.6"/></svg>
+                  </button>
+                </div>
+                <div class="home-game-card-wrap">
+                  <button type="button" class="home-game-card home-game-card-g10" data-route-target="red-black" data-game-id="game_002">
+                    <div class="hgc-top">
+                      <div class="hgc-glyph">?10</div>
+                      <div class="hgc-status">OPEN</div>
+                    </div>
+                    <div class="hgc-name">GUESS 10</div>
+                  </button>
+                  <button type="button" class="hgc-activity-btn" data-chart-game="game_002" aria-label="View Guess 10 daily activity chart">
+                    <span id="hgc-g10-count" class="hgc-count">— hands played</span>
+                    <svg class="hgc-chart-icon" viewBox="0 0 12 10" aria-hidden="true" fill="none"><rect x="0" y="6" width="2" height="4" fill="currentColor" opacity="0.5"/><rect x="3.5" y="3" width="2" height="7" fill="currentColor" opacity="0.7"/><rect x="7" y="1" width="2" height="9" fill="currentColor"/><rect x="10.5" y="4" width="2" height="6" fill="currentColor" opacity="0.6"/></svg>
+                  </button>
+                </div>
+                <div class="home-game-card-wrap">
+                  <button type="button" class="home-game-card home-game-card-shape" data-route-target="shape-traders" data-game-id="game_003">
+                    <div class="hgc-top">
+                      <div class="hgc-glyph hgc-glyph-shapes">□△○</div>
+                      <div class="hgc-status">OPEN</div>
+                    </div>
+                    <div class="hgc-name">SHAPE TRADERS</div>
+                  </button>
+                  <button type="button" class="hgc-activity-btn" data-chart-game="game_003" aria-label="View Shape Traders daily activity chart">
+                    <span id="hgc-st-count" class="hgc-count">— trades made</span>
+                    <svg class="hgc-chart-icon" viewBox="0 0 12 10" aria-hidden="true" fill="none"><rect x="0" y="6" width="2" height="4" fill="currentColor" opacity="0.5"/><rect x="3.5" y="3" width="2" height="7" fill="currentColor" opacity="0.7"/><rect x="7" y="1" width="2" height="9" fill="currentColor"/><rect x="10.5" y="4" width="2" height="6" fill="currentColor" opacity="0.6"/></svg>
+                  </button>
+                </div>
               </div>
 
               <!-- QUOTE BLOCK -->
@@ -3920,6 +3935,20 @@
     <script type="module" src="supabase.env.js"></script>
     <script type="module" src="script.js?v=20260409-contest-game-ids"></script>
 
+  <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
+    <div class="modal-content game-activity-modal-content">
+      <div class="modal-header">
+        <div>
+          <h2 id="game-activity-modal-title">ACTIVITY</h2>
+          <p id="game-activity-modal-subtitle" class="modal-subtitle">Hands per day — last 30 days</p>
+        </div>
+        <button type="button" class="modal-close" id="game-activity-modal-close" aria-label="Close activity chart">×</button>
+      </div>
+      <div class="modal-body game-activity-chart-wrap">
+        <canvas id="game-activity-chart"></canvas>
+      </div>
+    </div>
+  </div>
   <div class="modal info-modal" id="carter-cash-modal" role="dialog" aria-modal="true" aria-labelledby="carter-cash-modal-title" hidden>
     <div class="modal-content">
       <div class="modal-header">

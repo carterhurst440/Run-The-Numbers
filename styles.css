@@ -8988,6 +8988,9 @@ body.theme-angelic {
   z-index: 12;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 .header-bar {
@@ -8997,6 +9000,7 @@ body.theme-angelic {
   height: 50px;
   gap: 14px;
   flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 
 .header-leading {
@@ -13424,7 +13428,7 @@ body.play-assistant-open .play-assistant-fab {
   align-items: center;
   justify-content: center;
   padding: clamp(1.5rem, 6vw, 3rem);
-  background: rgba(3, 6, 18, 0.78);
+  background: rgba(0, 0, 0, 0.76);
   z-index: 5000;
   overflow: hidden;
 }
@@ -20416,7 +20420,7 @@ body.modal-open {
 .home-game-card {
   background: #171714;
   border: 1px solid #2e2e22;
-  border-radius: 8px;
+  border-radius: 8px 8px 0 0;
   padding: 16px 14px;
   cursor: pointer;
   text-align: left;
@@ -20504,6 +20508,72 @@ body.modal-open {
   color: #78785a;
   margin-top: 4px;
   letter-spacing: 0.04em;
+}
+
+.home-game-card-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.hgc-activity-btn {
+  background: #111110;
+  border: 1px solid #2e2e22;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  padding: 7px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-family: inherit;
+  text-align: left;
+  transition: background 0.15s;
+  min-width: 0;
+}
+
+.hgc-activity-btn:hover {
+  background: #171714;
+}
+
+.hgc-activity-btn:hover .hgc-chart-icon {
+  color: #c8ff00;
+}
+
+.home-game-card-rtn ~ .hgc-activity-btn:hover .hgc-chart-icon { color: #c8ff00; }
+.home-game-card-g10 ~ .hgc-activity-btn:hover .hgc-chart-icon { color: #00e5ff; }
+.home-game-card-shape ~ .hgc-activity-btn:hover .hgc-chart-icon { color: #ff7fd8; }
+
+.hgc-chart-icon {
+  flex-shrink: 0;
+  width: 13px;
+  height: 11px;
+  color: #686850;
+  transition: color 0.15s;
+}
+
+.game-activity-modal-content {
+  width: min(520px, 95vw);
+}
+
+.game-activity-chart-wrap {
+  height: 220px;
+  padding: 0;
+  position: relative;
+}
+
+#game-activity-chart {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.modal-subtitle {
+  font-size: 10px;
+  color: #686850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 2px;
 }
 
 /* ---- QUOTE BLOCK ---- */

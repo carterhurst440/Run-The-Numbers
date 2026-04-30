@@ -15995,6 +15995,121 @@ function closeCarterCashModal() {
   carterCashInfoButton?.focus();
 }
 
+async function openGameActivityChart(gameId) {
+  if (!currentUser?.id || isGuestRuntimeUser()) return;
+  const modal = document.getElementById("game-activity-modal");
+  if (!modal) return;
+
+  const GAMES = {
+    game_001: { title: "RTN ACTIVITY", subtitle: "Hands per day — last 30 days", unit: "hands", accent: "#c8ff00" },
+    game_002: { title: "GUESS 10 ACTIVITY", subtitle: "Hands per day — last 30 days", unit: "hands", accent: "#00e5ff" },
+    game_003: { title: "SHAPE TRADERS ACTIVITY", subtitle: "Trades per day — last 30 days", unit: "trades", accent: "#ff7fd8" }
+  };
+  const game = GAMES[gameId] || GAMES.game_001;
+
+  const titleEl = document.getElementById("game-activity-modal-title");
+  const subtitleEl = document.getElementById("game-activity-modal-subtitle");
+  if (titleEl) titleEl.textContent = game.title;
+  if (subtitleEl) subtitleEl.textContent = game.subtitle;
+
+  modal.hidden = false;
+  document.getElementById("game-activity-modal-close")?.focus();
+
+  const canvas = document.getElementById("game-activity-chart");
+  if (!canvas) return;
+
+  if (window._gameActivityChart) {
+    window._gameActivityChart.destroy();
+    window._gameActivityChart = null;
+  }
+
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const cutoff = thirtyDaysAgo.toISOString();
+    let rows = [];
+
+    if (gameId === "game_001") {
+      const { data } = await supabase.from("rtn_live_hands").select("started_at").eq("user_id", currentUser.id).neq("status", "active").gte("started_at", cutoff);
+      rows = (data || []).map(r => r.started_at);
+    } else if (gameId === "game_002") {
+      const { data } = await supabase.from("guess10_live_hands").select("started_at").eq("user_id", currentUser.id).neq("status", "active").gte("started_at", cutoff);
+      rows = (data || []).map(r => r.started_at);
+    } else if (gameId === "game_003") {
+      const { data } = await supabase.from("shape_trader_trades").select("executed_at").eq("user_id", currentUser.id).gte("executed_at", cutoff);
+      rows = (data || []).map(r => r.executed_at);
+    }
+
+    const countsByDay = {};
+    for (const ts of rows) {
+      const day = String(ts || "").split("T")[0];
+      if (day) countsByDay[day] = (countsByDay[day] || 0) + 1;
+    }
+
+    const labels = [];
+    const values = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split("T")[0];
+      labels.push(key.slice(5));
+      values.push(countsByDay[key] || 0);
+    }
+
+    const ctx = canvas.getContext("2d");
+    window._gameActivityChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: game.accent + "40",
+          borderColor: game.accent,
+          borderWidth: 1,
+          borderRadius: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ` ${ctx.parsed.y} ${game.unit}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: "#686850", font: { size: 9, family: "inherit" }, maxTicksLimit: 10 },
+            grid: { color: "rgba(255,255,255,0.05)" },
+            border: { color: "rgba(255,255,255,0.1)" }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: "#686850", font: { size: 9, family: "inherit" }, precision: 0 },
+            grid: { color: "rgba(255,255,255,0.05)" },
+            border: { color: "rgba(255,255,255,0.1)" }
+          }
+        }
+      }
+    });
+  } catch (err) {
+    console.error("[RTN] game activity chart error", err);
+  }
+}
+
+function closeGameActivityModal() {
+  const modal = document.getElementById("game-activity-modal");
+  if (!modal) return;
+  modal.hidden = true;
+  if (window._gameActivityChart) {
+    window._gameActivityChart.destroy();
+    window._gameActivityChart = null;
+  }
+}
+
 async function saveProfile(event) {
   event.preventDefault();
   
@@ -28057,6 +28172,26 @@ if (carterCashModalEl) {
   });
 }
 
+const gameActivityModal = document.getElementById("game-activity-modal");
+const gameActivityModalClose = document.getElementById("game-activity-modal-close");
+
+if (gameActivityModalClose) {
+  gameActivityModalClose.addEventListener("click", () => closeGameActivityModal());
+}
+
+if (gameActivityModal) {
+  gameActivityModal.addEventListener("click", (event) => {
+    if (event.target === gameActivityModal) closeGameActivityModal();
+  });
+}
+
+document.addEventListener("click", (event) => {
+  const btn = event.target.closest("[data-chart-game]");
+  if (!btn) return;
+  event.stopPropagation();
+  openGameActivityChart(btn.dataset.chartGame);
+});
+
 if (authForm) {
   authForm.addEventListener("submit", handleAuthFormSubmit);
 }
@@ -32810,6 +32945,11 @@ document.addEventListener("keydown", (event) => {
     }
     if (carterCashModalEl && !carterCashModalEl.hidden) {
       closeCarterCashModal();
+      event.preventDefault();
+      return;
+    }
+    if (gameActivityModal && !gameActivityModal.hidden) {
+      closeGameActivityModal();
       event.preventDefault();
       return;
     }
