@@ -475,6 +475,15 @@ function renderGameLogoTargets() {
     const locked = isGameLockedForPlayer(gameKey);
     node.classList.toggle("is-locked", locked);
     node.disabled = locked;
+    const lockLabel = node.querySelector(".hgc-lock-label");
+    if (lockLabel) {
+      if (locked) {
+        const unlockTier = getGameAssetRecord(gameKey)?.unlock_tier;
+        lockLabel.textContent = unlockTier ? `UNLOCKS AT TIER ${unlockTier}` : "LOCKED";
+      } else {
+        lockLabel.textContent = "LOCKED";
+      }
+    }
   });
 
   document.querySelectorAll(".drawer-link-game[data-route-target]").forEach((node) => {
