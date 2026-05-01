@@ -23719,8 +23719,13 @@ body[data-ui="new"] .contest-result-detail {
 /* Journey chart modal */
 body[data-ui="new"] .contest-journey-chart-wrap {
   border-radius: 2px;
-  border-color: rgba(200, 255, 0, 0.12);
+  border-color: rgba(200, 255, 0, 0.1);
   background: #080807;
+}
+
+body[data-ui="new"] .contest-journey-modal .modal-body p {
+  color: #686850;
+  font-size: 0.84rem;
 }
 
 /* Opt-in button — joined state */
