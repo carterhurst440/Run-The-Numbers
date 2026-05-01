@@ -22477,88 +22477,88 @@ body[data-ui="new"] #red-black-view .beta-current-payout {
 }
 
 /* ==========================================================================
-   LOGIN / AUTH — NEW UI SKIN (body[data-ui="new"])
+   LOGIN / AUTH — DARK TERMINAL SKIN (universal, all users)
    ========================================================================== */
 
-body[data-ui="new"] .auth-view,
-body[data-ui="new"] .auth-callback-view,
-body[data-ui="new"] #signup-view,
-body[data-ui="new"] #forgot-password-view,
-body[data-ui="new"] #reset-password-view {
-  background: #080807;
+.auth-view,
+.auth-callback-view,
+#signup-view,
+#forgot-password-view,
+#reset-password-view {
+  background: #080807 !important;
 }
 
-body[data-ui="new"] .auth-card,
-body[data-ui="new"] .auth-callback-card {
-  background: #0e0e0c;
-  border: 1px solid #2a2a22;
-  border-radius: 2px;
-  box-shadow: 0 0 0 1px #1a1a14, 0 32px 64px rgba(0, 0, 0, 0.6);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+.auth-card,
+.auth-callback-card {
+  background: #0e0e0c !important;
+  border: 1px solid #2a2a22 !important;
+  border-radius: 2px !important;
+  box-shadow: 0 0 0 1px #1a1a14, 0 32px 64px rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
-body[data-ui="new"] .auth-card h1,
-body[data-ui="new"] .auth-callback-card h1,
-body[data-ui="new"] .auth-callback-card p {
-  font-family: inherit;
-  color: #e8e8c0;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  font-size: clamp(0.85rem, 2vw, 1rem);
+.auth-card h1,
+.auth-callback-card h1,
+.auth-callback-card p {
+  font-family: inherit !important;
+  color: #e8e8c0 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+  font-size: clamp(0.85rem, 2vw, 1rem) !important;
 }
 
-body[data-ui="new"] .auth-description,
-body[data-ui="new"] .auth-switch {
-  color: #686850;
+.auth-description,
+.auth-switch {
+  color: #686850 !important;
 }
 
-body[data-ui="new"] .auth-form label {
-  color: #686850;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-size: 9px;
+.auth-form label {
+  color: #686850 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.18em !important;
+  font-size: 9px !important;
 }
 
-body[data-ui="new"] .auth-form input {
-  border-radius: 2px;
-  border: 1px solid #2a2a22;
-  background: #0a0a08;
-  color: #d8d8b0;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+.auth-form input {
+  border-radius: 2px !important;
+  border: 1px solid #2a2a22 !important;
+  background: #0a0a08 !important;
+  color: #d8d8b0 !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4) !important;
 }
 
-body[data-ui="new"] .auth-form input:focus {
-  border-color: rgba(200, 255, 0, 0.5);
-  box-shadow: 0 0 0 2px rgba(200, 255, 0, 0.08);
+.auth-form input:focus {
+  border-color: rgba(200, 255, 0, 0.5) !important;
+  box-shadow: 0 0 0 2px rgba(200, 255, 0, 0.08) !important;
 }
 
-body[data-ui="new"] .auth-form button[type="submit"] {
-  border-radius: 2px;
-  border: 1px solid #c8ff00;
-  background: #c8ff00;
-  color: #0a0a08;
-  font-family: inherit;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  box-shadow: 0 0 16px rgba(200, 255, 0, 0.2);
+.auth-form button[type="submit"] {
+  border-radius: 2px !important;
+  border: 1px solid #c8ff00 !important;
+  background: #c8ff00 !important;
+  color: #0a0a08 !important;
+  font-family: inherit !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  box-shadow: 0 0 16px rgba(200, 255, 0, 0.2) !important;
 }
 
-body[data-ui="new"] .auth-form button[type="submit"]:hover:not(:disabled) {
-  background: #d4ff1a;
-  border-color: #d4ff1a;
-  box-shadow: 0 0 24px rgba(200, 255, 0, 0.35);
+.auth-form button[type="submit"]:hover:not(:disabled) {
+  background: #d4ff1a !important;
+  border-color: #d4ff1a !important;
+  box-shadow: 0 0 24px rgba(200, 255, 0, 0.35) !important;
 }
 
-body[data-ui="new"] .auth-switch-button,
-body[data-ui="new"] .auth-inline-link {
-  color: #c8ff00;
-  font-weight: 700;
+.auth-switch-button,
+.auth-inline-link {
+  color: #c8ff00 !important;
+  font-weight: 700 !important;
 }
 
-body[data-ui="new"] .auth-error {
-  color: #ff6060;
+.auth-error {
+  color: #ff6060 !important;
 }
 
 /* ==========================================================================
