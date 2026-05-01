@@ -23010,3 +23010,120 @@ body[data-ui="new"] .rank-theme-pill {
   border-color: rgba(200, 255, 0, 0.18);
   color: #686850;
 }
+
+body[data-ui="new"] .rank-ladder-modal .modal-actions .primary,
+body[data-ui="new"] .platform-rankings-modal .modal-actions .primary {
+  background: #c8ff00;
+  color: #0a0a08;
+  border-color: #c8ff00;
+  box-shadow: 0 6px 20px rgba(200, 255, 0, 0.18);
+}
+
+body[data-ui="new"] .rank-ladder-modal .modal-actions .primary:hover:not(:disabled),
+body[data-ui="new"] .platform-rankings-modal .modal-actions .primary:hover:not(:disabled) {
+  background: #d8ff40;
+  border-color: #d8ff40;
+  transform: none;
+  box-shadow: 0 8px 24px rgba(200, 255, 0, 0.28);
+}
+
+/* Rank number chip on player name */
+.hph-rank-badge-btn {
+  font: inherit;
+  font-size: 0.55em;
+  font-weight: 500;
+  color: #c8ff00;
+  letter-spacing: 0.06em;
+  vertical-align: super;
+  margin-left: 6px;
+  opacity: 0.85;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.hph-rank-badge-btn:hover {
+  opacity: 1;
+  color: #e8ff80;
+}
+
+/* Platform rankings modal */
+.platform-rankings-modal {
+  width: min(560px, calc(100vw - 2rem));
+  max-height: min(84vh, 760px);
+}
+
+.platform-rankings-body {
+  display: grid;
+  gap: 0.6rem;
+  overflow-y: auto;
+}
+
+.platform-rankings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.prk-row {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #1e1e1a;
+  transition: background 0.1s;
+}
+
+.prk-row.is-me {
+  background: rgba(200, 255, 0, 0.04);
+  border-bottom-color: rgba(200, 255, 0, 0.1);
+}
+
+.prk-num {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #505040;
+  text-align: right;
+}
+
+.prk-row.is-me .prk-num {
+  color: #c8ff00;
+}
+
+.prk-name {
+  font-size: 0.82rem;
+  color: #a8a870;
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prk-row.is-me .prk-name {
+  color: #c8c8a0;
+}
+
+.prk-tier {
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  color: #404038;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.prk-row.is-me .prk-tier {
+  color: rgba(200, 255, 0, 0.5);
+}
+
+.prk-empty {
+  color: #505040;
+  font-size: 0.8rem;
+  padding: 1rem 0;
+  text-align: center;
+}
