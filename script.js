@@ -4485,7 +4485,19 @@ async function fetchShapeTraderHeadline(card, headlineKey) {
     });
     if (!error && data?.headline && shapeTradersHeadlineKey === headlineKey) {
       shapeTradersHeadline = data.headline;
-      if (shapeTradersDrawMetaEl) shapeTradersDrawMetaEl.textContent = shapeTradersHeadline;
+      if (shapeTradersDrawMetaEl) {
+        const text = shapeTradersHeadline;
+        let i = 0;
+        shapeTradersDrawMetaEl.textContent = "";
+        const type = () => {
+          if (shapeTradersHeadlineKey !== headlineKey) return;
+          if (i < text.length) {
+            shapeTradersDrawMetaEl.textContent = text.slice(0, ++i);
+            setTimeout(type, 28);
+          }
+        };
+        type();
+      }
     }
   } catch (_) {
     // keep fallback headline
