@@ -944,7 +944,10 @@
                     <h2 id="shape-traders-market-title">Live Asset Prices</h2>
                   </div>
                   <div class="shape-traders-panel-heading-actions">
-                    <p class="shape-traders-panel-meta">View Split and Bankruptcy rules (i)</p>
+                    <button type="button" class="shape-traders-rules-btn" id="shape-traders-rules-open" aria-label="View Split and Bankruptcy rules">
+                      View Split &amp; Bankruptcy rules
+                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><circle cx="6.5" cy="6.5" r="6" stroke="currentColor" stroke-width="1.2"/><text x="6.5" y="10" text-anchor="middle" font-size="8" font-family="monospace" fill="currentColor">i</text></svg>
+                    </button>
                     <div id="shape-traders-admin-test-controls" class="shape-traders-admin-test-controls" hidden>
                       <div id="shape-traders-admin-asset-selector" class="shape-traders-admin-asset-selector" aria-label="Admin shape selector"></div>
                       <input
@@ -1216,6 +1219,51 @@
             <div class="modal-body shape-traders-chart-modal-body">
               <p class="shape-traders-chart-subtitle">Current shared deck contents for Shape Traders.</p>
               <div id="shape-traders-deck-list" class="shape-traders-deck-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          id="shape-traders-rules-modal"
+          class="modal-overlay shape-traders-rules-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="shape-traders-rules-modal-title"
+          hidden
+        >
+          <div class="modal-content shape-traders-rules-modal-content">
+            <div class="modal-header">
+              <h2 id="shape-traders-rules-modal-title">Split &amp; Bankruptcy Rules</h2>
+              <button type="button" class="modal-close" id="shape-traders-rules-close" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body shape-traders-rules-modal-body">
+              <div class="str-rule">
+                <div class="str-rule-header">
+                  <span class="str-rule-badge str-rule-badge--split">SPLIT</span>
+                  <span class="str-rule-trigger">Triggers at $1,000</span>
+                </div>
+                <p class="str-rule-desc">When any shape reaches <strong>$1,000</strong>, the price resets to <strong>$100</strong> and all holdings in that shape are multiplied by <strong>10×</strong>. Your total position value is preserved — you just hold more shares at a lower price.</p>
+                <div class="str-rule-example">
+                  <span>10 shares @ $1,000</span>
+                  <span class="str-rule-arrow">→</span>
+                  <span>100 shares @ $100</span>
+                </div>
+              </div>
+              <div class="str-rule">
+                <div class="str-rule-header">
+                  <span class="str-rule-badge str-rule-badge--bankruptcy">BANKRUPTCY</span>
+                  <span class="str-rule-trigger">Triggers below $1</span>
+                </div>
+                <p class="str-rule-desc">When any shape drops below <strong>$1</strong>, the asset goes bankrupt. The price resets to <strong>$100</strong> and all holdings in that shape are <strong>wiped to zero</strong>. Cash is unaffected.</p>
+                <div class="str-rule-example">
+                  <span>Any holdings @ &lt;$1</span>
+                  <span class="str-rule-arrow">→</span>
+                  <span>0 shares @ $100</span>
+                </div>
+              </div>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="primary" id="shape-traders-rules-ok">OK</button>
             </div>
           </div>
         </div>

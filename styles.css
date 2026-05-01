@@ -2490,6 +2490,128 @@ body[data-app-state="loading"] #app-shell {
   text-align: right;
 }
 
+.shape-traders-rules-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: none;
+  border: none;
+  padding: 0;
+  color: color-mix(in srgb, var(--text-light) 60%, transparent);
+  font-size: 0.78rem;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.shape-traders-rules-btn:hover {
+  color: var(--text-light);
+}
+
+.shape-traders-rules-modal-content {
+  max-width: 480px;
+  width: 100%;
+}
+
+.shape-traders-rules-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem 1.75rem;
+}
+
+.str-rule {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.str-rule-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.str-rule-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 2px;
+}
+
+.str-rule-badge--split {
+  background: rgba(200, 255, 0, 0.12);
+  color: #c8ff00;
+  border: 1px solid rgba(200, 255, 0, 0.3);
+}
+
+.str-rule-badge--bankruptcy {
+  background: rgba(255, 80, 80, 0.12);
+  color: #ff5050;
+  border: 1px solid rgba(255, 80, 80, 0.3);
+}
+
+.str-rule-trigger {
+  font-size: 0.78rem;
+  color: color-mix(in srgb, var(--text-light) 55%, transparent);
+  letter-spacing: 0.06em;
+}
+
+.str-rule-desc {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--text-light) 80%, transparent);
+}
+
+.str-rule-desc strong {
+  color: var(--text-light);
+}
+
+.str-rule-example {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-family: "JetBrains Mono", monospace;
+  color: color-mix(in srgb, var(--text-light) 70%, transparent);
+}
+
+.str-rule-arrow {
+  color: color-mix(in srgb, var(--text-light) 35%, transparent);
+}
+
+body[data-ui="new"] .shape-traders-rules-btn {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  border-radius: 2px;
+}
+
+body[data-ui="new"] .shape-traders-rules-modal .modal-content {
+  border-radius: 2px;
+  border-color: rgba(200, 255, 0, 0.15);
+}
+
+body[data-ui="new"] .shape-traders-rules-modal .modal-header {
+  border-radius: 0;
+}
+
+body[data-ui="new"] .shape-traders-rules-modal .modal-actions .primary {
+  background: #c8ff00;
+  color: #0a0a08;
+  border-color: #c8ff00;
+  border-radius: 2px;
+}
+
+body[data-ui="new"] .str-rule-example {
+  border-radius: 2px;
+}
+
 .shape-traders-mini-button {
   min-height: 2rem;
   padding: 0.34rem 0.78rem;

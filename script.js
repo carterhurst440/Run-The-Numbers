@@ -4472,72 +4472,141 @@ function getShapeTraderCardMetaLabel(card) {
   return card.assetLabel || getShapeTraderAssetConfig(card.assetId).label;
 }
 
-function getShapeTraderCardHeadline(card, windowIndex = 0) {
+async function fetchShapeTraderHeadline(card, headlineKey) {
+  if (!card) return;
+  try {
+    const asset = getShapeTraderAssetConfig(card.assetId);
+    const { data, error } = await supabase.functions.invoke("shape-trader-headline", {
+      body: {
+        assetLabel: card.kind === "macro" ? "the market" : asset.label,
+        kind: card.kind,
+        percentage: card.percentage
+      }
+    });
+    if (!error && data?.headline && shapeTradersHeadlineKey === headlineKey) {
+      shapeTradersHeadline = data.headline;
+      if (shapeTradersDrawMetaEl) shapeTradersDrawMetaEl.textContent = shapeTradersHeadline;
+    }
+  } catch (_) {
+    // keep fallback headline
+  }
+}
+
+function getShapeTraderCardHeadline(card) {
   if (!card) {
     return "Waiting on the next market signal.";
   }
 
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const isUp = Number(card.percentage || 0) >= 0;
+
   if (card.kind === "macro") {
-    const positiveMacroHeadlines = [
-      "Risk appetite is back across the market.",
-      "A broad relief rally is lifting all shapes.",
-      "Macro tailwinds are pushing the whole board higher.",
-      "Buyers are stepping in across every desk."
-    ];
-    const negativeMacroHeadlines = [
-      "Markets are in turmoil after a fresh supply shock.",
-      "Macro pressure is dragging the whole board lower.",
-      "Risk is coming off fast across the market.",
-      "A market-wide flush just hit every shape."
-    ];
-    const headlines = Number(card.percentage || 0) >= 0 ? positiveMacroHeadlines : negativeMacroHeadlines;
-    return headlines[Math.abs(Math.floor(windowIndex)) % headlines.length];
+    const subject = pick(["The whole board", "Every shape", "Risk assets", "The market", "The macro tape", "Liquidity"]);
+    const verb = isUp
+      ? pick(["caught a sudden bid", "just went risk-on", "is ripping higher", "got a shot of liquidity", "pivoted hard", "is melting up"])
+      : pick(["flushed out", "rolled over fast", "got smacked", "is bleeding across the board", "dropped into the red", "just collapsed"]);
+    const reason = isUp
+      ? pick([
+          "after the Fed said something vague but reassuring",
+          "on a rumor nobody has confirmed yet",
+          "following a soft inflation print that caught everyone off guard",
+          "after a big fund covered its shorts",
+          "because a relief rally in bonds spilled over",
+          "on no identifiable catalyst — traders are just buying",
+          "after a hedge fund sent a buy order for everything on the board",
+          "when retail started piling in after a viral post from a guy named Dave",
+        ])
+      : pick([
+          "after hot inflation data hit the tape",
+          "following a hawkish comment nobody expected",
+          "on a supply shock that came out of nowhere",
+          "after a large fund started liquidating",
+          "when a stop cascade triggered through the order book",
+          "because someone at the Fed chose violence today",
+          "after the macro data came in bad on every single metric",
+          "when an algo tripped a level that should have held",
+        ]);
+    const kicker = isUp
+      ? pick([
+          "Nobody is asking why.",
+          "The bears have gone very quiet.",
+          "Retail is piling in fast.",
+          "The algos are feasting.",
+          "Risk appetite is fully back.",
+          "Don't ask questions. Just buy.",
+        ])
+      : pick([
+          "The bid just disappeared.",
+          "Nobody is stepping in.",
+          "Everyone is suddenly very busy.",
+          "It's getting worse by the minute.",
+          "The macro guys are not returning calls.",
+          "The board is ugly. Nobody is happy.",
+        ]);
+    return `${subject} ${verb} ${reason}. ${kicker}`;
   }
 
   const asset = getShapeTraderAssetConfig(card.assetId);
-  const positiveAssetHeadlines = {
-    square: [
-      "Blockbuster earnings report for Square.",
-      "Square is hot right now.",
-      "Momentum keeps building behind Square.",
-      "Traders are piling into Square."
-    ],
-    triangle: [
-      "Big move for Triangle.",
-      "Triangle is catching a strong bid.",
-      "Triangle is running hot right now.",
-      "Triangle bulls are pressing the trade."
-    ],
-    circle: [
-      "Circle is hot right now.",
-      "Circle is seeing heavy upside momentum.",
-      "Circle buyers are taking control.",
-      "A fresh breakout is forming in Circle."
-    ]
-  };
-  const negativeAssetHeadlines = {
-    square: [
-      "Square just got hit with a rough outlook.",
-      "Sellers are leaning hard on Square.",
-      "Square is taking a sharp leg lower.",
-      "A risk-off wave just smacked Square."
-    ],
-    triangle: [
-      "Triangle just took a heavy hit.",
-      "Triangle is under pressure right now.",
-      "A sharp reversal just clipped Triangle.",
-      "Triangle traders are bailing fast."
-    ],
-    circle: [
-      "Circle just lost momentum in a hurry.",
-      "Circle is under serious pressure.",
-      "A fast selloff just hit Circle.",
-      "Circle traders are heading for the exits."
-    ]
-  };
-  const headlineSet = Number(card.percentage || 0) >= 0 ? positiveAssetHeadlines : negativeAssetHeadlines;
-  const headlines = headlineSet[asset.id] || [`${asset.label} is moving.`];
-  return headlines[Math.abs(Math.floor(windowIndex)) % headlines.length];
+  const name = asset.label;
+
+  const subject = isUp
+    ? pick([`${name} longs`, `The ${name} desk`, `Options flow in ${name}`, `A massive ${name} bid`, `Momentum in ${name}`, name])
+    : pick([`${name} longs`, `The ${name} desk`, `${name} sellers`, `A ${name} stop cascade`, name, `The ${name} order book`]);
+  const verb = isUp
+    ? pick(["just lit up", "is running hard", "caught fire", "broke out of a tight range", "went parabolic", "ripped through resistance", "hit a fresh high", "is sending it"])
+    : pick(["just collapsed", "is getting destroyed", "broke through support", "got hit with a massive sell order", "is in freefall", "rolled over hard", "flushed every stop on the board", "dropped off a cliff"]);
+  const reason = isUp
+    ? pick([
+        "on a volume spike nobody expected",
+        "after a rumor hit the tape",
+        "on no news whatsoever",
+        "following a call flow surge this morning",
+        "after a whale took a position",
+        "ahead of earnings that aren't for two weeks",
+        "when a technical breakout triggered the algos",
+        "because someone clearly knows something",
+        "after an ETF rebalance that nobody saw coming",
+        `on a ${Math.floor(Math.random() * 8 + 3)}-day streak that just keeps going`,
+      ])
+    : pick([
+        "after guidance came in light",
+        "on a downgrade nobody saw coming",
+        "when a large seller appeared out of nowhere",
+        "after an analyst said the word 'headwinds' on a live call",
+        "when the technical level gave way completely",
+        "after shorts doubled down at exactly the right time",
+        "as risk-off hit this name particularly hard",
+        "when the earnings whisper turned out to be very wrong",
+        "after the CEO gave an interview that raised more questions than it answered",
+        "when the bid just evaporated mid-session for no clear reason",
+      ]);
+  const kicker = isUp
+    ? pick([
+        "Shorts are not okay.",
+        "The chat rooms are feral right now.",
+        "Someone definitely knew something.",
+        "Nobody is asking questions.",
+        "The buy side is chasing this hard.",
+        "Three separate desks are in on this.",
+        "A guy on the trading floor literally cheered.",
+        "The squeeze is real.",
+        "This is getting uncomfortable for the shorts.",
+        "The momentum algos just joined the party.",
+      ])
+    : pick([
+        "The bulls have gone very quiet.",
+        "Nobody is stepping in to buy this.",
+        "Someone just called it 'a learning experience.'",
+        "The exit is getting crowded.",
+        "The next support level is somewhere lower.",
+        "Longs are underwater and the offers keep coming.",
+        "The chat rooms are not happy right now.",
+        "It's getting uncomfortable for some people.",
+        "An analyst downgraded it on the way down for extra damage.",
+        "The chart looks like a cliff.",
+      ]);
+
+  return `${subject} ${verb} ${reason}. ${kicker}`;
 }
 
 function buildShapeTraderCardSymbolsMarkup(card) {
@@ -6902,9 +6971,17 @@ function renderShapeTradersDeck(now = Date.now()) {
       });
     }
     if (shapeTradersDrawMetaEl) {
-      shapeTradersDrawMetaEl.textContent = currentCard
-        ? getShapeTraderCardHeadline(currentCard, currentWindowIndex)
-        : "Waiting on the next market signal.";
+      const headlineKey = currentCard ? `db:${currentWindowIndex}:${visibleCount}:${currentCard.label}` : null;
+      if (headlineKey && headlineKey !== shapeTradersHeadlineKey) {
+        shapeTradersHeadlineKey = headlineKey;
+        shapeTradersHeadline = getShapeTraderCardHeadline(currentCard);
+        shapeTradersDrawMetaEl.textContent = shapeTradersHeadline;
+        fetchShapeTraderHeadline(currentCard, headlineKey);
+      } else if (!currentCard) {
+        shapeTradersHeadlineKey = null;
+        shapeTradersHeadline = "Waiting on the next market signal.";
+        shapeTradersDrawMetaEl.textContent = shapeTradersHeadline;
+      }
     }
     if (shapeTradersDumpLabelEl) {
       shapeTradersDumpLabelEl.textContent = dbState.isDataDump
@@ -6963,9 +7040,24 @@ function renderShapeTradersDeck(now = Date.now()) {
     });
   }
   if (shapeTradersDrawMetaEl) {
-    shapeTradersDrawMetaEl.textContent = windowState.isDataDump
-      ? `Data dump live. ${windowState.cards.length} rapid cards share this window.`
-      : getShapeTraderCardHeadline(windowState.currentCard, windowState.windowIndex);
+    if (windowState.isDataDump) {
+      shapeTradersHeadlineKey = null;
+      shapeTradersDrawMetaEl.textContent = `Data dump live. ${windowState.cards.length} rapid cards share this window.`;
+    } else {
+      const headlineKey = windowState.currentCard
+        ? `${windowState.windowIndex}:${windowState.visibleCount}:${windowState.currentCard.label}`
+        : null;
+      if (headlineKey && headlineKey !== shapeTradersHeadlineKey) {
+        shapeTradersHeadlineKey = headlineKey;
+        shapeTradersHeadline = getShapeTraderCardHeadline(windowState.currentCard);
+        shapeTradersDrawMetaEl.textContent = shapeTradersHeadline;
+        fetchShapeTraderHeadline(windowState.currentCard, headlineKey);
+      } else if (!headlineKey) {
+        shapeTradersHeadlineKey = null;
+        shapeTradersHeadline = "Waiting on the next market signal.";
+        shapeTradersDrawMetaEl.textContent = shapeTradersHeadline;
+      }
+    }
   }
   if (shapeTradersDumpLabelEl) {
     const cardsUntilDump = (9 - (windowState.windowIndex % 10) + 10) % 10;
@@ -17866,6 +17958,10 @@ const shapeTradersRecentListEl = document.getElementById("shape-traders-recent-l
 const shapeTradersDeckModal = document.getElementById("shape-traders-deck-modal");
 const shapeTradersDeckCloseButton = document.getElementById("shape-traders-deck-close");
 const shapeTradersDeckListEl = document.getElementById("shape-traders-deck-list");
+const shapeTradersRulesModal = document.getElementById("shape-traders-rules-modal");
+const shapeTradersRulesOpenButton = document.getElementById("shape-traders-rules-open");
+const shapeTradersRulesCloseButton = document.getElementById("shape-traders-rules-close");
+const shapeTradersRulesOkButton = document.getElementById("shape-traders-rules-ok");
 const resetAccountButton = document.getElementById("reset-account");
 const menuToggle = document.getElementById("menu-toggle");
 const utilityPanel = document.getElementById("utility-panel");
@@ -18938,6 +19034,8 @@ let shapeTradersProcessedWindowIndex = -1;
 let shapeTradersProcessedVisibleCount = 0;
 let shapeTradersCurrentCard = null;
 let shapeTradersPreviousCard = null;
+let shapeTradersHeadline = "Waiting on the next market signal.";
+let shapeTradersHeadlineKey = null;
 let shapeTradersTimerId = null;
 let shapeTradersAnimationFrameId = null;
 let shapeTradersInitialized = false;
@@ -32970,6 +33068,27 @@ if (shapeTradersDeckModal) {
     if (event.target === shapeTradersDeckModal) {
       closeShapeTraderDeck();
     }
+  });
+}
+
+if (shapeTradersRulesOpenButton) {
+  shapeTradersRulesOpenButton.addEventListener("click", () => {
+    if (shapeTradersRulesModal) shapeTradersRulesModal.hidden = false;
+  });
+}
+if (shapeTradersRulesCloseButton) {
+  shapeTradersRulesCloseButton.addEventListener("click", () => {
+    if (shapeTradersRulesModal) shapeTradersRulesModal.hidden = true;
+  });
+}
+if (shapeTradersRulesOkButton) {
+  shapeTradersRulesOkButton.addEventListener("click", () => {
+    if (shapeTradersRulesModal) shapeTradersRulesModal.hidden = true;
+  });
+}
+if (shapeTradersRulesModal) {
+  shapeTradersRulesModal.addEventListener("click", (event) => {
+    if (event.target === shapeTradersRulesModal) shapeTradersRulesModal.hidden = true;
   });
 }
 
