@@ -21998,21 +21998,21 @@ body[data-ui="new"] #shape-traders-view .shape-traders-market-card.is-cyan .shap
 
 /* Magenta (triangle) card */
 body[data-ui="new"] #shape-traders-view .shape-traders-market-card.is-magenta {
-  border-color: rgba(255, 45, 120, 0.2);
+  border-color: rgba(255, 74, 211, 0.2);
 }
 body[data-ui="new"] #shape-traders-view .shape-traders-market-card.is-magenta .shape-traders-market-card-price {
-  color: #ff2d78;
+  color: #ff4ad3;
 }
 body[data-ui="new"] #shape-traders-view .shape-traders-market-card.is-magenta .shape-traders-shape-icon {
-  border-color: #ff2d78;
-  color: #ff2d78;
-  box-shadow: 0 0 12px rgba(255, 45, 120, 0.25);
+  border-color: #ff4ad3;
+  color: #ff4ad3;
+  box-shadow: 0 0 12px rgba(255, 74, 211, 0.25);
 }
 body[data-ui="new"] #shape-traders-view .shape-traders-market-card.is-magenta .shape-traders-shape-icon.shape-triangle {
   border-color: transparent;
   box-shadow: none;
   background-color: transparent;
-  filter: drop-shadow(0 0 6px rgba(255, 45, 120, 0.6));
+  filter: drop-shadow(0 0 6px rgba(255, 74, 211, 0.6));
 }
 
 /* Gold (circle) card */
@@ -22242,10 +22242,10 @@ body[data-ui="new"] #shape-traders-view .shape-traders-asset-button.active[data-
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-asset-button.active[data-shape-trader-asset="triangle"] {
-  border: 1px solid #ff2d78 !important;
-  background: rgba(255, 45, 120, 0.06) !important;
-  color: #ff2d78 !important;
-  box-shadow: 0 0 10px rgba(255, 45, 120, 0.15) !important;
+  border: 1px solid #ff4ad3 !important;
+  background: rgba(255, 74, 211, 0.06) !important;
+  color: #ff4ad3 !important;
+  box-shadow: 0 0 10px rgba(255, 74, 211, 0.15) !important;
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-asset-button.active[data-shape-trader-asset="circle"] {
@@ -22310,17 +22310,17 @@ body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-
 
 /* Triangle → pink (#ff2d78) */
 body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-shape-trader-asset="triangle"].active) #shape-traders-buy-button {
-  background: #ff2d78; border-color: #ff2d78; color: #fff; font-weight: 800;
-  box-shadow: 0 0 14px rgba(255,45,120,0.3);
+  background: #ff4ad3; border-color: #ff4ad3; color: #fff; font-weight: 800;
+  box-shadow: 0 0 14px rgba(255,74,211,0.3);
 }
 body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-shape-trader-asset="triangle"].active) #shape-traders-buy-button:hover:not(:disabled) {
-  background: #ff5596; box-shadow: 0 0 22px rgba(255,45,120,0.45);
+  background: #ff70db; box-shadow: 0 0 22px rgba(255,74,211,0.45);
 }
 body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-shape-trader-asset="triangle"].active) #shape-traders-sell-button {
-  background: transparent; border: 1px solid #ff2d78; color: #ff2d78; box-shadow: none;
+  background: transparent; border: 1px solid #ff4ad3; color: #ff4ad3; box-shadow: none;
 }
 body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-shape-trader-asset="triangle"].active) #shape-traders-sell-button:hover:not(:disabled) {
-  background: rgba(255,45,120,0.08); box-shadow: 0 0 12px rgba(255,45,120,0.2);
+  background: rgba(255,74,211,0.08); box-shadow: 0 0 12px rgba(255,74,211,0.2);
 }
 
 /* Circle → neon orange */
