@@ -6983,15 +6983,22 @@ function renderShapeTradersDeck(now = Date.now()) {
       });
     }
     if (shapeTradersDrawMetaEl) {
-      const headlineKey = currentCard ? `db:${currentWindowIndex}:${visibleCount}:${currentCard.label}` : null;
-      if (headlineKey && headlineKey !== shapeTradersHeadlineKey) {
-        shapeTradersHeadlineKey = headlineKey;
-        shapeTradersDrawMetaEl.textContent = "";
-        fetchShapeTraderHeadline(currentCard, headlineKey);
-      } else if (!currentCard) {
-        shapeTradersHeadlineKey = null;
-        shapeTradersHeadline = "Waiting on the next market signal.";
-        shapeTradersDrawMetaEl.textContent = shapeTradersHeadline;
+      if (isDumpReveal) {
+        if (shapeTradersHeadlineKey !== null) {
+          shapeTradersHeadlineKey = null;
+          shapeTradersDrawMetaEl.textContent = "";
+        }
+      } else {
+        const headlineKey = currentCard ? `db:${currentWindowIndex}:${visibleCount}:${currentCard.label}` : null;
+        if (headlineKey && headlineKey !== shapeTradersHeadlineKey) {
+          shapeTradersHeadlineKey = headlineKey;
+          shapeTradersDrawMetaEl.textContent = "";
+          fetchShapeTraderHeadline(currentCard, headlineKey);
+        } else if (!currentCard) {
+          shapeTradersHeadlineKey = null;
+          shapeTradersHeadline = "Waiting on the next market signal.";
+          shapeTradersDrawMetaEl.textContent = shapeTradersHeadline;
+        }
       }
     }
     if (shapeTradersDumpLabelEl) {
@@ -7051,9 +7058,11 @@ function renderShapeTradersDeck(now = Date.now()) {
     });
   }
   if (shapeTradersDrawMetaEl) {
-    if (windowState.isDataDump) {
-      shapeTradersHeadlineKey = null;
-      shapeTradersDrawMetaEl.textContent = `Data dump live. ${windowState.cards.length} rapid cards share this window.`;
+    if (windowState.isDataDump && windowState.visibleCount < windowState.cards.length) {
+      if (shapeTradersHeadlineKey !== null) {
+        shapeTradersHeadlineKey = null;
+        shapeTradersDrawMetaEl.textContent = "";
+      }
     } else {
       const headlineKey = windowState.currentCard
         ? `${windowState.windowIndex}:${windowState.visibleCount}:${windowState.currentCard.label}`
