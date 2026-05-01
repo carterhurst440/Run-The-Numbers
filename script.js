@@ -27814,25 +27814,8 @@ chipEditorModal?.addEventListener("click", (event) => {
   }
 });
 
-// ---- NEW UI TOGGLE ----
-const NEW_UI_KEY = "rtn_new_ui";
-const newUiToggleBtn = document.getElementById("new-ui-toggle");
-
-function applyNewUiState(enabled) {
-  document.body.setAttribute("data-ui", enabled ? "new" : "classic");
-  if (newUiToggleBtn) newUiToggleBtn.setAttribute("aria-checked", enabled ? "true" : "false");
-}
-
-// Init from localStorage
-applyNewUiState(localStorage.getItem(NEW_UI_KEY) === "1");
-
-if (newUiToggleBtn) {
-  newUiToggleBtn.addEventListener("click", () => {
-    const next = newUiToggleBtn.getAttribute("aria-checked") !== "true";
-    localStorage.setItem(NEW_UI_KEY, next ? "1" : "0");
-    applyNewUiState(next);
-  });
-}
+// New UI is always on
+document.body.setAttribute("data-ui", "new");
 
 if (resetAccountButton) {
   resetAccountButton.addEventListener("click", () => {
