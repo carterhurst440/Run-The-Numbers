@@ -19208,6 +19208,7 @@ body.modal-open {
   padding: 10px 12px;
   border: 1px solid #2e2e22;
   background: #171714;
+  border-radius: 2px;
 }
 
 .utility-panel .drawer-rank-label {
