@@ -13280,6 +13280,31 @@ body.play-assistant-open .play-assistant-fab {
   margin: -0.1rem 0 0.9rem;
   padding: 0 0 0.85rem;
   border-bottom: 1px solid color-mix(in srgb, var(--drawer-border) 42%, transparent);
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  font-family: inherit;
+  cursor: pointer;
+  position: relative;
+  transition: opacity 0.15s;
+}
+
+.drawer-rank-summary:hover {
+  opacity: 0.8;
+}
+
+.drawer-rank-chevron {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1rem;
+  color: var(--muted);
+  opacity: 0.5;
+  line-height: 1;
 }
 
 .drawer-rank-label,
@@ -20204,6 +20229,17 @@ body:not([data-ui="new"]) .auth-callback-spinner {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.hph-badge-btn {
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.hph-badge-btn:hover {
+  border-color: rgba(200, 255, 0, 0.6);
+  color: #e0f060;
 }
 
 .hph-badge {
