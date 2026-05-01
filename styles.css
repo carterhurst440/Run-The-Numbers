@@ -23478,3 +23478,316 @@ body[data-ui="new"] .contest-wins-modal .modal-actions .primary:hover:not(:disab
   transform: none;
   box-shadow: 0 8px 24px rgba(200, 255, 0, 0.28);
 }
+
+/* ── Contests Page — new UI ─────────────────────────────────────────── */
+
+/* Route chrome */
+body[data-ui="new"] .contests-shell .route-header h1 {
+  font-size: clamp(1.2rem, 3vw, 1.6rem);
+  letter-spacing: 0.14em;
+  color: #c8c8a0;
+}
+
+body[data-ui="new"] .contests-shell .link-button {
+  border-color: #2a2a22;
+  color: #686850;
+  border-radius: 2px;
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+}
+
+body[data-ui="new"] .contests-shell .link-button:hover {
+  border-color: rgba(200, 255, 0, 0.35);
+  color: #c8c8a0;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Email notification row — flat, no card */
+body[data-ui="new"] .contest-settings-section {
+  padding: 0;
+  gap: 0.35rem;
+}
+
+body[data-ui="new"] .contest-email-setting {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  color: #686850;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  font-weight: 400;
+  gap: 0.55rem;
+}
+
+body[data-ui="new"] .contest-email-setting input {
+  accent-color: #c8ff00;
+}
+
+body[data-ui="new"] .contest-email-setting-message {
+  color: #505040;
+  font-size: 0.74rem;
+}
+
+body[data-ui="new"] .contest-email-setting-message.is-success {
+  color: #6abf6a;
+}
+
+body[data-ui="new"] .contest-email-setting-message.is-error {
+  color: #bf6a6a;
+}
+
+/* Contests list heading */
+body[data-ui="new"] .contests-list-heading {
+  margin-bottom: 0.5rem;
+}
+
+/* Live / Ended tabs */
+body[data-ui="new"] .contest-list-tabs {
+  border-radius: 2px;
+  background: #111110;
+  border-color: #2a2a22;
+  gap: 2px;
+  padding: 3px;
+  margin-bottom: 0.75rem;
+}
+
+body[data-ui="new"] .contest-list-tab {
+  border-radius: 2px;
+  color: #505040;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+}
+
+body[data-ui="new"] .contest-list-tab:hover {
+  color: #a8a870;
+  border-color: transparent;
+}
+
+body[data-ui="new"] .contest-list-tab.is-active {
+  background: rgba(200, 255, 0, 0.08);
+  color: #c8ff00;
+  border-color: rgba(200, 255, 0, 0.25);
+  box-shadow: none;
+}
+
+/* Contest cards */
+body[data-ui="new"] .admin-contest-card,
+body[data-ui="new"] .contest-detail-card {
+  border-radius: 2px;
+  background: #0e0e0c;
+  border-color: #222220;
+  box-shadow: none;
+}
+
+body[data-ui="new"] .contests-shell .admin-contest-card,
+body[data-ui="new"] .contests-shell .contest-detail-card {
+  background: #0e0e0c;
+  box-shadow: none;
+}
+
+/* Status badges — sharp */
+body[data-ui="new"] .contest-status-badge,
+body[data-ui="new"] .contest-meta-badge {
+  border-radius: 2px;
+}
+
+body[data-ui="new"] .contest-status-badge[data-status="live"] {
+  border-color: rgba(106, 191, 106, 0.35);
+  color: #6abf6a;
+}
+
+body[data-ui="new"] .contest-status-badge[data-status="pending"],
+body[data-ui="new"] .contest-status-badge[data-status="upcoming"] {
+  border-color: rgba(200, 200, 160, 0.3);
+  color: #a8a870;
+}
+
+body[data-ui="new"] .contest-status-badge[data-status="ended"] {
+  border-color: #2a2a22;
+  color: #505040;
+}
+
+body[data-ui="new"] .contest-meta-badge-entry {
+  border-color: rgba(200, 200, 160, 0.25);
+  color: #a8a870;
+}
+
+body[data-ui="new"] .contest-meta-badge-joined {
+  border-color: rgba(200, 255, 0, 0.25);
+  color: #c8ff00;
+}
+
+/* Rank requirement tag */
+body[data-ui="new"] .contest-rank-tag {
+  border-radius: 2px;
+  border-color: #2a2a22;
+  background: #111110;
+  color: #686850;
+}
+
+/* Card hero (prize block) */
+body[data-ui="new"] .contest-card-hero {
+  border-radius: 2px;
+  border-color: rgba(200, 200, 160, 0.12);
+  background: #111110;
+}
+
+/* Text colors */
+body[data-ui="new"] .contest-title {
+  color: #c8c8a0;
+}
+
+body[data-ui="new"] .contest-description-copy {
+  color: #686850;
+}
+
+body[data-ui="new"] .contest-description-toggle {
+  color: #686850;
+  letter-spacing: 0.1em;
+}
+
+body[data-ui="new"] .contest-description-toggle:hover {
+  color: #a8a870;
+}
+
+body[data-ui="new"] .contest-detail-list dt {
+  color: #505040;
+}
+
+body[data-ui="new"] .contest-detail-list dd {
+  color: #c8c8a0;
+}
+
+body[data-ui="new"] .contest-status-text,
+body[data-ui="new"] .contest-window,
+body[data-ui="new"] .contest-opt-in-copy {
+  color: #686850;
+}
+
+body[data-ui="new"] .contest-results-group h3 {
+  color: #c8ff00;
+  font-size: 0.76rem;
+  letter-spacing: 0.18em;
+}
+
+/* Leaderboard rows */
+body[data-ui="new"] .contest-leaderboard-row,
+body[data-ui="new"] .contest-result-row {
+  border-radius: 2px;
+  background: #111110;
+  border: 1px solid #1e1e1a;
+  box-shadow: none;
+}
+
+body[data-ui="new"] .contest-leaderboard-row.is-current-user {
+  border-color: rgba(200, 255, 0, 0.35);
+  background: rgba(200, 255, 0, 0.04);
+}
+
+body[data-ui="new"] .contest-player-name {
+  color: #c8c8a0;
+}
+
+body[data-ui="new"] .contest-player-rank,
+body[data-ui="new"] .contest-player-score {
+  color: #505040;
+}
+
+body[data-ui="new"] .contest-result-award {
+  color: #c8ff00;
+}
+
+body[data-ui="new"] .contest-result-detail {
+  color: #505040;
+}
+
+/* Journey chart modal */
+body[data-ui="new"] .contest-journey-chart-wrap {
+  border-radius: 2px;
+  border-color: rgba(200, 255, 0, 0.12);
+  background: #080807;
+}
+
+/* Opt-in button — joined state */
+body[data-ui="new"] .contest-actions .primary.is-joined,
+body[data-ui="new"] .contest-actions .primary.is-joined:disabled {
+  background: transparent;
+  border-color: #2a2a22;
+  color: #686850;
+}
+
+/* Admin form inputs (create contest modal) */
+body[data-ui="new"] .admin-field input,
+body[data-ui="new"] .admin-field textarea,
+body[data-ui="new"] .admin-field select {
+  border-radius: 2px;
+  background: #111110;
+  border-color: #2a2a22;
+  color: #c8c8a0;
+}
+
+body[data-ui="new"] .admin-field input:focus,
+body[data-ui="new"] .admin-field textarea:focus,
+body[data-ui="new"] .admin-field select:focus {
+  border-color: rgba(200, 255, 0, 0.4);
+  outline: none;
+}
+
+body[data-ui="new"] .admin-field > span {
+  color: #686850;
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+body[data-ui="new"] .admin-hint {
+  color: #404038;
+}
+
+body[data-ui="new"] .admin-toggle-control {
+  border-radius: 2px;
+  background: #111110;
+  border-color: #2a2a22;
+  color: #686850;
+}
+
+body[data-ui="new"] .admin-toggle-control input {
+  accent-color: #c8ff00;
+}
+
+body[data-ui="new"] .admin-message {
+  color: #505040;
+  font-size: 0.8rem;
+}
+
+/* Create contest / results modal buttons */
+body[data-ui="new"] .contest-modal .modal-actions .primary,
+body[data-ui="new"] .contest-results-modal .modal-actions .primary {
+  background: #c8ff00;
+  color: #0a0a08;
+  border-color: #c8ff00;
+  box-shadow: 0 6px 20px rgba(200, 255, 0, 0.15);
+}
+
+body[data-ui="new"] .contest-modal .modal-actions .primary:hover:not(:disabled),
+body[data-ui="new"] .contest-results-modal .modal-actions .primary:hover:not(:disabled) {
+  background: #d8ff40;
+  border-color: #d8ff40;
+  transform: none;
+}
+
+body[data-ui="new"] .contest-modal .modal-actions .secondary,
+body[data-ui="new"] .contest-results-modal .modal-actions .secondary {
+  border-color: #2a2a22;
+  color: #686850;
+  border-radius: 2px;
+}
+
+body[data-ui="new"] .contest-modal .modal-actions .secondary:hover,
+body[data-ui="new"] .contest-results-modal .modal-actions .secondary:hover {
+  border-color: rgba(200, 255, 0, 0.3);
+  color: #a8a870;
+}

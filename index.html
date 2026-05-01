@@ -2329,27 +2329,22 @@
             <header class="route-header">
               <div>
                 <h1 id="contests-title">Contests</h1>
-                <p id="account-mode-summary" class="route-subheading">Normal Mode is active.</p>
+                <p id="account-mode-summary" class="route-subheading" hidden></p>
               </div>
               <div class="route-actions">
-                <button type="button" data-route-target="home" class="link-button">Back to home</button>
+                <button type="button" data-route-target="home" class="link-button">← Home</button>
               </div>
             </header>
             <section class="route-section contest-settings-section" aria-labelledby="contest-settings-title">
-              <div class="section-heading">
-                <h2 id="contest-settings-title">Contest Notifications</h2>
-                <p class="section-sub">Email me when a new contest goes live.</p>
-              </div>
               <label class="contest-email-setting">
                 <input type="checkbox" id="contest-email-opt-in" />
-                <span>Receive contest emails</span>
+                <span>Email me when a new contest starts</span>
               </label>
               <p id="contest-email-setting-message" class="contest-email-setting-message" role="status" aria-live="polite"></p>
             </section>
             <section class="route-section">
-              <div class="section-heading">
-                <h2>Contests</h2>
-                <p class="section-sub">Join any live contest to add it as its own playable mode, or review completed results.</p>
+              <div class="section-heading contests-list-heading">
+                <h2 class="log-section-label">// CONTESTS</h2>
               </div>
               <div class="contest-list-tabs" role="tablist" aria-label="Contest lists">
                 <button
