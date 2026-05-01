@@ -23396,3 +23396,84 @@ body[data-ui="new"] #activity-log-load-more:hover {
   transform: none;
   box-shadow: none;
 }
+
+/* ── Contest Wins Modal ─────────────────────────────────────────────── */
+
+.contest-wins-modal {
+  width: min(480px, calc(100vw - 2rem));
+  max-height: min(80vh, 640px);
+}
+
+.cwm-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.cwm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid #1e1e1a;
+}
+
+.cwm-row:last-child {
+  border-bottom: none;
+}
+
+.cwm-info {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.cwm-title {
+  font-size: 0.86rem;
+  color: #c8c8a0;
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cwm-date {
+  font-size: 0.72rem;
+  color: #505040;
+  letter-spacing: 0.06em;
+}
+
+.cwm-badge {
+  flex-shrink: 0;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #c8ff00;
+  border: 1px solid rgba(200, 255, 0, 0.3);
+  padding: 0.2rem 0.55rem;
+  border-radius: 2px;
+}
+
+.cwm-empty {
+  color: #505040;
+  font-size: 0.82rem;
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+body[data-ui="new"] .contest-wins-modal .modal-actions .primary {
+  background: #c8ff00;
+  color: #0a0a08;
+  border-color: #c8ff00;
+  box-shadow: 0 6px 20px rgba(200, 255, 0, 0.18);
+}
+
+body[data-ui="new"] .contest-wins-modal .modal-actions .primary:hover:not(:disabled) {
+  background: #d8ff40;
+  border-color: #d8ff40;
+  transform: none;
+  box-shadow: 0 8px 24px rgba(200, 255, 0, 0.28);
+}

@@ -3840,6 +3840,30 @@
 
     <div
       class="modal"
+      id="contest-wins-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="contest-wins-title"
+      hidden
+    >
+      <div class="modal-content contest-wins-modal">
+        <div class="modal-header">
+          <h2 id="contest-wins-title">Contest Awards</h2>
+          <button type="button" class="modal-close" id="contest-wins-close" aria-label="Close contest awards">×</button>
+        </div>
+        <div class="modal-body">
+          <ul id="contest-wins-list" class="cwm-list">
+            <li class="cwm-empty">Loading…</li>
+          </ul>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="contest-wins-ok" class="primary">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal"
       id="admin-rank-modal"
       role="dialog"
       aria-modal="true"
