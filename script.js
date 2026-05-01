@@ -155,7 +155,10 @@ function isGameLockedForPlayer(gameKey) {
   const unlockTier = record?.unlock_tier;
   if (!unlockTier) return false;
   const playerTier = Number(currentProfile?.current_rank_tier ?? 1);
-  return playerTier < unlockTier;
+  if (playerTier >= unlockTier) return false;
+  const activeContest = getModeContest();
+  if (activeContest && contestAllowsGame(activeContest, gameKey)) return false;
+  return true;
 }
 
 function sanitizeGameAssetColor(value) {
@@ -467,17 +470,19 @@ function renderGameLogoTargets() {
   });
 
   document.querySelectorAll(".home-game-card[data-game-id]").forEach((node) => {
-    if (!(node instanceof HTMLElement)) return;
+    if (!(node instanceof HTMLButtonElement)) return;
     const gameKey = resolveGameKey(node.dataset.gameId || "");
     const locked = isGameLockedForPlayer(gameKey);
     node.classList.toggle("is-locked", locked);
+    node.disabled = locked;
   });
 
   document.querySelectorAll(".drawer-link-game[data-route-target]").forEach((node) => {
-    if (!(node instanceof HTMLElement)) return;
+    if (!(node instanceof HTMLButtonElement)) return;
     const gameKey = resolveGameKey(node.dataset.routeTarget || "");
     const locked = isGameLockedForPlayer(gameKey);
     node.classList.toggle("is-locked", locked);
+    node.disabled = locked;
   });
 }
 
@@ -32431,6 +32436,12 @@ routeButtons.forEach((button) => {
   });
 });
 
+// Rank modal triggers — badge buttons on home and drawer rank summary
+document.getElementById("hph-badges")?.addEventListener("click", (e) => {
+  if (e.target.closest("[data-action='open-rank-modal']")) openRankLadderModal();
+});
+drawerRankSummaryEl?.addEventListener("click", () => openRankLadderModal());
+
 signOutButtons.forEach((button) => {
   button.addEventListener("click", async () => {
     closeActiveDrawer();
@@ -33496,12 +33507,14 @@ function renderHomePlayerHero() {
   const badgesEl = document.getElementById("hph-badges");
   if (badgesEl) {
     const badges = [
-      { text: rankName.toUpperCase(), accent: true },
-      { text: `TIER ${rankTier}` },
+      { text: rankName.toUpperCase(), accent: true, clickable: true },
+      { text: `TIER ${rankTier}`, clickable: true },
       { text: `${contestWins} WIN${contestWins === 1 ? "" : "S"}` },
     ];
     badgesEl.innerHTML = badges.map(b =>
-      `<span class="hph-badge${b.accent ? " hph-badge-accent" : ""}">${escapeAssistantHtml(b.text)}</span>`
+      b.clickable
+        ? `<button type="button" class="hph-badge${b.accent ? " hph-badge-accent" : ""} hph-badge-btn" data-action="open-rank-modal" aria-label="View full rank ladder">${escapeAssistantHtml(b.text)}</button>`
+        : `<span class="hph-badge">${escapeAssistantHtml(b.text)}</span>`
     ).join("");
   }
 }

@@ -268,10 +268,11 @@
             <span aria-hidden="true">×</span>
           </button>
         </div>
-        <div id="drawer-rank-summary" class="drawer-rank-summary" hidden>
+        <button type="button" id="drawer-rank-summary" class="drawer-rank-summary" hidden aria-label="View full rank ladder">
           <p class="drawer-rank-label">Current Rank</p>
           <p id="drawer-rank-name" class="drawer-rank-name">Accountant · Tier 1</p>
-        </div>
+          <span class="drawer-rank-chevron" aria-hidden="true">›</span>
+        </button>
         <section class="drawer-section" aria-label="Navigation">
           <div class="drawer-nav">
             <button type="button" data-route-target="home" class="drawer-link">
@@ -752,20 +753,13 @@
 
               <!-- RECENT ACTIVITY -->
               <div class="home-sb-block">
-                <div class="home-sb-label">// RECENT ACTIVITY</div>
+                <div class="home-sb-label-row">
+                  <div class="home-sb-label">// RECENT ACTIVITY</div>
+                  <button type="button" class="home-section-link" data-route-target="activity-log">VIEW MORE</button>
+                </div>
                 <ul id="home-sidebar-activity" class="home-sb-activity" aria-live="polite">
                   <li class="home-sb-activity-empty">Loading activity…</li>
                 </ul>
-              </div>
-
-              <!-- SYSTEM -->
-              <div class="home-sb-block">
-                <div class="home-sb-label">// SYSTEM</div>
-                <div class="home-sb-system">
-                  <div class="hss-row"><span class="hss-key">MODE</span><span id="hss-mode" class="hss-val">NORMAL</span></div>
-                  <div class="hss-row"><span class="hss-key">SESSION</span><span id="hss-session" class="hss-val">ACTIVE</span></div>
-                  <div class="hss-row"><span class="hss-key">SERVER</span><span class="hss-val">RTN-01</span></div>
-                </div>
               </div>
 
               <!-- P&L CHART -->
@@ -788,6 +782,16 @@
                 <div id="home-pnl-total" class="home-sb-pnl-total">—</div>
                 <div class="home-sb-chart-wrap">
                   <canvas id="home-pnl-chart" class="home-sb-chart-canvas"></canvas>
+                </div>
+              </div>
+
+              <!-- SYSTEM -->
+              <div class="home-sb-block">
+                <div class="home-sb-label">// SYSTEM</div>
+                <div class="home-sb-system">
+                  <div class="hss-row"><span class="hss-key">MODE</span><span id="hss-mode" class="hss-val">NORMAL</span></div>
+                  <div class="hss-row"><span class="hss-key">SESSION</span><span id="hss-session" class="hss-val">ACTIVE</span></div>
+                  <div class="hss-row"><span class="hss-key">SERVER</span><span class="hss-val">RTN-01</span></div>
                 </div>
               </div>
 
