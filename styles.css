@@ -22925,3 +22925,88 @@ body[data-ui="new"] .modal .modal-close:hover {
   color: #c8ff00;
   border-color: rgba(200, 255, 0, 0.35);
 }
+
+/* Rank ladder modal — new UI */
+body[data-ui="new"] .modal .modal-header h2 {
+  color: #c8ff00;
+  letter-spacing: 0.16em;
+}
+
+body[data-ui="new"] .rank-ladder-copy {
+  color: #686850;
+}
+
+body[data-ui="new"] .rank-ladder-tier {
+  color: #505040;
+  letter-spacing: 0.2em;
+}
+
+body[data-ui="new"] .rank-ladder-title-row h3 {
+  color: #c8c8a0;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body[data-ui="new"] .rank-ladder-requirements,
+body[data-ui="new"] .rank-ladder-welcome {
+  color: #686850;
+}
+
+body[data-ui="new"] .rank-ladder-player-count {
+  color: #505040;
+}
+
+body[data-ui="new"] .rank-ladder-item {
+  border-radius: 2px;
+  background: #0e0e0c;
+  border-color: #222220;
+}
+
+body[data-ui="new"] .rank-ladder-item.is-current {
+  border-color: rgba(200, 255, 0, 0.5);
+  background: rgba(200, 255, 0, 0.04);
+  box-shadow:
+    0 0 28px rgba(200, 255, 0, 0.06),
+    inset 0 0 0 1px rgba(200, 255, 0, 0.08);
+}
+
+body[data-ui="new"] .rank-ladder-item.is-current .rank-ladder-tier {
+  color: rgba(200, 255, 0, 0.6);
+}
+
+body[data-ui="new"] .rank-ladder-item.is-current .rank-ladder-title-row h3 {
+  color: #c8ff00;
+}
+
+body[data-ui="new"] .rank-ladder-item.is-current .rank-ladder-requirements,
+body[data-ui="new"] .rank-ladder-item.is-current .rank-ladder-welcome,
+body[data-ui="new"] .rank-ladder-item.is-current .rank-ladder-player-count {
+  color: #888860;
+}
+
+body[data-ui="new"] .rank-ladder-progress-track {
+  background: rgba(200, 255, 0, 0.08);
+}
+
+body[data-ui="new"] .rank-ladder-progress-fill {
+  background: #c8ff00;
+}
+
+body[data-ui="new"] .rank-ladder-progress-label {
+  color: #686850;
+}
+
+body[data-ui="new"] .rank-ladder-progress-label span:last-child {
+  color: #c8c8a0;
+}
+
+body[data-ui="new"] .rank-ladder-progress-complete {
+  color: #c8ff00;
+  letter-spacing: 0.16em;
+}
+
+body[data-ui="new"] .rank-theme-pill {
+  border-color: rgba(200, 255, 0, 0.18);
+  color: #686850;
+}
