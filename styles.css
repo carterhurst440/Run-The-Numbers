@@ -20537,7 +20537,7 @@ body:not([data-ui="new"]) .auth-callback-spinner {
 
 .home-game-card-rtn .hgc-name  { color: #c07818; }
 .home-game-card-g10 .hgc-name  { color: #00b8cc; }
-.home-game-card-shape .hgc-name { color: #a85890; }
+.home-game-card-shape .hgc-name { color: #aaaa74; }
 
 .hgc-count {
   font-size: 9px;
@@ -21103,7 +21103,6 @@ body[data-ui="new"][data-route="run-the-numbers"] {
   /* Override global vars so all RTN UI resolves to amber */
   --gold: #e8a020;
   --success: #e8a020;
-  --neon-magenta: #e8a020;
   --theme-action-color: #e8a020;
   --deal-button-bg: linear-gradient(135deg, #e8a020, #b07010);
   --deal-button-shadow: 0 12px 28px rgba(232, 160, 32, 0.22);
@@ -21252,6 +21251,10 @@ body[data-ui="new"] #run-the-numbers-view .betting-panel {
 body[data-ui="new"] #run-the-numbers-view .bets-heading-row {
   border-bottom: 1px solid #1e1e18;
   background: transparent;
+}
+
+body[data-ui="new"] #run-the-numbers-view .bets-heading {
+  color: #e8a020;
 }
 
 body[data-ui="new"] #run-the-numbers-view .bets-section-label {
