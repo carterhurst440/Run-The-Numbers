@@ -21645,22 +21645,35 @@ body[data-ui="new"] #run-the-numbers-view .deal-mode-toggle {
   background: transparent;
 }
 
-body[data-ui="new"] #run-the-numbers-view .deal-mode-toggle .toggle-track {
+body[data-ui="new"] #run-the-numbers-view .deal-mode-toggle .toggle-visual {
   background: #1e1e18;
   border-color: #252520;
 }
 
-body[data-ui="new"] #run-the-numbers-view .deal-mode-toggle input:checked ~ .toggle-track {
-  background: rgba(232, 160, 32, 0.15);
+body[data-ui="new"] #run-the-numbers-view .deal-mode-toggle.is-active {
+  border-color: rgba(232, 160, 32, 0.5);
+  background: rgba(232, 160, 32, 0.06);
+  box-shadow: none;
+}
+
+body[data-ui="new"] #run-the-numbers-view .deal-mode-toggle.is-active .toggle-label {
+  color: #e8a020;
+  text-shadow: none;
+}
+
+body[data-ui="new"] #run-the-numbers-view .deal-mode-toggle.is-active .toggle-visual {
+  background: rgba(232, 160, 32, 0.2);
   border-color: #e8a020;
+  box-shadow: 0 0 8px rgba(232, 160, 32, 0.2);
 }
 
 body[data-ui="new"] #run-the-numbers-view .deal-mode-toggle .toggle-thumb {
   background: #484838;
 }
 
-body[data-ui="new"] #run-the-numbers-view .deal-mode-toggle input:checked ~ .toggle-track .toggle-thumb {
+body[data-ui="new"] #run-the-numbers-view .deal-mode-toggle.is-active .toggle-thumb {
   background: #e8a020;
+  box-shadow: 0 0 6px rgba(232, 160, 32, 0.4);
 }
 
 /* ---- Section dividers ---- */
