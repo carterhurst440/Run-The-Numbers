@@ -13721,8 +13721,8 @@ function drawContestJourneyChart(points = []) {
   ctx.clearRect(0, 0, width, height);
 
   if (!points.length) {
-    ctx.fillStyle = "rgba(173, 225, 247, 0.78)";
-    ctx.font = "600 16px Play, sans-serif";
+    ctx.fillStyle = "rgba(168, 168, 112, 0.7)";
+    ctx.font = "600 16px JetBrains Mono, monospace";
     ctx.textAlign = "center";
     ctx.fillText("No contest bankroll history available yet.", width / 2, height / 2);
     return;
@@ -13740,7 +13740,7 @@ function drawContestJourneyChart(points = []) {
   }
   const range = Math.max(1, maxValue - minValue);
 
-  ctx.strokeStyle = "rgba(53, 255, 234, 0.14)";
+  ctx.strokeStyle = "rgba(200, 255, 0, 0.08)";
   ctx.lineWidth = 1;
   for (let step = 0; step <= 4; step += 1) {
     const y = padding.top + (chartHeight / 4) * step;
@@ -13750,8 +13750,8 @@ function drawContestJourneyChart(points = []) {
     ctx.stroke();
   }
 
-  ctx.fillStyle = "rgba(173, 225, 247, 0.74)";
-  ctx.font = "600 12px Play, sans-serif";
+  ctx.fillStyle = "rgba(168, 168, 112, 0.6)";
+  ctx.font = "600 12px JetBrains Mono, monospace";
   ctx.textAlign = "right";
   for (let step = 0; step <= 4; step += 1) {
     const value = Math.round(maxValue - (range / 4) * step);
@@ -13766,8 +13766,8 @@ function drawContestJourneyChart(points = []) {
   });
 
   const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartHeight);
-  gradient.addColorStop(0, "rgba(53, 255, 234, 0.34)");
-  gradient.addColorStop(1, "rgba(53, 255, 234, 0)");
+  gradient.addColorStop(0, "rgba(200, 255, 0, 0.18)");
+  gradient.addColorStop(1, "rgba(200, 255, 0, 0)");
 
   ctx.beginPath();
   coords.forEach(({ x, y }, index) => {
@@ -13785,23 +13785,23 @@ function drawContestJourneyChart(points = []) {
     if (index === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   });
-  ctx.strokeStyle = "#35ffe2";
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#c8ff00";
+  ctx.lineWidth = 2;
   ctx.stroke();
 
   coords.forEach(({ x, y, point }) => {
     ctx.beginPath();
-    ctx.arc(x, y, 4.5, 0, Math.PI * 2);
-    ctx.fillStyle = "#ffffff";
+    ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = "#0a0a08";
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(x, y, 2.5, 0, Math.PI * 2);
-    ctx.fillStyle = "#35ffe2";
+    ctx.arc(x, y, 2, 0, Math.PI * 2);
+    ctx.fillStyle = "#c8ff00";
     ctx.fill();
 
     if (points.length <= 10) {
-      ctx.fillStyle = "rgba(173, 225, 247, 0.82)";
-      ctx.font = "600 11px Play, sans-serif";
+      ctx.fillStyle = "rgba(168, 168, 112, 0.7)";
+      ctx.font = "600 11px JetBrains Mono, monospace";
       ctx.textAlign = "center";
       ctx.fillText(point.label, x, height - 14);
     }
