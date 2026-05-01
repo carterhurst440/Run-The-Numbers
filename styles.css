@@ -8990,7 +8990,7 @@ body.theme-angelic {
   -webkit-backdrop-filter: none;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .header-bar {
@@ -20164,7 +20164,7 @@ body:not([data-ui="new"]) .auth-callback-spinner {
 }
 
 .home-main {
-  padding: 0;
+  padding: 0 0 48px;
   border-right: 1px solid #252520;
   min-width: 0;
   overflow: hidden;
