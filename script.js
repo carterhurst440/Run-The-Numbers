@@ -6974,8 +6974,7 @@ function renderShapeTradersDeck(now = Date.now()) {
       const headlineKey = currentCard ? `db:${currentWindowIndex}:${visibleCount}:${currentCard.label}` : null;
       if (headlineKey && headlineKey !== shapeTradersHeadlineKey) {
         shapeTradersHeadlineKey = headlineKey;
-        shapeTradersHeadline = getShapeTraderCardHeadline(currentCard);
-        shapeTradersDrawMetaEl.textContent = shapeTradersHeadline;
+        shapeTradersDrawMetaEl.textContent = "";
         fetchShapeTraderHeadline(currentCard, headlineKey);
       } else if (!currentCard) {
         shapeTradersHeadlineKey = null;
@@ -7049,8 +7048,7 @@ function renderShapeTradersDeck(now = Date.now()) {
         : null;
       if (headlineKey && headlineKey !== shapeTradersHeadlineKey) {
         shapeTradersHeadlineKey = headlineKey;
-        shapeTradersHeadline = getShapeTraderCardHeadline(windowState.currentCard);
-        shapeTradersDrawMetaEl.textContent = shapeTradersHeadline;
+        shapeTradersDrawMetaEl.textContent = "";
         fetchShapeTraderHeadline(windowState.currentCard, headlineKey);
       } else if (!headlineKey) {
         shapeTradersHeadlineKey = null;
@@ -33071,24 +33069,32 @@ if (shapeTradersDeckModal) {
   });
 }
 
+function openShapeTraderRules() {
+  if (!shapeTradersRulesModal) return;
+  shapeTradersRulesModal.hidden = false;
+  shapeTradersRulesModal.classList.add("is-open");
+  shapeTradersRulesModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+function closeShapeTraderRules() {
+  if (!shapeTradersRulesModal) return;
+  shapeTradersRulesModal.classList.remove("is-open");
+  shapeTradersRulesModal.setAttribute("aria-hidden", "true");
+  shapeTradersRulesModal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
 if (shapeTradersRulesOpenButton) {
-  shapeTradersRulesOpenButton.addEventListener("click", () => {
-    if (shapeTradersRulesModal) shapeTradersRulesModal.hidden = false;
-  });
+  shapeTradersRulesOpenButton.addEventListener("click", openShapeTraderRules);
 }
 if (shapeTradersRulesCloseButton) {
-  shapeTradersRulesCloseButton.addEventListener("click", () => {
-    if (shapeTradersRulesModal) shapeTradersRulesModal.hidden = true;
-  });
+  shapeTradersRulesCloseButton.addEventListener("click", closeShapeTraderRules);
 }
 if (shapeTradersRulesOkButton) {
-  shapeTradersRulesOkButton.addEventListener("click", () => {
-    if (shapeTradersRulesModal) shapeTradersRulesModal.hidden = true;
-  });
+  shapeTradersRulesOkButton.addEventListener("click", closeShapeTraderRules);
 }
 if (shapeTradersRulesModal) {
   shapeTradersRulesModal.addEventListener("click", (event) => {
-    if (event.target === shapeTradersRulesModal) shapeTradersRulesModal.hidden = true;
+    if (event.target === shapeTradersRulesModal) closeShapeTraderRules();
   });
 }
 
