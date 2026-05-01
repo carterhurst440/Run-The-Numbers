@@ -21255,7 +21255,7 @@ body[data-ui="new"] #run-the-numbers-view .bets-heading-row {
 }
 
 body[data-ui="new"] #run-the-numbers-view .bets-heading {
-  color: #e8a020;
+  color: #e8a020 !important;
 }
 
 body[data-ui="new"] #run-the-numbers-view .bets-section-label {
