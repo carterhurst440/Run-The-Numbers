@@ -20648,9 +20648,9 @@ body:not([data-ui="new"]) .auth-callback-spinner {
 
 /* ---- QUOTE BLOCK ---- */
 .home-quote-block {
-  background: #171714;
-  border: 1px solid #2e2e22;
-  border-left: 2px solid #c8ff00;
+  background: #111110;
+  border: 1px solid #222220;
+  border-radius: 2px;
   padding: 16px 18px;
   margin-bottom: 24px;
 }
@@ -20672,7 +20672,7 @@ body:not([data-ui="new"]) .auth-callback-spinner {
 }
 
 .home-quote-text em {
-  color: #c8ff00;
+  color: #c0c090;
   font-style: normal;
 }
 
@@ -20698,8 +20698,8 @@ body:not([data-ui="new"]) .auth-callback-spinner {
   transition: border-color 0.15s, color 0.15s;
 }
 .home-quote-read-more:hover {
-  border-color: #c8ff00;
-  color: #c8ff00;
+  border-color: #686850;
+  color: #c0c090;
 }
 
 .home-quote-expanded[hidden] { display: none; }
