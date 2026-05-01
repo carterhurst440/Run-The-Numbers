@@ -2617,7 +2617,7 @@ body[data-app-state="loading"] #app-shell {
 
 .shape-traders-market-card.is-gold,
 .shape-traders-holding-card.is-gold {
-  box-shadow: inset 0 0 0 1px rgba(255, 225, 92, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(255, 128, 0, 0.3);
 }
 
 .shape-traders-market-card-head,
@@ -3733,12 +3733,12 @@ body[data-app-state="loading"] #app-shell {
     rgba(76, 159, 255, 0.08),
     rgba(76, 159, 255, 0.52) 24%,
     rgba(255, 74, 211, 0.42) 50%,
-    rgba(255, 225, 92, 0.52) 76%,
-    rgba(255, 225, 92, 0.08)
+    rgba(255, 128, 0, 0.52) 76%,
+    rgba(255, 128, 0, 0.08)
   );
   box-shadow:
     0 0 12px rgba(76, 159, 255, 0.16),
-    0 0 16px rgba(255, 225, 92, 0.1);
+    0 0 16px rgba(255, 128, 0, 0.1);
   transform: translateX(0);
   animation: none;
   pointer-events: none;
@@ -4166,10 +4166,10 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .shape-traders-chart-surface.is-gold {
-  border-color: rgba(255, 225, 92, 0.34);
+  border-color: rgba(255, 128, 0, 0.34);
   background:
-    radial-gradient(circle at 18% 18%, rgba(255, 225, 92, 0.16), transparent 34%),
-    linear-gradient(180deg, rgba(48, 38, 18, 0.96), rgba(24, 18, 8, 0.96));
+    radial-gradient(circle at 18% 18%, rgba(255, 128, 0, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(30, 14, 4, 0.96), rgba(16, 6, 2, 0.96));
 }
 
 .shape-traders-chart-zoom-bar {
@@ -6255,12 +6255,12 @@ body[data-app-state="loading"] #app-shell {
       rgba(76, 159, 255, 0.14),
       rgba(76, 159, 255, 0.55) 24%,
       rgba(255, 74, 211, 0.48) 52%,
-      rgba(255, 225, 92, 0.55) 78%,
-      rgba(255, 225, 92, 0.14)
+      rgba(255, 128, 0, 0.55) 78%,
+      rgba(255, 128, 0, 0.14)
     );
     box-shadow:
       0 0 12px rgba(76, 159, 255, 0.18),
-      0 0 16px rgba(255, 225, 92, 0.12);
+      0 0 16px rgba(255, 128, 0, 0.12);
     pointer-events: none;
   }
 
@@ -21845,15 +21845,15 @@ body[data-ui="new"] #shape-traders-view .shape-traders-market-card.is-magenta .s
 
 /* Gold (circle) card */
 body[data-ui="new"] #shape-traders-view .shape-traders-market-card.is-gold {
-  border-color: rgba(200, 255, 0, 0.2);
+  border-color: rgba(255, 128, 0, 0.2);
 }
 body[data-ui="new"] #shape-traders-view .shape-traders-market-card.is-gold .shape-traders-market-card-price {
-  color: #c8ff00;
+  color: #ff8000;
 }
 body[data-ui="new"] #shape-traders-view .shape-traders-market-card.is-gold .shape-traders-shape-icon {
-  border-color: #c8ff00;
-  color: #c8ff00;
-  box-shadow: 0 0 12px rgba(200, 255, 0, 0.25);
+  border-color: #ff8000;
+  color: #ff8000;
+  box-shadow: 0 0 12px rgba(255, 128, 0, 0.25);
 }
 
 /* ---- Sparklines ---- */
@@ -21870,8 +21870,8 @@ body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-line.is-cyan { 
 body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-point.is-cyan { fill: #00e5ff; }
 body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-line.is-magenta { stroke: #ff2d78; }
 body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-point.is-magenta { fill: #ff2d78; }
-body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-line.is-gold { stroke: #c8ff00; }
-body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-point.is-gold { fill: #c8ff00; }
+body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-line.is-gold { stroke: #ff8000; }
+body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-point.is-gold { fill: #ff8000; }
 
 /* ---- Holdings panel ---- */
 body[data-ui="new"] #shape-traders-view .shape-traders-holdings-panel {
@@ -22019,7 +22019,7 @@ body[data-ui="new"] #shape-traders-view .shape-traders-market-cap-bar.is-magenta
   background: rgba(255, 45, 120, 0.18);
 }
 body[data-ui="new"] #shape-traders-view .shape-traders-market-cap-bar.is-gold .shape-traders-market-cap-track {
-  background: rgba(200, 255, 0, 0.18);
+  background: rgba(255, 128, 0, 0.18);
 }
 
 /* ---- Trade bar (fixed bottom) ---- */
@@ -22031,7 +22031,7 @@ body[data-ui="new"] #shape-traders-view .shape-traders-trade-bar {
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-trade-bar::before {
-  background: linear-gradient(90deg, #00e5ff, #ff2d78 50%, #c8ff00);
+  background: linear-gradient(90deg, #00e5ff, #ff2d78 50%, #ff8000);
   height: 1px;
   opacity: 0.5;
 }
@@ -22077,10 +22077,10 @@ body[data-ui="new"] #shape-traders-view .shape-traders-asset-button.active[data-
 }
 
 body[data-ui="new"] #shape-traders-view .shape-traders-asset-button.active[data-shape-trader-asset="circle"] {
-  border: 1px solid #c8ff00 !important;
-  background: rgba(200, 255, 0, 0.06) !important;
-  color: #c8ff00 !important;
-  box-shadow: 0 0 10px rgba(200, 255, 0, 0.15) !important;
+  border: 1px solid #ff8000 !important;
+  background: rgba(255, 128, 0, 0.06) !important;
+  color: #ff8000 !important;
+  box-shadow: 0 0 10px rgba(255, 128, 0, 0.15) !important;
 }
 
 /* ---- Qty stepper ---- */
@@ -22151,19 +22151,19 @@ body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-
   background: rgba(255,45,120,0.08); box-shadow: 0 0 12px rgba(255,45,120,0.2);
 }
 
-/* Circle → global accent */
+/* Circle → neon orange */
 body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-shape-trader-asset="circle"].active) #shape-traders-buy-button {
-  background: #c8ff00; border-color: #c8ff00; color: #000; font-weight: 800;
-  box-shadow: 0 0 14px rgba(200, 255, 0, 0.25);
+  background: #ff8000; border-color: #ff8000; color: #000; font-weight: 800;
+  box-shadow: 0 0 14px rgba(255, 128, 0, 0.3);
 }
 body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-shape-trader-asset="circle"].active) #shape-traders-buy-button:hover:not(:disabled) {
-  background: #b8ee00; box-shadow: 0 0 22px rgba(200,255,0,0.4);
+  background: #ff9a33; box-shadow: 0 0 22px rgba(255,128,0,0.45);
 }
 body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-shape-trader-asset="circle"].active) #shape-traders-sell-button {
-  background: transparent; border: 1px solid #c8ff00; color: #c8ff00; box-shadow: none;
+  background: transparent; border: 1px solid #ff8000; color: #ff8000; box-shadow: none;
 }
 body[data-ui="new"] #shape-traders-view:has(#shape-traders-asset-selector [data-shape-trader-asset="circle"].active) #shape-traders-sell-button:hover:not(:disabled) {
-  background: rgba(200,255,0,0.06); box-shadow: 0 0 12px rgba(200,255,0,0.2);
+  background: rgba(255,128,0,0.08); box-shadow: 0 0 12px rgba(255,128,0,0.22);
 }
 
 /* ---- Status message ---- */
