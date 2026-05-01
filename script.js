@@ -17958,6 +17958,10 @@ const shapeTradersRecentListEl = document.getElementById("shape-traders-recent-l
 const shapeTradersDeckModal = document.getElementById("shape-traders-deck-modal");
 const shapeTradersDeckCloseButton = document.getElementById("shape-traders-deck-close");
 const shapeTradersDeckListEl = document.getElementById("shape-traders-deck-list");
+const shapeTradersRulesModal = document.getElementById("shape-traders-rules-modal");
+const shapeTradersRulesOpenButton = document.getElementById("shape-traders-rules-open");
+const shapeTradersRulesCloseButton = document.getElementById("shape-traders-rules-close");
+const shapeTradersRulesOkButton = document.getElementById("shape-traders-rules-ok");
 const resetAccountButton = document.getElementById("reset-account");
 const menuToggle = document.getElementById("menu-toggle");
 const utilityPanel = document.getElementById("utility-panel");
@@ -33064,6 +33068,27 @@ if (shapeTradersDeckModal) {
     if (event.target === shapeTradersDeckModal) {
       closeShapeTraderDeck();
     }
+  });
+}
+
+if (shapeTradersRulesOpenButton) {
+  shapeTradersRulesOpenButton.addEventListener("click", () => {
+    if (shapeTradersRulesModal) shapeTradersRulesModal.hidden = false;
+  });
+}
+if (shapeTradersRulesCloseButton) {
+  shapeTradersRulesCloseButton.addEventListener("click", () => {
+    if (shapeTradersRulesModal) shapeTradersRulesModal.hidden = true;
+  });
+}
+if (shapeTradersRulesOkButton) {
+  shapeTradersRulesOkButton.addEventListener("click", () => {
+    if (shapeTradersRulesModal) shapeTradersRulesModal.hidden = true;
+  });
+}
+if (shapeTradersRulesModal) {
+  shapeTradersRulesModal.addEventListener("click", (event) => {
+    if (event.target === shapeTradersRulesModal) shapeTradersRulesModal.hidden = true;
   });
 }
 
