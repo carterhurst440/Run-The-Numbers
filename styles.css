@@ -17996,6 +17996,36 @@ body.modal-open {
   color: #c8ff00;
 }
 
+.drawer-link-lock-badge {
+  display: none;
+  flex: 0 0 auto;
+  font-size: 12px;
+  line-height: 1;
+  filter: grayscale(1) brightness(0.5);
+}
+
+.drawer-link-game.is-locked .drawer-link-lock-badge {
+  display: inline;
+}
+
+.drawer-link-game.is-locked {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.drawer-link-game.is-locked:hover {
+  color: #3a3a28;
+}
+
+.drawer-link-game.is-locked:hover .drawer-link-icon {
+  color: #686850;
+}
+
+.drawer-link-game.is-locked:hover .drawer-link-game-logo {
+  opacity: 0.6;
+  filter: grayscale(1) brightness(0.5);
+}
+
 .drawer-link-meta {
   flex: 0 0 auto;
   font-size: 9px;
@@ -20544,6 +20574,52 @@ body:not([data-ui="new"]) .auth-callback-spinner {
   color: #78785a;
   margin-top: 4px;
   letter-spacing: 0.04em;
+}
+
+/* Lock overlay on home game cards */
+.hgc-lock-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: rgba(8, 8, 7, 0.78);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.home-game-card {
+  position: relative;
+}
+
+.home-game-card.is-locked .hgc-lock-overlay {
+  display: flex;
+}
+
+.home-game-card.is-locked {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.home-game-card.is-locked:hover {
+  border-color: #2e2e22;
+  background: #171714;
+}
+
+.hgc-lock-icon {
+  font-size: 20px;
+  line-height: 1;
+  filter: grayscale(1) brightness(0.7);
+}
+
+.hgc-lock-label {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: #686850;
+  font-weight: 500;
 }
 
 

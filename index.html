@@ -292,6 +292,7 @@
                 </span>
                 <span class="drawer-link-label">Run The Numbers</span>
               </span>
+              <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
             </button>
             <button type="button" data-route-target="red-black" class="drawer-link drawer-link-game">
               <span class="drawer-link-inner">
@@ -300,6 +301,7 @@
                 </span>
                 <span class="drawer-link-label">Guess 10</span>
               </span>
+              <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
             </button>
             <button type="button" data-route-target="shape-traders" class="drawer-link drawer-link-game">
               <span class="drawer-link-inner">
@@ -308,6 +310,7 @@
                 </span>
                 <span class="drawer-link-label">Shape Traders</span>
               </span>
+              <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
             </button>
             <button type="button" data-route-target="contests" id="drawer-contest-link" class="drawer-link drawer-contest-link" hidden>
               <span class="drawer-link-inner">
@@ -696,6 +699,7 @@
               </div>
               <div class="home-game-cards" aria-label="Choose a game">
                 <button type="button" class="home-game-card home-game-card-rtn" data-route-target="run-the-numbers" data-game-id="game_001">
+                  <div class="hgc-lock-overlay" aria-hidden="true"><span class="hgc-lock-icon">&#x1F512;</span><span class="hgc-lock-label">LOCKED</span></div>
                   <div class="hgc-top">
                     <div class="hgc-glyph">RTN</div>
                   </div>
@@ -703,6 +707,7 @@
                   <div id="hgc-rtn-count" class="hgc-count">— hands played</div>
                 </button>
                 <button type="button" class="home-game-card home-game-card-g10" data-route-target="red-black" data-game-id="game_002">
+                  <div class="hgc-lock-overlay" aria-hidden="true"><span class="hgc-lock-icon">&#x1F512;</span><span class="hgc-lock-label">LOCKED</span></div>
                   <div class="hgc-top">
                     <div class="hgc-glyph">?10</div>
                     <div class="hgc-status">OPEN</div>
@@ -711,6 +716,7 @@
                   <div id="hgc-g10-count" class="hgc-count">— hands played</div>
                 </button>
                 <button type="button" class="home-game-card home-game-card-shape" data-route-target="shape-traders" data-game-id="game_003">
+                  <div class="hgc-lock-overlay" aria-hidden="true"><span class="hgc-lock-icon">&#x1F512;</span><span class="hgc-lock-label">LOCKED</span></div>
                   <div class="hgc-top">
                     <div class="hgc-glyph hgc-glyph-shapes">□△○</div>
                     <div class="hgc-status">OPEN</div>
@@ -2582,6 +2588,19 @@
                         <option value="released">Released</option>
                         <option value="beta">Beta</option>
                         <option value="admin">Admin Only</option>
+                      </select>
+                    </label>
+                    <label class="admin-field">
+                      <span>Unlocks at Tier</span>
+                      <select id="admin-game-unlock-tier" name="unlockTier">
+                        <option value="">No restriction (all players)</option>
+                        <option value="1">Tier 1 — Accountant</option>
+                        <option value="2">Tier 2 — Analyst</option>
+                        <option value="3">Tier 3 — Senior Analyst</option>
+                        <option value="4">Tier 4 — Auditor</option>
+                        <option value="5">Tier 5 — Controller</option>
+                        <option value="6">Tier 6 — Auditor General</option>
+                        <option value="7">Tier 7 — The Ledger</option>
                       </select>
                     </label>
                     <div class="admin-game-style-grid">

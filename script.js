@@ -149,6 +149,15 @@ function isGameVisibleToUser(gameKey, user = currentUser) {
   return status !== "admin" || isAdmin(user);
 }
 
+function isGameLockedForPlayer(gameKey) {
+  if (isAdmin(currentUser)) return false;
+  const record = getGameAssetRecord(gameKey);
+  const unlockTier = record?.unlock_tier;
+  if (!unlockTier) return false;
+  const playerTier = Number(currentProfile?.current_rank_tier ?? 1);
+  return playerTier < unlockTier;
+}
+
 function sanitizeGameAssetColor(value) {
   const normalized = String(value || "").trim();
   if (!normalized) {
@@ -263,6 +272,7 @@ function applyBackendGameAssetRows(rows = []) {
     const resolvedButtonTextColor =
       sanitizeGameAssetColor(row?.button_text_color) ||
       sanitizeGameAssetColor(existing.button_text_color);
+    const resolvedUnlockTier = row?.unlock_tier != null ? Number(row.unlock_tier) : (existing.unlock_tier ?? null);
     gameAssetLibraryCache[gameKey] = {
       ...existing,
       key: gameKey,
@@ -274,7 +284,8 @@ function applyBackendGameAssetRows(rows = []) {
       card_description: resolvedCardDescription,
       card_background_color: resolvedCardBackgroundColor,
       button_color: resolvedButtonColor,
-      button_text_color: resolvedButtonTextColor
+      button_text_color: resolvedButtonTextColor,
+      unlock_tier: resolvedUnlockTier
     };
     applied = true;
   });
@@ -292,7 +303,7 @@ async function refreshGameAssetsFromBackend() {
   try {
     const { data, error } = await supabase
       .from("games")
-      .select("id, name, status, logo_url, card_description, card_background_color, button_color, button_text_color")
+      .select("id, name, status, logo_url, card_description, card_background_color, button_color, button_text_color, unlock_tier")
       .order("id", { ascending: true });
     if (error) {
       if (isMissingRelationError(error, "games") || isMissingColumnError(error, "logo_url")) {
@@ -322,13 +333,14 @@ async function persistGameAssetRecordToBackend(gameKey) {
     card_description: String(record.card_description || DEFAULT_GAME_ASSET_LIBRARY[gameKey].card_description || "").trim() || DEFAULT_GAME_ASSET_LIBRARY[gameKey].card_description,
     card_background_color: sanitizeGameAssetColor(record.card_background_color) || null,
     button_color: sanitizeGameAssetColor(record.button_color) || null,
-    button_text_color: sanitizeGameAssetColor(record.button_text_color) || null
+    button_text_color: sanitizeGameAssetColor(record.button_text_color) || null,
+    unlock_tier: Number.isInteger(record.unlock_tier) && record.unlock_tier > 0 ? record.unlock_tier : null
   };
   try {
     const { data, error } = await supabase
       .from("games")
       .upsert(payload, { onConflict: "id" })
-      .select("id, name, status, logo_url, card_description, card_background_color, button_color, button_text_color")
+      .select("id, name, status, logo_url, card_description, card_background_color, button_color, button_text_color, unlock_tier")
       .maybeSingle();
     if (error) {
       if (isMissingRelationError(error, "games") || isMissingColumnError(error, "logo_url")) {
@@ -452,6 +464,20 @@ function renderGameLogoTargets() {
       node.style.removeProperty("--game-card-button-text-override");
       node.dataset.hasCustomButtonTextColor = "false";
     }
+  });
+
+  document.querySelectorAll(".home-game-card[data-game-id]").forEach((node) => {
+    if (!(node instanceof HTMLElement)) return;
+    const gameKey = resolveGameKey(node.dataset.gameId || "");
+    const locked = isGameLockedForPlayer(gameKey);
+    node.classList.toggle("is-locked", locked);
+  });
+
+  document.querySelectorAll(".drawer-link-game[data-route-target]").forEach((node) => {
+    if (!(node instanceof HTMLElement)) return;
+    const gameKey = resolveGameKey(node.dataset.routeTarget || "");
+    const locked = isGameLockedForPlayer(gameKey);
+    node.classList.toggle("is-locked", locked);
   });
 }
 
@@ -9327,6 +9353,7 @@ async function ensureProfileSynced({ force = false } = {}) {
     void loadPersistentBankrollHistory({ force });
     lastProfileSync = Date.now();
     await refreshCurrentRankState({ force });
+    renderGameLogoTargets();
     return applied;
   }
 
@@ -11977,6 +12004,8 @@ function getAdminGameDraft() {
   if (!adminEditingGameKey) return null;
   const baseRecord = getGameAssetRecord(adminEditingGameKey) || DEFAULT_GAME_ASSET_LIBRARY[adminEditingGameKey];
   const logoUrl = String(adminGameLogoUrlInput?.value || "").trim() || baseRecord.logo_url || DEFAULT_GAME_ASSET_LIBRARY[adminEditingGameKey].logo_url;
+  const unlockTierRaw = document.getElementById("admin-game-unlock-tier")?.value;
+  const unlockTier = unlockTierRaw ? parseInt(unlockTierRaw, 10) : null;
   return {
     ...baseRecord,
     status: normalizeGameStatusForStorage(adminGameStatusSelect?.value, adminEditingGameKey),
@@ -11984,7 +12013,8 @@ function getAdminGameDraft() {
     card_description: String(adminGameDescriptionInput?.value || "").trim() || baseRecord.card_description,
     card_background_color: sanitizeGameAssetColor(adminGameBackgroundColorInput?.value),
     button_color: sanitizeGameAssetColor(adminGameButtonColorInput?.value),
-    button_text_color: sanitizeGameAssetColor(adminGameButtonTextColorInput?.value)
+    button_text_color: sanitizeGameAssetColor(adminGameButtonTextColorInput?.value),
+    unlock_tier: Number.isInteger(unlockTier) && unlockTier > 0 ? unlockTier : null
   };
 }
 
@@ -12069,6 +12099,10 @@ function populateAdminGameModal(gameKey) {
   if (adminGameButtonTextPicker) {
     adminGameButtonTextPicker.value = getGameAssetPickerColor(record.button_text_color, "#ffffff");
   }
+  const unlockTierSelect = document.getElementById("admin-game-unlock-tier");
+  if (unlockTierSelect) {
+    unlockTierSelect.value = record.unlock_tier ? String(record.unlock_tier) : "";
+  }
   if (adminGameLogoFileInput) {
     adminGameLogoFileInput.value = "";
   }
@@ -12125,7 +12159,8 @@ async function saveAdminGameModal() {
     card_description: draft.card_description || baseRecord.card_description,
     card_background_color: draft.card_background_color,
     button_color: draft.button_color,
-    button_text_color: draft.button_text_color
+    button_text_color: draft.button_text_color,
+    unlock_tier: draft.unlock_tier
   };
   persistGameAssetLibrary();
   renderGameLogoTargets();
