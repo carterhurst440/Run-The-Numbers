@@ -3828,12 +3828,7 @@ async function renderPlatformRankings() {
   platformRankingsListEl.innerHTML = `<li class="prk-empty">Loading…</li>`;
   if (!supabase) return;
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, username, first_name, last_name, current_rank, current_rank_tier, current_rank_id")
-    .not("current_rank", "is", null)
-    .order("current_rank", { ascending: true })
-    .limit(100);
+  const { data, error } = await supabase.rpc("get_platform_rankings");
 
   if (error || !data?.length) {
     platformRankingsListEl.innerHTML = `<li class="prk-empty">No rankings available.</li>`;
