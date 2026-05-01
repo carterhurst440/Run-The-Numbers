@@ -23503,6 +23503,19 @@ body[data-ui="new"] .contests-shell .link-button:hover {
   box-shadow: none;
 }
 
+/* Strip the rounded card chrome from route-sections in the new UI */
+body[data-ui="new"] .route-section {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+body[data-ui="new"] .route-section h2 {
+  font-size: inherit;
+}
+
 /* Email notification row — flat, no card */
 body[data-ui="new"] .contest-settings-section {
   padding: 0;
