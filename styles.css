@@ -23127,3 +23127,272 @@ body[data-ui="new"] .platform-rankings-modal .modal-actions .primary:hover:not(:
   padding: 1rem 0;
   text-align: center;
 }
+
+/* ── Activity Log & Account Chart — new UI ─────────────────────────── */
+
+/* Section labels in // STYLE */
+body[data-ui="new"] .log-section-label {
+  margin: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #505040;
+}
+
+/* Route header */
+body[data-ui="new"] .activity-log-shell .route-header h1 {
+  font-size: clamp(1.2rem, 3vw, 1.6rem);
+  letter-spacing: 0.14em;
+  color: #c8c8a0;
+}
+
+body[data-ui="new"] .activity-log-shell .link-button {
+  border-color: #2a2a22;
+  color: #686850;
+  border-radius: 2px;
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+}
+
+body[data-ui="new"] .activity-log-shell .link-button:hover {
+  border-color: rgba(200, 255, 0, 0.35);
+  color: #c8c8a0;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Account chart card */
+body[data-ui="new"] .account-chart-card {
+  background: #0e0e0c;
+  border-color: #222220;
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+/* Chart visual (inner canvas area) */
+body[data-ui="new"] .account-chart-visual {
+  background: #080807;
+  border-color: #1a1a18;
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+/* Period selector pill → sharp */
+body[data-ui="new"] .account-chart-periods,
+body[data-ui="new"] .chart-filters {
+  border-radius: 2px;
+  background: #111110;
+  border-color: #2a2a22;
+}
+
+body[data-ui="new"] .account-chart-period-btn {
+  border-radius: 2px;
+  color: #505040;
+}
+
+body[data-ui="new"] .account-chart-period-btn:hover {
+  color: #a8a870;
+}
+
+body[data-ui="new"] .account-chart-period-btn.active {
+  background: rgba(200, 255, 0, 0.1);
+  color: #c8ff00;
+  box-shadow: inset 0 0 0 1px rgba(200, 255, 0, 0.3);
+}
+
+/* Game filter buttons */
+body[data-ui="new"] .account-chart-game-btn {
+  border-radius: 2px;
+  background: transparent;
+  color: #505040;
+}
+
+body[data-ui="new"] .account-chart-game-btn:hover {
+  background: transparent;
+  color: #a8a870;
+}
+
+body[data-ui="new"] .account-chart-game-btn.active {
+  background: rgba(200, 255, 0, 0.1);
+  color: #c8ff00;
+  box-shadow: inset 0 0 0 1px rgba(200, 255, 0, 0.3);
+}
+
+/* Chart summary text */
+body[data-ui="new"] .account-chart-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #505040;
+}
+
+body[data-ui="new"] .account-chart-total {
+  color: #c8c8a0;
+  letter-spacing: -0.02em;
+}
+
+body[data-ui="new"] .account-chart-change {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #6abf6a;
+}
+
+body[data-ui="new"] .account-chart-change.is-negative {
+  color: #bf6a6a;
+}
+
+body[data-ui="new"] .account-chart-description {
+  color: #505040;
+  font-size: 0.78rem;
+}
+
+/* Chart tooltip */
+body[data-ui="new"] .account-chart-tooltip {
+  background: #111110;
+  border-color: #2a2a22;
+  border-radius: 2px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+body[data-ui="new"] .account-chart-tooltip-date {
+  color: #505040;
+}
+
+body[data-ui="new"] .account-chart-tooltip-value {
+  color: #c8c8a0;
+}
+
+body[data-ui="new"] .account-chart-tooltip-value.is-negative {
+  color: #bf6a6a;
+}
+
+/* Bankroll chart scrollbar */
+body[data-ui="new"] .bankroll-chart-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(200, 255, 0, 0.3);
+}
+
+/* Activity log cards */
+body[data-ui="new"] .activity-log-card {
+  background: #0e0e0c;
+  border-color: #222220;
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+body[data-ui="new"] .activity-log-list {
+  gap: 0;
+}
+
+body[data-ui="new"] .activity-log-item + .activity-log-item .activity-log-card {
+  border-top: none;
+}
+
+/* Log row typography */
+body[data-ui="new"] .activity-log-kicker {
+  color: #505040;
+}
+
+body[data-ui="new"] .activity-log-title {
+  color: #c8c8a0;
+  font-size: 0.88rem;
+}
+
+body[data-ui="new"] .activity-log-mode {
+  color: #686850;
+}
+
+body[data-ui="new"] .activity-log-primary {
+  color: #a8a870;
+  font-size: 0.88rem;
+}
+
+body[data-ui="new"] .activity-log-cards {
+  color: #686850;
+  font-size: 0.82rem;
+}
+
+body[data-ui="new"] .activity-log-meta,
+body[data-ui="new"] .activity-log-time {
+  color: #404038;
+  font-size: 0.78rem;
+}
+
+body[data-ui="new"] .activity-log-balance {
+  color: #c8ff00;
+  font-size: 0.8rem;
+}
+
+body[data-ui="new"] .activity-log-item-empty {
+  border-radius: 2px;
+  border-color: #222220;
+  background: #0e0e0c;
+  color: #505040;
+}
+
+/* Activity log toolbar */
+body[data-ui="new"] .activity-log-toolbar {
+  padding: 0.6rem 0;
+  border-top: 1px solid #1e1e1a;
+  border-bottom: 1px solid #1e1e1a;
+  margin-bottom: 0;
+}
+
+/* Checkboxes — lime theme */
+body[data-ui="new"] .activity-log-checkbox {
+  color: #686850;
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+}
+
+body[data-ui="new"] .activity-log-checkbox-mark {
+  border-color: #3a3a30;
+  background: transparent;
+  border-radius: 2px;
+}
+
+body[data-ui="new"] .activity-log-checkbox input:checked + .activity-log-checkbox-mark {
+  background: #c8ff00;
+  border-color: #c8ff00;
+  box-shadow: none;
+}
+
+body[data-ui="new"] .activity-log-checkbox input:checked + .activity-log-checkbox-mark::after {
+  border-right-color: #0a0a08;
+  border-bottom-color: #0a0a08;
+}
+
+body[data-ui="new"] .activity-log-checkbox input:focus-visible + .activity-log-checkbox-mark {
+  box-shadow: 0 0 0 2px rgba(200, 255, 0, 0.3);
+}
+
+/* Type select dropdown */
+body[data-ui="new"] .activity-log-select-field {
+  color: #686850;
+  font-size: 0.76rem;
+}
+
+body[data-ui="new"] .activity-log-select-field select {
+  border-radius: 2px;
+  border-color: #2a2a22;
+  background: #0e0e0c;
+  color: #686850;
+  font-size: 0.76rem;
+}
+
+/* Load more */
+body[data-ui="new"] #activity-log-load-more {
+  border-color: #2a2a22;
+  color: #505040;
+  border-radius: 2px;
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+}
+
+body[data-ui="new"] #activity-log-load-more:hover {
+  border-color: rgba(200, 255, 0, 0.3);
+  color: #a8a870;
+  transform: none;
+  box-shadow: none;
+}
