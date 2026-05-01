@@ -3823,6 +3823,53 @@ function closePlatformRankingsModal() {
   document.body.classList.remove("modal-open");
 }
 
+async function openContestWinsModal() {
+  const modal = document.getElementById("contest-wins-modal");
+  if (!modal) return;
+  modal.hidden = false;
+  document.body.classList.add("modal-open");
+  await renderContestWinsModal();
+}
+
+function closeContestWinsModal() {
+  const modal = document.getElementById("contest-wins-modal");
+  if (!modal) return;
+  modal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+async function renderContestWinsModal() {
+  const listEl = document.getElementById("contest-wins-list");
+  if (!listEl) return;
+
+  // Use cached medals; fetch fresh if profile page hasn't loaded them yet
+  let medals = currentMedals;
+  if (!medals.length && supabase && currentUser?.id) {
+    const { data } = await supabase
+      .from("contest_medals")
+      .select("contest_title, awarded_at")
+      .eq("user_id", currentUser.id)
+      .order("awarded_at", { ascending: false });
+    medals = Array.isArray(data) ? data : [];
+    currentMedals = medals;
+  }
+
+  if (!medals.length) {
+    listEl.innerHTML = `<li class="cwm-empty">No contest wins yet — enter a contest and take first place.</li>`;
+    return;
+  }
+
+  listEl.innerHTML = medals.map((m) => `
+    <li class="cwm-row">
+      <div class="cwm-info">
+        <span class="cwm-title">${escapeAssistantHtml(m.contest_title || "Contest Winner")}</span>
+        <span class="cwm-date">${formatMedalAwardDate(m.awarded_at)}</span>
+      </div>
+      <span class="cwm-badge">WINNER</span>
+    </li>
+  `).join("");
+}
+
 async function renderPlatformRankings() {
   if (!platformRankingsListEl) return;
   platformRankingsListEl.innerHTML = `<li class="prk-empty">Loading…</li>`;
@@ -15956,7 +16003,8 @@ async function loadProfile() {
       currentProfile.receive_contest_start_emails = profile?.receive_contest_start_emails ?? true;
     }
     renderContestEmailPreference();
-    renderProfileMedals(Array.isArray(medals) ? medals : []);
+    currentMedals = Array.isArray(medals) ? medals : [];
+    renderProfileMedals(currentMedals);
     await refreshCurrentRankState();
 
     // Reset to view mode
@@ -18757,6 +18805,7 @@ Promise.resolve()
   .then(() => refreshGameAssetsFromBackend())
   .catch((err) => console.warn("[RTN] Initial game asset sync error:", err));
 let currentProfile = null;
+let currentMedals = [];
 let suppressHash = false;
 let dashboardProfileRetryTimer = null;
 let resetModalTrigger = null;
@@ -32492,6 +32541,7 @@ routeButtons.forEach((button) => {
 // Rank modal triggers — badge buttons on home and drawer rank summary
 document.getElementById("hph-badges")?.addEventListener("click", (e) => {
   if (e.target.closest("[data-action='open-rank-modal']")) openRankLadderModal();
+  if (e.target.closest("[data-action='open-wins-modal']")) void openContestWinsModal();
 });
 drawerRankSummaryEl?.addEventListener("click", () => openRankLadderModal());
 
@@ -32504,6 +32554,12 @@ if (platformRankingsClose) platformRankingsClose.addEventListener("click", close
 if (platformRankingsOk) platformRankingsOk.addEventListener("click", closePlatformRankingsModal);
 platformRankingsModal?.addEventListener("click", (e) => {
   if (e.target === platformRankingsModal) closePlatformRankingsModal();
+});
+
+document.getElementById("contest-wins-close")?.addEventListener("click", closeContestWinsModal);
+document.getElementById("contest-wins-ok")?.addEventListener("click", closeContestWinsModal);
+document.getElementById("contest-wins-modal")?.addEventListener("click", (e) => {
+  if (e.target === document.getElementById("contest-wins-modal")) closeContestWinsModal();
 });
 
 signOutButtons.forEach((button) => {
@@ -33571,14 +33627,12 @@ function renderHomePlayerHero() {
   const badgesEl = document.getElementById("hph-badges");
   if (badgesEl) {
     const badges = [
-      { text: rankName.toUpperCase(), accent: true, clickable: true },
-      { text: `TIER ${rankTier}`, clickable: true },
-      { text: `${contestWins} WIN${contestWins === 1 ? "" : "S"}` },
+      { text: rankName.toUpperCase(), accent: true, action: "open-rank-modal", label: "View full rank ladder" },
+      { text: `TIER ${rankTier}`, action: "open-rank-modal", label: "View full rank ladder" },
+      { text: `${contestWins} WIN${contestWins === 1 ? "" : "S"}`, action: "open-wins-modal", label: "View contest awards" },
     ];
     badgesEl.innerHTML = badges.map(b =>
-      b.clickable
-        ? `<button type="button" class="hph-badge${b.accent ? " hph-badge-accent" : ""} hph-badge-btn" data-action="open-rank-modal" aria-label="View full rank ladder">${escapeAssistantHtml(b.text)}</button>`
-        : `<span class="hph-badge">${escapeAssistantHtml(b.text)}</span>`
+      `<button type="button" class="hph-badge${b.accent ? " hph-badge-accent" : ""} hph-badge-btn" data-action="${b.action}" aria-label="${b.label}">${escapeAssistantHtml(b.text)}</button>`
     ).join("");
   }
 }
