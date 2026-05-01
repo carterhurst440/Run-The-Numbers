@@ -22040,8 +22040,8 @@ body[data-ui="new"] #shape-traders-view .shape-traders-market-card-hero {
 }
 body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-line.is-cyan { stroke: #00e5ff; }
 body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-point.is-cyan { fill: #00e5ff; }
-body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-line.is-magenta { stroke: #ff2d78; }
-body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-point.is-magenta { fill: #ff2d78; }
+body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-line.is-magenta { stroke: #ff4ad3; }
+body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-point.is-magenta { fill: #ff4ad3; }
 body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-line.is-gold { stroke: #ff8000; }
 body[data-ui="new"] #shape-traders-view .shape-traders-sparkline-point.is-gold { fill: #ff8000; }
 
