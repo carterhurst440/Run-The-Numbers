@@ -21100,9 +21100,10 @@ body[data-ui="new"][data-route="run-the-numbers"] {
   --route-primary-button: #e8a020;
   --route-secondary-button: #1e1e18;
 
-  /* Override global vars so all RTN UI resolves to amber */
+  /* Override global vars so all RTN UI resolves to amber, not global yellow */
   --gold: #e8a020;
   --success: #e8a020;
+  --neon-magenta: #e8a020;
   --theme-action-color: #e8a020;
   --deal-button-bg: linear-gradient(135deg, #e8a020, #b07010);
   --deal-button-shadow: 0 12px 28px rgba(232, 160, 32, 0.22);
