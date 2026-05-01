@@ -13789,23 +13789,14 @@ function drawContestJourneyChart(points = []) {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  coords.forEach(({ x, y, point }) => {
-    ctx.beginPath();
-    ctx.arc(x, y, 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = "#0a0a08";
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(x, y, 2, 0, Math.PI * 2);
-    ctx.fillStyle = "#c8ff00";
-    ctx.fill();
-
-    if (points.length <= 10) {
+  if (points.length <= 10) {
+    coords.forEach(({ x, y, point }) => {
       ctx.fillStyle = "rgba(168, 168, 112, 0.7)";
       ctx.font = "600 11px JetBrains Mono, monospace";
       ctx.textAlign = "center";
       ctx.fillText(point.label, x, height - 14);
-    }
-  });
+    });
+  }
 }
 
 function updateContestPrizeModeFields() {
