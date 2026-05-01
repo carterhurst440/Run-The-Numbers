@@ -3810,6 +3810,51 @@ function closeRankLadderModal() {
   document.body.classList.remove("modal-open");
 }
 
+async function openPlatformRankingsModal() {
+  if (!platformRankingsModal) return;
+  platformRankingsModal.hidden = false;
+  document.body.classList.add("modal-open");
+  await renderPlatformRankings();
+}
+
+function closePlatformRankingsModal() {
+  if (!platformRankingsModal) return;
+  platformRankingsModal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+async function renderPlatformRankings() {
+  if (!platformRankingsListEl) return;
+  platformRankingsListEl.innerHTML = `<li class="prk-empty">Loading…</li>`;
+  if (!supabase) return;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, username, first_name, last_name, current_rank, current_rank_tier, current_rank_id")
+    .not("current_rank", "is", null)
+    .order("current_rank", { ascending: true })
+    .limit(100);
+
+  if (error || !data?.length) {
+    platformRankingsListEl.innerHTML = `<li class="prk-empty">No rankings available.</li>`;
+    return;
+  }
+
+  const ladder = getRankLadder();
+  const myId = currentUser?.id;
+
+  platformRankingsListEl.innerHTML = data.map((p) => {
+    const isMe = p.id === myId;
+    const displayName = [p.first_name, p.last_name].filter(Boolean).join(" ") || p.username || "—";
+    const tierName = ladder.find((r) => r.id === p.current_rank_id || r.tier === p.current_rank_tier)?.name || `Tier ${p.current_rank_tier ?? "—"}`;
+    return `<li class="prk-row${isMe ? " is-me" : ""}">
+      <span class="prk-num">#${p.current_rank}</span>
+      <span class="prk-name">${escapeAssistantHtml(displayName)}</span>
+      <span class="prk-tier">${escapeAssistantHtml(tierName)}</span>
+    </li>`;
+  }).join("");
+}
+
 function updateAdminRankIconPreview(url) {
   if (!adminRankIconPreview || !adminRankIconPlaceholder) return;
   const nextUrl = typeof url === "string" ? url.trim() : "";
@@ -18228,6 +18273,10 @@ const rankLadderModal = document.getElementById("rank-ladder-modal");
 const rankLadderListEl = document.getElementById("rank-ladder-list");
 const rankLadderCloseButton = document.getElementById("rank-ladder-close");
 const rankLadderOkButton = document.getElementById("rank-ladder-ok");
+const platformRankingsModal = document.getElementById("platform-rankings-modal");
+const platformRankingsListEl = document.getElementById("platform-rankings-list");
+const platformRankingsClose = document.getElementById("platform-rankings-close");
+const platformRankingsOk = document.getElementById("platform-rankings-ok");
 const playAssistantToggle = document.getElementById("play-assistant-toggle");
 const playAssistantRuleBadgeEl = document.getElementById("play-assistant-rule-badge");
 const playAssistantPanel = document.getElementById("play-assistant-panel");
@@ -32451,6 +32500,17 @@ document.getElementById("hph-badges")?.addEventListener("click", (e) => {
 });
 drawerRankSummaryEl?.addEventListener("click", () => openRankLadderModal());
 
+// Platform rankings modal triggers — #N rank badge on player name
+document.getElementById("hph-name")?.addEventListener("click", (e) => {
+  if (e.target.closest("[data-action='open-platform-rankings']")) void openPlatformRankingsModal();
+});
+
+if (platformRankingsClose) platformRankingsClose.addEventListener("click", closePlatformRankingsModal);
+if (platformRankingsOk) platformRankingsOk.addEventListener("click", closePlatformRankingsModal);
+platformRankingsModal?.addEventListener("click", (e) => {
+  if (e.target === platformRankingsModal) closePlatformRankingsModal();
+});
+
 signOutButtons.forEach((button) => {
   button.addEventListener("click", async () => {
     closeActiveDrawer();
@@ -33493,7 +33553,7 @@ function renderHomePlayerHero() {
   const nameEl = document.getElementById("hph-name");
   if (nameEl) {
     const rankNum = Number(currentProfile.current_rank || 1);
-    const rankBadge = `<span class="hph-rank-badge">#${rankNum}</span>`;
+    const rankBadge = `<button type="button" class="hph-rank-badge-btn" data-action="open-platform-rankings" aria-label="View platform rankings">#${rankNum}</button>`;
     nameEl.innerHTML = firstName
       ? `${escapeAssistantHtml(firstName)}${rankBadge}<br><span style="color:#c8c0a8">${escapeAssistantHtml(lastName)}</span>`
       : escapeAssistantHtml(fullName || "—");
