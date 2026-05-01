@@ -2721,12 +2721,12 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .shape-traders-sparkline-line.is-gold {
-  stroke: #ffe15c;
+  stroke: #ff8000;
 }
 
 .shape-traders-sparkline-point.is-gold {
-  stroke: #ffe15c;
-  fill: #ffe15c;
+  stroke: #ff8000;
+  fill: #ff8000;
 }
 
 .shape-traders-sparkline-point {
@@ -2817,7 +2817,7 @@ body[data-app-state="loading"] #app-shell {
 .shape-traders-shape-icon.shape-circle {
   width: 1.45rem;
   height: 1.45rem;
-  border: 2px solid #ffe15c;
+  border: 2px solid #ff8000;
   border-radius: 999px;
   background: transparent;
 }
@@ -2880,7 +2880,7 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .shape-traders-market-cap-bar.is-gold .shape-traders-market-cap-track span {
-  background: linear-gradient(90deg, #ffe15c, #ffc63b);
+  background: linear-gradient(90deg, #ff8000, #e05500);
 }
 
 .shape-traders-balance-list {
@@ -3597,7 +3597,7 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .shape-traders-asset-button.active[data-shape-trader-asset="circle"] .shape-traders-shape-icon.shape-circle {
-  border-color: #ffe15c;
+  border-color: #ff8000;
 }
 
 .shape-traders-asset-button:not(.active) .shape-traders-shape-icon.shape-square {
@@ -4007,15 +4007,15 @@ body[data-app-state="loading"] #app-shell {
 
 .shape-traders-trade-bar[data-selected-asset="circle"] #shape-traders-buy-button:not(.is-unavailable):not(:disabled),
 .shape-traders-trade-bar[data-selected-asset="circle"] #shape-traders-sell-button:not(.is-unavailable):not(:disabled) {
-  border-color: #ffe15c;
+  border-color: #ff8000;
   background:
-    linear-gradient(135deg, color-mix(in srgb, #ffe15c 42%, transparent), color-mix(in srgb, #ffe15c 18%, #21190c)),
-    linear-gradient(180deg, rgba(42, 25, 12, 0.98), rgba(22, 14, 8, 0.98));
+    linear-gradient(135deg, color-mix(in srgb, #ff8000 42%, transparent), color-mix(in srgb, #ff8000 18%, #1a0700)),
+    linear-gradient(180deg, rgba(26, 10, 2, 0.98), rgba(14, 5, 1, 0.98));
   color: #fff7e4;
-  text-shadow: 0 0 12px color-mix(in srgb, #ffe15c 20%, transparent);
+  text-shadow: 0 0 12px color-mix(in srgb, #ff8000 20%, transparent);
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, #ffe15c 22%, transparent),
-    0 18px 34px color-mix(in srgb, #ffe15c 18%, transparent);
+    inset 0 0 0 1px color-mix(in srgb, #ff8000 22%, transparent),
+    0 18px 34px color-mix(in srgb, #ff8000 18%, transparent);
 }
 
 .shape-traders-trade-bar[data-selected-asset="square"] #shape-traders-buy-button:not(.is-unavailable):not(:disabled):hover,
@@ -4044,11 +4044,11 @@ body[data-app-state="loading"] #app-shell {
 .shape-traders-trade-bar[data-selected-asset="circle"] #shape-traders-buy-button:not(.is-unavailable):not(:disabled):focus-visible,
 .shape-traders-trade-bar[data-selected-asset="circle"] #shape-traders-sell-button:not(.is-unavailable):not(:disabled):hover,
 .shape-traders-trade-bar[data-selected-asset="circle"] #shape-traders-sell-button:not(.is-unavailable):not(:disabled):focus-visible {
-  border-color: #ffe15c;
+  border-color: #ff8000;
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, #ffe15c 30%, transparent),
-    0 20px 38px color-mix(in srgb, #ffe15c 24%, transparent),
-    0 0 20px color-mix(in srgb, #ffe15c 16%, transparent);
+    inset 0 0 0 1px color-mix(in srgb, #ff8000 30%, transparent),
+    0 20px 38px color-mix(in srgb, #ff8000 24%, transparent),
+    0 0 20px color-mix(in srgb, #ff8000 16%, transparent);
 }
 
 .shape-traders-trade-bar .shape-traders-trade-actions button.is-pressing {
@@ -4133,7 +4133,7 @@ body[data-app-state="loading"] #app-shell {
 }
 
 #shape-traders-chart-title.is-gold {
-  color: #ffe15c;
+  color: #ff8000;
 }
 
 .shape-traders-chart-subtitle {
@@ -4240,7 +4240,7 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .shape-traders-chart-point-label.is-gold {
-  fill: #ffe15c;
+  fill: #ff8000;
 }
 
 .shape-traders-chart-line {
@@ -4259,7 +4259,7 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .shape-traders-chart-line.is-gold {
-  stroke: #ffe15c;
+  stroke: #ff8000;
 }
 
 .shape-traders-chart-point.is-cyan {
@@ -4271,7 +4271,7 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .shape-traders-chart-point.is-gold {
-  fill: #ffe15c;
+  fill: #ff8000;
 }
 
 .shape-traders-recent-list {
