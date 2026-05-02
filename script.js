@@ -392,63 +392,127 @@ function shouldWaitForLiveSupabaseGameAssets() {
 
 function initHomeGameCardGlitch() {
   if (document.body.dataset.ui !== "new") return;
-  const CHARSET = "▓▒░█▌▐▀▄|/\\<>=*?#$%&@!";
-  const cards = Array.from(document.querySelectorAll(".home-game-card"));
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-  cards.forEach((card) => {
+  const CHARSET = "▓▒░█▌▐▀▄|/\\<>=*?#$%&@!";
+  const AMP = { intensity: 1.0, burst: true, jitter: 0.35, flicker: 0.3, chroma: 0.45, noise: true, vignette: true, sweep: true };
+
+  const ACCENT = {
+    "home-game-card-rtn":   { hex: "#e8a020", r: 232, g: 160, b: 32 },
+    "home-game-card-g10":   { hex: "#00e5ff", r: 0,   g: 229, b: 255 },
+    "home-game-card-shape": { hex: "#c8ff00", r: 200, g: 255, b: 0 },
+  };
+
+  document.querySelectorAll(".home-game-card").forEach((card) => {
     const glyphEl = card.querySelector(".hgc-glyph");
-    const nameEl = card.querySelector(".hgc-name");
+    const nameEl  = card.querySelector(".hgc-name");
     if (!glyphEl || !nameEl) return;
 
     const glyphTarget = glyphEl.textContent;
-    const nameTarget = nameEl.textContent;
-    let ambientId = null;
-    let bootId = null;
-    let isHovered = false;
+    const nameTarget  = nameEl.textContent;
 
-    function glitchChar(str) {
-      const i = Math.floor(Math.random() * str.length);
-      const arr = str.split("");
-      arr[i] = CHARSET[Math.floor(Math.random() * CHARSET.length)];
-      return arr.join("");
+    let accent = ACCENT["home-game-card-rtn"];
+    for (const [cls, acc] of Object.entries(ACCENT)) {
+      if (card.classList.contains(cls)) { accent = acc; break; }
     }
 
+    // Inject overlay layers
+    if (AMP.sweep) {
+      const el = document.createElement("div");
+      el.className = "hgc-sweep-beam";
+      card.appendChild(el);
+    }
+    if (AMP.noise) {
+      const el = document.createElement("div");
+      el.className = "hgc-noise-layer";
+      card.appendChild(el);
+    }
+    if (AMP.vignette) {
+      const el = document.createElement("div");
+      el.className = "hgc-vignette-layer";
+      card.appendChild(el);
+    }
+
+    // Chromatic aberration text-shadow on glyph
+    const c = AMP.chroma;
+    glyphEl.style.textShadow = `${-2*c}px 0 0 rgba(255,40,80,${(0.7*c).toFixed(2)}), ${2*c}px 0 0 rgba(0,200,255,${(0.7*c).toFixed(2)}), 0 0 ${10+12*c}px ${accent.hex}cc`;
+
+    let isHovered = false;
+    let ambientId = null;
+    let bootId    = null;
+    let jitterId  = null;
+    let flickerId = null;
+
+    // ── Ambient glitch + burst ───────────────────────────────────
     function startAmbient() {
-      if (reducedMotion) return;
       clearInterval(ambientId);
+      const rate = Math.max(80, 240 / AMP.intensity);
       ambientId = setInterval(() => {
         if (isHovered) return;
-        if (Math.random() < 0.18) {
-          glyphEl.textContent = glitchChar(glyphTarget);
-          setTimeout(() => { if (!isHovered) glyphEl.textContent = glyphTarget; }, 90);
+        // burst: occasionally scramble entire string
+        if (AMP.burst && Math.random() < 0.06 * AMP.intensity) {
+          const scramble = (t) => t.split("").map((ch) => ch === " " ? " " : CHARSET[Math.floor(Math.random() * CHARSET.length)]).join("");
+          glyphEl.textContent = scramble(glyphTarget);
+          nameEl.textContent  = scramble(nameTarget);
+          setTimeout(() => { if (!isHovered) { glyphEl.textContent = glyphTarget; nameEl.textContent = nameTarget; } }, 80 + Math.random() * 120);
+          return;
         }
-        if (Math.random() < 0.12) {
-          nameEl.textContent = glitchChar(nameTarget);
-          setTimeout(() => { if (!isHovered) nameEl.textContent = nameTarget; }, 90);
-        }
-      }, 220);
+        // single/multi-char flip
+        const baseProb = 0.16 * AMP.intensity;
+        const flip = (target, el) => {
+          if (Math.random() < baseProb) {
+            const flips = 1 + Math.floor(Math.random() * Math.max(1, AMP.intensity * 2));
+            const arr = target.split("");
+            for (let n = 0; n < flips; n++) {
+              const i = Math.floor(Math.random() * arr.length);
+              if (arr[i] !== " ") arr[i] = CHARSET[Math.floor(Math.random() * CHARSET.length)];
+            }
+            el.textContent = arr.join("");
+            setTimeout(() => { if (!isHovered) el.textContent = target; }, 70 + Math.random() * 90);
+          }
+        };
+        flip(glyphTarget, glyphEl);
+        flip(nameTarget, nameEl);
+      }, rate);
     }
 
+    // ── Hover boot: scramble → resolve left-to-right ─────────────
     function startBoot() {
-      if (reducedMotion) return;
       clearInterval(bootId);
       let frame = 0;
       bootId = setInterval(() => {
         frame++;
-        glyphEl.textContent = glyphTarget.split("").map((c, i) =>
-          frame > 6 + i ? c : CHARSET[Math.floor(Math.random() * CHARSET.length)]
-        ).join("");
-        nameEl.textContent = nameTarget.split("").map((c, i) =>
-          frame > 6 + i ? c : CHARSET[Math.floor(Math.random() * CHARSET.length)]
-        ).join("");
+        glyphEl.textContent = glyphTarget.split("").map((ch, i) => frame > 6 + i ? ch : CHARSET[Math.floor(Math.random() * CHARSET.length)]).join("");
+        nameEl.textContent  = nameTarget.split("").map((ch, i)  => frame > 6 + i ? ch : CHARSET[Math.floor(Math.random() * CHARSET.length)]).join("");
         if (frame > 6 + Math.max(glyphTarget.length, nameTarget.length)) {
           clearInterval(bootId);
           glyphEl.textContent = glyphTarget;
-          nameEl.textContent = nameTarget;
+          nameEl.textContent  = nameTarget;
         }
       }, 35);
     }
+
+    // ── Horizontal jitter ────────────────────────────────────────
+    jitterId = setInterval(() => {
+      if (isHovered) return;
+      if (Math.random() < 0.35) {
+        const jx = (Math.random() - 0.5) * 6 * AMP.jitter;
+        glyphEl.style.transform = `translateX(${jx}px)`;
+        nameEl.style.transform  = `translateX(${jx * 0.4}px)`;
+        setTimeout(() => { glyphEl.style.transform = ""; nameEl.style.transform = ""; }, 60 + Math.random() * 80);
+      }
+    }, 220);
+
+    // ── Brightness flicker ───────────────────────────────────────
+    flickerId = setInterval(() => {
+      if (isHovered) return;
+      if (Math.random() < 0.25) {
+        const bri = 1 - Math.random() * 0.5 * AMP.flicker;
+        glyphEl.style.filter = `brightness(${bri})`;
+        nameEl.style.filter  = `brightness(${bri})`;
+        setTimeout(() => { glyphEl.style.filter = ""; nameEl.style.filter = ""; }, 50 + Math.random() * 80);
+      }
+    }, 180);
 
     card.addEventListener("mouseenter", () => {
       isHovered = true;
@@ -458,16 +522,15 @@ function initHomeGameCardGlitch() {
       isHovered = false;
       clearInterval(bootId);
       glyphEl.textContent = glyphTarget;
-      nameEl.textContent = nameTarget;
+      nameEl.textContent  = nameTarget;
+      glyphEl.style.transform = "";
+      nameEl.style.transform  = "";
     });
 
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((e) => {
-        if (e.isIntersecting) startAmbient();
-        else clearInterval(ambientId);
-      });
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting) startAmbient(); else clearInterval(ambientId); });
     }, { threshold: 0.1 });
-    observer.observe(card);
+    io.observe(card);
 
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) clearInterval(ambientId);
