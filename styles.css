@@ -23939,6 +23939,50 @@ body[data-ui="new"] .contest-results-modal .modal-actions .secondary:hover {
   color: #a8a870;
 }
 
+/* ── Scanline game tile keyframes ──────────────────────────────── */
+@keyframes hgc-sweep {
+  0%   { transform: translateY(-30px); opacity: 0; }
+  8%   { opacity: 1; }
+  92%  { opacity: 1; }
+  100% { transform: translateY(160px); opacity: 0; }
+}
+@keyframes hgc-noise-shift {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(-1px, 1px); }
+  50%  { transform: translate(1px, -1px); }
+  75%  { transform: translate(-1px, -1px); }
+  100% { transform: translate(1px, 1px); }
+}
+
+.hgc-sweep-beam {
+  position: absolute; left: 0; right: 0; height: 22px; top: 0;
+  pointer-events: none; z-index: 2;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(var(--hgc-accent-rgb), 0.4) 45%,
+    rgba(255,255,255,0.6) 50%,
+    rgba(var(--hgc-accent-rgb), 0.4) 55%,
+    transparent 100%
+  );
+  mix-blend-mode: screen;
+  animation: hgc-sweep 2.4s linear infinite;
+  filter: blur(0.5px);
+}
+.hgc-noise-layer {
+  position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background-image: repeating-conic-gradient(rgba(var(--hgc-accent-rgb), 0.02) 0% 0.5%, transparent 0.5% 1%);
+  background-size: 3px 3px;
+  mix-blend-mode: screen;
+  animation: hgc-noise-shift 0.18s steps(4) infinite;
+  opacity: 0.35;
+}
+.hgc-vignette-layer {
+  position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.28) 100%);
+  mix-blend-mode: multiply;
+}
+
 /* ── Scanline game tiles (new UI) ──────────────────────────────── */
 body[data-ui="new"] .home-game-card-rtn   { --hgc-accent: #e8a020; --hgc-accent-rgb: 232,160,32; }
 body[data-ui="new"] .home-game-card-g10   { --hgc-accent: #00e5ff; --hgc-accent-rgb: 0,229,255; }
