@@ -390,6 +390,92 @@ function shouldWaitForLiveSupabaseGameAssets() {
   return Boolean(window.SUPABASE_URL && window.SUPABASE_ANON_KEY) && !window.__RTN_SUPABASE_LIVE_READY;
 }
 
+function initHomeGameCardGlitch() {
+  if (document.body.dataset.ui !== "new") return;
+  const CHARSET = "▓▒░█▌▐▀▄|/\\<>=*?#$%&@!";
+  const cards = Array.from(document.querySelectorAll(".home-game-card"));
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  cards.forEach((card) => {
+    const glyphEl = card.querySelector(".hgc-glyph");
+    const nameEl = card.querySelector(".hgc-name");
+    if (!glyphEl || !nameEl) return;
+
+    const glyphTarget = glyphEl.textContent;
+    const nameTarget = nameEl.textContent;
+    let ambientId = null;
+    let bootId = null;
+    let isHovered = false;
+
+    function glitchChar(str) {
+      const i = Math.floor(Math.random() * str.length);
+      const arr = str.split("");
+      arr[i] = CHARSET[Math.floor(Math.random() * CHARSET.length)];
+      return arr.join("");
+    }
+
+    function startAmbient() {
+      if (reducedMotion) return;
+      clearInterval(ambientId);
+      ambientId = setInterval(() => {
+        if (isHovered) return;
+        if (Math.random() < 0.18) {
+          glyphEl.textContent = glitchChar(glyphTarget);
+          setTimeout(() => { if (!isHovered) glyphEl.textContent = glyphTarget; }, 90);
+        }
+        if (Math.random() < 0.12) {
+          nameEl.textContent = glitchChar(nameTarget);
+          setTimeout(() => { if (!isHovered) nameEl.textContent = nameTarget; }, 90);
+        }
+      }, 220);
+    }
+
+    function startBoot() {
+      if (reducedMotion) return;
+      clearInterval(bootId);
+      let frame = 0;
+      bootId = setInterval(() => {
+        frame++;
+        glyphEl.textContent = glyphTarget.split("").map((c, i) =>
+          frame > 6 + i ? c : CHARSET[Math.floor(Math.random() * CHARSET.length)]
+        ).join("");
+        nameEl.textContent = nameTarget.split("").map((c, i) =>
+          frame > 6 + i ? c : CHARSET[Math.floor(Math.random() * CHARSET.length)]
+        ).join("");
+        if (frame > 6 + Math.max(glyphTarget.length, nameTarget.length)) {
+          clearInterval(bootId);
+          glyphEl.textContent = glyphTarget;
+          nameEl.textContent = nameTarget;
+        }
+      }, 35);
+    }
+
+    card.addEventListener("mouseenter", () => {
+      isHovered = true;
+      startBoot();
+    });
+    card.addEventListener("mouseleave", () => {
+      isHovered = false;
+      clearInterval(bootId);
+      glyphEl.textContent = glyphTarget;
+      nameEl.textContent = nameTarget;
+    });
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) startAmbient();
+        else clearInterval(ambientId);
+      });
+    }, { threshold: 0.1 });
+    observer.observe(card);
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) clearInterval(ambientId);
+      else if (!isHovered) startAmbient();
+    });
+  });
+}
+
 function renderGameLogoTargets() {
   document.querySelectorAll("[data-game-logo-for]").forEach((node) => {
     if (!(node instanceof HTMLImageElement)) return;
@@ -18902,6 +18988,7 @@ let currentAccountMode = {
 };
 hydrateGameAssetLibrary();
 renderGameLogoTargets();
+initHomeGameCardGlitch();
 if (typeof window !== "undefined") {
   window.addEventListener("supabase:ready", () => {
     void refreshGameAssetsFromBackend().catch((err) => console.warn("[RTN] Deferred game asset sync error:", err));

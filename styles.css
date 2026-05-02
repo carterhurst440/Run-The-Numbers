@@ -23938,3 +23938,99 @@ body[data-ui="new"] .contest-results-modal .modal-actions .secondary:hover {
   border-color: rgba(200, 255, 0, 0.3);
   color: #a8a870;
 }
+
+/* ── Scanline game tiles (new UI) ──────────────────────────────── */
+body[data-ui="new"] .home-game-card-rtn   { --hgc-accent: #e8a020; --hgc-accent-rgb: 232,160,32; }
+body[data-ui="new"] .home-game-card-g10   { --hgc-accent: #00e5ff; --hgc-accent-rgb: 0,229,255; }
+body[data-ui="new"] .home-game-card-shape { --hgc-accent: #c8ff00; --hgc-accent-rgb: 200,255,0; }
+
+body[data-ui="new"] .home-game-card {
+  border-radius: 0;
+  border: 1px solid #2e2e22;
+  border-top-width: 1px;
+  height: 130px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #171714;
+  position: relative;
+}
+
+body[data-ui="new"] .home-game-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0,
+    transparent 3px,
+    rgba(var(--hgc-accent-rgb), 0.03) 3px,
+    rgba(var(--hgc-accent-rgb), 0.03) 4px
+  );
+}
+
+body[data-ui="new"] .home-game-card:hover:not(.is-locked) {
+  border-color: var(--hgc-accent);
+  background: #171714;
+  box-shadow: 0 0 0 1px rgba(var(--hgc-accent-rgb), 0.18), inset 0 0 24px rgba(var(--hgc-accent-rgb), 0.06);
+}
+
+body[data-ui="new"] .home-game-card .hgc-top,
+body[data-ui="new"] .home-game-card .hgc-name,
+body[data-ui="new"] .home-game-card .hgc-count {
+  position: relative;
+  z-index: 1;
+}
+
+body[data-ui="new"] .home-game-card .hgc-glyph {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--hgc-accent);
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 8px rgba(var(--hgc-accent-rgb), 0.65);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+body[data-ui="new"] .home-game-card .hgc-glyph-shapes {
+  font-size: 18px;
+  letter-spacing: 3px;
+}
+
+body[data-ui="new"] .home-game-card .hgc-status {
+  font-size: 9px;
+  color: var(--hgc-accent);
+  letter-spacing: 0.16em;
+  border: 1px solid rgba(var(--hgc-accent-rgb), 0.33);
+  padding: 2px 6px;
+  position: relative;
+  z-index: 1;
+  border-radius: 0;
+}
+
+body[data-ui="new"] .home-game-card .hgc-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--hgc-accent);
+  letter-spacing: 0.08em;
+}
+
+body[data-ui="new"] .home-game-card .hgc-count {
+  color: #686850;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  margin-top: 4px;
+}
+
+body[data-ui="new"] .home-game-card-rtn .hgc-glyph,
+body[data-ui="new"] .home-game-card-g10 .hgc-glyph,
+body[data-ui="new"] .home-game-card-shape .hgc-glyph,
+body[data-ui="new"] .home-game-card-rtn .hgc-name,
+body[data-ui="new"] .home-game-card-g10 .hgc-name,
+body[data-ui="new"] .home-game-card-shape .hgc-name {
+  color: var(--hgc-accent);
+}
