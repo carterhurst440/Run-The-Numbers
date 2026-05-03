@@ -391,7 +391,6 @@ function shouldWaitForLiveSupabaseGameAssets() {
 }
 
 function initHomeGameCardGlitch() {
-  if (document.body.dataset.ui !== "new") return;
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
   const CHARSET = "▓▒░█▌▐▀▄|/\\<>=*?#$%&@!";
@@ -19051,7 +19050,6 @@ let currentAccountMode = {
 };
 hydrateGameAssetLibrary();
 renderGameLogoTargets();
-initHomeGameCardGlitch();
 if (typeof window !== "undefined") {
   window.addEventListener("supabase:ready", () => {
     void refreshGameAssetsFromBackend().catch((err) => console.warn("[RTN] Deferred game asset sync error:", err));
@@ -28181,6 +28179,7 @@ chipEditorModal?.addEventListener("click", (event) => {
 
 // New UI is always on
 document.body.setAttribute("data-ui", "new");
+initHomeGameCardGlitch();
 
 if (resetAccountButton) {
   resetAccountButton.addEventListener("click", () => {
