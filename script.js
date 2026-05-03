@@ -394,7 +394,7 @@ function initHomeGameCardGlitch() {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
   const CHARSET = "▓▒░█▌▐▀▄|/\\<>=*?#$%&@!";
-  const AMP = { intensity: 1.0, burst: true, jitter: 0.35, flicker: 0.3, chroma: 0.45, noise: true, vignette: true, sweep: true };
+  const AMP = { intensity: 1.0, burst: true, jitter: 0.35, flicker: 0.3, chroma: 0.45, noise: true, vignette: true, sweep: false };
 
   const ACCENT = {
     "home-game-card-rtn":   { hex: "#e8a020", r: 232, g: 160, b: 32 },
