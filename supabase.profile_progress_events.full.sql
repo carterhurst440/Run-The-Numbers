@@ -432,6 +432,8 @@ as $$
 declare
   inserted_count integer := 0;
 begin
+  perform public.finalize_shape_trader_contest(_contest_id);
+
   with winners as (
     with qualified as (
       select

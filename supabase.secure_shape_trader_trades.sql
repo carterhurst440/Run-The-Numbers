@@ -92,6 +92,187 @@ as $$
     and pos.account_scope = _account_scope
 $$;
 
+create or replace function public.finalize_shape_trader_contest(_contest_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_scope text := 'contest:' || _contest_id::text;
+  v_contest public.contests%rowtype;
+  v_entry record;
+  v_position record;
+  v_cash_balance numeric(12,2);
+  v_carter_cash integer;
+  v_carter_cash_progress numeric;
+  v_total_value numeric(12,2);
+  v_net_profit numeric(12,2);
+  v_progress_gain integer;
+  v_total_progress integer;
+  v_earned integer;
+  v_circle_holdings numeric(12,2);
+  v_square_holdings numeric(12,2);
+  v_triangle_holdings numeric(12,2);
+  v_account_value numeric(12,2);
+  liquidated_count integer := 0;
+begin
+  if _contest_id is null then
+    return 0;
+  end if;
+
+  select *
+  into v_contest
+  from public.contests
+  where id = _contest_id;
+
+  if not found or coalesce(v_contest.status, 'upcoming') <> 'ended' then
+    return 0;
+  end if;
+
+  perform set_config('rtn.allow_sensitive_balance_write', '1', true);
+  perform set_config('rtn.allow_shape_trader_write', '1', true);
+
+  for v_entry in
+    select
+      e.user_id,
+      round(coalesce(e.current_credits, 0)::numeric, 2) as current_credits,
+      greatest(coalesce(e.current_carter_cash, 0), 0) as current_carter_cash,
+      greatest(coalesce(e.current_carter_cash_progress, 0), 0) as current_carter_cash_progress
+    from public.contest_entries e
+    where e.contest_id = _contest_id
+      and exists (
+        select 1
+        from public.shape_trader_positions_current pos
+        where pos.user_id = e.user_id
+          and pos.account_scope = v_scope
+          and coalesce(pos.quantity, 0) > 0
+      )
+    for update
+  loop
+    v_cash_balance := v_entry.current_credits;
+    v_carter_cash := v_entry.current_carter_cash;
+    v_carter_cash_progress := v_entry.current_carter_cash_progress;
+
+    select
+      snapshot.circle_holdings,
+      snapshot.square_holdings,
+      snapshot.triangle_holdings
+    into
+      v_circle_holdings,
+      v_square_holdings,
+      v_triangle_holdings
+    from public.get_shape_trader_account_holdings_snapshot(v_entry.user_id, v_scope) snapshot;
+
+    for v_position in
+      select
+        pos.shape,
+        greatest(coalesce(pos.quantity, 0), 0) as quantity,
+        round(coalesce(pos.average_price, 0)::numeric, 2) as average_price,
+        round(coalesce(market.current_price, 0)::numeric, 2) as current_price
+      from public.shape_trader_positions_current pos
+      join public.shape_trader_market_current market
+        on market.shape = pos.shape
+      where pos.user_id = v_entry.user_id
+        and pos.account_scope = v_scope
+        and coalesce(pos.quantity, 0) > 0
+      order by pos.shape asc
+    loop
+      v_total_value := round(v_position.quantity * v_position.current_price, 2);
+      v_net_profit := round((v_position.current_price - v_position.average_price) * v_position.quantity, 2);
+      v_cash_balance := round(v_cash_balance + v_total_value, 2);
+
+      v_progress_gain := greatest(coalesce(abs(v_net_profit), 0), 0);
+      v_total_progress := greatest(coalesce(v_carter_cash_progress, 0)::integer, 0) + v_progress_gain;
+      v_earned := floor(v_total_progress / 1000.0);
+      v_carter_cash := greatest(0, v_carter_cash + v_earned);
+      v_carter_cash_progress := v_total_progress - (v_earned * 1000);
+
+      if v_position.shape = 'circle' then
+        v_circle_holdings := 0;
+      elsif v_position.shape = 'square' then
+        v_square_holdings := 0;
+      elsif v_position.shape = 'triangle' then
+        v_triangle_holdings := 0;
+      end if;
+
+      v_account_value := round(
+        v_cash_balance
+        + coalesce(v_circle_holdings, 0)
+        + coalesce(v_square_holdings, 0)
+        + coalesce(v_triangle_holdings, 0),
+        2
+      );
+
+      update public.shape_trader_positions_current
+      set
+        quantity = 0,
+        average_price = 0,
+        updated_at = timezone('utc', now())
+      where user_id = v_entry.user_id
+        and account_scope = v_scope
+        and shape = v_position.shape;
+
+      insert into public.shape_trader_trades (
+        user_id,
+        game_id,
+        contest_id,
+        shape,
+        shape_price,
+        executed_at,
+        trade_side,
+        quantity,
+        total_value,
+        net_profit,
+        new_circle_holdings,
+        new_square_holdings,
+        new_triangle_holdings,
+        new_account_value,
+        trade_reason
+      )
+      values (
+        v_entry.user_id,
+        'game_003',
+        _contest_id,
+        v_position.shape,
+        v_position.current_price,
+        timezone('utc', now()),
+        'sell',
+        v_position.quantity,
+        v_total_value,
+        v_net_profit,
+        coalesce(v_circle_holdings, 0),
+        coalesce(v_square_holdings, 0),
+        coalesce(v_triangle_holdings, 0),
+        v_account_value,
+        'Contest end liquidation'
+      );
+
+      liquidated_count := liquidated_count + 1;
+    end loop;
+
+    update public.contest_entries
+    set
+      current_credits = v_cash_balance,
+      current_carter_cash = v_carter_cash,
+      current_carter_cash_progress = v_carter_cash_progress
+    where contest_id = _contest_id
+      and user_id = v_entry.user_id;
+
+    update public.shape_trader_accounts_current
+    set
+      cash_balance = v_cash_balance,
+      holdings_value = 0,
+      account_value = v_cash_balance,
+      updated_at = timezone('utc', now())
+    where user_id = v_entry.user_id
+      and account_scope = v_scope;
+  end loop;
+
+  return liquidated_count;
+end;
+$$;
+
 create or replace function public.is_rtn_admin()
 returns boolean
 language sql
@@ -846,6 +1027,7 @@ $$;
 
 grant execute on function public.sync_shape_trader_account_state(uuid, timestamptz) to authenticated;
 grant execute on function public.execute_shape_trader_trade(text, text, integer, uuid, text, boolean, bigint) to authenticated;
+grant execute on function public.finalize_shape_trader_contest(uuid) to authenticated;
 
 drop function if exists public.apply_shape_trader_structural_event(bigint, text, text, uuid);
 
