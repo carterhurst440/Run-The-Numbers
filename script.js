@@ -4586,14 +4586,21 @@ function getShapeTraderCurrentWindowIndex(now = Date.now()) {
     return -1;
   }
 
-  let windowIndex = 0;
-  while (now >= getShapeTraderWindowEndMs(windowIndex)) {
-    windowIndex += 1;
-    if (windowIndex > 100000) {
-      break;
-    }
+  const cycleWindowCount = 10;
+  const cycleDurationMs = (SHAPE_TRADERS_DRAW_INTERVAL_MS * cycleWindowCount) + getShapeTraderDumpRevealExtensionMs();
+  if (cycleDurationMs <= 0 || SHAPE_TRADERS_DRAW_INTERVAL_MS <= 0) {
+    return 0;
   }
-  return windowIndex;
+
+  const elapsedMs = Math.max(0, now - epochMs);
+  const completedCycles = Math.floor(elapsedMs / cycleDurationMs);
+  const remainingMs = elapsedMs - (completedCycles * cycleDurationMs);
+  const preDumpDurationMs = SHAPE_TRADERS_DRAW_INTERVAL_MS * (cycleWindowCount - 1);
+  const indexWithinCycle = remainingMs >= preDumpDurationMs
+    ? cycleWindowCount - 1
+    : Math.floor(remainingMs / SHAPE_TRADERS_DRAW_INTERVAL_MS);
+
+  return (completedCycles * cycleWindowCount) + indexWithinCycle;
 }
 
 function formatShapeTraderCard(card) {

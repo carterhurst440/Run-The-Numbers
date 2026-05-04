@@ -67,6 +67,56 @@ as $$
   where cfg.id = true
 $$;
 
+create or replace function public.shape_trader_current_window_index(p_now_ms bigint)
+returns integer
+language sql
+stable
+as $$
+  with cfg as (
+    select
+      floor(extract(epoch from cfg.epoch_at) * 1000)::bigint as epoch_ms,
+      cfg.draw_interval_ms::bigint as draw_interval_ms,
+      greatest(cfg.dump_every_windows, 1)::bigint as dump_every_windows,
+      (cfg.dump_cards * cfg.dump_card_interval_ms)::bigint as dump_extension_ms
+    from public.shape_trader_engine_config cfg
+    where cfg.id = true
+  ),
+  timeline as (
+    select
+      epoch_ms,
+      draw_interval_ms,
+      dump_every_windows,
+      dump_extension_ms,
+      (draw_interval_ms * dump_every_windows) + dump_extension_ms as cycle_duration_ms,
+      (draw_interval_ms * greatest(dump_every_windows - 1, 0)) as pre_dump_duration_ms,
+      greatest(coalesce(p_now_ms, epoch_ms) - epoch_ms, 0) as elapsed_ms
+    from cfg
+  ),
+  position as (
+    select
+      case
+        when cycle_duration_ms <= 0 or draw_interval_ms <= 0 then 0
+        else floor(elapsed_ms::numeric / cycle_duration_ms::numeric)::bigint
+      end as completed_cycles,
+      case
+        when cycle_duration_ms <= 0 then 0
+        else mod(elapsed_ms, cycle_duration_ms)
+      end as remaining_ms,
+      dump_every_windows,
+      draw_interval_ms,
+      pre_dump_duration_ms
+    from timeline
+  )
+  select
+    case
+      when coalesce(p_now_ms, 0) < (select epoch_ms from cfg) then -1
+      when remaining_ms >= pre_dump_duration_ms
+        then (completed_cycles * dump_every_windows + (dump_every_windows - 1))::integer
+      else (completed_cycles * dump_every_windows + floor(remaining_ms::numeric / draw_interval_ms::numeric))::integer
+    end
+  from position
+$$;
+
 create or replace function public.shape_trader_tick()
 returns jsonb
 language plpgsql
@@ -154,14 +204,8 @@ begin
   end if;
 
   -- Start from the latest persisted window instead of rescanning from zero on every tick.
-  -- The old zero-based scan becomes O(total_windows) and slows into multi-second runtime.
-  v_current_window_index := greatest(0, v_latest_window_index);
-  while v_now_ms >= public.shape_trader_window_end_ms(v_current_window_index) loop
-    v_current_window_index := v_current_window_index + 1;
-    if v_current_window_index > 100000 then
-      raise exception 'shape_trader_tick window scan exceeded safety limit';
-    end if;
-  end loop;
+  -- Compute the active window directly so the engine does not stall at 100000+ windows.
+  v_current_window_index := greatest(0, public.shape_trader_current_window_index(v_now_ms));
 
   for v_window_index in greatest(0, v_latest_window_index) .. v_current_window_index loop
     v_is_dump := public.shape_trader_window_is_dump(v_window_index);

@@ -1,6 +1,6 @@
 -- Shape Traders draw retention
 --
--- Deletes persisted draw rows once they are older than 48 hours.
+-- Deletes persisted draw rows once they are older than 24 hours.
 -- Safe to run repeatedly; the cron job is recreated idempotently.
 
 create extension if not exists pg_cron;
@@ -15,7 +15,7 @@ declare
 begin
   with deleted as (
     delete from public.shape_trader_draws
-    where coalesce(drawn_at, created_at) < timezone('utc', now()) - interval '48 hours'
+    where persisted_at < timezone('utc', now()) - interval '24 hours'
     returning 1
   )
   select count(*) into deleted_count
@@ -27,21 +27,20 @@ $$;
 
 do $$
 declare
-  existing_job_id bigint;
+  existing_job record;
 begin
-  select jobid
-  into existing_job_id
-  from cron.job
-  where jobname = 'shape-trader-draw-retention-daily';
-
-  if existing_job_id is not null then
-    perform cron.unschedule(existing_job_id);
-  end if;
+  for existing_job in
+    select jobid
+    from cron.job
+    where jobname in ('shape-trader-draw-retention-daily', 'shape-trader-draw-retention-hourly')
+  loop
+    perform cron.unschedule(existing_job.jobid);
+  end loop;
 end;
 $$;
 
 select cron.schedule(
-  'shape-trader-draw-retention-daily',
-  '0 0 * * *',
+  'shape-trader-draw-retention-hourly',
+  '0 * * * *',
   $$select public.purge_old_shape_trader_draws();$$
 );

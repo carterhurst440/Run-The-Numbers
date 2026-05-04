@@ -152,9 +152,9 @@ These tables are helpful for fast reads and UI hydration, but the persisted draw
 
 ## Retention
 
-Old draw rows are purged by a daily cron-managed function in [supabase.shape_trader_draw_retention.sql](/Users/admin/Desktop/Run-The-Numbers/supabase.shape_trader_draw_retention.sql:1).
+Old draw rows are purged by an hourly cron-managed function in [supabase.shape_trader_draw_retention.sql](/Users/admin/Desktop/Run-The-Numbers/supabase.shape_trader_draw_retention.sql:1).
 
-That retention job currently deletes draw rows older than 48 hours.
+That retention job currently deletes draw rows older than 24 hours.
 
 This keeps the high-frequency draw table from growing forever while still preserving enough recent history for UI use.
 
