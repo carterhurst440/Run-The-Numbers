@@ -5804,7 +5804,11 @@ async function reconcileShapeTraderHoldingsFromPersistedEvents(sinceIso = shapeT
     const tags = Array.isArray(row?.bankruptcy_split) ? row.bankruptcy_split : [];
     for (const tag of tags) {
       const [assetId, eventType] = String(tag || "").split("_");
-      if (!assetId || !eventType || !shapeTradersHoldings[assetId]) {
+      if (
+        !assetId
+        || !eventType
+        || !SHAPE_TRADERS_ASSETS.some((asset) => asset.id === assetId)
+      ) {
         continue;
       }
       processedStructuralEvent = true;
@@ -8693,6 +8697,9 @@ async function synchronizeShapeTraders(now = Date.now()) {
 
     const hydration = await hydrateShapeTradersFromDrawTable(now);
     drawStateChanged = Boolean(hydration?.changed);
+    if (drawStateChanged) {
+      await maybeReconcileShapeTraderStructuralEvents(hydration?.latestDrawId);
+    }
     if (drawStateChanged) {
       const paintStartedAt = Date.now();
       renderShapeTradersDrawArrival(now);
