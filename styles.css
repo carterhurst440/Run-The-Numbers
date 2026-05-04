@@ -24063,11 +24063,20 @@ body[data-ui="new"] .home-game-card .hgc-name {
   letter-spacing: 0.08em;
 }
 
-body[data-ui="new"] .home-game-card .hgc-count {
-  color: #686850;
+body[data-ui="new"] .home-game-card .hgc-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  position: relative;
+  z-index: 1;
+}
+
+body[data-ui="new"] .home-game-card .hgc-cta {
   font-size: 9px;
-  letter-spacing: 0.12em;
-  margin-top: 4px;
+  color: var(--hgc-accent);
+  letter-spacing: 0.14em;
+  font-weight: 700;
+  opacity: 0.75;
 }
 
 body[data-ui="new"] .home-game-card-rtn .hgc-glyph,

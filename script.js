@@ -33187,7 +33187,6 @@ if (shapeTradersMarketGridEl) {
     void openShapeTraderChart(assetId);
   };
 
-  shapeTradersMarketGridEl.addEventListener("pointerdown", openChartFromMarketButton);
   shapeTradersMarketGridEl.addEventListener("click", openChartFromMarketButton);
 }
 
@@ -33945,10 +33944,6 @@ function renderHomeStatCards() {
   setEl("hsb-rank", `#${rankNum}`);
   setEl("hsb-rank-sub", rankName.toUpperCase());
 
-  // Game card counts
-  setEl("hgc-rtn-count", `${fmt(rtnHands)} hands played`);
-  setEl("hgc-g10-count", `${fmt(g10Hands)} hands played`);
-  setEl("hgc-st-count", `${fmt(stTrades)} trades made`);
 }
 
 function renderHomeSystemBlock() {
