@@ -54,8 +54,43 @@ alter table public.shape_trader_trades
 alter table public.shape_trader_trades
   add column if not exists trade_reason text not null default '';
 
+alter table public.shape_trader_trades
+  add column if not exists new_circle_holdings numeric(12,2) not null default 0;
+
+alter table public.shape_trader_trades
+  add column if not exists new_square_holdings numeric(12,2) not null default 0;
+
+alter table public.shape_trader_trades
+  add column if not exists new_triangle_holdings numeric(12,2) not null default 0;
+
 create index if not exists idx_shape_trader_trades_contest_id_executed_at
   on public.shape_trader_trades (contest_id, executed_at desc);
+
+create or replace function public.get_shape_trader_account_holdings_snapshot(
+  _user_id uuid,
+  _account_scope text
+)
+returns table (
+  circle_holdings numeric,
+  square_holdings numeric,
+  triangle_holdings numeric,
+  holdings_value numeric
+)
+language sql
+stable
+set search_path = public
+as $$
+  select
+    round(coalesce(sum(case when pos.shape = 'circle' then pos.quantity * market.current_price else 0 end), 0)::numeric, 2) as circle_holdings,
+    round(coalesce(sum(case when pos.shape = 'square' then pos.quantity * market.current_price else 0 end), 0)::numeric, 2) as square_holdings,
+    round(coalesce(sum(case when pos.shape = 'triangle' then pos.quantity * market.current_price else 0 end), 0)::numeric, 2) as triangle_holdings,
+    round(coalesce(sum(pos.quantity * market.current_price), 0)::numeric, 2) as holdings_value
+  from public.shape_trader_positions_current pos
+  join public.shape_trader_market_current market
+    on market.shape = pos.shape
+  where pos.user_id = _user_id
+    and pos.account_scope = _account_scope
+$$;
 
 create or replace function public.is_rtn_admin()
 returns boolean
@@ -129,6 +164,9 @@ declare
   v_cash_balance numeric := 0;
   v_carter_cash integer := 0;
   v_carter_cash_progress numeric := 0;
+  v_circle_holdings numeric := 0;
+  v_square_holdings numeric := 0;
+  v_triangle_holdings numeric := 0;
   v_holdings_value numeric := 0;
   v_account_value numeric := 0;
   v_latest_draw_id bigint := 0;
@@ -341,13 +379,17 @@ begin
         average_price = excluded.average_price,
         updated_at = excluded.updated_at;
 
-      select round(coalesce(sum(pos.quantity * market.current_price), 0)::numeric, 2)
-      into v_running_holdings_value
-      from public.shape_trader_positions_current pos
-      join public.shape_trader_market_current market
-        on market.shape = pos.shape
-      where pos.user_id = auth.uid()
-        and pos.account_scope = v_scope;
+      select
+        snapshot.circle_holdings,
+        snapshot.square_holdings,
+        snapshot.triangle_holdings,
+        snapshot.holdings_value
+      into
+        v_circle_holdings,
+        v_square_holdings,
+        v_triangle_holdings,
+        v_running_holdings_value
+      from public.get_shape_trader_account_holdings_snapshot(auth.uid(), v_scope) snapshot;
 
       v_trade_account_value := round(v_cash_balance + v_running_holdings_value, 2);
 
@@ -362,6 +404,9 @@ begin
         quantity,
         total_value,
         net_profit,
+        new_circle_holdings,
+        new_square_holdings,
+        new_triangle_holdings,
         new_account_value,
         trade_reason
       )
@@ -376,6 +421,9 @@ begin
         v_position.quantity,
         v_total_value,
         v_net_profit,
+        v_circle_holdings,
+        v_square_holdings,
+        v_triangle_holdings,
         v_trade_account_value,
         'Inactivity liquidation'
       );
@@ -405,13 +453,17 @@ begin
       and user_id = auth.uid();
   end if;
 
-  select round(coalesce(sum(pos.quantity * market.current_price), 0)::numeric, 2)
-  into v_holdings_value
-  from public.shape_trader_positions_current pos
-  join public.shape_trader_market_current market
-    on market.shape = pos.shape
-  where pos.user_id = auth.uid()
-    and pos.account_scope = v_scope;
+  select
+    snapshot.circle_holdings,
+    snapshot.square_holdings,
+    snapshot.triangle_holdings,
+    snapshot.holdings_value
+  into
+    v_circle_holdings,
+    v_square_holdings,
+    v_triangle_holdings,
+    v_holdings_value
+  from public.get_shape_trader_account_holdings_snapshot(auth.uid(), v_scope) snapshot;
 
   v_account_value := round(v_cash_balance + v_holdings_value, 2);
 
@@ -521,6 +573,9 @@ declare
   v_progress_gain integer := 0;
   v_total_progress integer := 0;
   v_earned integer := 0;
+  v_circle_holdings numeric := 0;
+  v_square_holdings numeric := 0;
+  v_triangle_holdings numeric := 0;
   v_holdings_value numeric := 0;
   v_account_value numeric := 0;
   v_trade_id uuid;
@@ -686,13 +741,17 @@ begin
     average_price = excluded.average_price,
     updated_at = excluded.updated_at;
 
-  select round(coalesce(sum(pos.quantity * market.current_price), 0)::numeric, 2)
-  into v_holdings_value
-  from public.shape_trader_positions_current pos
-  join public.shape_trader_market_current market
-    on market.shape = pos.shape
-  where pos.user_id = auth.uid()
-    and pos.account_scope = v_scope;
+  select
+    snapshot.circle_holdings,
+    snapshot.square_holdings,
+    snapshot.triangle_holdings,
+    snapshot.holdings_value
+  into
+    v_circle_holdings,
+    v_square_holdings,
+    v_triangle_holdings,
+    v_holdings_value
+  from public.get_shape_trader_account_holdings_snapshot(auth.uid(), v_scope) snapshot;
 
   v_account_value := round(v_cash_balance + v_holdings_value, 2);
 
@@ -738,6 +797,9 @@ begin
     quantity,
     total_value,
     net_profit,
+    new_circle_holdings,
+    new_square_holdings,
+    new_triangle_holdings,
     new_account_value,
     trade_reason
   )
@@ -752,6 +814,9 @@ begin
     v_quantity,
     v_total_value,
     v_net_profit,
+    v_circle_holdings,
+    v_square_holdings,
+    v_triangle_holdings,
     v_account_value,
     coalesce(_reason, '')
   )
@@ -814,6 +879,9 @@ declare
   v_cash_balance numeric := 0;
   v_carter_cash integer := 0;
   v_carter_cash_progress numeric := 0;
+  v_circle_holdings numeric := 0;
+  v_square_holdings numeric := 0;
+  v_triangle_holdings numeric := 0;
   v_holdings_value numeric := 0;
   v_account_value numeric := 0;
   v_previous_price numeric := 0;
@@ -912,13 +980,17 @@ begin
 
   get diagnostics v_claimed = row_count;
   if not v_claimed then
-    select round(coalesce(sum(pos.quantity * market.current_price), 0)::numeric, 2)
-    into v_holdings_value
-    from public.shape_trader_positions_current pos
-    join public.shape_trader_market_current market
-      on market.shape = pos.shape
-    where pos.user_id = auth.uid()
-      and pos.account_scope = v_scope;
+    select
+      snapshot.circle_holdings,
+      snapshot.square_holdings,
+      snapshot.triangle_holdings,
+      snapshot.holdings_value
+    into
+      v_circle_holdings,
+      v_square_holdings,
+      v_triangle_holdings,
+      v_holdings_value
+    from public.get_shape_trader_account_holdings_snapshot(auth.uid(), v_scope) snapshot;
 
     v_account_value := round(v_cash_balance + v_holdings_value, 2);
 
@@ -976,6 +1048,18 @@ begin
       average_price = excluded.average_price,
       updated_at = excluded.updated_at;
 
+    select
+      snapshot.circle_holdings,
+      snapshot.square_holdings,
+      snapshot.triangle_holdings,
+      snapshot.holdings_value
+    into
+      v_circle_holdings,
+      v_square_holdings,
+      v_triangle_holdings,
+      v_holdings_value
+    from public.get_shape_trader_account_holdings_snapshot(auth.uid(), v_scope) snapshot;
+
     if v_existing_quantity > 0 and v_previous_price > 0 and v_new_price > 0 then
       insert into public.shape_trader_trades (
         user_id,
@@ -988,6 +1072,9 @@ begin
         quantity,
         total_value,
         net_profit,
+        new_circle_holdings,
+        new_square_holdings,
+        new_triangle_holdings,
         new_account_value,
         trade_reason
       )
@@ -1003,6 +1090,9 @@ begin
         v_existing_quantity,
         round(v_existing_quantity * v_previous_price, 2),
         null,
+        v_circle_holdings,
+        v_square_holdings,
+        v_triangle_holdings,
         0,
         '10:1 asset split'
       ),
@@ -1017,6 +1107,9 @@ begin
         v_next_quantity,
         round(v_next_quantity * v_new_price, 2),
         null,
+        v_circle_holdings,
+        v_square_holdings,
+        v_triangle_holdings,
         0,
         '10:1 asset split'
       );
@@ -1052,6 +1145,18 @@ begin
       average_price = 0,
       updated_at = excluded.updated_at;
 
+    select
+      snapshot.circle_holdings,
+      snapshot.square_holdings,
+      snapshot.triangle_holdings,
+      snapshot.holdings_value
+    into
+      v_circle_holdings,
+      v_square_holdings,
+      v_triangle_holdings,
+      v_holdings_value
+    from public.get_shape_trader_account_holdings_snapshot(auth.uid(), v_scope) snapshot;
+
     if v_existing_quantity > 0 then
       insert into public.shape_trader_trades (
         user_id,
@@ -1064,6 +1169,9 @@ begin
         quantity,
         total_value,
         net_profit,
+        new_circle_holdings,
+        new_square_holdings,
+        new_triangle_holdings,
         new_account_value,
         trade_reason
       )
@@ -1078,19 +1186,26 @@ begin
         v_existing_quantity,
         0,
         round(-1 * v_existing_average * v_existing_quantity, 2),
+        v_circle_holdings,
+        v_square_holdings,
+        v_triangle_holdings,
         0,
         'Bankruptcy reset'
       );
     end if;
   end if;
 
-  select round(coalesce(sum(pos.quantity * market.current_price), 0)::numeric, 2)
-  into v_holdings_value
-  from public.shape_trader_positions_current pos
-  join public.shape_trader_market_current market
-    on market.shape = pos.shape
-  where pos.user_id = auth.uid()
-    and pos.account_scope = v_scope;
+  select
+    snapshot.circle_holdings,
+    snapshot.square_holdings,
+    snapshot.triangle_holdings,
+    snapshot.holdings_value
+  into
+    v_circle_holdings,
+    v_square_holdings,
+    v_triangle_holdings,
+    v_holdings_value
+  from public.get_shape_trader_account_holdings_snapshot(auth.uid(), v_scope) snapshot;
 
   v_account_value := round(v_cash_balance + v_holdings_value, 2);
 
@@ -1127,6 +1242,9 @@ begin
 
   update public.shape_trader_trades
   set new_account_value = v_account_value
+    , new_circle_holdings = v_circle_holdings
+    , new_square_holdings = v_square_holdings
+    , new_triangle_holdings = v_triangle_holdings
   where user_id = auth.uid()
     and contest_id is not distinct from _contest_id
     and shape = _shape

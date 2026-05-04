@@ -9,6 +9,9 @@ create table if not exists public.shape_trader_trades (
   quantity integer not null check (quantity > 0),
   total_value numeric(12,2) not null default 0,
   net_profit numeric(12,2),
+  new_circle_holdings numeric(12,2) not null default 0,
+  new_square_holdings numeric(12,2) not null default 0,
+  new_triangle_holdings numeric(12,2) not null default 0,
   new_account_value numeric(12,2) not null default 0,
   created_at timestamptz not null default timezone('utc', now())
 );

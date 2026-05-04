@@ -5963,6 +5963,7 @@ async function syncShapeTraderCurrentState({ heartbeatOnly = false, throwOnError
       }
       if (syncRow?.state_changed) {
         await loadShapeTraderPortfolioFromBackend();
+        void loadShapeTraderActivityPage({ offset: 0, append: false });
         renderShapeTraders();
       }
     }
@@ -6006,105 +6007,22 @@ async function refreshShapeTraderGlobalSnapshot() {
     if (!snapshotError) {
       const snapshotRow = Array.isArray(snapshotRows) ? snapshotRows[0] : snapshotRows;
       if (snapshotRow) {
-        const aggregateQuantityByAsset = {
-          square: Number(snapshotRow.square_quantity || 0),
-          triangle: Number(snapshotRow.triangle_quantity || 0),
-          circle: Number(snapshotRow.circle_quantity || 0)
+        const holdingsByAsset = {
+          square: roundCurrencyValue(Number(snapshotRow.square_holdings || 0)),
+          triangle: roundCurrencyValue(Number(snapshotRow.triangle_holdings || 0)),
+          circle: roundCurrencyValue(Number(snapshotRow.circle_holdings || 0))
         };
-        const marketCapByAsset = createEmptyShapeTraderMarketCap();
-        Object.entries(aggregateQuantityByAsset).forEach(([assetId, quantity]) => {
-          marketCapByAsset[assetId] = roundCurrencyValue(
-            Math.max(0, Number(quantity || 0)) * Number(shapeTradersCurrentPrices[assetId] || 0)
-          );
-        });
         shapeTradersGlobalSnapshot = {
           activeTraderCount: Math.max(0, Math.round(Number(snapshotRow.active_trader_count || 0))),
-          quantityByAsset: aggregateQuantityByAsset,
-          marketCapByAsset
+          holdingsByAsset
         };
         shapeTradersLastGlobalSyncAt = Date.now();
+        renderShapeTraderMarketCap();
         return;
       }
     } else if (!isMissingFunctionError(snapshotError, "get_shape_trader_market_activity_snapshot")) {
-      if (isPermissionDeniedError(snapshotError)) {
-        shapeTradersGlobalSnapshot = {
-          activeTraderCount: 0,
-          quantityByAsset: createEmptyShapeTraderMarketCap(),
-          marketCapByAsset: createEmptyShapeTraderMarketCap()
-        };
-        return;
-      }
       throw snapshotError;
     }
-
-    const { data: accountRows, error: accountsError } = await applyShapeTraderAccountScopeFilter(supabase
-      .from("shape_trader_accounts_current")
-      .select("*"), contestId);
-
-    if (accountsError) {
-      if (isMissingRelationError(accountsError, "shape_trader_accounts_current")) {
-        shapeTradersStatePersistenceAvailable = false;
-        return;
-      }
-      if (isPermissionDeniedError(accountsError)) {
-        shapeTradersGlobalSnapshot = {
-          activeTraderCount: 0,
-          quantityByAsset: createEmptyShapeTraderMarketCap(),
-          marketCapByAsset: createEmptyShapeTraderMarketCap()
-        };
-        return;
-      }
-      throw accountsError;
-    }
-
-    const { data: positionRows, error: positionsError } = await applyShapeTraderAccountScopeFilter(supabase
-      .from("shape_trader_positions_current")
-      .select("*"), contestId);
-
-    if (positionsError) {
-      if (isMissingRelationError(positionsError, "shape_trader_positions_current")) {
-        shapeTradersStatePersistenceAvailable = false;
-        return;
-      }
-      if (isPermissionDeniedError(positionsError)) {
-        shapeTradersGlobalSnapshot = {
-          activeTraderCount: 0,
-          quantityByAsset: createEmptyShapeTraderMarketCap(),
-          marketCapByAsset: createEmptyShapeTraderMarketCap()
-        };
-        return;
-      }
-      throw positionsError;
-    }
-
-    const cutoffTime = Date.now() - SHAPE_TRADERS_INACTIVITY_MS;
-    const activeTraderIds = new Set(
-      (Array.isArray(accountRows) ? accountRows : [])
-        .filter((row) => row?.last_active_at && new Date(row.last_active_at).getTime() >= cutoffTime)
-        .map((row) => row.user_id)
-    );
-
-    const marketCapByAsset = createEmptyShapeTraderMarketCap();
-    (Array.isArray(positionRows) ? positionRows : []).forEach((row) => {
-      if (!row?.shape || !activeTraderIds.has(row.user_id)) return;
-      const price = Number(shapeTradersCurrentPrices[row.shape] || 0);
-      const quantity = Math.max(0, Math.round(Number(row.quantity || 0)));
-      marketCapByAsset[row.shape] = roundCurrencyValue(
-        Number(marketCapByAsset[row.shape] || 0) + quantity * price
-      );
-    });
-
-    shapeTradersGlobalSnapshot = {
-      activeTraderCount: activeTraderIds.size,
-      quantityByAsset: SHAPE_TRADERS_ASSETS.reduce((accumulator, asset) => {
-        accumulator[asset.id] = (Array.isArray(positionRows) ? positionRows : [])
-          .filter((row) => row?.shape === asset.id && activeTraderIds.has(row.user_id))
-          .reduce((sum, row) => sum + Math.max(0, Math.round(Number(row.quantity || 0))), 0);
-        return accumulator;
-      }, {}),
-      marketCapByAsset
-    };
-    shapeTradersLastGlobalSyncAt = Date.now();
   } catch (error) {
     console.error("[RTN] Unable to refresh Shape Traders global snapshot", error);
   } finally {
@@ -7024,17 +6942,8 @@ function renderShapeTradersAssetSelector() {
 
 function renderShapeTraderMarketCap() {
   if (!shapeTradersMarketCapBarsEl) return;
-  const quantityByAsset = shapeTradersGlobalSnapshot?.quantityByAsset || null;
-  const marketCapByAsset = quantityByAsset
-    ? SHAPE_TRADERS_ASSETS.reduce((accumulator, asset) => {
-        accumulator[asset.id] = roundCurrencyValue(
-          Math.max(0, Number(quantityByAsset[asset.id] || 0)) *
-          Math.max(0, Number(shapeTradersCurrentPrices[asset.id] || 0))
-        );
-        return accumulator;
-      }, {})
-    : (shapeTradersGlobalSnapshot?.marketCapByAsset || createEmptyShapeTraderMarketCap());
-  const totalMarketValue = Object.values(marketCapByAsset).reduce(
+  const holdingsByAsset = shapeTradersGlobalSnapshot?.holdingsByAsset || createEmptyShapeTraderMarketCap();
+  const totalMarketValue = Object.values(holdingsByAsset).reduce(
     (sum, value) => sum + Number(value || 0),
     0
   );
@@ -7043,7 +6952,7 @@ function renderShapeTraderMarketCap() {
   }
   shapeTradersMarketCapBarsEl.innerHTML = "";
   SHAPE_TRADERS_ASSETS.forEach((asset) => {
-    const value = roundCurrencyValue(Number(marketCapByAsset[asset.id] || 0));
+    const value = roundCurrencyValue(Number(holdingsByAsset[asset.id] || 0));
     const ratio = totalMarketValue > 0 ? Math.max(6, Math.round((value / totalMarketValue) * 100)) : 6;
     const bar = document.createElement("div");
     bar.className = `shape-traders-market-cap-bar is-${asset.accent}`;
@@ -19261,8 +19170,7 @@ let shapeTradersDebugLastTimingKey = "";
 let shapeTradersDebugLastLateWarningDrawId = 0;
 let shapeTradersGlobalSnapshot = {
   activeTraderCount: 0,
-  quantityByAsset: createEmptyShapeTraderMarketCap(),
-  marketCapByAsset: createEmptyShapeTraderMarketCap()
+  holdingsByAsset: createEmptyShapeTraderMarketCap()
 };
 
 function isShapeTradersClientEnginePaused() {
