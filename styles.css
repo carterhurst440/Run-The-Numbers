@@ -24102,6 +24102,30 @@ body[data-ui="new"] .home-player-hero {
   padding-bottom: 16px;
 }
 
+/* Contest spotlight card — square corners to match terminal aesthetic */
+body[data-ui="new"] .home-contest-card {
+  border-radius: 0;
+  background: #171714;
+  border-color: #2e2e22;
+}
+
+/* Mobile sidebar — solid background so CRT tile animations don't bleed through */
+@media (max-width: 900px) {
+  body[data-ui="new"] .home-sidebar {
+    background: #0d0d0b;
+    border-top: 1px solid #2e2e22;
+    padding: 0 24px 32px;
+  }
+
+  body[data-ui="new"] .home-sidebar .home-sb-block {
+    background: #171714;
+    border: 1px solid #2e2e22;
+    border-radius: 0;
+    padding: 14px;
+    margin-bottom: 8px;
+  }
+}
+
 body[data-ui="new"] .home-stat-blocks {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

@@ -33957,7 +33957,7 @@ function renderHomeSidebarActivity() {
       label = `${escapeAssistantHtml(gameShort)} · <b>#${escapeAssistantHtml(String(handNum))}</b>`;
       const net = Number(entry.net ?? 0);
       resultClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
-      resultText = net > 0 ? "WIN" : net < 0 ? "LOSS" : "PUSH";
+      resultText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
     } else if (entry.entryType === "trade") {
       isTrade = true;
       const side = entry.side === "sell" ? "SELL" : "BUY";
