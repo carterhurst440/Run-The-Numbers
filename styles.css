@@ -24094,6 +24094,124 @@ body[data-ui="new"] .home-game-card-shape .hgc-name {
 }
 
 /* ============================================================
+   HOME STAT BLOCKS (new UI) — card containers aligned with game tiles
+   ============================================================ */
+
+body[data-ui="new"] .home-stat-blocks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-left: 24px;
+  margin-right: 24px;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+body[data-ui="new"] .home-stat-block {
+  background: #171714;
+  border: 1px solid #2e2e22;
+  border-radius: 0;
+  border-right: 1px solid #2e2e22;
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+body[data-ui="new"] .home-stat-block::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0,
+    transparent 3px,
+    rgba(var(--hsb-accent-rgb), 0.025) 3px,
+    rgba(var(--hsb-accent-rgb), 0.025) 4px
+  );
+}
+
+/* Per-game accent via CSS var */
+body[data-ui="new"] .home-stat-block-rtn  { --hsb-accent: #e8a020; --hsb-accent-rgb: 232,160,32; }
+body[data-ui="new"] .home-stat-block-g10  { --hsb-accent: #00e5ff; --hsb-accent-rgb: 0,229,255; }
+body[data-ui="new"] .home-stat-block-st   { --hsb-accent: #c8ff00; --hsb-accent-rgb: 200,255,0; }
+
+/* Remove old border treatments */
+body[data-ui="new"] .home-stat-block:last-child { border-right: 1px solid #2e2e22; }
+
+/* Label: "// RTN" style */
+body[data-ui="new"] .home-stat-block .hsb-label {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--hsb-accent);
+  text-transform: uppercase;
+  position: relative;
+  z-index: 1;
+}
+
+body[data-ui="new"] .home-stat-block .hsb-label::before {
+  content: "// ";
+  color: #686850;
+  font-weight: 400;
+}
+
+/* Value number */
+body[data-ui="new"] .home-stat-block .hsb-val {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 28px;
+  font-weight: 700;
+  color: #ddd5bc;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  margin-bottom: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Sub-label */
+body[data-ui="new"] .home-stat-block .hsb-sub {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 8px;
+  color: #686850;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  position: relative;
+  z-index: 1;
+}
+
+/* Chart button */
+body[data-ui="new"] .home-stat-block .hsb-chart-btn {
+  color: #686850;
+  position: relative;
+  z-index: 1;
+}
+
+body[data-ui="new"] .home-stat-block .hsb-chart-btn:hover {
+  color: var(--hsb-accent);
+}
+
+body[data-ui="new"] .home-stat-block .hsb-top-row {
+  margin-bottom: 6px;
+}
+
+/* Mobile: compact but still contained cards */
+@media (max-width: 600px) {
+  body[data-ui="new"] .home-stat-blocks {
+    margin-left: 24px;
+    margin-right: 24px;
+    gap: 6px;
+  }
+  body[data-ui="new"] .home-stat-block .hsb-val {
+    font-size: 20px;
+  }
+  body[data-ui="new"] .home-stat-block {
+    padding: 10px 10px 8px;
+  }
+}
+
+/* ============================================================
    SHAPE TRADERS — DECK & RECENT MODALS (new UI)
    ============================================================ */
 
