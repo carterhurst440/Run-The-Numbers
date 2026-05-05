@@ -24069,8 +24069,9 @@ body[data-ui="new"] .home-game-card .hgc-name {
 
 body[data-ui="new"] .home-game-card .hgc-bottom {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   position: relative;
   z-index: 1;
 }
@@ -24080,7 +24081,7 @@ body[data-ui="new"] .home-game-card .hgc-cta {
   color: var(--hgc-accent);
   letter-spacing: 0.14em;
   font-weight: 700;
-  opacity: 0.75;
+  opacity: 0.6;
 }
 
 body[data-ui="new"] .home-game-card-rtn .hgc-glyph,
