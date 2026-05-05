@@ -22295,7 +22295,11 @@ body[data-ui="new"] #shape-traders-view #shape-traders-sell-button {
   font-family: inherit;
   letter-spacing: 0.12em;
   font-weight: 700;
-  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  background: #1a1a14;
+  border: 1px solid #2e2e22;
+  color: #686850;
+  box-shadow: none;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, color 0.15s;
 }
 body[data-ui="new"] #shape-traders-view #shape-traders-buy-button:disabled,
 body[data-ui="new"] #shape-traders-view #shape-traders-sell-button:disabled { opacity: 0.3; }
