@@ -27,7 +27,7 @@ Deno.serve(async (request) => {
       moveDescription = `${assetLabel} just moved ${direction} ${pct}%.`;
     }
 
-    const prompt = `${moveDescription} Write one short, punchy, whimsical or absurd commentary line about this market move as if announcing it to traders on the floor. Be specific to the shape or shapes involved (Square, Triangle, Circle are the assets). One sentence only. No quotes around it.`;
+    const prompt = `${moveDescription} Write exactly one sentence of punchy, absurd trading floor commentary. Max 12 words. No quotes. No period at the end unless it's a complete sentence. Examples: "Triangle longs are not having a good afternoon" or "Someone at the Square desk is very popular right now".`;
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -38,8 +38,8 @@ Deno.serve(async (request) => {
       body: JSON.stringify({
         model: Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 80,
-        temperature: 1.1
+        max_tokens: 40,
+        temperature: 0.95
       })
     });
 
