@@ -24338,3 +24338,138 @@ body[data-ui="new"] #shape-traders-recent-modal .shape-traders-draw-card-face.is
   color: #686850;
   text-align: center;
 }
+
+/* ============================================================
+   SHAPE TRADERS — PRICE CHART MODAL (new UI)
+   ============================================================ */
+
+body[data-ui="new"] #shape-traders-chart-modal .modal-content {
+  background: #0d0d0b;
+  border: 1px solid #2e2e22;
+  border-radius: 2px;
+}
+
+body[data-ui="new"] #shape-traders-chart-modal .modal-header {
+  border-bottom: 1px solid #2e2e22;
+}
+
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-panel-kicker {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: #686850;
+  text-transform: uppercase;
+}
+
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-title-row h2 {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+body[data-ui="new"] #shape-traders-chart-modal #shape-traders-chart-title.is-cyan   { color: #00e5ff; }
+body[data-ui="new"] #shape-traders-chart-modal #shape-traders-chart-title.is-magenta { color: #ff4ad3; }
+body[data-ui="new"] #shape-traders-chart-modal #shape-traders-chart-title.is-gold   { color: #ff8000; }
+
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-title-row .shape-traders-shape-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+body[data-ui="new"] #shape-traders-chart-modal .modal-close {
+  color: #686850;
+  background: transparent;
+  border: 1px solid #2e2e22;
+  border-radius: 2px;
+}
+
+body[data-ui="new"] #shape-traders-chart-modal .modal-close:hover {
+  color: #ddd5bc;
+  border-color: #686850;
+}
+
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-subtitle {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: #686850;
+}
+
+/* Chart surface — flat dark with accent border */
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-surface {
+  border-radius: 2px;
+  border: 1px solid #2e2e22;
+  background: #0a0a08;
+}
+
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-surface.is-cyan {
+  border-color: rgba(0, 229, 255, 0.22);
+  background: #080d10;
+}
+
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-surface.is-magenta {
+  border-color: rgba(255, 74, 211, 0.22);
+  background: #0d080d;
+}
+
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-surface.is-gold {
+  border-color: rgba(255, 128, 0, 0.22);
+  background: #0e0a06;
+}
+
+/* SVG elements */
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-grid-line {
+  stroke: rgba(255, 255, 255, 0.05);
+}
+
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-axis-label,
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-point-label {
+  fill: #686850;
+  font-size: 13px;
+}
+
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-legend-label {
+  fill: #a8a870;
+  font-size: 11px;
+}
+
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-point-label.is-cyan   { fill: #00e5ff; }
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-point-label.is-magenta { fill: #ff4ad3; }
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-point-label.is-gold   { fill: #ff8000; }
+
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-line {
+  stroke-width: 2;
+}
+
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-line.is-cyan   { stroke: #00e5ff; }
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-line.is-magenta { stroke: #ff4ad3; }
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-line.is-gold   { stroke: #ff8000; }
+
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-point.is-cyan   { fill: #00e5ff; }
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-point.is-magenta { fill: #ff4ad3; }
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-point.is-gold   { fill: #ff8000; }
+
+/* Zoom buttons — terminal style */
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  min-width: 48px;
+  min-height: 36px;
+  padding: 0 16px;
+  background: #141412;
+  border: 1px solid #2e2e22;
+  border-radius: 2px;
+  color: #686850;
+  box-shadow: none;
+  transition: border-color 0.12s, color 0.12s;
+}
+
+body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:hover {
+  border-color: #a8a870;
+  color: #ddd5bc;
+  background: #1a1a16;
+}
