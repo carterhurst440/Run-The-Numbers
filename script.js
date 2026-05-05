@@ -7845,18 +7845,21 @@ function renderShapeTraderRecentDraws() {
     return;
   }
 
-  shapeTradersRecentListEl.innerHTML = displayRows.map((row, index) => {
-    const card = mapShapeTraderDrawRowToCard(row);
-    return `
-      <article class="shape-traders-recent-item">
-        <div class="shape-traders-recent-info">
-          <span class="shape-traders-recent-index">${index === 0 ? "Latest" : `-${index}`}</span>
-          <span class="shape-traders-recent-draw">Draw ${row.draw_id}</span>
-        </div>
-        <div class="shape-traders-recent-card">${buildShapeTraderDeckCardMarkup(card, { muted: false })}</div>
-      </article>
-    `;
-  }).join("");
+  shapeTradersRecentListEl.innerHTML = `
+    <div class="strecent-grid">
+      ${displayRows.map((row, index) => {
+        const card = mapShapeTraderDrawRowToCard(row);
+        const posLabel = index === 0 ? "LATEST" : `\u2212${index}`;
+        return `
+          <div class="strecent-card-item">
+            ${buildShapeTraderDeckCardMarkup(card, { muted: false })}
+            <div class="strecent-card-label">${posLabel}</div>
+            <div class="strecent-card-draw">#${row.draw_id}</div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
 }
 
 function openShapeTraderRecentDraws() {
@@ -7882,45 +7885,37 @@ function closeShapeTraderRecentDraws() {
 function renderShapeTraderDeckList() {
   if (!shapeTradersDeckListEl) return;
   const deck = buildShapeTraderDeck();
-  const assetCards = deck.filter((card) => card.kind === "asset");
-  const macroCards = deck.filter((card) => card.kind === "macro");
 
-  shapeTradersDeckListEl.innerHTML = `
-    <section class="shape-traders-deck-summary">
-      <span>Total: ${deck.length}</span>
-    </section>
-    <section class="shape-traders-deck-group">
-      <h3>Asset Cards (${assetCards.length})</h3>
-      <div class="shape-traders-deck-paired-groups">
-        ${SHAPE_TRADERS_ASSETS.map((asset) => `
-          <section class="shape-traders-deck-paired-group">
-            <h4>${asset.label}</h4>
-            <div class="shape-traders-deck-pair-head">
-              <span>Positive</span>
-              <span>Negative</span>
-            </div>
-            <div class="shape-traders-deck-pair-list">
-              ${renderShapeTraderDeckPairRows(assetCards, SHAPE_TRADER_ASSET_DECK_PAIRS, { assetId: asset.id, kind: "asset" })}
-            </div>
-          </section>
-        `).join("")}
-      </div>
-    </section>
-    <section class="shape-traders-deck-group">
-      <h3>Macro Cards (${macroCards.length})</h3>
-      <div class="shape-traders-deck-paired-groups">
-        <section class="shape-traders-deck-paired-group">
-          <div class="shape-traders-deck-pair-head">
-            <span>Positive</span>
-            <span>Negative</span>
-          </div>
-          <div class="shape-traders-deck-pair-list">
-            ${renderShapeTraderDeckPairRows(macroCards, SHAPE_TRADER_MACRO_DECK_PAIRS, { kind: "macro" })}
-          </div>
-        </section>
-      </div>
-    </section>
-  `;
+  const renderDeckSection = (title, cards, accentClass = "") => {
+    const positives = cards.filter((c) => c.percentage > 0).sort((a, b) => a.percentage - b.percentage);
+    const negatives = cards.filter((c) => c.percentage <= 0).sort((a, b) => b.percentage - a.percentage);
+    return `
+      <section class="stdeck-section">
+        <div class="stdeck-section-hdr${accentClass ? ` is-${accentClass}` : ""}">
+          <span class="stdeck-section-title">${title}</span>
+          <span class="stdeck-section-count">${cards.length} cards</span>
+        </div>
+        <div class="stdeck-row">
+          ${positives.map((c) => `<div class="stdeck-card-wrap">${buildShapeTraderDeckCardMarkup(c)}</div>`).join("")}
+        </div>
+        <div class="stdeck-row">
+          ${negatives.map((c) => `<div class="stdeck-card-wrap">${buildShapeTraderDeckCardMarkup(c)}</div>`).join("")}
+        </div>
+      </section>
+    `;
+  };
+
+  shapeTradersDeckListEl.innerHTML = [
+    `<div class="stdeck-summary">// ${deck.length} CARDS IN DECK</div>`,
+    ...SHAPE_TRADERS_ASSETS.map((asset) =>
+      renderDeckSection(
+        asset.label.toUpperCase(),
+        deck.filter((c) => c.kind === "asset" && c.assetId === asset.id),
+        asset.accent
+      )
+    ),
+    renderDeckSection("MACRO", deck.filter((c) => c.kind === "macro")),
+  ].join("");
 }
 
 function openShapeTraderDeck() {

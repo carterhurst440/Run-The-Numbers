@@ -24087,3 +24087,254 @@ body[data-ui="new"] .home-game-card-g10 .hgc-name,
 body[data-ui="new"] .home-game-card-shape .hgc-name {
   color: var(--hgc-accent);
 }
+
+/* ============================================================
+   SHAPE TRADERS — DECK & RECENT MODALS (new UI)
+   ============================================================ */
+
+body[data-ui="new"] #shape-traders-deck-modal .modal-content,
+body[data-ui="new"] #shape-traders-recent-modal .modal-content {
+  background: #0d0d0b;
+  border: 1px solid #2e2e22;
+  border-radius: 2px;
+}
+
+body[data-ui="new"] #shape-traders-deck-modal .modal-header,
+body[data-ui="new"] #shape-traders-recent-modal .modal-header {
+  border-bottom: 1px solid #2e2e22;
+}
+
+body[data-ui="new"] #shape-traders-deck-modal .modal-header h2,
+body[data-ui="new"] #shape-traders-recent-modal .modal-header h2 {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #ddd5bc;
+  text-transform: uppercase;
+}
+
+body[data-ui="new"] #shape-traders-deck-modal .shape-traders-panel-kicker,
+body[data-ui="new"] #shape-traders-recent-modal .shape-traders-panel-kicker {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: #686850;
+  text-transform: uppercase;
+}
+
+body[data-ui="new"] #shape-traders-deck-modal .modal-close,
+body[data-ui="new"] #shape-traders-recent-modal .modal-close {
+  color: #686850;
+  background: transparent;
+  border: 1px solid #2e2e22;
+  border-radius: 2px;
+}
+
+body[data-ui="new"] #shape-traders-deck-modal .modal-close:hover,
+body[data-ui="new"] #shape-traders-recent-modal .modal-close:hover {
+  color: #ddd5bc;
+  border-color: #686850;
+}
+
+body[data-ui="new"] #shape-traders-deck-modal .shape-traders-chart-subtitle,
+body[data-ui="new"] #shape-traders-recent-modal .shape-traders-chart-subtitle {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: #686850;
+}
+
+/* Card face — new terminal style for both modals */
+body[data-ui="new"] #shape-traders-deck-modal .shape-traders-draw-card-face,
+body[data-ui="new"] #shape-traders-recent-modal .shape-traders-draw-card-face {
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+body[data-ui="new"] #shape-traders-deck-modal .shape-traders-draw-card-face.is-positive,
+body[data-ui="new"] #shape-traders-recent-modal .shape-traders-draw-card-face.is-positive {
+  background: #1a2800;
+  border: 1px solid rgba(200, 255, 0, 0.35);
+  color: #c8ff00;
+}
+
+body[data-ui="new"] #shape-traders-deck-modal .shape-traders-draw-card-face.is-negative,
+body[data-ui="new"] #shape-traders-recent-modal .shape-traders-draw-card-face.is-negative {
+  background: #1e0008;
+  border: 1px solid rgba(255, 45, 120, 0.35);
+  color: #ff2d78;
+}
+
+body[data-ui="new"] #shape-traders-deck-modal .shape-traders-draw-card-face.is-neutral,
+body[data-ui="new"] #shape-traders-deck-modal .shape-traders-draw-card-face.is-muted,
+body[data-ui="new"] #shape-traders-recent-modal .shape-traders-draw-card-face.is-neutral,
+body[data-ui="new"] #shape-traders-recent-modal .shape-traders-draw-card-face.is-muted {
+  background: #141412;
+  border: 1px solid #2a2a22;
+  color: #686850;
+}
+
+/* ---- Deck modal layout ---- */
+.stdeck-summary {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: #686850;
+  padding-bottom: 16px;
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+}
+
+.stdeck-section {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.stdeck-section-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #2e2e22;
+}
+
+.stdeck-section-title {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #686850;
+  text-transform: uppercase;
+}
+
+.stdeck-section-hdr.is-cyan .stdeck-section-title  { color: #00e5ff; }
+.stdeck-section-hdr.is-magenta .stdeck-section-title { color: #ff4ad3; }
+.stdeck-section-hdr.is-gold .stdeck-section-title  { color: #ff8000; }
+
+.stdeck-section-count {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 9px;
+  color: #686850;
+  letter-spacing: 0.1em;
+}
+
+.stdeck-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.stdeck-card-wrap .shape-traders-draw-card-face {
+  width: 62px;
+  min-height: 86px;
+  padding: 7px 5px;
+  border-radius: 2px;
+}
+
+.stdeck-card-wrap .shape-traders-draw-card-center {
+  gap: 5px;
+}
+
+.stdeck-card-wrap .shape-traders-draw-card-value {
+  font-size: 0.72rem;
+}
+
+.stdeck-card-wrap .shape-traders-draw-card-title {
+  font-size: 0.52rem;
+  max-width: 3.6rem;
+  letter-spacing: 0.03em;
+}
+
+.stdeck-card-wrap .shape-traders-card-symbol-group {
+  gap: 3px;
+  min-height: 1.4rem;
+}
+
+.stdeck-card-wrap .shape-traders-card-symbol-group.is-macro {
+  gap: 2px;
+}
+
+.stdeck-card-wrap .shape-traders-shape-icon.shape-square,
+.stdeck-card-wrap .shape-traders-shape-icon.shape-circle {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-width: 1.8px;
+}
+
+.stdeck-card-wrap .shape-traders-shape-icon.shape-triangle {
+  width: 0.9rem;
+  height: 0.8rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 30'%3E%3Cpath d='M17 3 L31 27 H3 Z' fill='none' stroke='%23ff4ad3' stroke-width='3.6' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* ---- Recent modal layout ---- */
+.strecent-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.strecent-card-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.strecent-card-item .shape-traders-draw-card-face {
+  width: 70px;
+  min-height: 98px;
+  padding: 9px 7px;
+  border-radius: 2px;
+}
+
+.strecent-card-item .shape-traders-draw-card-center {
+  gap: 6px;
+}
+
+.strecent-card-item .shape-traders-draw-card-value {
+  font-size: 0.8rem;
+}
+
+.strecent-card-item .shape-traders-draw-card-title {
+  font-size: 0.56rem;
+  max-width: 4rem;
+}
+
+.strecent-card-item .shape-traders-card-symbol-group {
+  gap: 4px;
+  min-height: 1.6rem;
+}
+
+.strecent-card-item .shape-traders-card-symbol-group.is-macro {
+  gap: 2px;
+}
+
+.strecent-card-item .shape-traders-shape-icon.shape-square,
+.strecent-card-item .shape-traders-shape-icon.shape-circle {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-width: 2px;
+}
+
+.strecent-card-item .shape-traders-shape-icon.shape-triangle {
+  width: 1rem;
+  height: 0.88rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 30'%3E%3Cpath d='M17 3 L31 27 H3 Z' fill='none' stroke='%23ff4ad3' stroke-width='3.6' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.strecent-card-label {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #ddd5bc;
+  text-align: center;
+}
+
+.strecent-card-draw {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 7px;
+  letter-spacing: 0.1em;
+  color: #686850;
+  text-align: center;
+}
