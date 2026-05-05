@@ -24097,6 +24097,11 @@ body[data-ui="new"] .home-game-card-shape .hgc-name {
    HOME STAT BLOCKS (new UI) — card containers aligned with game tiles
    ============================================================ */
 
+body[data-ui="new"] .home-player-hero {
+  border-bottom: none;
+  padding-bottom: 16px;
+}
+
 body[data-ui="new"] .home-stat-blocks {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
