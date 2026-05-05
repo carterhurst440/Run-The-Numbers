@@ -27679,6 +27679,13 @@ async function dealHandServer() {
     return;
   }
 
+  // Count bets (e.g. 8+ Cards) use Infinity in metadata which becomes null when
+  // JSON-serialized to the server RPC, causing incorrect payout evaluation server-side.
+  // Fall back to the legacy client path which settles count bets locally and correctly.
+  if (bets.some((b) => b.type === "count")) {
+    return dealHandLegacy();
+  }
+
   currentOpeningLayout = snapshotLayout(bets);
   dealing = true;
   awaitingManualDeal = false;
