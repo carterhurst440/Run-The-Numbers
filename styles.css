@@ -15321,9 +15321,15 @@ body.modal-open {
 }
 
 .review-hand-card:not(.review-hand-drawn-card):not(.review-hand-card-empty) {
-  grid-template-columns: minmax(8rem, 1.35fr) repeat(3, minmax(4.6rem, 0.52fr)) minmax(4.2rem, auto);
+  grid-template-columns: minmax(8rem, 1.35fr) repeat(3, minmax(4.6rem, 0.52fr));
   align-items: center;
   column-gap: 0.55rem;
+}
+
+.review-hand-card-sum {
+  border-color: color-mix(in srgb, var(--drawer-border) 90%, transparent);
+  background: color-mix(in srgb, var(--menu-bg) 85%, black 15%);
+  border-top-width: 2px;
 }
 
 .review-hand-card-empty {
@@ -15386,8 +15392,7 @@ body.modal-open {
 }
 
 .review-hand-card:not(.review-hand-drawn-card):not(.review-hand-card-empty) .review-hand-card-pill {
-  order: 5;
-  justify-self: end;
+  display: none;
 }
 
 .review-hand-field-grid {

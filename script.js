@@ -25861,29 +25861,48 @@ function renderClassicHandReviewCards(entry) {
     `;
   }
 
-  return `${drawnCardsCard}${bets
-    .map((bet) => {
-      const wager = Math.max(0, Math.round(Number(bet.units || 0)));
-      const totalReturn = Math.max(0, Math.round(Number(bet.paid || 0)));
-      const net = totalReturn - wager;
-      const toneClass =
-        net > 0 ? "review-hand-positive" : net < 0 ? "review-hand-negative" : "review-hand-neutral";
+  let sumWager = 0;
+  let sumReturn = 0;
+  const betRows = bets.map((bet) => {
+    const wager = Math.max(0, Math.round(Number(bet.units || 0)));
+    const totalReturn = Math.max(0, Math.round(Number(bet.paid || 0)));
+    const net = totalReturn - wager;
+    const toneClass =
+      net > 0 ? "review-hand-positive" : net < 0 ? "review-hand-negative" : "review-hand-neutral";
+    sumWager += wager;
+    sumReturn += totalReturn;
 
-      return `
-        <article class="review-hand-card">
-          <div class="review-hand-card-topline">
-            <span class="review-hand-card-title">${escapeAssistantHtml(bet.label || bet.key || "Bet")}</span>
-            <span class="review-hand-card-pill ${toneClass}">${escapeAssistantHtml(formatSignedCurrency(net))}</span>
-          </div>
-          <div class="review-hand-field-grid review-hand-field-grid-compact">
-            ${buildHandReviewField("Wager", formatCurrency(wager))}
-            ${buildHandReviewField("Return", formatCurrency(totalReturn))}
-            ${buildHandReviewField("Net", formatSignedCurrency(net), { toneClass })}
-          </div>
-        </article>
-      `;
-    })
-    .join("")}`;
+    return `
+      <article class="review-hand-card">
+        <div class="review-hand-card-topline">
+          <span class="review-hand-card-title">${escapeAssistantHtml(bet.label || bet.key || "Bet")}</span>
+        </div>
+        <div class="review-hand-field-grid review-hand-field-grid-compact">
+          ${buildHandReviewField("Wager", formatCurrency(wager))}
+          ${buildHandReviewField("Return", formatCurrency(totalReturn))}
+          ${buildHandReviewField("Net", formatSignedCurrency(net), { toneClass })}
+        </div>
+      </article>
+    `;
+  });
+
+  const sumNet = sumReturn - sumWager;
+  const sumToneClass =
+    sumNet > 0 ? "review-hand-positive" : sumNet < 0 ? "review-hand-negative" : "review-hand-neutral";
+  const sumRow = `
+    <article class="review-hand-card review-hand-card-sum">
+      <div class="review-hand-card-topline">
+        <span class="review-hand-card-title review-hand-card-kicker">TOTAL</span>
+      </div>
+      <div class="review-hand-field-grid review-hand-field-grid-compact">
+        ${buildHandReviewField("Wager", formatCurrency(sumWager))}
+        ${buildHandReviewField("Return", formatCurrency(sumReturn))}
+        ${buildHandReviewField("Net", formatSignedCurrency(sumNet), { toneClass: sumToneClass })}
+      </div>
+    </article>
+  `;
+
+  return `${drawnCardsCard}${betRows.join("")}${sumRow}`;
 }
 
 function formatActivityLogTimestamp(value) {
@@ -26900,17 +26919,25 @@ async function fetchHandReviewEntry(reviewId) {
   }
 
   const betRows = await fetchRunTheNumbersBetPlayRecordsByHandIds({ handIds: [reviewId] });
+  // Aggregate rows with the same bet_key (each chip can be a separate DB record)
+  const betMap = new Map();
+  for (const row of betRows) {
+    const key = row?.bet_key || "";
+    const raw = row?.raw && typeof row.raw === "object" ? row.raw : {};
+    const label = raw?.label || key || "Bet";
+    const wagered = roundCurrencyValue(Number(row?.amount_wagered || 0));
+    const paid = roundCurrencyValue(Number(row?.amount_paid || 0));
+    if (betMap.has(key)) {
+      const existing = betMap.get(key);
+      existing.units = roundCurrencyValue(existing.units + wagered);
+      existing.paid = roundCurrencyValue(existing.paid + paid);
+    } else {
+      betMap.set(key, { key, label, units: wagered, paid });
+    }
+  }
   return {
     ...baseEntry,
-    bets: betRows.map((row) => {
-      const raw = row?.raw && typeof row.raw === "object" ? row.raw : {};
-      return {
-        key: row?.bet_key || "",
-        label: raw?.label || row?.bet_key || "Bet",
-        units: roundCurrencyValue(Number(row?.amount_wagered || 0)),
-        paid: roundCurrencyValue(Number(row?.amount_paid || 0))
-      };
-    })
+    bets: [...betMap.values()]
   };
 }
 
