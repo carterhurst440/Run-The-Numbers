@@ -154,9 +154,7 @@ function isGameLockedForPlayer(gameKey) {
   const record = getGameAssetRecord(gameKey);
   const unlockTier = record?.unlock_tier;
   if (!unlockTier) return false;
-  const profileTier = Number(currentProfile?.current_rank_tier ?? 1);
-  const computedTier = Number(currentRankState?.currentRank?.tier ?? 1);
-  const playerTier = Math.max(profileTier, computedTier);
+  const playerTier = Number(currentProfile?.current_rank_tier ?? 1);
   if (playerTier >= unlockTier) return false;
   const activeContest = getModeContest();
   if (activeContest && contestAllowsGame(activeContest, gameKey)) return false;
