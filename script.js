@@ -154,7 +154,9 @@ function isGameLockedForPlayer(gameKey) {
   const record = getGameAssetRecord(gameKey);
   const unlockTier = record?.unlock_tier;
   if (!unlockTier) return false;
-  const playerTier = Number(currentProfile?.current_rank_tier ?? 1);
+  const profileTier = Number(currentProfile?.current_rank_tier ?? 1);
+  const computedTier = Number(currentRankState?.currentRank?.tier ?? 1);
+  const playerTier = Math.max(profileTier, computedTier);
   if (playerTier >= unlockTier) return false;
   const activeContest = getModeContest();
   if (activeContest && contestAllowsGame(activeContest, gameKey)) return false;
@@ -17490,15 +17492,30 @@ function replaceRtnBetsFromServerState(betState = [], { animateStacks = false, f
   syncDisplayedBetStacksFromState({ animate: animateStacks });
 }
 
+// Sanitize metadata values that cannot survive JSON serialization (e.g. Infinity → null).
+// The server-side SQL checks for the string "Infinity" when evaluating count bets, so we
+// replace JS Infinity with that sentinel string before sending over the wire.
+function sanitizeMetadataForServer(metadata) {
+  if (!metadata || typeof metadata !== "object") return {};
+  const result = {};
+  for (const [k, v] of Object.entries(metadata)) {
+    if (v === Infinity) result[k] = "Infinity";
+    else if (v === -Infinity) result[k] = "-Infinity";
+    else result[k] = v;
+  }
+  return result;
+}
+
 function serializeRtnBetPlacements(sourceBets = []) {
   const safeBets = Array.isArray(sourceBets) ? sourceBets : [];
   return safeBets.flatMap((bet) => {
     const definition = getBetDefinition(bet?.key);
     const label = String(bet?.label || definition?.label || bet?.key || "Bet");
     const type = String(bet?.type || definition?.type || "");
-    const metadata = bet?.metadata && typeof bet.metadata === "object"
+    const rawMetadata = bet?.metadata && typeof bet.metadata === "object"
       ? bet.metadata
       : definition?.metadata || {};
+    const metadata = sanitizeMetadataForServer(rawMetadata);
     const chips = Array.isArray(bet?.chips) && bet.chips.length
       ? bet.chips
       : [roundCurrencyValue(Number(bet?.units || 0))];
@@ -27677,13 +27694,6 @@ async function dealHandServer() {
     statusEl.textContent = `This contest bankroll can only be used for ${getContestGamesLabel(contest)}.`;
     showToast(`This contest bankroll can only be used for ${getContestGamesLabel(contest)}.`, "error");
     return;
-  }
-
-  // Count bets (e.g. 8+ Cards) use Infinity in metadata which becomes null when
-  // JSON-serialized to the server RPC, causing incorrect payout evaluation server-side.
-  // Fall back to the legacy client path which settles count bets locally and correctly.
-  if (bets.some((b) => b.type === "count")) {
-    return dealHandLegacy();
   }
 
   currentOpeningLayout = snapshotLayout(bets);

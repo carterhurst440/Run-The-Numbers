@@ -12,6 +12,9 @@ DECLARE
   affected_users TEXT[];
   update_count INTEGER;
 BEGIN
+  -- Allow this security-definer function to bypass the guard_profile_sensitive_fields trigger.
+  PERFORM set_config('rtn.allow_sensitive_balance_write', '1', true);
+
   -- Only update Normal Mode balances in public.profiles.
   -- Contest Mode balances are stored separately in public.contest_entries.
   WITH targets AS (
