@@ -34247,29 +34247,38 @@ window.addEventListener("resize", () => {
 })();
 
 // ── Game tile animations (RTN / Guess 10 / Shape Traders) ────────────────────
-// Vanilla JS ports of the React animation-icons handoff.
-// Each init function populates a .hgc-anim[data-anim="..."] container and
-// returns a cleanup function.
+// Compact inline animations that sit to the right of the glyph in hgc-top.
+// Colors match each card's accent. Each init function returns a cleanup fn.
 (function () {
   const NS = "http://www.w3.org/2000/svg";
 
-  // ── Run The Numbers — boxes fill left→right; J/Q/K halts and resets ──
-  function initHgcAnimRtn(el) {
-    const N = 6;
-    const FACES = ["J", "Q", "K"];
-    const NORMAL = ["0","1","2","3","4","5","6","7","8","9","A"];
-    const AMBER = "#e8c98a", RED = "#e35a4a", DIM = "rgba(232,201,138,0.22)";
+  // Resolve accent color from the parent card class
+  function accentOf(el) {
+    const card = el.closest(".home-game-card");
+    if (!card) return "#c8ff00";
+    if (card.classList.contains("home-game-card-rtn"))   return "#e8a020";
+    if (card.classList.contains("home-game-card-g10"))   return "#00e5ff";
+    if (card.classList.contains("home-game-card-shape")) return "#c8ff00";
+    return "#c8ff00";
+  }
 
-    el.style.cssText = "display:flex;gap:4px;align-items:center;justify-content:center";
+  // ── RTN — 5 small boxes fill left→right, J/Q/K halts in red then resets ──
+  function initHgcAnimRtn(el) {
+    const N = 5;
+    const FACES = ["J","Q","K"];
+    const NORMAL = ["0","1","2","3","4","5","6","7","8","9","A"];
+    const ACCENT = accentOf(el);
+    const RED = "#e35a4a";
+    const DIM = `${ACCENT}30`;
 
     const cells = Array.from({ length: N }, () => {
       const d = document.createElement("div");
       d.style.cssText = [
-        "width:20px;height:26px",
-        `border:1.5px solid ${DIM}`,
+        "width:13px;height:18px",
+        `border:1px solid ${DIM}`,
         "color:transparent",
         "display:flex;align-items:center;justify-content:center",
-        "font-family:'JetBrains Mono',monospace;font-weight:800;font-size:15px;line-height:1",
+        "font-family:'JetBrains Mono',monospace;font-weight:800;font-size:10px;line-height:1",
         "flex-shrink:0;overflow:hidden",
         "transition:border-color 0.12s,color 0.12s"
       ].join(";");
@@ -34285,86 +34294,67 @@ window.addEventListener("resize", () => {
         c.style.color = "transparent";
         c.textContent = "";
       });
-      pos = 0;
-      halted = false;
+      pos = 0; halted = false;
     };
 
     const id = setInterval(() => {
       if (halted) return;
       if (pos >= N) { reset(); return; }
       const isFace = Math.random() < 0.18;
-      if (isFace) {
-        const f = FACES[Math.floor(Math.random() * FACES.length)];
-        cells[pos].style.borderColor = RED;
-        cells[pos].style.color = RED;
-        // flap animation via a child span
-        const span = document.createElement("span");
-        span.textContent = f;
-        span.style.cssText = "display:block;animation:logo-flap 0.28s ease-out";
-        cells[pos].textContent = "";
-        cells[pos].appendChild(span);
-        halted = true;
-        haltTimer = setTimeout(reset, 900);
-      } else {
-        const v = NORMAL[Math.floor(Math.random() * NORMAL.length)];
-        cells[pos].style.borderColor = AMBER;
-        cells[pos].style.color = AMBER;
-        const span = document.createElement("span");
-        span.textContent = v;
-        span.style.cssText = "display:block;animation:logo-flap 0.28s ease-out";
-        cells[pos].textContent = "";
-        cells[pos].appendChild(span);
-        pos++;
-      }
+      const color = isFace ? RED : ACCENT;
+      const v = isFace
+        ? FACES[Math.floor(Math.random() * FACES.length)]
+        : NORMAL[Math.floor(Math.random() * NORMAL.length)];
+      cells[pos].style.borderColor = color;
+      cells[pos].style.color = color;
+      const span = document.createElement("span");
+      span.textContent = v;
+      span.style.cssText = "display:block;animation:logo-flap 0.28s ease-out";
+      cells[pos].textContent = "";
+      cells[pos].appendChild(span);
+      if (isFace) { halted = true; haltTimer = setTimeout(reset, 900); }
+      else pos++;
     }, 380);
 
     return () => { clearInterval(id); clearTimeout(haltTimer); };
   }
 
-  // ── Guess 10 — dot streak with connecting line; bust flashes red ──
+  // ── G10 — 10 small dots with progress line, bust flashes then resets ──
   function initHgcAnimG10(el) {
     const N = 10;
-    const CYAN = "#22d3ee", RED = "#e35a4a";
-    const W = 160, H = 22, margin = 10;
+    const ACCENT = accentOf(el);
+    const RED = "#e35a4a";
+    const DIM = `${ACCENT}28`;
+    const W = 96, H = 14, margin = 5;
     const step = (W - margin * 2) / (N - 1);
-    const cx = i => margin + i * step;
+    const dotCx = i => margin + i * step;
     const cy = H / 2;
-
-    el.style.cssText = "display:flex;align-items:center;justify-content:center";
 
     const svg = document.createElementNS(NS, "svg");
     svg.setAttribute("width", W);
     svg.setAttribute("height", H);
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-    svg.style.overflow = "visible";
-    svg.style.display = "block";
+    svg.style.cssText = "overflow:visible;display:block;flex-shrink:0";
 
-    // base track
     const track = document.createElementNS(NS, "line");
     track.setAttribute("x1", margin); track.setAttribute("y1", cy);
     track.setAttribute("x2", W - margin); track.setAttribute("y2", cy);
-    track.setAttribute("stroke", "rgba(34,211,238,0.16)");
-    track.setAttribute("stroke-width", "1.5");
+    track.setAttribute("stroke", DIM); track.setAttribute("stroke-width", "1");
     svg.appendChild(track);
 
-    // progress line
     const progLine = document.createElementNS(NS, "line");
     progLine.setAttribute("x1", margin); progLine.setAttribute("y1", cy);
     progLine.setAttribute("x2", margin); progLine.setAttribute("y2", cy);
-    progLine.setAttribute("stroke-width", "2");
-    progLine.setAttribute("stroke", CYAN);
-    progLine.style.opacity = "0";
-    progLine.style.transition = "x2 0.18s ease-out";
+    progLine.setAttribute("stroke-width", "1.5");
+    progLine.setAttribute("stroke", ACCENT);
+    progLine.style.cssText = "opacity:0;transition:x2 0.18s ease-out";
     svg.appendChild(progLine);
 
-    // dots
     const dots = Array.from({ length: N }, (_, i) => {
       const c = document.createElementNS(NS, "circle");
-      c.setAttribute("cx", cx(i));
-      c.setAttribute("cy", cy);
-      c.setAttribute("r", "3.5");
-      c.setAttribute("fill", "rgba(34,211,238,0.18)");
-      c.style.transition = "r 0.18s, fill 0.18s";
+      c.setAttribute("cx", dotCx(i)); c.setAttribute("cy", cy);
+      c.setAttribute("r", "2"); c.setAttribute("fill", DIM);
+      c.style.transition = "r 0.15s,fill 0.15s";
       svg.appendChild(c);
       return c;
     });
@@ -34374,23 +34364,21 @@ window.addEventListener("resize", () => {
     let streak = 0, busted = false, burstTimer = null;
 
     const redraw = () => {
-      progLine.setAttribute("stroke", busted ? RED : CYAN);
-      progLine.setAttribute("x2", streak > 0 ? cx(Math.max(streak - 1, 0)) : margin);
+      const stroke = busted ? RED : ACCENT;
+      progLine.setAttribute("stroke", stroke);
+      progLine.setAttribute("x2", streak > 0 ? dotCx(Math.max(streak - 1, 0)) : margin);
       progLine.style.opacity = streak > 1 ? "1" : "0";
       dots.forEach((d, i) => {
         const lit = i < streak;
-        d.setAttribute("r", lit ? "5" : "3.5");
-        d.setAttribute("fill",
-          (busted && lit) ? RED : lit ? CYAN : "rgba(34,211,238,0.18)"
-        );
+        d.setAttribute("r", lit ? "3" : "2");
+        d.setAttribute("fill", (busted && lit) ? RED : lit ? ACCENT : DIM);
       });
     };
 
     const id = setInterval(() => {
       if (busted) return;
       if (streak > 0 && Math.random() < 0.22) {
-        busted = true;
-        redraw();
+        busted = true; redraw();
         burstTimer = setTimeout(() => { streak = 0; busted = false; redraw(); }, 700);
         return;
       }
@@ -34402,91 +34390,53 @@ window.addEventListener("resize", () => {
     return () => { clearInterval(id); clearTimeout(burstTimer); };
   }
 
-  // ── Shape Traders — scrolling neon-green sparkline ──
+  // ── Shape Traders — compact scrolling sparkline ──
   function initHgcAnimShape(el) {
-    const W = 158, H = 68, N = 28;
-    const padX = 4, padY = 8;
+    const ACCENT = accentOf(el);
+    const W = 96, H = 28, N = 22;
+    const padX = 2, padY = 3;
     const innerW = W - padX * 2, innerH = H - padY * 2;
-    const NEON = "#39ff7a";
     const xAt = i => padX + (i / (N - 1)) * innerW;
     const yAt = v => padY + (1 - v) * innerH;
 
-    // seed data
     let data = [];
     let v = 0.5;
     for (let i = 0; i < N; i++) {
-      v = Math.max(0.08, Math.min(0.92, v + (Math.random() - 0.5) * 0.18));
+      v = Math.max(0.08, Math.min(0.92, v + (Math.random() - 0.5) * 0.2));
       data.push(v);
     }
 
-    el.style.cssText = "display:flex;align-items:center;justify-content:center";
-
     const svg = document.createElementNS(NS, "svg");
-    svg.setAttribute("width", W);
-    svg.setAttribute("height", H);
+    svg.setAttribute("width", W); svg.setAttribute("height", H);
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-    svg.style.overflow = "visible";
-    svg.style.display = "block";
+    svg.style.cssText = "overflow:visible;display:block;flex-shrink:0";
 
-    // defs — gradient + glow filter
     const defs = document.createElementNS(NS, "defs");
-
     const grad = document.createElementNS(NS, "linearGradient");
     grad.id = "hgc-shape-fill";
     grad.setAttribute("x1","0"); grad.setAttribute("y1","0");
     grad.setAttribute("x2","0"); grad.setAttribute("y2","1");
-    const s1 = document.createElementNS(NS, "stop");
-    s1.setAttribute("offset","0%"); s1.setAttribute("stop-color", NEON); s1.setAttribute("stop-opacity","0.28");
-    const s2 = document.createElementNS(NS, "stop");
-    s2.setAttribute("offset","100%"); s2.setAttribute("stop-color", NEON); s2.setAttribute("stop-opacity","0");
-    grad.appendChild(s1); grad.appendChild(s2);
-
-    const filt = document.createElementNS(NS, "filter");
-    filt.id = "hgc-shape-glow";
-    filt.setAttribute("x","-20%"); filt.setAttribute("y","-40%");
-    filt.setAttribute("width","140%"); filt.setAttribute("height","180%");
-    const blur = document.createElementNS(NS, "feGaussianBlur");
-    blur.setAttribute("stdDeviation","1.4"); blur.setAttribute("result","b");
-    const merge = document.createElementNS(NS, "feMerge");
-    [["b"], ["SourceGraphic"]].forEach(([src]) => {
-      const mn = document.createElementNS(NS, "feMergeNode");
-      if (src !== "SourceGraphic") mn.setAttribute("in", src);
-      merge.appendChild(mn);
-    });
-    filt.appendChild(blur); filt.appendChild(merge);
-
-    defs.appendChild(grad); defs.appendChild(filt);
+    const g1 = document.createElementNS(NS, "stop");
+    g1.setAttribute("offset","0%"); g1.setAttribute("stop-color", ACCENT); g1.setAttribute("stop-opacity","0.25");
+    const g2 = document.createElementNS(NS, "stop");
+    g2.setAttribute("offset","100%"); g2.setAttribute("stop-color", ACCENT); g2.setAttribute("stop-opacity","0");
+    grad.appendChild(g1); grad.appendChild(g2); defs.appendChild(grad);
     svg.appendChild(defs);
-
-    // faint grid
-    [0.25, 0.5, 0.75].forEach(g => {
-      const l = document.createElementNS(NS, "line");
-      l.setAttribute("x1", padX); l.setAttribute("x2", W - padX);
-      const gy = padY + g * innerH;
-      l.setAttribute("y1", gy); l.setAttribute("y2", gy);
-      l.setAttribute("stroke", "rgba(57,255,122,0.07)");
-      l.setAttribute("stroke-width", "1");
-      l.setAttribute("stroke-dasharray", "2 4");
-      svg.appendChild(l);
-    });
 
     const fillPath = document.createElementNS(NS, "path");
     fillPath.setAttribute("fill", "url(#hgc-shape-fill)");
     svg.appendChild(fillPath);
 
     const linePath = document.createElementNS(NS, "path");
-    linePath.setAttribute("fill", "none");
-    linePath.setAttribute("stroke", NEON);
-    linePath.setAttribute("stroke-width", "1.6");
-    linePath.setAttribute("stroke-linejoin", "round");
-    linePath.setAttribute("stroke-linecap", "round");
-    linePath.setAttribute("filter", "url(#hgc-shape-glow)");
+    linePath.setAttribute("fill","none");
+    linePath.setAttribute("stroke", ACCENT);
+    linePath.setAttribute("stroke-width","1.2");
+    linePath.setAttribute("stroke-linejoin","round");
+    linePath.setAttribute("stroke-linecap","round");
     svg.appendChild(linePath);
 
     const liveDot = document.createElementNS(NS, "circle");
-    liveDot.setAttribute("r", "3");
-    liveDot.setAttribute("fill", NEON);
-    liveDot.setAttribute("filter", "url(#hgc-shape-glow)");
+    liveDot.setAttribute("r","2"); liveDot.setAttribute("fill", ACCENT);
     svg.appendChild(liveDot);
 
     el.appendChild(svg);
@@ -34496,10 +34446,10 @@ window.addEventListener("resize", () => {
       const lp = "M " + pts.join(" L ");
       const last = data[data.length - 1];
       fillPath.setAttribute("d",
-        lp + ` L ${xAt(N-1).toFixed(1)},${(H - padY).toFixed(1)} L ${xAt(0).toFixed(1)},${(H - padY).toFixed(1)} Z`
+        lp + ` L ${xAt(N-1).toFixed(1)},${(H-padY).toFixed(1)} L ${xAt(0).toFixed(1)},${(H-padY).toFixed(1)} Z`
       );
       linePath.setAttribute("d", lp);
-      liveDot.setAttribute("cx", xAt(N - 1).toFixed(1));
+      liveDot.setAttribute("cx", xAt(N-1).toFixed(1));
       liveDot.setAttribute("cy", yAt(last).toFixed(1));
     };
 
@@ -34511,12 +34461,11 @@ window.addEventListener("resize", () => {
       next = Math.max(0.05, Math.min(0.95, next));
       data = [...data.slice(1), next];
       redraw();
-    }, 180);
+    }, 200);
 
     return () => clearInterval(id);
   }
 
-  // Init all three on page load — they run continuously (very lightweight).
   const animMap = { rtn: initHgcAnimRtn, g10: initHgcAnimG10, shape: initHgcAnimShape };
   document.querySelectorAll(".hgc-anim[data-anim]").forEach(el => {
     const fn = animMap[el.dataset.anim];

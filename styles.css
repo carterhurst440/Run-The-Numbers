@@ -24088,7 +24088,7 @@ body[data-ui="new"] .home-game-card {
   border-radius: 0;
   border: 1px solid #2e2e22;
   border-top-width: 1px;
-  height: 172px;
+  height: 130px;
   padding: 14px;
   display: flex;
   flex-direction: column;
@@ -24098,16 +24098,14 @@ body[data-ui="new"] .home-game-card {
   position: relative;
 }
 
-/* Animation zone — fills middle space between glyph and title */
+/* Animation — sits inline on the right side of the hgc-top row */
 body[data-ui="new"] .hgc-anim {
   flex: 1 1 0;
-  min-height: 0;
+  min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   overflow: hidden;
-  position: relative;
-  z-index: 1;
   pointer-events: none;
 }
 
