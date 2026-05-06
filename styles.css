@@ -24093,6 +24093,7 @@ body[data-ui="new"] .home-game-card {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  align-items: center;
   transition: border-color 0.2s, box-shadow 0.2s;
   background: #171714;
   position: relative;
@@ -24113,7 +24114,7 @@ body[data-ui="new"] .hgc-anim {
 body[data-ui="new"] .home-game-card .hgc-bottom {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 8px;
 }
 
