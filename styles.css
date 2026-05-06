@@ -24118,17 +24118,33 @@ body[data-ui="new"] .home-contest-card {
 @media (max-width: 900px) {
   body[data-ui="new"] .home-sidebar {
     background: #0d0d0b;
-    border-top: 1px solid #2e2e22;
+    border-top: none;
     padding: 0 24px 32px;
   }
 
   body[data-ui="new"] .home-sidebar .home-sb-block {
     background: #171714;
-    border: 1px solid #2e2e22;
+    border: none;
     border-radius: 0;
-    padding: 14px;
+    padding: 14px 0;
     margin-bottom: 8px;
   }
+}
+
+/* Suppress blueprint-theme purple border colors from leaking into new UI tier ladder */
+body[data-ui="new"] #home-view .home-rank-ladder-head {
+  display: none;
+  border: none;
+}
+body[data-ui="new"] #home-view .home-rank-ladder-rung {
+  border-color: #1e1e18;
+}
+
+/* Tighten contest spotlight spacing to match section rhythm */
+body[data-ui="new"] .home-contests-panel {
+  margin-top: 0.4rem;
+  padding-top: 0.5rem;
+  border-top-color: #2e2e22;
 }
 
 body[data-ui="new"] .home-stat-blocks {
