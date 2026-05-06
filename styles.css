@@ -24099,23 +24099,16 @@ body[data-ui="new"] .home-game-card {
   position: relative;
 }
 
-/* Animation — sits on the right side of the hgc-bottom row */
+/* Animation — centered between glyph and name */
 body[data-ui="new"] .hgc-anim {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   overflow: hidden;
   pointer-events: none;
   position: relative;
   z-index: 1;
-}
-
-body[data-ui="new"] .home-game-card .hgc-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
 }
 
 body[data-ui="new"] .home-game-card::before {
@@ -24139,8 +24132,7 @@ body[data-ui="new"] .home-game-card:hover:not(.is-locked) {
   box-shadow: 0 0 0 1px rgba(var(--hgc-accent-rgb), 0.18), inset 0 0 24px rgba(var(--hgc-accent-rgb), 0.06);
 }
 
-body[data-ui="new"] .home-game-card .hgc-top,
-body[data-ui="new"] .home-game-card .hgc-bottom,
+body[data-ui="new"] .home-game-card .hgc-glyph,
 body[data-ui="new"] .home-game-card .hgc-name,
 body[data-ui="new"] .home-game-card .hgc-count {
   position: relative;
@@ -24174,27 +24166,18 @@ body[data-ui="new"] .home-game-card .hgc-status {
 }
 
 body[data-ui="new"] .home-game-card .hgc-name {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--hgc-accent);
-  letter-spacing: 0.08em;
-}
-
-body[data-ui="new"] .home-game-card .hgc-bottom {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+  letter-spacing: 0.14em;
+  opacity: 0.7;
   position: relative;
   z-index: 1;
+  text-align: center;
 }
 
 body[data-ui="new"] .home-game-card .hgc-cta {
-  font-size: 9px;
-  color: var(--hgc-accent);
-  letter-spacing: 0.14em;
-  font-weight: 700;
-  opacity: 0.6;
+  display: none;
 }
 
 body[data-ui="new"] .home-game-card-rtn .hgc-glyph,
