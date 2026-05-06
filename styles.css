@@ -23470,6 +23470,87 @@ body[data-ui="new"] .activity-log-item-empty {
   color: #505040;
 }
 
+/* Activity log — row layout matching home sidebar aesthetic */
+body[data-ui="new"] .activity-log-item {
+  border-bottom: 1px solid #2a2a22;
+  padding: 0;
+}
+body[data-ui="new"] .activity-log-item:last-child {
+  border-bottom: none;
+}
+body[data-ui="new"] .activity-log-item .activity-log-card {
+  display: none; /* hide old card markup if any stale HTML */
+}
+body[data-ui="new"] .alr-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0 2px;
+}
+body[data-ui="new"] .alr-label {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 10px;
+  color: #8a8a62;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body[data-ui="new"] .alr-label b {
+  color: #a8a870;
+  font-weight: 500;
+}
+body[data-ui="new"] .alr-net {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+body[data-ui="new"] .alr-net.is-win  { color: #c8ff00; }
+body[data-ui="new"] .alr-net.is-loss { color: #cc5555; }
+body[data-ui="new"] .alr-net.is-neutral { color: #aaaa74; }
+body[data-ui="new"] .alr-time {
+  font-size: 9px;
+  color: #565640;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+body[data-ui="new"] .alr-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 0 7px;
+}
+body[data-ui="new"] .alr-detail {
+  font-size: 9px;
+  color: #505040;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body[data-ui="new"] .alr-review {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid #2e2e22;
+  color: #686850;
+  font-family: inherit;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+body[data-ui="new"] .alr-review:hover {
+  border-color: #c8ff00;
+  color: #c8ff00;
+}
+
 /* Activity log toolbar */
 body[data-ui="new"] .activity-log-toolbar {
   padding: 0.6rem 0;

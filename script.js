@@ -25812,8 +25812,10 @@ function renderGuess10ReviewCards(entry) {
         formatRedBlackMultiplier(step.multiplier || 0) || "0x"
       }`;
       const cardLabel = step?.card ? `${step.card.label || ""}${step.card.suit || ""}` : "—";
-      const resultText = step?.matched ? `Hit · Pot ${formatCurrency(step.potAfter || 0)}` : "Miss";
+      const resultText = step?.matched ? "Hit" : "Miss";
       const resultToneClass = step?.matched ? "review-hand-positive" : "review-hand-negative";
+      const potValue = Number(step?.potAfter ?? 0);
+      const potToneClass = potValue > 0 ? "review-hand-positive" : "review-hand-negative";
       return `
         <article class="review-hand-card review-hand-round-card">
           <div class="review-hand-card-topline">
@@ -25823,6 +25825,7 @@ function renderGuess10ReviewCards(entry) {
           <div class="review-hand-field-grid">
             ${buildHandReviewField("Prediction", predictionText)}
             ${buildHandReviewField("Card Drawn", cardLabel)}
+            ${buildHandReviewField("New Pot", formatCurrency(potValue), { toneClass: potToneClass })}
           </div>
         </article>
       `;
@@ -26093,99 +26096,81 @@ function getActivityLogGameLogoMarkup(gameKey) {
 function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true } = {}) {
   return entries.map((entry) => {
     if (entry.entryType === "account") {
-      const amountLabel = formatSignedCurrency(entry.amount);
+      const amount = Number(entry.amount ?? 0);
+      const amountText = formatSignedCurrency(amount);
+      const netClass = amount > 0 ? "is-win" : amount < 0 ? "is-loss" : "is-neutral";
       const accountTitle = entry.eventType === "daily_credit_refresh" ? "Account Refresh" : "Account Update";
-      const accountMeta = entry.eventType === "daily_credit_refresh"
-        ? `Daily cash refresh restored your bankroll from ${formatCurrency(entry.previousBalance)} to ${formatCurrency(entry.newAccountValue)}.`
-        : `Account balance adjusted from ${formatCurrency(entry.previousBalance)} to ${formatCurrency(entry.newAccountValue)}.`;
+      const accountDetail = entry.eventType === "daily_credit_refresh"
+        ? `Daily refresh · ${formatCurrency(entry.previousBalance)} → ${formatCurrency(entry.newAccountValue)}`
+        : `Balance adjusted · ${formatCurrency(entry.previousBalance)} → ${formatCurrency(entry.newAccountValue)}`;
       return `
         <li class="activity-log-item">
-          <article class="activity-log-card">
-            <div class="activity-log-topline">
-              <div class="activity-log-topline-main">
-                <p class="activity-log-kicker">${escapeAssistantHtml(entry.gameLabel)}</p>
-                <h3 class="activity-log-title">${escapeAssistantHtml(accountTitle)}</h3>
-                <p class="activity-log-mode">Normal Mode</p>
-                <p class="activity-log-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</p>
-              </div>
-              <div class="activity-log-topline-side"></div>
-            </div>
-            <p class="activity-log-primary">${escapeAssistantHtml(`${amountLabel} added`)}</p>
-            <p class="activity-log-meta">${escapeAssistantHtml(accountMeta)}</p>
-            <p class="activity-log-balance">Ending account value: ${escapeAssistantHtml(formatCurrency(entry.newAccountValue))}</p>
-          </article>
+          <div class="alr-top">
+            <span class="alr-label"><b>${escapeAssistantHtml(accountTitle)}</b></span>
+            <span class="alr-net ${netClass}">${escapeAssistantHtml(amountText)}</span>
+            <span class="alr-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
+          </div>
+          <div class="alr-sub">
+            <span class="alr-detail">${escapeAssistantHtml(accountDetail)}</span>
+          </div>
         </li>
       `;
     }
 
     if (entry.entryType === "trade") {
-      const netProfitMarkup = entry.netProfit === null || entry.netProfit === undefined
-        ? ""
-        : ` · ${escapeAssistantHtml(formatSignedCurrency(entry.netProfit))} P/L`;
+      const pl = Number(entry.netProfit ?? 0);
+      const plText = pl >= 0 ? `+${formatCurrency(Math.abs(pl))}` : `-${formatCurrency(Math.abs(pl))}`;
+      const netClass = pl > 0 ? "is-win" : pl < 0 ? "is-loss" : "is-neutral";
+      const side = entry.side === "sell" ? "SELL" : "BUY";
+      const tradeDetail = `${formatCurrency(entry.quantity)} shares @ ${formatCurrency(entry.price)} · ${formatCurrency(entry.totalValue)} total · ${escapeAssistantHtml(getActivityEntryModeLabel(entry))}`;
       return `
         <li class="activity-log-item">
-          <article class="activity-log-card">
-            <div class="activity-log-topline">
-              <div class="activity-log-topline-main">
-                <p class="activity-log-kicker">${escapeAssistantHtml(entry.gameLabel)}</p>
-                <h3 class="activity-log-title">${escapeAssistantHtml(entry.side === "sell" ? "Sell Executed" : "Buy Executed")}</h3>
-                <p class="activity-log-mode">${escapeAssistantHtml(getActivityEntryModeLabel(entry))}</p>
-                <p class="activity-log-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</p>
-              </div>
-              <div class="activity-log-topline-side">
-                ${getActivityLogGameLogoMarkup(entry.gameKey)}
-              </div>
-            </div>
-            <p class="activity-log-primary activity-log-primary-with-symbol">${getShapeTraderActivitySymbolMarkup(entry)}<span>${escapeAssistantHtml(`${formatCurrency(entry.quantity)} shares @ ${formatCurrency(entry.price)}`)}</span></p>
-            <p class="activity-log-meta">${escapeAssistantHtml(`${formatCurrency(entry.totalValue)} total${netProfitMarkup}`)}</p>
-            <p class="activity-log-balance">Ending account value: ${escapeAssistantHtml(formatCurrency(entry.newAccountValue))}</p>
-          </article>
+          <div class="alr-top">
+            <span class="alr-label">ST · <b>${escapeAssistantHtml(side)}</b></span>
+            <span class="alr-net ${netClass}">${escapeAssistantHtml(plText)}</span>
+            <span class="alr-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
+          </div>
+          <div class="alr-sub">
+            <span class="alr-detail">${tradeDetail}</span>
+          </div>
         </li>
       `;
     }
 
-    const handDescriptor = entry.gameKey === GAME_KEYS.GUESS_10 ? "Hand Played" : "Hand Played";
-    const extraBits = [
-      `${formatCurrency(entry.totalWager)} wagered`,
-      `${formatCurrency(entry.totalReturn)} returned`,
-      `${formatSignedCurrency(entry.net)} net`
-    ];
-    if (entry.gameKey === GAME_KEYS.GUESS_10 && entry.commissionKept > 0) {
-      extraBits.push(`${formatCurrency(entry.commissionKept)} commission`);
-    }
-    const secondaryBits = [];
+    const gameShort = entry.gameKey === GAME_KEYS.GUESS_10 ? "G10" : "RTN";
+    const handNum = entry.handNumber || entry.handId?.slice(-4) || "—";
+    const net = Number(entry.net ?? 0);
+    const netText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
+    const netClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
+    const detailBits = [escapeAssistantHtml(getActivityEntryModeLabel(entry))];
+    detailBits.push(`${formatCurrency(entry.totalWager)}w · ${formatCurrency(entry.totalReturn)}r`);
     if (entry.totalCards > 0) {
-      secondaryBits.push(`${entry.totalCards} card${entry.totalCards === 1 ? "" : "s"}`);
+      detailBits.push(`${entry.totalCards} card${entry.totalCards === 1 ? "" : "s"}`);
     }
     if (entry.stopperLabel) {
-      secondaryBits.push(
+      detailBits.push(
         entry.stopperLabel === "Joker"
-          ? "Stopped on Joker"
-          : `Stopped on ${entry.stopperLabel}${entry.stopperSuit ? ` ${entry.stopperSuit}` : ""}`
+          ? "Joker"
+          : `${entry.stopperLabel}${entry.stopperSuit ? entry.stopperSuit : ""}`
       );
     }
+    if (entry.gameKey === GAME_KEYS.GUESS_10 && entry.commissionKept > 0) {
+      detailBits.push(`${formatCurrency(entry.commissionKept)} commission`);
+    }
+    const reviewBtn = showReviewButtons && entry.handId
+      ? `<button type="button" class="alr-review history-review-button" data-hand-review-id="${escapeAssistantHtml(entry.handId)}">Review →</button>`
+      : "";
     return `
       <li class="activity-log-item">
-        <article class="activity-log-card">
-          <div class="activity-log-topline">
-            <div class="activity-log-topline-main">
-              <p class="activity-log-kicker">${escapeAssistantHtml(entry.gameLabel)}</p>
-              <h3 class="activity-log-title">${escapeAssistantHtml(handDescriptor)}</h3>
-              <p class="activity-log-mode">${escapeAssistantHtml(getActivityEntryModeLabel(entry))}</p>
-              <p class="activity-log-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</p>
-            </div>
-            <div class="activity-log-topline-side">
-              ${getActivityLogGameLogoMarkup(entry.gameKey)}
-            </div>
-          </div>
-          <p class="activity-log-primary">${escapeAssistantHtml(extraBits.join(" · "))}</p>
-          <p class="activity-log-cards">${escapeAssistantHtml(entry.sequenceLabel || "Card sequence unavailable for this hand.")}</p>
-          <p class="activity-log-meta">${escapeAssistantHtml(secondaryBits.join(" · ") || "Completed hand recorded to your account history.")}</p>
-          <div class="activity-log-footer">
-            <p class="activity-log-balance">Ending account value: ${escapeAssistantHtml(formatCurrency(entry.newAccountValue))}</p>
-            ${showReviewButtons ? `<button type="button" class="history-review-button" data-hand-review-id="${escapeAssistantHtml(entry.handId)}">Review Hand</button>` : ""}
-          </div>
-        </article>
+        <div class="alr-top">
+          <span class="alr-label">${escapeAssistantHtml(gameShort)} · <b>#${escapeAssistantHtml(String(handNum))}</b></span>
+          <span class="alr-net ${netClass}">${escapeAssistantHtml(netText)}</span>
+          <span class="alr-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
+        </div>
+        <div class="alr-sub">
+          <span class="alr-detail">${detailBits.join(" · ")}</span>
+          ${reviewBtn}
+        </div>
       </li>
     `;
   }).join("");
