@@ -24107,17 +24107,19 @@ body[data-ui="new"] .home-player-hero {
   padding-bottom: 16px;
 }
 
-/* Contest spotlight card — square corners to match terminal aesthetic */
-body[data-ui="new"] .home-contest-card {
+/* Contest spotlight card — square corners to match terminal aesthetic.
+   Must use #home-view in selector to beat the ID-level rule at line 19242. */
+body[data-ui="new"] #home-view .home-contest-card {
   border-radius: 0;
   background: #171714;
   border-color: #2e2e22;
 }
 
-/* Mobile sidebar — solid background so CRT tile animations don't bleed through */
+/* Mobile sidebar — transparent so the page body bg shows through uniformly,
+   no solid rectangle effect */
 @media (max-width: 900px) {
   body[data-ui="new"] .home-sidebar {
-    background: #0d0d0b;
+    background: transparent;
     border-top: none;
     padding: 0 24px 32px;
   }
@@ -24140,11 +24142,17 @@ body[data-ui="new"] #home-view .home-rank-ladder-rung {
   border-color: #1e1e18;
 }
 
-/* Tighten contest spotlight spacing to match section rhythm */
+/* Tighten spacing between about-us and contest spotlight */
+body[data-ui="new"] .home-quote-block {
+  margin-bottom: 8px;
+}
 body[data-ui="new"] .home-contests-panel {
-  margin-top: 0.4rem;
-  padding-top: 0.5rem;
+  margin-top: 0;
+  padding-top: 0;
   border-top-color: #2e2e22;
+}
+body[data-ui="new"] .home-contests-panel .home-section-hdr {
+  padding-top: 16px;
 }
 
 body[data-ui="new"] .home-stat-blocks {
