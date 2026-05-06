@@ -24098,15 +24098,23 @@ body[data-ui="new"] .home-game-card {
   position: relative;
 }
 
-/* Animation — sits inline on the right side of the hgc-top row */
+/* Animation — sits on the right side of the hgc-bottom row */
 body[data-ui="new"] .hgc-anim {
-  flex: 1 1 0;
-  min-width: 0;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   overflow: hidden;
   pointer-events: none;
+  position: relative;
+  z-index: 1;
+}
+
+body[data-ui="new"] .home-game-card .hgc-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 body[data-ui="new"] .home-game-card::before {
@@ -24131,6 +24139,7 @@ body[data-ui="new"] .home-game-card:hover:not(.is-locked) {
 }
 
 body[data-ui="new"] .home-game-card .hgc-top,
+body[data-ui="new"] .home-game-card .hgc-bottom,
 body[data-ui="new"] .home-game-card .hgc-name,
 body[data-ui="new"] .home-game-card .hgc-count {
   position: relative;
@@ -24138,7 +24147,7 @@ body[data-ui="new"] .home-game-card .hgc-count {
 }
 
 body[data-ui="new"] .home-game-card .hgc-glyph {
-  font-size: 22px;
+  font-size: 30px;
   font-weight: 700;
   color: var(--hgc-accent);
   letter-spacing: 0.04em;
@@ -24148,7 +24157,7 @@ body[data-ui="new"] .home-game-card .hgc-glyph {
 }
 
 body[data-ui="new"] .home-game-card .hgc-glyph-shapes {
-  font-size: 18px;
+  font-size: 24px;
   letter-spacing: 3px;
 }
 
