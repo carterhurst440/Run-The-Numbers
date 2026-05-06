@@ -24030,6 +24030,12 @@ body[data-ui="new"] .contest-results-modal .modal-actions .secondary:hover {
 }
 
 /* ── Scanline game tile keyframes ──────────────────────────────── */
+@keyframes logo-flap {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  50%  { opacity: 1; }
+  100% { transform: translateY(0);    opacity: 1; }
+}
+
 @keyframes hgc-sweep {
   0%   { transform: translateY(-30px); opacity: 0; }
   8%   { opacity: 1; }
@@ -24082,7 +24088,7 @@ body[data-ui="new"] .home-game-card {
   border-radius: 0;
   border: 1px solid #2e2e22;
   border-top-width: 1px;
-  height: 130px;
+  height: 172px;
   padding: 14px;
   display: flex;
   flex-direction: column;
@@ -24090,6 +24096,19 @@ body[data-ui="new"] .home-game-card {
   transition: border-color 0.2s, box-shadow 0.2s;
   background: #171714;
   position: relative;
+}
+
+/* Animation zone — fills middle space between glyph and title */
+body[data-ui="new"] .hgc-anim {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
 }
 
 body[data-ui="new"] .home-game-card::before {
