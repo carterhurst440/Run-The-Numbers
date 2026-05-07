@@ -3336,17 +3336,13 @@
           </div><!-- end cs-felt-wrap -->
 
           <!-- Chip rack -->
-          <div class="cs-chip-rack" id="cs-chipRack">
-            <div class="cs-chip-rack-lbl">CHIPS</div>
-            <div class="cs-chip cs-chip-1"   data-val="1"   onclick="csGame.selectChip(1)">1</div>
-            <div class="cs-chip cs-chip-5"   data-val="5"   onclick="csGame.selectChip(5)">5</div>
-            <div class="cs-chip cs-chip-10"  data-val="10"  onclick="csGame.selectChip(10)">10</div>
-            <div class="cs-chip cs-chip-25"  data-val="25"  onclick="csGame.selectChip(25)">25</div>
-            <div class="cs-chip cs-chip-100" data-val="100" onclick="csGame.selectChip(100)">100</div>
-            <div class="cs-chip-rack-sep"></div>
-            <button type="button" class="cs-clear-bets-btn" id="cs-clearBetsBtn" onclick="csGame.clearAllBets()">CLEAR BETS</button>
-            <div class="cs-chip-rack-sep"></div>
-            <div class="cs-bank-rack"><span>BANK </span><span id="cs-bankAmt">1000</span></div>
+          <div class="chip-bar chip-rack cs-chip-bar" id="cs-chipBar" aria-label="Color Scheme chip rack">
+            <div class="chip-selector-row chip-rack__row">
+              <div class="chip-selector chip-rack__selector cs-chip-selector" id="cs-chipSelector" role="radiogroup" aria-label="Choose chip denomination"></div>
+            </div>
+            <div class="chip-actions chip-rack__actions">
+              <button type="button" class="primary chip-rack__button" id="cs-clearBetsBtn">Clear</button>
+            </div>
           </div>
 
         </section>

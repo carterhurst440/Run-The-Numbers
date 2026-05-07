@@ -34553,14 +34553,13 @@ let _csRoll = 0;
 let _csRoundRolls = [];
 let _csBets = {};
 let _csBetState = 'open';
-let _csBank = 1000;
-let _csSelectedChip = 10;
 let _csRoundHistory = [];
 let _csHistoryData = [];
 let _csRoundId = null;
 let _csPendingServerRoll = null;
 let _csWaitingForServer = false;
 let _csSettleArgsCache = null;
+let _csChipButtons = [];
 
 const CS_ODDS = {
   RED:9,BLUE:9,YELLOW:9,PURPLE:5,GREEN:5,ORANGE:5,COLOR_TIE:4,
@@ -34771,12 +34770,38 @@ function csSetBetState(state) {
   document.querySelectorAll('.cs-bet-zone').forEach(z => z.classList.toggle('cs-locked', locked));
   const clearBtn = csEl('cs-clearBetsBtn');
   if (clearBtn) clearBtn.disabled = locked;
-  document.querySelectorAll('.cs-chip').forEach(c => { c.style.opacity = locked ? '0.35' : '1'; });
+  _csChipButtons.forEach(c => { c.disabled = locked; });
   if (!locked) csClearLiveBetGlow();
 }
 
 function csRenderBank() {
-  const el = csEl('cs-bankAmt'); if (el) el.textContent = _csBank;
+  if (bankrollEl) bankrollEl.textContent = formatCurrency(getDisplayedHeaderBankrollValue());
+}
+
+function csRenderChipRack() {
+  const el = document.getElementById('cs-chipSelector');
+  if (!el) return;
+  el.innerHTML = chipDenominations.map((value) =>
+    `<button class="chip-choice" type="button" data-value="${value}" data-tone="${getRunTheNumbersChipRackToneIndex(value)}"
+      role="radio" aria-checked="${value === selectedChip ? 'true' : 'false'}">${value}</button>`
+  ).join('');
+  _csChipButtons = Array.from(el.querySelectorAll('.chip-choice'));
+  _csChipButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const val = Number(btn.dataset.value);
+      if (Number.isFinite(val)) setSelectedChip(val);
+      csUpdateChipRackUI();
+    });
+  });
+  csUpdateChipRackUI();
+}
+
+function csUpdateChipRackUI() {
+  _csChipButtons.forEach(btn => {
+    const val = Number(btn.dataset.value);
+    btn.setAttribute('aria-checked', val === selectedChip ? 'true' : 'false');
+  });
 }
 
 function csRenderBetZone(betId) {
@@ -34976,6 +35001,7 @@ async function csInvokeServerRoll() {
       if (error || !data?.round_id) { console.warn('[CS] start_cs_round failed:', error); return; }
       _csRoundId = data.round_id;
       await csSaveBetsToServer(_csRoundId);
+      await persistBankroll();  // commit wager deduction to server
     }
     const { data, error } = await supabase.rpc('cs_perform_roll', { _round_id: _csRoundId });
     if (error || !data?.roll) { console.warn('[CS] cs_perform_roll failed:', error); return; }
@@ -35027,6 +35053,12 @@ async function csSettleBetsOnServer(roundId, totals, grandTotal) {
       return sum + (won ? bet.amount_wagered + payout : 0);
     }, 0);
     const netThisRound = totalReturned - totalWagered;
+
+    // Return winnings to bankroll and animate header
+    bankroll = roundCurrencyValue(bankroll + totalReturned);
+    animateBankrollOutcome(netThisRound);  // shows toast + animates header
+    await persistBankroll();
+
     await supabase.from('color_scheme_rounds').update({
       total_wagered: totalWagered,
       total_returned: totalReturned,
@@ -35062,7 +35094,6 @@ function csEvaluateBets(totals, grandTotal) {
     const won = csIsCurrentlyWinning(betId, totals, grandTotal);
     const basePayout = won ? Math.floor(stake*CS_ODDS[betId]) : 0;
     const payout = (won && betId==='TYPE_PRIMARY') ? Math.floor(basePayout*0.95) : basePayout;
-    if (won) _csBank += stake+payout;
     const zone = csEl('cs-bz-'+betId);
     const res = csEl('cs-result-'+betId);
     if (!zone||!res) return;
@@ -35071,7 +35102,6 @@ function csEvaluateBets(totals, grandTotal) {
     res.textContent = won ? '+'+payout : '-'+stake;
     res.className = 'cs-bz-result cs-show '+(won?'cs-win-r':'cs-lose-r');
   });
-  csRenderBank();
   csUpdateLiveBetGlow(totals, grandTotal);
   csAddHistogramBar(_csRound, grandTotal, totals);
   if (_csRoundId) csSettleBetsOnServer(_csRoundId, totals, grandTotal);
@@ -35219,8 +35249,7 @@ function initColorSchemeGame() {
     if (histChart) histChart.innerHTML = '<div class="cs-hist-empty" id="cs-histEmpty">NO HISTORY YET</div>';
     const histCount = csEl('cs-histCount'); if (histCount) histCount.textContent = '0';
     const histPeak = csEl('cs-histPeak'); if (histPeak) histPeak.textContent = '—';
-    _csBank = (typeof currentProfile !== 'undefined' && currentProfile && currentProfile.credits) ? currentProfile.credits : 1000;
-    _csSelectedChip = 10;
+    csRenderChipRack();
 
     // Canvas setup
     const canvas = csEl('cs-three-canvas');
@@ -35273,16 +35302,14 @@ function initColorSchemeGame() {
     gb.addShape(new CANNON.Plane()); gb.quaternion.setFromEuler(-Math.PI/2,0,0); _csWorld.addBody(gb);
 
     // Init UI
-    csRenderBank();
     csRenderTotalWagered();
     csResetTracker();
     csSetBetState('open');
     Object.keys(CS_BZ_COLORS).forEach(id => {
       const z=csEl('cs-bz-'+id); if(z) z.style.setProperty('--zc',CS_BZ_COLORS[id]);
     });
-    document.querySelectorAll('.cs-chip').forEach(c=>{
-      c.classList.toggle('cs-selected',parseInt(c.dataset.val)===_csSelectedChip);
-    });
+    const clearBtn=csEl('cs-clearBetsBtn');
+    if(clearBtn){ clearBtn._csHandler=()=>window.csGame?.clearAllBets(); clearBtn.addEventListener('click',clearBtn._csHandler); }
     const bRoll=csEl('cs-bRoll'); if(bRoll){bRoll.disabled=false;bRoll.textContent='⬡ ROLL DICE';}
     const bNew=csEl('cs-bNew'); if(bNew) bNew.style.display='none';
     const sBar=csEl('cs-statusBar'); if(sBar){sBar.textContent='';sBar.classList.remove('cs-active');}
@@ -35336,14 +35363,14 @@ function initColorSchemeGame() {
     // Expose public API for onclick handlers
     window.csGame = {
       selectChip(val) {
-        _csSelectedChip=val;
-        document.querySelectorAll('.cs-chip').forEach(c=>c.classList.toggle('cs-selected',parseInt(c.dataset.val)===val));
+        setSelectedChip(val);
+        csUpdateChipRackUI();
       },
       placeBet(betId) {
         if(_csBetState!=='open')return;
-        if(_csBank<_csSelectedChip)return;
-        _csBets[betId]=(_csBets[betId]||0)+_csSelectedChip;
-        _csBank-=_csSelectedChip;
+        if(bankroll<selectedChip)return;
+        _csBets[betId]=(_csBets[betId]||0)+selectedChip;
+        bankroll=roundCurrencyValue(bankroll-selectedChip);
         csRenderBank(); csRenderBetZone(betId); csRenderTotalWagered();
         if(_csRoundRolls.length>0){
           const{totals}=csCalcOutcome(_csRoundRolls);
@@ -35353,8 +35380,9 @@ function initColorSchemeGame() {
       },
       clearAllBets() {
         if(_csBetState!=='open')return;
-        Object.entries(_csBets).forEach(([,stake])=>{_csBank+=stake;});
+        const refund=Object.values(_csBets).reduce((a,b)=>a+b,0);
         _csBets={};
+        bankroll=roundCurrencyValue(bankroll+refund);
         csRenderBank(); csRenderTotalWagered();
         document.querySelectorAll('.cs-bet-zone').forEach(z=>{
           const el=csEl('cs-stake-'+z.dataset.bet); if(el) el.textContent='';
@@ -35378,6 +35406,8 @@ function destroyColorSchemeGame() {
   // Remove button handlers
   const bRoll=csEl('cs-bRoll'); if(bRoll&&bRoll._csHandler){bRoll.removeEventListener('click',bRoll._csHandler);bRoll._csHandler=null;}
   const bNew=csEl('cs-bNew'); if(bNew&&bNew._csHandler){bNew.removeEventListener('click',bNew._csHandler);bNew._csHandler=null;}
+  const clearBtn=csEl('cs-clearBetsBtn'); if(clearBtn&&clearBtn._csHandler){clearBtn.removeEventListener('click',clearBtn._csHandler);clearBtn._csHandler=null;}
+  _csChipButtons=[];
   // Dispose Three.js
   if (_csRenderer) { _csRenderer.dispose(); _csRenderer=null; }
   _csScene=null; _csCamera=null; _csWorld=null; _csDice=[]; _csSettling=false; _csLastTime=null; _csProcessingSettle=false;
