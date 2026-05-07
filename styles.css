@@ -24101,6 +24101,12 @@ body[data-ui="new"] .home-game-cards {
   grid-template-columns: repeat(4, 1fr);
   gap: 18px;
 }
+@media (max-width: 720px) {
+  body[data-ui="new"] .home-game-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
 
 /* Tile base — "lit" dormant state */
 body[data-ui="new"] .home-game-card {
