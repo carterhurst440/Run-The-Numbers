@@ -14,7 +14,8 @@ let appReadyFallbackTimerId = null;
 const GAME_KEYS = {
   RUN_THE_NUMBERS: "game_001",
   GUESS_10: "game_002",
-  SHAPE_TRADERS: "game_003"
+  SHAPE_TRADERS: "game_003",
+  COLOR_SCHEME: "game_004"
 };
 
 const CONTEST_GAME_KEYS = [GAME_KEYS.RUN_THE_NUMBERS, GAME_KEYS.GUESS_10, GAME_KEYS.SHAPE_TRADERS];
@@ -22,7 +23,8 @@ const CONTEST_GAME_KEYS = [GAME_KEYS.RUN_THE_NUMBERS, GAME_KEYS.GUESS_10, GAME_K
 const GAME_LABELS = {
   [GAME_KEYS.RUN_THE_NUMBERS]: "Run the Numbers",
   [GAME_KEYS.GUESS_10]: "Guess 10",
-  [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders"
+  [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders",
+  [GAME_KEYS.COLOR_SCHEME]: "Color Scheme"
 };
 
 const GAME_ASSET_STORAGE_KEY = "rtn:game-assets";
@@ -60,6 +62,18 @@ const DEFAULT_GAME_ASSET_LIBRARY = {
     description: "Shared live market trading table",
     status: "admin",
     card_description: "Trade Circles, Squares, and Triangles against a shared live card-driven market with timed data dumps and isolated game accounting.",
+    card_background_color: "",
+    button_color: "",
+    button_text_color: ""
+  },
+  [GAME_KEYS.COLOR_SCHEME]: {
+    key: GAME_KEYS.COLOR_SCHEME,
+    label: GAME_LABELS[GAME_KEYS.COLOR_SCHEME],
+    route: "color-scheme",
+    logo_url: "",
+    description: "Color and number dice game",
+    status: "admin",
+    card_description: "More details coming soon.",
     card_background_color: "",
     button_color: "",
     button_text_color: ""
@@ -120,6 +134,14 @@ function normalizeGameKey(value) {
     normalized === "shapetraders"
   ) {
     return GAME_KEYS.SHAPE_TRADERS;
+  }
+  if (
+    normalized === GAME_KEYS.COLOR_SCHEME ||
+    normalized === "color-scheme" ||
+    normalized === "color_scheme" ||
+    normalized === "colorscheme"
+  ) {
+    return GAME_KEYS.COLOR_SCHEME;
   }
   return null;
 }
@@ -400,11 +422,12 @@ function initHomeGameCardGlitch() {
     "home-game-card-rtn":   { hex: "#e8a020", r: 232, g: 160, b: 32 },
     "home-game-card-g10":   { hex: "#00e5ff", r: 0,   g: 229, b: 255 },
     "home-game-card-shape": { hex: "#c8ff00", r: 200, g: 255, b: 0 },
+    "home-game-card-color": { hex: "#ff2d4a", r: 255, g: 45,  b: 74 },
   };
 
   document.querySelectorAll(".home-game-card").forEach((card) => {
-    const glyphEl = card.querySelector(".hgc-glyph");
-    const nameEl  = card.querySelector(".hgc-name");
+    const glyphEl = card.querySelector(".cc-glyph");
+    const nameEl  = card.querySelector(".cc-label");
     if (!glyphEl || !nameEl) return;
 
     const glyphTarget = glyphEl.textContent;
@@ -620,6 +643,9 @@ function renderGameLogoTargets() {
   document.querySelectorAll(".home-game-card[data-game-id]").forEach((node) => {
     if (!(node instanceof HTMLButtonElement)) return;
     const gameKey = resolveGameKey(node.dataset.gameId || "");
+    const visible = isGameVisibleToUser(gameKey);
+    node.hidden = !visible;
+    if (!visible) return;
     const locked = isGameLockedForPlayer(gameKey);
     node.classList.toggle("is-locked", locked);
     node.disabled = locked;
@@ -34246,228 +34272,230 @@ window.addEventListener("resize", () => {
   if (document.body.dataset.route === "home") start();
 })();
 
-// ── Game tile animations (RTN / Guess 10 / Shape Traders) ────────────────────
-// Compact inline animations that sit to the right of the glyph in hgc-top.
-// Colors match each card's accent. Each init function returns a cleanup fn.
+// ── Game tile animations (Quarter variant) ───────────────────────────────────
+// Each animation fills the cc-frame (position:absolute, inset:0) of its tile.
+// Colors are read from CSS custom properties on the parent card.
 (function () {
   const NS = "http://www.w3.org/2000/svg";
 
-  // Resolve accent color from the parent card class
   function accentOf(el) {
     const card = el.closest(".home-game-card");
     if (!card) return "#c8ff00";
     if (card.classList.contains("home-game-card-rtn"))   return "#e8a020";
     if (card.classList.contains("home-game-card-g10"))   return "#00e5ff";
     if (card.classList.contains("home-game-card-shape")) return "#c8ff00";
+    if (card.classList.contains("home-game-card-color")) return "#ff2d4a";
     return "#c8ff00";
   }
 
-  // ── RTN — 5 small boxes fill left→right, J/Q/K halts in red then resets ──
-  function initHgcAnimRtn(el) {
-    const N = 5;
-    const FACES = ["J","Q","K"];
-    const NORMAL = ["0","1","2","3","4","5","6","7","8","9","A"];
-    const ACCENT = accentOf(el);
-    const RED = "#e35a4a";
-    const DIM = `${ACCENT}30`;
+  // ── RTN — 6 boxes fill left→right, face card halts in red ──────────────────
+  function initCcAnimRtn(el) {
+    el.style.cssText = "display:flex;align-items:center;justify-content:center;gap:6px";
+    const N = 6, FACES = ["J","Q","K"], NORMAL = "0123456789A".split("");
+    const ACCENT = accentOf(el), RED = "#e35a4a", DIM = `${ACCENT}30`;
 
     const cells = Array.from({ length: N }, () => {
       const d = document.createElement("div");
-      d.style.cssText = [
-        "width:13px;height:18px",
-        `border:1px solid ${DIM}`,
-        "color:transparent",
-        "display:flex;align-items:center;justify-content:center",
-        "font-family:'JetBrains Mono',monospace;font-weight:800;font-size:10px;line-height:1",
-        "flex-shrink:0;overflow:hidden",
-        "transition:border-color 0.12s,color 0.12s"
-      ].join(";");
+      d.style.cssText = `width:26px;height:34px;border:1.5px solid ${DIM};color:transparent;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:20px;line-height:1;flex-shrink:0;overflow:hidden;transition:border-color 0.12s,color 0.12s`;
       el.appendChild(d);
       return d;
     });
 
     let pos = 0, halted = false, haltTimer = null;
-
-    const reset = () => {
-      cells.forEach(c => {
-        c.style.borderColor = DIM;
-        c.style.color = "transparent";
-        c.textContent = "";
-      });
-      pos = 0; halted = false;
-    };
-
+    const reset = () => { cells.forEach(c => { c.style.borderColor = DIM; c.style.color = "transparent"; c.textContent = ""; }); pos = 0; halted = false; };
     const id = setInterval(() => {
       if (halted) return;
       if (pos >= N) { reset(); return; }
-      const isFace = Math.random() < 0.18;
+      const isFace = Math.random() < 0.16;
       const color = isFace ? RED : ACCENT;
-      const v = isFace
-        ? FACES[Math.floor(Math.random() * FACES.length)]
-        : NORMAL[Math.floor(Math.random() * NORMAL.length)];
-      cells[pos].style.borderColor = color;
-      cells[pos].style.color = color;
+      const v = isFace ? FACES[Math.floor(Math.random() * FACES.length)] : NORMAL[Math.floor(Math.random() * NORMAL.length)];
+      cells[pos].style.borderColor = color; cells[pos].style.color = color;
       const span = document.createElement("span");
-      span.textContent = v;
-      span.style.cssText = "display:block;animation:logo-flap 0.28s ease-out";
-      cells[pos].textContent = "";
-      cells[pos].appendChild(span);
-      if (isFace) { halted = true; haltTimer = setTimeout(reset, 900); }
-      else pos++;
-    }, 380);
-
+      span.textContent = v; span.style.cssText = "display:block;animation:logo-flap 0.28s ease-out";
+      cells[pos].textContent = ""; cells[pos].appendChild(span);
+      if (isFace) { halted = true; haltTimer = setTimeout(reset, 850); } else pos++;
+    }, 360);
     return () => { clearInterval(id); clearTimeout(haltTimer); };
   }
 
-  // ── G10 — 10 small dots with progress line, bust flashes then resets ──
-  function initHgcAnimG10(el) {
-    const N = 10;
-    const ACCENT = accentOf(el);
-    const RED = "#e35a4a";
-    const DIM = `${ACCENT}28`;
-    const W = 96, H = 14, margin = 5;
+  // ── G10 — 10 dots + progress line, bust flashes red ────────────────────────
+  function initCcAnimG10(el) {
+    const N = 10, ACCENT = accentOf(el), RED = "#e35a4a", DIM = `${ACCENT}28`;
+    const W = 200, H = 24, margin = 12;
     const step = (W - margin * 2) / (N - 1);
-    const dotCx = i => margin + i * step;
-    const cy = H / 2;
+    const dotCx = i => margin + i * step, cy = H / 2;
 
     const svg = document.createElementNS(NS, "svg");
-    svg.setAttribute("width", W);
-    svg.setAttribute("height", H);
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-    svg.style.cssText = "overflow:visible;display:block;flex-shrink:0";
+    svg.setAttribute("width", W); svg.setAttribute("height", H);
+    svg.style.cssText = "overflow:visible;display:block";
 
     const track = document.createElementNS(NS, "line");
-    track.setAttribute("x1", margin); track.setAttribute("y1", cy);
-    track.setAttribute("x2", W - margin); track.setAttribute("y2", cy);
-    track.setAttribute("stroke", DIM); track.setAttribute("stroke-width", "1");
-    svg.appendChild(track);
+    track.setAttribute("x1", margin); track.setAttribute("y1", cy); track.setAttribute("x2", W - margin); track.setAttribute("y2", cy);
+    track.setAttribute("stroke", DIM); track.setAttribute("stroke-width", "1.5"); svg.appendChild(track);
 
     const progLine = document.createElementNS(NS, "line");
-    progLine.setAttribute("x1", margin); progLine.setAttribute("y1", cy);
-    progLine.setAttribute("x2", margin); progLine.setAttribute("y2", cy);
-    progLine.setAttribute("stroke-width", "1.5");
-    progLine.setAttribute("stroke", ACCENT);
-    progLine.style.cssText = "opacity:0;transition:x2 0.18s ease-out";
-    svg.appendChild(progLine);
+    progLine.setAttribute("x1", margin); progLine.setAttribute("y1", cy); progLine.setAttribute("x2", margin); progLine.setAttribute("y2", cy);
+    progLine.setAttribute("stroke-width", "2"); progLine.setAttribute("stroke", ACCENT);
+    progLine.style.cssText = "opacity:0;transition:x2 0.18s ease-out"; svg.appendChild(progLine);
 
     const dots = Array.from({ length: N }, (_, i) => {
       const c = document.createElementNS(NS, "circle");
-      c.setAttribute("cx", dotCx(i)); c.setAttribute("cy", cy);
-      c.setAttribute("r", "2"); c.setAttribute("fill", DIM);
-      c.style.transition = "r 0.15s,fill 0.15s";
-      svg.appendChild(c);
-      return c;
+      c.setAttribute("cx", dotCx(i)); c.setAttribute("cy", cy); c.setAttribute("r", "3.5"); c.setAttribute("fill", DIM);
+      c.style.transition = "r 0.18s,fill 0.18s"; svg.appendChild(c); return c;
     });
-
     el.appendChild(svg);
 
     let streak = 0, busted = false, burstTimer = null;
-
     const redraw = () => {
       const stroke = busted ? RED : ACCENT;
       progLine.setAttribute("stroke", stroke);
       progLine.setAttribute("x2", streak > 0 ? dotCx(Math.max(streak - 1, 0)) : margin);
       progLine.style.opacity = streak > 1 ? "1" : "0";
-      dots.forEach((d, i) => {
-        const lit = i < streak;
-        d.setAttribute("r", lit ? "3" : "2");
-        d.setAttribute("fill", (busted && lit) ? RED : lit ? ACCENT : DIM);
-      });
+      dots.forEach((d, i) => { const lit = i < streak; d.setAttribute("r", lit ? "5" : "3.5"); d.setAttribute("fill", (busted && lit) ? RED : lit ? ACCENT : DIM); });
     };
-
     const id = setInterval(() => {
       if (busted) return;
-      if (streak > 0 && Math.random() < 0.22) {
-        busted = true; redraw();
-        burstTimer = setTimeout(() => { streak = 0; busted = false; redraw(); }, 700);
-        return;
-      }
-      streak = streak >= N ? 0 : streak + 1;
-      redraw();
-    }, 400);
-
+      if (streak > 0 && Math.random() < 0.20) { busted = true; redraw(); burstTimer = setTimeout(() => { streak = 0; busted = false; redraw(); }, 700); return; }
+      streak = streak >= N ? 0 : streak + 1; redraw();
+    }, 380);
     redraw();
     return () => { clearInterval(id); clearTimeout(burstTimer); };
   }
 
-  // ── Shape Traders — compact scrolling sparkline ──
-  function initHgcAnimShape(el) {
+  // ── Shape Traders — scrolling sparkline with fill + live dot ───────────────
+  function initCcAnimShape(el) {
     const ACCENT = accentOf(el);
-    const W = 96, H = 28, N = 22;
-    const padX = 2, padY = 3;
+    const W = 220, H = 110, N = 36;
+    const padX = 6, padY = 10;
     const innerW = W - padX * 2, innerH = H - padY * 2;
     const xAt = i => padX + (i / (N - 1)) * innerW;
     const yAt = v => padY + (1 - v) * innerH;
+    const gradId = "cc-shape-fill-" + Math.random().toString(36).slice(2);
 
-    let data = [];
-    let v = 0.5;
-    for (let i = 0; i < N; i++) {
-      v = Math.max(0.08, Math.min(0.92, v + (Math.random() - 0.5) * 0.2));
-      data.push(v);
-    }
+    let data = [], v = 0.5;
+    for (let i = 0; i < N; i++) { v = Math.max(0.08, Math.min(0.92, v + (Math.random() - 0.5) * 0.18)); data.push(v); }
 
     const svg = document.createElementNS(NS, "svg");
-    svg.setAttribute("width", W); svg.setAttribute("height", H);
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-    svg.style.cssText = "overflow:visible;display:block;flex-shrink:0";
+    svg.setAttribute("width", W); svg.setAttribute("height", H);
+    svg.style.cssText = "overflow:visible;display:block";
 
     const defs = document.createElementNS(NS, "defs");
     const grad = document.createElementNS(NS, "linearGradient");
-    grad.id = "hgc-shape-fill";
-    grad.setAttribute("x1","0"); grad.setAttribute("y1","0");
-    grad.setAttribute("x2","0"); grad.setAttribute("y2","1");
-    const g1 = document.createElementNS(NS, "stop");
-    g1.setAttribute("offset","0%"); g1.setAttribute("stop-color", ACCENT); g1.setAttribute("stop-opacity","0.25");
-    const g2 = document.createElementNS(NS, "stop");
-    g2.setAttribute("offset","100%"); g2.setAttribute("stop-color", ACCENT); g2.setAttribute("stop-opacity","0");
-    grad.appendChild(g1); grad.appendChild(g2); defs.appendChild(grad);
-    svg.appendChild(defs);
+    grad.id = gradId; grad.setAttribute("x1","0"); grad.setAttribute("y1","0"); grad.setAttribute("x2","0"); grad.setAttribute("y2","1");
+    const g1 = document.createElementNS(NS, "stop"); g1.setAttribute("offset","0%"); g1.setAttribute("stop-color", ACCENT); g1.setAttribute("stop-opacity","0.32");
+    const g2 = document.createElementNS(NS, "stop"); g2.setAttribute("offset","100%"); g2.setAttribute("stop-color", ACCENT); g2.setAttribute("stop-opacity","0");
+    grad.appendChild(g1); grad.appendChild(g2); defs.appendChild(grad); svg.appendChild(defs);
 
-    const fillPath = document.createElementNS(NS, "path");
-    fillPath.setAttribute("fill", "url(#hgc-shape-fill)");
-    svg.appendChild(fillPath);
+    // Faint grid lines
+    [0.25, 0.5, 0.75].forEach(g => {
+      const gl = document.createElementNS(NS, "line");
+      gl.setAttribute("x1", padX); gl.setAttribute("x2", W - padX);
+      gl.setAttribute("y1", padY + g * innerH); gl.setAttribute("y2", padY + g * innerH);
+      gl.setAttribute("stroke", `${ACCENT}14`); gl.setAttribute("stroke-width", "1");
+      gl.setAttribute("stroke-dasharray", "2 4"); svg.appendChild(gl);
+    });
 
-    const linePath = document.createElementNS(NS, "path");
-    linePath.setAttribute("fill","none");
-    linePath.setAttribute("stroke", ACCENT);
-    linePath.setAttribute("stroke-width","1.2");
-    linePath.setAttribute("stroke-linejoin","round");
-    linePath.setAttribute("stroke-linecap","round");
-    svg.appendChild(linePath);
-
-    const liveDot = document.createElementNS(NS, "circle");
-    liveDot.setAttribute("r","2"); liveDot.setAttribute("fill", ACCENT);
-    svg.appendChild(liveDot);
-
+    const fillPath = document.createElementNS(NS, "path"); fillPath.setAttribute("fill", `url(#${gradId})`); svg.appendChild(fillPath);
+    const linePath = document.createElementNS(NS, "path"); linePath.setAttribute("fill","none"); linePath.setAttribute("stroke", ACCENT); linePath.setAttribute("stroke-width","1.75"); linePath.setAttribute("stroke-linejoin","round"); linePath.setAttribute("stroke-linecap","round"); svg.appendChild(linePath);
+    const liveDot = document.createElementNS(NS, "circle"); liveDot.setAttribute("r","3.2"); liveDot.setAttribute("fill", ACCENT); svg.appendChild(liveDot);
     el.appendChild(svg);
 
     const redraw = () => {
-      const pts = data.map((val, i) => `${xAt(i).toFixed(1)},${yAt(val).toFixed(1)}`);
+      const pts = data.map((val, i) => `${xAt(i).toFixed(2)},${yAt(val).toFixed(2)}`);
       const lp = "M " + pts.join(" L ");
       const last = data[data.length - 1];
-      fillPath.setAttribute("d",
-        lp + ` L ${xAt(N-1).toFixed(1)},${(H-padY).toFixed(1)} L ${xAt(0).toFixed(1)},${(H-padY).toFixed(1)} Z`
-      );
+      fillPath.setAttribute("d", lp + ` L ${xAt(N-1).toFixed(2)},${(H-padY).toFixed(2)} L ${xAt(0).toFixed(2)},${(H-padY).toFixed(2)} Z`);
       linePath.setAttribute("d", lp);
-      liveDot.setAttribute("cx", xAt(N-1).toFixed(1));
-      liveDot.setAttribute("cy", yAt(last).toFixed(1));
+      liveDot.setAttribute("cx", xAt(N-1).toFixed(2)); liveDot.setAttribute("cy", yAt(last).toFixed(2));
     };
-
     redraw();
-
     const id = setInterval(() => {
       const last = data[data.length - 1];
       let next = last + (Math.random() - 0.5) * 0.22 + (0.5 - last) * 0.04;
-      next = Math.max(0.05, Math.min(0.95, next));
-      data = [...data.slice(1), next];
-      redraw();
-    }, 200);
-
+      next = Math.max(0.05, Math.min(0.95, next)); data = [...data.slice(1), next]; redraw();
+    }, 180);
     return () => clearInterval(id);
   }
 
-  const animMap = { rtn: initHgcAnimRtn, g10: initHgcAnimG10, shape: initHgcAnimShape };
-  document.querySelectorAll(".hgc-anim[data-anim]").forEach(el => {
+  // ── Color Scheme — two 3D tumbling dice ────────────────────────────────────
+  function initCcAnimColor(el) {
+    const NEON_R = "#ff2d4a", NEON_Y = "#fff200", NEON_B = "#1f6bff", CREAM = "#ddd5bc";
+    const COLOR_FACES = [
+      { color: NEON_R, label: "R" }, { color: NEON_Y, label: "Y" }, { color: NEON_B, label: "B" },
+      { color: NEON_R, label: "R" }, { color: NEON_Y, label: "Y" }, { color: NEON_B, label: "B" }
+    ];
+    const PIPS = { 1:[[2,2]], 2:[[1,1],[3,3]], 3:[[1,1],[2,2],[3,3]], 4:[[1,1],[3,1],[1,3],[3,3]], 5:[[1,1],[3,1],[2,2],[1,3],[3,3]], 6:[[1,1],[3,1],[1,2],[3,2],[1,3],[3,3]] };
+    const FACE_TF = s => [`translateZ(${s/2}px)`,`rotateY(180deg) translateZ(${s/2}px)`,`rotateY(90deg) translateZ(${s/2}px)`,`rotateY(-90deg) translateZ(${s/2}px)`,`rotateX(90deg) translateZ(${s/2}px)`,`rotateX(-90deg) translateZ(${s/2}px)`];
+
+    function makeDie(size, isColor) {
+      const wrap = document.createElement("div");
+      wrap.style.cssText = `width:${size}px;height:${size}px;perspective:400px;perspective-origin:50% 50%;flex-shrink:0`;
+      const inner = document.createElement("div");
+      inner.style.cssText = `position:relative;width:${size}px;height:${size}px;transform-style:preserve-3d;transform:rotateX(0deg) rotateY(0deg);transition:transform 1.6s cubic-bezier(0.33,0,0.4,1)`;
+      FACE_TF(size).forEach((tf, i) => {
+        const face = document.createElement("div");
+        face.style.cssText = `position:absolute;width:${size}px;height:${size}px;transform:${tf};border:1px solid rgba(0,0,0,0.45);box-shadow:inset 0 0 0 2px rgba(255,255,255,0.07),inset 0 -8px 18px rgba(0,0,0,0.28),inset 0 8px 18px rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;overflow:hidden`;
+        if (isColor) {
+          const f = COLOR_FACES[i]; face.style.background = f.color;
+          const lbl = document.createElement("div");
+          lbl.textContent = f.label; lbl.style.cssText = `font-family:'JetBrains Mono',monospace;font-weight:800;font-size:${Math.round(size*0.42)}px;color:rgba(0,0,0,0.6);letter-spacing:-0.02em`;
+          face.appendChild(lbl);
+        } else {
+          face.style.background = "#1a1916";
+          const n = (i % 6) + 1, pips = PIPS[n] || [];
+          const grid = document.createElement("div"); grid.style.cssText = `position:relative;width:72%;height:72%`;
+          pips.forEach(([cx, cy]) => {
+            const pip = document.createElement("div");
+            pip.style.cssText = `position:absolute;left:${((cx-1)/2)*100}%;top:${((cy-1)/2)*100}%;transform:translate(-50%,-50%);width:${Math.round(size*0.14)}px;height:${Math.round(size*0.14)}px;border-radius:50%;background:${CREAM};box-shadow:inset 0 -1px 2px rgba(0,0,0,0.4)`;
+            grid.appendChild(pip);
+          });
+          face.appendChild(grid);
+        }
+        inner.appendChild(face);
+      });
+      wrap.appendChild(inner);
+      return { wrap, inner };
+    }
+
+    const container = document.createElement("div");
+    container.style.cssText = "display:flex;gap:22px;align-items:center";
+    const colorDie = makeDie(58, true), numDie = makeDie(58, false);
+    container.appendChild(colorDie.wrap); container.appendChild(numDie.wrap);
+    el.appendChild(container);
+
+    function makeTumbler(inner, period) {
+      let rx = 0, ry = 0;
+      const id = setInterval(() => {
+        if (Math.random() < 0.12) return;
+        const both = Math.random() < 0.30, onlyX = !both && Math.random() < 0.5;
+        const mag = () => { const r = Math.random(); return r < 0.6 ? 90 : r < 0.85 ? 180 : 270; };
+        const sgn = () => Math.random() < 0.5 ? 1 : -1;
+        rx += (both || onlyX) ? sgn() * mag() : 0;
+        ry += (both || !onlyX) ? sgn() * mag() : 0;
+        inner.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+      }, period);
+      return () => clearInterval(id);
+    }
+
+    // Color cycle: update card's CSS vars to drive the tile accent
+    const card = el.closest(".home-game-card");
+    const SEQ_HEX = [NEON_R, NEON_Y, NEON_B];
+    const SEQ_RGB = ["255,45,74", "255,242,0", "31,107,255"];
+    let ci = 0;
+    const cycleId = setInterval(() => {
+      ci = (ci + 1) % 3;
+      if (card) { card.style.setProperty("--hgc-accent", SEQ_HEX[ci]); card.style.setProperty("--hgc-accent-rgb", SEQ_RGB[ci]); }
+    }, 1900);
+
+    const cleanColor = makeTumbler(colorDie.inner, 1900);
+    const cleanNum   = makeTumbler(numDie.inner, 2100);
+    return () => { cleanColor(); cleanNum(); clearInterval(cycleId); };
+  }
+
+  const animMap = { rtn: initCcAnimRtn, g10: initCcAnimG10, shape: initCcAnimShape, color: initCcAnimColor };
+  document.querySelectorAll(".cc-frame[data-anim]").forEach(el => {
     const fn = animMap[el.dataset.anim];
     if (fn) fn(el);
   });
