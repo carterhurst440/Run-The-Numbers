@@ -34778,6 +34778,30 @@ function csRenderBank() {
   if (bankrollEl) bankrollEl.textContent = formatCurrency(getDisplayedHeaderBankrollValue());
 }
 
+function csAddChipToZone(betId, value) {
+  const zone = csEl('cs-bz-' + betId);
+  if (!zone) return;
+  const stackEl = zone.querySelector('.chip-stack');
+  if (!stackEl) return;
+  const chip = document.createElement('div');
+  chip.className = 'chip';
+  chip.dataset.value = value;
+  chip.dataset.tone = String(getRunTheNumbersChipRackToneIndex(value));
+  chip.textContent = String(value);
+  chip.setAttribute('aria-hidden', 'true');
+  chip.style.setProperty('--stack-index', stackEl.children.length);
+  chip.classList.add(`denom-${value}`);
+  stackEl.appendChild(chip);
+  requestAnimationFrame(() => chip.classList.add('chip-enter'));
+}
+
+function csClearChipStacks() {
+  document.querySelectorAll('.cs-bet-zone').forEach(zone => {
+    const stackEl = zone.querySelector('.chip-stack');
+    if (stackEl) stackEl.innerHTML = '';
+  });
+}
+
 function csRenderChipRack() {
   const el = document.getElementById('cs-chipSelector');
   if (!el) return;
@@ -35108,6 +35132,7 @@ function csEvaluateBets(totals, grandTotal) {
 }
 
 function csClearBetResults() {
+  csClearChipStacks();
   document.querySelectorAll('.cs-bet-zone').forEach(z=>z.classList.remove('cs-win','cs-lose','cs-has-bet','cs-live-win'));
   document.querySelectorAll('.cs-bz-result').forEach(r=>{r.className='cs-bz-result';r.textContent='';});
   document.querySelectorAll('.cs-bz-stake').forEach(s=>s.textContent='');
@@ -35308,8 +35333,20 @@ function initColorSchemeGame() {
     Object.keys(CS_BZ_COLORS).forEach(id => {
       const z=csEl('cs-bz-'+id); if(z) z.style.setProperty('--zc',CS_BZ_COLORS[id]);
     });
+    // Inject chip-stack divs into every CS bet zone (once)
+    document.querySelectorAll('.cs-bet-zone').forEach(zone => {
+      if (!zone.querySelector('.chip-stack')) {
+        const stack = document.createElement('div');
+        stack.className = 'chip-stack';
+        stack.setAttribute('aria-hidden', 'true');
+        zone.prepend(stack);
+      }
+    });
     const clearBtn=csEl('cs-clearBetsBtn');
     if(clearBtn){ clearBtn._csHandler=()=>window.csGame?.clearAllBets(); clearBtn.addEventListener('click',clearBtn._csHandler); }
+    // Wire chip rack edit to shared chip editor
+    const editBtn=csEl('cs-chipRackEdit');
+    if(editBtn){ editBtn._csHandler=()=>{ if(typeof openChipEditor==='function') openChipEditor(); }; editBtn.addEventListener('click',editBtn._csHandler); }
     const bRoll=csEl('cs-bRoll'); if(bRoll){bRoll.disabled=false;bRoll.textContent='⬡ ROLL DICE';}
     const bNew=csEl('cs-bNew'); if(bNew) bNew.style.display='none';
     const sBar=csEl('cs-statusBar'); if(sBar){sBar.textContent='';sBar.classList.remove('cs-active');}
@@ -35371,6 +35408,7 @@ function initColorSchemeGame() {
         if(bankroll<selectedChip)return;
         _csBets[betId]=(_csBets[betId]||0)+selectedChip;
         bankroll=roundCurrencyValue(bankroll-selectedChip);
+        csAddChipToZone(betId, selectedChip);
         csRenderBank(); csRenderBetZone(betId); csRenderTotalWagered();
         if(_csRoundRolls.length>0){
           const{totals}=csCalcOutcome(_csRoundRolls);
@@ -35383,6 +35421,7 @@ function initColorSchemeGame() {
         const refund=Object.values(_csBets).reduce((a,b)=>a+b,0);
         _csBets={};
         bankroll=roundCurrencyValue(bankroll+refund);
+        csClearChipStacks();
         csRenderBank(); csRenderTotalWagered();
         document.querySelectorAll('.cs-bet-zone').forEach(z=>{
           const el=csEl('cs-stake-'+z.dataset.bet); if(el) el.textContent='';
@@ -35407,6 +35446,7 @@ function destroyColorSchemeGame() {
   const bRoll=csEl('cs-bRoll'); if(bRoll&&bRoll._csHandler){bRoll.removeEventListener('click',bRoll._csHandler);bRoll._csHandler=null;}
   const bNew=csEl('cs-bNew'); if(bNew&&bNew._csHandler){bNew.removeEventListener('click',bNew._csHandler);bNew._csHandler=null;}
   const clearBtn=csEl('cs-clearBetsBtn'); if(clearBtn&&clearBtn._csHandler){clearBtn.removeEventListener('click',clearBtn._csHandler);clearBtn._csHandler=null;}
+  const editBtn=csEl('cs-chipRackEdit'); if(editBtn&&editBtn._csHandler){editBtn.removeEventListener('click',editBtn._csHandler);editBtn._csHandler=null;}
   _csChipButtons=[];
   // Dispose Three.js
   if (_csRenderer) { _csRenderer.dispose(); _csRenderer=null; }

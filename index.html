@@ -3164,9 +3164,8 @@
               <span id="cs-sRoll" style="display:none">—/3</span>
               <span id="cs-sColor" style="display:none"></span>
               <span id="cs-sNum" style="display:none"></span>
-              <!-- Buttons at BOTTOM -->
+              <!-- NEW ROUND only shown after round completes -->
               <div class="cs-btns">
-                <button id="cs-bRoll" class="cs-roll-btn" type="button">⬡ ROLL DICE</button>
                 <button id="cs-bNew" class="cs-new-btn" type="button" style="display:none">↺ NEW ROUND</button>
               </div>
             </div>
@@ -3338,10 +3337,12 @@
           <!-- Chip rack -->
           <div class="chip-bar chip-rack cs-chip-bar" id="cs-chipBar" aria-label="Color Scheme chip rack">
             <div class="chip-selector-row chip-rack__row">
+              <button type="button" class="chip-rack-edit chip-rack__edit" id="cs-chipRackEdit">Edit</button>
               <div class="chip-selector chip-rack__selector cs-chip-selector" id="cs-chipSelector" role="radiogroup" aria-label="Choose chip denomination"></div>
             </div>
             <div class="chip-actions chip-rack__actions">
               <button type="button" class="primary chip-rack__button" id="cs-clearBetsBtn">Clear</button>
+              <button id="cs-bRoll" class="deal chip-rack__button chip-rack__button--primary" type="button">⬡ ROLL DICE</button>
             </div>
           </div>
 
