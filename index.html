@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Playfair+Display:wght@600;700&display=swap"
       rel="stylesheet"
     />
   </head>
@@ -312,6 +312,14 @@
                 <span class="drawer-link-label">Shape Traders</span>
               </span>
               <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
+            </button>
+            <button type="button" data-route-target="color-scheme" class="drawer-link drawer-link-game" id="drawer-color-scheme-link" hidden>
+              <span class="drawer-link-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+                </svg>
+              </span>
+              <span class="drawer-link-label">Color Scheme</span>
             </button>
             <button type="button" data-route-target="contests" id="drawer-contest-link" class="drawer-link drawer-contest-link" hidden>
               <span class="drawer-link-inner">
@@ -3036,6 +3044,290 @@
               <ul id="profile-contest-medals" class="profile-contest-medals"></ul>
             </section>
           </div>
+        </section>
+
+        <section id="color-scheme-view" class="route-view app-page cs-view" hidden aria-labelledby="cs-view-title">
+          <h1 id="cs-view-title" class="sr-only">Color Scheme</h1>
+
+          <!-- Topbar -->
+          <div class="cs-topbar">
+            <div class="cs-topbar-title">// COLOR SCHEME <span>DICE SIM</span></div>
+            <div class="cs-topbar-right">
+              <span class="cs-t-stat">THREE.JS <b>r128</b></span>
+              <span class="cs-t-stat">CANNON.JS</span>
+              <span class="cs-live-dot" aria-hidden="true"></span>
+            </div>
+          </div>
+
+          <!-- Round history strip -->
+          <div class="cs-round-history">
+            <div class="cs-rh-label">// ROUND HISTORY</div>
+            <div class="cs-rh-grid" id="cs-rhGrid">
+              <div class="cs-rh-empty" id="cs-rhEmpty">NO HISTORY YET</div>
+            </div>
+          </div>
+
+          <!-- Mid section: canvas col + outcome col -->
+          <div class="cs-mid">
+
+            <!-- Left: canvas + status + roll button + tracker -->
+            <div class="cs-col-canvas">
+              <canvas id="cs-three-canvas" aria-label="Dice physics simulation"></canvas>
+              <div class="cs-status-strip">
+                <div class="cs-s-left">
+                  <div class="cs-s-seg">
+                    <div class="cs-s-seg-l">ROUND</div>
+                    <div class="cs-s-seg-v" id="cs-sRound">1</div>
+                  </div>
+                  <div class="cs-s-seg">
+                    <div class="cs-s-seg-l">ROLL</div>
+                    <div class="cs-s-seg-v" id="cs-sRoll">—/3</div>
+                  </div>
+                  <div class="cs-s-seg">
+                    <div class="cs-s-seg-l">COLOR</div>
+                    <div class="cs-s-seg-v cs-hi" id="cs-sColor">—</div>
+                  </div>
+                  <div class="cs-s-seg">
+                    <div class="cs-s-seg-l">NUMBER</div>
+                    <div class="cs-s-seg-v cs-hi" id="cs-sNum">—</div>
+                  </div>
+                  <div class="cs-s-text" id="cs-statusBar">READY · PLACE BETS</div>
+                </div>
+                <div class="cs-s-result" id="cs-statusResult"></div>
+              </div>
+              <div class="cs-btns">
+                <button id="cs-bRoll" class="cs-roll-btn" type="button">⬡ ROLL DICE</button>
+                <button id="cs-bNew" class="cs-new-btn" type="button" style="display:none">↺ NEW ROUND</button>
+              </div>
+              <!-- Roll progress tracker -->
+              <div class="cs-roll-tracker">
+                <div class="cs-roll-track-slot" id="cs-rts-1">
+                  <div class="cs-rts-idx">ROLL 01</div>
+                  <div class="cs-rts-empty" id="cs-rts-empty-1">—</div>
+                  <div class="cs-rts-content" id="cs-rts-content-1">
+                    <div class="cs-rts-color-row">
+                      <div class="cs-rts-dot" id="cs-rts-dot-1"></div>
+                      <div class="cs-rts-color-name" id="cs-rts-cname-1"></div>
+                      <div class="cs-rts-num" id="cs-rts-num-1"></div>
+                    </div>
+                    <div class="cs-rts-secondary" id="cs-rts-sec-1"></div>
+                  </div>
+                </div>
+                <div class="cs-roll-track-slot" id="cs-rts-2">
+                  <div class="cs-rts-idx">ROLL 02</div>
+                  <div class="cs-rts-empty" id="cs-rts-empty-2">—</div>
+                  <div class="cs-rts-content" id="cs-rts-content-2">
+                    <div class="cs-rts-color-row">
+                      <div class="cs-rts-dot" id="cs-rts-dot-2"></div>
+                      <div class="cs-rts-color-name" id="cs-rts-cname-2"></div>
+                      <div class="cs-rts-num" id="cs-rts-num-2"></div>
+                    </div>
+                    <div class="cs-rts-secondary" id="cs-rts-sec-2"></div>
+                  </div>
+                </div>
+                <div class="cs-roll-track-slot" id="cs-rts-3">
+                  <div class="cs-rts-idx">ROLL 03</div>
+                  <div class="cs-rts-empty" id="cs-rts-empty-3">—</div>
+                  <div class="cs-rts-content" id="cs-rts-content-3">
+                    <div class="cs-rts-color-row">
+                      <div class="cs-rts-dot" id="cs-rts-dot-3"></div>
+                      <div class="cs-rts-color-name" id="cs-rts-cname-3"></div>
+                      <div class="cs-rts-num" id="cs-rts-num-3"></div>
+                    </div>
+                    <div class="cs-rts-secondary" id="cs-rts-sec-3"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: outcome totals -->
+            <div class="cs-col-outcome">
+              <div class="cs-col-hdr">
+                <span>// HAND OUTCOME</span>
+                <span id="cs-betStateBadge" class="cs-bet-state-badge cs-open">OPEN</span>
+              </div>
+              <div class="cs-outcome-waiting" id="cs-outcomeWaiting">ROLL TO SEE<br>LIVE TOTALS</div>
+              <div class="cs-outcome-body" id="cs-outcomeBody">
+                <div class="cs-oc-section-lbl" id="cs-primaryLbl">
+                  <span>PRIMARY</span>
+                  <span class="cs-oc-section-val" id="cs-vPrimarySub">—</span>
+                </div>
+                <div class="cs-color-row">
+                  <div class="cs-cr-swatch" style="background:#ff4444"></div>
+                  <div class="cs-cr-name" style="color:#ff4444">RED</div>
+                  <div class="cs-cr-formula" id="cs-fRed">—</div>
+                  <div class="cs-cr-value" id="cs-vRed" style="color:#ff4444">—</div>
+                </div>
+                <div class="cs-color-row">
+                  <div class="cs-cr-swatch" style="background:#4488ff"></div>
+                  <div class="cs-cr-name" style="color:#4488ff">BLUE</div>
+                  <div class="cs-cr-formula" id="cs-fBlue">—</div>
+                  <div class="cs-cr-value" id="cs-vBlue" style="color:#4488ff">—</div>
+                </div>
+                <div class="cs-color-row">
+                  <div class="cs-cr-swatch" style="background:#ffdd00"></div>
+                  <div class="cs-cr-name" style="color:#ffdd00">YELLOW</div>
+                  <div class="cs-cr-formula" id="cs-fYellow">—</div>
+                  <div class="cs-cr-value" id="cs-vYellow" style="color:#ffdd00">—</div>
+                </div>
+                <div class="cs-oc-divider"></div>
+                <div class="cs-oc-section-lbl" id="cs-secondaryLbl">
+                  <span>SECONDARY</span>
+                  <span class="cs-oc-section-val" id="cs-vSecondarySub">—</span>
+                </div>
+                <div class="cs-color-row">
+                  <div class="cs-cr-swatch" style="background:#cc44ff"></div>
+                  <div class="cs-cr-name" style="color:#cc44ff">PURPLE</div>
+                  <div class="cs-cr-formula" id="cs-fPurple">—</div>
+                  <div class="cs-cr-value" id="cs-vPurple" style="color:#cc44ff">—</div>
+                </div>
+                <div class="cs-color-row">
+                  <div class="cs-cr-swatch" style="background:#33ee66"></div>
+                  <div class="cs-cr-name" style="color:#33ee66">GREEN</div>
+                  <div class="cs-cr-formula" id="cs-fGreen">—</div>
+                  <div class="cs-cr-value" id="cs-vGreen" style="color:#33ee66">—</div>
+                </div>
+                <div class="cs-color-row">
+                  <div class="cs-cr-swatch" style="background:#ff8833"></div>
+                  <div class="cs-cr-name" style="color:#ff8833">ORANGE</div>
+                  <div class="cs-cr-formula" id="cs-fOrange">—</div>
+                  <div class="cs-cr-value" id="cs-vOrange" style="color:#ff8833">—</div>
+                </div>
+                <div class="cs-total-row">
+                  <div class="cs-cr-swatch" style="background:#a8ff3e"></div>
+                  <div class="cs-cr-name" style="color:#a8ff3e;font-weight:700">TOTAL</div>
+                  <div class="cs-cr-formula" id="cs-fTotal"></div>
+                  <div id="cs-vTotal" class="cs-total-val">—</div>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- end .cs-mid -->
+
+          <!-- Betting felt -->
+          <div class="cs-felt-wrap">
+            <div class="cs-felt-body">
+
+              <!-- Winning Color -->
+              <div class="cs-felt-group">
+                <div class="cs-felt-group-hdr"><span class="cs-felt-group-lbl">WINNING COLOR</span></div>
+                <div class="cs-felt-row">
+                  <div class="cs-bet-zone" id="cs-bz-RED" data-bet="RED" onclick="csGame.placeBet('RED')"><div class="cs-bz-name" style="color:#ff4444">RED</div><div class="cs-bz-odds">9:1</div><div class="cs-bz-stake" id="cs-stake-RED"></div><div class="cs-bz-result" id="cs-result-RED"></div></div>
+                  <div class="cs-bet-zone" id="cs-bz-BLUE" data-bet="BLUE" onclick="csGame.placeBet('BLUE')"><div class="cs-bz-name" style="color:#4488ff">BLUE</div><div class="cs-bz-odds">9:1</div><div class="cs-bz-stake" id="cs-stake-BLUE"></div><div class="cs-bz-result" id="cs-result-BLUE"></div></div>
+                  <div class="cs-bet-zone" id="cs-bz-YELLOW" data-bet="YELLOW" onclick="csGame.placeBet('YELLOW')"><div class="cs-bz-name" style="color:#ffdd00">YELLOW</div><div class="cs-bz-odds">9:1</div><div class="cs-bz-stake" id="cs-stake-YELLOW"></div><div class="cs-bz-result" id="cs-result-YELLOW"></div></div>
+                  <div class="cs-bet-zone" id="cs-bz-PURPLE" data-bet="PURPLE" onclick="csGame.placeBet('PURPLE')"><div class="cs-bz-name" style="color:#cc44ff">PURPLE</div><div class="cs-bz-odds">5:1</div><div class="cs-bz-stake" id="cs-stake-PURPLE"></div><div class="cs-bz-result" id="cs-result-PURPLE"></div></div>
+                  <div class="cs-bet-zone" id="cs-bz-GREEN" data-bet="GREEN" onclick="csGame.placeBet('GREEN')"><div class="cs-bz-name" style="color:#33ee66">GREEN</div><div class="cs-bz-odds">5:1</div><div class="cs-bz-stake" id="cs-stake-GREEN"></div><div class="cs-bz-result" id="cs-result-GREEN"></div></div>
+                  <div class="cs-bet-zone" id="cs-bz-ORANGE" data-bet="ORANGE" onclick="csGame.placeBet('ORANGE')"><div class="cs-bz-name" style="color:#ff8833">ORANGE</div><div class="cs-bz-odds">5:1</div><div class="cs-bz-stake" id="cs-stake-ORANGE"></div><div class="cs-bz-result" id="cs-result-ORANGE"></div></div>
+                  <div class="cs-bet-zone" id="cs-bz-COLOR_TIE" data-bet="COLOR_TIE" onclick="csGame.placeBet('COLOR_TIE')"><div class="cs-bz-name" style="color:#888">TIE</div><div class="cs-bz-odds">4:1</div><div class="cs-bz-stake" id="cs-stake-COLOR_TIE"></div><div class="cs-bz-result" id="cs-result-COLOR_TIE"></div></div>
+                </div>
+              </div>
+
+              <!-- Winning Type -->
+              <div class="cs-felt-group">
+                <div class="cs-felt-group-hdr"><span class="cs-felt-group-lbl">WINNING TYPE</span></div>
+                <div class="cs-felt-row">
+                  <div class="cs-bet-zone" id="cs-bz-TYPE_PRIMARY" data-bet="TYPE_PRIMARY" onclick="csGame.placeBet('TYPE_PRIMARY')"><div class="cs-bz-name">PRIMARY</div><div class="cs-bz-odds">1:1 <span class="cs-bz-commission">-5%</span></div><div class="cs-bz-stake" id="cs-stake-TYPE_PRIMARY"></div><div class="cs-bz-result" id="cs-result-TYPE_PRIMARY"></div></div>
+                  <div class="cs-bet-zone" id="cs-bz-TYPE_SECONDARY" data-bet="TYPE_SECONDARY" onclick="csGame.placeBet('TYPE_SECONDARY')"><div class="cs-bz-name">SECONDARY</div><div class="cs-bz-odds">1:1</div><div class="cs-bz-stake" id="cs-stake-TYPE_SECONDARY"></div><div class="cs-bz-result" id="cs-result-TYPE_SECONDARY"></div></div>
+                  <div class="cs-bet-zone" id="cs-bz-TYPE_TIE" data-bet="TYPE_TIE" onclick="csGame.placeBet('TYPE_TIE')"><div class="cs-bz-name" style="color:#888">TYPE TIE</div><div class="cs-bz-odds">50:1</div><div class="cs-bz-stake" id="cs-stake-TYPE_TIE"></div><div class="cs-bz-result" id="cs-result-TYPE_TIE"></div></div>
+                </div>
+              </div>
+
+              <!-- Round Total -->
+              <div class="cs-felt-group">
+                <div class="cs-felt-group-hdr"><span class="cs-felt-group-lbl">ROUND TOTAL</span></div>
+                <div class="cs-felt-row">
+                  <div class="cs-bet-zone" id="cs-bz-TOT_A" data-bet="TOT_A" onclick="csGame.placeBet('TOT_A')"><div class="cs-bz-name">1–10</div><div class="cs-bz-odds">10:1</div><div class="cs-bz-stake" id="cs-stake-TOT_A"></div><div class="cs-bz-result" id="cs-result-TOT_A"></div></div>
+                  <div class="cs-bet-zone" id="cs-bz-TOT_B" data-bet="TOT_B" onclick="csGame.placeBet('TOT_B')"><div class="cs-bz-name">11–20</div><div class="cs-bz-odds">3:1</div><div class="cs-bz-stake" id="cs-stake-TOT_B"></div><div class="cs-bz-result" id="cs-result-TOT_B"></div></div>
+                  <div class="cs-bet-zone" id="cs-bz-TOT_C" data-bet="TOT_C" onclick="csGame.placeBet('TOT_C')"><div class="cs-bz-name">21–36</div><div class="cs-bz-odds">2:1</div><div class="cs-bz-stake" id="cs-stake-TOT_C"></div><div class="cs-bz-result" id="cs-result-TOT_C"></div></div>
+                  <div class="cs-bet-zone" id="cs-bz-TOT_D" data-bet="TOT_D" onclick="csGame.placeBet('TOT_D')"><div class="cs-bz-name">37–52</div><div class="cs-bz-odds">4:1</div><div class="cs-bz-stake" id="cs-stake-TOT_D"></div><div class="cs-bz-result" id="cs-result-TOT_D"></div></div>
+                  <div class="cs-bet-zone" id="cs-bz-TOT_E" data-bet="TOT_E" onclick="csGame.placeBet('TOT_E')"><div class="cs-bz-name">53–75</div><div class="cs-bz-odds">7:1</div><div class="cs-bz-stake" id="cs-stake-TOT_E"></div><div class="cs-bz-result" id="cs-result-TOT_E"></div></div>
+                  <div class="cs-bet-zone" id="cs-bz-TOT_F" data-bet="TOT_F" onclick="csGame.placeBet('TOT_F')"><div class="cs-bz-name">76–216</div><div class="cs-bz-odds">28:1</div><div class="cs-bz-stake" id="cs-stake-TOT_F"></div><div class="cs-bz-result" id="cs-result-TOT_F"></div></div>
+                </div>
+              </div>
+
+              <!-- Advanced toggle -->
+              <div class="cs-advanced-toggle" id="cs-advToggle" onclick="csGame.toggleAdvanced()">
+                <div class="cs-advanced-toggle-l">
+                  <div class="cs-advanced-toggle-icon">+</div>
+                  <span>ADVANCED BETS</span>
+                  <span class="cs-advanced-badge">30 MARKETS</span>
+                </div>
+                <div class="cs-advanced-toggle-r" id="cs-advLabel">SECONDARY &amp; PRIMARY TOTALS</div>
+              </div>
+              <div class="cs-advanced-body" id="cs-advBody">
+
+                <!-- Secondary totals -->
+                <div class="cs-felt-group cs-felt-group-secondary">
+                  <div class="cs-felt-group-hdr"><span class="cs-felt-group-lbl">SECONDARY TOTALS</span></div>
+                  <div class="cs-felt-row">
+                    <div class="cs-bet-zone" id="cs-bz-PUR_LO" data-bet="PUR_LO" onclick="csGame.placeBet('PUR_LO')"><div class="cs-bz-name" style="color:#cc44ff">PUR 1–16</div><div class="cs-bz-odds">3:1</div><div class="cs-bz-stake" id="cs-stake-PUR_LO"></div><div class="cs-bz-result" id="cs-result-PUR_LO"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-PUR_MID" data-bet="PUR_MID" onclick="csGame.placeBet('PUR_MID')"><div class="cs-bz-name" style="color:#cc44ff">PUR 17–30</div><div class="cs-bz-odds">9:1</div><div class="cs-bz-stake" id="cs-stake-PUR_MID"></div><div class="cs-bz-result" id="cs-result-PUR_MID"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-PUR_HI" data-bet="PUR_HI" onclick="csGame.placeBet('PUR_HI')"><div class="cs-bz-name" style="color:#cc44ff">PUR 31+</div><div class="cs-bz-odds">31:1</div><div class="cs-bz-stake" id="cs-stake-PUR_HI"></div><div class="cs-bz-result" id="cs-result-PUR_HI"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-GRN_LO" data-bet="GRN_LO" onclick="csGame.placeBet('GRN_LO')"><div class="cs-bz-name" style="color:#33ee66">GRN 1–16</div><div class="cs-bz-odds">3:1</div><div class="cs-bz-stake" id="cs-stake-GRN_LO"></div><div class="cs-bz-result" id="cs-result-GRN_LO"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-GRN_MID" data-bet="GRN_MID" onclick="csGame.placeBet('GRN_MID')"><div class="cs-bz-name" style="color:#33ee66">GRN 17–30</div><div class="cs-bz-odds">9:1</div><div class="cs-bz-stake" id="cs-stake-GRN_MID"></div><div class="cs-bz-result" id="cs-result-GRN_MID"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-GRN_HI" data-bet="GRN_HI" onclick="csGame.placeBet('GRN_HI')"><div class="cs-bz-name" style="color:#33ee66">GRN 31+</div><div class="cs-bz-odds">31:1</div><div class="cs-bz-stake" id="cs-stake-GRN_HI"></div><div class="cs-bz-result" id="cs-result-GRN_HI"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-ORG_LO" data-bet="ORG_LO" onclick="csGame.placeBet('ORG_LO')"><div class="cs-bz-name" style="color:#ff8833">ORG 1–16</div><div class="cs-bz-odds">3:1</div><div class="cs-bz-stake" id="cs-stake-ORG_LO"></div><div class="cs-bz-result" id="cs-result-ORG_LO"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-ORG_MID" data-bet="ORG_MID" onclick="csGame.placeBet('ORG_MID')"><div class="cs-bz-name" style="color:#ff8833">ORG 17–30</div><div class="cs-bz-odds">9:1</div><div class="cs-bz-stake" id="cs-stake-ORG_MID"></div><div class="cs-bz-result" id="cs-result-ORG_MID"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-ORG_HI" data-bet="ORG_HI" onclick="csGame.placeBet('ORG_HI')"><div class="cs-bz-name" style="color:#ff8833">ORG 31+</div><div class="cs-bz-odds">31:1</div><div class="cs-bz-stake" id="cs-stake-ORG_HI"></div><div class="cs-bz-result" id="cs-result-ORG_HI"></div></div>
+                  </div>
+                </div>
+
+                <!-- Primary totals -->
+                <div class="cs-felt-group cs-felt-group-granular">
+                  <div class="cs-felt-group-hdr"><span class="cs-felt-group-lbl">PRIMARY TOTALS</span></div>
+                  <div class="cs-felt-row">
+                    <div class="cs-bet-zone" id="cs-bz-BLU_1" data-bet="BLU_1" onclick="csGame.placeBet('BLU_1')"><div class="cs-bz-name" style="color:#4488ff">BLU=1</div><div class="cs-bz-odds">11:1</div><div class="cs-bz-stake" id="cs-stake-BLU_1"></div><div class="cs-bz-result" id="cs-result-BLU_1"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-BLU_2" data-bet="BLU_2" onclick="csGame.placeBet('BLU_2')"><div class="cs-bz-name" style="color:#4488ff">BLU=2</div><div class="cs-bz-odds">10:1</div><div class="cs-bz-stake" id="cs-stake-BLU_2"></div><div class="cs-bz-result" id="cs-result-BLU_2"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-BLU_3" data-bet="BLU_3" onclick="csGame.placeBet('BLU_3')"><div class="cs-bz-name" style="color:#4488ff">BLU=3</div><div class="cs-bz-odds">10:1</div><div class="cs-bz-stake" id="cs-stake-BLU_3"></div><div class="cs-bz-result" id="cs-result-BLU_3"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-BLU_4" data-bet="BLU_4" onclick="csGame.placeBet('BLU_4')"><div class="cs-bz-name" style="color:#4488ff">BLU=4</div><div class="cs-bz-odds">9:1</div><div class="cs-bz-stake" id="cs-stake-BLU_4"></div><div class="cs-bz-result" id="cs-result-BLU_4"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-BLU_5" data-bet="BLU_5" onclick="csGame.placeBet('BLU_5')"><div class="cs-bz-name" style="color:#4488ff">BLU=5</div><div class="cs-bz-odds">9:1</div><div class="cs-bz-stake" id="cs-stake-BLU_5"></div><div class="cs-bz-result" id="cs-result-BLU_5"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-BLU_6" data-bet="BLU_6" onclick="csGame.placeBet('BLU_6')"><div class="cs-bz-name" style="color:#4488ff">BLU=6</div><div class="cs-bz-odds">8:1</div><div class="cs-bz-stake" id="cs-stake-BLU_6"></div><div class="cs-bz-result" id="cs-result-BLU_6"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-BLU_7P" data-bet="BLU_7P" onclick="csGame.placeBet('BLU_7P')"><div class="cs-bz-name" style="color:#4488ff">BLU 7+</div><div class="cs-bz-odds">5:1</div><div class="cs-bz-stake" id="cs-stake-BLU_7P"></div><div class="cs-bz-result" id="cs-result-BLU_7P"></div></div>
+                  </div>
+                  <div class="cs-felt-row">
+                    <div class="cs-bet-zone" id="cs-bz-RED_1" data-bet="RED_1" onclick="csGame.placeBet('RED_1')"><div class="cs-bz-name" style="color:#ff4444">RED=1</div><div class="cs-bz-odds">11:1</div><div class="cs-bz-stake" id="cs-stake-RED_1"></div><div class="cs-bz-result" id="cs-result-RED_1"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-RED_2" data-bet="RED_2" onclick="csGame.placeBet('RED_2')"><div class="cs-bz-name" style="color:#ff4444">RED=2</div><div class="cs-bz-odds">10:1</div><div class="cs-bz-stake" id="cs-stake-RED_2"></div><div class="cs-bz-result" id="cs-result-RED_2"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-RED_3" data-bet="RED_3" onclick="csGame.placeBet('RED_3')"><div class="cs-bz-name" style="color:#ff4444">RED=3</div><div class="cs-bz-odds">10:1</div><div class="cs-bz-stake" id="cs-stake-RED_3"></div><div class="cs-bz-result" id="cs-result-RED_3"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-RED_4" data-bet="RED_4" onclick="csGame.placeBet('RED_4')"><div class="cs-bz-name" style="color:#ff4444">RED=4</div><div class="cs-bz-odds">9:1</div><div class="cs-bz-stake" id="cs-stake-RED_4"></div><div class="cs-bz-result" id="cs-result-RED_4"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-RED_5" data-bet="RED_5" onclick="csGame.placeBet('RED_5')"><div class="cs-bz-name" style="color:#ff4444">RED=5</div><div class="cs-bz-odds">9:1</div><div class="cs-bz-stake" id="cs-stake-RED_5"></div><div class="cs-bz-result" id="cs-result-RED_5"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-RED_6" data-bet="RED_6" onclick="csGame.placeBet('RED_6')"><div class="cs-bz-name" style="color:#ff4444">RED=6</div><div class="cs-bz-odds">8:1</div><div class="cs-bz-stake" id="cs-stake-RED_6"></div><div class="cs-bz-result" id="cs-result-RED_6"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-RED_7P" data-bet="RED_7P" onclick="csGame.placeBet('RED_7P')"><div class="cs-bz-name" style="color:#ff4444">RED 7+</div><div class="cs-bz-odds">5:1</div><div class="cs-bz-stake" id="cs-stake-RED_7P"></div><div class="cs-bz-result" id="cs-result-RED_7P"></div></div>
+                  </div>
+                  <div class="cs-felt-row">
+                    <div class="cs-bet-zone" id="cs-bz-YEL_1" data-bet="YEL_1" onclick="csGame.placeBet('YEL_1')"><div class="cs-bz-name" style="color:#ffdd00">YEL=1</div><div class="cs-bz-odds">11:1</div><div class="cs-bz-stake" id="cs-stake-YEL_1"></div><div class="cs-bz-result" id="cs-result-YEL_1"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-YEL_2" data-bet="YEL_2" onclick="csGame.placeBet('YEL_2')"><div class="cs-bz-name" style="color:#ffdd00">YEL=2</div><div class="cs-bz-odds">10:1</div><div class="cs-bz-stake" id="cs-stake-YEL_2"></div><div class="cs-bz-result" id="cs-result-YEL_2"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-YEL_3" data-bet="YEL_3" onclick="csGame.placeBet('YEL_3')"><div class="cs-bz-name" style="color:#ffdd00">YEL=3</div><div class="cs-bz-odds">10:1</div><div class="cs-bz-stake" id="cs-stake-YEL_3"></div><div class="cs-bz-result" id="cs-result-YEL_3"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-YEL_4" data-bet="YEL_4" onclick="csGame.placeBet('YEL_4')"><div class="cs-bz-name" style="color:#ffdd00">YEL=4</div><div class="cs-bz-odds">9:1</div><div class="cs-bz-stake" id="cs-stake-YEL_4"></div><div class="cs-bz-result" id="cs-result-YEL_4"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-YEL_5" data-bet="YEL_5" onclick="csGame.placeBet('YEL_5')"><div class="cs-bz-name" style="color:#ffdd00">YEL=5</div><div class="cs-bz-odds">9:1</div><div class="cs-bz-stake" id="cs-stake-YEL_5"></div><div class="cs-bz-result" id="cs-result-YEL_5"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-YEL_6" data-bet="YEL_6" onclick="csGame.placeBet('YEL_6')"><div class="cs-bz-name" style="color:#ffdd00">YEL=6</div><div class="cs-bz-odds">8:1</div><div class="cs-bz-stake" id="cs-stake-YEL_6"></div><div class="cs-bz-result" id="cs-result-YEL_6"></div></div>
+                    <div class="cs-bet-zone" id="cs-bz-YEL_7P" data-bet="YEL_7P" onclick="csGame.placeBet('YEL_7P')"><div class="cs-bz-name" style="color:#ffdd00">YEL 7+</div><div class="cs-bz-odds">5:1</div><div class="cs-bz-stake" id="cs-stake-YEL_7P"></div><div class="cs-bz-result" id="cs-result-YEL_7P"></div></div>
+                  </div>
+                </div>
+
+              </div><!-- end cs-advanced-body -->
+
+              <div class="cs-felt-wagered">
+                <div class="cs-felt-wagered-lbl">TOTAL WAGERED</div>
+                <div class="cs-felt-wagered-val" id="cs-totalWagered">0</div>
+              </div>
+
+            </div><!-- end cs-felt-body -->
+          </div><!-- end cs-felt-wrap -->
+
+          <!-- Chip rack -->
+          <div class="cs-chip-rack" id="cs-chipRack">
+            <div class="cs-chip-rack-lbl">CHIPS</div>
+            <div class="cs-chip cs-chip-1"   data-val="1"   onclick="csGame.selectChip(1)">1</div>
+            <div class="cs-chip cs-chip-5"   data-val="5"   onclick="csGame.selectChip(5)">5</div>
+            <div class="cs-chip cs-chip-10"  data-val="10"  onclick="csGame.selectChip(10)">10</div>
+            <div class="cs-chip cs-chip-25"  data-val="25"  onclick="csGame.selectChip(25)">25</div>
+            <div class="cs-chip cs-chip-100" data-val="100" onclick="csGame.selectChip(100)">100</div>
+            <div class="cs-chip-rack-sep"></div>
+            <button type="button" class="cs-clear-bets-btn" id="cs-clearBetsBtn" onclick="csGame.clearAllBets()">CLEAR BETS</button>
+            <div class="cs-chip-rack-sep"></div>
+            <div class="cs-bank-rack"><span>BANK </span><span id="cs-bankAmt">1000</span></div>
+          </div>
+
         </section>
 
       </main>

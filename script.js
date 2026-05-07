@@ -8963,6 +8963,14 @@ function updateAdminVisibility(user = currentUser) {
       adminNavButton.setAttribute("hidden", "");
     }
   }
+  const drawerColorSchemeLink = document.getElementById("drawer-color-scheme-link");
+  if (drawerColorSchemeLink) {
+    if (adminVisible) {
+      drawerColorSchemeLink.removeAttribute("hidden");
+    } else {
+      drawerColorSchemeLink.setAttribute("hidden", "");
+    }
+  }
   if (shapeTradersAdminTestControls) {
     if (adminVisible) {
       shapeTradersAdminTestControls.removeAttribute("hidden");
@@ -9246,6 +9254,12 @@ async function setRoute(route, { replaceHash = false } = {}) {
     markShapeTraderInteraction();
     await initializeShapeTraders();
     await synchronizeShapeTraders();
+  }
+
+  if (resolvedRoute === "color-scheme") {
+    initColorSchemeGame();
+  } else {
+    destroyColorSchemeGame();
   }
 
   if (PLAY_ASSISTANT_ROUTES.has(resolvedRoute)) {
@@ -18213,6 +18227,7 @@ const storeView = document.getElementById("store-view");
 const dashboardView = document.getElementById("dashboard-view");
 const adminView = document.getElementById("admin-view");
 const profileView = document.getElementById("profile-view");
+const colorSchemeView = document.getElementById("color-scheme-view");
 const routeViews = {
   home: homeView,
   "shape-traders": shapeTradersView,
@@ -18223,13 +18238,14 @@ const routeViews = {
   store: storeView,
   dashboard: dashboardView,
   admin: adminView,
-  profile: profileView
+  profile: profileView,
+  "color-scheme": colorSchemeView
 };
 const headerEl = document.querySelector(".header");
 const chipBarEl = runTheNumbersView ? runTheNumbersView.querySelector(".chip-bar") : null;
 const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout") : null;
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
-const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile"]);
+const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile", "color-scheme"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
@@ -34500,3 +34516,639 @@ window.addEventListener("resize", () => {
     if (fn) fn(el);
   });
 }());
+
+// ── COLOR SCHEME GAME MODULE ──────────────────────────────────────────────────
+let _csGameActive = false;
+let _csAnimId = null;
+let _csRenderer = null;
+let _csScene = null;
+let _csCamera = null;
+let _csWorld = null;
+let _csDice = [];
+let _csSettling = false;
+let _csLastTime = null;
+let _csProcessingSettle = false;
+let _csRound = 1;
+let _csRoll = 0;
+let _csRoundRolls = [];
+let _csBets = {};
+let _csBetState = 'open';
+let _csBank = 1000;
+let _csSelectedChip = 10;
+let _csRoundHistory = [];
+
+const CS_ODDS = {
+  RED:9,BLUE:9,YELLOW:9,PURPLE:5,GREEN:5,ORANGE:5,COLOR_TIE:4,
+  TYPE_PRIMARY:1,TYPE_SECONDARY:1,TYPE_TIE:50,
+  PUR_LO:3,PUR_MID:9,PUR_HI:31,GRN_LO:3,GRN_MID:9,GRN_HI:31,ORG_LO:3,ORG_MID:9,ORG_HI:31,
+  BLU_1:11,BLU_2:10,BLU_3:10,BLU_4:9,BLU_5:9,BLU_6:8,BLU_7P:5,
+  RED_1:11,RED_2:10,RED_3:10,RED_4:9,RED_5:9,RED_6:8,RED_7P:5,
+  YEL_1:11,YEL_2:10,YEL_3:10,YEL_4:9,YEL_5:9,YEL_6:8,YEL_7P:5,
+  TOT_A:10,TOT_B:3,TOT_C:2,TOT_D:4,TOT_E:7,TOT_F:28,
+};
+
+const CS_COLS = [
+  { name:'RED',    top:'#ff2222', dark:'#cc0000', dot:'#ff4444' },
+  { name:'BLUE',   top:'#1166ff', dark:'#0044dd', dot:'#4488ff' },
+  { name:'YELLOW', top:'#ffdd00', dark:'#c49a00', dot:'#ffdd00' },
+  { name:'RED',    top:'#ff2222', dark:'#cc0000', dot:'#ff4444' },
+  { name:'BLUE',   top:'#1166ff', dark:'#0044dd', dot:'#4488ff' },
+  { name:'YELLOW', top:'#ffdd00', dark:'#c49a00', dot:'#ffdd00' },
+];
+
+const CS_PIP_LAYOUTS = [
+  [],
+  [[.5,.5]],
+  [[.25,.25],[.75,.75]],
+  [[.25,.25],[.5,.5],[.75,.75]],
+  [[.25,.25],[.75,.25],[.25,.75],[.75,.75]],
+  [[.25,.25],[.75,.25],[.5,.5],[.25,.75],[.75,.75]],
+  [[.25,.25],[.75,.25],[.28,.5],[.72,.5],[.25,.75],[.75,.75]],
+];
+
+const CS_BZ_COLORS = {
+  RED:'255,68,68',BLUE:'68,136,255',YELLOW:'255,204,0',
+  PURPLE:'204,68,255',GREEN:'51,238,102',ORANGE:'255,136,51',
+  COLOR_TIE:'160,160,150',TYPE_PRIMARY:'200,200,192',TYPE_SECONDARY:'170,150,200',
+  TYPE_TIE:'160,160,150',
+  PUR_LO:'204,68,255',PUR_MID:'204,68,255',PUR_HI:'204,68,255',
+  GRN_LO:'51,238,102',GRN_MID:'51,238,102',GRN_HI:'51,238,102',
+  ORG_LO:'255,136,51',ORG_MID:'255,136,51',ORG_HI:'255,136,51',
+  BLU_1:'68,136,255',BLU_2:'68,136,255',BLU_3:'68,136,255',BLU_4:'68,136,255',BLU_5:'68,136,255',BLU_6:'68,136,255',BLU_7P:'68,136,255',
+  RED_1:'255,68,68',RED_2:'255,68,68',RED_3:'255,68,68',RED_4:'255,68,68',RED_5:'255,68,68',RED_6:'255,68,68',RED_7P:'255,68,68',
+  YEL_1:'255,204,0',YEL_2:'255,204,0',YEL_3:'255,204,0',YEL_4:'255,204,0',YEL_5:'255,204,0',YEL_6:'255,204,0',YEL_7P:'255,204,0',
+  TOT_A:'180,180,160',TOT_B:'180,180,160',TOT_C:'180,180,160',TOT_D:'180,180,160',TOT_E:'180,180,160',TOT_F:'180,180,160',
+};
+
+function csEl(id) { return document.getElementById(id); }
+
+function csMakeFaceTex(THREE, faceColor, pipColor, pips, label) {
+  const sz = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = sz;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#000000'; ctx.fillRect(0,0,sz,sz);
+  ctx.fillStyle = faceColor;
+  ctx.beginPath(); ctx.roundRect(5,5,sz-10,sz-10,sz*0.1); ctx.fill();
+  if (label) {
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.font = `900 ${sz*0.48}px 'Courier New',monospace`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, sz/2, sz/2+3);
+  } else {
+    ctx.fillStyle = pipColor;
+    pips.forEach(([u,v]) => { ctx.beginPath(); ctx.arc(u*sz,v*sz,sz*0.088,0,Math.PI*2); ctx.fill(); });
+  }
+  return new THREE.CanvasTexture(c);
+}
+
+function csMakeColorDie(THREE) {
+  return CS_COLS.map(col => csMakeFaceTex(THREE, col.top, col.dark, [], col.name[0]));
+}
+function csMakeNumberDie(THREE) {
+  return [1,6,2,5,3,4].map(n => csMakeFaceTex(THREE, '#ffffff', '#111111', CS_PIP_LAYOUTS[n], null));
+}
+
+function csCalcOutcome(rolls) {
+  const totals = {RED:0,BLUE:0,YELLOW:0,PURPLE:0,GREEN:0,ORANGE:0};
+  const formulas = {RED:[],BLUE:[],YELLOW:[],PURPLE:[],GREEN:[],ORANGE:[]};
+  let i = 0;
+  while (i < rolls.length) {
+    const c = rolls[i].color; let j = i;
+    while (j < rolls.length && rolls[j].color === c) j++;
+    const group = rolls.slice(i, j);
+    const val = group.reduce((acc,r) => acc * r.number, 1);
+    totals[c] += val;
+    formulas[c].push(group.length > 1 ? group.map(r=>r.number).join('×') : String(group[0].number));
+    i = j;
+  }
+  const MIX = {'BLUE-RED':'PURPLE','RED-BLUE':'PURPLE','BLUE-YELLOW':'GREEN','YELLOW-BLUE':'GREEN','RED-YELLOW':'ORANGE','YELLOW-RED':'ORANGE'};
+  for (let p = 0; p < rolls.length - 1; p++) {
+    const a = rolls[p], b = rolls[p+1];
+    if (a.color === b.color) continue;
+    const sec = MIX[a.color+'-'+b.color]; if (!sec) continue;
+    const val = a.number * b.number;
+    totals[sec] += val; formulas[sec].push(a.number+'×'+b.number);
+  }
+  return { totals, formulas };
+}
+
+function csIsCurrentlyWinning(betId, totals, grandTotal) {
+  const primarySum = totals.RED+totals.BLUE+totals.YELLOW;
+  const secondarySum = totals.PURPLE+totals.GREEN+totals.ORANGE;
+  const allColors = {RED:totals.RED,BLUE:totals.BLUE,YELLOW:totals.YELLOW,PURPLE:totals.PURPLE,GREEN:totals.GREEN,ORANGE:totals.ORANGE};
+  const maxVal = Math.max(...Object.values(allColors));
+  const winners = Object.keys(allColors).filter(k => allColors[k]===maxVal);
+  const winningColor = winners.length===1 ? winners[0] : 'COLOR_TIE';
+  let winningType;
+  if (primarySum>secondarySum) winningType='TYPE_PRIMARY';
+  else if (secondarySum>primarySum) winningType='TYPE_SECONDARY';
+  else winningType='TYPE_TIE';
+  if (['RED','BLUE','YELLOW','PURPLE','GREEN','ORANGE','COLOR_TIE'].includes(betId)) return betId===winningColor;
+  if (['TYPE_PRIMARY','TYPE_SECONDARY','TYPE_TIE'].includes(betId)) return betId===winningType;
+  if (betId.startsWith('PUR_')) { const v=totals.PURPLE; return (betId==='PUR_LO'&&v>=1&&v<=16)||(betId==='PUR_MID'&&v>=17&&v<=30)||(betId==='PUR_HI'&&v>=31); }
+  if (betId.startsWith('GRN_')) { const v=totals.GREEN;  return (betId==='GRN_LO'&&v>=1&&v<=16)||(betId==='GRN_MID'&&v>=17&&v<=30)||(betId==='GRN_HI'&&v>=31); }
+  if (betId.startsWith('ORG_')) { const v=totals.ORANGE; return (betId==='ORG_LO'&&v>=1&&v<=16)||(betId==='ORG_MID'&&v>=17&&v<=30)||(betId==='ORG_HI'&&v>=31); }
+  if (betId.startsWith('BLU_')) { const v=totals.BLUE;   return (betId==='BLU_1'&&v===1)||(betId==='BLU_2'&&v===2)||(betId==='BLU_3'&&v===3)||(betId==='BLU_4'&&v===4)||(betId==='BLU_5'&&v===5)||(betId==='BLU_6'&&v===6)||(betId==='BLU_7P'&&v>=7); }
+  if (betId.startsWith('RED_')) { const v=totals.RED;    return (betId==='RED_1'&&v===1)||(betId==='RED_2'&&v===2)||(betId==='RED_3'&&v===3)||(betId==='RED_4'&&v===4)||(betId==='RED_5'&&v===5)||(betId==='RED_6'&&v===6)||(betId==='RED_7P'&&v>=7); }
+  if (betId.startsWith('YEL_')) { const v=totals.YELLOW; return (betId==='YEL_1'&&v===1)||(betId==='YEL_2'&&v===2)||(betId==='YEL_3'&&v===3)||(betId==='YEL_4'&&v===4)||(betId==='YEL_5'&&v===5)||(betId==='YEL_6'&&v===6)||(betId==='YEL_7P'&&v>=7); }
+  if (betId.startsWith('TOT_')) { const v=grandTotal;    return (betId==='TOT_A'&&v>=1&&v<=10)||(betId==='TOT_B'&&v>=11&&v<=20)||(betId==='TOT_C'&&v>=21&&v<=36)||(betId==='TOT_D'&&v>=37&&v<=52)||(betId==='TOT_E'&&v>=53&&v<=75)||(betId==='TOT_F'&&v>=76); }
+  return false;
+}
+
+function csRenderFormula(parts) {
+  if (!parts.length) return '—';
+  return parts.length===1 ? parts[0] : parts.join('+');
+}
+
+function csUpdateLiveBetGlow(totals, grandTotal) {
+  document.querySelectorAll('.cs-bet-zone').forEach(z => {
+    const id = z.dataset.bet;
+    z.classList.toggle('cs-live-win', csIsCurrentlyWinning(id, totals, grandTotal));
+  });
+}
+
+function csClearLiveBetGlow() {
+  document.querySelectorAll('.cs-bet-zone').forEach(z => z.classList.remove('cs-live-win'));
+}
+
+function csShowOutcome(rolls) {
+  const { totals, formulas } = csCalcOutcome(rolls);
+  const waiting = csEl('cs-outcomeWaiting');
+  const body = csEl('cs-outcomeBody');
+  if (waiting) waiting.style.display = 'none';
+  if (body) body.classList.add('cs-show');
+
+  const pairs = [
+    ['Red','RED','#ff4444'],['Blue','BLUE','#4488ff'],['Yellow','YELLOW','#ffdd00'],
+    ['Purple','PURPLE','#cc44ff'],['Green','GREEN','#33ee66'],['Orange','ORANGE','#ff8833'],
+  ];
+  pairs.forEach(([id, key, color]) => {
+    const val = totals[key];
+    const vEl = csEl('cs-v'+id), fEl = csEl('cs-f'+id);
+    if (!vEl || !fEl) return;
+    fEl.textContent = csRenderFormula(formulas[key]);
+    vEl.textContent = String(val);
+    if (val===0) { vEl.classList.add('cs-zero'); vEl.style.color='#383830'; }
+    else { vEl.classList.remove('cs-zero'); vEl.style.color=color; }
+    const row = vEl.closest('.cs-color-row');
+    if (row) {
+      const primarySub2 = totals.RED+totals.BLUE+totals.YELLOW;
+      const secondarySub2 = totals.PURPLE+totals.GREEN+totals.ORANGE;
+      const maxCV = Math.max(totals.RED,totals.BLUE,totals.YELLOW,totals.PURPLE,totals.GREEN,totals.ORANGE);
+      const isWinner = maxCV>0 && totals[key]===maxCV;
+      row.classList.toggle('cs-color-winner', isWinner);
+      if (isWinner) { row.style.borderLeftColor=color; row.style.borderLeftWidth='2px'; row.style.borderLeftStyle='solid'; }
+      else { row.style.borderLeft=''; }
+    }
+  });
+
+  const primarySub = totals.RED+totals.BLUE+totals.YELLOW;
+  const secondarySub = totals.PURPLE+totals.GREEN+totals.ORANGE;
+  const grandTotal = primarySub+secondarySub;
+
+  const vPS = csEl('cs-vPrimarySub');
+  if (vPS) { vPS.textContent = primarySub||'0'; vPS.style.color = primarySub>secondarySub?'#ffffff':primarySub===secondarySub&&primarySub>0?'#888880':'#555550'; }
+  const vSS = csEl('cs-vSecondarySub');
+  if (vSS) { vSS.textContent = secondarySub||'0'; vSS.style.color = secondarySub>primarySub?'#ffffff':primarySub===secondarySub&&secondarySub>0?'#888880':'#555550'; }
+
+  const vT = csEl('cs-vTotal'), fT = csEl('cs-fTotal');
+  if (vT) vT.textContent = grandTotal;
+  if (fT) fT.textContent = '1°'+primarySub+' + 2°'+secondarySub;
+
+  const pLbl = csEl('cs-primaryLbl'), sLbl = csEl('cs-secondaryLbl');
+  if (pLbl && sLbl) {
+    pLbl.classList.toggle('cs-winner', primarySub>secondarySub);
+    pLbl.classList.toggle('cs-loser', secondarySub>primarySub);
+    sLbl.classList.toggle('cs-winner', secondarySub>primarySub);
+    sLbl.classList.toggle('cs-loser', primarySub>secondarySub);
+    if (primarySub===secondarySub) { pLbl.classList.remove('cs-winner','cs-loser'); sLbl.classList.remove('cs-winner','cs-loser'); }
+  }
+
+  csUpdateLiveBetGlow(totals, grandTotal);
+}
+
+function csResetOutcome() {
+  const waiting = csEl('cs-outcomeWaiting');
+  const body = csEl('cs-outcomeBody');
+  if (waiting) waiting.style.display='block';
+  if (body) body.classList.remove('cs-show');
+  document.querySelectorAll('.cs-color-row').forEach(r => { r.classList.remove('cs-color-winner'); r.style.borderLeft=''; });
+  document.querySelectorAll('.cs-oc-section-lbl').forEach(l => l.classList.remove('cs-winner','cs-loser'));
+  const vT = csEl('cs-vTotal'); if (vT) vT.textContent='—';
+  const fT = csEl('cs-fTotal'); if (fT) fT.textContent='';
+  const vPS = csEl('cs-vPrimarySub'); if (vPS) { vPS.textContent='—'; vPS.style.color='#c8c8c0'; }
+  const vSS = csEl('cs-vSecondarySub'); if (vSS) { vSS.textContent='—'; vSS.style.color='#555550'; }
+  ['Red','Blue','Yellow','Purple','Green','Orange'].forEach(id => {
+    const vEl = csEl('cs-v'+id); if (vEl) { vEl.textContent='—'; vEl.style.color=''; vEl.classList.remove('cs-zero'); }
+    const fEl = csEl('cs-f'+id); if (fEl) fEl.textContent='—';
+  });
+}
+
+function csSetBetState(state) {
+  _csBetState = state;
+  const badge = csEl('cs-betStateBadge');
+  if (badge) { badge.className='cs-bet-state-badge cs-'+state; badge.textContent=state.toUpperCase(); }
+  const locked = state !== 'open';
+  document.querySelectorAll('.cs-bet-zone').forEach(z => z.classList.toggle('cs-locked', locked));
+  const clearBtn = csEl('cs-clearBetsBtn');
+  if (clearBtn) clearBtn.disabled = locked;
+  document.querySelectorAll('.cs-chip').forEach(c => { c.style.opacity = locked ? '0.35' : '1'; });
+  if (!locked) csClearLiveBetGlow();
+}
+
+function csRenderBank() {
+  const el = csEl('cs-bankAmt'); if (el) el.textContent = _csBank;
+}
+
+function csRenderBetZone(betId) {
+  const stake = _csBets[betId]||0;
+  const el = csEl('cs-stake-'+betId);
+  const zone = csEl('cs-bz-'+betId);
+  if (!el||!zone) return;
+  el.textContent = stake>0 ? stake : '';
+  zone.classList.toggle('cs-has-bet', stake>0);
+}
+
+function csRenderTotalWagered() {
+  const el = csEl('cs-totalWagered');
+  if (el) el.textContent = Object.values(_csBets).reduce((a,b)=>a+b,0);
+}
+
+function csFillTrackSlot(rollNum, col, numVal, rolls) {
+  const MIX = {'BLUE-RED':'PURPLE','RED-BLUE':'PURPLE','BLUE-YELLOW':'GREEN','YELLOW-BLUE':'GREEN','RED-YELLOW':'ORANGE','YELLOW-RED':'ORANGE'};
+  const slot = csEl('cs-rts-'+rollNum);
+  const empty = csEl('cs-rts-empty-'+rollNum);
+  const cont = csEl('cs-rts-content-'+rollNum);
+  const dot = csEl('cs-rts-dot-'+rollNum);
+  const cname = csEl('cs-rts-cname-'+rollNum);
+  const num = csEl('cs-rts-num-'+rollNum);
+  const sec = csEl('cs-rts-sec-'+rollNum);
+  if (!slot) return;
+  slot.style.setProperty('--slot-color', col.dot);
+  if (dot) { dot.style.background=col.dot; dot.style.boxShadow='0 0 5px '+col.dot+'99'; }
+  if (cname) { cname.textContent=col.name; cname.style.color=col.dot; }
+  if (num) num.textContent = numVal;
+  const secParts = [];
+  const idx = rollNum-1;
+  if (idx>0) {
+    const prev=rolls[idx-1];
+    if (prev.color!==col.name) { const k=prev.color+'-'+col.name; if(MIX[k]) secParts.push(MIX[k][0]+':'+prev.number+'×'+numVal+'='+(prev.number*numVal)); }
+  }
+  if (idx<rolls.length-1) {
+    const next=rolls[idx+1];
+    if (next&&next.color!==col.name) { const k=col.name+'-'+next.color; if(MIX[k]) secParts.push(MIX[k][0]+':'+numVal+'×'+next.number+'='+(numVal*next.number)); }
+  }
+  if (sec) sec.textContent = secParts.length ? secParts.join('  ') : '';
+  if (empty) empty.style.display='none';
+  if (cont) cont.classList.add('show');
+  slot.classList.remove('cs-active-slot'); slot.classList.add('cs-settled-slot');
+  const nextSlot = csEl('cs-rts-'+(rollNum+1));
+  if (nextSlot) nextSlot.classList.add('cs-active-slot');
+}
+
+function csResetTracker() {
+  for (let i=1;i<=3;i++) {
+    const slot=csEl('cs-rts-'+i); const empty=csEl('cs-rts-empty-'+i); const cont=csEl('cs-rts-content-'+i);
+    if (!slot) continue;
+    slot.classList.remove('cs-settled-slot','cs-active-slot'); slot.style.removeProperty('--slot-color');
+    if (empty) empty.style.display='';
+    if (cont) cont.classList.remove('show');
+  }
+  const first = csEl('cs-rts-1'); if (first) first.classList.add('cs-active-slot');
+}
+
+function csAddHistoryCell(colorName, dotColor, typeLabel, roundNum, total) {
+  _csRoundHistory.push({colorName,dotColor,typeLabel,roundNum,total});
+  const grid = csEl('cs-rhGrid');
+  const empty = csEl('cs-rhEmpty');
+  if (empty && grid) { grid.removeChild(empty); }
+  if (!grid) return;
+  const cell = document.createElement('div');
+  cell.className = 'cs-rh-cell cs-rh-cell-new';
+  cell.style.background='#111411'; cell.style.borderColor=dotColor; cell.style.boxShadow=`0 0 5px ${dotColor}44`;
+  const letter = colorName==='TIE' ? 'T' : colorName[0];
+  cell.innerHTML = `<div style="font-size:8px;color:rgba(255,255,255,0.28);position:absolute;top:2px;left:3px;">${roundNum}</div><div style="width:16px;height:16px;border-radius:50%;background:${dotColor};box-shadow:0 0 5px ${dotColor};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:rgba(0,0,0,0.65);font-family:'JetBrains Mono',monospace;margin-bottom:3px;">${letter}</div><div style="font-size:9px;font-weight:700;color:#fff;letter-spacing:0;font-family:'JetBrains Mono',monospace;">${total}</div>`;
+  grid.insertBefore(cell, grid.firstChild);
+  setTimeout(()=>cell.classList.remove('cs-rh-cell-new'),300);
+}
+
+function csEvaluateBets(totals, grandTotal) {
+  csClearLiveBetGlow();
+  const primarySum=totals.RED+totals.BLUE+totals.YELLOW;
+  const secondarySum=totals.PURPLE+totals.GREEN+totals.ORANGE;
+  const allColors={RED:totals.RED,BLUE:totals.BLUE,YELLOW:totals.YELLOW,PURPLE:totals.PURPLE,GREEN:totals.GREEN,ORANGE:totals.ORANGE};
+  const maxVal=Math.max(...Object.values(allColors));
+  const winners=Object.keys(allColors).filter(k=>allColors[k]===maxVal);
+  const winningColor=winners.length===1?winners[0]:'COLOR_TIE';
+
+  Object.entries(_csBets).forEach(([betId, stake]) => {
+    const won = csIsCurrentlyWinning(betId, totals, grandTotal);
+    const basePayout = won ? Math.floor(stake*CS_ODDS[betId]) : 0;
+    const payout = (won && betId==='TYPE_PRIMARY') ? Math.floor(basePayout*0.95) : basePayout;
+    if (won) _csBank += stake+payout;
+    const zone = csEl('cs-bz-'+betId);
+    const res = csEl('cs-result-'+betId);
+    if (!zone||!res) return;
+    zone.classList.remove('cs-win','cs-lose','cs-live-win');
+    zone.classList.add(won?'cs-win':'cs-lose');
+    res.textContent = won ? '+'+payout : '-'+stake;
+    res.className = 'cs-bz-result cs-show '+(won?'cs-win-r':'cs-lose-r');
+  });
+  csRenderBank();
+  csUpdateLiveBetGlow(totals, grandTotal);
+
+  // History
+  const histColors={RED:totals.RED,BLUE:totals.BLUE,YELLOW:totals.YELLOW,PURPLE:totals.PURPLE,GREEN:totals.GREEN,ORANGE:totals.ORANGE};
+  const maxCV=Math.max(...Object.values(histColors));
+  const colorWinners=Object.keys(histColors).filter(k=>histColors[k]===maxCV);
+  const colorDotMap={RED:'#ff2222',BLUE:'#1166ff',YELLOW:'#ffdd00',PURPLE:'#cc44ff',GREEN:'#33ee66',ORANGE:'#ff8833'};
+  let winColorName,winDot;
+  if (colorWinners.length===1&&maxCV>0){winColorName=colorWinners[0];winDot=colorDotMap[winColorName];}
+  else{winColorName='TIE';winDot='#888888';}
+  const histTypeLabel=primarySum>secondarySum?'P':secondarySum>primarySum?'S':'T';
+  csAddHistoryCell(winColorName,winDot,histTypeLabel,_csRound,grandTotal);
+}
+
+function csClearBetResults() {
+  document.querySelectorAll('.cs-bet-zone').forEach(z=>z.classList.remove('cs-win','cs-lose','cs-has-bet','cs-live-win'));
+  document.querySelectorAll('.cs-bz-result').forEach(r=>{r.className='cs-bz-result';r.textContent='';});
+  document.querySelectorAll('.cs-bz-stake').forEach(s=>s.textContent='');
+}
+
+function csGetTopFace(CANNON, body, isColor) {
+  const up = new CANNON.Vec3(0,1,0);
+  const norms = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]].map(n=>new CANNON.Vec3(...n));
+  const nv = [1,6,2,5,3,4]; let best=-Infinity, bi=0;
+  norms.forEach((n,i)=>{ const d=body.quaternion.vmult(n).dot(up); if(d>best){best=d;bi=i;} });
+  return isColor ? bi : nv[bi];
+}
+
+function csIsAtRest() {
+  return _csDice.every(d => {
+    const v=d.body.velocity, av=d.body.angularVelocity;
+    return [v.x,v.y,v.z,av.x,av.y,av.z].every(c=>Math.abs(c)<0.12);
+  });
+}
+
+function csOnSettled(THREE, CANNON) {
+  if (_csProcessingSettle) return;
+  _csProcessingSettle = true;
+  _csSettling = false;
+  try {
+    const cd = _csDice.find(d=>d.isColor), nd = _csDice.find(d=>!d.isColor);
+    if (!cd||!nd){_csProcessingSettle=false;return;}
+    const ci = csGetTopFace(CANNON,cd.body,true), nv = csGetTopFace(CANNON,nd.body,false);
+    const col = CS_COLS[ci];
+    _csRoll++;
+    _csRoundRolls.push({color:col.name, number:nv});
+
+    const sRound=csEl('cs-sRound'); if(sRound) sRound.textContent=_csRound;
+    const sRoll=csEl('cs-sRoll'); if(sRoll) sRoll.textContent=_csRoll+'/3';
+    const sColor=csEl('cs-sColor'); if(sColor){sColor.textContent=col.name;sColor.style.color=col.dot;}
+    const sNum=csEl('cs-sNum'); if(sNum) sNum.textContent=nv;
+    const sBar=csEl('cs-statusBar');
+    if(sBar){sBar.textContent='SETTLED';sBar.classList.add('cs-active');}
+    const sRes=csEl('cs-statusResult');
+    if(sRes) sRes.innerHTML=`<span style="color:${col.dot}">${col.name}</span>&nbsp;·&nbsp;<span style="color:#a8ff3e">${nv}</span>`;
+
+    csFillTrackSlot(_csRoll, col, nv, _csRoundRolls);
+    csShowOutcome(_csRoundRolls);
+
+    if (_csRoll < 3) {
+      const bRoll=csEl('cs-bRoll');
+      if(bRoll){bRoll.disabled=false;bRoll.textContent=_csRoll===2?'⬡ FINAL ROLL':'⬡ NEXT ROLL';}
+    } else {
+      const bRoll=csEl('cs-bRoll'); if(bRoll) bRoll.style.display='none';
+      const bNew=csEl('cs-bNew'); if(bNew) bNew.style.display='';
+      csSetBetState('settling');
+      _csRoundRolls.forEach((r,i) => {
+        const fc=CS_COLS.find(x=>x.name===r.color&&x.top);
+        if(fc) csFillTrackSlot(i+1,fc,r.number,_csRoundRolls);
+      });
+      const finalOutcome=csCalcOutcome(_csRoundRolls);
+      const grandTotal=Object.values(finalOutcome.totals).reduce((a,b)=>a+b,0);
+      setTimeout(()=>csEvaluateBets(finalOutcome.totals,grandTotal),400);
+    }
+  } catch(e) { console.error('[CS] onSettled error:',e); }
+  finally { _csProcessingSettle=false; }
+}
+
+function csThrowDice(THREE, CANNON) {
+  _csProcessingSettle=false;
+  // clear old dice
+  _csDice.forEach(d=>{ if(_csScene) _csScene.remove(d.mesh); if(_csWorld) _csWorld.remove(d.body); });
+  _csDice=[];
+  // create new
+  function createDie(textures, xOff) {
+    const mesh=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),textures.map(t=>new THREE.MeshLambertMaterial({map:t})));
+    mesh.castShadow=true; mesh.receiveShadow=true; _csScene.add(mesh);
+    const body=new CANNON.Body({mass:0.8,material:_csDm,linearDamping:.15,angularDamping:.45});
+    body.addShape(new CANNON.Box(new CANNON.Vec3(.46,.46,.46)));
+    body.position.set(xOff*0.5+(Math.random()-.5)*.4,5+Math.random()*.8,(Math.random()-.5)*.6);
+    body.quaternion.setFromEuler(Math.random()*Math.PI*2,Math.random()*Math.PI*2,Math.random()*Math.PI*2);
+    body.velocity.set((Math.random()-.5)*1.5,0,(Math.random()-.5)*1.5);
+    body.angularVelocity.set((Math.random()-.5)*18,(Math.random()-.5)*18,(Math.random()-.5)*18);
+    _csWorld.addBody(body);
+    return {mesh,body};
+  }
+  const cd=createDie(csMakeColorDie(THREE),-1.6);
+  const nd=createDie(csMakeNumberDie(THREE),1.6);
+  _csDice=[{...cd,isColor:true},{...nd,isColor:false}];
+  _csSettling=false; setTimeout(()=>{_csSettling=true;},1100);
+}
+
+let _csDm = null, _csGm2 = null;
+
+function csLoadLibraries(callback) {
+  if (window.THREE && window.CANNON) { callback(); return; }
+  const loadScript = (src, cb) => {
+    const s=document.createElement('script'); s.src=src;
+    s.onload=cb; s.onerror=()=>console.error('[CS] Failed to load',src);
+    document.head.appendChild(s);
+  };
+  if (!window.THREE) {
+    loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', ()=>{
+      if (!window.CANNON) {
+        loadScript('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js', callback);
+      } else { callback(); }
+    });
+  } else if (!window.CANNON) {
+    loadScript('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js', callback);
+  }
+}
+
+function initColorSchemeGame() {
+  if (_csGameActive) return;
+  csLoadLibraries(() => {
+    if (_csGameActive) return; // re-check after async load
+    const THREE = window.THREE, CANNON = window.CANNON;
+    if (!THREE || !CANNON) { console.error('[CS] Three.js or Cannon.js not loaded'); return; }
+
+    _csGameActive = true;
+    _csRound = 1; _csRoll = 0; _csRoundRolls = [];
+    _csBets = {}; _csBetState = 'open'; _csRoundHistory = [];
+    _csBank = (typeof currentProfile !== 'undefined' && currentProfile && currentProfile.credits) ? currentProfile.credits : 1000;
+    _csSelectedChip = 10;
+
+    // Canvas setup
+    const canvas = csEl('cs-three-canvas');
+    if (!canvas) return;
+    const W = canvas.offsetWidth || 600, H = 300;
+    canvas.width=W; canvas.height=H;
+    _csRenderer = new THREE.WebGLRenderer({canvas,antialias:true});
+    _csRenderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+    _csRenderer.setSize(W,H);
+    _csRenderer.shadowMap.enabled=true; _csRenderer.shadowMap.type=THREE.PCFSoftShadowMap;
+    _csRenderer.setClearColor(0x080808);
+
+    _csScene = new THREE.Scene(); _csScene.fog=new THREE.Fog(0x080808,10,18);
+    _csCamera = new THREE.PerspectiveCamera(36,W/H,0.1,100);
+    _csCamera.position.set(0,7,7); _csCamera.lookAt(0,0,0);
+
+    _csScene.add(new THREE.AmbientLight(0xffffff,0.6));
+    const sun=new THREE.DirectionalLight(0xffffff,0.9);
+    sun.position.set(4,12,6); sun.castShadow=true;
+    sun.shadow.mapSize.set(2048,2048);
+    sun.shadow.camera.near=0.5; sun.shadow.camera.far=50;
+    sun.shadow.camera.left=-7; sun.shadow.camera.right=7;
+    sun.shadow.camera.top=7; sun.shadow.camera.bottom=-7;
+    _csScene.add(sun);
+    const neon=new THREE.PointLight(0xffffff,0.3,20); neon.position.set(-5,2,3); _csScene.add(neon);
+    const rim=new THREE.PointLight(0xddddff,0.2,18); rim.position.set(3,4,-6); _csScene.add(rim);
+
+    const floor=new THREE.Mesh(new THREE.PlaneGeometry(12,12),new THREE.MeshLambertMaterial({color:0x0a0a0a}));
+    floor.rotation.x=-Math.PI/2; floor.receiveShadow=true; _csScene.add(floor);
+    const gm=new THREE.LineBasicMaterial({color:0x2a2a2a,transparent:true,opacity:1});
+    for(let i=-5;i<=5;i++){
+      [[new THREE.Vector3(-8,0.002,i*1.2),new THREE.Vector3(8,0.002,i*1.2)],
+       [new THREE.Vector3(i*1.2,0.002,-8),new THREE.Vector3(i*1.2,0.002,8)]
+      ].forEach(pts=>{_csScene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),gm));});
+    }
+
+    // Physics
+    _csWorld=new CANNON.World(); _csWorld.gravity.set(0,-26,0);
+    _csWorld.broadphase=new CANNON.NaiveBroadphase(); _csWorld.solver.iterations=20;
+    _csDm=new CANNON.Material('d'); _csGm2=new CANNON.Material('g');
+    _csWorld.addContactMaterial(new CANNON.ContactMaterial(_csDm,_csGm2,{restitution:.45,friction:.4}));
+    _csWorld.addContactMaterial(new CANNON.ContactMaterial(_csDm,_csDm,{restitution:.2,friction:.4}));
+    [[-4.2,0,0],[4.2,0,0],[0,0,-4.2],[0,0,4.2]].forEach(([x,y,z],i)=>{
+      const b=new CANNON.Body({mass:0});
+      const ix=i<2;
+      b.addShape(new CANNON.Box(new CANNON.Vec3(ix?.1:6,4,ix?6:.1)));
+      b.position.set(x,y+2,z); _csWorld.addBody(b);
+    });
+    const gb=new CANNON.Body({mass:0,material:_csGm2});
+    gb.addShape(new CANNON.Plane()); gb.quaternion.setFromEuler(-Math.PI/2,0,0); _csWorld.addBody(gb);
+
+    // Init UI
+    csRenderBank();
+    csRenderTotalWagered();
+    csResetTracker();
+    csSetBetState('open');
+    Object.keys(CS_BZ_COLORS).forEach(id => {
+      const z=csEl('cs-bz-'+id); if(z) z.style.setProperty('--zc',CS_BZ_COLORS[id]);
+    });
+    document.querySelectorAll('.cs-chip').forEach(c=>{
+      c.classList.toggle('cs-selected',parseInt(c.dataset.val)===_csSelectedChip);
+    });
+    const bRoll=csEl('cs-bRoll'); if(bRoll){bRoll.disabled=false;bRoll.textContent='⬡ ROLL DICE';}
+    const bNew=csEl('cs-bNew'); if(bNew) bNew.style.display='none';
+    const sBar=csEl('cs-statusBar'); if(sBar){sBar.textContent='READY · PLACE BETS';sBar.classList.remove('cs-active');}
+
+    // Roll button
+    if (bRoll) {
+      bRoll._csHandler = function() {
+        this.disabled=true;
+        const sBar2=csEl('cs-statusBar'); if(sBar2){sBar2.textContent='SIMULATING…';sBar2.classList.add('cs-active');}
+        const sRes=csEl('cs-statusResult'); if(sRes) sRes.textContent='';
+        csSetBetState('locked');
+        csThrowDice(THREE,CANNON);
+      };
+      bRoll.addEventListener('click',bRoll._csHandler);
+    }
+    // New round button
+    const bNew2=csEl('cs-bNew');
+    if (bNew2) {
+      bNew2._csHandler = function() {
+        _csRound++; _csRoll=0; _csRoundRolls.length=0; _csProcessingSettle=false;
+        _csDice.forEach(d=>{if(_csScene)_csScene.remove(d.mesh);if(_csWorld)_csWorld.remove(d.body);}); _csDice=[];
+        csResetOutcome(); csClearBetResults(); csRenderTotalWagered(); csResetTracker();
+        _csBets={}; csSetBetState('open');
+        const sRound=csEl('cs-sRound'); if(sRound) sRound.textContent=_csRound;
+        const sRoll=csEl('cs-sRoll'); if(sRoll) sRoll.textContent='—/3';
+        const sColor=csEl('cs-sColor'); if(sColor){sColor.textContent='—';sColor.style.color='';}
+        const sNum=csEl('cs-sNum'); if(sNum) sNum.textContent='—';
+        const sBar3=csEl('cs-statusBar'); if(sBar3){sBar3.textContent='READY · PLACE BETS';sBar3.classList.remove('cs-active');}
+        const sRes2=csEl('cs-statusResult'); if(sRes2) sRes2.textContent='';
+        const bRoll2=csEl('cs-bRoll');
+        if(bRoll2){bRoll2.style.display='';bRoll2.disabled=false;bRoll2.textContent='⬡ ROLL DICE';}
+        this.style.display='none';
+      };
+      bNew2.addEventListener('click',bNew2._csHandler);
+    }
+
+    // Animate loop
+    _csLastTime=null;
+    function csAnimate(ts) {
+      _csAnimId=requestAnimationFrame(csAnimate);
+      const dt=_csLastTime?Math.min((ts-_csLastTime)/1000,.05):1/60;
+      _csLastTime=ts;
+      _csWorld.step(1/60,dt,3);
+      _csDice.forEach(d=>{d.mesh.position.copy(d.body.position);d.mesh.quaternion.copy(d.body.quaternion);});
+      _csRenderer.render(_csScene,_csCamera);
+      if(_csSettling&&csIsAtRest()) csOnSettled(THREE,CANNON);
+    }
+    _csAnimId=requestAnimationFrame(csAnimate);
+
+    // Expose public API for onclick handlers
+    window.csGame = {
+      selectChip(val) {
+        _csSelectedChip=val;
+        document.querySelectorAll('.cs-chip').forEach(c=>c.classList.toggle('cs-selected',parseInt(c.dataset.val)===val));
+      },
+      placeBet(betId) {
+        if(_csBetState!=='open')return;
+        if(_csBank<_csSelectedChip)return;
+        _csBets[betId]=(_csBets[betId]||0)+_csSelectedChip;
+        _csBank-=_csSelectedChip;
+        csRenderBank(); csRenderBetZone(betId); csRenderTotalWagered();
+        if(_csRoundRolls.length>0){
+          const{totals}=csCalcOutcome(_csRoundRolls);
+          const gt=Object.values(totals).reduce((a,b)=>a+b,0);
+          csUpdateLiveBetGlow(totals,gt);
+        }
+      },
+      clearAllBets() {
+        if(_csBetState!=='open')return;
+        Object.entries(_csBets).forEach(([,stake])=>{_csBank+=stake;});
+        _csBets={};
+        csRenderBank(); csRenderTotalWagered();
+        document.querySelectorAll('.cs-bet-zone').forEach(z=>{
+          const el=csEl('cs-stake-'+z.dataset.bet); if(el) el.textContent='';
+          z.classList.remove('cs-has-bet');
+        });
+      },
+      toggleAdvanced() {
+        const body=csEl('cs-advBody'), lbl=csEl('cs-advLabel');
+        if(!body) return;
+        const isOpen=body.classList.toggle('cs-open');
+        if(lbl) lbl.textContent=isOpen?'CLICK TO COLLAPSE':'SECONDARY & PRIMARY TOTALS';
+      }
+    };
+  });
+}
+
+function destroyColorSchemeGame() {
+  if (!_csGameActive) return;
+  _csGameActive = false;
+  if (_csAnimId) { cancelAnimationFrame(_csAnimId); _csAnimId=null; }
+  // Remove button handlers
+  const bRoll=csEl('cs-bRoll'); if(bRoll&&bRoll._csHandler){bRoll.removeEventListener('click',bRoll._csHandler);bRoll._csHandler=null;}
+  const bNew=csEl('cs-bNew'); if(bNew&&bNew._csHandler){bNew.removeEventListener('click',bNew._csHandler);bNew._csHandler=null;}
+  // Dispose Three.js
+  if (_csRenderer) { _csRenderer.dispose(); _csRenderer=null; }
+  _csScene=null; _csCamera=null; _csWorld=null; _csDice=[]; _csSettling=false; _csLastTime=null; _csProcessingSettle=false;
+  _csDm=null; _csGm2=null;
+  if (window.csGame) { delete window.csGame; }
+}
