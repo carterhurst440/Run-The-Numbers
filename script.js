@@ -73,7 +73,7 @@ const DEFAULT_GAME_ASSET_LIBRARY = {
     logo_url: "",
     description: "Color and number dice game",
     status: "admin",
-    card_description: "More details coming soon.",
+    card_description: "Roll the color and number dice across three rounds. Combine primary and secondary scores to beat the board.",
     card_background_color: "",
     button_color: "",
     button_text_color: ""
@@ -84,6 +84,7 @@ function getDefaultGameStatus(gameKey) {
   const resolvedGameKey = resolveGameKey(gameKey);
   if (resolvedGameKey === GAME_KEYS.GUESS_10) return "beta";
   if (resolvedGameKey === GAME_KEYS.SHAPE_TRADERS) return "admin";
+  if (resolvedGameKey === GAME_KEYS.COLOR_SCHEME) return "admin";
   return "active";
 }
 
@@ -2395,6 +2396,7 @@ function normalizeRankRecord(rank = {}) {
     required_hands_played: Math.max(0, Math.round(Number(rank.required_hands_played || 0))),
     required_contest_wins: Math.max(0, Math.round(Number(rank.required_contest_wins || 0))),
     required_trades_made: Math.max(0, Math.round(Number(rank.required_trades_made || 0))),
+    required_color_scheme_rounds: Math.max(0, Math.round(Number(rank.required_color_scheme_rounds || 0))),
     icon_url: typeof rank.icon_url === "string" ? rank.icon_url.trim() : "",
     theme_key: themeKey
   };
@@ -2450,18 +2452,20 @@ function renderRankPlayerCountText(rank, className = "rank-ladder-player-count")
   return `<${tagName} class="${className}${stateClass}">${text}</${tagName}>`;
 }
 
-function resolveRankState(handsPlayed = 0, contestWins = 0, tradesMade = 0, ladder = getRankLadder()) {
+function resolveRankState(handsPlayed = 0, contestWins = 0, tradesMade = 0, ladder = getRankLadder(), colorSchemeRounds = 0) {
   const sorted = [...ladder].sort((a, b) => a.tier - b.tier);
   const progressEvents = Math.max(0, Math.round(Number(handsPlayed || 0)));
   const progressWins = Math.max(0, Math.round(Number(contestWins || 0)));
   const progressTrades = Math.max(0, Math.round(Number(tradesMade || 0)));
+  const progressRyb = Math.max(0, Math.round(Number(colorSchemeRounds || 0)));
   let currentRank = sorted[0] || normalizeRankRecord(DEFAULT_RANK_LADDER[0]);
 
   sorted.forEach((rank) => {
     if (
       progressEvents >= rank.required_hands_played &&
       progressWins >= rank.required_contest_wins &&
-      progressTrades >= rank.required_trades_made
+      progressTrades >= rank.required_trades_made &&
+      progressRyb >= (rank.required_color_scheme_rounds || 0)
     ) {
       currentRank = rank;
     }
@@ -2474,7 +2478,8 @@ function resolveRankState(handsPlayed = 0, contestWins = 0, tradesMade = 0, ladd
     nextRank,
     totalProgressEvents: progressEvents,
     contestWins: progressWins,
-    tradesMade: progressTrades
+    tradesMade: progressTrades,
+    colorSchemeRounds: progressRyb
   };
 }
 
@@ -4129,6 +4134,7 @@ function openAdminRankModal(rank = null) {
   setValue("requiredHandsPlayed", String(rank?.required_hands_played || 0));
   setValue("requiredContestWins", String(rank?.required_contest_wins || 0));
   setValue("requiredTradesMade", String(rank?.required_trades_made || 0));
+  setValue("requiredColorSchemeRounds", String(rank?.required_color_scheme_rounds || 0));
   setValue("themeKey", rank?.theme_key || MAIN_APP_THEME_KEY);
   setValue("iconUrl", rank?.icon_url || "");
 
@@ -8819,6 +8825,7 @@ async function handleAdminRankSubmit(event) {
     required_hands_played: Math.max(0, Math.round(Number(formData.get("requiredHandsPlayed") || 0))),
     required_contest_wins: Math.max(0, Math.round(Number(formData.get("requiredContestWins") || 0))),
     required_trades_made: Math.max(0, Math.round(Number(formData.get("requiredTradesMade") || 0))),
+    required_color_scheme_rounds: Math.max(0, Math.round(Number(formData.get("requiredColorSchemeRounds") || 0))),
     theme_key: slugifyThemeKey(String(formData.get("themeKey") || MAIN_APP_THEME_KEY).trim()) || MAIN_APP_THEME_KEY,
     icon_url: String(formData.get("iconUrl") || "").trim()
   };
@@ -19068,7 +19075,8 @@ let activityLogFetchLimit = 100;
 let activityLogSelectedGames = new Set([
   GAME_KEYS.RUN_THE_NUMBERS,
   GAME_KEYS.GUESS_10,
-  GAME_KEYS.SHAPE_TRADERS
+  GAME_KEYS.SHAPE_TRADERS,
+  GAME_KEYS.COLOR_SCHEME
 ]);
 let activityLogTradeFilter = "all";
 let playerActivityLogEntries = [];
@@ -21840,7 +21848,7 @@ async function fetchDailyProfitLossRows(userId) {
   while (hasMore) {
     const { data, error } = await supabase
       .from("daily_profit_loss")
-      .select("profit_date, pnl_total, pnl_rtn, pnl_g10, pnl_shape_traders")
+      .select("profit_date, pnl_total, pnl_rtn, pnl_g10, pnl_shape_traders, pnl_ryb")
       .eq("user_id", userId)
       .order("profit_date", { ascending: true })
       .range(page * pageSize, (page + 1) * pageSize - 1);
@@ -22115,6 +22123,9 @@ function getBankrollChartGameValue(point) {
   }
   if (bankrollChartGameFilter === GAME_KEYS.SHAPE_TRADERS) {
     return roundCurrencyValue(Number(point.pnlShapeTraders || 0));
+  }
+  if (bankrollChartGameFilter === GAME_KEYS.COLOR_SCHEME) {
+    return roundCurrencyValue(Number(point.pnlRyb || 0));
   }
   return roundCurrencyValue(Number(point.pnlTotal || 0));
 }
@@ -22459,7 +22470,8 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
         pnlTotal: 0,
         pnlRtn: 0,
         pnlG10: 0,
-        pnlShapeTraders: 0
+        pnlShapeTraders: 0,
+        pnlRyb: 0
       };
 
       todayHands.forEach((row) => {
@@ -22474,6 +22486,8 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
           liveToday.pnlRtn = roundCurrencyValue(liveToday.pnlRtn + net);
         } else if (gameKey === GAME_KEYS.GUESS_10) {
           liveToday.pnlG10 = roundCurrencyValue(liveToday.pnlG10 + net);
+        } else if (gameKey === GAME_KEYS.COLOR_SCHEME) {
+          liveToday.pnlRyb = roundCurrencyValue(liveToday.pnlRyb + net);
         }
       });
 
@@ -22487,7 +22501,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
       });
 
       liveToday.pnlTotal = roundCurrencyValue(
-        liveToday.pnlRtn + liveToday.pnlG10 + liveToday.pnlShapeTraders
+        liveToday.pnlRtn + liveToday.pnlG10 + liveToday.pnlShapeTraders + liveToday.pnlRyb
       );
 
       const historicalRows = snapshotRows
@@ -22499,6 +22513,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
           pnlRtn: roundCurrencyValue(Number(row?.pnl_rtn || 0)),
           pnlG10: roundCurrencyValue(Number(row?.pnl_g10 || 0)),
           pnlShapeTraders: roundCurrencyValue(Number(row?.pnl_shape_traders || 0)),
+          pnlRyb: roundCurrencyValue(Number(row?.pnl_ryb || 0)),
           fallbackIndex: index
         }))
         .filter((row) => row.dayKey);
@@ -30075,6 +30090,11 @@ function getOverviewGameSeriesDefinitions() {
       key: `${GAME_KEYS.SHAPE_TRADERS}_trades`,
       label: "Shape Traders Trades",
       color: "rgba(53, 255, 234, 1)"
+    },
+    {
+      key: GAME_KEYS.COLOR_SCHEME,
+      label: getGameLabel(GAME_KEYS.COLOR_SCHEME),
+      color: "rgba(180, 80, 255, 1)"
     }
   ];
 }
@@ -34020,8 +34040,8 @@ function renderHomeSidebarActivity() {
     let resultText = "";
     let isTrade = false;
 
-    if (entry.gameKey === GAME_KEYS.RUN_THE_NUMBERS || entry.gameKey === GAME_KEYS.GUESS_10) {
-      const gameShort = entry.gameKey === GAME_KEYS.RUN_THE_NUMBERS ? "RTN" : "G10";
+    if (entry.gameKey === GAME_KEYS.RUN_THE_NUMBERS || entry.gameKey === GAME_KEYS.GUESS_10 || entry.gameKey === GAME_KEYS.COLOR_SCHEME) {
+      const gameShort = entry.gameKey === GAME_KEYS.RUN_THE_NUMBERS ? "RTN" : entry.gameKey === GAME_KEYS.GUESS_10 ? "G10" : "RYB";
       const handNum = entry.handNumber || entry.handId?.slice(-4) || "—";
       label = `${escapeAssistantHtml(gameShort)} · <b>#${escapeAssistantHtml(String(handNum))}</b>`;
       const net = Number(entry.net ?? 0);
@@ -34536,6 +34556,11 @@ let _csBetState = 'open';
 let _csBank = 1000;
 let _csSelectedChip = 10;
 let _csRoundHistory = [];
+let _csHistoryData = [];
+let _csRoundId = null;
+let _csPendingServerRoll = null;
+let _csWaitingForServer = false;
+let _csSettleArgsCache = null;
 
 const CS_ODDS = {
   RED:9,BLUE:9,YELLOW:9,PURPLE:5,GREEN:5,ORANGE:5,COLOR_TIE:4,
@@ -34674,74 +34699,67 @@ function csClearLiveBetGlow() {
 
 function csShowOutcome(rolls) {
   const { totals, formulas } = csCalcOutcome(rolls);
-  const waiting = csEl('cs-outcomeWaiting');
-  const body = csEl('cs-outcomeBody');
-  if (waiting) waiting.style.display = 'none';
-  if (body) body.classList.add('cs-show');
 
+  // Update hidden compat spans (for formula lookups by csRenderRankedColors)
   const pairs = [
     ['Red','RED','#ff4444'],['Blue','BLUE','#4488ff'],['Yellow','YELLOW','#ffdd00'],
     ['Purple','PURPLE','#cc44ff'],['Green','GREEN','#33ee66'],['Orange','ORANGE','#ff8833'],
   ];
-  pairs.forEach(([id, key, color]) => {
-    const val = totals[key];
+  pairs.forEach(([id, key]) => {
     const vEl = csEl('cs-v'+id), fEl = csEl('cs-f'+id);
-    if (!vEl || !fEl) return;
-    fEl.textContent = csRenderFormula(formulas[key]);
-    vEl.textContent = String(val);
-    if (val===0) { vEl.classList.add('cs-zero'); vEl.style.color='#383830'; }
-    else { vEl.classList.remove('cs-zero'); vEl.style.color=color; }
-    const row = vEl.closest('.cs-color-row');
-    if (row) {
-      const primarySub2 = totals.RED+totals.BLUE+totals.YELLOW;
-      const secondarySub2 = totals.PURPLE+totals.GREEN+totals.ORANGE;
-      const maxCV = Math.max(totals.RED,totals.BLUE,totals.YELLOW,totals.PURPLE,totals.GREEN,totals.ORANGE);
-      const isWinner = maxCV>0 && totals[key]===maxCV;
-      row.classList.toggle('cs-color-winner', isWinner);
-      if (isWinner) { row.style.borderLeftColor=color; row.style.borderLeftWidth='2px'; row.style.borderLeftStyle='solid'; }
-      else { row.style.borderLeft=''; }
-    }
+    if (vEl) vEl.textContent = String(totals[key]);
+    if (fEl) fEl.textContent = csRenderFormula(formulas[key]);
   });
 
   const primarySub = totals.RED+totals.BLUE+totals.YELLOW;
   const secondarySub = totals.PURPLE+totals.GREEN+totals.ORANGE;
   const grandTotal = primarySub+secondarySub;
 
+  // Giant grand total
+  const vT = csEl('cs-vTotal');
+  if (vT) vT.textContent = grandTotal || '—';
+  const fT = csEl('cs-fTotal');
+  if (fT) fT.textContent = grandTotal ? '1°'+primarySub+' + 2°'+secondarySub : '';
+
+  // Subtotals
   const vPS = csEl('cs-vPrimarySub');
-  if (vPS) { vPS.textContent = primarySub||'0'; vPS.style.color = primarySub>secondarySub?'#ffffff':primarySub===secondarySub&&primarySub>0?'#888880':'#555550'; }
+  if (vPS) vPS.textContent = primarySub || '0';
   const vSS = csEl('cs-vSecondarySub');
-  if (vSS) { vSS.textContent = secondarySub||'0'; vSS.style.color = secondarySub>primarySub?'#ffffff':primarySub===secondarySub&&secondarySub>0?'#888880':'#555550'; }
+  if (vSS) vSS.textContent = secondarySub || '0';
 
-  const vT = csEl('cs-vTotal'), fT = csEl('cs-fTotal');
-  if (vT) vT.textContent = grandTotal;
-  if (fT) fT.textContent = '1°'+primarySub+' + 2°'+secondarySub;
+  // Winner highlight on subtotal blocks
+  const sbP = csEl('cs-subBlockPrimary'), sbS = csEl('cs-subBlockSecondary');
+  if (sbP) sbP.classList.toggle('cs-winner', primarySub > secondarySub);
+  if (sbS) sbS.classList.toggle('cs-winner', secondarySub > primarySub);
+  const arP = csEl('cs-subArrowP'), arS = csEl('cs-subArrowS');
+  if (arP) arP.style.display = primarySub > secondarySub ? '' : 'none';
+  if (arS) arS.style.display = secondarySub > primarySub ? '' : 'none';
 
-  const pLbl = csEl('cs-primaryLbl'), sLbl = csEl('cs-secondaryLbl');
-  if (pLbl && sLbl) {
-    pLbl.classList.toggle('cs-winner', primarySub>secondarySub);
-    pLbl.classList.toggle('cs-loser', secondarySub>primarySub);
-    sLbl.classList.toggle('cs-winner', secondarySub>primarySub);
-    sLbl.classList.toggle('cs-loser', primarySub>secondarySub);
-    if (primarySub===secondarySub) { pLbl.classList.remove('cs-winner','cs-loser'); sLbl.classList.remove('cs-winner','cs-loser'); }
-  }
+  // Ranked color list
+  csRenderRankedColors(totals, grandTotal);
 
   csUpdateLiveBetGlow(totals, grandTotal);
 }
 
 function csResetOutcome() {
-  const waiting = csEl('cs-outcomeWaiting');
-  const body = csEl('cs-outcomeBody');
-  if (waiting) waiting.style.display='block';
-  if (body) body.classList.remove('cs-show');
-  document.querySelectorAll('.cs-color-row').forEach(r => { r.classList.remove('cs-color-winner'); r.style.borderLeft=''; });
-  document.querySelectorAll('.cs-oc-section-lbl').forEach(l => l.classList.remove('cs-winner','cs-loser'));
+  // Reset giant total
   const vT = csEl('cs-vTotal'); if (vT) vT.textContent='—';
   const fT = csEl('cs-fTotal'); if (fT) fT.textContent='';
-  const vPS = csEl('cs-vPrimarySub'); if (vPS) { vPS.textContent='—'; vPS.style.color='#c8c8c0'; }
-  const vSS = csEl('cs-vSecondarySub'); if (vSS) { vSS.textContent='—'; vSS.style.color='#555550'; }
+  // Reset subtotals
+  const vPS = csEl('cs-vPrimarySub'); if (vPS) vPS.textContent='—';
+  const vSS = csEl('cs-vSecondarySub'); if (vSS) vSS.textContent='—';
+  const sbP = csEl('cs-subBlockPrimary'); if (sbP) sbP.classList.remove('cs-winner');
+  const sbS = csEl('cs-subBlockSecondary'); if (sbS) sbS.classList.remove('cs-winner');
+  const arP = csEl('cs-subArrowP'); if (arP) arP.style.display='none';
+  const arS = csEl('cs-subArrowS'); if (arS) arS.style.display='none';
+  // Reset ranked list
+  const rl = csEl('cs-ocRankedList');
+  if (rl) rl.innerHTML = '<div class="cs-oc-waiting">ROLL TO SEE LIVE TOTALS</div>';
+  const sc = csEl('cs-ocScoringCount'); if (sc) sc.textContent='';
+  // Reset hidden compat spans
   ['Red','Blue','Yellow','Purple','Green','Orange'].forEach(id => {
-    const vEl = csEl('cs-v'+id); if (vEl) { vEl.textContent='—'; vEl.style.color=''; vEl.classList.remove('cs-zero'); }
-    const fEl = csEl('cs-f'+id); if (fEl) fEl.textContent='—';
+    const vEl = csEl('cs-v'+id); if (vEl) vEl.textContent='';
+    const fEl = csEl('cs-f'+id); if (fEl) fEl.textContent='';
   });
 }
 
@@ -34818,19 +34836,217 @@ function csResetTracker() {
   const first = csEl('cs-rts-1'); if (first) first.classList.add('cs-active-slot');
 }
 
+function csAddHistogramBar(roundNum, total, totals) {
+  const allCols = {RED:totals.RED,BLUE:totals.BLUE,YELLOW:totals.YELLOW,PURPLE:totals.PURPLE,GREEN:totals.GREEN,ORANGE:totals.ORANGE};
+  const maxColVal = Math.max(...Object.values(allCols));
+  const winColors = maxColVal > 0 ? Object.keys(allCols).filter(k => allCols[k] === maxColVal) : [];
+  _csHistoryData.push({roundNum, total, totals, winColors});
+  csRenderHistogram();
+}
+
+function csRenderHistogram() {
+  const chart = csEl('cs-histChart');
+  if (!chart) return;
+  const empty = csEl('cs-histEmpty');
+  if (empty) empty.remove();
+
+  const maxTotal = Math.max(..._csHistoryData.map(d => d.total), 1);
+  const chartH = 52; // bar area height px
+
+  const countEl = csEl('cs-histCount'); if (countEl) countEl.textContent = _csHistoryData.length;
+  const peakEl = csEl('cs-histPeak'); if (peakEl) peakEl.textContent = maxTotal;
+
+  const COLOR_HEX = {RED:'#ff4444',BLUE:'#4488ff',YELLOW:'#ffdd00',PURPLE:'#cc44ff',GREEN:'#33ee66',ORANGE:'#ff8833'};
+  const COLOR_NAMES = ['RED','BLUE','YELLOW','PURPLE','GREEN','ORANGE'];
+
+  chart.innerHTML = '';
+  _csHistoryData.forEach(d => {
+    const isCurrent = d.roundNum === _csHistoryData.length;
+    const wrap = document.createElement('div');
+    wrap.className = 'cs-hist-bar-wrap' + (isCurrent ? ' cs-hist-current' : '');
+
+    const totalLabel = document.createElement('div');
+    totalLabel.className = 'cs-hist-total-label';
+    totalLabel.textContent = d.total;
+
+    const bar = document.createElement('div');
+    bar.className = 'cs-hist-bar';
+    const barH = Math.max(4, Math.round((d.total / maxTotal) * chartH));
+    bar.style.height = barH + 'px';
+
+    COLOR_NAMES.forEach(col => {
+      const val = d.totals[col] || 0;
+      if (!val) return;
+      const seg = document.createElement('div');
+      seg.className = 'cs-hist-seg';
+      seg.style.height = ((val / d.total) * 100) + '%';
+      seg.style.background = COLOR_HEX[col];
+      seg.dataset.col = col;
+      seg.addEventListener('mouseenter', function(e) {
+        const tip = csEl('cs-histTooltip');
+        if (!tip) return;
+        const dotEl = csEl('cs-htDot'), nameEl = csEl('cs-htName'), ptsEl = csEl('cs-htPts');
+        if (dotEl) dotEl.style.background = COLOR_HEX[col];
+        if (nameEl) { nameEl.textContent = col; nameEl.style.color = COLOR_HEX[col]; }
+        if (ptsEl) { ptsEl.textContent = val; ptsEl.style.color = COLOR_HEX[col]; }
+        tip.style.display = 'block';
+        chart.classList.add('cs-hovering');
+        this.classList.add('cs-active');
+      });
+      seg.addEventListener('mousemove', function(e) {
+        const tip = csEl('cs-histTooltip');
+        if (tip) { tip.style.left = (e.clientX + 14) + 'px'; tip.style.top = (e.clientY - 40) + 'px'; }
+      });
+      seg.addEventListener('mouseleave', function() {
+        const tip = csEl('cs-histTooltip');
+        if (tip) tip.style.display = 'none';
+        chart.classList.remove('cs-hovering');
+        this.classList.remove('cs-active');
+      });
+      bar.appendChild(seg);
+    });
+
+    const rnLabel = document.createElement('div');
+    rnLabel.className = 'cs-hist-rnd-label';
+    rnLabel.textContent = 'R' + String(d.roundNum).padStart(2,'0');
+
+    // Default dim non-winning segs
+    if (d.winColors && d.winColors.length) {
+      bar.querySelectorAll('.cs-hist-seg').forEach(s => {
+        if (!d.winColors.includes(s.dataset.col)) s.classList.add('cs-default-dim');
+      });
+    }
+
+    wrap.appendChild(totalLabel);
+    wrap.appendChild(bar);
+    wrap.appendChild(rnLabel);
+    chart.insertBefore(wrap, chart.firstChild);
+  });
+  chart.scrollLeft = chart.scrollWidth;
+}
+
+function csRenderRankedColors(totals, grandTotal) {
+  const list = csEl('cs-ocRankedList');
+  if (!list) return;
+
+  const COLOR_HEX = {RED:'#ff4444',BLUE:'#4488ff',YELLOW:'#ffdd00',PURPLE:'#cc44ff',GREEN:'#33ee66',ORANGE:'#ff8833'};
+  const isPrimary = {RED:true,BLUE:true,YELLOW:true,PURPLE:false,GREEN:false,ORANGE:false};
+
+  const entries = Object.entries(totals)
+    .filter(([,v]) => v > 0)
+    .sort(([,a],[,b]) => b - a);
+
+  const maxVal = entries.length ? entries[0][1] : 0;
+
+  list.innerHTML = '';
+  entries.forEach(([col, val], i) => {
+    const fKey = col.charAt(0) + col.slice(1).toLowerCase();
+    const fEl = csEl('cs-f'+fKey);
+    const formula = fEl ? fEl.textContent : '';
+    const row = document.createElement('div');
+    row.className = 'cs-oc-rank-row' + (val === maxVal ? ' cs-color-winner' : '');
+    if (val === maxVal) row.style.borderLeftColor = COLOR_HEX[col];
+    row.innerHTML = `
+      <span class="cs-oc-rank-num">${String(i+1).padStart(2,'0')}</span>
+      <div class="cs-oc-rank-dot" style="background:${COLOR_HEX[col]};box-shadow:0 0 5px ${COLOR_HEX[col]}"></div>
+      <span class="cs-oc-rank-name" style="color:${COLOR_HEX[col]}">${col}</span>
+      <span class="cs-oc-rank-tag">${isPrimary[col]?'PRIMARY':'SECONDARY'}</span>
+      <span class="cs-oc-rank-formula">${formula && formula !== '—' ? formula : ''}</span>
+      <span class="cs-oc-rank-val" style="color:${COLOR_HEX[col]}">${val}</span>
+    `;
+    list.appendChild(row);
+  });
+
+  const sc = csEl('cs-ocScoringCount');
+  if (sc) sc.textContent = entries.length + ' SCORING';
+  if (!entries.length) {
+    list.innerHTML = '<div class="cs-oc-waiting">NO SCORES YET</div>';
+  }
+}
+
 function csAddHistoryCell(colorName, dotColor, typeLabel, roundNum, total) {
-  _csRoundHistory.push({colorName,dotColor,typeLabel,roundNum,total});
-  const grid = csEl('cs-rhGrid');
-  const empty = csEl('cs-rhEmpty');
-  if (empty && grid) { grid.removeChild(empty); }
-  if (!grid) return;
-  const cell = document.createElement('div');
-  cell.className = 'cs-rh-cell cs-rh-cell-new';
-  cell.style.background='#111411'; cell.style.borderColor=dotColor; cell.style.boxShadow=`0 0 5px ${dotColor}44`;
-  const letter = colorName==='TIE' ? 'T' : colorName[0];
-  cell.innerHTML = `<div style="font-size:8px;color:rgba(255,255,255,0.28);position:absolute;top:2px;left:3px;">${roundNum}</div><div style="width:16px;height:16px;border-radius:50%;background:${dotColor};box-shadow:0 0 5px ${dotColor};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:rgba(0,0,0,0.65);font-family:'JetBrains Mono',monospace;margin-bottom:3px;">${letter}</div><div style="font-size:9px;font-weight:700;color:#fff;letter-spacing:0;font-family:'JetBrains Mono',monospace;">${total}</div>`;
-  grid.insertBefore(cell, grid.firstChild);
-  setTimeout(()=>cell.classList.remove('cs-rh-cell-new'),300);
+  // Shim — history now handled by csAddHistogramBar
+}
+
+async function csInvokeServerRoll() {
+  if (!supabase || isGuestRuntimeUser()) return;
+  try {
+    if (_csRoll === 0 && !_csRoundId) {
+      const { data, error } = await supabase.rpc('start_cs_round', { _contest_id: null });
+      if (error || !data?.round_id) { console.warn('[CS] start_cs_round failed:', error); return; }
+      _csRoundId = data.round_id;
+      await csSaveBetsToServer(_csRoundId);
+    }
+    const { data, error } = await supabase.rpc('cs_perform_roll', { _round_id: _csRoundId });
+    if (error || !data?.roll) { console.warn('[CS] cs_perform_roll failed:', error); return; }
+    _csPendingServerRoll = data;
+    if (_csWaitingForServer) {
+      _csWaitingForServer = false;
+      const { THREE, CANNON } = _csSettleArgsCache || {};
+      if (THREE && CANNON) csProcessSettle(THREE, CANNON);
+    }
+  } catch(e) { console.warn('[CS] Server roll error:', e); }
+}
+
+async function csSaveBetsToServer(roundId) {
+  if (!supabase || isGuestRuntimeUser() || !roundId || !currentUser?.id) return;
+  const rows = Object.entries(_csBets).map(([betId, stake]) => ({
+    round_id: roundId,
+    user_id: currentUser.id,
+    bet_key: betId,
+    amount_wagered: stake,
+    placed_at: new Date().toISOString()
+  }));
+  if (!rows.length) return;
+  const { error } = await supabase.from('color_scheme_bets').insert(rows);
+  if (error) console.warn('[CS] csSaveBetsToServer failed:', error);
+}
+
+async function csSettleBetsOnServer(roundId, totals, grandTotal) {
+  if (!supabase || isGuestRuntimeUser() || !roundId) return;
+  try {
+    const { data: bets, error } = await supabase
+      .from('color_scheme_bets').select('id, bet_key, amount_wagered').eq('round_id', roundId);
+    if (error || !bets?.length) return;
+    await Promise.all(bets.map(bet => {
+      const won = csIsCurrentlyWinning(bet.bet_key, totals, grandTotal);
+      const base = won ? Math.floor(bet.amount_wagered * CS_ODDS[bet.bet_key]) : 0;
+      const payout = (won && bet.bet_key === 'TYPE_PRIMARY') ? Math.floor(base * 0.95) : base;
+      return supabase.from('color_scheme_bets').update({
+        outcome: won ? 'W' : 'L',
+        amount_returned: won ? bet.amount_wagered + payout : 0,
+        net_profit: won ? payout : -bet.amount_wagered,
+        raw: { totals, grand_total: grandTotal }
+      }).eq('id', bet.id);
+    }));
+    const totalWagered = Object.values(_csBets).reduce((a, b) => a + b, 0);
+    const totalReturned = bets.reduce((sum, bet) => {
+      const won = csIsCurrentlyWinning(bet.bet_key, totals, grandTotal);
+      const base = won ? Math.floor(bet.amount_wagered * CS_ODDS[bet.bet_key]) : 0;
+      const payout = (won && bet.bet_key === 'TYPE_PRIMARY') ? Math.floor(base * 0.95) : base;
+      return sum + (won ? bet.amount_wagered + payout : 0);
+    }, 0);
+    const netThisRound = totalReturned - totalWagered;
+    await supabase.from('color_scheme_rounds').update({
+      total_wagered: totalWagered,
+      total_returned: totalReturned,
+      net_profit: netThisRound
+    }).eq('id', roundId);
+
+    // Log hand to game_hands and increment profile progress
+    await logStandaloneGameHand({
+      gameKey: GAME_KEYS.COLOR_SCHEME,
+      totalCards: 3,
+      totalWager: totalWagered,
+      totalPaid: totalReturned,
+      net: netThisRound,
+      commissionKept: 0,
+      handHistory: []
+    });
+    await incrementProfileHandProgress(1, GAME_KEYS.COLOR_SCHEME);
+    await ensureProfileSynced({ force: true });
+    _csRoundId = null;
+  } catch(e) { console.warn('[CS] csSettleBetsOnServer error:', e); }
 }
 
 function csEvaluateBets(totals, grandTotal) {
@@ -34857,17 +35073,8 @@ function csEvaluateBets(totals, grandTotal) {
   });
   csRenderBank();
   csUpdateLiveBetGlow(totals, grandTotal);
-
-  // History
-  const histColors={RED:totals.RED,BLUE:totals.BLUE,YELLOW:totals.YELLOW,PURPLE:totals.PURPLE,GREEN:totals.GREEN,ORANGE:totals.ORANGE};
-  const maxCV=Math.max(...Object.values(histColors));
-  const colorWinners=Object.keys(histColors).filter(k=>histColors[k]===maxCV);
-  const colorDotMap={RED:'#ff2222',BLUE:'#1166ff',YELLOW:'#ffdd00',PURPLE:'#cc44ff',GREEN:'#33ee66',ORANGE:'#ff8833'};
-  let winColorName,winDot;
-  if (colorWinners.length===1&&maxCV>0){winColorName=colorWinners[0];winDot=colorDotMap[winColorName];}
-  else{winColorName='TIE';winDot='#888888';}
-  const histTypeLabel=primarySum>secondarySum?'P':secondarySum>primarySum?'S':'T';
-  csAddHistoryCell(winColorName,winDot,histTypeLabel,_csRound,grandTotal);
+  csAddHistogramBar(_csRound, grandTotal, totals);
+  if (_csRoundId) csSettleBetsOnServer(_csRoundId, totals, grandTotal);
 }
 
 function csClearBetResults() {
@@ -34893,13 +35100,32 @@ function csIsAtRest() {
 
 function csOnSettled(THREE, CANNON) {
   if (_csProcessingSettle) return;
+  if (!_csPendingServerRoll && supabase && !isGuestRuntimeUser()) {
+    _csWaitingForServer = true;
+    _csSettleArgsCache = { THREE, CANNON };
+    return;
+  }
   _csProcessingSettle = true;
   _csSettling = false;
+  csProcessSettle(THREE, CANNON);
+}
+
+function csProcessSettle(THREE, CANNON) {
   try {
     const cd = _csDice.find(d=>d.isColor), nd = _csDice.find(d=>!d.isColor);
     if (!cd||!nd){_csProcessingSettle=false;return;}
-    const ci = csGetTopFace(CANNON,cd.body,true), nv = csGetTopFace(CANNON,nd.body,false);
-    const col = CS_COLS[ci];
+    let col, nv;
+    if (_csPendingServerRoll?.roll) {
+      const sr = _csPendingServerRoll.roll;
+      const colorName = sr.color === 'R' ? 'RED' : sr.color === 'Y' ? 'YELLOW' : 'BLUE';
+      col = CS_COLS.find(c => c.name === colorName);
+      nv = sr.number;
+      _csPendingServerRoll = null;
+    } else {
+      const ci = csGetTopFace(CANNON,cd.body,true);
+      nv = csGetTopFace(CANNON,nd.body,false);
+      col = CS_COLS[ci];
+    }
     _csRoll++;
     _csRoundRolls.push({color:col.name, number:nv});
 
@@ -34907,10 +35133,9 @@ function csOnSettled(THREE, CANNON) {
     const sRoll=csEl('cs-sRoll'); if(sRoll) sRoll.textContent=_csRoll+'/3';
     const sColor=csEl('cs-sColor'); if(sColor){sColor.textContent=col.name;sColor.style.color=col.dot;}
     const sNum=csEl('cs-sNum'); if(sNum) sNum.textContent=nv;
+    // Clear slim status bar after settle
     const sBar=csEl('cs-statusBar');
-    if(sBar){sBar.textContent='SETTLED';sBar.classList.add('cs-active');}
-    const sRes=csEl('cs-statusResult');
-    if(sRes) sRes.innerHTML=`<span style="color:${col.dot}">${col.name}</span>&nbsp;·&nbsp;<span style="color:#a8ff3e">${nv}</span>`;
+    if(sBar){sBar.textContent='';sBar.classList.remove('cs-active');}
 
     csFillTrackSlot(_csRoll, col, nv, _csRoundRolls);
     csShowOutcome(_csRoundRolls);
@@ -34987,7 +35212,13 @@ function initColorSchemeGame() {
 
     _csGameActive = true;
     _csRound = 1; _csRoll = 0; _csRoundRolls = [];
-    _csBets = {}; _csBetState = 'open'; _csRoundHistory = [];
+    _csBets = {}; _csBetState = 'open'; _csRoundHistory = []; _csHistoryData = [];
+    _csRoundId = null; _csPendingServerRoll = null; _csWaitingForServer = false; _csSettleArgsCache = null;
+    // Reset histogram UI
+    const histChart = csEl('cs-histChart');
+    if (histChart) histChart.innerHTML = '<div class="cs-hist-empty" id="cs-histEmpty">NO HISTORY YET</div>';
+    const histCount = csEl('cs-histCount'); if (histCount) histCount.textContent = '0';
+    const histPeak = csEl('cs-histPeak'); if (histPeak) histPeak.textContent = '—';
     _csBank = (typeof currentProfile !== 'undefined' && currentProfile && currentProfile.credits) ? currentProfile.credits : 1000;
     _csSelectedChip = 10;
 
@@ -35054,15 +35285,16 @@ function initColorSchemeGame() {
     });
     const bRoll=csEl('cs-bRoll'); if(bRoll){bRoll.disabled=false;bRoll.textContent='⬡ ROLL DICE';}
     const bNew=csEl('cs-bNew'); if(bNew) bNew.style.display='none';
-    const sBar=csEl('cs-statusBar'); if(sBar){sBar.textContent='READY · PLACE BETS';sBar.classList.remove('cs-active');}
+    const sBar=csEl('cs-statusBar'); if(sBar){sBar.textContent='';sBar.classList.remove('cs-active');}
 
     // Roll button
     if (bRoll) {
       bRoll._csHandler = function() {
         this.disabled=true;
+        _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null;
         const sBar2=csEl('cs-statusBar'); if(sBar2){sBar2.textContent='SIMULATING…';sBar2.classList.add('cs-active');}
-        const sRes=csEl('cs-statusResult'); if(sRes) sRes.textContent='';
         csSetBetState('locked');
+        csInvokeServerRoll();
         csThrowDice(THREE,CANNON);
       };
       bRoll.addEventListener('click',bRoll._csHandler);
@@ -35072,15 +35304,15 @@ function initColorSchemeGame() {
     if (bNew2) {
       bNew2._csHandler = function() {
         _csRound++; _csRoll=0; _csRoundRolls.length=0; _csProcessingSettle=false;
+        _csRoundId=null; _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null;
         _csDice.forEach(d=>{if(_csScene)_csScene.remove(d.mesh);if(_csWorld)_csWorld.remove(d.body);}); _csDice=[];
         csResetOutcome(); csClearBetResults(); csRenderTotalWagered(); csResetTracker();
         _csBets={}; csSetBetState('open');
         const sRound=csEl('cs-sRound'); if(sRound) sRound.textContent=_csRound;
         const sRoll=csEl('cs-sRoll'); if(sRoll) sRoll.textContent='—/3';
-        const sColor=csEl('cs-sColor'); if(sColor){sColor.textContent='—';sColor.style.color='';}
-        const sNum=csEl('cs-sNum'); if(sNum) sNum.textContent='—';
-        const sBar3=csEl('cs-statusBar'); if(sBar3){sBar3.textContent='READY · PLACE BETS';sBar3.classList.remove('cs-active');}
-        const sRes2=csEl('cs-statusResult'); if(sRes2) sRes2.textContent='';
+        const sColor=csEl('cs-sColor'); if(sColor){sColor.textContent='';sColor.style.color='';}
+        const sNum=csEl('cs-sNum'); if(sNum) sNum.textContent='';
+        const sBar3=csEl('cs-statusBar'); if(sBar3){sBar3.textContent='';sBar3.classList.remove('cs-active');}
         const bRoll2=csEl('cs-bRoll');
         if(bRoll2){bRoll2.style.display='';bRoll2.disabled=false;bRoll2.textContent='⬡ ROLL DICE';}
         this.style.display='none';
@@ -35149,6 +35381,7 @@ function destroyColorSchemeGame() {
   // Dispose Three.js
   if (_csRenderer) { _csRenderer.dispose(); _csRenderer=null; }
   _csScene=null; _csCamera=null; _csWorld=null; _csDice=[]; _csSettling=false; _csLastTime=null; _csProcessingSettle=false;
-  _csDm=null; _csGm2=null;
+  _csDm=null; _csGm2=null; _csHistoryData=[];
+  _csRoundId=null; _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null;
   if (window.csGame) { delete window.csGame; }
 }

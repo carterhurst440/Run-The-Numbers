@@ -897,6 +897,32 @@
                   Open SHAPE TRADERS
                 </button>
               </article>
+              <article
+                id="color-scheme-play-card"
+                class="game-card game-card-shape-traders"
+                data-game-card="game_004"
+                hidden
+              >
+                <div class="game-card-head">
+                  <div class="game-card-kicker-row">
+                    <p class="game-card-kicker" data-game-kicker-for="game_004">Admin Preview</p>
+                    <span class="game-beta-pill" data-game-pill-for="game_004">Admin</span>
+                  </div>
+                  <div class="game-card-title-row">
+                    <h2 class="game-card-title">COLOR SCHEME</h2>
+                  </div>
+                </div>
+                <p class="game-card-copy" data-game-description-for="game_004">Roll the color and number dice across three rounds. Combine primary and secondary scores to beat the board.</p>
+                <button
+                  type="button"
+                  class="home-button home-cta-button"
+                  data-route-target="color-scheme"
+                  data-game-id="game_004"
+                  data-game-button-for="game_004"
+                >
+                  Open COLOR SCHEME
+                </button>
+              </article>
             </section>
           </div>
         </section>
@@ -2464,6 +2490,7 @@
                     <button type="button" class="account-chart-game-btn" data-bankroll-game="game_001">RTN</button>
                     <button type="button" class="account-chart-game-btn" data-bankroll-game="game_002">G10</button>
                     <button type="button" class="account-chart-game-btn" data-bankroll-game="shape_traders">ST</button>
+                    <button type="button" class="account-chart-game-btn" data-bankroll-game="game_004">RYB</button>
                   </div>
                 </div>
                 <div class="account-chart-summary">
@@ -2506,6 +2533,11 @@
                     <input type="checkbox" data-activity-log-filter="game_003" checked />
                     <span class="activity-log-checkbox-mark" aria-hidden="true"></span>
                     <span>Shape Traders</span>
+                  </label>
+                  <label class="activity-log-checkbox">
+                    <input type="checkbox" data-activity-log-filter="game_004" checked />
+                    <span class="activity-log-checkbox-mark" aria-hidden="true"></span>
+                    <span>Color Scheme</span>
                   </label>
                 </div>
                 <div class="activity-log-subfilters" aria-label="Filter Shape Traders trades by side">
@@ -3059,47 +3091,32 @@
             </div>
           </div>
 
-          <!-- Round history strip -->
+          <!-- Round history strip (histogram) -->
           <div class="cs-round-history">
-            <div class="cs-rh-label">// ROUND HISTORY</div>
-            <div class="cs-rh-grid" id="cs-rhGrid">
-              <div class="cs-rh-empty" id="cs-rhEmpty">NO HISTORY YET</div>
+            <div class="cs-histogram-chart" id="cs-histChart">
+              <div class="cs-hist-empty" id="cs-histEmpty">NO HISTORY YET</div>
             </div>
+            <div class="cs-hist-peak-right">
+              <span id="cs-histCount">0</span> RDS &nbsp;·&nbsp; PEAK <span id="cs-histPeak">—</span>
+            </div>
+          </div>
+
+          <!-- Histogram tooltip (fixed-positioned) -->
+          <div id="cs-histTooltip" class="cs-hist-tooltip">
+            <div class="cs-ht-color">
+              <div class="cs-ht-dot" id="cs-htDot"></div>
+              <span class="cs-ht-name" id="cs-htName"></span>
+              <span class="cs-ht-pts" id="cs-htPts"></span>
+            </div>
+            <div class="cs-ht-pts-label">PTS</div>
           </div>
 
           <!-- Mid section: canvas col + outcome col -->
           <div class="cs-mid">
 
-            <!-- Left: canvas + status + roll button + tracker -->
+            <!-- Left: roll tracker (top) + canvas + slim status + buttons (bottom) -->
             <div class="cs-col-canvas">
-              <canvas id="cs-three-canvas" aria-label="Dice physics simulation"></canvas>
-              <div class="cs-status-strip">
-                <div class="cs-s-left">
-                  <div class="cs-s-seg">
-                    <div class="cs-s-seg-l">ROUND</div>
-                    <div class="cs-s-seg-v" id="cs-sRound">1</div>
-                  </div>
-                  <div class="cs-s-seg">
-                    <div class="cs-s-seg-l">ROLL</div>
-                    <div class="cs-s-seg-v" id="cs-sRoll">—/3</div>
-                  </div>
-                  <div class="cs-s-seg">
-                    <div class="cs-s-seg-l">COLOR</div>
-                    <div class="cs-s-seg-v cs-hi" id="cs-sColor">—</div>
-                  </div>
-                  <div class="cs-s-seg">
-                    <div class="cs-s-seg-l">NUMBER</div>
-                    <div class="cs-s-seg-v cs-hi" id="cs-sNum">—</div>
-                  </div>
-                  <div class="cs-s-text" id="cs-statusBar">READY · PLACE BETS</div>
-                </div>
-                <div class="cs-s-result" id="cs-statusResult"></div>
-              </div>
-              <div class="cs-btns">
-                <button id="cs-bRoll" class="cs-roll-btn" type="button">⬡ ROLL DICE</button>
-                <button id="cs-bNew" class="cs-new-btn" type="button" style="display:none">↺ NEW ROUND</button>
-              </div>
-              <!-- Roll progress tracker -->
+              <!-- Roll tracker at TOP -->
               <div class="cs-roll-tracker">
                 <div class="cs-roll-track-slot" id="cs-rts-1">
                   <div class="cs-rts-idx">ROLL 01</div>
@@ -3138,68 +3155,72 @@
                   </div>
                 </div>
               </div>
+              <!-- Canvas -->
+              <canvas id="cs-three-canvas" aria-label="Dice physics simulation"></canvas>
+              <!-- Slim status bar -->
+              <div class="cs-sim-status-bar" id="cs-statusBar"></div>
+              <!-- Hidden compat elements for JS -->
+              <span id="cs-sRound" style="display:none">1</span>
+              <span id="cs-sRoll" style="display:none">—/3</span>
+              <span id="cs-sColor" style="display:none"></span>
+              <span id="cs-sNum" style="display:none"></span>
+              <!-- Buttons at BOTTOM -->
+              <div class="cs-btns">
+                <button id="cs-bRoll" class="cs-roll-btn" type="button">⬡ ROLL DICE</button>
+                <button id="cs-bNew" class="cs-new-btn" type="button" style="display:none">↺ NEW ROUND</button>
+              </div>
             </div>
 
-            <!-- Right: outcome totals -->
+            <!-- Right: outcome panel (redesigned) -->
             <div class="cs-col-outcome">
               <div class="cs-col-hdr">
                 <span>// HAND OUTCOME</span>
                 <span id="cs-betStateBadge" class="cs-bet-state-badge cs-open">OPEN</span>
               </div>
-              <div class="cs-outcome-waiting" id="cs-outcomeWaiting">ROLL TO SEE<br>LIVE TOTALS</div>
-              <div class="cs-outcome-body" id="cs-outcomeBody">
-                <div class="cs-oc-section-lbl" id="cs-primaryLbl">
-                  <span>PRIMARY</span>
-                  <span class="cs-oc-section-val" id="cs-vPrimarySub">—</span>
+
+              <!-- Giant grand total -->
+              <div class="cs-oc-grand-total">
+                <div class="cs-oc-gt-label">ROUND TOTAL</div>
+                <div class="cs-oc-gt-value" id="cs-vTotal">—</div>
+                <span id="cs-fTotal" style="display:none"></span>
+              </div>
+
+              <!-- Primary / Secondary subtotals side by side -->
+              <div class="cs-oc-subtotals">
+                <div class="cs-oc-sub-block" id="cs-subBlockPrimary">
+                  <div class="cs-oc-sub-label">PRIMARY <span class="cs-oc-sub-arrow" id="cs-subArrowP">▲</span></div>
+                  <div class="cs-oc-sub-value" id="cs-vPrimarySub">—</div>
                 </div>
-                <div class="cs-color-row">
-                  <div class="cs-cr-swatch" style="background:#ff4444"></div>
-                  <div class="cs-cr-name" style="color:#ff4444">RED</div>
-                  <div class="cs-cr-formula" id="cs-fRed">—</div>
-                  <div class="cs-cr-value" id="cs-vRed" style="color:#ff4444">—</div>
-                </div>
-                <div class="cs-color-row">
-                  <div class="cs-cr-swatch" style="background:#4488ff"></div>
-                  <div class="cs-cr-name" style="color:#4488ff">BLUE</div>
-                  <div class="cs-cr-formula" id="cs-fBlue">—</div>
-                  <div class="cs-cr-value" id="cs-vBlue" style="color:#4488ff">—</div>
-                </div>
-                <div class="cs-color-row">
-                  <div class="cs-cr-swatch" style="background:#ffdd00"></div>
-                  <div class="cs-cr-name" style="color:#ffdd00">YELLOW</div>
-                  <div class="cs-cr-formula" id="cs-fYellow">—</div>
-                  <div class="cs-cr-value" id="cs-vYellow" style="color:#ffdd00">—</div>
-                </div>
-                <div class="cs-oc-divider"></div>
-                <div class="cs-oc-section-lbl" id="cs-secondaryLbl">
-                  <span>SECONDARY</span>
-                  <span class="cs-oc-section-val" id="cs-vSecondarySub">—</span>
-                </div>
-                <div class="cs-color-row">
-                  <div class="cs-cr-swatch" style="background:#cc44ff"></div>
-                  <div class="cs-cr-name" style="color:#cc44ff">PURPLE</div>
-                  <div class="cs-cr-formula" id="cs-fPurple">—</div>
-                  <div class="cs-cr-value" id="cs-vPurple" style="color:#cc44ff">—</div>
-                </div>
-                <div class="cs-color-row">
-                  <div class="cs-cr-swatch" style="background:#33ee66"></div>
-                  <div class="cs-cr-name" style="color:#33ee66">GREEN</div>
-                  <div class="cs-cr-formula" id="cs-fGreen">—</div>
-                  <div class="cs-cr-value" id="cs-vGreen" style="color:#33ee66">—</div>
-                </div>
-                <div class="cs-color-row">
-                  <div class="cs-cr-swatch" style="background:#ff8833"></div>
-                  <div class="cs-cr-name" style="color:#ff8833">ORANGE</div>
-                  <div class="cs-cr-formula" id="cs-fOrange">—</div>
-                  <div class="cs-cr-value" id="cs-vOrange" style="color:#ff8833">—</div>
-                </div>
-                <div class="cs-total-row">
-                  <div class="cs-cr-swatch" style="background:#a8ff3e"></div>
-                  <div class="cs-cr-name" style="color:#a8ff3e;font-weight:700">TOTAL</div>
-                  <div class="cs-cr-formula" id="cs-fTotal"></div>
-                  <div id="cs-vTotal" class="cs-total-val">—</div>
+                <div class="cs-oc-sub-block" id="cs-subBlockSecondary">
+                  <div class="cs-oc-sub-label">SECONDARY <span class="cs-oc-sub-arrow" id="cs-subArrowS">▲</span></div>
+                  <div class="cs-oc-sub-value" id="cs-vSecondarySub">—</div>
                 </div>
               </div>
+
+              <!-- Ranked color list -->
+              <div class="cs-oc-ranked-hdr">
+                <span>COLORS · RANKED</span>
+                <span id="cs-ocScoringCount"></span>
+              </div>
+              <div class="cs-oc-ranked-list" id="cs-ocRankedList">
+                <div class="cs-oc-waiting">ROLL TO SEE LIVE TOTALS</div>
+              </div>
+
+              <!-- Hidden compat spans for JS -->
+              <span id="cs-vRed" style="display:none"></span>
+              <span id="cs-vBlue" style="display:none"></span>
+              <span id="cs-vYellow" style="display:none"></span>
+              <span id="cs-vPurple" style="display:none"></span>
+              <span id="cs-vGreen" style="display:none"></span>
+              <span id="cs-vOrange" style="display:none"></span>
+              <span id="cs-fRed" style="display:none"></span>
+              <span id="cs-fBlue" style="display:none"></span>
+              <span id="cs-fYellow" style="display:none"></span>
+              <span id="cs-fPurple" style="display:none"></span>
+              <span id="cs-fGreen" style="display:none"></span>
+              <span id="cs-fOrange" style="display:none"></span>
+              <div id="cs-outcomeBody" style="display:none"></div>
+              <div id="cs-outcomeWaiting" style="display:none"></div>
             </div>
 
           </div><!-- end .cs-mid -->
@@ -4232,6 +4253,10 @@
           <label class="admin-field">
             <span>Trades Made Requirement</span>
             <input type="number" name="requiredTradesMade" min="0" step="1" value="0" required />
+          </label>
+          <label class="admin-field">
+            <span>Color Scheme Rounds Requirement (RYB)</span>
+            <input type="number" name="requiredColorSchemeRounds" min="0" step="1" value="0" />
           </label>
           <input type="hidden" name="themeKey" id="admin-rank-theme-select" value="main-app-comfort" />
           <label class="admin-field">

@@ -24870,65 +24870,116 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 }
 @keyframes cs-blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-/* Round history strip */
+/* Round history strip (histogram) */
 .cs-round-history {
   border-bottom: 1px solid #2c2c2c;
   background: #0f0f0f;
   display: flex;
   align-items: stretch;
   overflow: hidden;
-  min-height: 64px;
+  min-height: 72px;
   flex-shrink: 0;
   position: relative;
   z-index: 2;
 }
-.cs-rh-label {
+.cs-histogram-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  justify-content: flex-start;
+  padding: 4px 8px 14px;
+}
+.cs-histogram-chart::-webkit-scrollbar { height: 2px; }
+.cs-histogram-chart::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 2px; }
+.cs-hist-empty {
+  font-size: 9px;
+  color: #4a4a42;
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding-left: 2px;
+}
+.cs-hist-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 26px;
+  width: 26px;
+  position: relative;
+}
+.cs-hist-total-label {
+  font-size: 8px;
+  font-weight: 700;
+  color: #d8d8d0;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+.cs-hist-bar {
+  width: 100%;
+  display: flex;
+  flex-direction: column-reverse;
+  border-radius: 2px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  min-height: 4px;
+}
+.cs-histogram-chart:hover .cs-hist-bar-wrap:not(:hover) { opacity: 0.35; }
+.cs-hist-seg {
+  width: 100%;
+  position: relative;
+}
+.cs-hist-rnd-label {
+  font-size: 7px;
+  color: #4a4a42;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+.cs-hist-current .cs-hist-rnd-label { color: #a8ff3e; }
+.cs-hist-current .cs-hist-total-label { color: #a8ff3e; }
+/* Dim non-winning segments by default */
+.cs-hist-seg.cs-default-dim { opacity: 0.2; }
+/* Hover fade interaction */
+.cs-histogram-chart.cs-hovering .cs-hist-seg { opacity: 0.12; }
+.cs-histogram-chart.cs-hovering .cs-hist-seg.cs-active { opacity: 1 !important; }
+.cs-histogram-chart.cs-hovering .cs-hist-seg.cs-default-dim { opacity: 0.12; }
+/* Peak right */
+.cs-hist-peak-right {
+  margin-left: auto;
   padding: 0 12px;
   display: flex;
   align-items: center;
   font-size: 8px;
-  letter-spacing: 0.16em;
-  color: #7a7a72;
-  text-transform: uppercase;
-  border-right: 1px solid #2c2c2c;
+  color: #4a4a42;
+  letter-spacing: 0.06em;
   white-space: nowrap;
+  border-left: 1px solid #2c2c2c;
   flex-shrink: 0;
-  background: #131313;
 }
-.cs-rh-grid {
-  display: flex;
-  flex-wrap: wrap;
-  flex-direction: column;
-  align-content: flex-start;
-  gap: 4px;
-  padding: 7px 10px;
-  flex: 1;
-  overflow: hidden;
-  height: 64px;
+.cs-hist-peak-right span:last-child { color: #d8d8d0; font-weight: 600; }
+/* Histogram tooltip */
+.cs-hist-tooltip {
+  position: fixed;
+  background: #0f0f0f;
+  border: 1px solid #3a3a3a;
+  padding: 8px 14px;
+  pointer-events: none;
+  z-index: 9999;
+  display: none;
+  border-radius: 3px;
+  min-width: 140px;
+  font-family: 'JetBrains Mono', monospace;
 }
-.cs-rh-empty {
-  padding: 0 16px;
-  font-size: 9px;
-  color: #3a3a32;
-  letter-spacing: 0.08em;
-  display: flex;
-  align-items: center;
-}
-.cs-rh-cell {
-  width: 40px; height: 50px;
-  border-radius: 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  flex-shrink: 0;
-  position: relative;
-  border: 1.5px solid;
-  cursor: default;
-}
-.cs-rh-cell-new { animation: cs-cellIn 0.25s cubic-bezier(0.34,1.56,0.64,1); }
-@keyframes cs-cellIn { from{opacity:0;transform:scale(0.5)} to{opacity:1;transform:scale(1)} }
+.cs-ht-color { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.cs-ht-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.cs-ht-name { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #d8d8d0; text-transform: uppercase; }
+.cs-ht-pts { font-size: 11px; font-weight: 700; margin-left: auto; }
+.cs-ht-pts-label { font-size: 9px; color: #7a7a72; letter-spacing: 0.08em; }
 
 /* Mid: canvas + outcome */
 .cs-mid {
@@ -24954,36 +25005,21 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   display: block;
 }
 
-/* Status strip */
-.cs-status-strip {
-  border-top: 1px solid #2c2c2c;
-  padding: 0;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  background: #131313;
-  flex-shrink: 0;
-  min-height: 38px;
-}
-.cs-s-left {
+/* Slim status bar (28px, shows only "SIMULATING…" during roll) */
+.cs-sim-status-bar {
+  height: 28px;
   display: flex;
   align-items: center;
-  border-right: 1px solid #2c2c2c;
-}
-.cs-s-seg {
-  padding: 0 14px;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
   justify-content: center;
-  border-right: 1px solid #2c2c2c;
-  min-width: 56px;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: #4a4a42;
+  text-transform: uppercase;
+  border-top: 1px solid #2c2c2c;
+  background: #0f0f0f;
+  flex-shrink: 0;
 }
-.cs-s-seg-l { font-size: 8px; letter-spacing: 0.14em; color: #7a7a72; text-transform: uppercase; margin-bottom: 2px; }
-.cs-s-seg-v { font-size: 13px; font-weight: 700; color: #d8d8d0; letter-spacing: 0.02em; line-height: 1; }
-.cs-s-seg-v.cs-hi { color: #a8ff3e; }
-.cs-s-text { font-size: 10px; color: #7a7a72; letter-spacing: 0.1em; padding: 0 14px; display: flex; align-items: center; }
-.cs-s-text.cs-active { color: #a8ff3e; }
-.cs-s-result { font-size: 11px; font-weight: 500; letter-spacing: 0.06em; padding: 0 14px; display: flex; align-items: center; }
+.cs-sim-status-bar.cs-active { color: #a8ff3e; }
 
 /* Roll + new buttons */
 .cs-btns { display: flex; gap: 0; flex-shrink: 0; }
@@ -25027,22 +25063,27 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .cs-new-btn {
   flex: 0 0 auto;
   padding: 18px 24px;
-  background: #131313;
-  border: 1px solid #3a3a3a;
+  background: linear-gradient(135deg, #1a1100 0%, #120d00 50%, #1a1100 100%);
+  border: 1px solid rgba(212,168,67,0.5);
   border-top: none; border-left: none;
-  color: #7a7a72;
+  color: #d4a843;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px; letter-spacing: 0.14em;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
   cursor: pointer;
   transition: all 0.12s;
 }
-.cs-new-btn:hover { background: rgba(255,255,255,0.04); color: #d8d8d0; }
+.cs-new-btn:hover {
+  background: linear-gradient(135deg, #221500 0%, #1a1000 50%, #221500 100%);
+  border-color: rgba(212,168,67,0.8);
+  color: #f0c060;
+  box-shadow: 0 0 14px rgba(212,168,67,0.2);
+}
 
-/* Roll tracker */
+/* Roll tracker (now at top of canvas col) */
 .cs-roll-tracker {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  border-top: 1px solid #2c2c2c;
+  border-bottom: 1px solid #2c2c2c;
 }
 .cs-roll-track-slot {
   padding: 8px 12px;
@@ -25069,6 +25110,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   display: flex;
   flex-direction: column;
   background: #0f0f0f;
+  overflow-y: auto;
 }
 .cs-col-hdr {
   padding: 8px 12px;
@@ -25085,46 +25127,125 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .cs-bet-state-badge.cs-open { background: rgba(168,255,62,0.12); color: #a8ff3e; }
 .cs-bet-state-badge.cs-locked { background: rgba(255,180,0,0.12); color: #ffb400; }
 .cs-bet-state-badge.cs-settling { background: rgba(255,100,100,0.12); color: #ff6464; }
-.cs-outcome-waiting {
-  padding: 2rem 12px;
-  text-align: center;
-  font-size: 9px; letter-spacing: 0.1em; color: #3a3a32; text-transform: uppercase;
+
+/* Giant grand total */
+.cs-oc-grand-total {
+  padding: 16px 14px 12px;
+  border-bottom: 1px solid #2c2c2c;
+  flex-shrink: 0;
 }
-.cs-outcome-body { display: none; flex-direction: column; }
-.cs-outcome-body.cs-show { display: flex; }
-.cs-oc-section-lbl {
-  font-size: 9px; letter-spacing: 0.14em; color: #d8d8d0; text-transform: uppercase;
-  padding: 8px 12px 7px;
-  border-bottom: 1px solid #3a3a3a;
-  display: flex; align-items: center; justify-content: space-between;
+.cs-oc-gt-label {
+  font-size: 8px;
+  letter-spacing: 0.18em;
+  color: #7a7a72;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.cs-oc-gt-value {
+  font-size: 140px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.06em;
+  line-height: 0.8;
+  transition: color 0.2s;
+}
+
+/* Subtotals side by side */
+.cs-oc-subtotals {
+  display: flex;
+  border-bottom: 1px solid #2c2c2c;
+  flex-shrink: 0;
+}
+.cs-oc-sub-block {
+  flex: 1;
+  padding: 10px 12px;
+  transition: background 0.25s, border 0.25s;
+  border: 1px solid transparent;
+  margin: 5px;
+  border-radius: 3px;
+}
+.cs-oc-sub-block.cs-winner {
+  background: rgba(168,255,62,0.06);
+  border-color: rgba(168,255,62,0.2);
+}
+.cs-oc-sub-label {
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  color: #7a7a72;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.cs-oc-sub-arrow {
+  font-size: 8px;
+  color: #a8ff3e;
+  display: none;
+}
+.cs-oc-sub-block.cs-winner .cs-oc-sub-arrow { display: inline; }
+.cs-oc-sub-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #7a7a72;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  transition: color 0.25s;
+}
+.cs-oc-sub-block.cs-winner .cs-oc-sub-value { color: #ffffff; }
+
+/* Ranked color list */
+.cs-oc-ranked-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 14px 4px;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  color: #4a4a42;
+  text-transform: uppercase;
+  border-bottom: 1px solid #2c2c2c;
+  flex-shrink: 0;
+}
+.cs-oc-ranked-list {
+  flex: 1;
+  overflow-y: auto;
+}
+.cs-oc-waiting {
+  font-size: 9px;
+  color: #4a4a42;
+  letter-spacing: 0.08em;
+  padding: 14px 14px;
+  line-height: 1.6;
+}
+.cs-oc-rank-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-bottom: 1px solid #2c2c2c;
   position: relative;
 }
-.cs-oc-section-lbl::before {
-  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  background: transparent; transition: background 0.35s;
+.cs-oc-rank-row:last-child { border-bottom: none; }
+.cs-oc-rank-row.cs-color-winner { border-left: 2px solid; padding-left: 12px; }
+.cs-oc-rank-num { font-size: 9px; color: #4a4a42; min-width: 16px; }
+.cs-oc-rank-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.cs-oc-rank-name { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; min-width: 52px; }
+.cs-oc-rank-tag {
+  font-size: 7px; letter-spacing: 0.08em;
+  padding: 2px 5px; border-radius: 2px;
+  border: 1px solid #3a3a3a;
+  color: #7a7a72; white-space: nowrap;
 }
-.cs-oc-section-lbl.cs-winner::before { background: #e8e8e0; }
-.cs-oc-section-lbl.cs-loser { opacity: 0.5; }
-.cs-oc-section-val { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
-.cs-color-row {
-  display: flex; align-items: center; padding: 7px 12px;
-  border-bottom: 1px solid #2c2c2c; gap: 7px;
-  transition: background 0.3s; position: relative;
+.cs-oc-rank-formula {
+  font-size: 8px; color: #7a7a72; flex: 1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  letter-spacing: 0.02em;
 }
-.cs-color-row:last-child { border-bottom: none; }
-.cs-color-row.cs-color-winner { border-left: 2px solid; }
-.cs-cr-swatch { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.cs-cr-name { font-size: 10px; letter-spacing: 0.06em; min-width: 52px; }
-.cs-cr-formula { flex: 1; font-size: 9px; color: #7a7a72; text-align: right; }
-.cs-cr-value { font-size: 14px; font-weight: 700; min-width: 28px; text-align: right; }
-.cs-cr-value.cs-zero { color: #383830 !important; }
-.cs-oc-divider { height: 1px; background: #3a3a3a; margin: 0; }
-.cs-total-row {
-  display: flex; align-items: center; padding: 10px 12px; gap: 7px;
-  border-top: 1px solid #3a3a3a;
-  margin-top: auto;
+.cs-oc-rank-val {
+  font-size: 18px; font-weight: 700; letter-spacing: -0.01em;
+  min-width: 28px; text-align: right;
 }
-.cs-total-val { font-size: 22px; font-weight: 700; color: #a8ff3e; letter-spacing: -0.02em; min-width: 36px; text-align: right; }
 
 /* Felt section */
 .cs-felt-wrap {
@@ -25279,13 +25400,19 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 @media (max-width: 800px) {
   .cs-mid { grid-template-columns: 1fr; }
   .cs-col-outcome { border-left: none; border-top: 1px solid #2c2c2c; }
-  #cs-three-canvas { height: 240px; }
+  #cs-three-canvas { height: 220px; }
   .cs-topbar-right { display: none; }
   .cs-felt-row { gap: 4px; }
   .cs-bet-zone { min-width: 44px; max-width: 80px; }
+  .cs-oc-gt-value { font-size: 72px; }
+  .cs-roll-tracker { min-height: 56px; }
+  .cs-rts-num { font-size: 16px; }
 }
 @media (max-width: 500px) {
   .cs-felt-body { padding: 10px; }
   .cs-chip-rack { gap: 5px; padding: 8px 10px; }
   .cs-chip { width: 30px; height: 30px; font-size: 9px; }
+  .cs-oc-gt-value { font-size: 64px; }
+  .cs-oc-grand-total { padding: 12px 12px 10px; }
+  .cs-histogram-chart { padding: 3px 6px 10px; }
 }
