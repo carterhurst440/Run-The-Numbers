@@ -25174,7 +25174,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .cs-view {
   display: flex;
   flex-direction: column;
-  background: #0b0b0b;
+  background: #0a0a08;
   color: #d8d8d0;
   font-family: 'JetBrains Mono', monospace;
   min-height: 100%;
@@ -25192,13 +25192,13 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 /* Topbar */
 .cs-topbar {
   width: 100%;
-  border-bottom: 1px solid #3a3a3a;
+  border-bottom: 1px solid #1e1e18;
   padding: 0 1.5rem;
   height: 42px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #0f0f0f;
+  background: #0d0d0b;
   flex-shrink: 0;
   position: relative;
   z-index: 2;
@@ -25235,15 +25235,15 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .cs-col-hist {
   display: flex;
   flex-direction: column;
-  background: #0a0a0a;
-  border-right: 1px solid #2c2c2c;
+  background: #0a0a08;
+  border-right: 1px solid #2e2e26;
   overflow: hidden;
   min-width: 0;
 }
 /* Panel header */
 .cs-hist-panel-hdr {
   padding: 12px 14px 8px;
-  border-bottom: 1px solid #1e1e1e;
+  border-bottom: 1px solid #1e1e18;
   flex-shrink: 0;
 }
 .cs-hist-panel-label {
@@ -25410,7 +25410,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   grid-template-columns: 200px 1fr 240px;
   grid-template-rows: 380px;
   height: 380px;
-  border: 1px solid #3a3a3a;
+  border: 1px solid #2e2e26;
   border-top: none;
   flex-shrink: 0;
   overflow: hidden;
@@ -25423,7 +25423,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   display: flex;
   flex-direction: column;
   background: radial-gradient(ellipse at 50% 30%, #101010 0%, #060606 60%, #030303 100%);
-  border-right: 1px solid #2c2c2c;
+  border-right: 1px solid #2e2e26;
 }
 #cs-three-canvas {
   width: 100%;
@@ -25441,8 +25441,8 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   letter-spacing: 0.18em;
   color: #4a4a42;
   text-transform: uppercase;
-  border-top: 1px solid #2c2c2c;
-  background: #0f0f0f;
+  border-top: 1px solid #2e2e26;
+  background: #0d0d0b;
   flex-shrink: 0;
 }
 .cs-sim-status-bar.cs-active { color: #a8ff3e; }
@@ -25484,36 +25484,35 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 }
 .cs-roll-btn:disabled {
   opacity: 0.25; cursor: default; animation: none;
-  background: #0f0f0f; border-color: #3a3a3a; color: #4a4a42; box-shadow: none;
+  background: #0d0d0b; border-color: #2e2e26; color: #4a4a42; box-shadow: none;
 }
 .cs-new-btn {
   flex: 0 0 auto;
   padding: 18px 24px;
-  background: linear-gradient(135deg, #1a1100 0%, #120d00 50%, #1a1100 100%);
-  border: 1px solid rgba(212,168,67,0.5);
+  background: #0d0d0b;
+  border: 1px solid #2e2e26;
   border-top: none; border-left: none;
-  color: #d4a843;
+  color: #686850;
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
   cursor: pointer;
-  transition: all 0.12s;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
 }
 .cs-new-btn:hover {
-  background: linear-gradient(135deg, #221500 0%, #1a1000 50%, #221500 100%);
-  border-color: rgba(212,168,67,0.8);
-  color: #f0c060;
-  box-shadow: 0 0 14px rgba(212,168,67,0.2);
+  border-color: rgba(168,255,62,0.3);
+  color: #a8ff3e;
+  background: rgba(168,255,62,0.03);
 }
 
 /* Roll tracker (now at top of canvas col) */
 .cs-roll-tracker {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  border-bottom: 1px solid #2c2c2c;
+  border-bottom: 1px solid #2e2e26;
 }
 .cs-roll-track-slot {
   padding: 8px 12px;
-  border-right: 1px solid #2c2c2c;
+  border-right: 1px solid #2e2e26;
   min-height: 56px;
   position: relative;
   transition: background 0.2s;
@@ -25535,15 +25534,15 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .cs-col-outcome {
   display: flex;
   flex-direction: column;
-  background: #0f0f0f;
+  background: #0e0e0c;
   overflow: hidden;
   min-height: 0;
 }
 .cs-col-hdr {
   padding: 8px 12px;
-  border-bottom: 1px solid #3a3a3a;
-  font-size: 9px; letter-spacing: 0.14em; color: #d8d8d0; text-transform: uppercase;
-  background: #131313;
+  border-bottom: 1px solid #2e2e26;
+  font-size: 9px; letter-spacing: 0.14em; color: #909070; text-transform: uppercase;
+  background: #0d0d0b;
   display: flex; align-items: center; justify-content: space-between;
   flex-shrink: 0;
 }
@@ -25558,7 +25557,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 /* Grand total */
 .cs-oc-grand-total {
   padding: 12px 14px 10px;
-  border-bottom: 1px solid #2c2c2c;
+  border-bottom: 1px solid #2e2e26;
   flex-shrink: 0;
 }
 .cs-oc-gt-label {
@@ -25580,7 +25579,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 /* Subtotals side by side */
 .cs-oc-subtotals {
   display: flex;
-  border-bottom: 1px solid #2c2c2c;
+  border-bottom: 1px solid #2e2e26;
   flex-shrink: 0;
 }
 .cs-oc-sub-block {
@@ -25631,7 +25630,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   letter-spacing: 0.12em;
   color: #4a4a42;
   text-transform: uppercase;
-  border-bottom: 1px solid #2c2c2c;
+  border-bottom: 1px solid #2e2e26;
   flex-shrink: 0;
 }
 .cs-oc-ranked-list {
@@ -25651,7 +25650,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   align-items: center;
   gap: 8px;
   padding: 7px 14px;
-  border-bottom: 1px solid #2c2c2c;
+  border-bottom: 1px solid #1e1e18;
   position: relative;
 }
 .cs-oc-rank-row:last-child { border-bottom: none; }
@@ -25681,8 +25680,8 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   z-index: 2;
 }
 .cs-felt-body {
-  background: #0a0a09;
-  border-top: 1px solid #1e1e1a;
+  background: #0a0a08;
+  border-top: 1px solid #1e1e18;
   padding: 12px 14px 14px;
   display: flex;
   flex-direction: column;
@@ -25713,7 +25712,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   flex: 1 1 58px;
   min-width: 50px;
   max-width: 110px;
-  border: 1px solid #2e2e28;
+  border: 1px solid #2e2e26;
   background: #131312;
   border-radius: 2px;
   padding: 7px 5px;
@@ -25722,7 +25721,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   user-select: none;
-  --zc: 232,160,32;
+  --zc: 168,255,62;
 }
 .cs-bet-zone:hover:not(.cs-locked) {
   border-color: rgba(var(--zc),0.35);
@@ -25747,12 +25746,12 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
   text-align: center; color: #c0c090;
 }
-.cs-bet-zone.cs-has-bet .cs-bz-name { color: #e8a020; }
+.cs-bet-zone.cs-has-bet .cs-bz-name { color: #a8ff3e; }
 .cs-bz-odds { font-size: 7px; color: #4a4a40; letter-spacing: 0.06em; }
-.cs-bet-zone.cs-has-bet .cs-bz-odds { color: rgba(232,160,32,0.5); }
-.cs-bz-commission { color: rgba(232,160,32,0.4); font-size: 7px; }
+.cs-bet-zone.cs-has-bet .cs-bz-odds { color: rgba(168,255,62,0.45); }
+.cs-bz-commission { color: rgba(168,255,62,0.35); font-size: 7px; }
 .cs-bz-stake {
-  font-size: 11px; font-weight: 700; color: #e8a020;
+  font-size: 11px; font-weight: 700; color: #a8ff3e;
   min-height: 14px; text-align: center;
 }
 .cs-bz-result {
@@ -25767,17 +25766,17 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .cs-advanced-toggle {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 14px;
-  background: rgba(0,0,0,0.35);
-  border-top: 1px solid rgba(212,168,67,0.15);
+  background: rgba(0,0,0,0.3);
+  border-top: 1px solid #1e1e18;
   cursor: pointer;
   user-select: none;
   transition: background 0.15s;
 }
-.cs-advanced-toggle:hover { background: rgba(0,0,0,0.5); }
-.cs-advanced-toggle-l { display: flex; align-items: center; gap: 10px; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: #d4a843; }
-.cs-advanced-toggle-icon { font-size: 14px; color: #d4a843; }
-.cs-advanced-badge { font-size: 8px; background: rgba(212,168,67,0.15); color: #d4a843; padding: 1px 5px; border-radius: 2px; }
-.cs-advanced-toggle-r { font-size: 8px; color: #7a7a72; letter-spacing: 0.1em; }
+.cs-advanced-toggle:hover { background: rgba(168,255,62,0.03); }
+.cs-advanced-toggle-l { display: flex; align-items: center; gap: 10px; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: #7a7a72; }
+.cs-advanced-toggle-icon { font-size: 14px; color: #7a7a72; }
+.cs-advanced-badge { font-size: 8px; background: rgba(168,255,62,0.1); color: #a8ff3e; padding: 1px 5px; border-radius: 2px; }
+.cs-advanced-toggle-r { font-size: 8px; color: #4a4a42; letter-spacing: 0.1em; }
 .cs-advanced-body { display: none; }
 .cs-advanced-body.cs-open { display: block; }
 
@@ -25787,8 +25786,8 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .cs-felt-wagered {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 14px;
-  background: rgba(0,0,0,0.35);
-  border-top: 1px solid rgba(212,168,67,0.15);
+  background: rgba(0,0,0,0.3);
+  border-top: 1px solid #1e1e18;
 }
 .cs-felt-wagered-lbl { font-size: 9px; letter-spacing: 0.1em; color: #4a4a42; text-transform: uppercase; }
 .cs-felt-wagered-val { font-size: 10px; font-weight: 600; color: #7a7a72; }
@@ -25799,7 +25798,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 @media (max-width: 800px) {
   .cs-mid { grid-template-columns: 1fr; }
   .cs-col-hist { display: none; }
-  .cs-col-outcome { border-left: none; border-top: 1px solid #2c2c2c; }
+  .cs-col-outcome { border-left: none; border-top: 1px solid #2e2e26; }
   #cs-three-canvas { height: 220px; }
   .cs-topbar-right { display: none; }
   .cs-felt-row { gap: 4px; }
