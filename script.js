@@ -2805,10 +2805,18 @@ async function refreshCurrentRankState({ force = false } = {}) {
 
   const nextTier = currentRankState.currentRank?.tier || 1;
   const announcedTier = getStoredAnnouncedRankTier(currentUser.id);
-  if (previousTier && nextTier > previousTier) {
+  // Use the DB-stored profile rank tier as a floor. This prevents the modal
+  // from re-firing on a new device where localStorage is empty — the profile
+  // already reflects the player's real rank tier in the DB.
+  const profileFloor = Number(currentProfile?.current_rank_tier ?? 1);
+  const highWaterMark = Math.max(announcedTier ?? 0, profileFloor);
+
+  if (nextTier > highWaterMark) {
+    // Genuine advancement past everything we know about — show once and record.
     openRankUpModal(currentRankState.currentRank);
-  }
-  if (announcedTier == null || nextTier > announcedTier) {
+    setStoredAnnouncedRankTier(nextTier, currentUser.id);
+  } else if (announcedTier == null || nextTier > announcedTier) {
+    // Silently sync localStorage to catch up (e.g. new device, cleared cache).
     setStoredAnnouncedRankTier(nextTier, currentUser.id);
   }
   return currentRankState;
