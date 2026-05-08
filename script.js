@@ -35738,22 +35738,22 @@ function initColorSchemeGame() {
       const dt=_csLastTime?Math.min((ts-_csLastTime)/1000,.05):1/60;
       _csLastTime=ts;
       _csWorld.step(1/60,dt,3);
-      // Guided deceleration: smoothly slerp dice toward server-determined face as they slow
+      // Guided deceleration: slerp dice toward server-determined face as they slow.
+      // NOTE: slerp must NOT be in-place — CANNON's slerp writes target.x before reading
+      // this.x in the final blend step, which corrupts the quaternion when target===this.
+      // Fix: omit 3rd arg so slerp returns a fresh quaternion, then copy back.
       if (_csSettling && _csTargetQuats) {
         _csDice.forEach(d => {
           const av = d.body.angularVelocity;
           const speed = Math.sqrt(av.x*av.x + av.y*av.y + av.z*av.z);
           const tgt = d.isColor ? _csTargetQuats.color : _csTargetQuats.number;
           if (!tgt) return;
-          // Slerp rate: 0 when spinning fast, ramps up as die slows — correction is imperceptible
-          // at high speed but smoothly guides die to correct face as it decelerates naturally
-          const t = speed < 0.4 ? 0.40 : speed < 1.5 ? 0.07 : speed < 4 ? 0.012 : 0;
+          // t=0 when spinning fast, ramps as die slows — imperceptible at speed, natural settle
+          const t = speed < 0.4 ? 0.35 : speed < 1.5 ? 0.07 : speed < 4 ? 0.01 : 0;
           if (t > 0) {
-            d.body.quaternion.slerp(new CANNON.Quaternion(tgt.x, tgt.y, tgt.z, tgt.w), t, d.body.quaternion);
-          }
-          // Increase angular damping as die slows, helping it settle cleanly on the target face
-          if (speed < 7) {
-            d.body.angularDamping = Math.min(0.93, 0.45 + 0.07 * (7 - speed));
+            const tq = new CANNON.Quaternion(tgt.x, tgt.y, tgt.z, tgt.w);
+            const q = d.body.quaternion.slerp(tq, t); // fresh output quat — no aliasing
+            d.body.quaternion.set(q.x, q.y, q.z, q.w);
           }
         });
       }
