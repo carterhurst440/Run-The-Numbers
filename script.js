@@ -25964,46 +25964,55 @@ function buildHandReviewField(label, value, options = {}) {
 }
 
 function renderColorSchemeReviewCards(entry) {
-  const rolls       = Array.isArray(entry.rolls) ? entry.rolls : [];
-  const bets        = Array.isArray(entry.bets)  ? entry.bets  : [];
-  const ct          = entry.colorTotals || {};
+  const rolls        = Array.isArray(entry.rolls) ? entry.rolls : [];
+  const bets         = Array.isArray(entry.bets)  ? entry.bets  : [];
+  const ct           = entry.colorTotals || {};
   const netToneClass = entry.net > 0 ? 'review-hand-positive' : entry.net < 0 ? 'review-hand-negative' : 'review-hand-neutral';
 
-  // Roll cards — one per roll
-  const rollSection = rolls.length
-    ? rolls.map((r, i) => `
-        <article class="review-hand-card review-hand-round-card">
-          <div class="review-hand-card-topline">
-            <span class="review-hand-card-kicker">Roll ${i + 1}</span>
-            <span class="review-hand-card-pill review-hand-neutral">${escapeAssistantHtml(r.color)}</span>
-          </div>
-          <div class="review-hand-field-grid review-hand-field-grid-compact">
-            ${buildHandReviewField('Color', r.color)}
-            ${buildHandReviewField('Number', String(r.number || '—'))}
-          </div>
-        </article>`).join('')
-    : `<article class="review-hand-card review-hand-card-empty"><p>Roll details not available for older rounds.</p></article>`;
+  const CS_DOT_HEX = {
+    RED: '#d94040', BLUE: '#3a78e0', YELLOW: '#c9a820',
+    PURPLE: '#8844cc', GREEN: '#2fa832', ORANGE: '#d06820'
+  };
 
-  // Color totals card (only if we have data)
-  const hasTotals = ct.RED !== undefined;
-  const totalsSection = hasTotals ? `
-    <article class="review-hand-card">
-      <div class="review-hand-card-topline">
-        <span class="review-hand-card-title">Color Scores</span>
-        <span class="review-hand-card-pill review-hand-neutral">Grand Total: ${ct.grandTotal}</span>
-      </div>
-      <div class="review-hand-field-grid review-hand-field-grid-compact">
-        ${buildHandReviewField('Red',    String(ct.RED))}
-        ${buildHandReviewField('Blue',   String(ct.BLUE))}
-        ${buildHandReviewField('Yellow', String(ct.YELLOW))}
-        ${buildHandReviewField('Purple', String(ct.PURPLE))}
-        ${buildHandReviewField('Green',  String(ct.GREEN))}
-        ${buildHandReviewField('Orange', String(ct.ORANGE))}
-      </div>
-    </article>` : '';
+  // ── Summary header panel (rolls + color scores) ────────────────────
+  const rollItems = rolls.length
+    ? rolls.map((r, i) => {
+        const hex = CS_DOT_HEX[r.color] || '#666';
+        return `<div class="cs-rv-roll">
+          <span class="cs-rv-roll-lbl">ROLL ${i + 1}</span>
+          <span class="cs-rv-dot" style="background:${hex};box-shadow:0 0 6px ${hex}66"></span>
+          <span class="cs-rv-roll-color">${escapeAssistantHtml(r.color)}</span>
+          <span class="cs-rv-roll-num">${r.number || '—'}</span>
+        </div>`;
+      }).join('')
+    : `<span class="cs-rv-na">Roll data unavailable for this round.</span>`;
 
-  // Individual bet cards
-  const betSection = bets.map(bet => {
+  const scoreItems = ct.RED !== undefined
+    ? ['RED','BLUE','YELLOW','PURPLE','GREEN','ORANGE'].map(c => {
+        const hex = CS_DOT_HEX[c] || '#666';
+        return `<div class="cs-rv-score">
+          <span class="cs-rv-dot cs-rv-dot-sm" style="background:${hex}"></span>
+          <span class="cs-rv-score-lbl">${c}</span>
+          <span class="cs-rv-score-val">${ct[c]}</span>
+        </div>`;
+      }).join('')
+    : '';
+
+  const grandLine = ct.grandTotal !== undefined
+    ? `<div class="cs-rv-grand">
+         <span class="cs-rv-grand-lbl">GRAND TOTAL</span>
+         <span class="cs-rv-grand-val">${ct.grandTotal}</span>
+       </div>`
+    : '';
+
+  const summaryPanel = `
+    <div class="cs-rv-panel">
+      <div class="cs-rv-rolls-row">${rollItems}</div>
+      ${scoreItems ? `<div class="cs-rv-scores-row">${scoreItems}</div>${grandLine}` : ''}
+    </div>`;
+
+  // ── Bet line cards ─────────────────────────────────────────────────
+  const betSection = bets.length ? bets.map(bet => {
     const wager    = Math.max(0, Math.round(Number(bet.amount_wagered || 0)));
     const returned = Math.max(0, Math.round(Number(bet.amount_returned || 0)));
     const net      = returned - wager;
@@ -26021,7 +26030,7 @@ function renderColorSchemeReviewCards(entry) {
           ${buildHandReviewField('Net',    formatSignedCurrency(net), { toneClass: tone })}
         </div>
       </article>`;
-  }).join('');
+  }).join('') : `<article class="review-hand-card review-hand-card-empty"><p>No bet details saved for this round.</p></article>`;
 
   const summaryCard = `
     <article class="review-hand-card review-hand-card-sum">
@@ -26035,7 +26044,7 @@ function renderColorSchemeReviewCards(entry) {
       </div>
     </article>`;
 
-  return rollSection + totalsSection + betSection + summaryCard;
+  return summaryPanel + betSection + summaryCard;
 }
 
 function renderGuess10ReviewCards(entry) {
