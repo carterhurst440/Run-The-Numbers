@@ -35739,12 +35739,13 @@ async function csRecoverIncompleteRound() {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    // An incomplete round has status = 'open' (completed rounds are marked 'completed')
+    // An incomplete round is anything not yet completed or abandoned
     const { data: round } = await supabase
       .from('color_scheme_rounds')
       .select('id, total_wagered')
       .eq('user_id', user.id)
-      .eq('status', 'open')
+      .neq('status', 'completed')
+      .neq('status', 'abandoned')
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
