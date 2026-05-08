@@ -25854,13 +25854,13 @@ function buildHandReviewField(label, value, options = {}) {
 }
 
 function renderColorSchemeReviewCards(entry) {
-  const rolls = Array.isArray(entry.drawnCards)
-    ? entry.drawnCards.map(c => ({ color: c.label || '—', number: Number(c.suit || 0) }))
-    : [];
-  const bets = Array.isArray(entry.bets) ? entry.bets : [];
+  const rolls       = Array.isArray(entry.rolls) ? entry.rolls : [];
+  const bets        = Array.isArray(entry.bets)  ? entry.bets  : [];
+  const ct          = entry.colorTotals || {};
   const netToneClass = entry.net > 0 ? 'review-hand-positive' : entry.net < 0 ? 'review-hand-negative' : 'review-hand-neutral';
 
-  const rollCards = rolls.length
+  // Roll cards — one per roll
+  const rollSection = rolls.length
     ? rolls.map((r, i) => `
         <article class="review-hand-card review-hand-round-card">
           <div class="review-hand-card-topline">
@@ -25874,39 +25874,58 @@ function renderColorSchemeReviewCards(entry) {
         </article>`).join('')
     : `<article class="review-hand-card review-hand-card-empty"><p>Roll details not available for older rounds.</p></article>`;
 
-  const betCards = bets.map(bet => {
-    const wager = Math.max(0, Math.round(Number(bet.amount_wagered || bet.units || 0)));
-    const returned = Math.max(0, Math.round(Number(bet.amount_returned || bet.paid || 0)));
-    const net = returned - wager;
-    const won = bet.outcome === 'W' || returned > 0;
-    const tone = won ? 'review-hand-positive' : 'review-hand-negative';
+  // Color totals card (only if we have data)
+  const hasTotals = ct.RED !== undefined;
+  const totalsSection = hasTotals ? `
+    <article class="review-hand-card">
+      <div class="review-hand-card-topline">
+        <span class="review-hand-card-title">Color Scores</span>
+        <span class="review-hand-card-pill review-hand-neutral">Grand Total: ${ct.grandTotal}</span>
+      </div>
+      <div class="review-hand-field-grid review-hand-field-grid-compact">
+        ${buildHandReviewField('Red',    String(ct.RED))}
+        ${buildHandReviewField('Blue',   String(ct.BLUE))}
+        ${buildHandReviewField('Yellow', String(ct.YELLOW))}
+        ${buildHandReviewField('Purple', String(ct.PURPLE))}
+        ${buildHandReviewField('Green',  String(ct.GREEN))}
+        ${buildHandReviewField('Orange', String(ct.ORANGE))}
+      </div>
+    </article>` : '';
+
+  // Individual bet cards
+  const betSection = bets.map(bet => {
+    const wager    = Math.max(0, Math.round(Number(bet.amount_wagered || 0)));
+    const returned = Math.max(0, Math.round(Number(bet.amount_returned || 0)));
+    const net      = returned - wager;
+    const won      = bet.outcome === 'W';
+    const tone     = won ? 'review-hand-positive' : 'review-hand-negative';
     return `
       <article class="review-hand-card">
         <div class="review-hand-card-topline">
-          <span class="review-hand-card-title">${escapeAssistantHtml(csGetBetLabel(bet.bet_key || bet.key || ''))}</span>
+          <span class="review-hand-card-title">${escapeAssistantHtml(csGetBetLabel(bet.bet_key || ''))}</span>
           <span class="review-hand-card-pill ${tone}">${won ? 'WIN' : 'LOSS'}</span>
         </div>
         <div class="review-hand-field-grid review-hand-field-grid-compact">
-          ${buildHandReviewField('Wager', formatCurrency(wager))}
+          ${buildHandReviewField('Wager',  formatCurrency(wager))}
           ${buildHandReviewField('Return', formatCurrency(returned))}
-          ${buildHandReviewField('Net', formatSignedCurrency(net), { toneClass: tone })}
+          ${buildHandReviewField('Net',    formatSignedCurrency(net), { toneClass: tone })}
         </div>
       </article>`;
   }).join('');
 
-  const totalCard = `
+  const summaryCard = `
     <article class="review-hand-card review-hand-card-sum">
       <div class="review-hand-card-topline">
         <span class="review-hand-card-title review-hand-card-kicker">ROUND TOTAL</span>
       </div>
       <div class="review-hand-field-grid review-hand-field-grid-compact">
-        ${buildHandReviewField('Wager', formatCurrency(entry.totalWager))}
+        ${buildHandReviewField('Wager',  formatCurrency(entry.totalWager))}
         ${buildHandReviewField('Return', formatCurrency(entry.totalReturn))}
-        ${buildHandReviewField('Net', formatSignedCurrency(entry.net), { toneClass: netToneClass })}
+        ${buildHandReviewField('Net',    formatSignedCurrency(entry.net), { toneClass: netToneClass })}
       </div>
     </article>`;
 
-  return rollCards + (betCards || '') + totalCard;
+  return rollSection + totalsSection + betSection + summaryCard;
 }
 
 function renderGuess10ReviewCards(entry) {
@@ -27014,18 +27033,43 @@ async function fetchHandReviewEntry(reviewId) {
   };
 
   if (gameKey === GAME_KEYS.COLOR_SCHEME) {
-    // Rolls are stored in drawn_cards (label=color, suit=number)
-    // Bets are in color_scheme_bets, linked via stopper_label = round_id
-    const roundId = handRow?.stopper_label || null;
-    let csBets = [];
-    if (roundId && supabase) {
-      const { data: betRows } = await supabase
-        .from('color_scheme_bets')
-        .select('bet_key, amount_wagered, outcome, amount_returned, net_profit')
-        .eq('round_id', roundId);
+    // CS data lives entirely in color_scheme_rounds + color_scheme_bets.
+    // reviewId IS the color_scheme_round_id (activity log will source from that table).
+    const CS_COLOR_CHAR = { R: 'RED', B: 'BLUE', Y: 'YELLOW' };
+    let csBets = [], rolls = [], colorTotals = {};
+    if (supabase) {
+      const [{ data: betRows }, { data: roundRow }] = await Promise.all([
+        supabase.from('color_scheme_bets')
+          .select('bet_key, amount_wagered, outcome, amount_returned, net_profit')
+          .eq('round_id', reviewId),
+        supabase.from('color_scheme_rounds')
+          .select('roll_1,roll_2,roll_3,red_total,yellow_total,blue_total,purple_total,green_total,orange_total,primary_score,secondary_score,grand_total,total_wagered,total_returned,net_profit')
+          .eq('id', reviewId)
+          .maybeSingle()
+      ]);
       csBets = betRows || [];
+      if (roundRow) {
+        // Parse individual roll columns — server stores {color:'R',number:3}
+        rolls = [roundRow.roll_1, roundRow.roll_2, roundRow.roll_3]
+          .filter(Boolean)
+          .map(r => ({ color: CS_COLOR_CHAR[r.color] || r.color, number: Number(r.number || 0) }));
+        colorTotals = {
+          RED:    Number(roundRow.red_total    || 0),
+          YELLOW: Number(roundRow.yellow_total || 0),
+          BLUE:   Number(roundRow.blue_total   || 0),
+          PURPLE: Number(roundRow.purple_total || 0),
+          GREEN:  Number(roundRow.green_total  || 0),
+          ORANGE: Number(roundRow.orange_total || 0),
+          primaryScore:   Number(roundRow.primary_score   || 0),
+          secondaryScore: Number(roundRow.secondary_score || 0),
+          grandTotal:     Number(roundRow.grand_total     || 0),
+        };
+        baseEntry.totalWager  = roundCurrencyValue(Number(roundRow.total_wagered));
+        baseEntry.totalReturn = roundCurrencyValue(Number(roundRow.total_returned));
+        baseEntry.net         = roundCurrencyValue(Number(roundRow.net_profit));
+      }
     }
-    return { ...baseEntry, bets: csBets };
+    return { ...baseEntry, bets: csBets, rolls, colorTotals };
   }
 
   if (gameKey === GAME_KEYS.GUESS_10) {
@@ -35180,24 +35224,12 @@ async function csSettleBetsOnServer(roundId, totals, grandTotal) {
     await persistBankroll();
 
     await supabase.from('color_scheme_rounds').update({
+      status: 'completed',
       total_wagered: totalWagered,
       total_returned: totalReturned,
       net_profit: netThisRound
     }).eq('id', roundId);
 
-    // Log hand to game_hands — store round_id in stopper_label, rolls in handHistory
-    await logStandaloneGameHand({
-      gameKey: GAME_KEYS.COLOR_SCHEME,
-      stopperCard: { label: roundId, suit: null, suitName: null, color: null },
-      totalCards: 3,
-      totalWager: totalWagered,
-      totalPaid: totalReturned,
-      net: netThisRound,
-      commissionKept: 0,
-      handHistory: _csRoundRolls.map(r => ({
-        card: { label: r.color, suit: String(r.number), suitName: String(r.number), color: null }
-      }))
-    });
     await incrementProfileHandProgress(1, GAME_KEYS.COLOR_SCHEME);
     await ensureProfileSynced({ force: true });
     _csRoundId = null;
@@ -35398,17 +35430,17 @@ async function csRecoverIncompleteRound() {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    // Find any round that was started but never settled (net_profit is null)
+    // An incomplete round has status = 'open' (completed rounds are marked 'completed')
     const { data: round } = await supabase
       .from('color_scheme_rounds')
       .select('id, total_wagered')
       .eq('user_id', user.id)
-      .is('net_profit', null)
+      .eq('status', 'open')
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
     if (!round) return;
-    // Fetch actual wagered amount from bets (in case total_wagered not set yet)
+    // Fetch actual wagered amount from bets (in case total_wagered not written yet)
     const { data: bets } = await supabase
       .from('color_scheme_bets')
       .select('amount_wagered')
@@ -35419,9 +35451,9 @@ async function csRecoverIncompleteRound() {
       bankroll = roundCurrencyValue(bankroll + wageredTotal);
       await persistBankroll();
     }
-    // Mark the round as abandoned so it won't be found again
+    // Mark as abandoned so it won't trigger recovery again
     await supabase.from('color_scheme_rounds').update({
-      net_profit: 0,
+      status: 'abandoned',
       total_wagered: wageredTotal,
       total_returned: wageredTotal
     }).eq('id', round.id);
