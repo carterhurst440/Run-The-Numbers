@@ -18,7 +18,7 @@ const GAME_KEYS = {
   COLOR_SCHEME: "game_004"
 };
 
-const CONTEST_GAME_KEYS = [GAME_KEYS.RUN_THE_NUMBERS, GAME_KEYS.GUESS_10, GAME_KEYS.SHAPE_TRADERS];
+const CONTEST_GAME_KEYS = [GAME_KEYS.RUN_THE_NUMBERS, GAME_KEYS.GUESS_10, GAME_KEYS.SHAPE_TRADERS, GAME_KEYS.COLOR_SCHEME];
 
 const GAME_LABELS = {
   [GAME_KEYS.RUN_THE_NUMBERS]: "Run the Numbers",
@@ -9484,7 +9484,7 @@ async function fetchProfileWithRetries(
     try {
       const fetchPromise = supabase
         .from("profiles")
-        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
+        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
         .eq("id", userId)
         .maybeSingle();
 
@@ -9620,7 +9620,7 @@ async function provisionProfileForUser(user) {
       .from("profiles")
       .insert([profileInsert])
       .select(
-        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at"
+        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at"
       )
       .maybeSingle();
 
@@ -13744,6 +13744,7 @@ async function fetchContestJourneyEventStream(contestId, userId) {
   const handRows = [];
   const rtnHandRows = [];
   const tradeRows = [];
+  const csRoundRows = [];
 
   let handPage = 0;
   let hasMoreHands = true;
@@ -13813,6 +13814,32 @@ async function fetchContestJourneyEventStream(contestId, userId) {
     tradePage += 1;
   }
 
+  // Color Scheme rounds (RYB) played under this contest
+  let csPage = 0;
+  let hasMoreCsRounds = true;
+  while (hasMoreCsRounds) {
+    const { data, error } = await supabase
+      .from("color_scheme_rounds")
+      .select("id, created_at, new_account_value")
+      .eq("user_id", userId)
+      .eq("contest_id", contestId)
+      .eq("status", "completed")
+      .order("created_at", { ascending: true })
+      .range(csPage * pageSize, (csPage + 1) * pageSize - 1);
+
+    if (error) {
+      if (isMissingRelationError(error, "color_scheme_rounds")) {
+        break;
+      }
+      throw error;
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    csRoundRows.push(...rows);
+    hasMoreCsRounds = rows.length === pageSize;
+    csPage += 1;
+  }
+
   const normalizeJourneyValue = (value) => {
     const numericValue = Number(value);
     return Number.isFinite(numericValue) ? Number(numericValue.toFixed(2)) : null;
@@ -13834,7 +13861,7 @@ async function fetchContestJourneyEventStream(contestId, userId) {
       created_at: row?.created_at || null,
       value: normalizeJourneyValue(row?.new_account_value),
       gameKey: resolveGameKey(row?.game_id)
-    })).filter((row) => row.gameKey !== GAME_KEYS.RUN_THE_NUMBERS),
+    })).filter((row) => row.gameKey !== GAME_KEYS.RUN_THE_NUMBERS && row.gameKey !== GAME_KEYS.COLOR_SCHEME),
     ...tradeRows.map((row) => ({
       id: String(row?.id || ""),
       sourceType: "trade",
@@ -13843,6 +13870,14 @@ async function fetchContestJourneyEventStream(contestId, userId) {
       value: normalizeJourneyValue(row?.new_account_value),
       gameKey: GAME_KEYS.SHAPE_TRADERS,
       tradeSide: String(row?.trade_side || "").trim().toLowerCase()
+    })),
+    ...csRoundRows.map((row) => ({
+      id: String(row?.id || ""),
+      sourceType: "round",
+      sortWeight: 0,
+      created_at: row?.created_at || null,
+      value: normalizeJourneyValue(row?.new_account_value),
+      gameKey: GAME_KEYS.COLOR_SCHEME
     }))
   ]
     .filter((event) => Number.isFinite(event.value) && event.created_at)
@@ -13866,7 +13901,8 @@ async function fetchContestJourneyEventStream(contestId, userId) {
   const gameCounters = {
     [GAME_KEYS.RUN_THE_NUMBERS]: 0,
     [GAME_KEYS.GUESS_10]: 0,
-    [GAME_KEYS.SHAPE_TRADERS]: 0
+    [GAME_KEYS.SHAPE_TRADERS]: 0,
+    [GAME_KEYS.COLOR_SCHEME]: 0
   };
 
   return eventStream.map((event, index) => {
@@ -13878,6 +13914,8 @@ async function fetchContestJourneyEventStream(contestId, userId) {
       label = `G10 ${gameCounters[event.gameKey]}`;
     } else if (event.gameKey === GAME_KEYS.SHAPE_TRADERS) {
       label = `ST ${gameCounters[event.gameKey]}`;
+    } else if (event.gameKey === GAME_KEYS.COLOR_SCHEME) {
+      label = `RYB ${gameCounters[event.gameKey]}`;
     }
     return {
       label,
@@ -15169,7 +15207,7 @@ async function optIntoContest(contest = currentContest) {
         }
 
         const { data: deductedProfile, error: deductError } = await deductQuery
-          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
+          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
           .maybeSingle();
 
         if (deductError) throw deductError;
@@ -15221,7 +15259,7 @@ async function optIntoContest(contest = currentContest) {
             .update({ carter_cash: refundedAmount })
             .eq("id", currentUser.id)
             .eq("updated_at", chargedProfile.updated_at ?? null)
-            .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
+            .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
             .maybeSingle();
           if (refundedProfile) {
             currentProfile = {
@@ -15487,7 +15525,9 @@ async function switchToContestMode(contestId, { navigateToPlay = false } = {}) {
       ? "run-the-numbers"
       : allowedGames.includes(GAME_KEYS.GUESS_10)
         ? "red-black"
-        : "play";
+        : allowedGames.includes(GAME_KEYS.COLOR_SCHEME)
+          ? "color-scheme"
+          : "play";
     await setRoute(firstAllowedRoute);
   }
   return true;
@@ -28029,6 +28069,12 @@ async function dealHandLegacy() {
 
 async function dealHandServer() {
   if (bets.length === 0 || dealing) return;
+  // Profile guard — don't start if profile hasn't loaded yet
+  if (!currentProfile && !isGuestRuntimeUser()) {
+    statusEl.textContent = "Profile loading… please wait a moment.";
+    showToast("Profile loading… try again in a moment", "info");
+    return;
+  }
   const canStart = await guardAgainstShapeTraderExposureBeforeGameStart(GAME_KEYS.RUN_THE_NUMBERS);
   if (!canStart) {
     return;
@@ -35371,7 +35417,9 @@ function _csRenderMiniHist() {
   const maxTotal = Math.max(..._csHistoryData.map(d => d.total), 1);
   barsTrack.innerHTML = '';
   lblsTrack.innerHTML = '';
-  _csHistoryData.forEach(d => {
+  // Reverse so most recent round appears as the LEFTMOST bar
+  const displayData = [..._csHistoryData].reverse();
+  displayData.forEach(d => {
     const isCurrent = d.roundNum === _csHistoryData.length;
     const maxColorVal = Math.max(...COLOR_NAMES.map(c => d.totals[c] || 0));
     const winningColors = COLOR_NAMES.filter(c => (d.totals[c] || 0) === maxColorVal && maxColorVal > 0);
@@ -35402,9 +35450,9 @@ function _csRenderMiniHist() {
     lbl.textContent = d.total;
     lblsTrack.appendChild(lbl);
   });
-  // Scroll both to end; sync label scroll to bar scroll
-  barsTrack.scrollLeft = barsTrack.scrollWidth;
-  lblsTrack.scrollLeft = barsTrack.scrollLeft;
+  // Most recent is on the left — scroll to the start; sync label scroll
+  barsTrack.scrollLeft = 0;
+  lblsTrack.scrollLeft = 0;
   barsTrack.onscroll = () => { lblsTrack.scrollLeft = barsTrack.scrollLeft; };
 }
 
@@ -35480,7 +35528,9 @@ async function csInvokeServerRoll() {
   if (!supabase || isGuestRuntimeUser()) return;
   try {
     if (_csRoll === 0 && !_csRoundId) {
-      const { data, error } = await supabase.rpc('start_cs_round', { _contest_id: null });
+      const activeContest = getModeContest();
+      const contestId = (isContestAccountMode() && activeContest?.id) ? activeContest.id : null;
+      const { data, error } = await supabase.rpc('start_cs_round', { _contest_id: contestId });
       if (error || !data?.round_id) { console.warn('[CS] start_cs_round failed:', error); return; }
       _csRoundId = data.round_id;
       await csSaveBetsToServer(_csRoundId);
@@ -35587,7 +35637,8 @@ async function csSettleBetsOnServer(roundId, totals, grandTotal) {
       status: 'completed',
       total_wagered: totalWagered,
       total_returned: totalReturned,
-      net_profit: netThisRound
+      net_profit: netThisRound,
+      new_account_value: roundCurrencyValue(bankroll)
     }).eq('id', roundId);
     if (settleErr) console.error('[CS] round settle update failed:', settleErr.message, settleErr);
 
@@ -36209,6 +36260,16 @@ function initColorSchemeGame() {
       // Wire up the roll handler now that clips are ready
       bRoll._csHandler = async function() {
         this.disabled=true;
+
+        // ── Profile guard ─────────────────────────────────────────────────
+        // If the player's profile hasn't loaded yet, don't try to start a
+        // server round — bankroll, contest state, etc. are all unavailable.
+        if (!currentProfile && !isGuestRuntimeUser()) {
+          showToast('Profile loading… try again in a moment', 'info');
+          this.disabled = false;
+          return;
+        }
+
         _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null;
         _csTargetQuats=null; _csClipActive=null; _csClipFrame=0;
 
@@ -36363,15 +36424,27 @@ function initColorSchemeGame() {
       bRebet.addEventListener('click', bRebet._csHandler);
     }
 
-    // Round History modal (mobile)
-    const histModalBtn   = csEl('cs-histModalBtn');
-    const histModal      = csEl('cs-hist-modal');
-    const histModalClose = csEl('cs-histModalClose');
+    // Round History modal (desktop panel button + mobile strip button)
+    const histModalBtn       = csEl('cs-histModalBtn');
+    const histModalBtnMobile = csEl('cs-histModalBtn-mobile');
+    const histModal          = csEl('cs-hist-modal');
+    const histModalClose     = csEl('cs-histModalClose');
     const openHistModal  = () => { if (histModal) { histModal.classList.add('is-open'); histModal.setAttribute('aria-hidden','false'); } };
     const closeHistModal = () => { if (histModal) { histModal.classList.remove('is-open'); histModal.setAttribute('aria-hidden','true'); } };
     if (histModalBtn) histModalBtn.addEventListener('click', openHistModal);
+    if (histModalBtnMobile) histModalBtnMobile.addEventListener('click', openHistModal);
     if (histModalClose) histModalClose.addEventListener('click', closeHistModal);
     if (histModal) histModal.addEventListener('click', e => { if (e.target === histModal) closeHistModal(); });
+
+    // How to Play modal
+    const howToPlayBtn   = csEl('cs-howToPlayBtn');
+    const howToPlayModal = csEl('cs-how-to-play-modal');
+    const howToPlayClose = csEl('cs-howToPlayClose');
+    const openHowToPlay  = () => { if (howToPlayModal) { howToPlayModal.classList.add('is-open'); howToPlayModal.setAttribute('aria-hidden','false'); } };
+    const closeHowToPlay = () => { if (howToPlayModal) { howToPlayModal.classList.remove('is-open'); howToPlayModal.setAttribute('aria-hidden','true'); } };
+    if (howToPlayBtn) howToPlayBtn.addEventListener('click', openHowToPlay);
+    if (howToPlayClose) howToPlayClose.addEventListener('click', closeHowToPlay);
+    if (howToPlayModal) howToPlayModal.addEventListener('click', e => { if (e.target === howToPlayModal) closeHowToPlay(); });
 
     // Animate loop
     _csLastTime=null;

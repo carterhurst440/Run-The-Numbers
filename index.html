@@ -3117,7 +3117,7 @@
           <div class="cs-topbar">
             <div class="cs-topbar-title">// COLOR SCHEME <span>DICE SIM</span></div>
             <div class="cs-topbar-right">
-              <button id="cs-histModalBtn" class="cs-hist-modal-btn">VIEW ROUND HISTORY</button>
+              <button id="cs-howToPlayBtn" class="cs-hist-modal-btn">HOW TO PLAY</button>
               <span class="cs-t-stat">THREE.JS <b>r128</b></span>
               <span class="cs-t-stat">CANNON.JS</span>
               <span class="cs-live-dot" aria-hidden="true"></span>
@@ -3149,6 +3149,41 @@
             </div>
           </div>
 
+          <!-- How to Play modal -->
+          <div id="cs-how-to-play-modal" class="cs-hist-modal" aria-hidden="true">
+            <div class="cs-hist-modal-panel cs-htp-panel">
+              <div class="cs-hist-modal-hdr">
+                <span>// HOW TO PLAY</span>
+                <button id="cs-howToPlayClose" class="cs-hist-modal-close">✕</button>
+              </div>
+              <div class="cs-htp-body">
+                <div class="cs-htp-section">
+                  <div class="cs-htp-label">THE ROUND</div>
+                  <p class="cs-htp-text">Each round has <strong>3 rolls</strong>. Every roll lands a color die (R·Y·B) and a number die (1–6). The number adds to that color's running total.</p>
+                </div>
+                <div class="cs-htp-section">
+                  <div class="cs-htp-label">SCORING</div>
+                  <p class="cs-htp-text"><strong>Primary score</strong> = Red + Yellow + Blue totals combined.<br><strong>Secondary score</strong> = Orange + Green + Purple totals combined.<br><strong>Grand total</strong> = Primary + Secondary.</p>
+                </div>
+                <div class="cs-htp-section">
+                  <div class="cs-htp-label">BETS</div>
+                  <div class="cs-htp-odds-grid">
+                    <div class="cs-htp-odd"><span class="cs-htp-odd-key">PRIMARY</span><span class="cs-htp-odd-val">Primary &gt; 18 → 2× (5% commission)</span></div>
+                    <div class="cs-htp-odd"><span class="cs-htp-odd-key">SECONDARY</span><span class="cs-htp-odd-val">Secondary &gt; 18 → 2×</span></div>
+                    <div class="cs-htp-odd"><span class="cs-htp-odd-key">RED / YELLOW / BLUE</span><span class="cs-htp-odd-val">Top primary color → 3×</span></div>
+                    <div class="cs-htp-odd"><span class="cs-htp-odd-key">ORANGE / GREEN / PURPLE</span><span class="cs-htp-odd-val">Top secondary color → 3×</span></div>
+                    <div class="cs-htp-odd"><span class="cs-htp-odd-key">NUMBERS 1–6</span><span class="cs-htp-odd-val">Grand total lands on that number → 5×</span></div>
+                    <div class="cs-htp-odd"><span class="cs-htp-odd-key">OVER / UNDER 21</span><span class="cs-htp-odd-val">Grand total over or under 21 → 2×</span></div>
+                  </div>
+                </div>
+                <div class="cs-htp-section">
+                  <div class="cs-htp-label">TIPS</div>
+                  <p class="cs-htp-text">Place all bets before the first roll — the mat locks when rolling begins. Primary and Secondary bets pay on the combined team score. Color bets pay on which single color accumulated the most points across all 3 rolls.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Histogram tooltip (fixed-positioned) -->
           <div id="cs-histTooltip" class="cs-hist-tooltip">
             <div class="cs-ht-color">
@@ -3168,6 +3203,7 @@
                 <div class="cs-hist-panel-label">SCORE HISTORY</div>
                 <div class="cs-hist-panel-count"><span id="cs-histCount">0</span> <span>rounds</span></div>
                 <div class="cs-hist-panel-peak">PEAK <span id="cs-histPeak">—</span></div>
+                <button id="cs-histModalBtn" class="cs-hist-modal-btn cs-hist-panel-hist-btn">HISTORY</button>
               </div>
               <div class="cs-histogram-chart" id="cs-histChart">
                 <div class="cs-hist-empty" id="cs-histEmpty">NO HISTORY YET</div>
@@ -3229,6 +3265,7 @@
               <div class="cs-mini-hist" id="cs-mini-hist" aria-hidden="true">
                 <div class="cs-mini-hist-bars" id="cs-mini-hist-bars"></div>
                 <div class="cs-mini-hist-lbls" id="cs-mini-hist-lbls"></div>
+                <button id="cs-histModalBtn-mobile" class="cs-mini-hist-open-btn" aria-label="View round history">⬡</button>
               </div>
               <!-- 4-column canvas footer: ROUND / ROLL / LAST LANDED / STATUS -->
               <div class="cs-canvas-foot">
@@ -4142,6 +4179,10 @@
                 <label class="admin-checkbox">
                   <input type="checkbox" name="contestGameIds" value="game_003" checked />
                   <span>Shape Traders</span>
+                </label>
+                <label class="admin-checkbox">
+                  <input type="checkbox" name="contestGameIds" value="game_004" />
+                  <span>Color Scheme (RYB)</span>
                 </label>
               </fieldset>
             </div>

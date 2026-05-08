@@ -20192,114 +20192,162 @@ body:not([data-ui="new"]) .auth-callback-spinner {
 }
 
 .notifications-panel {
-  background: #111110;
-  border-left: 1px solid #2e2e22;
-  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.7);
+  background: #0e0e0c;
+  border-left: 1px solid rgba(168, 255, 62, 0.08);
+  box-shadow: -16px 0 48px rgba(0, 0, 0, 0.85);
 }
 
 .notifications-panel .drawer-header {
   padding-bottom: 14px;
-  border-bottom: 1px solid #252520;
+  border-bottom: 1px solid rgba(168, 255, 62, 0.08);
 }
 
 .notifications-panel .drawer-header h2 {
-  font-family: inherit;
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
   font-size: 9px;
-  letter-spacing: 0.22em;
+  font-weight: 700;
+  letter-spacing: 0.28em;
   text-transform: uppercase;
-  color: #909070;
+  color: rgba(168, 255, 62, 0.55);
+}
+
+.notifications-panel .drawer-close {
+  color: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.notifications-panel .drawer-close:hover,
+.notifications-panel .drawer-close:focus-visible {
+  color: #a8ff3e;
+  border-color: rgba(168, 255, 62, 0.35);
+  box-shadow: none;
+  transform: none;
 }
 
 .notifications-panel .drawer-toolbar {
-  margin: 0 0 12px;
+  margin: 0 0 14px;
 }
 
 .notifications-panel .drawer-action-button {
   padding: 4px 10px;
   border-radius: 0;
-  border-color: #2e2e22;
+  border-color: rgba(168, 255, 62, 0.15);
   background: transparent;
-  color: #8a8a62;
-  font-size: 9px;
-  letter-spacing: 0.12em;
+  color: rgba(168, 255, 62, 0.45);
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
   box-shadow: none;
 }
 
 .notifications-panel .drawer-action-button:hover:not(:disabled),
 .notifications-panel .drawer-action-button:focus-visible:not(:disabled) {
-  border-color: #c8ff00;
+  border-color: rgba(168, 255, 62, 0.5);
   background: transparent;
-  color: #c8ff00;
-  box-shadow: none;
+  color: #a8ff3e;
+  box-shadow: 0 0 12px rgba(168, 255, 62, 0.12);
 }
 
 .notifications-panel .drawer-section {
   padding-top: 12px;
-  border-top-color: #252520;
+  border-top-color: rgba(168, 255, 62, 0.08);
 }
 
 .notifications-panel .drawer-section h3 {
-  font-family: inherit;
-  font-size: 10px;
-  letter-spacing: 0.14em;
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: #d8d0b8;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.notifications-panel .section-sub {
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.04em;
+  line-height: 1.5;
 }
 
 .notifications-panel .drawer-subhead {
-  color: #8a8a62;
-  font-size: 11px;
+  color: rgba(255, 255, 255, 0.3);
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
 }
 
 .notification-item-empty {
   border-radius: 0;
-  border: 1px dashed #2e2e22;
+  border: 1px dashed rgba(168, 255, 62, 0.12);
   background: transparent;
-  color: #686850;
+  color: rgba(255, 255, 255, 0.28);
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
 }
 
 .notification-card {
   border-radius: 0;
-  border: 1px solid #2e2e22;
-  background: #171714;
-  color: #d8d0b8;
+  border: 1px solid rgba(168, 255, 62, 0.1);
+  background: rgba(20, 20, 16, 0.9);
+  color: rgba(255, 255, 255, 0.78);
   box-shadow: none;
+  cursor: pointer;
 }
 
 .notification-card:hover,
 .notification-card:focus-visible {
-  border-color: #c8ff00;
-  background: #1a1a16;
-  box-shadow: none;
+  border-color: rgba(168, 255, 62, 0.45);
+  background: rgba(168, 255, 62, 0.04);
+  box-shadow: 0 4px 20px rgba(168, 255, 62, 0.08);
   transform: none;
+  outline: none;
 }
 
 .notification-item.is-unread .notification-card {
-  border-color: #c8ff00;
-  box-shadow: none;
+  border-color: rgba(168, 255, 62, 0.45);
+  background: rgba(168, 255, 62, 0.03);
+  box-shadow: 0 0 0 1px rgba(168, 255, 62, 0.1) inset;
 }
 
 .notification-card-title {
-  color: #f0e8d0;
-  font-family: inherit;
-  font-size: 12px;
-  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.92);
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .notification-card-status {
-  color: #c8ff00;
-  font-size: 9px;
-  letter-spacing: 0.12em;
+  color: #a8ff3e;
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+.notification-item.is-unread .notification-card-status::before {
+  content: '● ';
+  font-size: 7px;
 }
 
 .notification-card-detail {
-  color: #b39bc9;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
 }
 
 .notification-card-meta {
-  color: #7d6891;
-  font-size: 0.66rem;
-  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.25);
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .auth-view,
@@ -25922,6 +25970,99 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 }
 .cs-mini-bar-lbl.cs-mini-bar-current { color: #a8ff3e; }
 
+/* Mini histogram history open button (right side of mini-hist strip, mobile) */
+.cs-mini-hist-open-btn {
+  display: none; /* shown via mobile media query */
+  flex-shrink: 0;
+  align-self: center;
+  width: 28px;
+  height: 28px;
+  margin: 0 4px;
+  background: transparent;
+  border: 1px solid rgba(168,255,62,0.2);
+  border-radius: 0;
+  color: rgba(168,255,62,0.6);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.cs-mini-hist-open-btn:hover,
+.cs-mini-hist-open-btn:focus-visible {
+  border-color: rgba(168,255,62,0.55);
+  color: #a8ff3e;
+  outline: none;
+}
+
+/* Desktop panel HISTORY button */
+.cs-hist-panel-hist-btn {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  margin-top: 4px;
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid rgba(168,255,62,0.18);
+  border-radius: 0;
+  color: rgba(168,255,62,0.55);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.cs-hist-panel-hist-btn:hover,
+.cs-hist-panel-hist-btn:focus-visible {
+  border-color: rgba(168,255,62,0.5);
+  color: #a8ff3e;
+  outline: none;
+}
+
+/* How to Play modal content */
+.cs-htp-panel { max-height: 82vh; overflow-y: auto; }
+.cs-htp-body { padding: 14px 0 8px; }
+.cs-htp-section { margin-bottom: 16px; }
+.cs-htp-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #a8ff3e;
+  margin-bottom: 6px;
+}
+.cs-htp-text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.72);
+  letter-spacing: 0.01em;
+}
+.cs-htp-text strong { color: rgba(255,255,255,0.92); }
+.cs-htp-odds-grid { display: grid; gap: 6px; }
+.cs-htp-odd {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 11px;
+  padding: 5px 8px;
+  background: rgba(168,255,62,0.03);
+  border-left: 2px solid rgba(168,255,62,0.25);
+}
+.cs-htp-odd-key {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(168,255,62,0.85);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 100px;
+}
+.cs-htp-odd-val { color: rgba(255,255,255,0.6); line-height: 1.45; }
+
 /* ── Mobile histogram modal ──────────────────────────────────────────────── */
 .cs-hist-modal-btn { display: none; } /* hidden on desktop */
 
@@ -26123,6 +26264,9 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   /* Replace canvas footer with mini histogram on mobile */
   .cs-canvas-foot { display: none; }
   .cs-mini-hist { display: flex; flex-direction: column; }
+  .cs-mini-hist-open-btn { display: flex; align-items: center; justify-content: center; }
+  /* Hide the desktop panel history button on mobile */
+  .cs-hist-panel-hist-btn { display: none; }
 
   /* Ranked list: hide tag/formula, larger val, compact rows */
   .cs-col-outcome .cs-oc-rank-tag,
