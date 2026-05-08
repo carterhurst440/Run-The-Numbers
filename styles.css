@@ -25408,9 +25408,12 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .cs-mid {
   display: grid;
   grid-template-columns: 200px 1fr 240px;
+  grid-template-rows: 380px;
+  height: 380px;
   border: 1px solid #3a3a3a;
   border-top: none;
   flex-shrink: 0;
+  overflow: hidden;
   position: relative;
   z-index: 2;
 }
@@ -25424,7 +25427,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 }
 #cs-three-canvas {
   width: 100%;
-  height: 300px;
+  height: 352px;
   display: block;
 }
 
@@ -25533,7 +25536,8 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   display: flex;
   flex-direction: column;
   background: #0f0f0f;
-  overflow-y: auto;
+  overflow: hidden;
+  min-height: 0;
 }
 .cs-col-hdr {
   padding: 8px 12px;
@@ -25631,10 +25635,9 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   flex-shrink: 0;
 }
 .cs-oc-ranked-list {
-  flex: 0 0 165px;
+  flex: 1;
   min-height: 0;
-  max-height: 165px;
-  overflow-y: auto;
+  overflow: hidden;
 }
 .cs-oc-waiting {
   font-size: 9px;
