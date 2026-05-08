@@ -25631,8 +25631,9 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   flex-shrink: 0;
 }
 .cs-oc-ranked-list {
-  flex: none;
-  height: 165px;
+  flex: 0 0 165px;
+  min-height: 0;
+  max-height: 165px;
   overflow-y: auto;
 }
 .cs-oc-waiting {
