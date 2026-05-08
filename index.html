@@ -3115,9 +3115,35 @@
           <div class="cs-topbar">
             <div class="cs-topbar-title">// COLOR SCHEME <span>DICE SIM</span></div>
             <div class="cs-topbar-right">
+              <button id="cs-histModalBtn" class="cs-hist-modal-btn">VIEW ROUND HISTORY</button>
               <span class="cs-t-stat">THREE.JS <b>r128</b></span>
               <span class="cs-t-stat">CANNON.JS</span>
               <span class="cs-live-dot" aria-hidden="true"></span>
+            </div>
+          </div>
+
+          <!-- Mobile: round history modal (histogram) -->
+          <div id="cs-hist-modal" class="cs-hist-modal" aria-hidden="true">
+            <div class="cs-hist-modal-panel">
+              <div class="cs-hist-modal-hdr">
+                <span>// SCORE HISTORY</span>
+                <div class="cs-hist-modal-meta">
+                  <span><span id="cs-histCount-modal">0</span> ROUNDS</span>
+                  <span>PEAK&nbsp;<span id="cs-histPeak-modal">—</span></span>
+                </div>
+                <button id="cs-histModalClose" class="cs-hist-modal-close">✕</button>
+              </div>
+              <div class="cs-histogram-chart cs-hist-modal-chart" id="cs-histChart-modal">
+                <div class="cs-hist-empty" id="cs-histEmpty-modal">NO HISTORY YET</div>
+              </div>
+              <div class="cs-hist-legend cs-hist-modal-legend">
+                <div class="cs-hist-leg-item"><span class="cs-hist-leg-dot" style="background:#ff4444"></span>RED</div>
+                <div class="cs-hist-leg-item"><span class="cs-hist-leg-dot" style="background:#ff8833"></span>ORANGE</div>
+                <div class="cs-hist-leg-item"><span class="cs-hist-leg-dot" style="background:#ffdd00"></span>YELLOW</div>
+                <div class="cs-hist-leg-item"><span class="cs-hist-leg-dot" style="background:#33ee66"></span>GREEN</div>
+                <div class="cs-hist-leg-item"><span class="cs-hist-leg-dot" style="background:#4488ff"></span>BLUE</div>
+                <div class="cs-hist-leg-item"><span class="cs-hist-leg-dot" style="background:#cc44ff"></span>PURPLE</div>
+              </div>
             </div>
           </div>
 
@@ -4388,7 +4414,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260508-cs-restore-fix"></script>
+    <script type="module" src="script.js?v=20260508-cs-mobile-hist-modal"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

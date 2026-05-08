@@ -35315,41 +35315,22 @@ function csAddHistogramBar(roundNum, total, totals) {
   csRenderHistogram();
 }
 
-function csRenderHistogram() {
-  const chart = csEl('cs-histChart');
-  if (!chart) return;
-  const empty = csEl('cs-histEmpty');
-  if (empty) empty.remove();
-
-  const maxTotal = Math.max(..._csHistoryData.map(d => d.total), 1);
-
-  const countEl = csEl('cs-histCount'); if (countEl) countEl.textContent = _csHistoryData.length;
-  const peakEl = csEl('cs-histPeak'); if (peakEl) peakEl.textContent = maxTotal;
-
+function _csRenderHistBars(chart, maxTotal) {
   const COLOR_HEX = {RED:'#ff4444',BLUE:'#4488ff',YELLOW:'#ffdd00',PURPLE:'#cc44ff',GREEN:'#33ee66',ORANGE:'#ff8833'};
   const COLOR_NAMES = ['RED','BLUE','YELLOW','PURPLE','GREEN','ORANGE'];
-
   chart.innerHTML = '';
-  // Render newest-first: iterate in reverse so prepending puts newest at top
   [..._csHistoryData].reverse().forEach(d => {
     const isCurrent = d.roundNum === _csHistoryData.length;
     const wrap = document.createElement('div');
     wrap.className = 'cs-hist-bar-wrap' + (isCurrent ? ' cs-hist-current' : '');
-
-    // Round label — left side
     const rnLabel = document.createElement('div');
     rnLabel.className = 'cs-hist-rnd-label';
     rnLabel.textContent = 'R' + String(d.roundNum).padStart(2,'0');
-
-    // Track — fills remaining width; bar grows rightward within
     const track = document.createElement('div');
     track.className = 'cs-hist-bar-track';
-
     const bar = document.createElement('div');
     bar.className = 'cs-hist-bar';
-    // Width proportional to total vs. max
     bar.style.width = Math.max(2, Math.round((d.total / maxTotal) * 100)) + '%';
-
     COLOR_NAMES.forEach(col => {
       const val = d.totals[col] || 0;
       if (!val) return;
@@ -35381,27 +35362,43 @@ function csRenderHistogram() {
       });
       bar.appendChild(seg);
     });
-
-    // Dim non-winning segments by default
     if (d.winColors && d.winColors.length) {
       bar.querySelectorAll('.cs-hist-seg').forEach(s => {
         if (!d.winColors.includes(s.dataset.col)) s.classList.add('cs-default-dim');
       });
     }
-
     track.appendChild(bar);
-
-    // Total label — right side
     const totalLabel = document.createElement('div');
     totalLabel.className = 'cs-hist-total-label';
     totalLabel.textContent = d.total;
-
-    wrap.appendChild(rnLabel);
-    wrap.appendChild(track);
-    wrap.appendChild(totalLabel);
-    chart.appendChild(wrap); // append in reverse order so newest (index 0 after reverse) is first child = top
+    wrap.appendChild(rnLabel); wrap.appendChild(track); wrap.appendChild(totalLabel);
+    chart.appendChild(wrap);
   });
-  chart.scrollTop = 0; // newest always visible at top
+  chart.scrollTop = 0;
+}
+
+function csRenderHistogram() {
+  const chart = csEl('cs-histChart');
+  if (!chart) return;
+  const empty = csEl('cs-histEmpty');
+  if (empty) empty.remove();
+
+  const maxTotal = Math.max(..._csHistoryData.map(d => d.total), 1);
+
+  const countEl = csEl('cs-histCount'); if (countEl) countEl.textContent = _csHistoryData.length;
+  const peakEl = csEl('cs-histPeak'); if (peakEl) peakEl.textContent = maxTotal;
+
+  _csRenderHistBars(chart, maxTotal);
+
+  // Also render into modal chart (kept in sync for mobile)
+  const modalChart = csEl('cs-histChart-modal');
+  if (modalChart) {
+    const emptyModal = csEl('cs-histEmpty-modal');
+    if (emptyModal) emptyModal.remove();
+    const cntM = csEl('cs-histCount-modal'); if (cntM) cntM.textContent = _csHistoryData.length;
+    const pkM  = csEl('cs-histPeak-modal');  if (pkM)  pkM.textContent  = maxTotal;
+    _csRenderHistBars(modalChart, maxTotal);
+  }
 }
 
 function csRenderRankedColors(totals, grandTotal) {
@@ -36013,11 +36010,15 @@ function initColorSchemeGame() {
     _csRound = 1; _csRoll = 0; _csRoundRolls = [];
     _csBets = {}; _csBetState = 'open'; _csRoundHistory = []; _csHistoryData = [];
     _csRoundId = null; _csPendingServerRoll = null; _csWaitingForServer = false; _csSettleArgsCache = null;
-    // Reset histogram UI
+    // Reset histogram UI (desktop + modal)
     const histChart = csEl('cs-histChart');
     if (histChart) histChart.innerHTML = '<div class="cs-hist-empty" id="cs-histEmpty">NO HISTORY YET</div>';
     const histCount = csEl('cs-histCount'); if (histCount) histCount.textContent = '0';
     const histPeak = csEl('cs-histPeak'); if (histPeak) histPeak.textContent = '—';
+    const histChartM = csEl('cs-histChart-modal');
+    if (histChartM) histChartM.innerHTML = '<div class="cs-hist-empty" id="cs-histEmpty-modal">NO HISTORY YET</div>';
+    const histCountM = csEl('cs-histCount-modal'); if (histCountM) histCountM.textContent = '0';
+    const histPeakM  = csEl('cs-histPeak-modal');  if (histPeakM)  histPeakM.textContent  = '—';
     // Clear stale outcome/tracker UI so a refreshed page doesn't show a previous round
     csResetOutcome(); csResetTracker(); csClearBetResults(); csRenderTotalWagered();
     csRenderChipRack();
@@ -36282,6 +36283,16 @@ function initColorSchemeGame() {
       };
       bRebet.addEventListener('click', bRebet._csHandler);
     }
+
+    // Round History modal (mobile)
+    const histModalBtn   = csEl('cs-histModalBtn');
+    const histModal      = csEl('cs-hist-modal');
+    const histModalClose = csEl('cs-histModalClose');
+    const openHistModal  = () => { if (histModal) { histModal.classList.add('is-open'); histModal.setAttribute('aria-hidden','false'); } };
+    const closeHistModal = () => { if (histModal) { histModal.classList.remove('is-open'); histModal.setAttribute('aria-hidden','true'); } };
+    if (histModalBtn) histModalBtn.addEventListener('click', openHistModal);
+    if (histModalClose) histModalClose.addEventListener('click', closeHistModal);
+    if (histModal) histModal.addEventListener('click', e => { if (e.target === histModal) closeHistModal(); });
 
     // Animate loop
     _csLastTime=null;

@@ -25985,11 +25985,91 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 
 /* Chip rack (pinned to bottom) */
 
+/* ── Mobile histogram modal ──────────────────────────────────────────────── */
+.cs-hist-modal-btn { display: none; } /* hidden on desktop */
+
+.cs-hist-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  align-items: center;
+  justify-content: center;
+}
+.cs-hist-modal.is-open { display: flex; }
+
+.cs-hist-modal-panel {
+  background: #0d0e0b;
+  border: 1px solid rgba(255,255,255,0.13);
+  border-radius: 8px;
+  width: min(92vw, 400px);
+  max-height: 78vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cs-hist-modal-hdr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.09);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.55);
+  flex-shrink: 0;
+}
+.cs-hist-modal-meta {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+  margin-right: 8px;
+  font-size: 9px;
+}
+.cs-hist-modal-close {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: rgba(255,255,255,0.55);
+  width: 22px; height: 22px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.cs-hist-modal-close:hover {
+  border-color: rgba(255,255,255,0.5);
+  color: #fff;
+}
+.cs-hist-modal-chart {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 8px 4px;
+}
+.cs-hist-modal-legend {
+  padding: 8px 12px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  flex-shrink: 0;
+}
+
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 800px) {
   .cs-game-panel { margin: 0.5rem 0.5rem 0; }
 
-  /* Single canvas view — hist + outcome become translucent side overlays */
+  /* Single canvas view — hist hidden, outcome is right-side overlay */
   .cs-mid {
     grid-template-columns: 1fr;
     grid-template-rows: 360px;
@@ -26003,58 +26083,52 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
     grid-row: 1;
   }
 
-  /* Histogram: left overlay */
-  .cs-col-hist {
-    display: flex;
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: clamp(80px, 22vw, 118px);
-    z-index: 3;
-    background: rgba(6,6,5,0.80);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    border-right: 1px solid rgba(46,46,38,0.55);
-    border-left: none;
-    overflow: hidden;
-  }
+  /* Histogram: hidden on mobile — accessed via modal */
+  .cs-col-hist { display: none; }
 
-  /* Hand Outcome: right overlay */
+  /* Hand Outcome: right overlay — starts BELOW the roll tracker */
   .cs-col-outcome {
     position: absolute;
-    right: 0; top: 0; bottom: 0;
-    width: clamp(96px, 28vw, 148px);
+    right: 0; top: 56px; bottom: 0;
+    width: clamp(140px, 42vw, 182px);
     z-index: 3;
-    background: rgba(6,6,5,0.80);
+    background: rgba(6,6,5,0.82);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     border-left: 1px solid rgba(46,46,38,0.55);
-    border-top: none;
+    border-top: 1px solid rgba(46,46,38,0.4);
     overflow: hidden;
   }
 
-  /* ── Overlay content compression ── */
-
-  /* Hist panel header: just show label, hide count/peak */
-  .cs-col-hist .cs-hist-panel-hdr {
-    padding: 6px 5px 4px;
-    flex-wrap: wrap;
-    gap: 2px;
+  /* Show topbar right — only the VIEW ROUND HISTORY button */
+  .cs-topbar-right { display: flex; align-items: center; }
+  .cs-topbar-right .cs-t-stat,
+  .cs-topbar-right .cs-live-dot { display: none; }
+  .cs-hist-modal-btn {
+    display: inline-flex;
+    align-items: center;
+    background: none;
+    border: 1px solid rgba(255,255,255,0.22);
+    color: rgba(255,255,255,0.65);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5px;
+    letter-spacing: 0.09em;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    text-transform: uppercase;
+    white-space: nowrap;
   }
-  .cs-col-hist .cs-hist-panel-label { font-size: 8px; }
-  .cs-col-hist .cs-hist-panel-count,
-  .cs-col-hist .cs-hist-panel-peak  { display: none; }
-
-  /* Hist legend: tighter */
-  .cs-col-hist .cs-hist-legend {
-    padding: 4px 5px;
-    gap: 2px;
+  .cs-hist-modal-btn:hover {
+    border-color: rgba(255,255,255,0.5);
+    color: #fff;
   }
-  .cs-col-hist .cs-hist-leg-item { font-size: 7px; gap: 3px; }
-  .cs-col-hist .cs-hist-leg-dot  { width: 6px; height: 6px; }
 
-  /* Outcome header */
+  /* ── Outcome overlay content ── */
+
+  /* Header */
   .cs-col-outcome .cs-col-hdr {
-    padding: 6px 6px;
+    padding: 5px 7px;
     font-size: 7px;
     letter-spacing: 0.08em;
     gap: 4px;
@@ -26062,22 +26136,21 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   }
 
   /* Grand total */
-  .cs-col-outcome .cs-oc-grand-total { padding: 8px 6px 6px; }
+  .cs-col-outcome .cs-oc-grand-total { padding: 6px 7px 5px; }
   .cs-col-outcome .cs-oc-gt-label    { font-size: 7px; }
-  .cs-col-outcome .cs-oc-gt-value    { font-size: clamp(20px, 6vw, 30px); line-height: 1; }
+  .cs-col-outcome .cs-oc-gt-value    { font-size: clamp(20px, 5.5vw, 28px); line-height: 1; }
 
   /* Primary / Secondary subtotals: stack vertically */
-  .cs-col-outcome .cs-oc-subtotals  { flex-direction: column; gap: 4px; padding: 4px 6px 6px; }
+  .cs-col-outcome .cs-oc-subtotals  { flex-direction: column; gap: 3px; padding: 3px 7px 5px; }
   .cs-col-outcome .cs-oc-sub-label  { font-size: 7px; letter-spacing: 0.06em; }
-  .cs-col-outcome .cs-oc-sub-value  { font-size: 13px; }
+  .cs-col-outcome .cs-oc-sub-value  { font-size: 12px; }
 
-  /* Ranked list */
-  .cs-col-outcome .cs-oc-ranked-hdr { font-size: 7px; padding: 4px 6px; }
+  /* Ranked list — enough room for all 6 colors */
+  .cs-col-outcome .cs-oc-ranked-hdr { font-size: 7px; padding: 3px 7px; }
   .cs-col-outcome .cs-oc-ranked-list .cs-oc-ranked-item,
-  .cs-col-outcome .cs-oc-ranked-list > * { padding: 3px 6px; font-size: 9px; }
+  .cs-col-outcome .cs-oc-ranked-list > * { padding: 2px 7px; font-size: 9px; }
 
   /* Other mobile tweaks */
-  .cs-topbar-right { display: none; }
   .cs-felt-row { gap: 4px; }
   .cs-bet-zone { min-width: 44px; max-width: 80px; }
   .cs-roll-tracker { min-height: 56px; }
@@ -26087,8 +26160,6 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 
 @media (max-width: 500px) {
   .cs-felt-body { padding: 10px; }
-  .cs-col-hist     { width: clamp(72px, 20vw, 100px); }
-  .cs-col-outcome  { width: clamp(88px, 26vw, 130px); }
-  .cs-col-outcome .cs-oc-gt-value { font-size: clamp(18px, 5.5vw, 24px); }
-  .cs-histogram-chart { padding: 4px 4px 4px 0; }
+  .cs-col-outcome { width: clamp(128px, 40vw, 165px); }
+  .cs-col-outcome .cs-oc-gt-value { font-size: clamp(18px, 5vw, 24px); }
 }
