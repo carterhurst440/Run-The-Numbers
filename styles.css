@@ -25857,7 +25857,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   align-items: center;
   flex-shrink: 0;
   width: 14px;
-  height: 100%;
+  /* height set proportionally per-bar by JS */
 }
 .cs-mini-bar-col.cs-mini-bar-current .cs-mini-bar { outline: 1px solid rgba(168,255,62,0.55); }
 .cs-mini-bar {
@@ -26007,14 +26007,19 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
     text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8);
   }
 
-  /* Roll tracker: shrink right so it doesn't go under outcome panel */
+  /* Roll tracker: shrink right so it doesn't go under outcome panel; nearly transparent */
   .cs-roll-tracker {
     margin-right: clamp(140px, 42vw, 182px);
+    background: transparent;
+    border-bottom: 1px solid rgba(46,46,38,0.3);
   }
-  /* Tighter slot sizing for the narrowed tracker */
+  /* Tighter slot sizing for the narrowed tracker; transparent slots */
   .cs-roll-track-slot {
     padding: 5px 7px;
     min-height: 50px;
+    background: transparent !important;
+    border-right-color: rgba(46,46,38,0.3);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8);
   }
   .cs-rts-idx    { font-size: 7px; margin-bottom: 3px; }
   .cs-rts-num    { font-size: 14px; }

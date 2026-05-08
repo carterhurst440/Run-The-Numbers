@@ -35347,11 +35347,13 @@ function _csRenderMiniHist() {
     const col = document.createElement('div');
     col.className = 'cs-mini-bar-col' + (isCurrent ? ' cs-mini-bar-current' : '');
 
+    // Column height drives proportional sizing; bar fills the column above the label
+    const heightPct = Math.max(8, Math.round((d.total / maxTotal) * 100));
+    col.style.height = heightPct + '%';
+
     // Bar (color segments stacking bottom-up)
     const bar = document.createElement('div');
     bar.className = 'cs-mini-bar';
-    const heightPct = Math.max(8, Math.round((d.total / maxTotal) * 100));
-    bar.style.height = heightPct + '%'; // relative to flex:1 space
     COLOR_NAMES.forEach(color => {
       const val = d.totals[color] || 0;
       if (!val) return;
