@@ -9484,7 +9484,7 @@ async function fetchProfileWithRetries(
     try {
       const fetchPromise = supabase
         .from("profiles")
-        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
+        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
         .eq("id", userId)
         .maybeSingle();
 
@@ -9620,7 +9620,7 @@ async function provisionProfileForUser(user) {
       .from("profiles")
       .insert([profileInsert])
       .select(
-        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at"
+        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at"
       )
       .maybeSingle();
 
@@ -15207,7 +15207,7 @@ async function optIntoContest(contest = currentContest) {
         }
 
         const { data: deductedProfile, error: deductError } = await deductQuery
-          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
+          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
           .maybeSingle();
 
         if (deductError) throw deductError;
@@ -15259,7 +15259,7 @@ async function optIntoContest(contest = currentContest) {
             .update({ carter_cash: refundedAmount })
             .eq("id", currentUser.id)
             .eq("updated_at", chargedProfile.updated_at ?? null)
-            .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
+            .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
             .maybeSingle();
           if (refundedProfile) {
             currentProfile = {
