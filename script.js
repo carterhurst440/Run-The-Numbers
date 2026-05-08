@@ -19820,8 +19820,11 @@ function shouldDisplayLocalBankroll() {
     redBlackHandActive ||
     redBlackSettlementPending ||
     redBlackAwaitingDecision;
+  const hasColorSchemeExposure =
+    typeof _csBets !== 'undefined' &&
+    Object.values(_csBets).reduce((a, b) => a + b, 0) > 0;
 
-  return hasRunTheNumbersExposure || hasGuess10Exposure;
+  return hasRunTheNumbersExposure || hasGuess10Exposure || hasColorSchemeExposure;
 }
 
 function updateBankroll() {
@@ -34820,6 +34823,7 @@ let _csRound = 1;
 let _csRoll = 0;
 let _csRoundRolls = [];
 let _csBets = {};
+let _csLastBets = {}; // bets from most recently completed round — drives Rebet
 let _csBetState = 'open';
 let _csRoundHistory = [];
 let _csHistoryData = [];
@@ -35720,6 +35724,11 @@ function csProcessSettle(THREE, CANNON) {
     } else {
       const bRoll=csEl('cs-bRoll'); if(bRoll) bRoll.style.display='none';
       const bNew=csEl('cs-bNew'); if(bNew) bNew.style.display='';
+      // Save bets for Rebet, then show the Rebet button
+      if (Object.keys(_csBets).length) {
+        _csLastBets = {..._csBets};
+        const bRebet=csEl('cs-rebetBtn'); if(bRebet) bRebet.hidden=false;
+      }
       csSetBetState('settling');
       _csRoundRolls.forEach((r,i) => {
         const fc=CS_COLS.find(x=>x.name===r.color&&x.top);
@@ -35803,8 +35812,9 @@ async function csRestoreIncompleteRound() {
       .select('bet_key, amount_wagered')
       .eq('round_id', round.id);
 
-    // No bets recorded — discard silently (no refund)
-    if (!betRows || betRows.length === 0) {
+    // No bets in DB, or no rolls started — pre-roll bets are local-only, just discard
+    const hasRolls = !!(round.roll_1);
+    if (!betRows || betRows.length === 0 || !hasRolls) {
       await supabase.from('color_scheme_rounds')
         .update({ status: 'abandoned', total_wagered: 0, total_returned: 0, net_profit: 0 })
         .eq('id', round.id);
@@ -35955,6 +35965,7 @@ function initColorSchemeGame() {
     const editBtn=csEl('cs-chipRackEdit');
     if(editBtn){ editBtn._csHandler=()=>{ if(typeof openChipEditor==='function') openChipEditor(); }; editBtn.addEventListener('click',editBtn._csHandler); }
     const bNew=csEl('cs-bNew'); if(bNew) bNew.style.display='none';
+    const bRebetInit=csEl('cs-rebetBtn'); if(bRebetInit) bRebetInit.hidden=true;
 
     // Disable roll button until clips are loaded/baked (reset display in case previous round hid it)
     const bRoll=csEl('cs-bRoll');
@@ -36059,6 +36070,37 @@ function initColorSchemeGame() {
         this.style.display='none';
       };
       bNew2.addEventListener('click',bNew2._csHandler);
+    }
+
+    // Rebet button — replaces last round's bets on a fresh board
+    const bRebet=csEl('cs-rebetBtn');
+    if (bRebet) {
+      bRebet._csHandler = function() {
+        if (_csBetState !== 'open' || !Object.keys(_csLastBets).length) return;
+        // Clear any current bets first (refund locally)
+        const currentTotal = Object.values(_csBets).reduce((a,b)=>a+b,0);
+        if (currentTotal > 0) {
+          bankroll = roundCurrencyValue(bankroll + currentTotal);
+          _csBets = {};
+          csClearChipStacks();
+          document.querySelectorAll('.cs-bet-zone').forEach(z=>{
+            const el=csEl('cs-stake-'+z.dataset.bet); if(el) el.textContent='';
+            z.classList.remove('cs-has-bet');
+          });
+        }
+        // Apply last bets (deduct from bankroll)
+        let canAfford = true;
+        const totalNeeded = Object.values(_csLastBets).reduce((a,b)=>a+b,0);
+        if (bankroll < totalNeeded) { showToast('Not enough balance to rebet.','error'); return; }
+        for (const [betId, stake] of Object.entries(_csLastBets)) {
+          _csBets[betId] = stake;
+          bankroll = roundCurrencyValue(bankroll - stake);
+          csAddChipToZone(betId, stake);
+          csRenderBetZone(betId);
+        }
+        csRenderBank(); csRenderTotalWagered();
+      };
+      bRebet.addEventListener('click', bRebet._csHandler);
     }
 
     // Animate loop
