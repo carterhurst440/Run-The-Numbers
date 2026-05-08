@@ -2934,6 +2934,7 @@ function renderHomeRankLadder() {
     `;
   }).join("");
 
+  homeGlitchSection('tier');
   window.requestAnimationFrame(() => {
     const currentRung = homeRankLadderListEl.querySelector(".home-rank-ladder-rung.is-current");
     const sidebar = document.querySelector(".home-sidebar");
@@ -9305,6 +9306,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
 
   if (resolvedRoute === "home") {
+    homeResetLoadingStates();
     await loadDashboard();
     if (currentUser?.id && currentUser.id !== GUEST_USER.id) {
       void loadActivityLogPage({ force: true });
@@ -34196,6 +34198,7 @@ function renderHomePlayerHero() {
       `<button type="button" class="hph-badge${b.accent ? " hph-badge-accent" : ""} hph-badge-btn" data-action="${b.action}" aria-label="${b.label}">${escapeAssistantHtml(b.text)}</button>`
     ).join("");
   }
+  homeGlitchSection('hero');
 }
 
 function renderHomeStatCards() {
@@ -34219,7 +34222,7 @@ function renderHomeStatCards() {
   const rankNum = Number(currentProfile.current_rank || 1);
   setEl("hsb-rank", `#${rankNum}`);
   setEl("hsb-rank-sub", rankName.toUpperCase());
-
+  homeGlitchSection('stats');
 }
 
 function renderHomeSystemBlock() {
@@ -34361,6 +34364,7 @@ function renderHomeSidebarActivity() {
     item.addEventListener("click", activate);
     item.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } });
   });
+  homeGlitchSection('activity');
 }
 
 function getHomePnlFilteredPoints() {
@@ -34427,6 +34431,24 @@ function drawHomePnlChart() {
   ctx.moveTo(pad.left, zeroY);
   ctx.lineTo(w - pad.right, zeroY);
   ctx.stroke();
+  homeGlitchSection('pnl');
+}
+
+// ── Home section glitch-materialize helpers ───────────────────────────────
+function homeGlitchSection(sectionId) {
+  const el = document.querySelector(`[data-home-section="${sectionId}"]`);
+  if (!el) return;
+  el.removeAttribute('data-home-loading');
+  el.classList.remove('is-glitch-enter');
+  void el.offsetWidth; // force reflow so animation restarts cleanly
+  el.classList.add('is-glitch-enter');
+}
+
+function homeResetLoadingStates() {
+  document.querySelectorAll('[data-home-section]').forEach(el => {
+    el.setAttribute('data-home-loading', '');
+    el.classList.remove('is-glitch-enter');
+  });
 }
 
 function refreshHomeDashboard() {

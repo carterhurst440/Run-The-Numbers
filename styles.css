@@ -21193,6 +21193,74 @@ body:not([data-ui="new"]) .auth-callback-spinner {
   transition: width 0.4s ease;
 }
 
+/* ── HOME SECTION SKELETON + GLITCH MATERIALIZE ─────────────────────────── */
+
+/* Glitch materialize keyframes — horizontal wipe-in with CRT flicker */
+@keyframes home-materialize {
+  0%   { opacity: 0; clip-path: inset(0 100% 0 0); filter: brightness(3) saturate(0); transform: translate(0,0); }
+  7%   { opacity: 0.85; clip-path: inset(0 44% 0 0); transform: translate(-3px,0); filter: brightness(2); }
+  11%  { opacity: 0.3;  clip-path: inset(0 46% 0 0); transform: translate(2px,0); }
+  17%  { opacity: 0.95; clip-path: inset(0 12% 0 0); transform: translate(0,0); filter: brightness(1.6); }
+  21%  { opacity: 0.6;  clip-path: inset(0 14% 0 0); }
+  27%  { opacity: 1;    clip-path: inset(0 0 0 0);   filter: brightness(1.3) saturate(0.6); }
+  36%  { opacity: 0.82; filter: brightness(1) saturate(1); }
+  44%  { opacity: 1; }
+  54%  { opacity: 0.9; }
+  64%  { opacity: 1; }
+  100% { opacity: 1; clip-path: none; filter: none; transform: translate(0,0); }
+}
+
+/* Shimmer for skeleton rows */
+@keyframes home-shimmer {
+  0%   { background-position: -500px 0; }
+  100% { background-position: 500px 0; }
+}
+
+/* Loading state: hide content, reserve space */
+[data-home-section][data-home-loading] {
+  opacity: 0;
+  pointer-events: none;
+}
+/* Per-section reserved heights when loading */
+[data-home-section="hero"][data-home-loading]    { min-height: 112px; }
+[data-home-section="stats"][data-home-loading]   { min-height: 80px; }
+[data-home-section="tier"][data-home-loading]    { min-height: 310px; }
+[data-home-section="activity"][data-home-loading]{ min-height: 200px; }
+[data-home-section="pnl"][data-home-loading]     { min-height: 200px; }
+
+/* Glitch reveal */
+.is-glitch-enter {
+  animation: home-materialize 0.52s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+/* Skeleton shimmer rows (shown inside [data-home-loading] sections) */
+.home-skel-rows { display: flex; flex-direction: column; gap: 0; }
+[data-home-section]:not([data-home-loading]) .home-skel-rows { display: none; }
+
+.home-skel-rung {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid #1a1a16;
+}
+.home-skel-rung:last-child { border-bottom: none; }
+
+.home-skel-bar {
+  height: 9px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #1c1c18 25%, #282824 50%, #1c1c18 75%);
+  background-size: 500px 100%;
+  animation: home-shimmer 1.6s ease-in-out infinite;
+}
+.home-skel-bar--node { width: 12px; flex-shrink: 0; }
+.home-skel-bar--sm   { width: 28%; }
+.home-skel-bar--md   { width: 48%; }
+.home-skel-bar--lg   { width: 66%; }
+.home-skel-bar--xl   { width: 80%; }
+
+/* ── END SKELETON ─────────────────────────────────────────────────────────── */
+
 /* ---- SIDEBAR ACTIVITY FEED ---- */
 .home-sb-activity {
   list-style: none;
