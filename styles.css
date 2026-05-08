@@ -1054,6 +1054,22 @@ body[data-app-state="loading"] #app-shell {
   animation: none;
 }
 
+.home-contest-card-desc {
+  position: relative;
+  z-index: 1;
+  margin: 0.45rem 0 0;
+  color: rgba(248, 251, 255, 0.55);
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.01em;
+}
+
 @keyframes homePrizeShimmer {
   0% {
     background-position: 180% 50%;
@@ -1433,6 +1449,21 @@ body[data-app-state="loading"] #app-shell {
   -webkit-appearance: none;
   opacity: 1;
   filter: none;
+}
+
+.home-contest-action.is-leaderboard {
+  color: rgba(168, 255, 62, 0.85);
+  -webkit-text-fill-color: rgba(168, 255, 62, 0.85);
+  background: rgba(168, 255, 62, 0.06);
+  border-color: rgba(168, 255, 62, 0.28);
+  box-shadow: none;
+}
+
+.home-contest-action.is-leaderboard:hover,
+.home-contest-action.is-leaderboard:focus-visible {
+  background: rgba(168, 255, 62, 0.12);
+  border-color: rgba(168, 255, 62, 0.55);
+  box-shadow: none;
 }
 
 .contest-share-button {

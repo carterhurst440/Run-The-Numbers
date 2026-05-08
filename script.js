@@ -12851,6 +12851,9 @@ function syncActiveAccountMode({ forceApply = false, resetHistory = false } = {}
   } else {
     updateModeSpecificModalCopy();
   }
+  // Re-evaluate game lock states: contest mode unlocks tier-gated games
+  // that the contest allows; normal mode re-applies tier gates.
+  renderGameLogoTargets();
 }
 
 function formatContestDateTime(value) {
@@ -15739,6 +15742,14 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
   prize.textContent = `Prize Pot ${getContestPrizeHeadline(contest, stats)}`;
   hero.append(prize);
 
+  const contestDesc = String(contest?.contest_details || "").trim();
+  if (contestDesc) {
+    const descEl = document.createElement("p");
+    descEl.className = "home-contest-card-desc";
+    descEl.textContent = contestDesc;
+    hero.append(descEl);
+  }
+
   const actions = document.createElement("div");
   actions.className = "home-contest-card-actions";
 
@@ -15771,7 +15782,19 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
     }
   }
 
-  actions.append(joinButton);
+  // SHOW LEADERBOARD button — only for live contests
+  if (status === "live") {
+    const lbButton = document.createElement("button");
+    lbButton.type = "button";
+    lbButton.className = "home-button home-secondary home-contest-action is-leaderboard";
+    lbButton.textContent = "Show Leaderboard";
+    lbButton.addEventListener("click", () => {
+      void showContestDetails(contest.id);
+    });
+    actions.append(joinButton, lbButton);
+  } else {
+    actions.append(joinButton);
+  }
   item.append(top, hero, actions);
   return item;
 }
