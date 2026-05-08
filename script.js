@@ -34449,28 +34449,7 @@ let _homeInitTimeout = null;
 let _hioScrambleId = null;
 
 function homeGlitchSection(sectionId) {
-  // Progressive reveal: each section appears immediately when its data is ready
-  if (_homeInitComplete) return;
-  _homeInitReady.add(sectionId);
-
-  // Reveal this section immediately
-  const el = document.querySelector(`[data-home-section="${sectionId}"]`);
-  if (el) {
-    el.removeAttribute('data-home-loading');
-    el.classList.remove('is-glitch-enter');
-    void el.offsetWidth;
-    el.classList.add('is-glitch-enter');
-  }
-
-  // Advance progress bar (kept for reference, overlay is non-blocking)
-  const pct = Math.round((_homeInitReady.size / HOME_INIT_SECTIONS.length) * 100);
-  const bar = document.getElementById('home-init-progress');
-  if (bar) bar.style.width = pct + '%';
-
-  // Dismiss overlay once all sections are ready
-  if (HOME_INIT_SECTIONS.every(s => _homeInitReady.has(s))) {
-    _homeHomeRevealAll();
-  }
+  // No-op: sections are always visible, no coordinated reveal needed
 }
 
 function _homeHomeRevealAll() {
@@ -34501,23 +34480,7 @@ function _homeHomeRevealAll() {
 }
 
 function homeResetLoadingStates() {
-  _homeInitReady.clear();
-  _homeInitComplete = false;
-  if (_homeInitTimeout) { clearTimeout(_homeInitTimeout); _homeInitTimeout = null; }
-  if (_hioScrambleId) { clearInterval(_hioScrambleId); _hioScrambleId = null; }
-
-  // Hide individual sections until their data loads (body layout is always visible)
-  document.querySelectorAll('[data-home-section]').forEach(el => {
-    el.setAttribute('data-home-loading', '');
-    el.classList.remove('is-glitch-enter');
-    el.style.removeProperty('--glitch-delay');
-  });
-
-  // Safety timeout — force reveal after 4s for any sections that never report in
-  _homeInitTimeout = setTimeout(() => {
-    HOME_INIT_SECTIONS.forEach(s => _homeInitReady.add(s));
-    _homeHomeRevealAll();
-  }, 4000);
+  // No-op: sections render directly as data arrives, no blocking state
 }
 
 function _homeStartScramble() {

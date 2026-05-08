@@ -636,14 +636,6 @@
       <main class="app-main">
         <section id="home-view" class="route-view app-page home-view" hidden aria-labelledby="home-title">
           <h1 id="home-title" class="sr-only">Casino Floor</h1>
-          <!-- Initializing overlay — covers home layout while data loads -->
-          <div id="home-init-overlay" class="home-init-overlay" aria-live="polite" hidden>
-            <div class="hio-inner">
-              <div class="hio-label" id="home-init-label">// CASINO FLOOR INITIALIZING</div>
-              <div class="hio-progress-track"><div class="hio-progress-fill" id="home-init-progress"></div></div>
-              <div class="hio-hint">CARTER'S CASINO</div>
-            </div>
-          </div>
           <canvas id="home-dot-canvas" class="home-neural-bg" aria-hidden="true"></canvas>
           <div class="home-layout" id="home-layout">
 
@@ -651,7 +643,7 @@
             <div class="home-main">
 
               <!-- PLAYER HERO -->
-              <div class="home-player-hero" data-home-section="hero" data-home-loading>
+              <div class="home-player-hero" data-home-section="hero">
                 <div class="hph-meta">AUTHENTICATED PLAYER</div>
                 <h2 class="hph-name" id="hph-name">—</h2>
                 <div class="hph-sub" id="hph-sub"></div>
@@ -659,7 +651,7 @@
               </div>
 
               <!-- STAT BLOCKS -->
-              <div class="home-stat-blocks" role="status" aria-live="polite" data-home-section="stats" data-home-loading>
+              <div class="home-stat-blocks" role="status" aria-live="polite" data-home-section="stats">
                 <div class="home-stat-block home-stat-block-rtn">
                   <div class="hsb-top-row">
                     <div class="hsb-label">RTN</div>
@@ -750,7 +742,7 @@
             <aside class="home-sidebar">
 
               <!-- TIER LADDER -->
-              <div class="home-sb-block" data-home-section="tier" data-home-loading>
+              <div class="home-sb-block" data-home-section="tier">
                 <div class="home-sb-label">// TIER LADDER</div>
                 <!-- Skeleton rows shown while tier data loads -->
                 <div class="home-skel-rows" aria-hidden="true">
@@ -778,7 +770,7 @@
               </div>
 
               <!-- RECENT ACTIVITY -->
-              <div class="home-sb-block" data-home-section="activity" data-home-loading>
+              <div class="home-sb-block" data-home-section="activity">
                 <div class="home-sb-label-row">
                   <div class="home-sb-label">// RECENT ACTIVITY</div>
                   <button type="button" class="home-section-link" data-route-target="activity-log">VIEW MORE</button>
@@ -789,7 +781,7 @@
               </div>
 
               <!-- P&L CHART -->
-              <div class="home-sb-block home-sb-chart-block" data-home-section="pnl" data-home-loading>
+              <div class="home-sb-block home-sb-chart-block" data-home-section="pnl">
                 <div class="home-sb-label-row">
                   <div class="home-sb-label">// P&amp;L</div>
                   <div class="home-sb-chart-filters">
@@ -4418,7 +4410,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260508-cs-mobile-v2"></script>
+    <script type="module" src="script.js?v=20260508-home-no-overlay"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
