@@ -26161,6 +26161,27 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 /* ── Mobile histogram modal ──────────────────────────────────────────────── */
 .cs-hist-modal-btn { display: none; } /* hidden on desktop */
 
+/* HOW TO PLAY button is always visible (desktop + mobile) */
+#cs-howToPlayBtn {
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.22);
+  color: rgba(255,255,255,0.65);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 7.5px;
+  letter-spacing: 0.09em;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+#cs-howToPlayBtn:hover {
+  border-color: rgba(255,255,255,0.5);
+  color: #fff;
+}
+
 .cs-hist-modal {
   display: none;
   position: fixed;
