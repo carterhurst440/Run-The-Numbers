@@ -6202,6 +6202,7 @@ function resetShapeTradersDerivedState() {
   shapeTradersPreviousCard = null;
   shapeTradersSplitNoticeByAsset = {};
   shapeTradersLastStructuralSyncDrawId = 0;
+  shapeTradersLivePricesLoaded = false;
 }
 
 async function applyShapeTraderDrawRow(row) {
@@ -6605,7 +6606,9 @@ function renderShapeTraderMarket() {
       ${splitNotice ? `<div class="shape-traders-market-card-split">${escapeAssistantHtml(splitNotice.label)}</div>` : ""}
       <div class="shape-traders-market-card-hero">
         <span class="shape-traders-shape-icon shape-${asset.icon}"></span>
-        <div class="shape-traders-market-card-price">${formatCurrency(currentPrice)}</div>
+        ${shapeTradersLivePricesLoaded
+          ? `<div class="shape-traders-market-card-price">${formatCurrency(currentPrice)}</div>`
+          : `<div class="shape-traders-market-card-price st-price-loading" aria-label="Loading price"></div>`}
       </div>
       <button type="button" class="shape-traders-sparkline-button is-${asset.accent}" data-shape-trader-chart="${asset.id}" aria-label="Open ${asset.label} price chart" title="Open ${asset.label} price chart">
         ${renderShapeTraderSparklineSvg(asset, sparklineSeries)}
@@ -8718,6 +8721,8 @@ async function initializeShapeTraders() {
   bindShapeTraderWindowActivityListeners();
   applyShapeTradersTradeSheetState();
   ensureShapeTraderAssistantRulesLoaded();
+  // Render cards immediately with price skeletons so the panel isn't blank
+  renderShapeTraderMarket();
   if (shapeTradersInitialized) {
     if (!shapeTradersTimerId) {
       startShapeTradersClock();
@@ -8727,6 +8732,7 @@ async function initializeShapeTraders() {
     }
     await loadShapeTraderPortfolioFromBackend();
     await hydrateShapeTradersFromDrawTable();
+    shapeTradersLivePricesLoaded = true;
     await refreshShapeTraderGlobalSnapshot();
     if (isShapeTradersClientEnginePaused()) {
       setShapeTraderStatus("Shape Traders is paused client-side while the backend draw engine is being migrated.");
@@ -8746,6 +8752,7 @@ async function initializeShapeTraders() {
   }
   await loadShapeTraderPortfolioFromBackend();
   await hydrateShapeTradersFromDrawTable();
+  shapeTradersLivePricesLoaded = true;
   await refreshShapeTraderGlobalSnapshot();
   renderShapeTradersAssetSelector();
   setShapeTraderStatus(isShapeTradersClientEnginePaused()
@@ -19193,6 +19200,7 @@ let shapeTradersHeadlineKey = null;
 let shapeTradersTimerId = null;
 let shapeTradersAnimationFrameId = null;
 let shapeTradersInitialized = false;
+let shapeTradersLivePricesLoaded = false; // true after first full DB hydration
 let shapeTradersTimelineEpochMs = SHAPE_TRADERS_EPOCH_MS;
 let shapeTradersLocalResetMode = false;
 let shapeTradersTradeActionInFlight = false;
@@ -27221,6 +27229,23 @@ async function fetchHandReviewEntry(reviewId) {
         baseEntry.totalWager  = roundCurrencyValue(Number(roundRow.total_wagered));
         baseEntry.totalReturn = roundCurrencyValue(Number(roundRow.total_returned));
         baseEntry.net         = roundCurrencyValue(Number(roundRow.net_profit));
+
+        // Re-derive each bet's outcome from authoritative round color totals.
+        // The stored `outcome` in color_scheme_bets can be wrong if a double-settle
+        // overwrote winning bets with LOSS. colorTotals from color_scheme_rounds is
+        // always correct (it's the source of truth for what the dice actually showed).
+        const gt = colorTotals.grandTotal;
+        csBets = csBets.map(bet => {
+          const won = csIsCurrentlyWinning(bet.bet_key, colorTotals, gt);
+          const base = won ? Math.floor(Number(bet.amount_wagered) * (CS_ODDS[bet.bet_key] || 1)) : 0;
+          const payout = (won && bet.bet_key === 'TYPE_PRIMARY') ? Math.floor(base * 0.95) : base;
+          return {
+            ...bet,
+            outcome:         won ? 'W' : 'L',
+            amount_returned: won ? Number(bet.amount_wagered) + payout : 0,
+            net_profit:      won ? payout : -Number(bet.amount_wagered)
+          };
+        });
       }
     }
     return { ...baseEntry, bets: csBets, rolls, colorTotals };

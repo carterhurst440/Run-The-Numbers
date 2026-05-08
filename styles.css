@@ -2892,6 +2892,19 @@ body[data-ui="new"] .str-rule-example {
   animation: shapeTradersSplitPulse 900ms ease-in-out infinite alternate;
 }
 
+@keyframes st-price-shimmer {
+  0%   { background-position: 200% 50%; }
+  100% { background-position: -200% 50%; }
+}
+.st-price-loading {
+  width: 80px;
+  height: 1.8rem;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #222220 25%, #333330 50%, #222220 75%);
+  background-size: 300% 100%;
+  animation: st-price-shimmer 1.4s ease infinite;
+}
+
 .shape-traders-market-card-price {
   justify-self: center;
   align-self: center;
