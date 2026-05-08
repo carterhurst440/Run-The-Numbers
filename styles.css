@@ -25408,8 +25408,8 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .cs-mid {
   display: grid;
   grid-template-columns: 200px 1fr 240px;
-  grid-template-rows: 380px;
-  height: 380px;
+  grid-template-rows: 420px;
+  height: 420px;
   border: 1px solid #2e2e26;
   border-top: none;
   flex-shrink: 0;
@@ -25427,7 +25427,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 }
 #cs-three-canvas {
   width: 100%;
-  height: 352px;
+  height: 392px;
   display: block;
 }
 
