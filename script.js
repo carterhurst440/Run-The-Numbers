@@ -34854,13 +34854,22 @@ window.addEventListener("resize", () => {
 
   // ── RTN — 6 boxes fill left→right, face card halts in red ──────────────────
   function initCcAnimRtn(el) {
-    el.style.cssText = "display:flex;align-items:center;justify-content:center;gap:6px";
     const N = 6, FACES = ["J","Q","K"], NORMAL = "0123456789A".split("");
     const ACCENT = accentOf(el), RED = "#e35a4a", DIM = `${ACCENT}30`;
 
+    // Fit all 6 boxes by deriving size from available container width
+    const card = el.closest(".home-game-card");
+    const avail = card ? card.clientWidth - 28 : 160; // 28 = card horizontal padding
+    const gap = Math.max(2, Math.min(6, Math.floor(avail / 30)));
+    const cellW = Math.max(16, Math.floor((avail - gap * (N - 1)) / N));
+    const cellH = Math.round(cellW * 1.3);
+    const fontSize = Math.max(11, Math.round(cellW * 0.76));
+
+    el.style.cssText = `display:flex;align-items:center;justify-content:center;gap:${gap}px`;
+
     const cells = Array.from({ length: N }, () => {
       const d = document.createElement("div");
-      d.style.cssText = `width:26px;height:34px;border:1.5px solid ${DIM};color:transparent;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:20px;line-height:1;flex-shrink:0;overflow:hidden;transition:border-color 0.12s,color 0.12s`;
+      d.style.cssText = `width:${cellW}px;height:${cellH}px;border:1.5px solid ${DIM};color:transparent;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:${fontSize}px;line-height:1;flex-shrink:0;overflow:hidden;transition:border-color 0.12s,color 0.12s`;
       el.appendChild(d);
       return d;
     });

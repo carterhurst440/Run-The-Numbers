@@ -26082,7 +26082,17 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   outline: none;
 }
 
-/* How to Play modal content */
+/* How to Play modal — constrain height and make body scroll */
+#cs-how-to-play-modal .modal-content {
+  max-height: min(88vh, 640px);
+  display: flex;
+  flex-direction: column;
+}
+#cs-how-to-play-modal .modal-body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
 .cs-htp-panel { max-height: 82vh; overflow-y: auto; }
 .cs-htp-body { padding: 14px 0 8px; }
 .cs-htp-section { margin-bottom: 16px; }
