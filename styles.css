@@ -21260,7 +21260,7 @@ body:not([data-ui="new"]) .auth-callback-spinner {
 .home-skel-bar--lg   { width: 66%; }
 .home-skel-bar--xl   { width: 80%; }
 
-/* ── HOME INITIALIZING OVERLAY — DICE ROLL ───────────────────────────────── */
+/* ── HOME INITIALIZING OVERLAY ───────────────────────────────────────────── */
 
 #home-view { position: relative; }
 
@@ -21269,178 +21269,17 @@ body:not([data-ui="new"]) .auth-callback-spinner {
   inset: 0;
   z-index: 50;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(20px, 4vh, 32px);
   background: #0a0a08;
   background-image: repeating-linear-gradient(
     0deg, transparent, transparent 3px,
     rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
   );
   min-height: 100vh;
-  overflow: hidden;
 }
 .home-init-overlay[hidden] { display: none; }
 
-/* ── Dice container — CSS custom props drive responsive sizing ── */
-.hio-dice {
-  /* Desktop defaults */
-  --die:     52px;
-  --die-h:   26px;   /* half of --die, for translateZ */
-  --pip:     7px;
-  --pip-a:   9px;    /* outer edge pip offset */
-  --pip-c:   22px;   /* center pip offset */
-  --pip-b:   36px;   /* far-edge pip offset */
-  --pip-gap: 27px;   /* pip-b - pip-a  (col width) */
-  --pip-mid: 13px;   /* pip-c - pip-a  (row mid offset) */
-  --die-gap: 20px;
-
-  display: flex;
-  gap: var(--die-gap);
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  perspective: 520px;
-}
-
-@media (max-width: 480px) {
-  .hio-dice {
-    --die:     40px;
-    --die-h:   20px;
-    --pip:     5px;
-    --pip-a:   7px;
-    --pip-c:   16px;
-    --pip-b:   28px;
-    --pip-gap: 21px;
-    --pip-mid: 9px;
-    --die-gap: 14px;
-    perspective: 380px;
-  }
-}
-
-/* ── Single die — 3D cube ── */
-.hio-die {
-  width:  var(--die);
-  height: var(--die);
-  position: relative;
-  transform-style: preserve-3d;
-  flex-shrink: 0;
-}
-
-/* ── Die face — one per cube side ── */
-.hio-die-face {
-  position: absolute;
-  inset: 0;
-  border-radius: clamp(5px, 1.2vw, 8px);
-  background: linear-gradient(145deg, #141412, #0c0c0a);
-  border: 1px solid #252520;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05),
-              inset 0 -1px 0 rgba(0,0,0,0.5);
-  backface-visibility: hidden;
-}
-
-/* Pip dots via ::after + box-shadow — one element draws all pips per face */
-.hio-die-face::after {
-  content: '';
-  position: absolute;
-  width:  var(--pip);
-  height: var(--pip);
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.92;
-}
-
-/* Face 1: center */
-.hio-die-face[data-val="1"]::after {
-  top: var(--pip-c); left: var(--pip-c);
-}
-/* Face 2: TR + BL */
-.hio-die-face[data-val="2"]::after {
-  top: var(--pip-a); left: var(--pip-b);
-  box-shadow: calc(-1 * var(--pip-gap)) var(--pip-gap) 0 0 currentColor;
-}
-/* Face 3: TR + MC + BL */
-.hio-die-face[data-val="3"]::after {
-  top: var(--pip-a); left: var(--pip-b);
-  box-shadow:
-    calc(-1 * var(--pip-mid)) var(--pip-mid) 0 0 currentColor,
-    calc(-1 * var(--pip-gap)) var(--pip-gap) 0 0 currentColor;
-}
-/* Face 4: TL + TR + BL + BR */
-.hio-die-face[data-val="4"]::after {
-  top: var(--pip-a); left: var(--pip-a);
-  box-shadow:
-    var(--pip-gap) 0           0 0 currentColor,
-    0              var(--pip-gap) 0 0 currentColor,
-    var(--pip-gap) var(--pip-gap) 0 0 currentColor;
-}
-/* Face 5: TL + TR + MC + BL + BR */
-.hio-die-face[data-val="5"]::after {
-  top: var(--pip-a); left: var(--pip-a);
-  box-shadow:
-    var(--pip-gap) 0              0 0 currentColor,
-    var(--pip-mid) var(--pip-mid) 0 0 currentColor,
-    0              var(--pip-gap) 0 0 currentColor,
-    var(--pip-gap) var(--pip-gap) 0 0 currentColor;
-}
-/* Face 6: TL + ML + BL + TR + MR + BR */
-.hio-die-face[data-val="6"]::after {
-  top: var(--pip-a); left: var(--pip-a);
-  box-shadow:
-    0              var(--pip-mid) 0 0 currentColor,
-    0              var(--pip-gap) 0 0 currentColor,
-    var(--pip-gap) 0              0 0 currentColor,
-    var(--pip-gap) var(--pip-mid) 0 0 currentColor,
-    var(--pip-gap) var(--pip-gap) 0 0 currentColor;
-}
-
-/* Face 3D positions (translateZ = --die-h = half of die size) */
-.hio-die-face--front  { transform: translateZ(var(--die-h)); }
-.hio-die-face--back   { transform: rotateY(180deg)  translateZ(var(--die-h)); }
-.hio-die-face--right  { transform: rotateY(90deg)   translateZ(var(--die-h)); }
-.hio-die-face--left   { transform: rotateY(-90deg)  translateZ(var(--die-h)); }
-.hio-die-face--top    { transform: rotateX(90deg)   translateZ(var(--die-h)); }
-.hio-die-face--bottom { transform: rotateX(-90deg)  translateZ(var(--die-h)); }
-
-/* Die accent pip + border colors */
-.hio-die--1 .hio-die-face { color: #e8a020; border-color: rgba(232,160,32,0.32); }
-.hio-die--2 .hio-die-face { color: #c8ff00; border-color: rgba(200,255,0,0.28);  }
-.hio-die--3 .hio-die-face { color: #00e5ff; border-color: rgba(0,229,255,0.28);  }
-
-/* ── Roll animations — each die on different axis combo + speed ── */
-.hio-die--1 { animation: hio-roll-1 1.85s linear infinite, hio-glow-1 3.70s step-end infinite; }
-.hio-die--2 { animation: hio-roll-2 2.40s linear infinite, hio-glow-2 4.20s step-end infinite 0.9s; }
-.hio-die--3 { animation: hio-roll-3 1.55s linear infinite, hio-glow-3 3.10s step-end infinite 1.6s; }
-
-@keyframes hio-roll-1 {
-  from { transform: rotateX(0deg)   rotateY(0deg); }
-  to   { transform: rotateX(360deg) rotateY(180deg); }
-}
-@keyframes hio-roll-2 {
-  from { transform: rotateX(0deg)   rotateY(0deg)   rotateZ(0deg); }
-  to   { transform: rotateX(270deg) rotateY(360deg) rotateZ(90deg); }
-}
-@keyframes hio-roll-3 {
-  from { transform: rotateX(0deg)    rotateY(0deg); }
-  to   { transform: rotateX(-180deg) rotateY(360deg); }
-}
-
-/* ── Glitch glow pulses — occasional brightness spike per die ── */
-@keyframes hio-glow-1 {
-  0%,87%,92%,100% { filter: drop-shadow(0 0 8px rgba(232,160,32,0.30)); }
-  90%             { filter: drop-shadow(0 0 24px rgba(232,160,32,0.95)) brightness(2.4); }
-}
-@keyframes hio-glow-2 {
-  0%,85%,90%,100% { filter: drop-shadow(0 0 8px rgba(200,255,0,0.28)); }
-  88%             { filter: drop-shadow(0 0 24px rgba(200,255,0,0.95)) brightness(2.6); }
-}
-@keyframes hio-glow-3 {
-  0%,83%,89%,100% { filter: drop-shadow(0 0 8px rgba(0,229,255,0.28)); }
-  86%             { filter: drop-shadow(0 0 24px rgba(0,229,255,0.95)) brightness(2.4); }
-}
-
-/* ── Text / progress below dice ── */
 .hio-inner {
   display: flex;
   flex-direction: column;
@@ -21455,7 +21294,7 @@ body:not([data-ui="new"]) .auth-callback-spinner {
   letter-spacing: 0.3em;
   color: #c8ff00;
   text-transform: uppercase;
-  min-width: 22ch;
+  min-width: 30ch;
   text-align: left;
 }
 .hio-cursor {
@@ -21466,7 +21305,7 @@ body:not([data-ui="new"]) .auth-callback-spinner {
 @keyframes hio-blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
 .hio-progress-track {
-  width: clamp(140px, 20vw, 220px);
+  width: clamp(180px, 26vw, 280px);
   height: 1px;
   background: #2a2a22;
   overflow: hidden;

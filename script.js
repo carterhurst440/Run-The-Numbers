@@ -34534,7 +34534,7 @@ function homeResetLoadingStates() {
 function _homeStartScramble() {
   const el = document.getElementById('home-init-label');
   if (!el) return;
-  const target = '// INITIALIZING';
+  const target = '// CASINO FLOOR INITIALIZING';
   let tick = 0;
   const totalTicks = 36; // ~2.2s at 60ms intervals
   _hioScrambleId = setInterval(() => {
