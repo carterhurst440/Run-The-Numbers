@@ -36156,11 +36156,52 @@ function initColorSchemeGame() {
         this.disabled=true;
         _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null;
         _csTargetQuats=null; _csClipActive=null; _csClipFrame=0;
+
+        // ── Cross-device guard ────────────────────────────────────────────
+        // If we have a round ID, verify it's still in-progress on the server
+        // before starting any animation. Another device may have already
+        // completed this round.
+        if (_csRoundId && supabase && !isGuestRuntimeUser()) {
+          const { data: rCheck } = await supabase
+            .from('color_scheme_rounds')
+            .select('status, roll_1, roll_2, roll_3')
+            .eq('id', _csRoundId)
+            .maybeSingle();
+          const alreadyDone = rCheck && (
+            rCheck.status !== 'in_progress' ||
+            (rCheck.roll_1 && rCheck.roll_2 && rCheck.roll_3)
+          );
+          if (alreadyDone) {
+            showToast('ROUND HAS RESOLVED ON ANOTHER DEVICE', 'error');
+            // Mark completed locally so it doesn't resurface
+            await supabase.from('color_scheme_rounds')
+              .update({ status: 'completed' }).eq('id', _csRoundId);
+            _csRoundId = null;
+            this.style.display = 'none';
+            const bNewResolved = csEl('cs-bNew');
+            if (bNewResolved) bNewResolved.style.display = '';
+            csSetBetState('settling');
+            return;
+          }
+        }
+        // ─────────────────────────────────────────────────────────────────
+
         const sBar2=csEl('cs-statusBar');
         if(sBar2){sBar2.textContent='ROLLING…';sBar2.classList.add('cs-active');}
         csSetBetState('locked');
 
         await csInvokeServerRoll();
+
+        // If server roll failed (e.g. round already resolved on another device),
+        // abort the animation and surface a toast rather than silently stalling.
+        if (!_csPendingServerRoll && !isGuestRuntimeUser()) {
+          showToast('ROUND HAS RESOLVED ON ANOTHER DEVICE', 'error');
+          this.style.display = 'none';
+          const bNewFail = csEl('cs-bNew');
+          if (bNewFail) bNewFail.style.display = '';
+          csSetBetState('settling');
+          return;
+        }
 
         // Guest mode fallback
         if(!_csPendingServerRoll){
