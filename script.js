@@ -15790,14 +15790,21 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
     }
   }
 
-  // SHOW LEADERBOARD button — only for live contests
+  // LEADERBOARD button — only for live contests; opens the same results modal
+  // as the Contests page (with VIEW GRAPH per contestant).
   if (status === "live") {
     const lbButton = document.createElement("button");
     lbButton.type = "button";
     lbButton.className = "home-button home-secondary home-contest-action is-leaderboard";
     lbButton.textContent = "Leaderboard";
-    lbButton.addEventListener("click", () => {
-      void showContestDetails(contest.id);
+    lbButton.addEventListener("click", async () => {
+      try {
+        const leaderboard = await buildContestLeaderboard(contest);
+        openContestResultsModal(contest, leaderboard, { variant: "leaderboard" });
+      } catch (err) {
+        console.error("[RTN] home spotlight leaderboard error", err);
+        showToast(err?.message || "Unable to load leaderboard", "error");
+      }
     });
     actions.append(joinButton, lbButton);
   } else {
