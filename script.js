@@ -15787,7 +15787,7 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
     const lbButton = document.createElement("button");
     lbButton.type = "button";
     lbButton.className = "home-button home-secondary home-contest-action is-leaderboard";
-    lbButton.textContent = "Show Leaderboard";
+    lbButton.textContent = "Leaderboard";
     lbButton.addEventListener("click", () => {
       void showContestDetails(contest.id);
     });
@@ -16456,8 +16456,10 @@ async function openGameActivityChart(gameId) {
   }
 
   try {
+    // Set cutoff to start of local day 30 days ago so the full local day is included
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    thirtyDaysAgo.setHours(0, 0, 0, 0);
     const cutoff = thirtyDaysAgo.toISOString();
     let rows = [];
 
@@ -16475,9 +16477,19 @@ async function openGameActivityChart(gameId) {
       rows = (data || []).map(r => r.created_at);
     }
 
+    // Use LOCAL dates so "today" matches the player's clock, not UTC.
+    const toLocalDateKey = (ts) => {
+      const d = ts instanceof Date ? ts : new Date(ts);
+      if (!d || isNaN(d.getTime())) return null;
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+
     const countsByDay = {};
     for (const ts of rows) {
-      const day = String(ts || "").split("T")[0];
+      const day = ts ? toLocalDateKey(new Date(ts)) : null;
       if (day) countsByDay[day] = (countsByDay[day] || 0) + 1;
     }
 
@@ -16486,7 +16498,7 @@ async function openGameActivityChart(gameId) {
     for (let i = 29; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const key = d.toISOString().split("T")[0];
+      const key = toLocalDateKey(d);
       labels.push(key.slice(5));
       values.push(countsByDay[key] || 0);
     }
