@@ -16473,8 +16473,17 @@ async function openGameActivityChart(gameId) {
       const { data } = await supabase.from("shape_trader_trades").select("executed_at").eq("user_id", currentUser.id).gte("executed_at", cutoff);
       rows = (data || []).map(r => r.executed_at);
     } else if (gameId === "game_004") {
-      const { data } = await supabase.from("color_scheme_rounds").select("created_at").eq("user_id", currentUser.id).eq("status", "completed").gte("created_at", cutoff);
-      rows = (data || []).map(r => r.created_at);
+      // Count all rounds that were actually played (not abandoned before rolling).
+      // Using neq("status","abandoned") so rounds where settle had an error still count.
+      const { data: csData, error: csError } = await supabase
+        .from("color_scheme_rounds")
+        .select("created_at, roll_1")
+        .eq("user_id", currentUser.id)
+        .neq("status", "abandoned")
+        .not("roll_1", "is", null)
+        .gte("created_at", cutoff);
+      if (csError) console.error("[RTN] RYB activity chart query error:", csError.message, csError);
+      rows = (csData || []).map(r => r.created_at);
     }
 
     // Use LOCAL dates so "today" matches the player's clock, not UTC.
