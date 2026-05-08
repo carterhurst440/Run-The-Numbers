@@ -16479,25 +16479,31 @@ async function openGameActivityChart(gameId) {
     let rows = [];
 
     if (gameId === "game_001") {
-      const { data } = await supabase.from("rtn_live_hands").select("started_at").eq("user_id", currentUser.id).neq("status", "active").gte("started_at", cutoff);
+      const { data, error } = await supabase.from("rtn_live_hands").select("started_at").eq("user_id", currentUser.id).neq("status", "active").gte("started_at", cutoff);
+      if (error) console.error("[RTN] activity chart query error (game_001):", error.message, error);
+      console.log(`[RTN] activity chart game_001 rows returned: ${(data||[]).length}`);
       rows = (data || []).map(r => r.started_at);
     } else if (gameId === "game_002") {
-      const { data } = await supabase.from("guess10_live_hands").select("started_at").eq("user_id", currentUser.id).neq("status", "active").gte("started_at", cutoff);
+      const { data, error } = await supabase.from("guess10_live_hands").select("started_at").eq("user_id", currentUser.id).neq("status", "active").gte("started_at", cutoff);
+      if (error) console.error("[RTN] activity chart query error (game_002):", error.message, error);
+      console.log(`[RTN] activity chart game_002 rows returned: ${(data||[]).length}`);
       rows = (data || []).map(r => r.started_at);
     } else if (gameId === "game_003") {
-      const { data } = await supabase.from("shape_trader_trades").select("executed_at").eq("user_id", currentUser.id).gte("executed_at", cutoff);
+      const { data, error } = await supabase.from("shape_trader_trades").select("executed_at").eq("user_id", currentUser.id).gte("executed_at", cutoff);
+      if (error) console.error("[RTN] activity chart query error (game_003):", error.message, error);
+      console.log(`[RTN] activity chart game_003 rows returned: ${(data||[]).length}`);
       rows = (data || []).map(r => r.executed_at);
     } else if (gameId === "game_004") {
-      // Count all rounds that were actually played (not abandoned before rolling).
-      // Using neq("status","abandoned") so rounds where settle had an error still count.
+      // Broadest possible filter — count every round that exists for this user,
+      // regardless of status. roll_1 is NOT filtered on because cs_perform_roll
+      // may not write that column, which would silently return zero rows.
       const { data: csData, error: csError } = await supabase
         .from("color_scheme_rounds")
-        .select("created_at, roll_1")
+        .select("created_at, status")
         .eq("user_id", currentUser.id)
-        .neq("status", "abandoned")
-        .not("roll_1", "is", null)
         .gte("created_at", cutoff);
-      if (csError) console.error("[RTN] RYB activity chart query error:", csError.message, csError);
+      if (csError) console.error("[RTN] activity chart query error (game_004):", csError.message, csError);
+      console.log(`[RTN] activity chart game_004 rows returned: ${(csData||[]).length}`, (csData||[]).slice(0,3));
       rows = (csData || []).map(r => r.created_at);
     }
 
@@ -16525,6 +16531,15 @@ async function openGameActivityChart(gameId) {
       const key = toLocalDateKey(d);
       labels.push(key.slice(5));
       values.push(countsByDay[key] || 0);
+    }
+
+    const totalRows = rows.length;
+    const totalActivity = values.reduce((a, b) => a + b, 0);
+    console.log(`[RTN] activity chart ${gameId}: ${totalRows} raw rows, ${totalActivity} total activity across 30d window`);
+    if (subtitleEl) {
+      subtitleEl.textContent = totalActivity > 0
+        ? game.subtitle
+        : `${game.subtitle} — no data found (${totalRows} rows fetched)`;
     }
 
     const ctx = canvas.getContext("2d");
