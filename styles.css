@@ -25412,9 +25412,9 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .cs-bet-state-badge.cs-locked { background: rgba(255,180,0,0.12); color: #ffb400; }
 .cs-bet-state-badge.cs-settling { background: rgba(255,100,100,0.12); color: #ff6464; }
 
-/* Giant grand total */
+/* Grand total */
 .cs-oc-grand-total {
-  padding: 16px 14px 12px;
+  padding: 12px 14px 10px;
   border-bottom: 1px solid #2c2c2c;
   flex-shrink: 0;
 }
@@ -25423,10 +25423,10 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   letter-spacing: 0.18em;
   color: #7a7a72;
   text-transform: uppercase;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 .cs-oc-gt-value {
-  font-size: 140px;
+  font-size: 80px;
   font-weight: 700;
   color: #ffffff;
   letter-spacing: -0.06em;
@@ -25492,7 +25492,8 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   flex-shrink: 0;
 }
 .cs-oc-ranked-list {
-  flex: 1;
+  flex: none;
+  height: 165px;
   overflow-y: auto;
 }
 .cs-oc-waiting {
@@ -25531,16 +25532,15 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   min-width: 28px; text-align: right;
 }
 
-/* Felt section */
+/* Felt / Betting section — RTN-style dark monospace */
 .cs-felt-wrap {
   position: relative;
   z-index: 2;
 }
 .cs-felt-body {
-  background: #0c3320;
-  border: 1px solid #1a5c3a;
-  border-top: none;
-  padding: 14px;
+  background: #0a0a09;
+  border-top: 1px solid #1e1e1a;
+  padding: 12px 14px 14px;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -25551,51 +25551,59 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   margin-bottom: 6px;
 }
 .cs-felt-group-lbl {
-  font-family: 'Playfair Display', 'Georgia', serif;
-  font-size: 10px; letter-spacing: 0.14em; color: #d4a843; text-transform: uppercase;
+  font-size: 8px;
+  font-family: inherit;
+  letter-spacing: 0.18em;
+  color: #5a5a48;
+  text-transform: uppercase;
 }
 .cs-felt-row {
-  display: flex; gap: 6px; flex-wrap: wrap;
+  display: flex; gap: 5px; flex-wrap: wrap;
 }
 .cs-bet-zone {
-  flex: 1 1 60px;
-  min-width: 52px;
+  flex: 1 1 58px;
+  min-width: 50px;
   max-width: 110px;
-  border: 1px solid rgba(212,168,67,0.25);
-  background: rgba(0,0,0,0.28);
-  border-radius: 3px;
-  padding: 8px 6px;
+  border: 1px solid #2e2e28;
+  background: #131312;
+  border-radius: 2px;
+  padding: 7px 5px;
   cursor: pointer;
   position: relative;
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   user-select: none;
-  --zc: 168,168,152;
+  --zc: 232,160,32;
 }
 .cs-bet-zone:hover:not(.cs-locked) {
-  border-color: rgba(var(--zc),0.7);
-  background: rgba(var(--zc),0.08);
+  border-color: rgba(var(--zc),0.35);
+  background: rgba(var(--zc),0.04);
 }
 .cs-bet-zone.cs-has-bet {
-  border-color: rgba(var(--zc),0.8);
-  background: rgba(var(--zc),0.1);
-  box-shadow: 0 0 10px rgba(var(--zc),0.25);
+  border-color: rgba(var(--zc),1);
+  background: rgba(var(--zc),0.06);
+  box-shadow: 0 0 10px rgba(var(--zc),0.12), inset 0 0 0 1px rgba(var(--zc),0.08);
 }
 .cs-bet-zone.cs-live-win {
   border-color: #a8ff3e;
-  background: rgba(168,255,62,0.08);
-  box-shadow: 0 0 14px rgba(168,255,62,0.3);
+  background: rgba(168,255,62,0.06);
+  box-shadow: 0 0 12px rgba(168,255,62,0.25);
   animation: cs-liveWin 0.8s ease-in-out infinite alternate;
 }
-@keyframes cs-liveWin { from{box-shadow:0 0 8px rgba(168,255,62,0.2)} to{box-shadow:0 0 20px rgba(168,255,62,0.5)} }
-.cs-bet-zone.cs-win { border-color: #a8ff3e; background: rgba(168,255,62,0.12); }
-.cs-bet-zone.cs-lose { border-color: rgba(255,80,80,0.4); background: rgba(255,80,80,0.06); }
+@keyframes cs-liveWin { from{box-shadow:0 0 6px rgba(168,255,62,0.15)} to{box-shadow:0 0 18px rgba(168,255,62,0.45)} }
+.cs-bet-zone.cs-win { border-color: rgba(168,255,62,0.6); background: rgba(168,255,62,0.07); }
+.cs-bet-zone.cs-lose { border-color: rgba(255,80,80,0.3); background: rgba(255,80,80,0.04); }
 .cs-bet-zone.cs-locked { cursor: default; }
-.cs-bz-name { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-align: center; color: #d8d8d0; }
-.cs-bz-odds { font-size: 8px; color: #7a7a72; letter-spacing: 0.06em; }
-.cs-bz-commission { color: rgba(212,168,67,0.55); font-size: 7px; }
+.cs-bz-name {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+  text-align: center; color: #909080;
+}
+.cs-bet-zone.cs-has-bet .cs-bz-name { color: #e8a020; }
+.cs-bz-odds { font-size: 7px; color: #4a4a40; letter-spacing: 0.06em; }
+.cs-bet-zone.cs-has-bet .cs-bz-odds { color: rgba(232,160,32,0.5); }
+.cs-bz-commission { color: rgba(232,160,32,0.4); font-size: 7px; }
 .cs-bz-stake {
-  font-size: 11px; font-weight: 700; color: #a8ff3e;
+  font-size: 11px; font-weight: 700; color: #e8a020;
   min-height: 14px; text-align: center;
 }
 .cs-bz-result {
