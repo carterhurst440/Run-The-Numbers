@@ -25853,6 +25853,62 @@ function buildHandReviewField(label, value, options = {}) {
   `;
 }
 
+function renderColorSchemeReviewCards(entry) {
+  const rolls = Array.isArray(entry.drawnCards)
+    ? entry.drawnCards.map(c => ({ color: c.label || '—', number: Number(c.suit || 0) }))
+    : [];
+  const bets = Array.isArray(entry.bets) ? entry.bets : [];
+  const netToneClass = entry.net > 0 ? 'review-hand-positive' : entry.net < 0 ? 'review-hand-negative' : 'review-hand-neutral';
+
+  const rollCards = rolls.length
+    ? rolls.map((r, i) => `
+        <article class="review-hand-card review-hand-round-card">
+          <div class="review-hand-card-topline">
+            <span class="review-hand-card-kicker">Roll ${i + 1}</span>
+            <span class="review-hand-card-pill review-hand-neutral">${escapeAssistantHtml(r.color)}</span>
+          </div>
+          <div class="review-hand-field-grid review-hand-field-grid-compact">
+            ${buildHandReviewField('Color', r.color)}
+            ${buildHandReviewField('Number', String(r.number || '—'))}
+          </div>
+        </article>`).join('')
+    : `<article class="review-hand-card review-hand-card-empty"><p>Roll details not available for older rounds.</p></article>`;
+
+  const betCards = bets.map(bet => {
+    const wager = Math.max(0, Math.round(Number(bet.amount_wagered || bet.units || 0)));
+    const returned = Math.max(0, Math.round(Number(bet.amount_returned || bet.paid || 0)));
+    const net = returned - wager;
+    const won = bet.outcome === 'W' || returned > 0;
+    const tone = won ? 'review-hand-positive' : 'review-hand-negative';
+    return `
+      <article class="review-hand-card">
+        <div class="review-hand-card-topline">
+          <span class="review-hand-card-title">${escapeAssistantHtml(csGetBetLabel(bet.bet_key || bet.key || ''))}</span>
+          <span class="review-hand-card-pill ${tone}">${won ? 'WIN' : 'LOSS'}</span>
+        </div>
+        <div class="review-hand-field-grid review-hand-field-grid-compact">
+          ${buildHandReviewField('Wager', formatCurrency(wager))}
+          ${buildHandReviewField('Return', formatCurrency(returned))}
+          ${buildHandReviewField('Net', formatSignedCurrency(net), { toneClass: tone })}
+        </div>
+      </article>`;
+  }).join('');
+
+  const totalCard = `
+    <article class="review-hand-card review-hand-card-sum">
+      <div class="review-hand-card-topline">
+        <span class="review-hand-card-title review-hand-card-kicker">ROUND TOTAL</span>
+      </div>
+      <div class="review-hand-field-grid review-hand-field-grid-compact">
+        ${buildHandReviewField('Wager', formatCurrency(entry.totalWager))}
+        ${buildHandReviewField('Return', formatCurrency(entry.totalReturn))}
+        ${buildHandReviewField('Net', formatSignedCurrency(entry.net), { toneClass: netToneClass })}
+      </div>
+    </article>`;
+
+  return rollCards + (betCards || '') + totalCard;
+}
+
 function renderGuess10ReviewCards(entry) {
   const steps = Array.isArray(entry.handHistory) ? entry.handHistory : [];
   if (!steps.length) {
@@ -26838,15 +26894,20 @@ function renderHandReviewModalEntry(entry) {
   }
 
   const isGuess10 = (entry.gameKey || "") === GAME_KEYS.GUESS_10;
+  const isColorScheme = (entry.gameKey || "") === GAME_KEYS.COLOR_SCHEME;
   const handLength = Math.max(0, Number(entry.totalCards || (Array.isArray(entry.drawnCards) ? entry.drawnCards.length : 0)));
 
   if (handReviewSummaryEl) {
-    handReviewSummaryEl.textContent = isGuess10
+    handReviewSummaryEl.textContent = isColorScheme
+      ? `Color Scheme · 3 rolls · ${formatCurrency(entry.totalWager)} wagered · ${formatCurrency(entry.totalReturn)} returned · ${formatSignedCurrency(entry.net)} net.`
+      : isGuess10
       ? `${entry.gameLabel || "Guess 10"} · ${handLength} cards · ${formatCurrency(entry.totalWager)} wagered · ${formatCurrency(entry.totalReturn)} returned · ${formatSignedCurrency(entry.net)} net · ${formatCurrency(entry.commissionKept || 0)} commission kept.`
       : `Hand length ${handLength}. Total return ${formatCurrency(entry.totalReturn)} units on ${formatCurrency(entry.totalWager)} wagered.`;
   }
 
-  handReviewListEl.innerHTML = isGuess10 ? renderGuess10ReviewCards(entry) : renderClassicHandReviewCards(entry);
+  handReviewListEl.innerHTML = isColorScheme
+    ? renderColorSchemeReviewCards(entry)
+    : isGuess10 ? renderGuess10ReviewCards(entry) : renderClassicHandReviewCards(entry);
 
   if (handReviewTotalWagerEl) {
     handReviewTotalWagerEl.textContent = formatCurrency(entry.totalWager);
@@ -26951,6 +27012,21 @@ async function fetchHandReviewEntry(reviewId) {
     handHistory: [],
     bets: []
   };
+
+  if (gameKey === GAME_KEYS.COLOR_SCHEME) {
+    // Rolls are stored in drawn_cards (label=color, suit=number)
+    // Bets are in color_scheme_bets, linked via stopper_label = round_id
+    const roundId = handRow?.stopper_label || null;
+    let csBets = [];
+    if (roundId && supabase) {
+      const { data: betRows } = await supabase
+        .from('color_scheme_bets')
+        .select('bet_key, amount_wagered, outcome, amount_returned, net_profit')
+        .eq('round_id', roundId);
+      csBets = betRows || [];
+    }
+    return { ...baseEntry, bets: csBets };
+  }
 
   if (gameKey === GAME_KEYS.GUESS_10) {
     const drawRows = await fetchGuess10DrawPlayRecords({ handIds: [reviewId] });
@@ -34606,6 +34682,22 @@ const CS_BZ_COLORS = {
 
 function csEl(id) { return document.getElementById(id); }
 
+function csGetBetLabel(key) {
+  const MAP = {
+    RED:'Red (Primary)', BLUE:'Blue (Primary)', YELLOW:'Yellow (Primary)',
+    PURPLE:'Purple (Secondary)', GREEN:'Green (Secondary)', ORANGE:'Orange (Secondary)',
+    COLOR_TIE:'Color Tie', TYPE_PRIMARY:'Type: Primary', TYPE_SECONDARY:'Type: Secondary', TYPE_TIE:'Type Tie',
+    PUR_LO:'Purple Low (1-16)', PUR_MID:'Purple Mid (17-30)', PUR_HI:'Purple High (31+)',
+    GRN_LO:'Green Low (1-16)', GRN_MID:'Green Mid (17-30)', GRN_HI:'Green High (31+)',
+    ORG_LO:'Orange Low (1-16)', ORG_MID:'Orange Mid (17-30)', ORG_HI:'Orange High (31+)',
+    BLU_1:'Blue = 1', BLU_2:'Blue = 2', BLU_3:'Blue = 3', BLU_4:'Blue = 4', BLU_5:'Blue = 5', BLU_6:'Blue = 6', BLU_7P:'Blue ≥ 7',
+    RED_1:'Red = 1', RED_2:'Red = 2', RED_3:'Red = 3', RED_4:'Red = 4', RED_5:'Red = 5', RED_6:'Red = 6', RED_7P:'Red ≥ 7',
+    YEL_1:'Yellow = 1', YEL_2:'Yellow = 2', YEL_3:'Yellow = 3', YEL_4:'Yellow = 4', YEL_5:'Yellow = 5', YEL_6:'Yellow = 6', YEL_7P:'Yellow ≥ 7',
+    TOT_A:'Total 1-10', TOT_B:'Total 11-20', TOT_C:'Total 21-36', TOT_D:'Total 37-52', TOT_E:'Total 53-75', TOT_F:'Total 76+',
+  };
+  return MAP[key] || key;
+}
+
 function csMakeFaceTex(THREE, faceColor, pipColor, pips, label) {
   const sz = 256;
   const c = document.createElement('canvas');
@@ -35034,6 +35126,8 @@ async function csInvokeServerRoll() {
     _csPendingServerRoll = data;
     if (_csWaitingForServer) {
       _csWaitingForServer = false;
+      _csSettling = false;         // stop animate loop from re-firing csOnSettled
+      _csProcessingSettle = true;  // guard against concurrent call from animation frame
       const { THREE, CANNON } = _csSettleArgsCache || {};
       if (THREE && CANNON) csProcessSettle(THREE, CANNON);
     }
@@ -35091,15 +35185,18 @@ async function csSettleBetsOnServer(roundId, totals, grandTotal) {
       net_profit: netThisRound
     }).eq('id', roundId);
 
-    // Log hand to game_hands and increment profile progress
+    // Log hand to game_hands — store round_id in stopper_label, rolls in handHistory
     await logStandaloneGameHand({
       gameKey: GAME_KEYS.COLOR_SCHEME,
+      stopperCard: { label: roundId, suit: null, suitName: null, color: null },
       totalCards: 3,
       totalWager: totalWagered,
       totalPaid: totalReturned,
       net: netThisRound,
       commissionKept: 0,
-      handHistory: []
+      handHistory: _csRoundRolls.map(r => ({
+        card: { label: r.color, suit: String(r.number), suitName: String(r.number), color: null }
+      }))
     });
     await incrementProfileHandProgress(1, GAME_KEYS.COLOR_SCHEME);
     await ensureProfileSynced({ force: true });
@@ -35148,6 +35245,41 @@ function csGetTopFace(CANNON, body, isColor) {
   return isColor ? bi : nv[bi];
 }
 
+// Snap both dice to show the server-determined result face on top
+function csSnapDiceToResult(colorName, number) {
+  const cd = _csDice.find(d => d.isColor);
+  const nd = _csDice.find(d => !d.isColor);
+  if (!cd || !nd) return;
+  // Face normals in body-local space: [+x, -x, +y, -y, +z, -z] (indices 0-5)
+  // Quaternion (x,y,z,w) that rotates the die so face[i] points up (+y world)
+  const faceQuat = (fi) => {
+    switch (fi) {
+      case 0: return [0, 0, -0.7071, 0.7071]; // +x up: rotate z by -90°
+      case 1: return [0, 0,  0.7071, 0.7071]; // -x up: rotate z by +90°
+      case 2: return [0, 0,  0,      1     ]; // +y up: identity
+      case 3: return [1, 0,  0,      0     ]; // -y up: 180° around x
+      case 4: return [0.7071,  0, 0,  0.7071]; // +z up: rotate x by +90°
+      case 5: return [-0.7071, 0, 0,  0.7071]; // -z up: rotate x by -90°
+      default: return [0, 0, 0, 1];
+    }
+  };
+  // Color die: face index = CS_COLS index
+  const colorFaceIndex = CS_COLS.findIndex(c => c.name === colorName);
+  if (colorFaceIndex >= 0) {
+    const [x,y,z,w] = faceQuat(colorFaceIndex);
+    cd.body.quaternion.set(x, y, z, w);
+    cd.mesh.quaternion.set(x, y, z, w);
+  }
+  // Number die: face values are [1,6,2,5,3,4] at face indices 0-5
+  const numFaceValues = [1, 6, 2, 5, 3, 4];
+  const numFaceIndex = numFaceValues.indexOf(number);
+  if (numFaceIndex >= 0) {
+    const [x,y,z,w] = faceQuat(numFaceIndex);
+    nd.body.quaternion.set(x, y, z, w);
+    nd.mesh.quaternion.set(x, y, z, w);
+  }
+}
+
 function csIsAtRest() {
   return _csDice.every(d => {
     const v=d.body.velocity, av=d.body.angularVelocity;
@@ -35178,6 +35310,7 @@ function csProcessSettle(THREE, CANNON) {
       col = CS_COLS.find(c => c.name === colorName);
       nv = sr.number;
       _csPendingServerRoll = null;
+      csSnapDiceToResult(colorName, nv); // orient dice to match server outcome
     } else {
       const ci = csGetTopFace(CANNON,cd.body,true);
       nv = csGetTopFace(CANNON,nd.body,false);
@@ -35260,8 +35393,48 @@ function csLoadLibraries(callback) {
   }
 }
 
+async function csRecoverIncompleteRound() {
+  if (!supabase || isGuestRuntimeUser()) return;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    // Find any round that was started but never settled (net_profit is null)
+    const { data: round } = await supabase
+      .from('color_scheme_rounds')
+      .select('id, total_wagered')
+      .eq('user_id', user.id)
+      .is('net_profit', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!round) return;
+    // Fetch actual wagered amount from bets (in case total_wagered not set yet)
+    const { data: bets } = await supabase
+      .from('color_scheme_bets')
+      .select('amount_wagered')
+      .eq('round_id', round.id);
+    const wageredTotal = bets?.reduce((s, b) => s + (Number(b.amount_wagered) || 0), 0) || 0;
+    // Refund the wagers back to the bankroll
+    if (wageredTotal > 0) {
+      bankroll = roundCurrencyValue(bankroll + wageredTotal);
+      await persistBankroll();
+    }
+    // Mark the round as abandoned so it won't be found again
+    await supabase.from('color_scheme_rounds').update({
+      net_profit: 0,
+      total_wagered: wageredTotal,
+      total_returned: wageredTotal
+    }).eq('id', round.id);
+    if (wageredTotal > 0) {
+      showToast(`Previous RYB round recovered — $${wageredTotal} refunded.`, 'info');
+    }
+  } catch(e) { console.warn('[CS] csRecoverIncompleteRound error:', e); }
+}
+
 function initColorSchemeGame() {
   if (_csGameActive) return;
+  // Recover any abandoned in-progress round first (refund wagers)
+  csRecoverIncompleteRound().catch(() => {});
   csLoadLibraries(() => {
     if (_csGameActive) return; // re-check after async load
     const THREE = window.THREE, CANNON = window.CANNON;
