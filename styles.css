@@ -25189,6 +25189,16 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   z-index: 0;
 }
 
+/* Game panel — outer bordered card wrapping topbar + mid */
+.cs-game-panel {
+  margin: 1rem 1.5rem 0;
+  border: 1px solid #2e2e26;
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
 /* Topbar */
 .cs-topbar {
   width: 100%;
@@ -25410,12 +25420,10 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   grid-template-columns: 200px 1fr 240px;
   grid-template-rows: 420px;
   height: 420px;
-  border: 1px solid #2e2e26;
-  border-top: none;
+  border-top: 1px solid #2e2e26;
   flex-shrink: 0;
   overflow: hidden;
   position: relative;
-  z-index: 2;
 }
 
 /* Canvas col */
@@ -25427,25 +25435,49 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 }
 #cs-three-canvas {
   width: 100%;
-  height: 392px;
+  flex: 1;
+  min-height: 0;
   display: block;
 }
 
-/* Slim status bar (28px, shows only "SIMULATING…" during roll) */
-.cs-sim-status-bar {
-  height: 28px;
+/* 4-column canvas footer: ROUND / ROLL / LAST LANDED / STATUS */
+.cs-canvas-foot {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  letter-spacing: 0.18em;
-  color: #4a4a42;
-  text-transform: uppercase;
   border-top: 1px solid #2e2e26;
   background: #0d0d0b;
   flex-shrink: 0;
+  height: 44px;
 }
-.cs-sim-status-bar.cs-active { color: #a8ff3e; }
+.cs-cf-cell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 12px;
+  border-right: 1px solid #1e1e18;
+  gap: 2px;
+}
+.cs-cf-cell:last-child { border-right: none; }
+.cs-cf-cell--wide { flex: 1.6; }
+.cs-cf-cell--status { flex: 1.4; }
+.cs-cf-label {
+  font-size: 7px;
+  letter-spacing: 0.14em;
+  color: #4a4a42;
+  text-transform: uppercase;
+}
+.cs-cf-val {
+  font-size: 11px;
+  font-weight: 600;
+  color: #7a7a72;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+.cs-cf-color { font-weight: 700; letter-spacing: 0.06em; }
+.cs-cf-num { color: #a8ff3e; }
+.cs-cf-num:not(:empty)::before { content: ' · '; color: #4a4a42; }
+.cs-cf-status-val { letter-spacing: 0.1em; text-transform: uppercase; }
+.cs-cf-status-val.cs-active { color: #a8ff3e; }
 
 /* Roll + new buttons */
 .cs-btns { display: flex; gap: 0; flex-shrink: 0; }
@@ -25796,16 +25828,17 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 
 /* Responsive */
 @media (max-width: 800px) {
-  .cs-mid { grid-template-columns: 1fr; }
+  .cs-game-panel { margin: 0.5rem 0.5rem 0; }
+  .cs-mid { grid-template-columns: 1fr; grid-template-rows: 360px; height: 360px; }
   .cs-col-hist { display: none; }
   .cs-col-outcome { border-left: none; border-top: 1px solid #2e2e26; }
-  #cs-three-canvas { height: 220px; }
   .cs-topbar-right { display: none; }
   .cs-felt-row { gap: 4px; }
   .cs-bet-zone { min-width: 44px; max-width: 80px; }
   .cs-oc-gt-value { font-size: 72px; }
   .cs-roll-tracker { min-height: 56px; }
   .cs-rts-num { font-size: 16px; }
+  .cs-cf-cell { padding: 0 8px; }
 }
 @media (max-width: 500px) {
   .cs-felt-body { padding: 10px; }

@@ -3082,6 +3082,9 @@
         <section id="color-scheme-view" class="route-view app-page cs-view" hidden aria-labelledby="cs-view-title">
           <h1 id="cs-view-title" class="sr-only">Color Scheme</h1>
 
+          <!-- Game panel: topbar + mid section in one bordered card -->
+          <div class="cs-game-panel">
+
           <!-- Topbar -->
           <div class="cs-topbar">
             <div class="cs-topbar-title">// COLOR SCHEME <span>DICE SIM</span></div>
@@ -3168,13 +3171,25 @@
               </div>
               <!-- Canvas -->
               <canvas id="cs-three-canvas" aria-label="Dice physics simulation"></canvas>
-              <!-- Slim status bar -->
-              <div class="cs-sim-status-bar" id="cs-statusBar"></div>
-              <!-- Hidden compat elements for JS -->
-              <span id="cs-sRound" style="display:none">1</span>
-              <span id="cs-sRoll" style="display:none">—/3</span>
-              <span id="cs-sColor" style="display:none"></span>
-              <span id="cs-sNum" style="display:none"></span>
+              <!-- 4-column canvas footer: ROUND / ROLL / LAST LANDED / STATUS -->
+              <div class="cs-canvas-foot">
+                <div class="cs-cf-cell">
+                  <div class="cs-cf-label">ROUND</div>
+                  <div class="cs-cf-val" id="cs-sRound">1</div>
+                </div>
+                <div class="cs-cf-cell">
+                  <div class="cs-cf-label">ROLL</div>
+                  <div class="cs-cf-val" id="cs-sRoll">—/3</div>
+                </div>
+                <div class="cs-cf-cell cs-cf-cell--wide">
+                  <div class="cs-cf-label">LAST LANDED</div>
+                  <div class="cs-cf-val"><span id="cs-sColor" class="cs-cf-color"></span><span id="cs-sNum" class="cs-cf-num"></span></div>
+                </div>
+                <div class="cs-cf-cell cs-cf-cell--status">
+                  <div class="cs-cf-label">STATUS</div>
+                  <div class="cs-cf-val cs-cf-status-val" id="cs-statusBar">READY</div>
+                </div>
+              </div>
             </div>
 
             <!-- Right: outcome panel (redesigned) -->
@@ -3230,6 +3245,7 @@
             </div>
 
           </div><!-- end .cs-mid -->
+          </div><!-- end .cs-game-panel -->
 
           <!-- Betting felt -->
           <div class="cs-felt-wrap">
@@ -4346,7 +4362,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260508-cs-ranked"></script>
+    <script type="module" src="script.js?v=20260508-cs-panels"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
