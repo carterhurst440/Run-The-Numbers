@@ -36033,7 +36033,7 @@ function initColorSchemeGame() {
     const H = canvas.offsetHeight || canvas.clientHeight || 352;
     _csRenderer = new THREE.WebGLRenderer({canvas,antialias:true});
     _csRenderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-    _csRenderer.setSize(W,H,false);
+    _csRenderer.setSize(W,H);
     _csRenderer.shadowMap.enabled=true; _csRenderer.shadowMap.type=THREE.PCFSoftShadowMap;
     _csRenderer.setClearColor(0x080808);
 
@@ -36043,16 +36043,8 @@ function initColorSchemeGame() {
       const nW = canvas.offsetWidth || canvas.clientWidth;
       const nH = canvas.offsetHeight || canvas.clientHeight;
       if (!nW || !nH) return;
-      // On mobile, restrict rendering to the space left of the outcome panel
-      const outcomePanel = csEl('cs-col-outcome');
-      const isMobile = window.innerWidth <= 800;
-      const panelW = (isMobile && outcomePanel) ? (outcomePanel.offsetWidth || 0) : 0;
-      const renderW = Math.max(nW - panelW, 60);
-      _csRenderer.setSize(nW, nH, false); // false = don't resize canvas style
-      _csRenderer.setViewport(0, 0, renderW, nH);
-      _csRenderer.setScissor(0, 0, renderW, nH);
-      _csRenderer.setScissorTest(panelW > 0);
-      _csCamera.aspect = renderW / nH;
+      _csRenderer.setSize(nW, nH);
+      _csCamera.aspect = nW / nH;
       _csCamera.updateProjectionMatrix();
     };
     if (typeof ResizeObserver !== 'undefined') {

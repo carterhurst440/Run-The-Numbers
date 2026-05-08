@@ -25992,11 +25992,19 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
     right: 0; top: 0; bottom: 52px; /* 52px = mini hist height */
     width: clamp(140px, 42vw, 182px);
     z-index: 3;
-    background: rgba(6,6,5,0.80);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    border-left: 1px solid rgba(46,46,38,0.55);
+    background: rgba(6,6,5,0.12);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-left: 1px solid rgba(168,255,62,0.15);
     overflow: hidden;
+  }
+  /* Keep text readable over transparent background */
+  .cs-col-outcome .cs-col-hdr,
+  .cs-col-outcome .cs-oc-grand-total,
+  .cs-col-outcome .cs-oc-subtotals,
+  .cs-col-outcome .cs-oc-ranked-hdr,
+  .cs-col-outcome .cs-oc-ranked-list {
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8);
   }
 
   /* Roll tracker: shrink right so it doesn't go under outcome panel */
