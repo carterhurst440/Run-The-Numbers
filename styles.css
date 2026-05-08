@@ -21343,10 +21343,9 @@ body:not([data-ui="new"]) .auth-callback-spinner {
   pointer-events: none;
 }
 
-/* Home layout and sections: hidden until overlay exits */
+/* Home layout: always visible — sections reveal progressively as their data loads */
 #home-layout { transition: none; }
-body[data-home-loading] #home-layout { opacity: 0; pointer-events: none; }
-body[data-home-loading] .home-init-overlay { display: flex; }
+/* body[data-home-loading] no longer blocks #home-layout — progressive reveal */
 
 /* ── END OVERLAY ──────────────────────────────────────────────────────────── */
 
@@ -25862,7 +25861,8 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 }
 .cs-oc-rank-val {
   font-size: 18px; font-weight: 700; letter-spacing: -0.01em;
-  min-width: 28px; text-align: right;
+  min-width: 28px; text-align: left;
+  order: -1; /* always first in flex row */
 }
 
 /* Felt / Betting section — RTN-style dark monospace */
@@ -25985,6 +25985,39 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 
 /* Chip rack (pinned to bottom) */
 
+/* ── Mobile mini histogram (vertical bars, shown below canvas on mobile) ── */
+.cs-mini-hist {
+  display: none; /* hidden on desktop — shown via mobile media query */
+  height: 44px;
+  flex-shrink: 0;
+  border-top: 1px solid #2e2e26;
+  background: rgba(6,6,5,0.9);
+  overflow: hidden;
+}
+.cs-mini-hist-track {
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+  gap: 1px;
+  padding: 4px 4px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.cs-mini-hist-track::-webkit-scrollbar { display: none; }
+.cs-mini-bar {
+  display: flex;
+  flex-direction: column-reverse;
+  width: 7px;
+  flex-shrink: 0;
+  min-height: 4px;
+  overflow: hidden;
+  border-radius: 1px 1px 0 0;
+  opacity: 0.75;
+}
+.cs-mini-bar.cs-mini-bar-current { opacity: 1; outline: 1px solid rgba(168,255,62,0.5); }
+.cs-mini-seg { width: 100%; }
+
 /* ── Mobile histogram modal ──────────────────────────────────────────────── */
 .cs-hist-modal-btn { display: none; } /* hidden on desktop */
 
@@ -26089,12 +26122,12 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   /* Hand Outcome: right overlay — starts BELOW the roll tracker */
   .cs-col-outcome {
     position: absolute;
-    right: 0; top: 56px; bottom: 0;
+    right: 0; top: 72px; bottom: 44px; /* 44px = mini hist height */
     width: clamp(140px, 42vw, 182px);
     z-index: 3;
-    background: rgba(6,6,5,0.82);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: rgba(6,6,5,0.93);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     border-left: 1px solid rgba(46,46,38,0.55);
     border-top: 1px solid rgba(46,46,38,0.4);
     overflow: hidden;
@@ -26150,12 +26183,23 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   .cs-col-outcome .cs-oc-ranked-list .cs-oc-ranked-item,
   .cs-col-outcome .cs-oc-ranked-list > * { padding: 2px 7px; font-size: 9px; }
 
+  /* Replace canvas footer with mini histogram on mobile */
+  .cs-canvas-foot { display: none; }
+  .cs-mini-hist { display: flex; }
+
+  /* Ranked list: hide tag/formula, larger val, compact rows */
+  .cs-col-outcome .cs-oc-rank-tag,
+  .cs-col-outcome .cs-oc-rank-formula { display: none; }
+  .cs-col-outcome .cs-oc-rank-num { display: none; }
+  .cs-col-outcome .cs-oc-rank-val { font-size: 15px; min-width: 22px; }
+  .cs-col-outcome .cs-oc-rank-name { font-size: 9px; min-width: auto; }
+  .cs-col-outcome .cs-oc-rank-row { gap: 5px; padding: 3px 7px; }
+
   /* Other mobile tweaks */
   .cs-felt-row { gap: 4px; }
   .cs-bet-zone { min-width: 44px; max-width: 80px; }
   .cs-roll-tracker { min-height: 56px; }
   .cs-rts-num { font-size: 16px; }
-  .cs-cf-cell { padding: 0 8px; }
 }
 
 @media (max-width: 500px) {

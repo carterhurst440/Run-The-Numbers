@@ -34449,14 +34449,25 @@ let _homeInitTimeout = null;
 let _hioScrambleId = null;
 
 function homeGlitchSection(sectionId) {
-  // Mark section data as ready; reveal fires when all sections are ready
+  // Progressive reveal: each section appears immediately when its data is ready
   if (_homeInitComplete) return;
   _homeInitReady.add(sectionId);
-  // Advance progress bar
+
+  // Reveal this section immediately
+  const el = document.querySelector(`[data-home-section="${sectionId}"]`);
+  if (el) {
+    el.removeAttribute('data-home-loading');
+    el.classList.remove('is-glitch-enter');
+    void el.offsetWidth;
+    el.classList.add('is-glitch-enter');
+  }
+
+  // Advance progress bar (kept for reference, overlay is non-blocking)
   const pct = Math.round((_homeInitReady.size / HOME_INIT_SECTIONS.length) * 100);
   const bar = document.getElementById('home-init-progress');
   if (bar) bar.style.width = pct + '%';
-  // Check if all sections ready
+
+  // Dismiss overlay once all sections are ready
   if (HOME_INIT_SECTIONS.every(s => _homeInitReady.has(s))) {
     _homeHomeRevealAll();
   }
@@ -34468,36 +34479,25 @@ function _homeHomeRevealAll() {
   if (_homeInitTimeout) { clearTimeout(_homeInitTimeout); _homeInitTimeout = null; }
   if (_hioScrambleId) { clearInterval(_hioScrambleId); _hioScrambleId = null; }
 
-  const overlay = document.getElementById('home-init-overlay');
-  const layout = document.getElementById('home-layout');
-
-  // Set label to resolved state
-  const labelEl = document.getElementById('home-init-label');
-  if (labelEl) labelEl.textContent = '// READY';
-
-  // Show layout (was opacity:0 via data-home-loading on body)
+  // Ensure body & any remaining unloaded sections are visible
   document.body.removeAttribute('data-home-loading');
-
-  // Play overlay exit, then stagger-reveal sections
-  if (overlay) {
-    overlay.removeAttribute('hidden');
-    overlay.classList.add('is-exiting');
-    // Remove overlay after animation
-    overlay.addEventListener('animationend', () => overlay.setAttribute('hidden', ''), { once: true });
-  }
-
-  // Stagger section reveals starting ~100ms in (overlay is exiting)
-  HOME_REVEAL_ORDER.forEach((sectionId, i) => {
-    setTimeout(() => {
-      const el = document.querySelector(`[data-home-section="${sectionId}"]`);
-      if (!el) return;
+  HOME_REVEAL_ORDER.forEach(sectionId => {
+    const el = document.querySelector(`[data-home-section="${sectionId}"]`);
+    if (!el) return;
+    if (el.hasAttribute('data-home-loading')) {
       el.removeAttribute('data-home-loading');
       el.classList.remove('is-glitch-enter');
-      el.style.setProperty('--glitch-delay', '0ms');
       void el.offsetWidth;
       el.classList.add('is-glitch-enter');
-    }, 100 + i * 70);
+    }
   });
+
+  // Dismiss overlay
+  const overlay = document.getElementById('home-init-overlay');
+  if (overlay && !overlay.hidden) {
+    overlay.classList.add('is-exiting');
+    overlay.addEventListener('animationend', () => overlay.setAttribute('hidden', ''), { once: true });
+  }
 }
 
 function homeResetLoadingStates() {
@@ -34506,29 +34506,18 @@ function homeResetLoadingStates() {
   if (_homeInitTimeout) { clearTimeout(_homeInitTimeout); _homeInitTimeout = null; }
   if (_hioScrambleId) { clearInterval(_hioScrambleId); _hioScrambleId = null; }
 
-  // Hide the layout, show overlay
-  document.body.setAttribute('data-home-loading', '');
+  // Hide individual sections until their data loads (body layout is always visible)
   document.querySelectorAll('[data-home-section]').forEach(el => {
     el.setAttribute('data-home-loading', '');
     el.classList.remove('is-glitch-enter');
     el.style.removeProperty('--glitch-delay');
   });
 
-  // Show overlay and start scramble
-  const overlay = document.getElementById('home-init-overlay');
-  if (overlay) {
-    overlay.removeAttribute('hidden');
-    overlay.classList.remove('is-exiting');
-    const bar = document.getElementById('home-init-progress');
-    if (bar) bar.style.width = '0%';
-    _homeStartScramble();
-  }
-
-  // Safety timeout — force reveal after 6s if sections don't all report in
+  // Safety timeout — force reveal after 4s for any sections that never report in
   _homeInitTimeout = setTimeout(() => {
     HOME_INIT_SECTIONS.forEach(s => _homeInitReady.add(s));
     _homeHomeRevealAll();
-  }, 6000);
+  }, 4000);
 }
 
 function _homeStartScramble() {
@@ -35377,6 +35366,32 @@ function _csRenderHistBars(chart, maxTotal) {
   chart.scrollTop = 0;
 }
 
+function _csRenderMiniHist() {
+  const track = csEl('cs-mini-hist-track');
+  if (!track) return;
+  const COLOR_HEX = {RED:'#ff4444',BLUE:'#4488ff',YELLOW:'#ffdd00',PURPLE:'#cc44ff',GREEN:'#33ee66',ORANGE:'#ff8833'};
+  const COLOR_NAMES = ['RED','BLUE','YELLOW','PURPLE','GREEN','ORANGE'];
+  const maxTotal = Math.max(..._csHistoryData.map(d => d.total), 1);
+  track.innerHTML = '';
+  _csHistoryData.forEach(d => {
+    const col = document.createElement('div');
+    col.className = 'cs-mini-bar' + (d.roundNum === _csHistoryData.length ? ' cs-mini-bar-current' : '');
+    const heightPct = Math.max(6, Math.round((d.total / maxTotal) * 100));
+    col.style.height = heightPct + '%';
+    COLOR_NAMES.forEach(color => {
+      const val = d.totals[color] || 0;
+      if (!val) return;
+      const seg = document.createElement('div');
+      seg.className = 'cs-mini-seg';
+      seg.style.height = ((val / d.total) * 100) + '%';
+      seg.style.background = COLOR_HEX[color];
+      col.appendChild(seg);
+    });
+    track.appendChild(col);
+  });
+  track.scrollLeft = track.scrollWidth;
+}
+
 function csRenderHistogram() {
   const chart = csEl('cs-histChart');
   if (!chart) return;
@@ -35389,6 +35404,8 @@ function csRenderHistogram() {
   const peakEl = csEl('cs-histPeak'); if (peakEl) peakEl.textContent = maxTotal;
 
   _csRenderHistBars(chart, maxTotal);
+
+  _csRenderMiniHist();
 
   // Also render into modal chart (kept in sync for mobile)
   const modalChart = csEl('cs-histChart-modal');
@@ -35423,12 +35440,11 @@ function csRenderRankedColors(totals, grandTotal) {
     row.className = 'cs-oc-rank-row' + (val === maxVal ? ' cs-color-winner' : '');
     if (val === maxVal) row.style.borderLeftColor = COLOR_HEX[col];
     row.innerHTML = `
-      <span class="cs-oc-rank-num">${String(i+1).padStart(2,'0')}</span>
+      <span class="cs-oc-rank-val" style="color:${COLOR_HEX[col]}">${val}</span>
       <div class="cs-oc-rank-dot" style="background:${COLOR_HEX[col]};box-shadow:0 0 5px ${COLOR_HEX[col]}"></div>
       <span class="cs-oc-rank-name" style="color:${COLOR_HEX[col]}">${col}</span>
       <span class="cs-oc-rank-tag">${isPrimary[col]?'PRIMARY':'SECONDARY'}</span>
       <span class="cs-oc-rank-formula">${formula && formula !== '—' ? formula : ''}</span>
-      <span class="cs-oc-rank-val" style="color:${COLOR_HEX[col]}">${val}</span>
     `;
     list.appendChild(row);
   });
@@ -35534,7 +35550,8 @@ async function csSettleBetsOnServer(roundId, totals, grandTotal) {
         raw: { totals, grand_total: grandTotal }
       }).eq('id', bet.id);
     }));
-    const totalWagered = Object.values(_csBets).reduce((a, b) => a + b, 0);
+    // Use DB bets for totalWagered — in-memory _csBets may be empty (cross-device / restore)
+    const totalWagered = bets.reduce((sum, bet) => sum + Number(bet.amount_wagered || 0), 0);
     const totalReturned = bets.reduce((sum, bet) => {
       const won = csIsCurrentlyWinning(bet.bet_key, totals, grandTotal);
       const base = won ? Math.floor(bet.amount_wagered * CS_ODDS[bet.bet_key]) : 0;
@@ -36019,6 +36036,7 @@ function initColorSchemeGame() {
     if (histChartM) histChartM.innerHTML = '<div class="cs-hist-empty" id="cs-histEmpty-modal">NO HISTORY YET</div>';
     const histCountM = csEl('cs-histCount-modal'); if (histCountM) histCountM.textContent = '0';
     const histPeakM  = csEl('cs-histPeak-modal');  if (histPeakM)  histPeakM.textContent  = '—';
+    const miniTrack = csEl('cs-mini-hist-track'); if (miniTrack) miniTrack.innerHTML = '';
     // Clear stale outcome/tracker UI so a refreshed page doesn't show a previous round
     csResetOutcome(); csResetTracker(); csClearBetResults(); csRenderTotalWagered();
     csRenderChipRack();

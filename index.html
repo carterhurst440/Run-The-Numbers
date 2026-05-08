@@ -3223,6 +3223,10 @@
               </div>
               <!-- Canvas -->
               <canvas id="cs-three-canvas" aria-label="Dice physics simulation"></canvas>
+              <!-- Mini histogram: vertical bars, mobile only (replaces canvas footer) -->
+              <div class="cs-mini-hist" id="cs-mini-hist" aria-hidden="true">
+                <div class="cs-mini-hist-track" id="cs-mini-hist-track"></div>
+              </div>
               <!-- 4-column canvas footer: ROUND / ROLL / LAST LANDED / STATUS -->
               <div class="cs-canvas-foot">
                 <div class="cs-cf-cell">
@@ -4414,7 +4418,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260508-cs-mobile-hist-modal"></script>
+    <script type="module" src="script.js?v=20260508-cs-mobile-v2"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
