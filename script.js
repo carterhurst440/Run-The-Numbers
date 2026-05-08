@@ -2895,6 +2895,7 @@ function renderHomeRankLadder() {
     homeRankLadderPanelEl.hidden = true;
     homeRankLadderListEl.innerHTML = "";
     if (homeRankLadderCurrentEl) homeRankLadderCurrentEl.textContent = "";
+    homeGlitchSection('tier');
     return;
   }
 
@@ -2902,6 +2903,7 @@ function renderHomeRankLadder() {
   if (!ladder.length) {
     homeRankLadderPanelEl.hidden = true;
     homeRankLadderListEl.innerHTML = "";
+    homeGlitchSection('tier');
     return;
   }
 
@@ -34159,7 +34161,7 @@ let homePnlCtx = homePnlChartCanvas ? homePnlChartCanvas.getContext("2d") : null
 let homePnlHoverBars = [];
 
 function renderHomePlayerHero() {
-  if (!currentProfile) return;
+  if (!currentProfile) { homeGlitchSection('hero'); return; }
   const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   const firstName = currentProfile.first_name || "";
   const lastName = currentProfile.last_name || "";
@@ -34202,7 +34204,7 @@ function renderHomePlayerHero() {
 }
 
 function renderHomeStatCards() {
-  if (!currentProfile) return;
+  if (!currentProfile) { homeGlitchSection('stats'); return; }
 
   const rtnHands = Math.max(0, Math.round(Number(currentProfile.run_the_numbers_hands_played_all_time || 0)));
   const g10Hands = Math.max(0, Math.round(Number(currentProfile.guess10_hands_played_all_time || 0)));
@@ -34301,10 +34303,11 @@ function closeHomeTradeDetailModal() {
 })();
 
 function renderHomeSidebarActivity() {
-  if (!homeSidebarActivityEl) return;
+  if (!homeSidebarActivityEl) { homeGlitchSection('activity'); return; }
   const entries = activityLogEntries.slice(0, 25);
   if (!entries.length) {
     homeSidebarActivityEl.innerHTML = '<li class="home-sb-activity-empty">No activity yet.</li>';
+    homeGlitchSection('activity');
     return;
   }
   homeSidebarActivityEl.innerHTML = entries.map((entry, idx) => {
@@ -34383,7 +34386,7 @@ function getHomePnlFilteredPoints() {
 }
 
 function drawHomePnlChart() {
-  if (!homePnlChartCanvas || !homePnlCtx) return;
+  if (!homePnlChartCanvas || !homePnlCtx) { homeGlitchSection('pnl'); return; }
   const points = getHomePnlFilteredPoints();
   const values = points.map((p) => Number(p?.pnlTotal ?? p?.dayNet ?? 0));
   const totalPnl = roundCurrencyValue(values.reduce((s, v) => s + v, 0));
@@ -34434,21 +34437,119 @@ function drawHomePnlChart() {
   homeGlitchSection('pnl');
 }
 
-// ── Home section glitch-materialize helpers ───────────────────────────────
+// ── Home init overlay + coordinated glitch reveal ────────────────────────
+const HOME_INIT_SECTIONS = ['hero', 'stats', 'tier', 'activity', 'pnl'];
+// Stagger order: left-col top-to-bottom, then sidebar top-to-bottom
+const HOME_REVEAL_ORDER = ['hero', 'stats', 'tier', 'activity', 'pnl'];
+const SCRAMBLE_GLYPHS = '╔╗╚╝║═╠╣╦╩╬█▓▒░▄▀◆◇■□▪▫⬡⬢';
+
+let _homeInitReady = new Set();
+let _homeInitComplete = false;
+let _homeInitTimeout = null;
+let _hioScrambleId = null;
+
 function homeGlitchSection(sectionId) {
-  const el = document.querySelector(`[data-home-section="${sectionId}"]`);
-  if (!el) return;
-  el.removeAttribute('data-home-loading');
-  el.classList.remove('is-glitch-enter');
-  void el.offsetWidth; // force reflow so animation restarts cleanly
-  el.classList.add('is-glitch-enter');
+  // Mark section data as ready; reveal fires when all sections are ready
+  if (_homeInitComplete) return;
+  _homeInitReady.add(sectionId);
+  // Advance progress bar
+  const pct = Math.round((_homeInitReady.size / HOME_INIT_SECTIONS.length) * 100);
+  const bar = document.getElementById('home-init-progress');
+  if (bar) bar.style.width = pct + '%';
+  // Check if all sections ready
+  if (HOME_INIT_SECTIONS.every(s => _homeInitReady.has(s))) {
+    _homeHomeRevealAll();
+  }
+}
+
+function _homeHomeRevealAll() {
+  if (_homeInitComplete) return;
+  _homeInitComplete = true;
+  if (_homeInitTimeout) { clearTimeout(_homeInitTimeout); _homeInitTimeout = null; }
+  if (_hioScrambleId) { clearInterval(_hioScrambleId); _hioScrambleId = null; }
+
+  const overlay = document.getElementById('home-init-overlay');
+  const layout = document.getElementById('home-layout');
+
+  // Set label to resolved state
+  const labelEl = document.getElementById('home-init-label');
+  if (labelEl) labelEl.textContent = '// READY';
+
+  // Show layout (was opacity:0 via data-home-loading on body)
+  document.body.removeAttribute('data-home-loading');
+
+  // Play overlay exit, then stagger-reveal sections
+  if (overlay) {
+    overlay.removeAttribute('hidden');
+    overlay.classList.add('is-exiting');
+    // Remove overlay after animation
+    overlay.addEventListener('animationend', () => overlay.setAttribute('hidden', ''), { once: true });
+  }
+
+  // Stagger section reveals starting ~100ms in (overlay is exiting)
+  HOME_REVEAL_ORDER.forEach((sectionId, i) => {
+    setTimeout(() => {
+      const el = document.querySelector(`[data-home-section="${sectionId}"]`);
+      if (!el) return;
+      el.removeAttribute('data-home-loading');
+      el.classList.remove('is-glitch-enter');
+      el.style.setProperty('--glitch-delay', '0ms');
+      void el.offsetWidth;
+      el.classList.add('is-glitch-enter');
+    }, 100 + i * 70);
+  });
 }
 
 function homeResetLoadingStates() {
+  _homeInitReady.clear();
+  _homeInitComplete = false;
+  if (_homeInitTimeout) { clearTimeout(_homeInitTimeout); _homeInitTimeout = null; }
+  if (_hioScrambleId) { clearInterval(_hioScrambleId); _hioScrambleId = null; }
+
+  // Hide the layout, show overlay
+  document.body.setAttribute('data-home-loading', '');
   document.querySelectorAll('[data-home-section]').forEach(el => {
     el.setAttribute('data-home-loading', '');
     el.classList.remove('is-glitch-enter');
+    el.style.removeProperty('--glitch-delay');
   });
+
+  // Show overlay and start scramble
+  const overlay = document.getElementById('home-init-overlay');
+  if (overlay) {
+    overlay.removeAttribute('hidden');
+    overlay.classList.remove('is-exiting');
+    const bar = document.getElementById('home-init-progress');
+    if (bar) bar.style.width = '0%';
+    _homeStartScramble();
+  }
+
+  // Safety timeout — force reveal after 6s if sections don't all report in
+  _homeInitTimeout = setTimeout(() => {
+    HOME_INIT_SECTIONS.forEach(s => _homeInitReady.add(s));
+    _homeHomeRevealAll();
+  }, 6000);
+}
+
+function _homeStartScramble() {
+  const el = document.getElementById('home-init-label');
+  if (!el) return;
+  const target = '// INITIALIZING';
+  let tick = 0;
+  const totalTicks = 36; // ~2.2s at 60ms intervals
+  _hioScrambleId = setInterval(() => {
+    const t = tick / totalTicks;
+    el.textContent = target.split('').map((ch, i) => {
+      if (ch === '/' || ch === ' ') return ch;
+      const resolveAt = 0.35 + (i / target.length) * 0.55;
+      return t >= resolveAt ? ch : SCRAMBLE_GLYPHS[Math.floor(Math.random() * SCRAMBLE_GLYPHS.length)];
+    }).join('');
+    if (tick++ >= totalTicks) {
+      el.textContent = target;
+      clearInterval(_hioScrambleId);
+      _hioScrambleId = null;
+    }
+  }, 60);
 }
 
 function refreshHomeDashboard() {

@@ -636,8 +636,16 @@
       <main class="app-main">
         <section id="home-view" class="route-view app-page home-view" hidden aria-labelledby="home-title">
           <h1 id="home-title" class="sr-only">Casino Floor</h1>
+          <!-- Initializing overlay — covers home layout while data loads -->
+          <div id="home-init-overlay" class="home-init-overlay" aria-live="polite" hidden>
+            <div class="hio-inner">
+              <div class="hio-label" id="home-init-label">// INITIALIZING</div>
+              <div class="hio-progress-track"><div class="hio-progress-fill" id="home-init-progress"></div></div>
+              <div class="hio-hint">CARTER'S CASINO</div>
+            </div>
+          </div>
           <canvas id="home-dot-canvas" class="home-neural-bg" aria-hidden="true"></canvas>
-          <div class="home-layout">
+          <div class="home-layout" id="home-layout">
 
             <!-- MAIN COLUMN -->
             <div class="home-main">
@@ -816,7 +824,7 @@
 
             </aside><!-- /home-sidebar -->
 
-          </div><!-- /home-layout -->
+          </div><!-- /home-layout #home-layout -->
         </section>
 
         <section id="play-view" class="route-view app-page home-view play-hub-view" hidden aria-labelledby="play-title">
@@ -4374,7 +4382,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260508-home-glitch"></script>
+    <script type="module" src="script.js?v=20260508-home-init"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
