@@ -19820,9 +19820,8 @@ function shouldDisplayLocalBankroll() {
     redBlackHandActive ||
     redBlackSettlementPending ||
     redBlackAwaitingDecision;
-  const hasColorSchemeExposure =
-    typeof _csBets !== 'undefined' &&
-    Object.values(_csBets).reduce((a, b) => a + b, 0) > 0;
+  let hasColorSchemeExposure = false;
+  try { hasColorSchemeExposure = Object.values(_csBets).reduce((a, b) => a + b, 0) > 0; } catch (e) {}
 
   return hasRunTheNumbersExposure || hasGuess10Exposure || hasColorSchemeExposure;
 }
