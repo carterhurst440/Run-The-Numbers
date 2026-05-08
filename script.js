@@ -16411,7 +16411,8 @@ async function openGameActivityChart(gameId) {
   const GAMES = {
     game_001: { title: "RTN ACTIVITY", subtitle: "Hands per day — last 30 days", unit: "hands", accent: "#e8a020" },
     game_002: { title: "GUESS 10 ACTIVITY", subtitle: "Hands per day — last 30 days", unit: "hands", accent: "#00e5ff" },
-    game_003: { title: "SHAPE TRADERS ACTIVITY", subtitle: "Trades per day — last 30 days", unit: "trades", accent: "#c8ff00" }
+    game_003: { title: "SHAPE TRADERS ACTIVITY", subtitle: "Trades per day — last 30 days", unit: "trades", accent: "#c8ff00" },
+    game_004: { title: "RYB ACTIVITY", subtitle: "Rounds per day — last 30 days", unit: "rounds", accent: "#ff4444" }
   };
   const game = GAMES[gameId] || GAMES.game_001;
 
@@ -16446,6 +16447,9 @@ async function openGameActivityChart(gameId) {
     } else if (gameId === "game_003") {
       const { data } = await supabase.from("shape_trader_trades").select("executed_at").eq("user_id", currentUser.id).gte("executed_at", cutoff);
       rows = (data || []).map(r => r.executed_at);
+    } else if (gameId === "game_004") {
+      const { data } = await supabase.from("color_scheme_rounds").select("created_at").eq("user_id", currentUser.id).eq("status", "completed").gte("created_at", cutoff);
+      rows = (data || []).map(r => r.created_at);
     }
 
     const countsByDay = {};
