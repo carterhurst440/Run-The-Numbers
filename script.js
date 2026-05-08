@@ -35377,12 +35377,13 @@ async function csSettleBetsOnServer(roundId, totals, grandTotal) {
     animateBankrollOutcome(netThisRound);  // shows toast + animates header
     await persistBankroll();
 
-    await supabase.from('color_scheme_rounds').update({
+    const { error: settleErr } = await supabase.from('color_scheme_rounds').update({
       status: 'completed',
       total_wagered: totalWagered,
       total_returned: totalReturned,
       net_profit: netThisRound
     }).eq('id', roundId);
+    if (settleErr) console.error('[CS] round settle update failed:', settleErr.message, settleErr);
 
     await incrementProfileHandProgress(1, GAME_KEYS.COLOR_SCHEME);
     await ensureProfileSynced({ force: true });
@@ -35762,12 +35763,14 @@ async function csRecoverIncompleteRound() {
       await persistBankroll();
     }
     // Mark as abandoned so it won't trigger recovery again
-    await supabase.from('color_scheme_rounds').update({
+    const { error: abandonErr } = await supabase.from('color_scheme_rounds').update({
       status: 'abandoned',
       total_wagered: wageredTotal,
       total_returned: wageredTotal
     }).eq('id', round.id);
-    if (wageredTotal > 0) {
+    if (abandonErr) {
+      console.error('[CS] recovery abandon update failed:', abandonErr.message, abandonErr);
+    } else if (wageredTotal > 0) {
       showToast(`Previous RYB round recovered — $${wageredTotal} refunded.`, 'info');
     }
   } catch(e) { console.warn('[CS] csRecoverIncompleteRound error:', e); }
