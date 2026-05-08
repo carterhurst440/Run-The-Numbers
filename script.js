@@ -35921,16 +35921,29 @@ async function csRestoreIncompleteRound() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 
+    // Fetch the most recent round that is genuinely mid-play:
+    // - not completed/complete/abandoned/settling (any spelling)
+    // - created within the last 4 hours (stale rounds from other sessions are ignored)
+    const cutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
     const { data: round } = await supabase
       .from('color_scheme_rounds')
-      .select('id, status, roll_1, roll_2, roll_3')
+      .select('id, status, roll_1, roll_2, roll_3, created_at')
       .eq('user_id', user.id)
-      .neq('status', 'completed')
-      .neq('status', 'abandoned')
+      .eq('status', 'in_progress')   // only exact in_progress — excludes complete/completed/abandoned
+      .gte('created_at', cutoff)      // ignore rounds older than 4 hours
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
     if (!round) return false;
+
+    // If all 3 rolls are already stored, this round finished on another device.
+    // Mark it completed so it never surfaces again, and don't restore.
+    if (round.roll_1 && round.roll_2 && round.roll_3) {
+      await supabase.from('color_scheme_rounds')
+        .update({ status: 'completed' })
+        .eq('id', round.id);
+      return false;
+    }
 
     const { data: betRows } = await supabase
       .from('color_scheme_bets')
@@ -35976,16 +35989,8 @@ async function csRestoreIncompleteRound() {
       csShowOutcome(_csRoundRolls);
     }
 
-    if (_csRoundRolls.length === 3) {
-      // All rolls done — re-run settlement (covers crash/disconnect before payout)
-      const { totals } = csCalcOutcome(_csRoundRolls);
-      const grandTotal = Object.values(totals).reduce((a, b) => a + b, 0);
-      csSetBetState('settling');
-      csEvaluateBets(totals, grandTotal);
-      return true;
-    }
-
     // 0–2 rolls: lock betting, let player continue rolling
+    // (3-roll case already handled above — those are done rounds from other devices)
     csSetBetState(_csRoundRolls.length > 0 ? 'locked' : 'open');
     const remaining = 3 - _csRoundRolls.length;
     showToast(`Round restored — ${remaining} roll${remaining !== 1 ? 's' : ''} remaining.`, 'info');
@@ -36127,7 +36132,29 @@ function initColorSchemeGame() {
     }).then(async ()=>{
       if(sBar){sBar.textContent='';sBar.classList.remove('cs-active');}
 
-      // Restore any in-progress round (sets _csBets, _csRoundRolls, _csRoll) — no refunds
+      // Sweep: mark any leftover complete/in_progress+old rounds as completed so they
+      // never resurface on another device. Fire-and-forget, don't await.
+      if (supabase && !isGuestRuntimeUser()) {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (!user) return;
+          const stale = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+          // Mark 'complete' (bad spelling) → 'completed'
+          supabase.from('color_scheme_rounds')
+            .update({ status: 'completed' })
+            .eq('user_id', user.id)
+            .eq('status', 'complete')
+            .then(() => {});
+          // Mark old in_progress rounds (>4h) → 'abandoned'
+          supabase.from('color_scheme_rounds')
+            .update({ status: 'abandoned' })
+            .eq('user_id', user.id)
+            .eq('status', 'in_progress')
+            .lt('created_at', stale)
+            .then(() => {});
+        });
+      }
+
+      // Restore any genuinely in-progress round (sets _csBets, _csRoundRolls, _csRoll) — no refunds
       await csRestoreIncompleteRound();
 
       // Set roll button state based on restored round (or fresh start)
