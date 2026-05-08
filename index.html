@@ -3150,40 +3150,7 @@
             </div>
           </div>
 
-          <!-- How to Play modal -->
-          <div id="cs-how-to-play-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="cs-htp-title" hidden>
-            <div class="modal-content">
-              <div class="modal-header">
-                <h2 id="cs-htp-title">How to Play — Color Scheme</h2>
-                <button type="button" class="modal-close" id="cs-howToPlayClose" aria-label="Close">×</button>
-              </div>
-              <div class="modal-body cs-htp-body">
-                <div class="cs-htp-section">
-                  <div class="cs-htp-label">THE ROUND</div>
-                  <p class="cs-htp-text">Each round has <strong>3 rolls</strong>. Every roll lands a color die (R·Y·B) and a number die (1–6). The number adds to that color's running total.</p>
-                </div>
-                <div class="cs-htp-section">
-                  <div class="cs-htp-label">SCORING</div>
-                  <p class="cs-htp-text"><strong>Primary score</strong> = Red + Yellow + Blue totals combined.<br><strong>Secondary score</strong> = Orange + Green + Purple totals combined.<br><strong>Grand total</strong> = Primary + Secondary.</p>
-                </div>
-                <div class="cs-htp-section">
-                  <div class="cs-htp-label">BETS</div>
-                  <div class="cs-htp-odds-grid">
-                    <div class="cs-htp-odd"><span class="cs-htp-odd-key">PRIMARY</span><span class="cs-htp-odd-val">Primary &gt; 18 → 2× (5% commission)</span></div>
-                    <div class="cs-htp-odd"><span class="cs-htp-odd-key">SECONDARY</span><span class="cs-htp-odd-val">Secondary &gt; 18 → 2×</span></div>
-                    <div class="cs-htp-odd"><span class="cs-htp-odd-key">RED / YELLOW / BLUE</span><span class="cs-htp-odd-val">Top primary color → 3×</span></div>
-                    <div class="cs-htp-odd"><span class="cs-htp-odd-key">ORANGE / GREEN / PURPLE</span><span class="cs-htp-odd-val">Top secondary color → 3×</span></div>
-                    <div class="cs-htp-odd"><span class="cs-htp-odd-key">NUMBERS 1–6</span><span class="cs-htp-odd-val">Grand total lands on that number → 5×</span></div>
-                    <div class="cs-htp-odd"><span class="cs-htp-odd-key">OVER / UNDER 21</span><span class="cs-htp-odd-val">Grand total over or under 21 → 2×</span></div>
-                  </div>
-                </div>
-                <div class="cs-htp-section">
-                  <div class="cs-htp-label">TIPS</div>
-                  <p class="cs-htp-text">Place all bets before the first roll — the mat locks when rolling begins. Primary and Secondary bets pay on the combined team score. Color bets pay on which single color accumulated the most points across all 3 rolls.</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <!-- How to Play modal moved to root level (below) to escape stacking context -->
 
           <!-- Histogram tooltip (fixed-positioned) -->
           <div id="cs-histTooltip" class="cs-hist-tooltip">
@@ -4462,7 +4429,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260508-cs-mobile-v28"></script>
+    <script type="module" src="script.js?v=20260508-cs-mobile-v29"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
@@ -4478,6 +4445,41 @@
       </div>
     </div>
   </div>
+  <!-- Color Scheme: How to Play modal (root level so it clears the Three.js stacking context) -->
+  <div id="cs-how-to-play-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="cs-htp-title" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="cs-htp-title">How to Play — Color Scheme</h2>
+        <button type="button" class="modal-close" id="cs-howToPlayClose" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body cs-htp-body">
+        <div class="cs-htp-section">
+          <div class="cs-htp-label">THE ROUND</div>
+          <p class="cs-htp-text">Each round has <strong>3 rolls</strong>. Every roll lands a color die (R·Y·B) and a number die (1–6). The number adds to that color's running total.</p>
+        </div>
+        <div class="cs-htp-section">
+          <div class="cs-htp-label">SCORING</div>
+          <p class="cs-htp-text"><strong>Primary score</strong> = Red + Yellow + Blue totals combined.<br><strong>Secondary score</strong> = Orange + Green + Purple totals combined.<br><strong>Grand total</strong> = Primary + Secondary.</p>
+        </div>
+        <div class="cs-htp-section">
+          <div class="cs-htp-label">BETS</div>
+          <div class="cs-htp-odds-grid">
+            <div class="cs-htp-odd"><span class="cs-htp-odd-key">PRIMARY</span><span class="cs-htp-odd-val">Primary &gt; 18 → 2× (5% commission)</span></div>
+            <div class="cs-htp-odd"><span class="cs-htp-odd-key">SECONDARY</span><span class="cs-htp-odd-val">Secondary &gt; 18 → 2×</span></div>
+            <div class="cs-htp-odd"><span class="cs-htp-odd-key">RED / YELLOW / BLUE</span><span class="cs-htp-odd-val">Top primary color → 3×</span></div>
+            <div class="cs-htp-odd"><span class="cs-htp-odd-key">ORANGE / GREEN / PURPLE</span><span class="cs-htp-odd-val">Top secondary color → 3×</span></div>
+            <div class="cs-htp-odd"><span class="cs-htp-odd-key">NUMBERS 1–6</span><span class="cs-htp-odd-val">Grand total lands on that number → 5×</span></div>
+            <div class="cs-htp-odd"><span class="cs-htp-odd-key">OVER / UNDER 21</span><span class="cs-htp-odd-val">Grand total over or under 21 → 2×</span></div>
+          </div>
+        </div>
+        <div class="cs-htp-section">
+          <div class="cs-htp-label">TIPS</div>
+          <p class="cs-htp-text">Place all bets before the first roll — the mat locks when rolling begins. Primary and Secondary bets pay on the combined team score. Color bets pay on which single color accumulated the most points across all 3 rolls.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal info-modal" id="carter-cash-modal" role="dialog" aria-modal="true" aria-labelledby="carter-cash-modal-title" hidden>
     <div class="modal-content">
       <div class="modal-header">
