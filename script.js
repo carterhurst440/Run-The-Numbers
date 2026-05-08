@@ -20142,7 +20142,11 @@ async function persistBankroll({
       });
 
       if (secureContestSave?.error) {
-        if (!isMissingRpcError(secureContestSave.error)) {
+        // Fall back to direct update if the RPC doesn't exist OR if the RPC
+        // references a column that doesn't exist on contest_entries (e.g. updated_at).
+        const rpcFallbackNeeded = isMissingRpcError(secureContestSave.error)
+          || isMissingColumnError(secureContestSave.error, "updated_at");
+        if (!rpcFallbackNeeded) {
           throw secureContestSave.error;
         }
         ({ data: updatedContestEntry, error: contestEntryError } = await supabase
