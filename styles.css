@@ -26134,6 +26134,29 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   min-width: 100px;
 }
 .cs-htp-odd-val { color: rgba(255,255,255,0.6); line-height: 1.45; }
+.cs-htp-rules-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.cs-htp-rule {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  background: rgba(168,255,62,0.03);
+  border-left: 2px solid rgba(168,255,62,0.25);
+}
+.cs-htp-rule-head {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(168,255,62,0.85);
+}
+.cs-htp-rule-body {
+  font-size: 11px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.62);
+}
+.cs-htp-rule-body strong { color: rgba(255,255,255,0.9); }
 
 /* ── Mobile histogram modal ──────────────────────────────────────────────── */
 .cs-hist-modal-btn { display: none; } /* hidden on desktop */

@@ -4430,7 +4430,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260508-cs-mobile-v33"></script>
+    <script type="module" src="script.js?v=20260508-cs-mobile-v34"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
@@ -4463,14 +4463,25 @@
           <p class="cs-htp-text"><strong>Primary score</strong> = Red + Yellow + Blue totals combined.<br><strong>Secondary score</strong> = Orange + Green + Purple totals combined.<br><strong>Grand total</strong> = Primary + Secondary.</p>
         </div>
         <div class="cs-htp-section">
-          <div class="cs-htp-label">BETS</div>
-          <div class="cs-htp-odds-grid">
-            <div class="cs-htp-odd"><span class="cs-htp-odd-key">PRIMARY</span><span class="cs-htp-odd-val">Primary &gt; 18 → 2× (5% commission)</span></div>
-            <div class="cs-htp-odd"><span class="cs-htp-odd-key">SECONDARY</span><span class="cs-htp-odd-val">Secondary &gt; 18 → 2×</span></div>
-            <div class="cs-htp-odd"><span class="cs-htp-odd-key">RED / YELLOW / BLUE</span><span class="cs-htp-odd-val">Top primary color → 3×</span></div>
-            <div class="cs-htp-odd"><span class="cs-htp-odd-key">ORANGE / GREEN / PURPLE</span><span class="cs-htp-odd-val">Top secondary color → 3×</span></div>
-            <div class="cs-htp-odd"><span class="cs-htp-odd-key">NUMBERS 1–6</span><span class="cs-htp-odd-val">Grand total lands on that number → 5×</span></div>
-            <div class="cs-htp-odd"><span class="cs-htp-odd-key">OVER / UNDER 21</span><span class="cs-htp-odd-val">Grand total over or under 21 → 2×</span></div>
+          <div class="cs-htp-label">COLOR TOTALS</div>
+          <p class="cs-htp-text">Numbers don't always just add — adjacency between rolls changes how totals are formed.</p>
+          <div class="cs-htp-rules-list">
+            <div class="cs-htp-rule">
+              <span class="cs-htp-rule-head">Secondaries multiply</span>
+              <span class="cs-htp-rule-body">When two consecutive rolls land on touching primary colors (R+Y → Orange, Y+B → Green, R+B → Purple), those two numbers <strong>multiply</strong> to form the secondary total rather than adding to the primaries. Example: Roll 1 lands Red 4, Roll 2 lands Yellow 3 → Orange gets 12, not Red +4 and Yellow +3.</span>
+            </div>
+            <div class="cs-htp-rule">
+              <span class="cs-htp-rule-head">Same color in a row multiplies</span>
+              <span class="cs-htp-rule-body">Two consecutive rolls on the same primary color <strong>multiply</strong> instead of add. Roll 1 Red 5, Roll 2 Red 3 → Red gets 15, not 8.</span>
+            </div>
+            <div class="cs-htp-rule">
+              <span class="cs-htp-rule-head">Three in a row chains</span>
+              <span class="cs-htp-rule-body">All three rolls on the same color multiply in sequence — each number by the next. Red 2 · Red 3 · Red 4 → 2 × 3 × 4 = 24.</span>
+            </div>
+            <div class="cs-htp-rule">
+              <span class="cs-htp-rule-head">Only adjacent rolls combine</span>
+              <span class="cs-htp-rule-body">Only Roll 1+2 or Roll 2+3 can form a secondary. Roll 1 and Roll 3 never touch — even if they land on combining colors, they will not form a secondary together. A maximum of two secondaries can form in a single round.</span>
+            </div>
           </div>
         </div>
         <div class="cs-htp-section">
