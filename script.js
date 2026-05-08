@@ -35967,6 +35967,14 @@ function initColorSchemeGame() {
           if(nd){nd.mesh.position.set(_csClipActive[o+7],_csClipActive[o+8],_csClipActive[o+9]);nd.mesh.quaternion.set(_csClipActive[o+10],_csClipActive[o+11],_csClipActive[o+12],_csClipActive[o+13]);}
           _csClipFrame++;
           if(_csClipFrame>=totalFrames){
+            // Sync physics bodies to final clip frame so the live-physics branch
+            // doesn't snap meshes back to wherever the bodies happen to be sitting.
+            _csDice.forEach(d=>{
+              d.body.position.set(d.mesh.position.x,d.mesh.position.y,d.mesh.position.z);
+              d.body.quaternion.set(d.mesh.quaternion.x,d.mesh.quaternion.y,d.mesh.quaternion.z,d.mesh.quaternion.w);
+              d.body.velocity.set(0,0,0);
+              d.body.angularVelocity.set(0,0,0);
+            });
             const cb=_csClipOnDone; _csClipActive=null; _csClipOnDone=null; if(cb)cb();
           }
         }
