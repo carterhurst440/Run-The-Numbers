@@ -35871,9 +35871,9 @@ function initColorSchemeGame() {
     if(editBtn){ editBtn._csHandler=()=>{ if(typeof openChipEditor==='function') openChipEditor(); }; editBtn.addEventListener('click',editBtn._csHandler); }
     const bNew=csEl('cs-bNew'); if(bNew) bNew.style.display='none';
 
-    // Disable roll button until clips are loaded/baked
+    // Disable roll button until clips are loaded/baked (reset display in case previous round hid it)
     const bRoll=csEl('cs-bRoll');
-    if(bRoll){bRoll.disabled=true;bRoll.textContent='PREPARING…';}
+    if(bRoll){bRoll.style.display='';bRoll.disabled=true;bRoll.textContent='PREPARING…';}
     const sBar=csEl('cs-statusBar');
     if(sBar){sBar.textContent='Loading dice…';sBar.classList.add('cs-active');}
 
