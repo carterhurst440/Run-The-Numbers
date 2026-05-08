@@ -20196,11 +20196,19 @@ body:not([data-ui="new"]) .auth-callback-spinner {
   }
 
   .header-leading {
-    gap: 10px;
+    gap: 8px;
   }
 
   .header-mode-select-wrap {
-    display: none;
+    min-width: 0;
+    max-width: 120px;
+  }
+
+  .header-mode-select {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 

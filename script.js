@@ -18424,6 +18424,26 @@ const drawerGraphLink = document.getElementById("drawer-graph-link");
 const menuContestBadge = document.getElementById("menu-contest-badge");
 const accountModeSelect = document.getElementById("account-mode-select");
 const accountModeSummaryEl = document.getElementById("account-mode-summary");
+
+// ── Mode selector: sits in .header-actions on desktop, moves to .header-leading
+// (right after the hamburger) on mobile so it's always accessible.
+const _modeSelectMobileQuery = window.matchMedia("(max-width: 720px)");
+function _repositionModeSelector() {
+  const wrap = document.querySelector(".header-mode-select-wrap");
+  if (!wrap) return;
+  const isMobile = _modeSelectMobileQuery.matches;
+  const leading = document.querySelector(".header-leading");
+  const actions = document.querySelector(".header-actions");
+  if (isMobile && leading && wrap.parentElement !== leading) {
+    const hamburger = leading.querySelector(".menu-toggle");
+    leading.insertBefore(wrap, hamburger ? hamburger.nextSibling : null);
+  } else if (!isMobile && actions && wrap.parentElement !== actions) {
+    const notifBtn = actions.querySelector(".notification-toggle, .icon-button");
+    actions.insertBefore(wrap, notifBtn || null);
+  }
+}
+_repositionModeSelector();
+_modeSelectMobileQuery.addEventListener("change", _repositionModeSelector);
 const contestEmailOptInInput = document.getElementById("contest-email-opt-in");
 const contestEmailSettingMessageEl = document.getElementById("contest-email-setting-message");
 const notificationToggle = document.getElementById("notification-toggle");
