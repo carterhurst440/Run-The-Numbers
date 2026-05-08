@@ -35189,6 +35189,8 @@ function csSetBetState(state) {
   if (clearBtn) clearBtn.disabled = locked;
   _csChipButtons.forEach(c => { c.disabled = locked; });
   if (!locked) csClearLiveBetGlow();
+  // REBET is only active on a fresh empty board — hide it the moment round locks
+  if (locked) { const bRebet=csEl('cs-rebetBtn'); if(bRebet) bRebet.hidden=true; }
 }
 
 function csRenderBank() {
@@ -35847,10 +35849,9 @@ function csProcessSettle(THREE, CANNON) {
     } else {
       const bRoll=csEl('cs-bRoll'); if(bRoll) bRoll.style.display='none';
       const bNew=csEl('cs-bNew'); if(bNew) bNew.style.display='';
-      // Save bets for Rebet, then show the Rebet button
+      // Save bets for Rebet (button shown only after New Round is clicked)
       if (Object.keys(_csBets).length) {
         _csLastBets = {..._csBets};
-        const bRebet=csEl('cs-rebetBtn'); if(bRebet) bRebet.hidden=false;
       }
       csSetBetState('settling');
       _csRoundRolls.forEach((r,i) => {
@@ -36207,6 +36208,9 @@ function initColorSchemeGame() {
         const bRoll2=csEl('cs-bRoll');
         if(bRoll2){bRoll2.style.display='';bRoll2.disabled=false;bRoll2.textContent='⬡ ROLL DICE';}
         this.style.display='none';
+        // Show REBET now — board is empty and open, prior to first roll
+        const bRebetAfterNew=csEl('cs-rebetBtn');
+        if(bRebetAfterNew && Object.keys(_csLastBets||{}).length) bRebetAfterNew.hidden=false;
       };
       bNew2.addEventListener('click',bNew2._csHandler);
     }
@@ -36215,7 +36219,12 @@ function initColorSchemeGame() {
     const bRebet=csEl('cs-rebetBtn');
     if (bRebet) {
       bRebet._csHandler = function() {
+        // Guard: must have saved bets, board must be empty, round must not have started
         if (!Object.keys(_csLastBets).length) return;
+        if (Object.keys(_csBets).length > 0) return;  // board already has bets
+        if (_csBetState !== 'open') return;            // round in progress
+        // Disable immediately — no double-clicks
+        this.disabled = true; this.hidden = true;
         // Check affordability before resetting anything
         const totalNeeded = Object.values(_csLastBets).reduce((a,b)=>a+b,0);
         if (bankroll < totalNeeded) { showToast('Not enough balance to rebet.','error'); return; }
