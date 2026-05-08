@@ -1,10 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
-  <text
-    y="74"
-    font-family="Menlo, 'Courier New', monospace"
-    font-size="40" font-weight="700"
-    text-anchor="middle"
-    fill="currentColor"
-  ><tspan x="60">?10</tspan></text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80" width="200" height="80">
+  <text x="62" y="60" text-anchor="middle" fill="#ffffff" font-family="'JetBrains Mono', monospace" font-weight="800" font-size="56">?</text>
+  <circle cx="92" cy="42" r="5" fill="#ffffff"></circle>
+  <text x="138" y="60" text-anchor="middle" fill="#ffffff" font-family="'JetBrains Mono', monospace" font-weight="800" font-size="56" letter-spacing="-2">10</text>
 </svg>

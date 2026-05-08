@@ -1,11 +1,12 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
-  <text
-    x="60" y="74"
-    font-family="Menlo, 'Courier New', monospace"
-    font-size="38" font-weight="700"
-    text-anchor="middle"
-    fill="currentColor"
-    letter-spacing="2"
-  >RTN</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80" width="200" height="80">
+  <g fill="none" stroke="#ffffff" stroke-width="3">
+    <rect x="34" y="14" width="42" height="52"></rect>
+    <rect x="79" y="14" width="42" height="52"></rect>
+    <rect x="124" y="14" width="42" height="52"></rect>
+  </g>
+  <g fill="#ffffff" font-family="'JetBrains Mono', monospace" font-weight="800" font-size="36" text-anchor="middle">
+    <text x="55" y="54">R</text>
+    <text x="100" y="54">T</text>
+    <text x="145" y="54">N</text>
+  </g>
 </svg>

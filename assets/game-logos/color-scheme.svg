@@ -1,11 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
-  <text
-    y="74"
-    font-family="Menlo, 'Courier New', monospace"
-    font-size="38" font-weight="700"
-    text-anchor="middle"
-  >
-    <tspan x="60" fill="#d94040">R</tspan><tspan fill="#c8a820">Y</tspan><tspan fill="#4a80e0">B</tspan>
-  </text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect x="3" y="3" width="74" height="74" rx="6" ry="6" fill="none" stroke="#ffffff" stroke-width="3"></rect>
+  <text x="40" y="51" text-anchor="middle" fill="#ffffff" font-family="'JetBrains Mono', monospace" font-weight="800" font-size="28" letter-spacing="-1">RYB</text>
 </svg>
