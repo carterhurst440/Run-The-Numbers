@@ -22592,6 +22592,99 @@ body[data-ui="new"] #red-black-view .beta-status {
   border: 1px solid #1e1e18;
 }
 
+/* ============================================================
+   COLOR SCHEME chip bar — new UI (mirrors RTN new-UI chip rack)
+   ============================================================ */
+body[data-ui="new"] #cs-chipBar .chip-choice {
+  width: clamp(2.4rem, 5vw, 3rem);
+  height: clamp(2.4rem, 5vw, 3rem);
+  min-width: clamp(2.4rem, 5vw, 3rem);
+  min-height: clamp(2.4rem, 5vw, 3rem);
+  border-radius: 50%;
+  border: 2px solid #4a4a40;
+  background: radial-gradient(circle at 38% 32%, #222220, #111110);
+  color: #909070;
+  font-family: inherit;
+  font-size: clamp(9px, 1.8vw, 12px);
+  font-weight: 700;
+  letter-spacing: 0;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 3px 8px rgba(0,0,0,0.4);
+}
+
+body[data-ui="new"] #cs-chipBar .chip-choice::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  border: 1px dashed rgba(232, 160, 32, 0.15);
+  pointer-events: none;
+}
+
+body[data-ui="new"] #cs-chipBar .chip-choice::after {
+  display: none;
+}
+
+body[data-ui="new"] #cs-chipBar .chip-choice:hover {
+  border-color: rgba(232, 160, 32, 0.5);
+  color: #e8a020;
+  background: radial-gradient(circle at 38% 32%, #2a2a20, #161610);
+}
+
+body[data-ui="new"] #cs-chipBar .chip-choice.active {
+  border-color: #e8a020;
+  background: radial-gradient(circle at 38% 32%, rgba(232,160,32,0.18), rgba(232,160,32,0.04));
+  color: #e8a020;
+  box-shadow: 0 0 14px rgba(232, 160, 32, 0.3), inset 0 1px 0 rgba(232,160,32,0.12);
+}
+
+body[data-ui="new"] #cs-chipBar .chip-choice.active::before {
+  border-color: rgba(232, 160, 32, 0.35);
+}
+
+body[data-ui="new"] #cs-chipBar .chip-rack__button {
+  border-radius: 2px;
+  font-family: inherit;
+  font-size: clamp(9px, 1.8vw, 11px);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+  border: 1px solid #3a3a32;
+  background: #151514;
+  color: #909070;
+  box-shadow: none;
+  min-inline-size: clamp(4.5rem, 10vw, 8rem);
+  padding-inline: clamp(0.5rem, 2vw, 1rem);
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+
+body[data-ui="new"] #cs-chipBar .chip-rack__button:hover:not(:disabled) {
+  border-color: rgba(232, 160, 32, 0.35);
+  color: #e8a020;
+  background: rgba(232, 160, 32, 0.04);
+}
+
+body[data-ui="new"] #cs-chipBar .chip-rack__button--primary {
+  border-color: #e8a020;
+  background: #e8a020;
+  color: #0a0a08;
+  font-weight: 800;
+  box-shadow: 0 0 16px rgba(232, 160, 32, 0.25);
+}
+
+body[data-ui="new"] #cs-chipBar .chip-rack__button--primary:hover:not(:disabled) {
+  background: #f0b030;
+  border-color: #f0b030;
+  color: #0a0a08;
+  box-shadow: 0 0 24px rgba(232, 160, 32, 0.4);
+}
+
+body[data-ui="new"] #cs-chipBar .chip-rack__button:disabled {
+  opacity: 0.3;
+  border-color: #1e1e18;
+  background: transparent;
+  color: #363628;
+}
+
 /* ---- Chip bar (lives outside #red-black-view as a sibling) ---- */
 body[data-ui="new"] #red-black-chip-bar {
   background: #0e0e0c;
