@@ -35794,6 +35794,8 @@ function initColorSchemeGame() {
     if (histChart) histChart.innerHTML = '<div class="cs-hist-empty" id="cs-histEmpty">NO HISTORY YET</div>';
     const histCount = csEl('cs-histCount'); if (histCount) histCount.textContent = '0';
     const histPeak = csEl('cs-histPeak'); if (histPeak) histPeak.textContent = '—';
+    // Clear stale outcome/tracker UI so a refreshed page doesn't show a previous round
+    csResetOutcome(); csResetTracker(); csClearBetResults(); csRenderTotalWagered();
     csRenderChipRack();
 
     // Canvas setup
@@ -35880,6 +35882,11 @@ function initColorSchemeGame() {
         if(done<total) sBar.textContent=`Preparing dice… ${done}/${total}`;
         else sBar.textContent='Dice ready!';
       }
+    }).catch(err=>{
+      console.error('[CS] clip load/bake failed:', err);
+      // Fall back gracefully — enable roll button without clips (physics fallback)
+      if(bRoll){bRoll.disabled=false;bRoll.textContent='⬡ ROLL DICE';}
+      if(sBar){sBar.textContent='';sBar.classList.remove('cs-active');}
     }).then(()=>{
       if(bRoll){bRoll.disabled=false;bRoll.textContent='⬡ ROLL DICE';}
       if(sBar){sBar.textContent='';sBar.classList.remove('cs-active');}
