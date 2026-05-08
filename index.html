@@ -638,6 +638,13 @@
           <h1 id="home-title" class="sr-only">Casino Floor</h1>
           <!-- Initializing overlay — covers home layout while data loads -->
           <div id="home-init-overlay" class="home-init-overlay" aria-live="polite" hidden>
+            <div class="hio-cards" aria-hidden="true">
+              <div class="hio-card hio-card--1"><span class="hio-card-rank">A</span><span class="hio-card-suit">♠</span></div>
+              <div class="hio-card hio-card--2"><span class="hio-card-rank">K</span><span class="hio-card-suit">♥</span></div>
+              <div class="hio-card hio-card--3"><span class="hio-card-rank">Q</span><span class="hio-card-suit">♦</span></div>
+              <div class="hio-card hio-card--4"><span class="hio-card-rank">J</span><span class="hio-card-suit">♣</span></div>
+              <div class="hio-card hio-card--5"><span class="hio-card-rank">10</span><span class="hio-card-suit">♠</span></div>
+            </div>
             <div class="hio-inner">
               <div class="hio-label" id="home-init-label">// INITIALIZING</div>
               <div class="hio-progress-track"><div class="hio-progress-fill" id="home-init-progress"></div></div>
@@ -4382,7 +4389,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260508-home-init"></script>
+    <script type="module" src="script.js?v=20260508-card-shuffle"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

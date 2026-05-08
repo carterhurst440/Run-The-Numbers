@@ -21260,7 +21260,7 @@ body:not([data-ui="new"]) .auth-callback-spinner {
 .home-skel-bar--lg   { width: 66%; }
 .home-skel-bar--xl   { width: 80%; }
 
-/* ── HOME INITIALIZING OVERLAY ───────────────────────────────────────────── */
+/* ── HOME INITIALIZING OVERLAY — CARD SHUFFLE ────────────────────────────── */
 
 #home-view { position: relative; }
 
@@ -21269,22 +21269,224 @@ body:not([data-ui="new"]) .auth-callback-spinner {
   inset: 0;
   z-index: 50;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 28px;
   background: #0a0a08;
   background-image: repeating-linear-gradient(
     0deg, transparent, transparent 3px,
     rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
   );
   min-height: 100vh;
+  overflow: hidden;
 }
 .home-init-overlay[hidden] { display: none; }
 
+/* ── Card deck container ── */
+.hio-cards {
+  position: relative;
+  width: 220px;
+  height: 180px;
+  perspective: 700px;
+  flex-shrink: 0;
+}
+
+/* ── Individual card ── */
+.hio-card {
+  position: absolute;
+  width: 68px;
+  height: 96px;
+  border-radius: 6px;
+  background: linear-gradient(150deg, #131311, #0b0b09);
+  border: 1px solid #2a2a22;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.04);
+  will-change: transform, filter;
+  backface-visibility: hidden;
+}
+
+.hio-card-rank {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.hio-card-suit {
+  font-size: 20px;
+  line-height: 1;
+}
+
+/* Card accent colors */
+.hio-card--1 { color: #e8a020; border-color: rgba(232,160,32,0.4); }  /* A♠  amber */
+.hio-card--2 { color: #cc4444; border-color: rgba(200,60,60,0.4); }   /* K♥  red   */
+.hio-card--3 { color: #c8ff00; border-color: rgba(200,255,0,0.35); }  /* Q♦  lime  */
+.hio-card--4 { color: #00e5ff; border-color: rgba(0,229,255,0.35); }  /* J♣  cyan  */
+.hio-card--5 { color: #e8a020; border-color: rgba(232,160,32,0.4); }  /* 10♠ amber */
+
+/* ── Shuffle animations — overhand arc, staggered ── */
+.hio-card--1 { animation: hio-c1 2.6s cubic-bezier(0.4,0,0.6,1) -0.00s infinite; z-index: 1; }
+.hio-card--2 { animation: hio-c2 2.6s cubic-bezier(0.4,0,0.6,1) -0.52s infinite; z-index: 2; }
+.hio-card--3 { animation: hio-c3 2.6s cubic-bezier(0.4,0,0.6,1) -1.04s infinite; z-index: 3; }
+.hio-card--4 { animation: hio-c4 2.6s cubic-bezier(0.4,0,0.6,1) -1.56s infinite; z-index: 4; }
+.hio-card--5 { animation: hio-c5 2.6s cubic-bezier(0.4,0,0.6,1) -2.08s infinite; z-index: 5; }
+
+@keyframes hio-c1 {
+  0%,100% {
+    transform: translate(-50%,-50%) translateX(-46px) rotate(-20deg) scale(0.96);
+    filter: brightness(0.85);
+  }
+  22% {
+    transform: translate(-50%,-50%) translateX(-88px) translateY(-70px) rotate(-42deg) scale(1.06) translateZ(0);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.7), 0 0 22px rgba(232,160,32,0.22);
+    filter: brightness(2.2);
+    z-index: 10;
+  }
+  48% {
+    transform: translate(-50%,-50%) translateX(-28px) translateY(-14px) rotate(-10deg) scale(1.01);
+    z-index: 8;
+    filter: brightness(1);
+  }
+  68% {
+    transform: translate(-50%,-50%) translateX(-40px) rotate(-16deg) scale(0.97);
+    filter: brightness(0.9);
+  }
+}
+
+@keyframes hio-c2 {
+  0%,100% {
+    transform: translate(-50%,-50%) translateX(-23px) rotate(-10deg) scale(0.97);
+    filter: brightness(0.85);
+  }
+  22% {
+    transform: translate(-50%,-50%) translateX(76px) translateY(-78px) rotate(34deg) scale(1.07);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.7), 0 0 24px rgba(200,64,64,0.22);
+    filter: brightness(2);
+    z-index: 10;
+  }
+  48% {
+    transform: translate(-50%,-50%) translateX(18px) translateY(-8px) rotate(6deg) scale(1.02);
+    z-index: 8;
+    filter: brightness(1);
+  }
+  68% {
+    transform: translate(-50%,-50%) translateX(-18px) rotate(-7deg) scale(0.98);
+    filter: brightness(0.9);
+  }
+}
+
+@keyframes hio-c3 {
+  0%,100% {
+    transform: translate(-50%,-50%) rotate(0deg) scale(1);
+    filter: brightness(0.9);
+  }
+  22% {
+    transform: translate(-50%,-50%) translateX(-62px) translateY(-90px) rotate(-30deg) scale(1.08);
+    box-shadow: 0 22px 54px rgba(0,0,0,0.6), 0 0 32px rgba(200,255,0,0.25);
+    filter: brightness(2.5) hue-rotate(8deg);
+    z-index: 10;
+  }
+  46% {
+    transform: translate(-50%,-50%) translateX(12px) translateY(-18px) rotate(4deg) scale(1.02);
+    z-index: 8;
+    filter: brightness(1.1);
+  }
+  66% {
+    transform: translate(-50%,-50%) translateX(6px) rotate(2deg) scale(1);
+    filter: brightness(0.95);
+  }
+}
+
+@keyframes hio-c4 {
+  0%,100% {
+    transform: translate(-50%,-50%) translateX(23px) rotate(10deg) scale(0.97);
+    filter: brightness(0.85);
+  }
+  22% {
+    transform: translate(-50%,-50%) translateX(94px) translateY(-72px) rotate(46deg) scale(1.06);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.7), 0 0 28px rgba(0,229,255,0.22);
+    filter: brightness(2) hue-rotate(-14deg);
+    z-index: 10;
+  }
+  48% {
+    transform: translate(-50%,-50%) translateX(36px) translateY(-10px) rotate(16deg) scale(1.01);
+    z-index: 8;
+    filter: brightness(1);
+  }
+  68% {
+    transform: translate(-50%,-50%) translateX(28px) rotate(12deg) scale(0.98);
+    filter: brightness(0.9);
+  }
+}
+
+@keyframes hio-c5 {
+  0%,100% {
+    transform: translate(-50%,-50%) translateX(46px) rotate(20deg) scale(0.96);
+    filter: brightness(0.85);
+  }
+  22% {
+    transform: translate(-50%,-50%) translateX(-38px) translateY(-82px) rotate(-16deg) scale(1.05);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.7), 0 0 22px rgba(232,160,32,0.2);
+    filter: brightness(2.2);
+    z-index: 10;
+  }
+  48% {
+    transform: translate(-50%,-50%) translateX(22px) translateY(-6px) rotate(9deg) scale(1.01);
+    z-index: 8;
+    filter: brightness(1);
+  }
+  68% {
+    transform: translate(-50%,-50%) translateX(40px) rotate(18deg) scale(0.97);
+    filter: brightness(0.9);
+  }
+}
+
+/* ── Exit: cards scatter to corners, then overlay wipes ── */
+.home-init-overlay.is-exiting .hio-card--1 { animation: hio-exit-tl 0.52s cubic-bezier(0.55,0,1,0.45) 0.00s forwards; }
+.home-init-overlay.is-exiting .hio-card--2 { animation: hio-exit-tr 0.52s cubic-bezier(0.55,0,1,0.45) 0.04s forwards; }
+.home-init-overlay.is-exiting .hio-card--3 { animation: hio-exit-dn 0.52s cubic-bezier(0.55,0,1,0.45) 0.08s forwards; }
+.home-init-overlay.is-exiting .hio-card--4 { animation: hio-exit-br 0.52s cubic-bezier(0.55,0,1,0.45) 0.12s forwards; }
+.home-init-overlay.is-exiting .hio-card--5 { animation: hio-exit-bl 0.52s cubic-bezier(0.55,0,1,0.45) 0.16s forwards; }
+
+@keyframes hio-exit-tl {
+  0%   { transform: translate(-50%,-50%) translateX(-46px) rotate(-20deg); opacity: 1; filter: brightness(1); }
+  25%  { filter: brightness(3); }
+  100% { transform: translate(-50%,-50%) translateX(-420px) translateY(-480px) rotate(-260deg); opacity: 0; filter: brightness(0.5); }
+}
+@keyframes hio-exit-tr {
+  0%   { transform: translate(-50%,-50%) translateX(-23px) rotate(-10deg); opacity: 1; filter: brightness(1); }
+  25%  { filter: brightness(2.5); }
+  100% { transform: translate(-50%,-50%) translateX(440px) translateY(-460px) rotate(280deg); opacity: 0; filter: brightness(0.5); }
+}
+@keyframes hio-exit-dn {
+  0%   { transform: translate(-50%,-50%) rotate(0deg); opacity: 1; filter: brightness(1); }
+  25%  { filter: brightness(3) hue-rotate(30deg); }
+  100% { transform: translate(-50%,-50%) translateY(560px) rotate(100deg); opacity: 0; filter: brightness(0.5); }
+}
+@keyframes hio-exit-br {
+  0%   { transform: translate(-50%,-50%) translateX(23px) rotate(10deg); opacity: 1; filter: brightness(1); }
+  25%  { filter: brightness(2.5) hue-rotate(-20deg); }
+  100% { transform: translate(-50%,-50%) translateX(-440px) translateY(480px) rotate(-240deg); opacity: 0; filter: brightness(0.5); }
+}
+@keyframes hio-exit-bl {
+  0%   { transform: translate(-50%,-50%) translateX(46px) rotate(20deg); opacity: 1; filter: brightness(1); }
+  25%  { filter: brightness(3); }
+  100% { transform: translate(-50%,-50%) translateX(460px) translateY(440px) rotate(300deg); opacity: 0; filter: brightness(0.5); }
+}
+
+/* ── Text / progress below cards ── */
 .hio-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 }
 
 .hio-label {
@@ -21327,18 +21529,19 @@ body:not([data-ui="new"]) .auth-callback-spinner {
   text-transform: uppercase;
 }
 
-/* Overlay exit animation */
+/* ── Overlay exit: brief glitch then clip-wipe upward ── */
 @keyframes home-init-exit {
-  0%   { opacity: 1; transform: translate(0,0); clip-path: inset(0 0 0 0); }
-  12%  { opacity: 0.8; transform: translate(4px,0); filter: brightness(1.4); }
-  20%  { opacity: 0.3; transform: translate(-3px,0); clip-path: inset(0 0 0 0); }
-  32%  { opacity: 0.9; clip-path: inset(0 0 20% 0); transform: translate(0,0); }
-  50%  { opacity: 0.4; clip-path: inset(0 0 55% 0); }
-  70%  { opacity: 0.1; clip-path: inset(0 0 88% 0); }
-  100% { opacity: 0;   clip-path: inset(0 0 100% 0); }
+  0%   { opacity: 1; clip-path: inset(0 0 0 0); }
+  10%  { opacity: 1; clip-path: inset(0 0 0 0); }  /* hold while cards start flying */
+  18%  { opacity: 0.85; transform: translate(3px,0); filter: brightness(1.5); clip-path: inset(0 0 0 0); }
+  28%  { opacity: 0.4;  transform: translate(-2px,0); clip-path: inset(0 0 0 0); }
+  42%  { opacity: 0.8;  clip-path: inset(0 0 22% 0); transform: translate(0,0); }
+  60%  { opacity: 0.4;  clip-path: inset(0 0 60% 0); }
+  80%  { opacity: 0.1;  clip-path: inset(0 0 90% 0); }
+  100% { opacity: 0;    clip-path: inset(0 0 100% 0); }
 }
 .home-init-overlay.is-exiting {
-  animation: home-init-exit 0.42s ease-in forwards;
+  animation: home-init-exit 0.58s ease-in forwards;
   pointer-events: none;
 }
 
