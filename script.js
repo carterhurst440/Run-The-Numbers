@@ -70,7 +70,7 @@ const DEFAULT_GAME_ASSET_LIBRARY = {
     key: GAME_KEYS.COLOR_SCHEME,
     label: GAME_LABELS[GAME_KEYS.COLOR_SCHEME],
     route: "color-scheme",
-    logo_url: "",
+    logo_url: "/assets/game-logos/color-scheme.svg",
     description: "Color and number dice game",
     status: "admin",
     card_description: "Roll the color and number dice across three rounds. Combine primary and secondary scores to beat the board.",
