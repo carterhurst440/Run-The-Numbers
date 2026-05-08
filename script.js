@@ -27123,6 +27123,33 @@ async function fetchHandReviewEntry(reviewId) {
     handRow = gameHandRow || null;
   }
 
+  // CS rounds live in color_scheme_rounds, not rtn_live_hands or game_hands
+  if (!handRow) {
+    const { data: csRound, error: csErr } = await supabase
+      .from('color_scheme_rounds')
+      .select('id, user_id, created_at, total_wagered, total_returned, net_profit, status')
+      .eq('id', reviewId)
+      .maybeSingle();
+    if (csErr && !isMissingRelationError(csErr, 'color_scheme_rounds')) throw csErr;
+    if (csRound) {
+      handRow = {
+        id: csRound.id,
+        user_id: csRound.user_id,
+        created_at: csRound.created_at,
+        game_id: GAME_KEYS.COLOR_SCHEME,
+        total_cards: 0,
+        stopper_label: null,
+        stopper_suit: null,
+        total_wager: csRound.total_wagered || 0,
+        total_paid: csRound.total_returned || 0,
+        net: csRound.net_profit || 0,
+        commission_kept: 0,
+        new_account_value: 0,
+        drawn_cards: []
+      };
+    }
+  }
+
   if (!handRow) {
     return recentHandReviews.find((candidate) => candidate.id === reviewId) || null;
   }
