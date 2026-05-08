@@ -2577,6 +2577,10 @@ function applyProfileProgressSnapshot(row = null) {
     0,
     Math.round(Number(row.trades_made_all_time ?? currentProfile.trades_made_all_time ?? 0))
   );
+  currentProfile.color_scheme_rounds_played_all_time = Math.max(
+    0,
+    Math.round(Number(row.color_scheme_rounds_played_all_time ?? currentProfile.color_scheme_rounds_played_all_time ?? 0))
+  );
   currentProfile.total_progress_events = Math.max(
     0,
     Math.round(
@@ -2784,7 +2788,8 @@ async function refreshCurrentRankState({ force = false } = {}) {
     totalProgressEvents = fallbackProgress.totalProgressEvents;
     tradesMade = fallbackProgress.tradesMade;
   }
-  currentRankState = resolveRankState(totalProgressEvents, contestWins, tradesMade, ladder);
+  const csRounds = Math.max(0, Math.round(Number(currentProfile?.color_scheme_rounds_played_all_time || 0)));
+  currentRankState = resolveRankState(totalProgressEvents, contestWins, tradesMade, ladder, csRounds);
   applyResolvedTheme();
   renderDrawerRankSummary(currentRankState.currentRank);
   typeHomeAboutIntro(homeAboutIntroEl?.dataset.fullCopy || homeAboutIntroEl?.textContent || "");
@@ -9479,7 +9484,7 @@ async function fetchProfileWithRetries(
     try {
       const fetchPromise = supabase
         .from("profiles")
-        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
+        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
         .eq("id", userId)
         .maybeSingle();
 
@@ -9615,7 +9620,7 @@ async function provisionProfileForUser(user) {
       .from("profiles")
       .insert([profileInsert])
       .select(
-        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at"
+        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at"
       )
       .maybeSingle();
 
@@ -15164,7 +15169,7 @@ async function optIntoContest(contest = currentContest) {
         }
 
         const { data: deductedProfile, error: deductError } = await deductQuery
-          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
+          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
           .maybeSingle();
 
         if (deductError) throw deductError;
@@ -15216,7 +15221,7 @@ async function optIntoContest(contest = currentContest) {
             .update({ carter_cash: refundedAmount })
             .eq("id", currentUser.id)
             .eq("updated_at", chargedProfile.updated_at ?? null)
-            .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
+            .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
             .maybeSingle();
           if (refundedProfile) {
             currentProfile = {
@@ -34234,7 +34239,8 @@ function renderHomeStatCards() {
   const rtnHands = Math.max(0, Math.round(Number(currentProfile.run_the_numbers_hands_played_all_time || 0)));
   const g10Hands = Math.max(0, Math.round(Number(currentProfile.guess10_hands_played_all_time || 0)));
   const stTrades = Math.max(0, Math.round(Number(currentProfile.trades_made_all_time || 0)));
-  const totalHands = Math.max(0, Math.round(Number(currentProfile.total_progress_events || currentProfile.hands_played_all_time || rtnHands + g10Hands)));
+  const rybRounds = Math.max(0, Math.round(Number(currentProfile.color_scheme_rounds_played_all_time || 0)));
+  const totalHands = Math.max(0, Math.round(Number(currentProfile.total_progress_events || currentProfile.hands_played_all_time || rtnHands + g10Hands + rybRounds)));
   const rankTier = Math.max(1, Math.round(Number(currentProfile.current_rank_tier || currentProfile.current_rank || 1)));
   const rankName = currentRankState?.currentRank?.name || `Tier ${rankTier}`;
 
@@ -34244,23 +34250,13 @@ function renderHomeStatCards() {
   setEl("hsb-rtn", fmt(rtnHands));
   setEl("hsb-g10", fmt(g10Hands));
   setEl("hsb-st", fmt(stTrades));
+  setEl("hsb-ryb", fmt(rybRounds));
 
   // Rank — show current_rank from profiles
   const rankNum = Number(currentProfile.current_rank || 1);
   setEl("hsb-rank", `#${rankNum}`);
   setEl("hsb-rank-sub", rankName.toUpperCase());
   homeGlitchSection('stats');
-
-  // RYB rounds — async count from DB
-  if (supabase && currentUser?.id && currentUser.id !== GUEST_USER.id) {
-    supabase.from('color_scheme_rounds')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', currentUser.id)
-      .eq('status', 'completed')
-      .then(({ count }) => {
-        setEl('hsb-ryb', fmt(Math.max(0, count || 0)));
-      });
-  }
 }
 
 function renderHomeSystemBlock() {
@@ -36251,14 +36247,16 @@ function initColorSchemeGame() {
 
         await csInvokeServerRoll();
 
-        // If server roll failed (e.g. round already resolved on another device),
-        // abort the animation and surface a toast rather than silently stalling.
+        // If server roll failed for a non-guest user, show a retry toast and
+        // re-enable the button. Do NOT nuke the round — a network blip or
+        // transient RPC error is not the same as "resolved on another device"
+        // (that case is already caught by the pre-flight DB check above).
         if (!_csPendingServerRoll && !isGuestRuntimeUser()) {
-          showToast('ROUND HAS RESOLVED ON ANOTHER DEVICE', 'error');
-          this.style.display = 'none';
-          const bNewFail = csEl('cs-bNew');
-          if (bNewFail) bNewFail.style.display = '';
-          csSetBetState('settling');
+          showToast('Server error — tap Roll to try again', 'error');
+          this.disabled = false;
+          const sBar3 = csEl('cs-statusBar');
+          if (sBar3) { sBar3.textContent = ''; sBar3.classList.remove('cs-active'); }
+          csSetBetState('locked');
           return;
         }
 
