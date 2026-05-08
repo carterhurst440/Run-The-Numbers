@@ -25092,29 +25092,29 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 }
 @keyframes cs-blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-/* Round history strip (histogram) */
+/* Round history strip (histogram) — horizontal bar rows, newest at top */
 .cs-round-history {
   border-bottom: 1px solid #2c2c2c;
   background: #0f0f0f;
   display: flex;
   align-items: stretch;
   overflow: hidden;
-  min-height: 72px;
+  min-height: 80px;
+  max-height: 80px;
   flex-shrink: 0;
   position: relative;
   z-index: 2;
 }
 .cs-histogram-chart {
   display: flex;
-  align-items: flex-end;
-  gap: 3px;
+  flex-direction: column;
+  gap: 2px;
   flex: 1;
-  overflow-x: auto;
-  overflow-y: hidden;
-  justify-content: flex-start;
-  padding: 4px 8px 14px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 5px 8px 5px 6px;
 }
-.cs-histogram-chart::-webkit-scrollbar { height: 2px; }
+.cs-histogram-chart::-webkit-scrollbar { width: 2px; }
 .cs-histogram-chart::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 2px; }
 .cs-hist-empty {
   font-size: 9px;
@@ -25125,35 +25125,14 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   height: 100%;
   padding-left: 2px;
 }
+/* Each row: [R01] [===bar===] [total] */
 .cs-hist-bar-wrap {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 2px;
-  flex: 0 0 26px;
-  width: 26px;
-  position: relative;
-}
-.cs-hist-total-label {
-  font-size: 8px;
-  font-weight: 700;
-  color: #d8d8d0;
-  letter-spacing: -0.01em;
-  line-height: 1;
-}
-.cs-hist-bar {
-  width: 100%;
-  display: flex;
-  flex-direction: column-reverse;
-  border-radius: 2px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: opacity 0.15s;
-  min-height: 4px;
-}
-.cs-histogram-chart:hover .cs-hist-bar-wrap:not(:hover) { opacity: 0.35; }
-.cs-hist-seg {
-  width: 100%;
+  gap: 5px;
+  flex: 0 0 11px;
+  min-height: 11px;
   position: relative;
 }
 .cs-hist-rnd-label {
@@ -25161,21 +25140,58 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   color: #4a4a42;
   letter-spacing: 0.04em;
   line-height: 1;
+  width: 20px;
+  flex-shrink: 0;
+  text-align: right;
 }
 .cs-hist-current .cs-hist-rnd-label { color: #a8ff3e; }
+/* Track: fills remaining width; bar grows rightward within it */
+.cs-hist-bar-track {
+  flex: 1;
+  height: 7px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.cs-hist-bar {
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  border-radius: 1px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  min-width: 2px;
+}
+.cs-hist-total-label {
+  font-size: 7px;
+  font-weight: 700;
+  color: #d8d8d0;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  width: 18px;
+  flex-shrink: 0;
+}
 .cs-hist-current .cs-hist-total-label { color: #a8ff3e; }
+.cs-histogram-chart:hover .cs-hist-bar-wrap:not(:hover) { opacity: 0.35; }
+.cs-hist-seg {
+  height: 100%;
+  position: relative;
+}
 /* Dim non-winning segments by default */
 .cs-hist-seg.cs-default-dim { opacity: 0.2; }
 /* Hover fade interaction */
 .cs-histogram-chart.cs-hovering .cs-hist-seg { opacity: 0.12; }
 .cs-histogram-chart.cs-hovering .cs-hist-seg.cs-active { opacity: 1 !important; }
 .cs-histogram-chart.cs-hovering .cs-hist-seg.cs-default-dim { opacity: 0.12; }
-/* Peak right */
+/* Stats panel on the right */
 .cs-hist-peak-right {
   margin-left: auto;
   padding: 0 12px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
   font-size: 8px;
   color: #4a4a42;
   letter-spacing: 0.06em;
@@ -25592,5 +25608,5 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   .cs-felt-body { padding: 10px; }
   .cs-oc-gt-value { font-size: 64px; }
   .cs-oc-grand-total { padding: 12px 12px 10px; }
-  .cs-histogram-chart { padding: 3px 6px 10px; }
+  .cs-histogram-chart { padding: 4px 6px; }
 }

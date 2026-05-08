@@ -35156,7 +35156,6 @@ function csRenderHistogram() {
   if (empty) empty.remove();
 
   const maxTotal = Math.max(..._csHistoryData.map(d => d.total), 1);
-  const chartH = 52; // bar area height px
 
   const countEl = csEl('cs-histCount'); if (countEl) countEl.textContent = _csHistoryData.length;
   const peakEl = csEl('cs-histPeak'); if (peakEl) peakEl.textContent = maxTotal;
@@ -35165,26 +35164,32 @@ function csRenderHistogram() {
   const COLOR_NAMES = ['RED','BLUE','YELLOW','PURPLE','GREEN','ORANGE'];
 
   chart.innerHTML = '';
-  _csHistoryData.forEach(d => {
+  // Render newest-first: iterate in reverse so prepending puts newest at top
+  [..._csHistoryData].reverse().forEach(d => {
     const isCurrent = d.roundNum === _csHistoryData.length;
     const wrap = document.createElement('div');
     wrap.className = 'cs-hist-bar-wrap' + (isCurrent ? ' cs-hist-current' : '');
 
-    const totalLabel = document.createElement('div');
-    totalLabel.className = 'cs-hist-total-label';
-    totalLabel.textContent = d.total;
+    // Round label — left side
+    const rnLabel = document.createElement('div');
+    rnLabel.className = 'cs-hist-rnd-label';
+    rnLabel.textContent = 'R' + String(d.roundNum).padStart(2,'0');
+
+    // Track — fills remaining width; bar grows rightward within
+    const track = document.createElement('div');
+    track.className = 'cs-hist-bar-track';
 
     const bar = document.createElement('div');
     bar.className = 'cs-hist-bar';
-    const barH = Math.max(4, Math.round((d.total / maxTotal) * chartH));
-    bar.style.height = barH + 'px';
+    // Width proportional to total vs. max
+    bar.style.width = Math.max(2, Math.round((d.total / maxTotal) * 100)) + '%';
 
     COLOR_NAMES.forEach(col => {
       const val = d.totals[col] || 0;
       if (!val) return;
       const seg = document.createElement('div');
       seg.className = 'cs-hist-seg';
-      seg.style.height = ((val / d.total) * 100) + '%';
+      seg.style.width = ((val / d.total) * 100) + '%';
       seg.style.background = COLOR_HEX[col];
       seg.dataset.col = col;
       seg.addEventListener('mouseenter', function(e) {
@@ -35211,23 +35216,26 @@ function csRenderHistogram() {
       bar.appendChild(seg);
     });
 
-    const rnLabel = document.createElement('div');
-    rnLabel.className = 'cs-hist-rnd-label';
-    rnLabel.textContent = 'R' + String(d.roundNum).padStart(2,'0');
-
-    // Default dim non-winning segs
+    // Dim non-winning segments by default
     if (d.winColors && d.winColors.length) {
       bar.querySelectorAll('.cs-hist-seg').forEach(s => {
         if (!d.winColors.includes(s.dataset.col)) s.classList.add('cs-default-dim');
       });
     }
 
-    wrap.appendChild(totalLabel);
-    wrap.appendChild(bar);
+    track.appendChild(bar);
+
+    // Total label — right side
+    const totalLabel = document.createElement('div');
+    totalLabel.className = 'cs-hist-total-label';
+    totalLabel.textContent = d.total;
+
     wrap.appendChild(rnLabel);
-    chart.insertBefore(wrap, chart.firstChild);
+    wrap.appendChild(track);
+    wrap.appendChild(totalLabel);
+    chart.appendChild(wrap); // append in reverse order so newest (index 0 after reverse) is first child = top
   });
-  chart.scrollLeft = chart.scrollWidth;
+  chart.scrollTop = 0; // newest always visible at top
 }
 
 function csRenderRankedColors(totals, grandTotal) {
