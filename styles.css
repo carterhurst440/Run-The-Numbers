@@ -22686,6 +22686,134 @@ body[data-ui="new"] #cs-chipBar .chip-rack__button:disabled {
   color: #363628;
 }
 
+/* ---- Per-denomination chip colors: Yellow / Green / Blue / Purple ---- */
+/* tone 0 = $5 = Yellow */
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="0"] {
+  border-color: #8a7000;
+  background: radial-gradient(circle at 38% 32%, #2e2600, #181200);
+  color: #d4aa00;
+}
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="0"]::before {
+  border-color: rgba(212,170,0,0.2);
+}
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="0"]:hover {
+  border-color: rgba(212,170,0,0.6);
+  color: #ffd700;
+  background: radial-gradient(circle at 38% 32%, #3a3000, #201a00);
+}
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="0"].active {
+  border-color: #ffd700;
+  background: radial-gradient(circle at 38% 32%, rgba(255,215,0,0.2), rgba(255,215,0,0.05));
+  color: #ffd700;
+  box-shadow: 0 0 14px rgba(255,215,0,0.35), inset 0 1px 0 rgba(255,215,0,0.15);
+}
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="0"].active::before {
+  border-color: rgba(255,215,0,0.4);
+}
+
+/* tone 1 = $10 = Green */
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="1"] {
+  border-color: #1a5c30;
+  background: radial-gradient(circle at 38% 32%, #0a2014, #04100a);
+  color: #2da85a;
+}
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="1"]::before {
+  border-color: rgba(45,168,90,0.2);
+}
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="1"]:hover {
+  border-color: rgba(45,168,90,0.6);
+  color: #3dd870;
+  background: radial-gradient(circle at 38% 32%, #0e2a1a, #061410);
+}
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="1"].active {
+  border-color: #3dd870;
+  background: radial-gradient(circle at 38% 32%, rgba(61,216,112,0.18), rgba(61,216,112,0.04));
+  color: #3dd870;
+  box-shadow: 0 0 14px rgba(61,216,112,0.3), inset 0 1px 0 rgba(61,216,112,0.12);
+}
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="1"].active::before {
+  border-color: rgba(61,216,112,0.38);
+}
+
+/* tone 2 = $25 = Blue */
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="2"] {
+  border-color: #1a3870;
+  background: radial-gradient(circle at 38% 32%, #08102a, #040818);
+  color: #4080d8;
+}
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="2"]::before {
+  border-color: rgba(64,128,216,0.2);
+}
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="2"]:hover {
+  border-color: rgba(64,128,216,0.6);
+  color: #60a0f0;
+  background: radial-gradient(circle at 38% 32%, #0c1a3a, #060e22);
+}
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="2"].active {
+  border-color: #60a0f0;
+  background: radial-gradient(circle at 38% 32%, rgba(96,160,240,0.18), rgba(96,160,240,0.04));
+  color: #60a0f0;
+  box-shadow: 0 0 14px rgba(96,160,240,0.3), inset 0 1px 0 rgba(96,160,240,0.12);
+}
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="2"].active::before {
+  border-color: rgba(96,160,240,0.38);
+}
+
+/* tone 3 = $100 = Purple */
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="3"] {
+  border-color: #4a1870;
+  background: radial-gradient(circle at 38% 32%, #180828, #0c0418);
+  color: #9050d0;
+}
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="3"]::before {
+  border-color: rgba(144,80,208,0.2);
+}
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="3"]:hover {
+  border-color: rgba(144,80,208,0.6);
+  color: #b878f0;
+  background: radial-gradient(circle at 38% 32%, #200c38, #100618);
+}
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="3"].active {
+  border-color: #b878f0;
+  background: radial-gradient(circle at 38% 32%, rgba(184,120,240,0.18), rgba(184,120,240,0.04));
+  color: #b878f0;
+  box-shadow: 0 0 14px rgba(184,120,240,0.3), inset 0 1px 0 rgba(184,120,240,0.12);
+}
+body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="3"].active::before {
+  border-color: rgba(184,120,240,0.38);
+}
+
+/* ---- On-table chips inside CS bet zones — per-tone colors ---- */
+#color-scheme-view .chip-stack .chip {
+  border-radius: 50%;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 7px;
+  letter-spacing: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
+  isolation: isolate;
+}
+#color-scheme-view .chip-stack .chip[data-tone="0"] {
+  border: 2px solid #8a7000;
+  background: radial-gradient(circle at 38% 32%, #3a3000, #201800);
+  color: #ffd700;
+}
+#color-scheme-view .chip-stack .chip[data-tone="1"] {
+  border: 2px solid #1a5c30;
+  background: radial-gradient(circle at 38% 32%, #0e2a18, #061410);
+  color: #3dd870;
+}
+#color-scheme-view .chip-stack .chip[data-tone="2"] {
+  border: 2px solid #1a3870;
+  background: radial-gradient(circle at 38% 32%, #0c1a3a, #060e22);
+  color: #60a0f0;
+}
+#color-scheme-view .chip-stack .chip[data-tone="3"] {
+  border: 2px solid #4a1870;
+  background: radial-gradient(circle at 38% 32%, #200c38, #100618);
+  color: #b878f0;
+}
+
 /* ---- Chip bar (lives outside #red-black-view as a sibling) ---- */
 body[data-ui="new"] #red-black-chip-bar {
   background: #0e0e0c;
