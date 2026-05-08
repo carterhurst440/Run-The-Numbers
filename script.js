@@ -36425,23 +36425,21 @@ function initColorSchemeGame() {
     }
 
     // Round History modal (desktop panel button + mobile strip button)
-    const histModalBtn       = csEl('cs-histModalBtn');
-    const histModalBtnMobile = csEl('cs-histModalBtn-mobile');
-    const histModal          = csEl('cs-hist-modal');
-    const histModalClose     = csEl('cs-histModalClose');
+    const histModalBtn   = csEl('cs-histModalBtn');
+    const histModal      = csEl('cs-hist-modal');
+    const histModalClose = csEl('cs-histModalClose');
     const openHistModal  = () => { if (histModal) { histModal.classList.add('is-open'); histModal.setAttribute('aria-hidden','false'); } };
     const closeHistModal = () => { if (histModal) { histModal.classList.remove('is-open'); histModal.setAttribute('aria-hidden','true'); } };
     if (histModalBtn) histModalBtn.addEventListener('click', openHistModal);
-    if (histModalBtnMobile) histModalBtnMobile.addEventListener('click', openHistModal);
     if (histModalClose) histModalClose.addEventListener('click', closeHistModal);
     if (histModal) histModal.addEventListener('click', e => { if (e.target === histModal) closeHistModal(); });
 
-    // How to Play modal
+    // How to Play modal (standard modal pattern)
     const howToPlayBtn   = csEl('cs-howToPlayBtn');
     const howToPlayModal = csEl('cs-how-to-play-modal');
     const howToPlayClose = csEl('cs-howToPlayClose');
-    const openHowToPlay  = () => { if (howToPlayModal) { howToPlayModal.classList.add('is-open'); howToPlayModal.setAttribute('aria-hidden','false'); } };
-    const closeHowToPlay = () => { if (howToPlayModal) { howToPlayModal.classList.remove('is-open'); howToPlayModal.setAttribute('aria-hidden','true'); } };
+    const openHowToPlay  = () => { if (howToPlayModal) { howToPlayModal.hidden = false; document.body.classList.add('modal-open'); } };
+    const closeHowToPlay = () => { if (howToPlayModal) { howToPlayModal.hidden = true; document.body.classList.remove('modal-open'); } };
     if (howToPlayBtn) howToPlayBtn.addEventListener('click', openHowToPlay);
     if (howToPlayClose) howToPlayClose.addEventListener('click', closeHowToPlay);
     if (howToPlayModal) howToPlayModal.addEventListener('click', e => { if (e.target === howToPlayModal) closeHowToPlay(); });

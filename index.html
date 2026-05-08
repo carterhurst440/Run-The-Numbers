@@ -3150,13 +3150,13 @@
           </div>
 
           <!-- How to Play modal -->
-          <div id="cs-how-to-play-modal" class="cs-hist-modal" aria-hidden="true">
-            <div class="cs-hist-modal-panel cs-htp-panel">
-              <div class="cs-hist-modal-hdr">
-                <span>// HOW TO PLAY</span>
-                <button id="cs-howToPlayClose" class="cs-hist-modal-close">✕</button>
+          <div id="cs-how-to-play-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="cs-htp-title" hidden>
+            <div class="modal-content">
+              <div class="modal-header">
+                <h2 id="cs-htp-title">How to Play — Color Scheme</h2>
+                <button type="button" class="modal-close" id="cs-howToPlayClose" aria-label="Close">×</button>
               </div>
-              <div class="cs-htp-body">
+              <div class="modal-body cs-htp-body">
                 <div class="cs-htp-section">
                   <div class="cs-htp-label">THE ROUND</div>
                   <p class="cs-htp-text">Each round has <strong>3 rolls</strong>. Every roll lands a color die (R·Y·B) and a number die (1–6). The number adds to that color's running total.</p>
@@ -3265,7 +3265,6 @@
               <div class="cs-mini-hist" id="cs-mini-hist" aria-hidden="true">
                 <div class="cs-mini-hist-bars" id="cs-mini-hist-bars"></div>
                 <div class="cs-mini-hist-lbls" id="cs-mini-hist-lbls"></div>
-                <button id="cs-histModalBtn-mobile" class="cs-mini-hist-open-btn" aria-label="View round history">⬡</button>
               </div>
               <!-- 4-column canvas footer: ROUND / ROLL / LAST LANDED / STATUS -->
               <div class="cs-canvas-foot">
@@ -4462,7 +4461,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260508-cs-mobile-v12"></script>
+    <script type="module" src="script.js?v=20260508-cs-mobile-v13"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
