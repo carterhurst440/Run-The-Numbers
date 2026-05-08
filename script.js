@@ -36088,26 +36088,30 @@ function initColorSchemeGame() {
       bNew2.addEventListener('click',bNew2._csHandler);
     }
 
-    // Rebet button — replaces last round's bets on a fresh board
+    // Rebet button — starts a new round and restores last round's bets in one click
     const bRebet=csEl('cs-rebetBtn');
     if (bRebet) {
       bRebet._csHandler = function() {
-        if (_csBetState !== 'open' || !Object.keys(_csLastBets).length) return;
-        // Clear any current bets first (refund locally)
-        const currentTotal = Object.values(_csBets).reduce((a,b)=>a+b,0);
-        if (currentTotal > 0) {
-          bankroll = roundCurrencyValue(bankroll + currentTotal);
-          _csBets = {};
-          csClearChipStacks();
-          document.querySelectorAll('.cs-bet-zone').forEach(z=>{
-            const el=csEl('cs-stake-'+z.dataset.bet); if(el) el.textContent='';
-            z.classList.remove('cs-has-bet');
-          });
-        }
-        // Apply last bets (deduct from bankroll)
-        let canAfford = true;
+        if (!Object.keys(_csLastBets).length) return;
+        // Check affordability before resetting anything
         const totalNeeded = Object.values(_csLastBets).reduce((a,b)=>a+b,0);
         if (bankroll < totalNeeded) { showToast('Not enough balance to rebet.','error'); return; }
+        // --- New round reset (same as New Round button) ---
+        _csRound++; _csRoll=0; _csRoundRolls.length=0; _csProcessingSettle=false;
+        _csRoundId=null; _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null; _csTargetQuats=null;
+        _csClipActive=null; _csClipFrame=0; _csClipOnDone=null;
+        _csDice.forEach(d=>{if(_csScene)_csScene.remove(d.mesh);if(_csWorld)_csWorld.remove(d.body);}); _csDice=[];
+        csResetOutcome(); csClearBetResults(); csRenderTotalWagered(); csResetTracker();
+        _csBets={}; csSetBetState('open');
+        const sRound=csEl('cs-sRound'); if(sRound) sRound.textContent=_csRound;
+        const sRoll=csEl('cs-sRoll'); if(sRoll) sRoll.textContent='—/3';
+        const sColor=csEl('cs-sColor'); if(sColor){sColor.textContent='';sColor.style.color='';}
+        const sNum=csEl('cs-sNum'); if(sNum) sNum.textContent='';
+        const sBar3=csEl('cs-statusBar'); if(sBar3){sBar3.textContent='';sBar3.classList.remove('cs-active');}
+        const bRoll2=csEl('cs-bRoll');
+        if(bRoll2){bRoll2.style.display='';bRoll2.disabled=false;bRoll2.textContent='⬡ ROLL DICE';}
+        const bNew2=csEl('cs-bNew'); if(bNew2) bNew2.style.display='none';
+        // --- Restore last bets ---
         for (const [betId, stake] of Object.entries(_csLastBets)) {
           _csBets[betId] = stake;
           bankroll = roundCurrencyValue(bankroll - stake);
