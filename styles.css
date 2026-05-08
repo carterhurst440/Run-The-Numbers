@@ -24716,7 +24716,7 @@ body[data-ui="new"] .home-game-card .cc-label {
   left: 0; right: 0; bottom: 14px;
   text-align: center;
   font-family: "JetBrains Mono", monospace;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -24743,12 +24743,12 @@ body[data-ui="new"] .home-game-card-color .cc-label {
 @container (max-width: 380px) {
   .cc-frame > * { transform: scale(0.7); }
   .cc-glyph { font-size: 17px !important; top: 10px !important; }
-  .cc-label { font-size: 9px !important; bottom: 10px !important; letter-spacing: 0.12em !important; }
+  .cc-label { font-size: 13px !important; bottom: 10px !important; letter-spacing: 0.10em !important; }
 }
 @container (max-width: 260px) {
   .cc-frame > * { transform: scale(0.5); }
   .cc-glyph { font-size: 13px !important; top: 7px !important; }
-  .cc-label { font-size: 8px !important; bottom: 7px !important; letter-spacing: 0.1em !important; }
+  .cc-label { font-size: 11px !important; bottom: 7px !important; letter-spacing: 0.08em !important; }
 }
 
 /* ============================================================
