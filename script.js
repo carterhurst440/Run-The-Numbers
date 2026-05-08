@@ -21613,6 +21613,59 @@ async function fetchGameHandsRecords({
     return rtnRecords;
   };
 
+  const fetchGuess10LiveHandsRecords = async () => {
+    if (!supabase) return [];
+    const g10Records = [];
+    const g10PageSize = 1000;
+    let g10Page = 0;
+    let g10HasMore = true;
+
+    while (g10HasMore) {
+      let query = supabase
+        .from("guess10_live_hands")
+        .select("id, user_id, started_at, mode_type, contest_id, total_cards, total_wager, total_paid, net, commission_kept, new_account_value, drawn_cards")
+        .neq("status", "active")
+        .order("started_at", { ascending: true })
+        .range(g10Page * g10PageSize, (g10Page + 1) * g10PageSize - 1);
+
+      if (startAt) query = query.gte("started_at", startAt.toISOString());
+      if (endAt) query = query.lte("started_at", endAt.toISOString());
+      if (Array.isArray(userIds) && userIds.length > 0) query = query.in("user_id", userIds);
+
+      const { data, error } = await query;
+      if (error) {
+        if (isMissingRelationError(error, "guess10_live_hands")) return [];
+        throw error;
+      }
+
+      const rows = Array.isArray(data) ? data : [];
+      rows.forEach((row) => {
+        g10Records.push({
+          id: row?.id || null,
+          user_id: row?.user_id || null,
+          created_at: row?.started_at || null,
+          game_id: GAME_KEYS.GUESS_10,
+          mode_type: row?.mode_type || null,
+          contest_id: row?.contest_id || null,
+          total_cards: row?.total_cards || 0,
+          stopper_label: null,
+          stopper_suit: null,
+          total_wager: row?.total_wager || 0,
+          total_paid: row?.total_paid || 0,
+          net: row?.net || 0,
+          commission_kept: row?.commission_kept || 0,
+          new_account_value: row?.new_account_value || 0,
+          drawn_cards: row?.drawn_cards || []
+        });
+      });
+
+      g10HasMore = rows.length === g10PageSize;
+      g10Page += 1;
+    }
+
+    return g10Records;
+  };
+
   const allRecords = [];
   const pageSize = 1000;
   let page = 0;
@@ -21654,7 +21707,13 @@ async function fetchGameHandsRecords({
     const rows = Array.isArray(data) ? data : [];
     rows.forEach((row) => {
       if (resolveGameKey(row?.game_id) === GAME_KEYS.RUN_THE_NUMBERS) {
-        return;
+        return; // RTN sourced from rtn_live_hands below
+      }
+      if (resolveGameKey(row?.game_id) === GAME_KEYS.GUESS_10) {
+        return; // G10 sourced from guess10_live_hands below
+      }
+      if (resolveGameKey(row?.game_id) === GAME_KEYS.COLOR_SCHEME) {
+        return; // CS sourced from color_scheme_rounds below
       }
       allRecords.push({
         ...row,
@@ -21666,8 +21725,59 @@ async function fetchGameHandsRecords({
     page += 1;
   }
 
-  const rtnRecords = await fetchRtnLiveHandRecords();
-  return [...allRecords, ...rtnRecords]
+  const fetchColorSchemeRoundsRecords = async () => {
+    if (!supabase) return [];
+    const csRecords = [];
+    const csPageSize = 1000;
+    let csPage = 0;
+    let csHasMore = true;
+    while (csHasMore) {
+      let query = supabase
+        .from("color_scheme_rounds")
+        .select("id, user_id, created_at, total_wagered, total_returned, net_profit")
+        .eq("status", "completed")
+        .order("created_at", { ascending: true })
+        .range(csPage * csPageSize, (csPage + 1) * csPageSize - 1);
+      if (startAt) query = query.gte("created_at", startAt.toISOString());
+      if (endAt) query = query.lte("created_at", endAt.toISOString());
+      if (Array.isArray(userIds) && userIds.length > 0) query = query.in("user_id", userIds);
+      const { data, error } = await query;
+      if (error) {
+        if (isMissingRelationError(error, "color_scheme_rounds")) return [];
+        throw error;
+      }
+      const rows = Array.isArray(data) ? data : [];
+      rows.forEach(row => {
+        csRecords.push({
+          id: row.id,
+          user_id: row.user_id,
+          created_at: row.created_at,
+          game_id: GAME_KEYS.COLOR_SCHEME,
+          mode_type: "normal",
+          contest_id: null,
+          total_cards: 0,
+          stopper_label: null,
+          stopper_suit: null,
+          total_wager: row.total_wagered || 0,
+          total_paid: row.total_returned || 0,
+          net: row.net_profit || 0,
+          commission_kept: 0,
+          new_account_value: 0,
+          drawn_cards: []
+        });
+      });
+      csHasMore = rows.length === csPageSize;
+      csPage += 1;
+    }
+    return csRecords;
+  };
+
+  const [rtnRecords, g10Records, csRecords] = await Promise.all([
+    fetchRtnLiveHandRecords(),
+    fetchGuess10LiveHandsRecords(),
+    fetchColorSchemeRoundsRecords()
+  ]);
+  return [...allRecords, ...rtnRecords, ...g10Records, ...csRecords]
     .sort((left, right) => new Date(left?.created_at || 0).getTime() - new Date(right?.created_at || 0).getTime());
 }
 
@@ -26269,7 +26379,9 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
       `;
     }
 
-    const gameShort = entry.gameKey === GAME_KEYS.GUESS_10 ? "G10" : "RTN";
+    const gameShort = entry.gameKey === GAME_KEYS.GUESS_10 ? "G10"
+      : entry.gameKey === GAME_KEYS.COLOR_SCHEME ? "RYB"
+      : "RTN";
     const handNum = entry.handNumber || entry.handId?.slice(-4) || "—";
     const net = Number(entry.net ?? 0);
     const netText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
@@ -34680,6 +34792,8 @@ let _csPendingServerRoll = null;
 let _csWaitingForServer = false;
 let _csSettleArgsCache = null;
 let _csChipButtons = [];
+let _csTargetQuats = null; // {color:{x,y,z,w}, number:{x,y,z,w}} — server-determined face targets
+let _csCANNON = null;       // stored when game initializes so async roll handler can access it
 
 const CS_ODDS = {
   RED:9,BLUE:9,YELLOW:9,PURPLE:5,GREEN:5,ORANGE:5,COLOR_TIE:4,
@@ -35168,12 +35282,48 @@ async function csInvokeServerRoll() {
     const { data, error } = await supabase.rpc('cs_perform_roll', { _round_id: _csRoundId });
     if (error || !data?.roll) { console.warn('[CS] cs_perform_roll failed:', error); return; }
     _csPendingServerRoll = data;
+    // Pre-compute target face quaternions so the animate loop can guide the dice naturally
+    const sr = data.roll;
+    if (sr) {
+      const colorName = sr.color === 'R' ? 'RED' : sr.color === 'Y' ? 'YELLOW' : 'BLUE';
+      _csTargetQuats = csCalcTargetFaceQuats(colorName, Number(sr.number));
+    }
     if (_csWaitingForServer) {
+      // Dice already stopped before server responded — smoothly animate to correct face
       _csWaitingForServer = false;
       _csSettling = false;         // stop animate loop from re-firing csOnSettled
       _csProcessingSettle = true;  // guard against concurrent call from animation frame
       const { THREE, CANNON } = _csSettleArgsCache || {};
-      if (THREE && CANNON) csProcessSettle(THREE, CANNON);
+      if (THREE && CANNON && _csTargetQuats) {
+        // Capture current die orientations as animation start points
+        const startQuatData = _csDice.map(d => ({
+          x: d.body.quaternion.x, y: d.body.quaternion.y,
+          z: d.body.quaternion.z, w: d.body.quaternion.w,
+          isColor: d.isColor
+        }));
+        const startTime = performance.now();
+        const duration = 380;
+        function smoothCatchUp() {
+          const progress = Math.min(1, (performance.now() - startTime) / duration);
+          const eased = 1 - Math.pow(1 - progress, 3); // cubic ease-out
+          _csDice.forEach(d => {
+            const sd = startQuatData.find(s => s.isColor === d.isColor);
+            const tgt = d.isColor ? _csTargetQuats.color : _csTargetQuats.number;
+            if (!sd || !tgt) return;
+            const from = new CANNON.Quaternion(sd.x, sd.y, sd.z, sd.w);
+            from.slerp(new CANNON.Quaternion(tgt.x, tgt.y, tgt.z, tgt.w), eased, d.body.quaternion);
+            d.mesh.quaternion.copy(d.body.quaternion);
+          });
+          if (progress < 1) {
+            requestAnimationFrame(smoothCatchUp);
+          } else {
+            csProcessSettle(THREE, CANNON);
+          }
+        }
+        requestAnimationFrame(smoothCatchUp);
+      } else if (THREE && CANNON) {
+        csProcessSettle(THREE, CANNON);
+      }
     }
   } catch(e) { console.warn('[CS] Server roll error:', e); }
 }
@@ -35277,39 +35427,27 @@ function csGetTopFace(CANNON, body, isColor) {
   return isColor ? bi : nv[bi];
 }
 
-// Snap both dice to show the server-determined result face on top
-function csSnapDiceToResult(colorName, number) {
-  const cd = _csDice.find(d => d.isColor);
-  const nd = _csDice.find(d => !d.isColor);
-  if (!cd || !nd) return;
-  // Face normals in body-local space: [+x, -x, +y, -y, +z, -z] (indices 0-5)
-  // Quaternion (x,y,z,w) that rotates the die so face[i] points up (+y world)
-  const faceQuat = (fi) => {
-    switch (fi) {
-      case 0: return [0, 0, -0.7071, 0.7071]; // +x up: rotate z by -90°
-      case 1: return [0, 0,  0.7071, 0.7071]; // -x up: rotate z by +90°
-      case 2: return [0, 0,  0,      1     ]; // +y up: identity
-      case 3: return [1, 0,  0,      0     ]; // -y up: 180° around x
-      case 4: return [0.7071,  0, 0,  0.7071]; // +z up: rotate x by +90°
-      case 5: return [-0.7071, 0, 0,  0.7071]; // -z up: rotate x by -90°
-      default: return [0, 0, 0, 1];
-    }
-  };
-  // Color die: face index = CS_COLS index
+// Compute target face quaternions for guided deceleration (returns plain POJOs, no CANNON needed)
+// Face indices 0-5: [+x, -x, +y, -y, +z, -z] normals pointing up after rotation
+const _CS_FACE_QUATS = [
+  [0, 0, -0.7071, 0.7071],  // 0: +x up (rotate z -90°)
+  [0, 0,  0.7071, 0.7071],  // 1: -x up (rotate z +90°)
+  [0, 0,  0,      1     ],  // 2: +y up (identity)
+  [1, 0,  0,      0     ],  // 3: -y up (180° around x)
+  [ 0.7071, 0, 0, 0.7071],  // 4: +z up (rotate x +90°)
+  [-0.7071, 0, 0, 0.7071],  // 5: -z up (rotate x -90°)
+];
+function csCalcTargetFaceQuats(colorName, number) {
   const colorFaceIndex = CS_COLS.findIndex(c => c.name === colorName);
-  if (colorFaceIndex >= 0) {
-    const [x,y,z,w] = faceQuat(colorFaceIndex);
-    cd.body.quaternion.set(x, y, z, w);
-    cd.mesh.quaternion.set(x, y, z, w);
-  }
-  // Number die: face values are [1,6,2,5,3,4] at face indices 0-5
   const numFaceValues = [1, 6, 2, 5, 3, 4];
   const numFaceIndex = numFaceValues.indexOf(number);
-  if (numFaceIndex >= 0) {
-    const [x,y,z,w] = faceQuat(numFaceIndex);
-    nd.body.quaternion.set(x, y, z, w);
-    nd.mesh.quaternion.set(x, y, z, w);
-  }
+  if (colorFaceIndex < 0 || numFaceIndex < 0) return null;
+  const cq = _CS_FACE_QUATS[colorFaceIndex];
+  const nq = _CS_FACE_QUATS[numFaceIndex];
+  return {
+    color:  { x: cq[0], y: cq[1], z: cq[2], w: cq[3] },
+    number: { x: nq[0], y: nq[1], z: nq[2], w: nq[3] }
+  };
 }
 
 function csIsAtRest() {
@@ -35342,7 +35480,7 @@ function csProcessSettle(THREE, CANNON) {
       col = CS_COLS.find(c => c.name === colorName);
       nv = sr.number;
       _csPendingServerRoll = null;
-      csSnapDiceToResult(colorName, nv); // orient dice to match server outcome
+      // Dice were guided to correct face by animate loop slerp — no snap needed
     } else {
       const ci = csGetTopFace(CANNON,cd.body,true);
       nv = csGetTopFace(CANNON,nd.body,false);
@@ -35382,6 +35520,8 @@ function csProcessSettle(THREE, CANNON) {
 }
 
 function csThrowDice(THREE, CANNON) {
+  _csTargetQuats = null; // cleared on each throw; set when server result arrives
+  _csCANNON = CANNON;
   _csProcessingSettle=false;
   // clear old dice
   _csDice.forEach(d=>{ if(_csScene) _csScene.remove(d.mesh); if(_csWorld) _csWorld.remove(d.body); });
@@ -35562,7 +35702,7 @@ function initColorSchemeGame() {
     if (bRoll) {
       bRoll._csHandler = function() {
         this.disabled=true;
-        _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null;
+        _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null; _csTargetQuats=null;
         const sBar2=csEl('cs-statusBar'); if(sBar2){sBar2.textContent='SIMULATING…';sBar2.classList.add('cs-active');}
         csSetBetState('locked');
         csInvokeServerRoll();
@@ -35575,7 +35715,7 @@ function initColorSchemeGame() {
     if (bNew2) {
       bNew2._csHandler = function() {
         _csRound++; _csRoll=0; _csRoundRolls.length=0; _csProcessingSettle=false;
-        _csRoundId=null; _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null;
+        _csRoundId=null; _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null; _csTargetQuats=null;
         _csDice.forEach(d=>{if(_csScene)_csScene.remove(d.mesh);if(_csWorld)_csWorld.remove(d.body);}); _csDice=[];
         csResetOutcome(); csClearBetResults(); csRenderTotalWagered(); csResetTracker();
         _csBets={}; csSetBetState('open');
@@ -35598,6 +35738,25 @@ function initColorSchemeGame() {
       const dt=_csLastTime?Math.min((ts-_csLastTime)/1000,.05):1/60;
       _csLastTime=ts;
       _csWorld.step(1/60,dt,3);
+      // Guided deceleration: smoothly slerp dice toward server-determined face as they slow
+      if (_csSettling && _csTargetQuats) {
+        _csDice.forEach(d => {
+          const av = d.body.angularVelocity;
+          const speed = Math.sqrt(av.x*av.x + av.y*av.y + av.z*av.z);
+          const tgt = d.isColor ? _csTargetQuats.color : _csTargetQuats.number;
+          if (!tgt) return;
+          // Slerp rate: 0 when spinning fast, ramps up as die slows — correction is imperceptible
+          // at high speed but smoothly guides die to correct face as it decelerates naturally
+          const t = speed < 0.4 ? 0.40 : speed < 1.5 ? 0.07 : speed < 4 ? 0.012 : 0;
+          if (t > 0) {
+            d.body.quaternion.slerp(new CANNON.Quaternion(tgt.x, tgt.y, tgt.z, tgt.w), t, d.body.quaternion);
+          }
+          // Increase angular damping as die slows, helping it settle cleanly on the target face
+          if (speed < 7) {
+            d.body.angularDamping = Math.min(0.93, 0.45 + 0.07 * (7 - speed));
+          }
+        });
+      }
       _csDice.forEach(d=>{d.mesh.position.copy(d.body.position);d.mesh.quaternion.copy(d.body.quaternion);});
       _csRenderer.render(_csScene,_csCamera);
       if(_csSettling&&csIsAtRest()) csOnSettled(THREE,CANNON);
@@ -35659,6 +35818,6 @@ function destroyColorSchemeGame() {
   if (_csRenderer) { _csRenderer.dispose(); _csRenderer=null; }
   _csScene=null; _csCamera=null; _csWorld=null; _csDice=[]; _csSettling=false; _csLastTime=null; _csProcessingSettle=false;
   _csDm=null; _csGm2=null; _csHistoryData=[];
-  _csRoundId=null; _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null;
+  _csRoundId=null; _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null; _csTargetQuats=null; _csCANNON=null;
   if (window.csGame) { delete window.csGame; }
 }
