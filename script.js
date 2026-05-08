@@ -35337,19 +35337,38 @@ function _csRenderMiniHist() {
   const maxTotal = Math.max(..._csHistoryData.map(d => d.total), 1);
   track.innerHTML = '';
   _csHistoryData.forEach(d => {
+    const isCurrent = d.roundNum === _csHistoryData.length;
+    // Find the single highest color (to highlight only that one)
+    const maxColorVal = Math.max(...COLOR_NAMES.map(c => d.totals[c] || 0));
+    const winningColors = COLOR_NAMES.filter(c => (d.totals[c] || 0) === maxColorVal && maxColorVal > 0);
+
+    // Outer wrapper column
     const col = document.createElement('div');
-    col.className = 'cs-mini-bar' + (d.roundNum === _csHistoryData.length ? ' cs-mini-bar-current' : '');
-    const heightPct = Math.max(6, Math.round((d.total / maxTotal) * 100));
-    col.style.height = heightPct + '%';
+    col.className = 'cs-mini-bar-col' + (isCurrent ? ' cs-mini-bar-current' : '');
+
+    // Bar (color segments stacking bottom-up)
+    const bar = document.createElement('div');
+    bar.className = 'cs-mini-bar';
+    const heightPct = Math.max(8, Math.round((d.total / maxTotal) * 100));
+    bar.style.height = heightPct + '%'; // relative to flex:1 space
     COLOR_NAMES.forEach(color => {
       const val = d.totals[color] || 0;
       if (!val) return;
       const seg = document.createElement('div');
-      seg.className = 'cs-mini-seg';
+      const isWinner = winningColors.includes(color);
+      seg.className = 'cs-mini-seg' + (isWinner ? '' : ' cs-mini-dim');
       seg.style.height = ((val / d.total) * 100) + '%';
       seg.style.background = COLOR_HEX[color];
-      col.appendChild(seg);
+      bar.appendChild(seg);
     });
+    col.appendChild(bar);
+
+    // Total label at bottom
+    const lbl = document.createElement('div');
+    lbl.className = 'cs-mini-bar-lbl';
+    lbl.textContent = d.total;
+    col.appendChild(lbl);
+
     track.appendChild(col);
   });
   track.scrollLeft = track.scrollWidth;
