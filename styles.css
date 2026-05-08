@@ -25551,16 +25551,16 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   margin-bottom: 6px;
 }
 .cs-felt-group-lbl {
-  font-size: 10px;
+  font-size: clamp(0.82rem, 1.5vw, 0.95rem);
   font-family: inherit;
-  font-weight: 400;
-  letter-spacing: 0.18em;
-  color: #909080;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: #e8a020;
   text-transform: uppercase;
 }
 .cs-felt-group-lbl::before {
   content: "// ";
-  color: #606055;
+  color: rgba(232,160,32,0.45);
   letter-spacing: 0;
 }
 .cs-felt-row {
@@ -25638,8 +25638,8 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .cs-advanced-body { display: none; }
 .cs-advanced-body.cs-open { display: block; }
 
-.cs-felt-group-secondary .cs-felt-group-lbl { color: #909080; }
-.cs-felt-group-granular .cs-felt-group-lbl { color: #909080; }
+.cs-felt-group-secondary .cs-felt-group-lbl { color: #e8a020; }
+.cs-felt-group-granular .cs-felt-group-lbl { color: #e8a020; }
 
 .cs-felt-wagered {
   display: flex; align-items: center; justify-content: space-between;
