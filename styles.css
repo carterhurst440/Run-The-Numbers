@@ -22596,6 +22596,7 @@ body[data-ui="new"] #red-black-view .beta-status {
    COLOR SCHEME chip bar — new UI (mirrors RTN new-UI chip rack)
    ============================================================ */
 body[data-ui="new"] #cs-chipBar .chip-choice {
+  position: relative;
   width: clamp(2.4rem, 5vw, 3rem);
   height: clamp(2.4rem, 5vw, 3rem);
   min-width: clamp(2.4rem, 5vw, 3rem);
