@@ -35779,51 +35779,92 @@ function csLoadLibraries(callback) {
   }
 }
 
-async function csRecoverIncompleteRound() {
-  if (!supabase || isGuestRuntimeUser()) return;
+async function csRestoreIncompleteRound() {
+  // Restores an in-progress CS round on page refresh — NO refunds, ever.
+  // Money is only ever credited by csSettleBetsOnServer (legitimate wins only).
+  if (!supabase || isGuestRuntimeUser()) return false;
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    // An incomplete round is anything not yet completed or abandoned
+    if (!user) return false;
+
     const { data: round } = await supabase
       .from('color_scheme_rounds')
-      .select('id, total_wagered')
+      .select('id, status, roll_1, roll_2, roll_3')
       .eq('user_id', user.id)
       .neq('status', 'completed')
       .neq('status', 'abandoned')
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (!round) return;
-    // Fetch actual wagered amount from bets (in case total_wagered not written yet)
-    const { data: bets } = await supabase
+    if (!round) return false;
+
+    const { data: betRows } = await supabase
       .from('color_scheme_bets')
-      .select('amount_wagered')
+      .select('bet_key, amount_wagered')
       .eq('round_id', round.id);
-    const wageredTotal = bets?.reduce((s, b) => s + (Number(b.amount_wagered) || 0), 0) || 0;
-    // Refund the wagers back to the bankroll
-    if (wageredTotal > 0) {
-      bankroll = roundCurrencyValue(bankroll + wageredTotal);
-      await persistBankroll();
+
+    // No bets recorded — discard silently (no refund)
+    if (!betRows || betRows.length === 0) {
+      await supabase.from('color_scheme_rounds')
+        .update({ status: 'abandoned', total_wagered: 0, total_returned: 0, net_profit: 0 })
+        .eq('id', round.id);
+      return false;
     }
-    // Mark as abandoned so it won't trigger recovery again
-    const { error: abandonErr } = await supabase.from('color_scheme_rounds').update({
-      status: 'abandoned',
-      total_wagered: wageredTotal,
-      total_returned: wageredTotal
-    }).eq('id', round.id);
-    if (abandonErr) {
-      console.error('[CS] recovery abandon update failed:', abandonErr.message, abandonErr);
-    } else if (wageredTotal > 0) {
-      showToast(`Previous RYB round recovered — $${wageredTotal} refunded.`, 'info');
+
+    // ── Restore state ──────────────────────────────────────────────
+    _csRoundId = round.id;
+
+    // Restore bet map from DB rows
+    _csBets = {};
+    for (const bet of betRows) {
+      if (bet.bet_key) _csBets[bet.bet_key] = (_csBets[bet.bet_key] || 0) + Number(bet.amount_wagered || 0);
     }
-  } catch(e) { console.warn('[CS] csRecoverIncompleteRound error:', e); }
+
+    // Parse completed rolls (server stores {color:'R'|'B'|'Y', number:n})
+    const CC = { R: 'RED', B: 'BLUE', Y: 'YELLOW' };
+    _csRoundRolls = [];
+    for (const rc of [round.roll_1, round.roll_2, round.roll_3]) {
+      if (!rc) break;
+      _csRoundRolls.push({ color: CC[rc.color] || rc.color, number: Number(rc.number || 0) });
+    }
+    _csRoll = _csRoundRolls.length;
+
+    // Re-render bet zones with restored stakes
+    Object.keys(_csBets).forEach(id => csRenderBetZone(id));
+    csRenderTotalWagered();
+
+    // Restore roll tracker slots
+    if (_csRoundRolls.length > 0) {
+      _csRoundRolls.forEach((r, i) => {
+        const fc = CS_COLS.find(x => x.name === r.color);
+        if (fc) csFillTrackSlot(i + 1, fc, r.number, _csRoundRolls);
+      });
+      csShowOutcome(_csRoundRolls);
+    }
+
+    if (_csRoundRolls.length === 3) {
+      // All rolls done — re-run settlement (covers crash/disconnect before payout)
+      const { totals } = csCalcOutcome(_csRoundRolls);
+      const grandTotal = Object.values(totals).reduce((a, b) => a + b, 0);
+      csSetBetState('settling');
+      csEvaluateBets(totals, grandTotal);
+      return true;
+    }
+
+    // 0–2 rolls: lock betting, let player continue rolling
+    csSetBetState(_csRoundRolls.length > 0 ? 'locked' : 'open');
+    const remaining = 3 - _csRoundRolls.length;
+    showToast(`Round restored — ${remaining} roll${remaining !== 1 ? 's' : ''} remaining.`, 'info');
+    return true;
+
+  } catch (e) {
+    console.warn('[CS] csRestoreIncompleteRound error:', e);
+    return false;
+  }
 }
 
 function initColorSchemeGame() {
   if (_csGameActive) return;
-  // Recover any abandoned in-progress round first (refund wagers)
-  csRecoverIncompleteRound().catch(() => {});
   csLoadLibraries(() => {
     if (_csGameActive) return; // re-check after async load
     const THREE = window.THREE, CANNON = window.CANNON;
@@ -35931,9 +35972,24 @@ function initColorSchemeGame() {
       // Fall back gracefully — enable roll button without clips (physics fallback)
       if(bRoll){bRoll.disabled=false;bRoll.textContent='⬡ ROLL DICE';}
       if(sBar){sBar.textContent='';sBar.classList.remove('cs-active');}
-    }).then(()=>{
-      if(bRoll){bRoll.disabled=false;bRoll.textContent='⬡ ROLL DICE';}
+    }).then(async ()=>{
       if(sBar){sBar.textContent='';sBar.classList.remove('cs-active');}
+
+      // Restore any in-progress round (sets _csBets, _csRoundRolls, _csRoll) — no refunds
+      await csRestoreIncompleteRound();
+
+      // Set roll button state based on restored round (or fresh start)
+      if(bRoll){
+        if(_csRoll===3){
+          // All rolls done — settlement triggered by restore; hide roll, show new
+          bRoll.style.display='none';
+          const bNew=csEl('cs-bNew'); if(bNew) bNew.style.display='';
+        } else {
+          bRoll.disabled=false;
+          bRoll.textContent = _csRoll===0 ? '⬡ ROLL DICE' : _csRoll===1 ? '⬡ NEXT ROLL' : '⬡ FINAL ROLL';
+        }
+      }
+
       // Wire up the roll handler now that clips are ready
       bRoll._csHandler = async function() {
         this.disabled=true;
