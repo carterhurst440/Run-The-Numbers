@@ -34894,6 +34894,7 @@ let _csDice = [];
 let _csSettling = false;
 let _csLastTime = null;
 let _csProcessingSettle = false;
+let _csSettleFired = false;
 let _csRound = 1;
 let _csRoll = 0;
 let _csRoundRolls = [];
@@ -35517,6 +35518,8 @@ async function csSaveBetsToServer(roundId) {
 
 async function csSettleBetsOnServer(roundId, totals, grandTotal) {
   if (!supabase || isGuestRuntimeUser() || !roundId) return;
+  if (_csSettleFired) { console.warn('[CS] csSettleBetsOnServer: duplicate call blocked'); return; }
+  _csSettleFired = true;
   try {
     const { data: bets, error } = await supabase
       .from('color_scheme_bets').select('id, bet_key, amount_wagered').eq('round_id', roundId);
@@ -36264,7 +36267,7 @@ function initColorSchemeGame() {
     const bNew2=csEl('cs-bNew');
     if (bNew2) {
       bNew2._csHandler = function() {
-        _csRound++; _csRoll=0; _csRoundRolls.length=0; _csProcessingSettle=false;
+        _csRound++; _csRoll=0; _csRoundRolls.length=0; _csProcessingSettle=false; _csSettleFired=false;
         _csRoundId=null; _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null; _csTargetQuats=null;
         _csClipActive=null; _csClipFrame=0; _csClipOnDone=null;
         _csDice.forEach(d=>{if(_csScene)_csScene.remove(d.mesh);if(_csWorld)_csWorld.remove(d.body);}); _csDice=[];
@@ -36299,7 +36302,7 @@ function initColorSchemeGame() {
         const totalNeeded = Object.values(_csLastBets).reduce((a,b)=>a+b,0);
         if (bankroll < totalNeeded) { showToast('Not enough balance to rebet.','error'); return; }
         // --- New round reset (same as New Round button) ---
-        _csRound++; _csRoll=0; _csRoundRolls.length=0; _csProcessingSettle=false;
+        _csRound++; _csRoll=0; _csRoundRolls.length=0; _csProcessingSettle=false; _csSettleFired=false;
         _csRoundId=null; _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null; _csTargetQuats=null;
         _csClipActive=null; _csClipFrame=0; _csClipOnDone=null;
         _csDice.forEach(d=>{if(_csScene)_csScene.remove(d.mesh);if(_csWorld)_csWorld.remove(d.body);}); _csDice=[];

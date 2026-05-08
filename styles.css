@@ -25992,7 +25992,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
     right: 0; top: 0; bottom: 52px; /* 52px = mini hist height */
     width: clamp(140px, 42vw, 182px);
     z-index: 3;
-    background: rgba(6,6,5,0.93);
+    background: rgba(6,6,5,0.80);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     border-left: 1px solid rgba(46,46,38,0.55);
@@ -26055,12 +26055,13 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   .cs-col-outcome .cs-oc-gt-label    { font-size: 7px; }
   .cs-col-outcome .cs-oc-gt-value    { font-size: clamp(20px, 5.5vw, 28px); line-height: 1; }
 
-  /* Primary / Secondary subtotals: stack vertically */
-  .cs-col-outcome .cs-oc-subtotals  { flex-direction: column; gap: 3px; padding: 3px 7px 5px; }
-  .cs-col-outcome .cs-oc-sub-label  { font-size: 7px; letter-spacing: 0.06em; }
-  .cs-col-outcome .cs-oc-sub-value  { font-size: 12px; }
+  /* Primary / Secondary subtotals: same row, compact */
+  .cs-col-outcome .cs-oc-subtotals  { flex-direction: row; gap: 0; padding: 0; border-bottom: 1px solid #2e2e26; }
+  .cs-col-outcome .cs-oc-sub-block  { padding: 4px 6px; flex: 1; }
+  .cs-col-outcome .cs-oc-sub-label  { font-size: 6px; letter-spacing: 0.06em; }
+  .cs-col-outcome .cs-oc-sub-value  { font-size: 11px; }
 
-  /* Ranked list — enough room for all 6 colors */
+  /* Ranked list — enough room for 5 colors */
   .cs-col-outcome .cs-oc-ranked-hdr { font-size: 7px; padding: 3px 7px; }
   .cs-col-outcome .cs-oc-ranked-list .cs-oc-ranked-item,
   .cs-col-outcome .cs-oc-ranked-list > * { padding: 2px 7px; font-size: 9px; }
