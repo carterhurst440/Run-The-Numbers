@@ -34812,6 +34812,7 @@ window.addEventListener("resize", () => {
 let _csGameActive = false;
 let _csAnimId = null;
 let _csRenderer = null;
+let _csResizeObserver = null;
 let _csScene = null;
 let _csCamera = null;
 let _csWorld = null;
@@ -35895,13 +35896,30 @@ function initColorSchemeGame() {
     // Canvas setup
     const canvas = csEl('cs-three-canvas');
     if (!canvas) return;
-    const W = canvas.offsetWidth || 600, H = 300;
-    canvas.width=W; canvas.height=H;
+    const W = canvas.offsetWidth || canvas.clientWidth || 600;
+    const H = canvas.offsetHeight || canvas.clientHeight || 352;
     _csRenderer = new THREE.WebGLRenderer({canvas,antialias:true});
     _csRenderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
     _csRenderer.setSize(W,H);
     _csRenderer.shadowMap.enabled=true; _csRenderer.shadowMap.type=THREE.PCFSoftShadowMap;
     _csRenderer.setClearColor(0x080808);
+
+    // Keep renderer in sync with CSS size
+    const csResizeRenderer = () => {
+      if (!_csRenderer || !_csCamera) return;
+      const nW = canvas.offsetWidth || canvas.clientWidth;
+      const nH = canvas.offsetHeight || canvas.clientHeight;
+      if (!nW || !nH) return;
+      _csRenderer.setSize(nW, nH);
+      _csCamera.aspect = nW / nH;
+      _csCamera.updateProjectionMatrix();
+    };
+    if (typeof ResizeObserver !== 'undefined') {
+      _csResizeObserver = new ResizeObserver(csResizeRenderer);
+      _csResizeObserver.observe(canvas);
+    }
+    // One-shot RAF correction in case offsetWidth was 0 at init time
+    requestAnimationFrame(csResizeRenderer);
 
     _csScene = new THREE.Scene(); _csScene.fog=new THREE.Fog(0x080808,10,18);
     _csCamera = new THREE.PerspectiveCamera(36,W/H,0.1,100);
@@ -36192,6 +36210,7 @@ function destroyColorSchemeGame() {
   const editBtn=csEl('cs-chipRackEdit'); if(editBtn&&editBtn._csHandler){editBtn.removeEventListener('click',editBtn._csHandler);editBtn._csHandler=null;}
   _csChipButtons=[];
   // Dispose Three.js
+  if (_csResizeObserver) { _csResizeObserver.disconnect(); _csResizeObserver=null; }
   if (_csRenderer) { _csRenderer.dispose(); _csRenderer=null; }
   _csScene=null; _csCamera=null; _csWorld=null; _csDice=[]; _csSettling=false; _csLastTime=null; _csProcessingSettle=false;
   _csDm=null; _csGm2=null; _csHistoryData=[];
