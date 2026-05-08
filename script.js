@@ -35812,9 +35812,8 @@ async function csRestoreIncompleteRound() {
       .select('bet_key, amount_wagered')
       .eq('round_id', round.id);
 
-    // No bets in DB, or no rolls started — pre-roll bets are local-only, just discard
-    const hasRolls = !!(round.roll_1);
-    if (!betRows || betRows.length === 0 || !hasRolls) {
+    // No bets in DB — round was created but bets weren't saved, just discard
+    if (!betRows || betRows.length === 0) {
       await supabase.from('color_scheme_rounds')
         .update({ status: 'abandoned', total_wagered: 0, total_returned: 0, net_profit: 0 })
         .eq('id', round.id);
