@@ -20040,7 +20040,10 @@ async function persistBankroll({
         throw new Error("Contest mode is unavailable.");
       }
 
-      const contestCredits = Number.isFinite(Number(contestCreditsValue))
+      // contestCreditsValue=null means "use current bankroll" — must explicitly
+      // check for null/undefined, because Number(null)===0 which is finite and
+      // would otherwise zero-out the contest balance on every no-arg call.
+      const contestCredits = contestCreditsValue != null && Number.isFinite(Number(contestCreditsValue))
         ? normalizeStoredCreditValue(contestCreditsValue)
         : normalizedBankroll;
 
