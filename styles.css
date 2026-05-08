@@ -25092,64 +25092,101 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 }
 @keyframes cs-blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-/* Round history strip (histogram) — horizontal bar rows, newest at top */
-.cs-round-history {
-  border-bottom: 1px solid #2c2c2c;
-  background: #0f0f0f;
+/* ── Score history left panel ───────────────────────────────────────────────── */
+.cs-col-hist {
   display: flex;
-  align-items: stretch;
+  flex-direction: column;
+  background: #0a0a0a;
+  border-right: 1px solid #2c2c2c;
   overflow: hidden;
-  min-height: 80px;
-  max-height: 80px;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 2;
+  min-width: 0;
 }
+/* Panel header */
+.cs-hist-panel-hdr {
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid #1e1e1e;
+  flex-shrink: 0;
+}
+.cs-hist-panel-label {
+  font-size: 8px;
+  color: #4a4a42;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.cs-hist-panel-count {
+  font-size: 22px;
+  font-weight: 700;
+  color: #d8d8d0;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.cs-hist-panel-count span:last-child {
+  font-size: 13px;
+  font-weight: 400;
+  color: #7a7a72;
+  margin-left: 3px;
+}
+.cs-hist-panel-peak {
+  font-size: 9px;
+  color: #4a4a42;
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+}
+.cs-hist-panel-peak span { color: #7a7a72; font-weight: 600; }
+/* Scrollable bar list */
 .cs-histogram-chart {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 5px 8px 5px 6px;
+  padding: 6px 10px 6px 0;
 }
 .cs-histogram-chart::-webkit-scrollbar { width: 2px; }
-.cs-histogram-chart::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 2px; }
+.cs-histogram-chart::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
 .cs-hist-empty {
   font-size: 9px;
   color: #4a4a42;
   letter-spacing: 0.08em;
   display: flex;
   align-items: center;
+  justify-content: center;
   height: 100%;
-  padding-left: 2px;
+  padding: 0 14px;
+  text-align: center;
 }
-/* Each row: [R01] [===bar===] [total] */
+/* Each row: [accent] [R01] [===bar===] [total] */
 .cs-hist-bar-wrap {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 5px;
-  flex: 0 0 11px;
-  min-height: 11px;
+  gap: 6px;
+  flex: 0 0 14px;
+  min-height: 14px;
+  padding-left: 10px;
+  border-left: 2px solid transparent;
   position: relative;
+}
+.cs-hist-current {
+  border-left-color: #a8ff3e;
+  background: rgba(168,255,62,0.03);
 }
 .cs-hist-rnd-label {
   font-size: 7px;
-  color: #4a4a42;
+  color: #3a3a32;
   letter-spacing: 0.04em;
   line-height: 1;
-  width: 20px;
+  width: 22px;
   flex-shrink: 0;
   text-align: right;
 }
 .cs-hist-current .cs-hist-rnd-label { color: #a8ff3e; }
-/* Track: fills remaining width; bar grows rightward within it */
+/* Track: fills remaining width */
 .cs-hist-bar-track {
   flex: 1;
-  height: 7px;
-  position: relative;
+  height: 8px;
   display: flex;
   align-items: center;
 }
@@ -25164,42 +25201,51 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   min-width: 2px;
 }
 .cs-hist-total-label {
-  font-size: 7px;
+  font-size: 8px;
   font-weight: 700;
-  color: #d8d8d0;
+  color: #5a5a52;
   letter-spacing: -0.01em;
   line-height: 1;
-  width: 18px;
+  width: 22px;
   flex-shrink: 0;
+  text-align: right;
+  padding-right: 4px;
 }
 .cs-hist-current .cs-hist-total-label { color: #a8ff3e; }
-.cs-histogram-chart:hover .cs-hist-bar-wrap:not(:hover) { opacity: 0.35; }
+.cs-histogram-chart:hover .cs-hist-bar-wrap:not(:hover) { opacity: 0.4; }
 .cs-hist-seg {
   height: 100%;
   position: relative;
 }
 /* Dim non-winning segments by default */
 .cs-hist-seg.cs-default-dim { opacity: 0.2; }
-/* Hover fade interaction */
+/* Hover fade */
 .cs-histogram-chart.cs-hovering .cs-hist-seg { opacity: 0.12; }
 .cs-histogram-chart.cs-hovering .cs-hist-seg.cs-active { opacity: 1 !important; }
 .cs-histogram-chart.cs-hovering .cs-hist-seg.cs-default-dim { opacity: 0.12; }
-/* Stats panel on the right */
-.cs-hist-peak-right {
-  margin-left: auto;
-  padding: 0 12px;
+/* Color legend */
+.cs-hist-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 8px;
+  padding: 8px 14px 10px;
+  border-top: 1px solid #1e1e1e;
+  flex-shrink: 0;
+}
+.cs-hist-leg-item {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
+  align-items: center;
+  gap: 5px;
   font-size: 8px;
   color: #4a4a42;
   letter-spacing: 0.06em;
-  white-space: nowrap;
-  border-left: 1px solid #2c2c2c;
+}
+.cs-hist-leg-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
   flex-shrink: 0;
 }
-.cs-hist-peak-right span:last-child { color: #d8d8d0; font-weight: 600; }
 /* Histogram tooltip */
 .cs-hist-tooltip {
   position: fixed;
@@ -25219,10 +25265,10 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .cs-ht-pts { font-size: 11px; font-weight: 700; margin-left: auto; }
 .cs-ht-pts-label { font-size: 9px; color: #7a7a72; letter-spacing: 0.08em; }
 
-/* Mid: canvas + outcome */
+/* Mid: history + canvas + outcome */
 .cs-mid {
   display: grid;
-  grid-template-columns: 1fr 240px;
+  grid-template-columns: 200px 1fr 240px;
   border: 1px solid #3a3a3a;
   border-top: none;
   flex-shrink: 0;
@@ -25595,6 +25641,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 /* Responsive */
 @media (max-width: 800px) {
   .cs-mid { grid-template-columns: 1fr; }
+  .cs-col-hist { display: none; }
   .cs-col-outcome { border-left: none; border-top: 1px solid #2c2c2c; }
   #cs-three-canvas { height: 220px; }
   .cs-topbar-right { display: none; }
@@ -25608,5 +25655,5 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   .cs-felt-body { padding: 10px; }
   .cs-oc-gt-value { font-size: 64px; }
   .cs-oc-grand-total { padding: 12px 12px 10px; }
-  .cs-histogram-chart { padding: 4px 6px; }
+  .cs-histogram-chart { padding: 4px 8px 4px 0; }
 }

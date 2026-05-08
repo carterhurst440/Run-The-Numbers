@@ -3092,17 +3092,6 @@
             </div>
           </div>
 
-          <!-- Round history strip (histogram) -->
-          <div class="cs-round-history">
-            <div class="cs-histogram-chart" id="cs-histChart">
-              <div class="cs-hist-empty" id="cs-histEmpty">NO HISTORY YET</div>
-            </div>
-            <div class="cs-hist-peak-right">
-              <div><span id="cs-histCount">0</span> RDS</div>
-              <div>PEAK <span id="cs-histPeak">—</span></div>
-            </div>
-          </div>
-
           <!-- Histogram tooltip (fixed-positioned) -->
           <div id="cs-histTooltip" class="cs-hist-tooltip">
             <div class="cs-ht-color">
@@ -3113,10 +3102,30 @@
             <div class="cs-ht-pts-label">PTS</div>
           </div>
 
-          <!-- Mid section: canvas col + outcome col -->
+          <!-- Mid section: history col + canvas col + outcome col -->
           <div class="cs-mid">
 
-            <!-- Left: roll tracker (top) + canvas + slim status + buttons (bottom) -->
+            <!-- Left: score history panel -->
+            <div class="cs-col-hist">
+              <div class="cs-hist-panel-hdr">
+                <div class="cs-hist-panel-label">SCORE HISTORY</div>
+                <div class="cs-hist-panel-count"><span id="cs-histCount">0</span> <span>rounds</span></div>
+                <div class="cs-hist-panel-peak">PEAK <span id="cs-histPeak">—</span></div>
+              </div>
+              <div class="cs-histogram-chart" id="cs-histChart">
+                <div class="cs-hist-empty" id="cs-histEmpty">NO HISTORY YET</div>
+              </div>
+              <div class="cs-hist-legend">
+                <div class="cs-hist-leg-item"><span class="cs-hist-leg-dot" style="background:#ff4444"></span>RED</div>
+                <div class="cs-hist-leg-item"><span class="cs-hist-leg-dot" style="background:#ff8833"></span>ORANGE</div>
+                <div class="cs-hist-leg-item"><span class="cs-hist-leg-dot" style="background:#ffdd00"></span>YELLOW</div>
+                <div class="cs-hist-leg-item"><span class="cs-hist-leg-dot" style="background:#33ee66"></span>GREEN</div>
+                <div class="cs-hist-leg-item"><span class="cs-hist-leg-dot" style="background:#4488ff"></span>BLUE</div>
+                <div class="cs-hist-leg-item"><span class="cs-hist-leg-dot" style="background:#cc44ff"></span>PURPLE</div>
+              </div>
+            </div>
+
+            <!-- Middle: roll tracker (top) + canvas + slim status + buttons (bottom) -->
             <div class="cs-col-canvas">
               <!-- Roll tracker at TOP -->
               <div class="cs-roll-tracker">
