@@ -34806,7 +34806,7 @@ function csRenderChipRack() {
   const el = document.getElementById('cs-chipSelector');
   if (!el) return;
   el.innerHTML = chipDenominations.map((value) =>
-    `<button class="chip-choice" type="button" data-value="${value}" data-tone="${getRunTheNumbersChipRackToneIndex(value)}"
+    `<button class="${'chip-choice' + (value === selectedChip ? ' active' : '')}" type="button" data-value="${value}" data-tone="${getRunTheNumbersChipRackToneIndex(value)}"
       role="radio" aria-checked="${value === selectedChip ? 'true' : 'false'}">${value}</button>`
   ).join('');
   _csChipButtons = Array.from(el.querySelectorAll('.chip-choice'));
@@ -34824,7 +34824,9 @@ function csRenderChipRack() {
 function csUpdateChipRackUI() {
   _csChipButtons.forEach(btn => {
     const val = Number(btn.dataset.value);
-    btn.setAttribute('aria-checked', val === selectedChip ? 'true' : 'false');
+    const isSelected = val === selectedChip;
+    btn.classList.toggle('active', isSelected);
+    btn.setAttribute('aria-checked', isSelected ? 'true' : 'false');
   });
 }
 
