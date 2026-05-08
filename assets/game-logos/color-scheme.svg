@@ -3,8 +3,9 @@
   <text
     y="74"
     font-family="Menlo, 'Courier New', monospace"
-    font-size="40" font-weight="700"
+    font-size="38" font-weight="700"
     text-anchor="middle"
-    fill="currentColor"
-  ><tspan x="60">?10</tspan></text>
+  >
+    <tspan x="60" fill="#d94040">R</tspan><tspan fill="#c8a820">Y</tspan><tspan fill="#4a80e0">B</tspan>
+  </text>
 </svg>
