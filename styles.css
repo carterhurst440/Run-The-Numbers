@@ -9713,6 +9713,20 @@ body.theme-angelic {
   }
 }
 
+@keyframes cs-rack-shake {
+  0%   { transform: translateX(0); }
+  15%  { transform: translateX(-5px); }
+  30%  { transform: translateX(5px); }
+  45%  { transform: translateX(-4px); }
+  60%  { transform: translateX(4px); }
+  75%  { transform: translateX(-2px); }
+  90%  { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}
+.cs-rack-shake {
+  animation: cs-rack-shake 0.38s ease;
+}
+
 @keyframes carterPulse {
   0% {
     transform: scale(1);
@@ -20535,7 +20549,7 @@ body:not([data-ui="new"]) .auth-callback-spinner {
 /* ---- STAT BLOCKS ---- */
 .home-stat-blocks {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   border-bottom: 1px solid #252520;
 }
 
@@ -24673,7 +24687,7 @@ body[data-ui="new"] .home-contests-panel .home-section-hdr {
 
 body[data-ui="new"] .home-stat-blocks {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   margin-left: 24px;
   margin-right: 24px;
@@ -24709,6 +24723,7 @@ body[data-ui="new"] .home-stat-block::before {
 body[data-ui="new"] .home-stat-block-rtn  { --hsb-accent: #e8a020; --hsb-accent-rgb: 232,160,32; }
 body[data-ui="new"] .home-stat-block-g10  { --hsb-accent: #00e5ff; --hsb-accent-rgb: 0,229,255; }
 body[data-ui="new"] .home-stat-block-st   { --hsb-accent: #c8ff00; --hsb-accent-rgb: 200,255,0; }
+body[data-ui="new"] .home-stat-block-ryb  { --hsb-accent: #ff4444; --hsb-accent-rgb: 255,68,68; }
 
 /* Remove old border treatments */
 body[data-ui="new"] .home-stat-block:last-child { border-right: 1px solid #2e2e22; }
@@ -25835,37 +25850,45 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   display: none; /* hidden on desktop — shown via mobile media query */
   height: 52px;
   flex-shrink: 0;
+  flex-direction: column;
   border-top: 1px solid #2e2e26;
   background: rgba(6,6,5,0.9);
   overflow: hidden;
 }
-.cs-mini-hist-track {
+/* Bar area: takes up most of the height, bars grow from the bottom */
+.cs-mini-hist-bars {
+  flex: 1;
+  min-height: 0;
   display: flex;
   align-items: flex-end;
-  height: 100%;
   gap: 2px;
-  padding: 3px 4px 0;
+  padding: 2px 4px 0;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
 }
-.cs-mini-hist-track::-webkit-scrollbar { display: none; }
-/* Wrapper column: bar stack on top, label on bottom */
-.cs-mini-bar-col {
+.cs-mini-hist-bars::-webkit-scrollbar { display: none; }
+/* Label area: fixed strip at the bottom, aligned with bars above */
+.cs-mini-hist-lbls {
+  height: 13px;
+  flex-shrink: 0;
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+  overflow-x: hidden; /* scroll synced via JS */
+}
+/* Bar column: just the bar itself, height set proportionally by JS */
+.cs-mini-bar-col {
   flex-shrink: 0;
   width: 14px;
-  /* height set proportionally per-bar by JS */
+  height: 100%; /* fills bar-area — overridden by JS proportional value */
 }
 .cs-mini-bar-col.cs-mini-bar-current .cs-mini-bar { outline: 1px solid rgba(168,255,62,0.55); }
 .cs-mini-bar {
   display: flex;
   flex-direction: column-reverse;
   width: 100%;
-  flex: 1;
-  min-height: 4px;
+  height: 100%;
   overflow: hidden;
   border-radius: 1px 1px 0 0;
 }
@@ -25873,17 +25896,18 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .cs-mini-seg.cs-mini-dim { opacity: 0.22; }
 .cs-mini-bar-lbl {
   flex-shrink: 0;
-  height: 12px;
+  width: 14px;
+  height: 13px;
   font-family: 'JetBrains Mono', monospace;
   font-size: 6px;
   font-weight: 700;
   color: rgba(255,255,255,0.45);
   text-align: center;
-  line-height: 12px;
+  line-height: 13px;
   overflow: hidden;
   letter-spacing: 0;
 }
-.cs-mini-bar-col.cs-mini-bar-current .cs-mini-bar-lbl { color: #a8ff3e; }
+.cs-mini-bar-lbl.cs-mini-bar-current { color: #a8ff3e; }
 
 /* ── Mobile histogram modal ──────────────────────────────────────────────── */
 .cs-hist-modal-btn { display: none; } /* hidden on desktop */
@@ -26007,19 +26031,23 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
     text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8);
   }
 
-  /* Roll tracker: shrink right so it doesn't go under outcome panel; nearly transparent */
+  /* Roll tracker: absolute overlay at top of canvas, transparent so dice show through */
   .cs-roll-tracker {
-    margin-right: clamp(140px, 42vw, 182px);
+    position: absolute;
+    top: 0; left: 0;
+    right: clamp(140px, 42vw, 182px); /* stop at outcome panel edge */
+    z-index: 2;
+    margin-right: 0;
     background: transparent;
-    border-bottom: 1px solid rgba(46,46,38,0.3);
+    border-bottom: 1px solid rgba(46,46,38,0.25);
   }
-  /* Tighter slot sizing for the narrowed tracker; transparent slots */
+  /* Transparent slots; text-shadow keeps numbers readable over 3D scene */
   .cs-roll-track-slot {
     padding: 5px 7px;
     min-height: 50px;
     background: transparent !important;
-    border-right-color: rgba(46,46,38,0.3);
-    text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8);
+    border-right-color: rgba(46,46,38,0.25);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.95), 0 0 10px rgba(0,0,0,0.85);
   }
   .cs-rts-idx    { font-size: 7px; margin-bottom: 3px; }
   .cs-rts-num    { font-size: 14px; }
@@ -26081,7 +26109,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 
   /* Replace canvas footer with mini histogram on mobile */
   .cs-canvas-foot { display: none; }
-  .cs-mini-hist { display: flex; }
+  .cs-mini-hist { display: flex; flex-direction: column; }
 
   /* Ranked list: hide tag/formula, larger val, compact rows */
   .cs-col-outcome .cs-oc-rank-tag,
@@ -26100,5 +26128,5 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   .cs-felt-body { padding: 10px; }
   .cs-col-outcome { width: clamp(128px, 40vw, 165px); }
   .cs-col-outcome .cs-oc-gt-value { font-size: clamp(18px, 5vw, 24px); }
-  .cs-roll-tracker { margin-right: clamp(128px, 40vw, 165px); }
+  .cs-roll-tracker { right: clamp(128px, 40vw, 165px); }
 }

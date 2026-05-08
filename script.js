@@ -34225,6 +34225,17 @@ function renderHomeStatCards() {
   setEl("hsb-rank", `#${rankNum}`);
   setEl("hsb-rank-sub", rankName.toUpperCase());
   homeGlitchSection('stats');
+
+  // RYB rounds — async count from DB
+  if (supabase && currentUser?.id && currentUser.id !== GUEST_USER.id) {
+    supabase.from('color_scheme_rounds')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', currentUser.id)
+      .eq('status', 'completed')
+      .then(({ count }) => {
+        setEl('hsb-ryb', fmt(Math.max(0, count || 0)));
+      });
+  }
 }
 
 function renderHomeSystemBlock() {
@@ -35331,50 +35342,49 @@ function _csRenderHistBars(chart, maxTotal) {
 }
 
 function _csRenderMiniHist() {
-  const track = csEl('cs-mini-hist-track');
-  if (!track) return;
+  const barsTrack = csEl('cs-mini-hist-bars');
+  const lblsTrack = csEl('cs-mini-hist-lbls');
+  if (!barsTrack || !lblsTrack) return;
   const COLOR_HEX = {RED:'#ff4444',BLUE:'#4488ff',YELLOW:'#ffdd00',PURPLE:'#cc44ff',GREEN:'#33ee66',ORANGE:'#ff8833'};
   const COLOR_NAMES = ['RED','BLUE','YELLOW','PURPLE','GREEN','ORANGE'];
   const maxTotal = Math.max(..._csHistoryData.map(d => d.total), 1);
-  track.innerHTML = '';
+  barsTrack.innerHTML = '';
+  lblsTrack.innerHTML = '';
   _csHistoryData.forEach(d => {
     const isCurrent = d.roundNum === _csHistoryData.length;
-    // Find the single highest color (to highlight only that one)
     const maxColorVal = Math.max(...COLOR_NAMES.map(c => d.totals[c] || 0));
     const winningColors = COLOR_NAMES.filter(c => (d.totals[c] || 0) === maxColorVal && maxColorVal > 0);
 
-    // Outer wrapper column
+    // Bar column — height is the proportional value, sits at bottom via align-items:flex-end
     const col = document.createElement('div');
     col.className = 'cs-mini-bar-col' + (isCurrent ? ' cs-mini-bar-current' : '');
-
-    // Column height drives proportional sizing; bar fills the column above the label
-    const heightPct = Math.max(8, Math.round((d.total / maxTotal) * 100));
+    const heightPct = Math.max(6, Math.round((d.total / maxTotal) * 100));
     col.style.height = heightPct + '%';
 
-    // Bar (color segments stacking bottom-up)
     const bar = document.createElement('div');
     bar.className = 'cs-mini-bar';
     COLOR_NAMES.forEach(color => {
       const val = d.totals[color] || 0;
       if (!val) return;
       const seg = document.createElement('div');
-      const isWinner = winningColors.includes(color);
-      seg.className = 'cs-mini-seg' + (isWinner ? '' : ' cs-mini-dim');
+      seg.className = 'cs-mini-seg' + (winningColors.includes(color) ? '' : ' cs-mini-dim');
       seg.style.height = ((val / d.total) * 100) + '%';
       seg.style.background = COLOR_HEX[color];
       bar.appendChild(seg);
     });
     col.appendChild(bar);
+    barsTrack.appendChild(col);
 
-    // Total label at bottom
+    // Label — separate strip below bars, same order
     const lbl = document.createElement('div');
-    lbl.className = 'cs-mini-bar-lbl';
+    lbl.className = 'cs-mini-bar-lbl' + (isCurrent ? ' cs-mini-bar-current' : '');
     lbl.textContent = d.total;
-    col.appendChild(lbl);
-
-    track.appendChild(col);
+    lblsTrack.appendChild(lbl);
   });
-  track.scrollLeft = track.scrollWidth;
+  // Scroll both to end; sync label scroll to bar scroll
+  barsTrack.scrollLeft = barsTrack.scrollWidth;
+  lblsTrack.scrollLeft = barsTrack.scrollLeft;
+  barsTrack.onscroll = () => { lblsTrack.scrollLeft = barsTrack.scrollLeft; };
 }
 
 function csRenderHistogram() {
@@ -36386,7 +36396,12 @@ function initColorSchemeGame() {
       },
       placeBet(betId) {
         if(_csBetState!=='open')return;
-        if(bankroll<selectedChip)return;
+        if(bankroll<selectedChip){
+          const rack=csEl('cs-chipBar');
+          if(rack){rack.classList.remove('cs-rack-shake');void rack.offsetWidth;rack.classList.add('cs-rack-shake');}
+          showToast('Not enough bankroll for that chip','error');
+          return;
+        }
         _csBets[betId]=(_csBets[betId]||0)+selectedChip;
         bankroll=roundCurrencyValue(bankroll-selectedChip);
         csAddChipToZone(betId, selectedChip);

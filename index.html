@@ -682,6 +682,16 @@
                   <div id="hsb-st" class="hsb-val">—</div>
                   <div class="hsb-sub">TRADES MADE</div>
                 </div>
+                <div class="home-stat-block home-stat-block-ryb">
+                  <div class="hsb-top-row">
+                    <div class="hsb-label">RYB</div>
+                    <button type="button" class="hsb-chart-btn" data-chart-game="pnlRyb" aria-label="View RYB daily activity chart">
+                      <svg viewBox="0 0 12 10" aria-hidden="true" fill="none"><rect x="0" y="6" width="2" height="4" fill="currentColor" opacity="0.5"/><rect x="3.5" y="3" width="2" height="7" fill="currentColor" opacity="0.7"/><rect x="7" y="1" width="2" height="9" fill="currentColor"/><rect x="10.5" y="4" width="2" height="6" fill="currentColor" opacity="0.6"/></svg>
+                    </button>
+                  </div>
+                  <div id="hsb-ryb" class="hsb-val">—</div>
+                  <div class="hsb-sub">ROUNDS PLAYED</div>
+                </div>
               </div>
 
               <!-- CASINO FLOOR -->
@@ -3217,7 +3227,8 @@
               <canvas id="cs-three-canvas" aria-label="Dice physics simulation"></canvas>
               <!-- Mini histogram: vertical bars, mobile only (replaces canvas footer) -->
               <div class="cs-mini-hist" id="cs-mini-hist" aria-hidden="true">
-                <div class="cs-mini-hist-track" id="cs-mini-hist-track"></div>
+                <div class="cs-mini-hist-bars" id="cs-mini-hist-bars"></div>
+                <div class="cs-mini-hist-lbls" id="cs-mini-hist-lbls"></div>
               </div>
               <!-- 4-column canvas footer: ROUND / ROLL / LAST LANDED / STATUS -->
               <div class="cs-canvas-foot">
@@ -4410,7 +4421,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260508-cs-mobile-v7"></script>
+    <script type="module" src="script.js?v=20260508-cs-mobile-v8"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
