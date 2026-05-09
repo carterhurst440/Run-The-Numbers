@@ -181,8 +181,11 @@ function isGameLockedForPlayer(gameKey) {
   // These can diverge when recompute_all_profile_ranks hasn't written back yet, or when
   // the profile fetch predates the reconcile. Take the maximum so a valid high-tier player
   // is never falsely locked out.
-  const profileTier = currentProfile?.current_rank_tier;
-  const stateTier = currentRankState?.currentRank?.tier;
+  const profileTier = currentProfile?.current_rank_tier ?? null;
+  const stateTier = currentRankState?.currentRank?.tier ?? null;
+  // If neither source has loaded yet (backend assets arrived before auth completed),
+  // don't lock — we don't know the player's tier yet. Render will re-run after auth.
+  if (profileTier == null && stateTier == null) return false;
   const playerTier = Math.max(Number(profileTier ?? 1), Number(stateTier ?? 1));
   if (playerTier >= unlockTier) return false;
   const activeContest = getModeContest();
