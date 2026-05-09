@@ -277,7 +277,8 @@ function hydrateGameAssetLibrary() {
       card_description: String(override?.card_description || defaults.card_description || "").trim() || defaults.card_description,
       card_background_color: sanitizeGameAssetColor(override?.card_background_color),
       button_color: sanitizeGameAssetColor(override?.button_color),
-      button_text_color: sanitizeGameAssetColor(override?.button_text_color)
+      button_text_color: sanitizeGameAssetColor(override?.button_text_color),
+      unlock_tier: null // always comes from backend, never from localStorage
     };
     return next;
   }, {});
