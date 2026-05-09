@@ -28,6 +28,25 @@ const GAME_LABELS = {
 };
 
 const GAME_ASSET_STORAGE_KEY = "rtn:game-assets";
+const PLAYER_TIER_STORAGE_KEY  = "rtn:player-tier";
+
+function loadStoredPlayerTier() {
+  try {
+    const raw = window.localStorage?.getItem(PLAYER_TIER_STORAGE_KEY);
+    const parsed = raw !== null ? Number(raw) : null;
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  } catch { return null; }
+}
+function savePlayerTier(tier) {
+  try {
+    if (Number.isInteger(tier) && tier > 0) {
+      window.localStorage?.setItem(PLAYER_TIER_STORAGE_KEY, String(tier));
+    }
+  } catch { /* ignore */ }
+}
+function clearStoredPlayerTier() {
+  try { window.localStorage?.removeItem(PLAYER_TIER_STORAGE_KEY); } catch { /* ignore */ }
+}
 
 const DEFAULT_GAME_ASSET_LIBRARY = {
   [GAME_KEYS.RUN_THE_NUMBERS]: {
@@ -177,16 +196,18 @@ function isGameLockedForPlayer(gameKey) {
   const record = getGameAssetRecord(gameKey);
   const unlockTier = record?.unlock_tier;
   if (!unlockTier) return false;
-  // Use the best available tier: DB-stored profile tier OR client-computed rank state tier.
-  // These can diverge when recompute_all_profile_ranks hasn't written back yet, or when
-  // the profile fetch predates the reconcile. Take the maximum so a valid high-tier player
-  // is never falsely locked out.
+  // Use the best available tier across three sources (take the max so a valid
+  // high-tier player is never falsely locked out due to DB lag or timing):
+  //   1. DB-stored profile tier  (currentProfile.current_rank_tier)
+  //   2. Client-computed rank    (currentRankState.currentRank.tier)
+  //   3. Last-session cached tier (localStorage rtn:player-tier)
+  // If none are available yet (assets arrived before auth), default to locked
+  // so genuinely low-tier players can't slip through the brief pre-auth window.
   const profileTier = currentProfile?.current_rank_tier ?? null;
-  const stateTier = currentRankState?.currentRank?.tier ?? null;
-  // If neither source has loaded yet (backend assets arrived before auth completed),
-  // don't lock — we don't know the player's tier yet. Render will re-run after auth.
-  if (profileTier == null && stateTier == null) return false;
-  const playerTier = Math.max(Number(profileTier ?? 1), Number(stateTier ?? 1));
+  const stateTier   = currentRankState?.currentRank?.tier ?? null;
+  const cachedTier  = (profileTier == null && stateTier == null) ? loadStoredPlayerTier() : null;
+  if (profileTier == null && stateTier == null && cachedTier == null) return true; // locked until we know
+  const playerTier = Math.max(Number(profileTier ?? 1), Number(stateTier ?? 1), Number(cachedTier ?? 1));
   if (playerTier >= unlockTier) return false;
   const activeContest = getModeContest();
   if (activeContest && contestAllowsGame(activeContest, gameKey)) return false;
@@ -2800,6 +2821,7 @@ async function refreshCurrentRankState({ force = false } = {}) {
   }
   const csRounds = Math.max(0, Math.round(Number(currentProfile?.color_scheme_rounds_played_all_time || 0)));
   currentRankState = resolveRankState(totalProgressEvents, contestWins, tradesMade, ladder, csRounds);
+  savePlayerTier(currentRankState.currentRank?.tier); // cache for next boot's pre-auth lock check
   applyResolvedTheme();
   renderDrawerRankSummary(currentRankState.currentRank);
   typeHomeAboutIntro(homeAboutIntroEl?.dataset.fullCopy || homeAboutIntroEl?.textContent || "");
@@ -34148,6 +34170,7 @@ function setupAuthListener() {
               }
             }
           } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
+            clearStoredPlayerTier();
             aiThemeSettingsCache = {};
             aiThemeSettingsHydrated = false;
             loginThemeSettingsHydrated = false;
