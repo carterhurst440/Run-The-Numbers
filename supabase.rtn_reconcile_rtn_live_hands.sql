@@ -1,14 +1,18 @@
 -- ============================================================
--- Fix: reconcile_profile_hands_played misses server-draw RTN hands
+-- Fix: reconcile_profile_hands_played misses server-draw hands
 --
--- Server-draw RTN hands are stored in rtn_live_hands (not game_hands).
--- Legacy/client-mode RTN hands are stored in game_hands (game_id = 'game_001').
+-- Both RTN and Guess 10 have two code paths:
+--   • Server-draw mode  → hands stored in rtn_live_hands / guess10_live_hands only
+--   • Legacy/client mode → hands stored in game_hands (game_id = 'game_001' / 'game_002')
+--
+-- When server-settled, skipHandLog = true prevents any game_hands insert.
 -- The previous reconcile only counted game_hands, so every login was
--- resetting run_the_numbers_hands_played_all_time to just the legacy count,
--- wiping server-draw hands from the tally.
+-- resetting hand counts to just the legacy totals, wiping all server-draw
+-- hands and potentially demoting player ranks.
 --
--- This migration recreates reconcile_profile_hands_played to count from
--- BOTH tables (no double-counting — each hand is in exactly one table).
+-- This migration fixes reconcile_profile_hands_played to count from
+-- BOTH tables for RTN and G10 (no double-counting — each hand lands in
+-- exactly one table).
 -- ============================================================
 
 drop function if exists public.reconcile_profile_hands_played(uuid);
@@ -34,10 +38,10 @@ begin
 
   update public.profiles p
   set
-    run_the_numbers_hands_played_all_time = coalesce(src.rtn_hands,   0),
+    run_the_numbers_hands_played_all_time = coalesce(src.rtn_hands,    0),
     guess10_hands_played_all_time         = coalesce(src.guess10_hands, 0),
-    color_scheme_rounds_played_all_time   = coalesce(src.cs_rounds,   0),
-    trades_made_all_time                  = coalesce(src.trades_made, 0),
+    color_scheme_rounds_played_all_time   = coalesce(src.cs_rounds,    0),
+    trades_made_all_time                  = coalesce(src.trades_made,  0),
     total_progress_events = coalesce(src.rtn_hands,    0)
                           + coalesce(src.guess10_hands, 0)
                           + coalesce(src.cs_rounds,    0)
@@ -55,7 +59,7 @@ begin
       coalesce(trades.trade_count,0)::integer as trades_made
     from public.profiles p2
 
-    -- RTN: count from game_hands (legacy/client-mode) PLUS rtn_live_hands (server-draw)
+    -- RTN: game_hands (legacy/client-mode) UNION rtn_live_hands (server-draw)
     left join (
       select user_id, count(*)::integer as hand_count
       from (
@@ -72,11 +76,20 @@ begin
       group by user_id
     ) rtn on rtn.user_id = p2.id
 
-    -- Guess 10
+    -- Guess 10: game_hands (legacy/client-mode) UNION guess10_live_hands (server-draw)
     left join (
       select user_id, count(*)::integer as hand_count
-      from public.game_hands
-      where coalesce(game_id, 'game_001') = 'game_002'
+      from (
+        select user_id
+        from public.game_hands
+        where coalesce(game_id, 'game_001') = 'game_002'
+
+        union all
+
+        select user_id
+        from public.guess10_live_hands
+        where status <> 'active'
+      ) g10_all
       group by user_id
     ) g10 on g10.user_id = p2.id
 
@@ -118,8 +131,7 @@ begin
 end;
 $$;
 
--- reconcile_profile_trades_made delegates to reconcile_profile_hands_played
--- (no change needed to its body since it already delegates)
+-- reconcile_profile_trades_made delegates — no body change needed
 drop function if exists public.reconcile_profile_trades_made(uuid);
 
 create or replace function public.reconcile_profile_trades_made(target_user_id uuid default null)
@@ -147,5 +159,5 @@ $$;
 grant execute on function public.reconcile_profile_hands_played(uuid) to authenticated;
 grant execute on function public.reconcile_profile_trades_made(uuid)  to authenticated;
 
--- Backfill all profiles with the corrected counts
+-- Backfill all profiles with corrected counts and recompute ranks
 select public.reconcile_profile_hands_played();
