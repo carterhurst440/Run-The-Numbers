@@ -402,8 +402,7 @@ function persistGameAssetLibrary() {
         card_description: String(record.card_description || DEFAULT_GAME_ASSET_LIBRARY[gameKey].card_description || "").trim(),
         card_background_color: sanitizeGameAssetColor(record.card_background_color),
         button_color: sanitizeGameAssetColor(record.button_color),
-        button_text_color: sanitizeGameAssetColor(record.button_text_color),
-        unlock_tier: Number.isInteger(record.unlock_tier) && record.unlock_tier > 0 ? record.unlock_tier : null
+        button_text_color: sanitizeGameAssetColor(record.button_text_color)
       };
       return next;
     }, {});
