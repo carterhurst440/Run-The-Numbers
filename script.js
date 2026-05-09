@@ -177,7 +177,11 @@ function isGameLockedForPlayer(gameKey) {
   const record = getGameAssetRecord(gameKey);
   const unlockTier = record?.unlock_tier;
   if (!unlockTier) return false;
-  const playerTier = Number(currentProfile?.current_rank_tier ?? 1);
+  // Prefer the live-computed rank tier (resolveRankState result) over the DB-stored
+  // profile value — the profile column can lag behind after a rank-up.
+  const playerTier = Number(
+    currentRankState?.currentRank?.tier ?? currentProfile?.current_rank_tier ?? 1
+  );
   if (playerTier >= unlockTier) return false;
   const activeContest = getModeContest();
   if (activeContest && contestAllowsGame(activeContest, gameKey)) return false;
