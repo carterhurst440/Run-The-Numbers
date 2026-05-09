@@ -177,7 +177,13 @@ function isGameLockedForPlayer(gameKey) {
   const record = getGameAssetRecord(gameKey);
   const unlockTier = record?.unlock_tier;
   if (!unlockTier) return false;
-  const playerTier = Number(currentProfile?.current_rank_tier ?? 1);
+  // Use the best available tier: DB-stored profile tier OR client-computed rank state tier.
+  // These can diverge when recompute_all_profile_ranks hasn't written back yet, or when
+  // the profile fetch predates the reconcile. Take the maximum so a valid high-tier player
+  // is never falsely locked out.
+  const profileTier = currentProfile?.current_rank_tier;
+  const stateTier = currentRankState?.currentRank?.tier;
+  const playerTier = Math.max(Number(profileTier ?? 1), Number(stateTier ?? 1));
   if (playerTier >= unlockTier) return false;
   const activeContest = getModeContest();
   if (activeContest && contestAllowsGame(activeContest, gameKey)) return false;
@@ -396,7 +402,8 @@ function persistGameAssetLibrary() {
         card_description: String(record.card_description || DEFAULT_GAME_ASSET_LIBRARY[gameKey].card_description || "").trim(),
         card_background_color: sanitizeGameAssetColor(record.card_background_color),
         button_color: sanitizeGameAssetColor(record.button_color),
-        button_text_color: sanitizeGameAssetColor(record.button_text_color)
+        button_text_color: sanitizeGameAssetColor(record.button_text_color),
+        unlock_tier: Number.isInteger(record.unlock_tier) && record.unlock_tier > 0 ? record.unlock_tier : null
       };
       return next;
     }, {});
@@ -11262,6 +11269,7 @@ async function loadDashboard(force = false) {
     currentProfile = profileForDashboard;
     lastProfileSync = Date.now();
     await refreshCurrentRankState({ force });
+    renderGameLogoTargets(); // re-render after reconcile may have updated current_rank_tier
     if (dashboardProfileRetryTimer) {
       clearTimeout(dashboardProfileRetryTimer);
       dashboardProfileRetryTimer = null;
@@ -13751,9 +13759,91 @@ async function fetchContestJourneyEventStream(contestId, userId) {
     return [];
   }
 
+  const normalizeJourneyValue = (value) => {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? Number(numericValue.toFixed(2)) : null;
+  };
+
+  const buildLabels = (eventStream) => {
+    const gameCounters = {
+      [GAME_KEYS.RUN_THE_NUMBERS]: 0,
+      [GAME_KEYS.GUESS_10]: 0,
+      [GAME_KEYS.SHAPE_TRADERS]: 0,
+      [GAME_KEYS.COLOR_SCHEME]: 0
+    };
+    return eventStream.map((event, index) => {
+      gameCounters[event.gameKey] = (gameCounters[event.gameKey] || 0) + 1;
+      let label = `Event ${index + 1}`;
+      if (event.gameKey === GAME_KEYS.RUN_THE_NUMBERS) {
+        label = `RTN ${gameCounters[event.gameKey]}`;
+      } else if (event.gameKey === GAME_KEYS.GUESS_10) {
+        label = `G10 ${gameCounters[event.gameKey]}`;
+      } else if (event.gameKey === GAME_KEYS.SHAPE_TRADERS) {
+        label = `ST ${gameCounters[event.gameKey]}`;
+      } else if (event.gameKey === GAME_KEYS.COLOR_SCHEME) {
+        label = `RYB ${gameCounters[event.gameKey]}`;
+      }
+      return { label, value: event.value, created_at: event.created_at };
+    });
+  };
+
+  const sortStream = (stream) =>
+    stream
+      .filter((event) => Number.isFinite(event.value) && event.created_at)
+      .sort((left, right) => {
+        const leftTime = left?.created_at ? new Date(left.created_at).getTime() : Number.NaN;
+        const rightTime = right?.created_at ? new Date(right.created_at).getTime() : Number.NaN;
+        const leftHasTime = Number.isFinite(leftTime);
+        const rightHasTime = Number.isFinite(rightTime);
+        if (leftHasTime && rightHasTime && leftTime !== rightTime) return leftTime - rightTime;
+        if (leftHasTime !== rightHasTime) return leftHasTime ? -1 : 1;
+        if ((left?.sortWeight || 0) !== (right?.sortWeight || 0)) return (left?.sortWeight || 0) - (right?.sortWeight || 0);
+        return String(left?.id || "").localeCompare(String(right?.id || ""));
+      });
+
+  // ── RPC path (security definer — can read any user's rows) ──────────────────
+  // get_contest_journey_events bypasses RLS so admins can view other players'
+  // full journey, not just Start→Finish. Falls back to direct queries if the
+  // RPC doesn't exist yet (pre-migration).
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc(
+      "get_contest_journey_events",
+      { p_contest_id: contestId, p_user_id: userId }
+    );
+    if (!rpcError) {
+      const rows = Array.isArray(rpcData) ? rpcData : [];
+      const eventStream = sortStream(
+        rows.map((row) => ({
+          id: String(row?.event_id || ""),
+          sourceType: String(row?.source_type || "hand"),
+          sortWeight: String(row?.source_type || "") === "trade" ? 1 : 0,
+          created_at: row?.created_at || null,
+          value: normalizeJourneyValue(row?.new_account_value),
+          gameKey: resolveGameKey(row?.game_key) || GAME_KEYS.RUN_THE_NUMBERS
+        }))
+      );
+      return buildLabels(eventStream);
+    }
+    // If error is not "function not found", rethrow
+    const errMsg = String(rpcError?.message || rpcError?.details || "");
+    if (!errMsg.includes("get_contest_journey_events") && !errMsg.includes("does not exist") && !errMsg.includes("function") && !errMsg.includes("42883")) {
+      throw rpcError;
+    }
+    // RPC not yet deployed — fall through to direct queries
+    console.warn("[RTN] get_contest_journey_events RPC not found; using direct queries (RLS applies)");
+  } catch (rpcException) {
+    const msg = String(rpcException?.message || "");
+    if (!msg.includes("get_contest_journey_events") && !msg.includes("does not exist") && !msg.includes("42883")) {
+      throw rpcException;
+    }
+    console.warn("[RTN] get_contest_journey_events RPC not found; using direct queries (RLS applies)");
+  }
+
+  // ── Direct-query fallback (only sees current user's rows via RLS) ────────────
   const pageSize = 1000;
   const handRows = [];
   const rtnHandRows = [];
+  const g10HandRows = [];
   const tradeRows = [];
   const csRoundRows = [];
 
@@ -13767,9 +13857,7 @@ async function fetchContestJourneyEventStream(contestId, userId) {
       .eq("contest_id", contestId)
       .order("created_at", { ascending: true })
       .range(handPage * pageSize, (handPage + 1) * pageSize - 1);
-
     if (error) throw error;
-
     const rows = Array.isArray(data) ? data : [];
     handRows.push(...rows);
     hasMoreHands = rows.length === pageSize;
@@ -13787,18 +13875,35 @@ async function fetchContestJourneyEventStream(contestId, userId) {
       .neq("status", "active")
       .order("started_at", { ascending: true })
       .range(rtnHandPage * pageSize, (rtnHandPage + 1) * pageSize - 1);
-
     if (error) {
-      if (isMissingRelationError(error, "rtn_live_hands")) {
-        break;
-      }
+      if (isMissingRelationError(error, "rtn_live_hands")) break;
       throw error;
     }
-
     const rows = Array.isArray(data) ? data : [];
     rtnHandRows.push(...rows);
     hasMoreRtnHands = rows.length === pageSize;
     rtnHandPage += 1;
+  }
+
+  let g10HandPage = 0;
+  let hasMoreG10Hands = true;
+  while (hasMoreG10Hands) {
+    const { data, error } = await supabase
+      .from("guess10_live_hands")
+      .select("id, started_at, new_account_value, status")
+      .eq("user_id", userId)
+      .eq("contest_id", contestId)
+      .neq("status", "active")
+      .order("started_at", { ascending: true })
+      .range(g10HandPage * pageSize, (g10HandPage + 1) * pageSize - 1);
+    if (error) {
+      if (isMissingRelationError(error, "guess10_live_hands")) break;
+      throw error;
+    }
+    const rows = Array.isArray(data) ? data : [];
+    g10HandRows.push(...rows);
+    hasMoreG10Hands = rows.length === pageSize;
+    g10HandPage += 1;
   }
 
   let tradePage = 0;
@@ -13811,21 +13916,16 @@ async function fetchContestJourneyEventStream(contestId, userId) {
       .eq("contest_id", contestId)
       .order("executed_at", { ascending: true })
       .range(tradePage * pageSize, (tradePage + 1) * pageSize - 1);
-
     if (error) {
-      if (isMissingRelationError(error, "shape_trader_trades")) {
-        break;
-      }
+      if (isMissingRelationError(error, "shape_trader_trades")) break;
       throw error;
     }
-
     const rows = Array.isArray(data) ? data : [];
     tradeRows.push(...rows);
     hasMoreTrades = rows.length === pageSize;
     tradePage += 1;
   }
 
-  // Color Scheme rounds (RYB) played under this contest
   let csPage = 0;
   let hasMoreCsRounds = true;
   while (hasMoreCsRounds) {
@@ -13837,26 +13937,17 @@ async function fetchContestJourneyEventStream(contestId, userId) {
       .eq("status", "completed")
       .order("created_at", { ascending: true })
       .range(csPage * pageSize, (csPage + 1) * pageSize - 1);
-
     if (error) {
-      if (isMissingRelationError(error, "color_scheme_rounds")) {
-        break;
-      }
+      if (isMissingRelationError(error, "color_scheme_rounds")) break;
       throw error;
     }
-
     const rows = Array.isArray(data) ? data : [];
     csRoundRows.push(...rows);
     hasMoreCsRounds = rows.length === pageSize;
     csPage += 1;
   }
 
-  const normalizeJourneyValue = (value) => {
-    const numericValue = Number(value);
-    return Number.isFinite(numericValue) ? Number(numericValue.toFixed(2)) : null;
-  };
-
-  const eventStream = [
+  const eventStream = sortStream([
     ...rtnHandRows.map((row) => ({
       id: String(row?.id || ""),
       sourceType: "hand",
@@ -13864,6 +13955,14 @@ async function fetchContestJourneyEventStream(contestId, userId) {
       created_at: row?.started_at || null,
       value: normalizeJourneyValue(row?.new_account_value),
       gameKey: GAME_KEYS.RUN_THE_NUMBERS
+    })),
+    ...g10HandRows.map((row) => ({
+      id: String(row?.id || ""),
+      sourceType: "hand",
+      sortWeight: 0,
+      created_at: row?.started_at || null,
+      value: normalizeJourneyValue(row?.new_account_value),
+      gameKey: GAME_KEYS.GUESS_10
     })),
     ...handRows.map((row) => ({
       id: String(row?.id || ""),
@@ -13890,50 +13989,9 @@ async function fetchContestJourneyEventStream(contestId, userId) {
       value: normalizeJourneyValue(row?.new_account_value),
       gameKey: GAME_KEYS.COLOR_SCHEME
     }))
-  ]
-    .filter((event) => Number.isFinite(event.value) && event.created_at)
-    .sort((left, right) => {
-      const leftTime = left?.created_at ? new Date(left.created_at).getTime() : Number.NaN;
-      const rightTime = right?.created_at ? new Date(right.created_at).getTime() : Number.NaN;
-      const leftHasTime = Number.isFinite(leftTime);
-      const rightHasTime = Number.isFinite(rightTime);
-      if (leftHasTime && rightHasTime && leftTime !== rightTime) {
-        return leftTime - rightTime;
-      }
-      if (leftHasTime !== rightHasTime) {
-        return leftHasTime ? -1 : 1;
-      }
-      if ((left?.sortWeight || 0) !== (right?.sortWeight || 0)) {
-        return (left?.sortWeight || 0) - (right?.sortWeight || 0);
-      }
-      return String(left?.id || "").localeCompare(String(right?.id || ""));
-    });
+  ]);
 
-  const gameCounters = {
-    [GAME_KEYS.RUN_THE_NUMBERS]: 0,
-    [GAME_KEYS.GUESS_10]: 0,
-    [GAME_KEYS.SHAPE_TRADERS]: 0,
-    [GAME_KEYS.COLOR_SCHEME]: 0
-  };
-
-  return eventStream.map((event, index) => {
-    gameCounters[event.gameKey] = (gameCounters[event.gameKey] || 0) + 1;
-    let label = `Event ${index + 1}`;
-    if (event.gameKey === GAME_KEYS.RUN_THE_NUMBERS) {
-      label = `RTN ${gameCounters[event.gameKey]}`;
-    } else if (event.gameKey === GAME_KEYS.GUESS_10) {
-      label = `G10 ${gameCounters[event.gameKey]}`;
-    } else if (event.gameKey === GAME_KEYS.SHAPE_TRADERS) {
-      label = `ST ${gameCounters[event.gameKey]}`;
-    } else if (event.gameKey === GAME_KEYS.COLOR_SCHEME) {
-      label = `RYB ${gameCounters[event.gameKey]}`;
-    }
-    return {
-      label,
-      value: event.value,
-      created_at: event.created_at
-    };
-  });
+  return buildLabels(eventStream);
 }
 
 async function loadContestJourneyPoints(contest, entry) {
