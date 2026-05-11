@@ -22869,19 +22869,50 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
     const hasSnapshots = Array.isArray(snapshotRows) && snapshotRows.length > 0;
 
     if (hasSnapshots) {
-      const [todayHands, todayTrades] = await Promise.all([
+      // Fetch all sources for today's live data including server-draw and contest
+      const [todayHands, todayRtnLive, todayG10Live, todayTrades, todayCsRounds] = await Promise.all([
         fetchGameHandsRecords({
           startAt: liveTodayStart,
           endAt: liveTodayEnd,
           userIds: [currentUser.id],
-          fields: ["user_id", "created_at", "game_id", "net", "mode_type", "contest_id"]
+          fields: ["user_id", "created_at", "game_id", "net"]
         }),
+        (async () => {
+          const { data } = await supabase
+            .from("rtn_live_hands")
+            .select("created_at:started_at, net, game_id")
+            .eq("user_id", currentUser.id)
+            .neq("status", "active")
+            .gte("started_at", liveTodayStart.toISOString())
+            .lte("started_at", liveTodayEnd.toISOString());
+          return (Array.isArray(data) ? data : []).map((r) => ({ ...r, game_id: GAME_KEYS.RUN_THE_NUMBERS }));
+        })(),
+        (async () => {
+          const { data } = await supabase
+            .from("guess10_live_hands")
+            .select("created_at:started_at, net, game_id")
+            .eq("user_id", currentUser.id)
+            .neq("status", "active")
+            .gte("started_at", liveTodayStart.toISOString())
+            .lte("started_at", liveTodayEnd.toISOString());
+          return (Array.isArray(data) ? data : []).map((r) => ({ ...r, game_id: GAME_KEYS.GUESS_10 }));
+        })(),
         fetchShapeTraderTradeRecords({
           startAt: liveTodayStart,
           endAt: liveTodayEnd,
           userId: currentUser.id,
-          fields: ["executed_at", "trade_side", "net_profit", "contest_id"]
-        })
+          fields: ["executed_at", "trade_side", "net_profit"]
+        }),
+        (async () => {
+          const { data } = await supabase
+            .from("color_scheme_rounds")
+            .select("created_at, net_profit")
+            .eq("user_id", currentUser.id)
+            .eq("status", "completed")
+            .gte("created_at", liveTodayStart.toISOString())
+            .lte("created_at", liveTodayEnd.toISOString());
+          return Array.isArray(data) ? data : [];
+        })()
       ]);
 
       const liveToday = {
@@ -22892,12 +22923,10 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
         pnlRyb: 0
       };
 
-      todayHands.forEach((row) => {
+      // All hands — all modes including contest
+      [...todayHands, ...todayRtnLive, ...todayG10Live].forEach((row) => {
         const dayKey = formatAnalyticsDateKey(row?.created_at);
-        const modeType = String(row?.mode_type || "").trim().toLowerCase();
-        if (dayKey !== todayKey || row?.contest_id || (modeType && modeType !== "normal")) {
-          return;
-        }
+        if (dayKey !== todayKey) return;
         const net = roundCurrencyValue(Number(row?.net || 0));
         const gameKey = resolveGameKey(row?.game_id);
         if (gameKey === GAME_KEYS.RUN_THE_NUMBERS) {
@@ -22909,13 +22938,20 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
         }
       });
 
+      // All realized trades including contest
       todayTrades.forEach((row) => {
         const dayKey = formatAnalyticsDateKey(row?.executed_at);
-        if (dayKey !== todayKey || !isShapeTraderRealizedPnlRecord(row)) {
-          return;
-        }
-        const pnl = roundCurrencyValue(Number(row?.net_profit || 0));
-        liveToday.pnlShapeTraders = roundCurrencyValue(liveToday.pnlShapeTraders + pnl);
+        const rawNetProfit = row?.net_profit;
+        if (dayKey !== todayKey || rawNetProfit === null || rawNetProfit === undefined || rawNetProfit === "") return;
+        if (!Number.isFinite(Number(rawNetProfit))) return;
+        liveToday.pnlShapeTraders = roundCurrencyValue(liveToday.pnlShapeTraders + roundCurrencyValue(Number(rawNetProfit)));
+      });
+
+      // Color Scheme rounds including contest
+      todayCsRounds.forEach((row) => {
+        const dayKey = formatAnalyticsDateKey(row?.created_at);
+        if (dayKey !== todayKey) return;
+        liveToday.pnlRyb = roundCurrencyValue(liveToday.pnlRyb + roundCurrencyValue(Number(row?.net_profit || 0)));
       });
 
       liveToday.pnlTotal = roundCurrencyValue(
@@ -22946,16 +22982,46 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
           }]
         : historicalRows;
     } else {
-      const [allHands, allTrades] = await Promise.all([
+      // No snapshots — build from raw records across all sources including server-draw + contest
+      const [allLegacyHands, allRtnLive, allG10Live, allTrades, allCsRounds] = await Promise.all([
         fetchGameHandsRecords({
           userIds: [currentUser.id],
-          fields: ["user_id", "created_at", "game_id", "net", "mode_type", "contest_id"]
+          fields: ["user_id", "created_at", "game_id", "net"]
         }),
+        (async () => {
+          const { data } = await supabase
+            .from("rtn_live_hands")
+            .select("created_at:started_at, net")
+            .eq("user_id", currentUser.id)
+            .neq("status", "active")
+            .order("started_at", { ascending: true });
+          return (Array.isArray(data) ? data : []).map((r) => ({ ...r, game_id: GAME_KEYS.RUN_THE_NUMBERS }));
+        })(),
+        (async () => {
+          const { data } = await supabase
+            .from("guess10_live_hands")
+            .select("created_at:started_at, net")
+            .eq("user_id", currentUser.id)
+            .neq("status", "active")
+            .order("started_at", { ascending: true });
+          return (Array.isArray(data) ? data : []).map((r) => ({ ...r, game_id: GAME_KEYS.GUESS_10 }));
+        })(),
         fetchShapeTraderTradeRecords({
           userId: currentUser.id,
-          fields: ["executed_at", "trade_side", "net_profit", "contest_id"]
-        })
+          fields: ["executed_at", "trade_side", "net_profit"]
+        }),
+        (async () => {
+          const { data } = await supabase
+            .from("color_scheme_rounds")
+            .select("created_at, net_profit")
+            .eq("user_id", currentUser.id)
+            .eq("status", "completed")
+            .order("created_at", { ascending: true });
+          return Array.isArray(data) ? data : [];
+        })()
       ]);
+
+      const allHands = [...allLegacyHands, ...allRtnLive, ...allG10Live];
 
       const dailyTotals = new Map();
       const ensureDay = (dayKey, createdAt) => {
@@ -22966,18 +23032,17 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
             pnlTotal: 0,
             pnlRtn: 0,
             pnlG10: 0,
-            pnlShapeTraders: 0
+            pnlShapeTraders: 0,
+            pnlRyb: 0
           });
         }
         return dailyTotals.get(dayKey);
       };
 
+      // All modes including contest
       allHands.forEach((row) => {
-        const modeType = String(row?.mode_type || "").trim().toLowerCase();
-        if (row?.contest_id || (modeType && modeType !== "normal")) {
-          return;
-        }
         const dayKey = formatAnalyticsDateKey(row?.created_at);
+        if (!dayKey) return;
         const bucket = ensureDay(dayKey, row?.created_at || `${dayKey}T12:00:00`);
         const net = roundCurrencyValue(Number(row?.net || 0));
         const gameKey = resolveGameKey(row?.game_id);
@@ -22988,18 +23053,29 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
         }
       });
 
+      // All realized trades including contest
       allTrades.forEach((row) => {
-        if (!isShapeTraderRealizedPnlRecord(row)) return;
+        const rawNetProfit = row?.net_profit;
+        if (rawNetProfit === null || rawNetProfit === undefined || rawNetProfit === "") return;
+        if (!Number.isFinite(Number(rawNetProfit))) return;
         const dayKey = formatAnalyticsDateKey(row?.executed_at);
+        if (!dayKey) return;
         const bucket = ensureDay(dayKey, row?.executed_at || `${dayKey}T12:00:00`);
-        const pnl = roundCurrencyValue(Number(row?.net_profit || 0));
-        bucket.pnlShapeTraders = roundCurrencyValue(bucket.pnlShapeTraders + pnl);
+        bucket.pnlShapeTraders = roundCurrencyValue(bucket.pnlShapeTraders + roundCurrencyValue(Number(rawNetProfit)));
+      });
+
+      // Color Scheme rounds including contest
+      allCsRounds.forEach((row) => {
+        const dayKey = formatAnalyticsDateKey(row?.created_at);
+        if (!dayKey) return;
+        const bucket = ensureDay(dayKey, row?.created_at || `${dayKey}T12:00:00`);
+        bucket.pnlRyb = roundCurrencyValue(bucket.pnlRyb + roundCurrencyValue(Number(row?.net_profit || 0)));
       });
 
       persistentBankrollHistory = Array.from(dailyTotals.values())
         .map((row, index) => ({
           ...row,
-          pnlTotal: roundCurrencyValue(row.pnlRtn + row.pnlG10 + row.pnlShapeTraders),
+          pnlTotal: roundCurrencyValue(row.pnlRtn + row.pnlG10 + row.pnlShapeTraders + row.pnlRyb),
           fallbackIndex: index
         }))
         .sort((left, right) => String(left.dayKey).localeCompare(String(right.dayKey)));
