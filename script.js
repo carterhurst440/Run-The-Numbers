@@ -22604,11 +22604,11 @@ function updateActivityFilterUI() {
   if (!mostActiveSubheadEl) return;
 
   const labels = {
-    hour: "Ranked by combined events in the last hour.",
-    day: "Ranked by combined events in the last 24 hours.",
-    week: "Ranked by combined events in the last 7 days.",
-    month: "Ranked by combined events in the last 30 days.",
-    year: "Ranked by combined events in the last year."
+    hour: "Player activity ranked by combined events in the last hour.",
+    day: "Player activity ranked by combined events in the last 24 hours.",
+    week: "Player activity ranked by combined events in the last 7 days.",
+    month: "Player activity ranked by combined events in the last 30 days.",
+    year: "Player activity ranked by combined events in the last year."
   };
 
   mostActiveSubheadEl.textContent = labels[activityLeaderboardPeriod] || labels.week;
@@ -32637,7 +32637,7 @@ async function loadMostActiveThisWeek() {
   }
   const loadingItem = document.createElement("li");
   loadingItem.className = "analytics-activity-item analytics-activity-empty";
-  loadingItem.textContent = "Loading activity rankings...";
+  loadingItem.textContent = "Loading player activity...";
   mostActiveWeekListEl.appendChild(loadingItem);
 
   const startDate = getAnalyticsPeriodStart(activityLeaderboardPeriod);
@@ -32654,7 +32654,7 @@ async function loadMostActiveThisWeek() {
     mostActiveWeekListEl.innerHTML = "";
     const errorItem = document.createElement("li");
     errorItem.className = "analytics-activity-item analytics-activity-empty";
-    errorItem.textContent = "Unable to load activity rankings.";
+    errorItem.textContent = "Unable to load player activity.";
     mostActiveWeekListEl.appendChild(errorItem);
   }
 }

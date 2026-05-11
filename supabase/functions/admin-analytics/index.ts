@@ -24,24 +24,35 @@ type TradeRow = {
   contest_id?: string | null;
 };
 
+type ColorSchemeRow = {
+  user_id?: string | null;
+  created_at?: string | null;
+  net_profit?: number | null;
+  contest_id?: string | null;
+  status?: string | null;
+};
+
 type DailyProfitLossRow = {
   profit_date?: string | null;
   pnl_total?: number | null;
   pnl_rtn?: number | null;
   pnl_g10?: number | null;
   pnl_shape_traders?: number | null;
+  pnl_ryb?: number | null;
 };
 
 const GAME_IDS = {
   RUN_THE_NUMBERS: "game_001",
   GUESS_10: "game_002",
-  SHAPE_TRADERS: "game_003"
+  SHAPE_TRADERS: "game_003",
+  COLOR_SCHEME: "game_004"
 } as const;
 
 const GAME_LABELS: Record<string, string> = {
   [GAME_IDS.RUN_THE_NUMBERS]: "Run the Numbers",
   [GAME_IDS.GUESS_10]: "Guess 10",
-  [GAME_IDS.SHAPE_TRADERS]: "Shape Traders"
+  [GAME_IDS.SHAPE_TRADERS]: "Shape Traders",
+  [GAME_IDS.COLOR_SCHEME]: "Color Scheme"
 };
 const ANALYTICS_TIME_ZONE = "America/Denver";
 
@@ -142,6 +153,15 @@ function normalizeGameId(value: unknown) {
     return GAME_IDS.GUESS_10;
   }
   if (
+    normalized === GAME_IDS.COLOR_SCHEME ||
+    normalized === "color-scheme" ||
+    normalized === "color_scheme" ||
+    normalized === "colorscheme" ||
+    normalized === "ryb"
+  ) {
+    return GAME_IDS.COLOR_SCHEME;
+  }
+  if (
     normalized === GAME_IDS.RUN_THE_NUMBERS ||
     normalized === "run-the-numbers" ||
     normalized === "run_the_numbers"
@@ -151,6 +171,7 @@ function normalizeGameId(value: unknown) {
   return GAME_IDS.RUN_THE_NUMBERS;
 }
 
+// ─── Legacy game_hands (RTN/G10 client-mode) ───────────────────────────────
 async function loadHands(
   supabase: ReturnType<typeof createClient>,
   {
@@ -217,6 +238,168 @@ async function loadHands(
   return allHands;
 }
 
+// ─── Server-draw RTN hands (rtn_live_hands) ────────────────────────────────
+async function loadRtnLiveHands(
+  supabase: ReturnType<typeof createClient>,
+  {
+    startAt,
+    endAt,
+    userIds,
+    selectFields = ["started_at", "net", "mode_type", "contest_id", "user_id"]
+  }: {
+    startAt: Date | null;
+    endAt: Date;
+    userIds: string[];
+    selectFields?: string[];
+  }
+): Promise<HandRow[]> {
+  const allRows: HandRow[] = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = supabase
+      .from("rtn_live_hands")
+      .select(selectFields.join(", "))
+      .neq("status", "active")
+      .lte("started_at", endAt.toISOString())
+      .order("started_at", { ascending: true })
+      .range(page * pageSize, page * pageSize + pageSize - 1);
+
+    if (startAt) query = query.gte("started_at", startAt.toISOString());
+    if (userIds.length) query = query.in("user_id", userIds);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const batch = Array.isArray(data) ? data : [];
+    batch.forEach((row) => {
+      allRows.push({
+        user_id: row.user_id,
+        created_at: row.started_at,
+        game_id: GAME_IDS.RUN_THE_NUMBERS,
+        net: row.net ?? null,
+        mode_type: row.mode_type ?? null,
+        contest_id: row.contest_id ?? null
+      });
+    });
+
+    hasMore = batch.length === pageSize;
+    page += 1;
+  }
+
+  return allRows;
+}
+
+// ─── Server-draw G10 hands (guess10_live_hands) ────────────────────────────
+async function loadGuess10LiveHands(
+  supabase: ReturnType<typeof createClient>,
+  {
+    startAt,
+    endAt,
+    userIds,
+    selectFields = ["started_at", "net", "mode_type", "contest_id", "user_id"]
+  }: {
+    startAt: Date | null;
+    endAt: Date;
+    userIds: string[];
+    selectFields?: string[];
+  }
+): Promise<HandRow[]> {
+  const allRows: HandRow[] = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = supabase
+      .from("guess10_live_hands")
+      .select(selectFields.join(", "))
+      .neq("status", "active")
+      .lte("started_at", endAt.toISOString())
+      .order("started_at", { ascending: true })
+      .range(page * pageSize, page * pageSize + pageSize - 1);
+
+    if (startAt) query = query.gte("started_at", startAt.toISOString());
+    if (userIds.length) query = query.in("user_id", userIds);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const batch = Array.isArray(data) ? data : [];
+    batch.forEach((row) => {
+      allRows.push({
+        user_id: row.user_id,
+        created_at: row.started_at,
+        game_id: GAME_IDS.GUESS_10,
+        net: row.net ?? null,
+        mode_type: row.mode_type ?? null,
+        contest_id: row.contest_id ?? null
+      });
+    });
+
+    hasMore = batch.length === pageSize;
+    page += 1;
+  }
+
+  return allRows;
+}
+
+// ─── Color Scheme rounds (color_scheme_rounds) ─────────────────────────────
+async function loadColorSchemeRounds(
+  supabase: ReturnType<typeof createClient>,
+  {
+    startAt,
+    endAt,
+    userIds,
+    selectFields = ["created_at", "net_profit", "contest_id", "user_id", "status"]
+  }: {
+    startAt: Date | null;
+    endAt: Date;
+    userIds: string[];
+    selectFields?: string[];
+  }
+): Promise<ColorSchemeRow[]> {
+  const allRows: ColorSchemeRow[] = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = supabase
+      .from("color_scheme_rounds")
+      .select(selectFields.join(", "))
+      .eq("status", "completed")
+      .lte("created_at", endAt.toISOString())
+      .order("created_at", { ascending: true })
+      .range(page * pageSize, page * pageSize + pageSize - 1);
+
+    if (startAt) query = query.gte("created_at", startAt.toISOString());
+    if (userIds.length) query = query.in("user_id", userIds);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const batch = Array.isArray(data) ? data : [];
+    batch.forEach((row) => {
+      allRows.push({
+        user_id: row.user_id,
+        created_at: row.created_at,
+        net_profit: row.net_profit ?? null,
+        contest_id: row.contest_id ?? null,
+        status: row.status ?? null
+      });
+    });
+
+    hasMore = batch.length === pageSize;
+    page += 1;
+  }
+
+  return allRows;
+}
+
+// ─── Shape Trader trades ───────────────────────────────────────────────────
 async function loadTrades(
   supabase: ReturnType<typeof createClient>,
   {
@@ -283,7 +466,7 @@ async function loadDailyProfitLossRows(
   while (hasMore) {
     const { data, error } = await supabase
       .from("daily_profit_loss")
-      .select("profit_date, pnl_total, pnl_rtn, pnl_g10, pnl_shape_traders")
+      .select("profit_date, pnl_total, pnl_rtn, pnl_g10, pnl_shape_traders, pnl_ryb")
       .eq("user_id", userId)
       .order("profit_date", { ascending: true })
       .range(page * pageSize, page * pageSize + pageSize - 1);
@@ -343,6 +526,7 @@ Deno.serve(async (request) => {
       throw new Error("action is required.");
     }
 
+    // ── hands_timeseries ──────────────────────────────────────────────────
     if (action === "hands_timeseries") {
       const now = body?.endAt ? new Date(String(body.endAt)) : new Date();
       const requestedStart = body?.startAt ? new Date(String(body.startAt)) : null;
@@ -354,22 +538,28 @@ Deno.serve(async (request) => {
         ? body.targetUserIds.map((value: unknown) => String(value || "").trim()).filter(Boolean)
         : [];
 
-      const allRecords = await loadHands(supabase, {
-        startAt: startDate,
-        endAt: now,
-        userIds: targetUserIds
-      });
-      const tradeRecords = await loadTrades(supabase, {
-        startAt: startDate,
-        endAt: now,
-        userIds: targetUserIds,
-        selectFields: ["executed_at", "user_id"]
-      });
+      const queryArgs = { startAt: startDate, endAt: now, userIds: targetUserIds };
+
+      // Fetch all sources in parallel
+      const [legacyHands, rtnLiveHands, g10LiveHands, tradeRecords, csRounds] = await Promise.all([
+        loadHands(supabase, { ...queryArgs, selectFields: ["created_at", "game_id", "user_id"] }),
+        loadRtnLiveHands(supabase, { ...queryArgs, selectFields: ["started_at", "user_id"] }),
+        loadGuess10LiveHands(supabase, { ...queryArgs, selectFields: ["started_at", "user_id"] }),
+        loadTrades(supabase, { ...queryArgs, selectFields: ["executed_at", "user_id"] }),
+        loadColorSchemeRounds(supabase, { ...queryArgs, selectFields: ["created_at", "user_id", "status"] })
+      ]);
+
+      // Merge all hands (legacy + server-draw)
+      const allHandRecords: HandRow[] = [
+        ...legacyHands,
+        ...rtnLiveHands,
+        ...g10LiveHands
+      ];
 
       const effectiveStartDate =
         startDate ||
-        (allRecords.length > 0
-          ? new Date(String(allRecords[0]?.created_at || now.toISOString()))
+        (allHandRecords.length > 0
+          ? new Date(String(allHandRecords[0]?.created_at || now.toISOString()))
           : now);
 
       const bucketStarts: Date[] = [];
@@ -408,17 +598,21 @@ Deno.serve(async (request) => {
         } else {
           bucketEnd.setDate(bucketEnd.getDate() + 1);
         }
-        const matchingHands = allRecords.filter((entry) => {
-          const createdAt = entry?.created_at ? new Date(entry.created_at) : null;
-          return createdAt && !Number.isNaN(createdAt.getTime()) && createdAt >= bucketStart && createdAt < bucketEnd;
-        });
-        const matchingTrades = tradeRecords.filter((entry) => {
-          const executedAt = entry?.executed_at ? new Date(entry.executed_at) : null;
-          return executedAt && !Number.isNaN(executedAt.getTime()) && executedAt >= bucketStart && executedAt < bucketEnd;
-        });
-        const runTheNumbersHands = matchingHands.filter((entry) => normalizeGameId(entry.game_id) === GAME_IDS.RUN_THE_NUMBERS).length;
-        const guess10Hands = matchingHands.filter((entry) => normalizeGameId(entry.game_id) === GAME_IDS.GUESS_10).length;
+
+        const inBucket = (ts: string | null | undefined) => {
+          const d = ts ? new Date(ts) : null;
+          return d && !Number.isNaN(d.getTime()) && d >= bucketStart && d < bucketEnd;
+        };
+
+        const matchingHands = allHandRecords.filter((e) => inBucket(e.created_at));
+        const matchingTrades = tradeRecords.filter((e) => inBucket(e.executed_at));
+        const matchingCs = csRounds.filter((e) => inBucket(e.created_at));
+
+        const runTheNumbersHands = matchingHands.filter((e) => e.game_id === GAME_IDS.RUN_THE_NUMBERS).length;
+        const guess10Hands = matchingHands.filter((e) => e.game_id === GAME_IDS.GUESS_10).length;
         const shapeTradersTrades = matchingTrades.length;
+        const colorSchemeRounds = matchingCs.length;
+
         return {
           label: period === "hour"
             ? formatBucketLabel(bucketStart, 5)
@@ -429,16 +623,14 @@ Deno.serve(async (request) => {
           runTheNumbersHands,
           guess10Hands,
           shapeTradersTrades,
-          totalEvents: runTheNumbersHands + guess10Hands + shapeTradersTrades
+          colorSchemeRounds,
+          totalEvents: runTheNumbersHands + guess10Hands + shapeTradersTrades + colorSchemeRounds
         };
       });
 
       return new Response(JSON.stringify({ rows }), {
         status: 200,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json"
-        }
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
@@ -449,13 +641,11 @@ Deno.serve(async (request) => {
     if (action === "player_bankroll_history") {
       return new Response(JSON.stringify({ points: [] }), {
         status: 200,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json"
-        }
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
+    // ── player_pnl_history ────────────────────────────────────────────────
     if (action === "player_pnl_history") {
       const now = new Date();
       const startDate = getPeriodStart(period);
@@ -470,22 +660,42 @@ Deno.serve(async (request) => {
           pnlRtn: roundCurrencyValue(Number(row?.pnl_rtn || 0)),
           pnlG10: roundCurrencyValue(Number(row?.pnl_g10 || 0)),
           pnlShapeTraders: roundCurrencyValue(Number(row?.pnl_shape_traders || 0)),
+          pnlRyb: roundCurrencyValue(Number(row?.pnl_ryb || 0)),
           fallbackIndex: index
         }))
         .filter((row) => row.dayKey);
 
-      const [todayHands, todayTrades] = await Promise.all([
+      // Fetch today's live data from all sources in parallel
+      const [todayHands, todayLiveRtn, todayLiveG10, todayTrades, todayCs] = await Promise.all([
         loadHands(supabase, {
           startAt: todayRange.start,
           endAt: todayRange.end,
           userIds: [userId],
           selectFields: ["user_id", "created_at", "game_id", "net", "mode_type", "contest_id"]
         }),
+        loadRtnLiveHands(supabase, {
+          startAt: todayRange.start,
+          endAt: todayRange.end,
+          userIds: [userId],
+          selectFields: ["user_id", "started_at", "net", "mode_type", "contest_id"]
+        }),
+        loadGuess10LiveHands(supabase, {
+          startAt: todayRange.start,
+          endAt: todayRange.end,
+          userIds: [userId],
+          selectFields: ["user_id", "started_at", "net", "mode_type", "contest_id"]
+        }),
         loadTrades(supabase, {
           startAt: todayRange.start,
           endAt: todayRange.end,
           userIds: [userId],
           selectFields: ["user_id", "executed_at", "trade_side", "net_profit", "contest_id"]
+        }),
+        loadColorSchemeRounds(supabase, {
+          startAt: todayRange.start,
+          endAt: todayRange.end,
+          userIds: [userId],
+          selectFields: ["user_id", "created_at", "net_profit", "contest_id", "status"]
         })
       ]);
 
@@ -493,9 +703,11 @@ Deno.serve(async (request) => {
         pnlTotal: 0,
         pnlRtn: 0,
         pnlG10: 0,
-        pnlShapeTraders: 0
+        pnlShapeTraders: 0,
+        pnlRyb: 0
       };
 
+      // Legacy hands (game_hands) — RTN and G10
       todayHands.forEach((hand) => {
         const dayKey = getAnalyticsDayKey(hand?.created_at);
         const modeType = String(hand?.mode_type || "").trim().toLowerCase();
@@ -511,6 +723,23 @@ Deno.serve(async (request) => {
         }
       });
 
+      // Server-draw RTN hands
+      todayLiveRtn.forEach((hand) => {
+        const dayKey = getAnalyticsDayKey(hand?.created_at);
+        const modeType = String(hand?.mode_type || "").trim().toLowerCase();
+        if (dayKey !== todayRange.dayKey || hand?.contest_id || (modeType && modeType !== "normal")) return;
+        liveToday.pnlRtn = roundCurrencyValue(liveToday.pnlRtn + roundCurrencyValue(Number(hand?.net || 0)));
+      });
+
+      // Server-draw G10 hands
+      todayLiveG10.forEach((hand) => {
+        const dayKey = getAnalyticsDayKey(hand?.created_at);
+        const modeType = String(hand?.mode_type || "").trim().toLowerCase();
+        if (dayKey !== todayRange.dayKey || hand?.contest_id || (modeType && modeType !== "normal")) return;
+        liveToday.pnlG10 = roundCurrencyValue(liveToday.pnlG10 + roundCurrencyValue(Number(hand?.net || 0)));
+      });
+
+      // Shape Trader sells
       todayTrades.forEach((trade) => {
         const dayKey = getAnalyticsDayKey(trade?.executed_at);
         if (dayKey !== todayRange.dayKey || !isShapeTraderRealizedPnlTrade(trade)) {
@@ -521,8 +750,17 @@ Deno.serve(async (request) => {
         );
       });
 
+      // Color Scheme rounds
+      todayCs.forEach((round) => {
+        const dayKey = getAnalyticsDayKey(round?.created_at);
+        if (dayKey !== todayRange.dayKey || round?.contest_id) return;
+        liveToday.pnlRyb = roundCurrencyValue(
+          liveToday.pnlRyb + roundCurrencyValue(Number(round?.net_profit || 0))
+        );
+      });
+
       liveToday.pnlTotal = roundCurrencyValue(
-        liveToday.pnlRtn + liveToday.pnlG10 + liveToday.pnlShapeTraders
+        liveToday.pnlRtn + liveToday.pnlG10 + liveToday.pnlShapeTraders + liveToday.pnlRyb
       );
 
       const hasTodayActivity = Object.values(liveToday).some((value) => Math.abs(Number(value || 0)) > 0);
@@ -546,32 +784,48 @@ Deno.serve(async (request) => {
 
       return new Response(JSON.stringify({ points }), {
         status: 200,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json"
-        }
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
+    // ── player_mode_breakdown ─────────────────────────────────────────────
     if (action === "player_mode_breakdown") {
-      const hands = await loadHands(supabase, {
+      const queryArgs = {
         startAt: getPeriodStart(period),
         endAt: new Date(),
-        userIds: [userId],
-        selectFields: ["user_id", "created_at", "game_id", "mode_type", "contest_id"]
-      });
-      const trades = await loadTrades(supabase, {
-        startAt: getPeriodStart(period),
-        endAt: new Date(),
-        userIds: [userId],
-        selectFields: ["executed_at", "trade_side", "contest_id"]
-      });
+        userIds: [userId]
+      };
+
+      const [hands, liveRtn, liveG10, trades, csRounds] = await Promise.all([
+        loadHands(supabase, {
+          ...queryArgs,
+          selectFields: ["user_id", "created_at", "game_id", "mode_type", "contest_id"]
+        }),
+        loadRtnLiveHands(supabase, {
+          ...queryArgs,
+          selectFields: ["user_id", "started_at", "mode_type", "contest_id"]
+        }),
+        loadGuess10LiveHands(supabase, {
+          ...queryArgs,
+          selectFields: ["user_id", "started_at", "mode_type", "contest_id"]
+        }),
+        loadTrades(supabase, {
+          ...queryArgs,
+          selectFields: ["executed_at", "trade_side", "contest_id"]
+        }),
+        loadColorSchemeRounds(supabase, {
+          ...queryArgs,
+          selectFields: ["created_at", "contest_id", "status", "user_id"]
+        })
+      ]);
+
+      const allHands: HandRow[] = [...hands, ...liveRtn, ...liveG10];
 
       const modeCounts = new Map<string, number>([
         ["Normal Mode", 0],
         ["Contest Mode", 0]
       ]);
-      hands.forEach((hand) => {
+      allHands.forEach((hand) => {
         const modeType = String(hand?.mode_type || "").trim().toLowerCase();
         const label = hand?.contest_id || modeType === "contest" ? "Contest Mode" : "Normal Mode";
         modeCounts.set(label, (modeCounts.get(label) || 0) + 1);
@@ -580,18 +834,24 @@ Deno.serve(async (request) => {
         const label = trade?.contest_id ? "Contest Mode" : "Normal Mode";
         modeCounts.set(label, (modeCounts.get(label) || 0) + 1);
       });
+      csRounds.forEach((round) => {
+        const label = round?.contest_id ? "Contest Mode" : "Normal Mode";
+        modeCounts.set(label, (modeCounts.get(label) || 0) + 1);
+      });
 
       const counts = new Map<string, number>([
         [GAME_IDS.RUN_THE_NUMBERS, 0],
         [GAME_IDS.GUESS_10, 0],
-        [GAME_IDS.SHAPE_TRADERS, 0]
+        [GAME_IDS.SHAPE_TRADERS, 0],
+        [GAME_IDS.COLOR_SCHEME, 0]
       ]);
 
-      hands.forEach((hand) => {
+      allHands.forEach((hand) => {
         const gameId = normalizeGameId(hand.game_id);
         counts.set(gameId, (counts.get(gameId) || 0) + 1);
       });
       counts.set(GAME_IDS.SHAPE_TRADERS, trades.length);
+      counts.set(GAME_IDS.COLOR_SCHEME, csRounds.length);
 
       const gameRows = Array.from(counts.entries())
         .map(([key, handsPlayed]) => ({
@@ -615,10 +875,7 @@ Deno.serve(async (request) => {
         gameTotalHands: gameRows.reduce((sum, row) => sum + row.handsPlayed, 0)
       }), {
         status: 200,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json"
-        }
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
