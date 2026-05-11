@@ -22159,26 +22159,76 @@ async function fetchAdminShapeTraderTradeRecords({
   return allRows;
 }
 
+async function fetchAdminLiveHandsRecords({
+  startAt = null,
+  endAt = null,
+  userIds = null
+} = {}) {
+  if (!supabase) return [];
+  const allRows = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+  while (hasMore) {
+    const { data, error } = await supabase
+      .rpc("get_admin_live_hands", {
+        start_at: startAt ? startAt.toISOString() : null,
+        end_at: endAt ? endAt.toISOString() : null,
+        target_user_ids: Array.isArray(userIds) && userIds.length ? userIds : null
+      })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    if (error) throw error;
+    const rows = Array.isArray(data) ? data : [];
+    allRows.push(...rows);
+    hasMore = rows.length === pageSize;
+    page += 1;
+  }
+  return allRows.map((row) => ({ ...row, game_id: resolveGameKey(row?.game_id) }));
+}
+
+async function fetchAdminColorSchemeRoundRecords({
+  startAt = null,
+  endAt = null,
+  userIds = null
+} = {}) {
+  if (!supabase) return [];
+  const allRows = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
+  while (hasMore) {
+    const { data, error } = await supabase
+      .rpc("get_admin_color_scheme_rounds", {
+        start_at: startAt ? startAt.toISOString() : null,
+        end_at: endAt ? endAt.toISOString() : null,
+        target_user_ids: Array.isArray(userIds) && userIds.length ? userIds : null
+      })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    if (error) throw error;
+    const rows = Array.isArray(data) ? data : [];
+    allRows.push(...rows);
+    hasMore = rows.length === pageSize;
+    page += 1;
+  }
+  return allRows.map((row) => ({ ...row, game_id: resolveGameKey(row?.game_id) }));
+}
+
 async function loadAdminAnalyticsRawRecords({
   startAt = null,
   endAt = new Date(),
   userIds = null
 } = {}) {
-  const [handResult, tradeResult] = await Promise.allSettled([
-    fetchAdminGameHandsRecords({
-      startAt,
-      endAt,
-      userIds
-    }),
-    fetchAdminShapeTraderTradeRecords({
-      startAt,
-      endAt,
-      userIds
-    })
+  const [handResult, tradeResult, liveHandResult, csResult] = await Promise.allSettled([
+    fetchAdminGameHandsRecords({ startAt, endAt, userIds }),
+    fetchAdminShapeTraderTradeRecords({ startAt, endAt, userIds }),
+    fetchAdminLiveHandsRecords({ startAt, endAt, userIds }),
+    fetchAdminColorSchemeRoundRecords({ startAt, endAt, userIds })
   ]);
 
-  const handRecords = handResult.status === "fulfilled" ? handResult.value : [];
+  const legacyHands = handResult.status === "fulfilled" ? handResult.value : [];
   const tradeRecords = tradeResult.status === "fulfilled" ? tradeResult.value : [];
+  const liveHands = liveHandResult.status === "fulfilled" ? liveHandResult.value : [];
+  const csRecords = csResult.status === "fulfilled" ? csResult.value : [];
 
   if (handResult.status === "rejected") {
     console.warn("[RTN] admin game hands raw fetch failed", handResult.reason);
@@ -22186,13 +22236,24 @@ async function loadAdminAnalyticsRawRecords({
   if (tradeResult.status === "rejected") {
     console.warn("[RTN] admin shape trader raw fetch failed", tradeResult.reason);
   }
-  if (handResult.status === "rejected" && tradeResult.status === "rejected") {
+  if (liveHandResult.status === "rejected") {
+    console.warn("[RTN] admin live hands raw fetch failed", liveHandResult.reason);
+  }
+  if (csResult.status === "rejected") {
+    console.warn("[RTN] admin color scheme rounds fetch failed", csResult.reason);
+  }
+  if (handResult.status === "rejected" && tradeResult.status === "rejected" &&
+      liveHandResult.status === "rejected" && csResult.status === "rejected") {
     throw handResult.reason || tradeResult.reason || new Error("Admin analytics raw fetch failed");
   }
 
+  // Merge legacy + server-draw hands (deduplicate is not needed — different tables)
+  const handRecords = [...legacyHands, ...liveHands];
+
   return {
     handRecords,
-    tradeRecords
+    tradeRecords,
+    csRecords
   };
 }
 
@@ -31344,6 +31405,7 @@ function buildMostActiveTrendDatasets({
   rankedUsers = [],
   handRecords = [],
   tradeRecords = [],
+  csRecords = [],
   period = "week",
   startAt = null,
   endAt = new Date()
@@ -31361,7 +31423,9 @@ function buildMostActiveTrendDatasets({
       ? new Date(handRecords[0]?.created_at || endAt)
       : tradeRecords.length > 0
         ? new Date(tradeRecords[0]?.executed_at || endAt)
-        : new Date(endAt.getTime() - 29 * 24 * 60 * 60 * 1000));
+        : csRecords.length > 0
+          ? new Date(csRecords[0]?.created_at || endAt)
+          : new Date(endAt.getTime() - 29 * 24 * 60 * 60 * 1000));
 
   const buckets = buildHandsChartBuckets(period, effectiveStart, endAt);
   const seriesMap = new Map(
@@ -31405,6 +31469,17 @@ function buildMostActiveTrendDatasets({
     });
   }
 
+  if (mostActiveTrendGameFilter === "all" || mostActiveTrendGameFilter === GAME_KEYS.COLOR_SCHEME) {
+    csRecords.forEach((record) => {
+      const userId = record?.user_id;
+      if (!seriesMap.has(userId)) return;
+      const createdAt = new Date(record?.created_at || 0);
+      const bucketIndex = buckets.findIndex((bucket) => createdAt >= bucket.start && createdAt < bucket.end);
+      if (bucketIndex < 0) return;
+      seriesMap.get(userId).values[bucketIndex] += 1;
+    });
+  }
+
   const datasets = effectiveSelectedIds.map((userId, index) => {
     const colors = getMostActiveTrendSeriesColors(index);
     const series = seriesMap.get(userId);
@@ -31433,7 +31508,8 @@ function updateMostActiveChartSubhead(rankedUsers = []) {
     all: "total events",
     [GAME_KEYS.RUN_THE_NUMBERS]: "Run The Numbers hands",
     [GAME_KEYS.GUESS_10]: "Guess 10 hands",
-    [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders trades"
+    [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders trades",
+    [GAME_KEYS.COLOR_SCHEME]: "Color Scheme rounds"
   };
   const selectedCount = mostActiveTrendSelectedUserIds.length || Math.min(5, rankedUsers.length);
   mostActiveChartSubheadEl.textContent =
@@ -31453,6 +31529,7 @@ function renderMostActiveTrendChartFromSource() {
     rankedUsers,
     handRecords,
     tradeRecords,
+    csRecords: mostActiveTrendSource?.csRecords || [],
     period,
     startAt,
     endAt
@@ -31547,7 +31624,7 @@ async function renderMostActiveTrendChart(rankedUsers = [], startAt = null) {
 
   const userIds = rankedUsers.map((entry) => entry.userId).filter(Boolean);
   const endAt = new Date();
-  const { handRecords, tradeRecords } = await loadAdminAnalyticsRawRecords({
+  const { handRecords, tradeRecords, csRecords } = await loadAdminAnalyticsRawRecords({
     startAt,
     endAt,
     userIds
@@ -31562,6 +31639,7 @@ async function renderMostActiveTrendChart(rankedUsers = [], startAt = null) {
     rankedUsers,
     handRecords,
     tradeRecords,
+    csRecords: csRecords || [],
     startAt,
     endAt,
     period: activityLeaderboardPeriod
@@ -31703,7 +31781,8 @@ async function loadPlayerHandsHistory(userId, period = "all") {
     const hasDetailedSplitSeries = rows.some((row) =>
       Number(row?.runTheNumbersHands || 0) > 0 ||
       Number(row?.guess10Hands || 0) > 0 ||
-      Number(row?.shapeTradersTrades || 0) > 0
+      Number(row?.shapeTradersTrades || 0) > 0 ||
+      Number(row?.colorSchemeRounds || 0) > 0
     );
     if (hasShapeTraderSeries || (hasDetailedSplitSeries && period === "year")) {
       return rows;
@@ -32033,6 +32112,7 @@ async function renderPlayerHandsChart(userId, period = "year") {
   const runTheNumbersValues = rows.map((row) => Number(row.runTheNumbersHands || 0));
   const guess10Values = rows.map((row) => Number(row.guess10Hands || 0));
   const shapeTradersValues = rows.map((row) => Number(row.shapeTradersTrades || 0));
+  const colorSchemeValues = rows.map((row) => Number(row.colorSchemeRounds || 0));
   const hasSplitData = rows.length > 0;
 
   const canvas = document.getElementById("player-hands-chart");
@@ -32086,6 +32166,17 @@ async function renderPlayerHandsChart(userId, period = "year") {
               fill: false,
               tension: 0.25,
               pointRadius: shapeTradersValues.length > 1 ? 0 : 4,
+              pointHoverRadius: 4
+            },
+            {
+              label: getGameLabel(GAME_KEYS.COLOR_SCHEME),
+              data: colorSchemeValues,
+              borderColor: "rgba(255, 120, 80, 1)",
+              backgroundColor: "rgba(255, 120, 80, 0.14)",
+              borderWidth: 2,
+              fill: false,
+              tension: 0.25,
+              pointRadius: colorSchemeValues.length > 1 ? 0 : 4,
               pointHoverRadius: 4
             }
           ]
