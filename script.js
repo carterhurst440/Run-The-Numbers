@@ -31160,6 +31160,7 @@ function getAdminPnlSelectionScopeKey() {
 function buildAdminPnlChartPoints({
   handRecords = [],
   tradeRecords = [],
+  csRecords = [],
   selectedUserIds = [],
   period = "week",
   gameFilter = "all",
@@ -31167,26 +31168,45 @@ function buildAdminPnlChartPoints({
   endAt = new Date()
 } = {}) {
   const selectedSet = new Set((selectedUserIds || []).filter(Boolean));
+
+  // Hands: RTN + G10 (exclude ST and CS — those come from their own arrays)
   const filteredHands = handRecords.filter((record) => {
     const userId = record?.user_id;
     if (!selectedSet.has(userId)) return false;
     const gameKey = resolveGameKey(record?.game_id);
-    return gameFilter === "all" ? gameKey !== GAME_KEYS.SHAPE_TRADERS : gameKey === gameFilter;
+    if (gameKey === GAME_KEYS.SHAPE_TRADERS || gameKey === GAME_KEYS.COLOR_SCHEME) return false;
+    return gameFilter === "all" || gameFilter === gameKey;
   });
+
+  // Trades: all realized sells including contest
   const filteredTrades = tradeRecords.filter((record) => {
     const userId = record?.user_id;
     if (!selectedSet.has(userId)) return false;
-    if (!isShapeTraderRealizedPnlRecord(record)) return false;
+    const rawNetProfit = record?.net_profit;
+    if (rawNetProfit === null || rawNetProfit === undefined || rawNetProfit === "") return false;
+    if (!Number.isFinite(Number(rawNetProfit))) return false;
     return gameFilter === "all" || gameFilter === GAME_KEYS.SHAPE_TRADERS;
   });
 
+  // Color Scheme rounds
+  const filteredCs = csRecords.filter((record) => {
+    const userId = record?.user_id;
+    if (!selectedSet.has(userId)) return false;
+    return gameFilter === "all" || gameFilter === GAME_KEYS.COLOR_SCHEME;
+  });
+
+  const allTimestamps = [
+    ...filteredHands.map((r) => r?.created_at),
+    ...filteredTrades.map((r) => r?.executed_at),
+    ...filteredCs.map((r) => r?.created_at)
+  ].filter(Boolean).map((ts) => new Date(ts)).filter((d) => !Number.isNaN(d.getTime()));
+
   const effectiveStart =
     startAt ||
-    (filteredHands.length > 0
-      ? new Date(filteredHands[0]?.created_at || endAt)
-      : filteredTrades.length > 0
-        ? new Date(filteredTrades[0]?.executed_at || endAt)
-        : getAnalyticsPeriodStart(period) || new Date(endAt.getTime() - 29 * 24 * 60 * 60 * 1000));
+    (allTimestamps.length > 0
+      ? new Date(Math.min(...allTimestamps.map((d) => d.getTime())))
+      : getAnalyticsPeriodStart(period) || new Date(endAt.getTime() - 29 * 24 * 60 * 60 * 1000));
+
   const buckets = buildHandsChartBuckets(period, effectiveStart, endAt);
   const values = new Array(buckets.length).fill(0);
 
@@ -31200,6 +31220,13 @@ function buildAdminPnlChartPoints({
   filteredTrades.forEach((record) => {
     const executedAt = new Date(record?.executed_at || 0);
     const bucketIndex = buckets.findIndex((bucket) => executedAt >= bucket.start && executedAt < bucket.end);
+    if (bucketIndex < 0) return;
+    values[bucketIndex] = roundCurrencyValue(values[bucketIndex] + Number(record?.net_profit || 0));
+  });
+
+  filteredCs.forEach((record) => {
+    const createdAt = new Date(record?.created_at || 0);
+    const bucketIndex = buckets.findIndex((bucket) => createdAt >= bucket.start && createdAt < bucket.end);
     if (bucketIndex < 0) return;
     values[bucketIndex] = roundCurrencyValue(values[bucketIndex] + Number(record?.net_profit || 0));
   });
@@ -31223,7 +31250,8 @@ function drawAdminPnlChart() {
     all: "all games",
     [GAME_KEYS.RUN_THE_NUMBERS]: "Run The Numbers",
     [GAME_KEYS.GUESS_10]: "Guess 10",
-    [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders"
+    [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders",
+    [GAME_KEYS.COLOR_SCHEME]: "Color Scheme"
   };
   const modeDescription = "contest play included";
 
@@ -31257,6 +31285,7 @@ function drawAdminPnlChart() {
   const points = buildAdminPnlChartPoints({
     handRecords: adminPnlChartSource.handRecords || [],
     tradeRecords: adminPnlChartSource.tradeRecords || [],
+    csRecords: adminPnlChartSource.csRecords || [],
     selectedUserIds: adminPnlChartSelectedUserIds,
     period: pnlRankLeaderboardPeriod,
     gameFilter: adminPnlChartGameFilter,
@@ -32983,6 +33012,7 @@ async function loadPnlRankings() {
       entries: analyticsPnlRankEntries,
       handRecords,
       tradeRecords,
+      csRecords: csRecords || [],
       startAt: startDate,
       endAt: new Date()
     };
