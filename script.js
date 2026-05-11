@@ -30828,9 +30828,10 @@ function renderMostActiveEntries() {
     if (entry.hasDetailedBreakdown) {
       meta.textContent =
         `${(entry.totalEvents || 0).toLocaleString()} Events · ` +
+        `${(entry.runTheNumbersHands || 0).toLocaleString()} RTN · ` +
+        `${(entry.guess10Hands || 0).toLocaleString()} G10 · ` +
         `${(entry.shapeTradersTrades || 0).toLocaleString()} Trades · ` +
-        `${(entry.runTheNumbersHands || 0).toLocaleString()} RTN Hands · ` +
-        `${(entry.guess10Hands || 0).toLocaleString()} Guess 10 Hands`;
+        `${(entry.colorSchemeRounds || 0).toLocaleString()} RYB`;
     } else {
       meta.textContent = `${(entry.handsPlayed || entry.totalEvents || 0).toLocaleString()} Hands`;
     }
@@ -32814,6 +32815,7 @@ async function loadMostActiveHandsFallback(startDate) {
         runTheNumbersHands: Number(entry.run_the_numbers_hands || 0),
         guess10Hands: Number(entry.guess10_hands || 0),
         shapeTradersTrades: Number(entry.shape_traders_trades || 0),
+        colorSchemeRounds: Number(entry.color_scheme_rounds || 0),
         hasDetailedBreakdown: true,
         profile: {
           id: entry.user_id,
@@ -32843,11 +32845,14 @@ async function loadMostActiveHandsFallback(startDate) {
         totalEvents: 0,
         runTheNumbersHands: 0,
         guess10Hands: 0,
-        shapeTradersTrades: 0
+        shapeTradersTrades: 0,
+        colorSchemeRounds: 0
       };
       const gameKey = resolveGameKey(record?.game_id);
       if (gameKey === GAME_KEYS.GUESS_10) {
         current.guess10Hands += 1;
+      } else if (gameKey === GAME_KEYS.COLOR_SCHEME) {
+        current.colorSchemeRounds += 1;
       } else {
         current.runTheNumbersHands += 1;
       }
@@ -32863,7 +32868,8 @@ async function loadMostActiveHandsFallback(startDate) {
         totalEvents: 0,
         runTheNumbersHands: 0,
         guess10Hands: 0,
-        shapeTradersTrades: 0
+        shapeTradersTrades: 0,
+        colorSchemeRounds: 0
       };
       current.shapeTradersTrades += 1;
       current.totalEvents += 1;
