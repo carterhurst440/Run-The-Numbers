@@ -30624,7 +30624,8 @@ const ANALYTICS_ACTIVITY_PAGE_SIZE = 10;
 
 function buildRealizedPnlBucketsFromRawRecords(
   handRecords = [],
-  tradeRecords = []
+  tradeRecords = [],
+  csRecords = []
 ) {
   const buckets = new Map();
   const ensureDay = (dayKey, createdAt) => {
@@ -30635,7 +30636,8 @@ function buildRealizedPnlBucketsFromRawRecords(
         pnlTotal: 0,
         pnlRtn: 0,
         pnlG10: 0,
-        pnlShapeTraders: 0
+        pnlShapeTraders: 0,
+        pnlRyb: 0
       });
     }
     return buckets.get(dayKey);
@@ -30654,20 +30656,35 @@ function buildRealizedPnlBucketsFromRawRecords(
     }
   });
 
+  // All realized trades including contest — just require a valid net_profit
   tradeRecords.forEach((trade) => {
-    if (!isShapeTraderRealizedPnlRecord(trade)) return;
+    const rawNetProfit = trade?.net_profit;
+    if (rawNetProfit === null || rawNetProfit === undefined || rawNetProfit === "") return;
+    if (!Number.isFinite(Number(rawNetProfit))) return;
     const dayKey = formatAnalyticsDateKey(trade?.executed_at);
     if (!dayKey) return;
     const bucket = ensureDay(dayKey, String(trade?.executed_at || `${dayKey}T12:00:00`));
     bucket.pnlShapeTraders = roundCurrencyValue(
-      bucket.pnlShapeTraders + roundCurrencyValue(Number(trade?.net_profit || 0))
+      bucket.pnlShapeTraders + roundCurrencyValue(Number(rawNetProfit))
+    );
+  });
+
+  // Color Scheme rounds — all modes including contest
+  csRecords.forEach((round) => {
+    const rawNetProfit = round?.net_profit;
+    if (rawNetProfit === null || rawNetProfit === undefined || rawNetProfit === "") return;
+    const dayKey = formatAnalyticsDateKey(round?.created_at);
+    if (!dayKey) return;
+    const bucket = ensureDay(dayKey, String(round?.created_at || `${dayKey}T12:00:00`));
+    bucket.pnlRyb = roundCurrencyValue(
+      bucket.pnlRyb + roundCurrencyValue(Number(rawNetProfit))
     );
   });
 
   return Array.from(buckets.values())
     .map((bucket, index) => ({
       ...bucket,
-      pnlTotal: roundCurrencyValue(bucket.pnlRtn + bucket.pnlG10 + bucket.pnlShapeTraders),
+      pnlTotal: roundCurrencyValue(bucket.pnlRtn + bucket.pnlG10 + bucket.pnlShapeTraders + bucket.pnlRyb),
       fallbackIndex: index
     }))
     .sort((left, right) => String(left.dayKey).localeCompare(String(right.dayKey)));
@@ -31711,12 +31728,15 @@ async function loadPlayerBankrollHistory(userId) {
       values[bucketIndex] = roundCurrencyValue(values[bucketIndex] + Number(record?.net || 0));
     });
 
+    // All realized trades including contest — just require a valid net_profit
     tradeRecords.forEach((record) => {
-      if (!isShapeTraderRealizedPnlRecord(record)) return;
+      const rawNetProfit = record?.net_profit;
+      if (rawNetProfit === null || rawNetProfit === undefined || rawNetProfit === "") return;
+      if (!Number.isFinite(Number(rawNetProfit))) return;
       const executedAt = new Date(record?.executed_at || 0);
       const bucketIndex = buckets.findIndex((bucket) => executedAt >= bucket.start && executedAt < bucket.end);
       if (bucketIndex < 0) return;
-      values[bucketIndex] = roundCurrencyValue(values[bucketIndex] + Number(record?.net_profit || 0));
+      values[bucketIndex] = roundCurrencyValue(values[bucketIndex] + Number(rawNetProfit));
     });
 
     return buckets.map((bucket, index) => ({
@@ -32795,7 +32815,7 @@ async function loadPnlRankings() {
 
   const startDate = getAnalyticsPeriodStart(pnlRankLeaderboardPeriod);
   try {
-    const { handRecords, tradeRecords } = await loadAdminAnalyticsRawRecords({
+    const { handRecords, tradeRecords, csRecords } = await loadAdminAnalyticsRawRecords({
       startAt: startDate,
       endAt: new Date(),
       userIds: null
@@ -32807,7 +32827,7 @@ async function loadPnlRankings() {
     handRecords.forEach((record) => {
       const userId = record?.user_id;
       if (!userId) return;
-      const current = recordsByUser.get(userId) || { handRecords: [], tradeRecords: [] };
+      const current = recordsByUser.get(userId) || { handRecords: [], tradeRecords: [], csRecords: [] };
       current.handRecords.push(record);
       recordsByUser.set(userId, current);
     });
@@ -32815,26 +32835,40 @@ async function loadPnlRankings() {
     tradeRecords.forEach((record) => {
       const userId = record?.user_id;
       if (!userId) return;
-      const current = recordsByUser.get(userId) || { handRecords: [], tradeRecords: [] };
+      const current = recordsByUser.get(userId) || { handRecords: [], tradeRecords: [], csRecords: [] };
       current.tradeRecords.push(record);
+      recordsByUser.set(userId, current);
+    });
+
+    (csRecords || []).forEach((record) => {
+      const userId = record?.user_id;
+      if (!userId) return;
+      const current = recordsByUser.get(userId) || { handRecords: [], tradeRecords: [], csRecords: [] };
+      current.csRecords.push(record);
       recordsByUser.set(userId, current);
     });
 
     const rankedEntries = Array.from(recordsByUser.entries())
       .map(([userId, userRecords]) => {
-        const buckets = buildRealizedPnlBucketsFromRawRecords(userRecords.handRecords, userRecords.tradeRecords);
+        const buckets = buildRealizedPnlBucketsFromRawRecords(
+          userRecords.handRecords,
+          userRecords.tradeRecords,
+          userRecords.csRecords || []
+        );
         const totals = buckets.reduce((runningTotals, bucket) => ({
           userId,
           pnlTotal: roundCurrencyValue(runningTotals.pnlTotal + Number(bucket?.pnlTotal || 0)),
           pnlRtn: roundCurrencyValue(runningTotals.pnlRtn + Number(bucket?.pnlRtn || 0)),
           pnlG10: roundCurrencyValue(runningTotals.pnlG10 + Number(bucket?.pnlG10 || 0)),
-          pnlShapeTraders: roundCurrencyValue(runningTotals.pnlShapeTraders + Number(bucket?.pnlShapeTraders || 0))
+          pnlShapeTraders: roundCurrencyValue(runningTotals.pnlShapeTraders + Number(bucket?.pnlShapeTraders || 0)),
+          pnlRyb: roundCurrencyValue(runningTotals.pnlRyb + Number(bucket?.pnlRyb || 0))
         }), {
           userId,
           pnlTotal: 0,
           pnlRtn: 0,
           pnlG10: 0,
-          pnlShapeTraders: 0
+          pnlShapeTraders: 0,
+          pnlRyb: 0
         });
         return {
           ...totals,

@@ -105,7 +105,7 @@ function roundCurrencyValue(value: number) {
 }
 
 function isShapeTraderRealizedPnlTrade(trade: TradeRow) {
-  if (trade?.contest_id) return false;
+  // All play counts — contest trades included
   const rawNetProfit = trade?.net_profit;
   if (rawNetProfit === null || rawNetProfit === undefined || rawNetProfit === "") {
     return false;
@@ -707,13 +707,10 @@ Deno.serve(async (request) => {
         pnlRyb: 0
       };
 
-      // Legacy hands (game_hands) — RTN and G10
+      // Legacy hands (game_hands) — RTN and G10 — all modes including contest
       todayHands.forEach((hand) => {
         const dayKey = getAnalyticsDayKey(hand?.created_at);
-        const modeType = String(hand?.mode_type || "").trim().toLowerCase();
-        if (dayKey !== todayRange.dayKey || hand?.contest_id || (modeType && modeType !== "normal")) {
-          return;
-        }
+        if (dayKey !== todayRange.dayKey) return;
         const net = roundCurrencyValue(Number(hand?.net || 0));
         const gameId = normalizeGameId(hand?.game_id);
         if (gameId === GAME_IDS.RUN_THE_NUMBERS) {
@@ -723,37 +720,33 @@ Deno.serve(async (request) => {
         }
       });
 
-      // Server-draw RTN hands
+      // Server-draw RTN hands — all modes including contest
       todayLiveRtn.forEach((hand) => {
         const dayKey = getAnalyticsDayKey(hand?.created_at);
-        const modeType = String(hand?.mode_type || "").trim().toLowerCase();
-        if (dayKey !== todayRange.dayKey || hand?.contest_id || (modeType && modeType !== "normal")) return;
+        if (dayKey !== todayRange.dayKey) return;
         liveToday.pnlRtn = roundCurrencyValue(liveToday.pnlRtn + roundCurrencyValue(Number(hand?.net || 0)));
       });
 
-      // Server-draw G10 hands
+      // Server-draw G10 hands — all modes including contest
       todayLiveG10.forEach((hand) => {
         const dayKey = getAnalyticsDayKey(hand?.created_at);
-        const modeType = String(hand?.mode_type || "").trim().toLowerCase();
-        if (dayKey !== todayRange.dayKey || hand?.contest_id || (modeType && modeType !== "normal")) return;
+        if (dayKey !== todayRange.dayKey) return;
         liveToday.pnlG10 = roundCurrencyValue(liveToday.pnlG10 + roundCurrencyValue(Number(hand?.net || 0)));
       });
 
-      // Shape Trader sells
+      // Shape Trader sells — all modes including contest
       todayTrades.forEach((trade) => {
         const dayKey = getAnalyticsDayKey(trade?.executed_at);
-        if (dayKey !== todayRange.dayKey || !isShapeTraderRealizedPnlTrade(trade)) {
-          return;
-        }
+        if (dayKey !== todayRange.dayKey || !isShapeTraderRealizedPnlTrade(trade)) return;
         liveToday.pnlShapeTraders = roundCurrencyValue(
           liveToday.pnlShapeTraders + roundCurrencyValue(Number(trade?.net_profit || 0))
         );
       });
 
-      // Color Scheme rounds
+      // Color Scheme rounds — all modes including contest
       todayCs.forEach((round) => {
         const dayKey = getAnalyticsDayKey(round?.created_at);
-        if (dayKey !== todayRange.dayKey || round?.contest_id) return;
+        if (dayKey !== todayRange.dayKey) return;
         liveToday.pnlRyb = roundCurrencyValue(
           liveToday.pnlRyb + roundCurrencyValue(Number(round?.net_profit || 0))
         );
