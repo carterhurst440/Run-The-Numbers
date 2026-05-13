@@ -24778,21 +24778,13 @@ body[data-ui="new"] #home-view .home-contest-card {
     padding: 0 12px 32px; /* halved side padding */
   }
 
-  /* Block wrapper: transparent — label floats above the card */
+  /* Block wrapper: transparent — label floats above the card.
+     Spacing (padding-top, margin-bottom) is set via the !important block below. */
   body[data-ui="new"] .home-sidebar .home-sb-block {
     background: transparent;
     border: none;
     border-radius: 0;
     padding: 0;
-    margin-bottom: 20px; /* consistent between-section gap */
-  }
-
-  /* Label sits above the card with a small gap below */
-  body[data-ui="new"] .home-sidebar .home-sb-label {
-    margin-bottom: 8px; /* consistent heading→content gap */
-  }
-  body[data-ui="new"] .home-sidebar .home-sb-label-row {
-    margin-bottom: 8px;
   }
 
   /* Card body: the bordered/background container, matching contest cards */
@@ -24818,11 +24810,7 @@ body[data-ui="new"] #home-view .home-contest-card {
     margin-right: 12px;
   }
 
-  /* Section heading vertical rhythm: 20px above, 8px below */
-  body[data-ui="new"] .home-main > .home-section-hdr {
-    padding-top: 20px;
-    margin-bottom: 8px;
-  }
+  /* Section heading vertical rhythm handled in the !important block below */
   /* home-stat-blocks and home-game-cards overrides live in a later @media block
      to beat the global body[data-ui="new"] rules that come after this block */
 }
@@ -24836,22 +24824,55 @@ body[data-ui="new"] #home-view .home-rank-ladder-rung {
   border-color: #1e1e18;
 }
 
-/* About-us → contest spacing */
+/* About-us desktop spacing */
 body[data-ui="new"] .home-quote-block {
-  margin-bottom: 8px; /* desktop default */
-}
-@media (max-width: 900px) {
-  body[data-ui="new"] .home-quote-block {
-    margin-bottom: 20px; /* consistent between-section gap on mobile */
-  }
+  margin-bottom: 8px;
 }
 body[data-ui="new"] .home-contests-panel {
-  margin-top: 0;
-  padding-top: 0;
   border-top-color: #2e2e22;
 }
-body[data-ui="new"] .home-contests-panel .home-section-hdr {
-  padding-top: 0; /* gap already supplied by home-quote-block margin-bottom */
+
+/* ── MOBILE SECTION SPACING ─────────────────────────────────────────────────
+   Single source of truth for all 6 section headings on mobile.
+   !important is intentional: some base rules use ID selectors (#home-view)
+   which outrank attribute selectors, so we cut through the entire cascade here.
+   Token: 20px before heading, 8px heading→content, 20px after content.
+   ─────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  /* Sidebar blocks: kill base padding-top (24px) and set uniform gap */
+  body[data-ui="new"] .home-sidebar .home-sb-block {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 20px !important;
+  }
+
+  /* Sidebar labels: 8px below heading */
+  body[data-ui="new"] .home-sidebar .home-sb-label,
+  body[data-ui="new"] .home-sidebar .home-sb-label-row {
+    margin-bottom: 8px !important;
+  }
+
+  /* CASINO FLOOR section header */
+  body[data-ui="new"] .home-main > .home-section-hdr {
+    padding-top: 20px !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* CONTEST SPOTLIGHT: kill panel padding that was set via #home-view ID rule */
+  body[data-ui="new"] .home-contests-panel {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+  }
+  /* Contest section header gets same rhythm as CASINO FLOOR */
+  body[data-ui="new"] .home-contests-panel .home-section-hdr {
+    padding-top: 20px !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* After-content gaps */
+  body[data-ui="new"] .home-quote-block {
+    margin-bottom: 20px !important;
+  }
 }
 
 /* Stat blocks: 12px side margins by default (mobile-first).
