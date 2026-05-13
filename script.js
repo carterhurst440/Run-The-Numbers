@@ -35059,13 +35059,13 @@ window.addEventListener("resize", () => {
   if (!ctx) return;
 
   const SPACING  = 16;   // dense grid
-  const BASE_R   = 0.65; // resting dot radius — small and sharp
-  const MAX_R    = 2.1;  // peak radius when ripple hits
-  const BASE_A   = 0.06; // nearly invisible at rest
-  const MAX_A    = 0.45; // bright and sharp at peak
+  const BASE_R   = 0.55; // resting dot radius — small and sharp
+  const MAX_R    = 1.4;  // peak radius when ripple hits (subtler)
+  const BASE_A   = 0.03; // nearly invisible at rest
+  const MAX_A    = 0.20; // peak alpha — kept subtle
   const SPEED    = 85;   // px/s — ripple expansion speed
   const BAND     = 80;   // px — wave front thickness
-  const BEAT_MS  = 4200; // ms between ripples
+  const BEAT_MS  = 5500; // ms between ripples (slower cadence)
 
   let w = 0, h = 0, dpr = 1;
   let animId = null;

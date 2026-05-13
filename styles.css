@@ -24814,11 +24814,8 @@ body[data-ui="new"] #home-view .home-contest-card {
     margin-left: 12px;
     margin-right: 12px;
   }
-
-  body[data-ui="new"] .home-stat-blocks {
-    margin-left: 12px;
-    margin-right: 12px;
-  }
+  /* home-stat-blocks and home-game-cards overrides live in a later @media block
+     to beat the global body[data-ui="new"] rules that come after this block */
 }
 
 /* Suppress blueprint-theme purple border colors from leaking into new UI tier ladder */
@@ -24851,6 +24848,19 @@ body[data-ui="new"] .home-stat-blocks {
   margin-right: 24px;
   margin-bottom: 0;
   border-bottom: none;
+}
+
+/* Mobile: override margins (must come after the global rule above to win) */
+@media (max-width: 900px) {
+  body[data-ui="new"] .home-stat-blocks {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+
+  body[data-ui="new"] .home-game-cards {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
 }
 
 body[data-ui="new"] .home-stat-block {
