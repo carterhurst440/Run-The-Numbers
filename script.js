@@ -19501,7 +19501,8 @@ function shouldLogShapeTraderHydrate(details = {}) {
     Number(details.elapsedMs || 0) >= SHAPE_TRADERS_TIMING_SLOW_HYDRATE_MS
   );
 }
-const PLAY_ASSISTANT_ROUTES = new Set(["run-the-numbers", "red-black", "shape-traders"]);
+// AI button hidden until per-game .md rule files are ready
+const PLAY_ASSISTANT_ROUTES = new Set([]);
 const PLAY_ASSISTANT_CONFIG = {
   [GAME_KEYS.RUN_THE_NUMBERS]: {
     title: "Bankroll Coach",
