@@ -24841,24 +24841,27 @@ body[data-ui="new"] .home-contests-panel .home-section-hdr {
   padding-top: 16px;
 }
 
+/* Stat blocks: 12px side margins by default (mobile-first).
+   Desktop bumps to 24px via min-width query below. */
 body[data-ui="new"] .home-stat-blocks {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
-  margin-left: 24px;
-  margin-right: 24px;
+  margin-left: 12px;
+  margin-right: 12px;
   margin-bottom: 0;
   border-bottom: none;
 }
 
-/* Mobile: override margins + columns (must come after global rule above to win cascade) */
-@media (max-width: 900px) {
+@media (min-width: 901px) {
   body[data-ui="new"] .home-stat-blocks {
-    margin-left: 12px;
-    margin-right: 12px;
-    grid-template-columns: repeat(2, 1fr); /* 2×2 on mobile — wider, more usable tiles */
+    margin-left: 24px;
+    margin-right: 24px;
   }
+}
 
+/* Game cards mobile margin (higher specificity than base .home-game-cards rule) */
+@media (max-width: 900px) {
   body[data-ui="new"] .home-game-cards {
     margin-left: 12px;
     margin-right: 12px;
