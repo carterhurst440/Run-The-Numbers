@@ -755,6 +755,7 @@
               <!-- TIER LADDER -->
               <div class="home-sb-block" data-home-section="tier">
                 <div class="home-sb-label">// TIER LADDER</div>
+                <div class="home-sb-card-body">
                 <!-- Skeleton rows shown while tier data loads -->
                 <div class="home-skel-rows" aria-hidden="true">
                   <div class="home-skel-rung"><div class="home-skel-bar home-skel-bar--node"></div><div class="home-skel-bar home-skel-bar--lg"></div></div>
@@ -778,6 +779,7 @@
                   </div>
                   <ol id="home-rank-ladder-list" class="home-rank-ladder-list"></ol>
                 </aside>
+                </div><!-- /home-sb-card-body -->
               </div>
 
               <!-- RECENT ACTIVITY -->
@@ -786,9 +788,11 @@
                   <div class="home-sb-label">// RECENT ACTIVITY</div>
                   <button type="button" class="home-section-link" data-route-target="activity-log">VIEW MORE</button>
                 </div>
+                <div class="home-sb-card-body">
                 <ul id="home-sidebar-activity" class="home-sb-activity" aria-live="polite">
                   <li class="home-sb-activity-empty">Loading activity…</li>
                 </ul>
+                </div><!-- /home-sb-card-body -->
               </div>
 
               <!-- P&L CHART -->
@@ -802,6 +806,7 @@
                     <button type="button" class="home-sb-chart-btn" data-home-pnl-period="all">ALL</button>
                   </div>
                 </div>
+                <div class="home-sb-card-body">
                 <div class="home-sb-chart-game-filters">
                   <button type="button" class="home-sb-chart-game-btn is-active" data-home-pnl-game="all">All</button>
                   <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlRtn">RTN</button>
@@ -813,16 +818,19 @@
                 <div class="home-sb-chart-wrap">
                   <canvas id="home-pnl-chart" class="home-sb-chart-canvas"></canvas>
                 </div>
+                </div><!-- /home-sb-card-body -->
               </div>
 
               <!-- SYSTEM -->
               <div class="home-sb-block">
                 <div class="home-sb-label">// SYSTEM</div>
+                <div class="home-sb-card-body">
                 <div class="home-sb-system">
                   <div class="hss-row"><span class="hss-key">MODE</span><span id="hss-mode" class="hss-val">NORMAL</span></div>
                   <div class="hss-row"><span class="hss-key">SESSION</span><span id="hss-session" class="hss-val">ACTIVE</span></div>
                   <div class="hss-row"><span class="hss-key">SERVER</span><span class="hss-val">RTN-01</span></div>
                 </div>
+                </div><!-- /home-sb-card-body -->
               </div>
 
             </aside><!-- /home-sidebar -->
@@ -4431,7 +4439,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260510-analytics-v50"></script>
+    <script type="module" src="script.js?v=20260510-analytics-v51"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

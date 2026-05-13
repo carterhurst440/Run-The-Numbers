@@ -24774,15 +24774,50 @@ body[data-ui="new"] #home-view .home-contest-card {
   body[data-ui="new"] .home-sidebar {
     background: transparent;
     border-top: none;
-    padding: 0 24px 32px;
+    padding: 0 12px 32px; /* halved side padding */
   }
 
+  /* Block wrapper: transparent — label floats above the card */
   body[data-ui="new"] .home-sidebar .home-sb-block {
-    background: #171714;
+    background: transparent;
     border: none;
     border-radius: 0;
-    padding: 14px 0;
+    padding: 0;
+    margin-bottom: 16px;
+  }
+
+  /* Label sits above the card with a small gap below */
+  body[data-ui="new"] .home-sidebar .home-sb-label {
     margin-bottom: 8px;
+  }
+  body[data-ui="new"] .home-sidebar .home-sb-label-row {
+    margin-bottom: 8px;
+  }
+
+  /* Card body: the bordered/background container, matching contest cards */
+  body[data-ui="new"] .home-sidebar .home-sb-card-body {
+    background: #171714;
+    border: 1px solid #2e2e22;
+    padding: 14px;
+  }
+
+  /* Reduce side padding on the main column on mobile */
+  body[data-ui="new"] .home-player-hero {
+    padding-top: 14px;    /* halved from 28px */
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  body[data-ui="new"] .home-main > .home-section-hdr,
+  body[data-ui="new"] .home-quote-block,
+  body[data-ui="new"] #home-live-contests {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+
+  body[data-ui="new"] .home-stat-blocks {
+    margin-left: 12px;
+    margin-right: 12px;
   }
 }
 
