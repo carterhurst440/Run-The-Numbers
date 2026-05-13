@@ -21109,6 +21109,7 @@ body.modal-open {
   .home-layout {
     grid-template-columns: 1fr;
     background: transparent; /* let canvas show through on mobile */
+    align-content: start; /* don't stretch rows to fill min-height; rows size to content */
   }
 
   .home-layout::after {
@@ -21126,6 +21127,7 @@ body.modal-open {
   .home-main {
     border-right: none;
     overflow: visible; /* allow card glow to bleed to screen edge; #home-view overflow:clip is the safety net */
+    padding-bottom: 0; /* desktop 48px gap is meaningless when sidebar stacks below on mobile */
   }
 
   .home-stat-cards {
