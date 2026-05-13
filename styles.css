@@ -24784,12 +24784,12 @@ body[data-ui="new"] #home-view .home-contest-card {
     border: none;
     border-radius: 0;
     padding: 0;
-    margin-bottom: 16px;
+    margin-bottom: 20px; /* consistent between-section gap */
   }
 
   /* Label sits above the card with a small gap below */
   body[data-ui="new"] .home-sidebar .home-sb-label {
-    margin-bottom: 8px;
+    margin-bottom: 8px; /* consistent heading→content gap */
   }
   body[data-ui="new"] .home-sidebar .home-sb-label-row {
     margin-bottom: 8px;
@@ -24802,18 +24802,26 @@ body[data-ui="new"] #home-view .home-contest-card {
     padding: 14px;
   }
 
-  /* Reduce side padding on the main column on mobile */
+  /* Side padding + consistent bottom gap from hero → stat blocks */
   body[data-ui="new"] .home-player-hero {
-    padding-top: 14px;    /* halved from 28px */
+    padding-top: 14px;
     padding-left: 12px;
     padding-right: 12px;
+    padding-bottom: 20px; /* gap from hero to stat blocks */
   }
 
+  /* Side margins for main-column sections */
   body[data-ui="new"] .home-main > .home-section-hdr,
   body[data-ui="new"] .home-quote-block,
   body[data-ui="new"] #home-live-contests {
     margin-left: 12px;
     margin-right: 12px;
+  }
+
+  /* Section heading vertical rhythm: 20px above, 8px below */
+  body[data-ui="new"] .home-main > .home-section-hdr {
+    padding-top: 20px;
+    margin-bottom: 8px;
   }
   /* home-stat-blocks and home-game-cards overrides live in a later @media block
      to beat the global body[data-ui="new"] rules that come after this block */
@@ -24828,9 +24836,14 @@ body[data-ui="new"] #home-view .home-rank-ladder-rung {
   border-color: #1e1e18;
 }
 
-/* Tighten spacing between about-us and contest spotlight */
+/* About-us → contest spacing */
 body[data-ui="new"] .home-quote-block {
-  margin-bottom: 8px;
+  margin-bottom: 8px; /* desktop default */
+}
+@media (max-width: 900px) {
+  body[data-ui="new"] .home-quote-block {
+    margin-bottom: 20px; /* consistent between-section gap on mobile */
+  }
 }
 body[data-ui="new"] .home-contests-panel {
   margin-top: 0;
@@ -24838,7 +24851,7 @@ body[data-ui="new"] .home-contests-panel {
   border-top-color: #2e2e22;
 }
 body[data-ui="new"] .home-contests-panel .home-section-hdr {
-  padding-top: 16px;
+  padding-top: 0; /* gap already supplied by home-quote-block margin-bottom */
 }
 
 /* Stat blocks: 12px side margins by default (mobile-first).
@@ -24860,11 +24873,12 @@ body[data-ui="new"] .home-stat-blocks {
   }
 }
 
-/* Game cards mobile margin (higher specificity than base .home-game-cards rule) */
+/* Game cards mobile: margins + consistent between-section gap */
 @media (max-width: 900px) {
   body[data-ui="new"] .home-game-cards {
     margin-left: 12px;
     margin-right: 12px;
+    margin-bottom: 20px; /* consistent between-section gap */
   }
 }
 
