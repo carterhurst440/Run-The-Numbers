@@ -24384,25 +24384,21 @@ body[data-ui="new"] .home-contests-panel {
   border-top-color: #2e2e22;
 }
 
-/* ── MOBILE SECTION SPACING (comprehensive reset) ───────────────────────────
-   body[data-ui="new"] #home-view gives specificity [1,2,1] which beats every
-   old rule using #home-view at [1,1,0]. Placed last in file so source-order
-   also wins for equal-specificity ties. No !important needed.
-   Token: 20px above heading, 8px heading→content.
+/* ── MOBILE SECTION SPACING ──────────────────────────────────────────────────
+   Single rule: every section title owns its own spacing.
+   padding-top: 20px  → gap above the title (anchored TO the title, not the element before it)
+   margin-bottom: 8px → gap below the title to its content
+
+   Preceding content blocks (game-cards, quote-block, sb-card-body) contribute
+   zero extra vertical gap — they never double-count with the title's own padding.
    ─────────────────────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
-  /* ── STEP 1: zero out every source of vertical spacing on targeted elements */
+  /* ── STEP 1: zero out every spacing source that could interfere ── */
   body[data-ui="new"] #home-view .home-section-hdr,
   body[data-ui="new"] #home-view .home-contests-panel,
   body[data-ui="new"] #home-view .home-contests-panel .home-section-hdr,
   body[data-ui="new"] #home-view .home-quote-block,
-  body[data-ui="new"] #home-view .home-game-cards {
-    margin-top: 0;
-    padding-top: 0;
-    margin-bottom: 0;
-    padding-bottom: 0;
-  }
-
+  body[data-ui="new"] #home-view .home-game-cards,
   body[data-ui="new"] #home-view .home-sidebar .home-sb-block,
   body[data-ui="new"] #home-view .home-sidebar .home-sb-label,
   body[data-ui="new"] #home-view .home-sidebar .home-sb-label-row {
@@ -24412,35 +24408,32 @@ body[data-ui="new"] .home-contests-panel {
     padding-bottom: 0;
   }
 
-  /* ── STEP 2: apply exact rhythm tokens */
+  /* ── STEP 2: every section title owns its own 20px above / 8px below ── */
 
-  /* CASINO FLOOR — 20px above the heading */
+  /* CASINO FLOOR */
   body[data-ui="new"] #home-view .home-main > .home-section-hdr {
     padding-top: 20px;
     margin-bottom: 8px;
   }
 
-  /* After game-cards, before the quote block */
-  body[data-ui="new"] #home-view .home-game-cards {
-    margin-bottom: 20px;
-  }
-
-  /* After quote-block, before CONTEST SPOTLIGHT (or before sidebar if no contests) */
-  body[data-ui="new"] #home-view .home-quote-block {
-    margin-bottom: 20px;
-  }
-
-  /* CONTEST SPOTLIGHT heading — gap already provided by quote margin-bottom above */
+  /* CONTEST SPOTLIGHT — heading provides its own gap, no dependency on quote-block */
   body[data-ui="new"] #home-view .home-contests-panel .home-section-hdr {
+    padding-top: 20px;
     margin-bottom: 8px;
   }
 
-  /* Sidebar blocks — 8px label→content, 20px between blocks */
+  /* TIER LADDER / RECENT ACTIVITY / P&L / SYSTEM
+     padding-top pushes the label away from whatever is above (card border or main-column end) */
   body[data-ui="new"] #home-view .home-sidebar .home-sb-label,
   body[data-ui="new"] #home-view .home-sidebar .home-sb-label-row {
+    padding-top: 20px;
     margin-bottom: 8px;
   }
-  body[data-ui="new"] #home-view .home-sidebar .home-sb-block {
+
+  /* ── STEP 3: content-block gaps (separate from section-heading spacing) ── */
+
+  /* Game-cards → quote block: visual breathing room within the main column */
+  body[data-ui="new"] #home-view .home-game-cards {
     margin-bottom: 20px;
   }
 }
