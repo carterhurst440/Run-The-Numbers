@@ -24961,8 +24961,8 @@ body[data-ui="new"] .home-stat-block .hsb-top-row {
 /* Mobile: compact but still contained cards */
 @media (max-width: 600px) {
   body[data-ui="new"] .home-stat-blocks {
-    margin-left: 24px;
-    margin-right: 24px;
+    margin-left: 12px;
+    margin-right: 12px;
     gap: 6px;
   }
   body[data-ui="new"] .home-stat-block .hsb-val {
