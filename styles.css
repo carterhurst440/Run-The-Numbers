@@ -21573,6 +21573,7 @@ body:not([data-ui="new"]) .auth-callback-spinner {
 
   .home-main {
     border-right: none;
+    overflow: visible; /* allow card glow to bleed to screen edge; #home-view overflow:clip is the safety net */
   }
 
   .home-stat-cards {
@@ -24850,11 +24851,12 @@ body[data-ui="new"] .home-stat-blocks {
   border-bottom: none;
 }
 
-/* Mobile: override margins (must come after the global rule above to win) */
+/* Mobile: override margins + columns (must come after global rule above to win cascade) */
 @media (max-width: 900px) {
   body[data-ui="new"] .home-stat-blocks {
     margin-left: 12px;
     margin-right: 12px;
+    grid-template-columns: repeat(2, 1fr); /* 2×2 on mobile — wider, more usable tiles */
   }
 
   body[data-ui="new"] .home-game-cards {
