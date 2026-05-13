@@ -24832,46 +24832,64 @@ body[data-ui="new"] .home-contests-panel {
   border-top-color: #2e2e22;
 }
 
-/* ── MOBILE SECTION SPACING ─────────────────────────────────────────────────
-   Single source of truth for all 6 section headings on mobile.
-   !important is intentional: some base rules use ID selectors (#home-view)
-   which outrank attribute selectors, so we cut through the entire cascade here.
-   Token: 20px before heading, 8px heading→content, 20px after content.
+/* ── MOBILE SECTION SPACING (comprehensive reset) ───────────────────────────
+   body[data-ui="new"] #home-view gives specificity [1,2,1] which beats every
+   old rule using #home-view at [1,1,0]. Placed last in file so source-order
+   also wins for equal-specificity ties. No !important needed.
+   Token: 20px above heading, 8px heading→content.
    ─────────────────────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
-  /* Sidebar blocks: kill base padding-top (24px) and set uniform gap */
-  body[data-ui="new"] .home-sidebar .home-sb-block {
-    padding-top: 0 !important;
-    margin-top: 0 !important;
-    margin-bottom: 20px !important;
+  /* ── STEP 1: zero out every source of vertical spacing on targeted elements */
+  body[data-ui="new"] #home-view .home-section-hdr,
+  body[data-ui="new"] #home-view .home-contests-panel,
+  body[data-ui="new"] #home-view .home-contests-panel .home-section-hdr,
+  body[data-ui="new"] #home-view .home-quote-block,
+  body[data-ui="new"] #home-view .home-game-cards {
+    margin-top: 0;
+    padding-top: 0;
+    margin-bottom: 0;
+    padding-bottom: 0;
   }
 
-  /* Sidebar labels: 8px below heading */
-  body[data-ui="new"] .home-sidebar .home-sb-label,
-  body[data-ui="new"] .home-sidebar .home-sb-label-row {
-    margin-bottom: 8px !important;
+  body[data-ui="new"] #home-view .home-sidebar .home-sb-block,
+  body[data-ui="new"] #home-view .home-sidebar .home-sb-label,
+  body[data-ui="new"] #home-view .home-sidebar .home-sb-label-row {
+    margin-top: 0;
+    padding-top: 0;
+    margin-bottom: 0;
+    padding-bottom: 0;
   }
 
-  /* CASINO FLOOR section header */
-  body[data-ui="new"] .home-main > .home-section-hdr {
-    padding-top: 20px !important;
-    margin-bottom: 8px !important;
+  /* ── STEP 2: apply exact rhythm tokens */
+
+  /* CASINO FLOOR — 20px above the heading */
+  body[data-ui="new"] #home-view .home-main > .home-section-hdr {
+    padding-top: 20px;
+    margin-bottom: 8px;
   }
 
-  /* CONTEST SPOTLIGHT: kill panel padding that was set via #home-view ID rule */
-  body[data-ui="new"] .home-contests-panel {
-    padding-top: 0 !important;
-    margin-top: 0 !important;
-  }
-  /* Contest section header gets same rhythm as CASINO FLOOR */
-  body[data-ui="new"] .home-contests-panel .home-section-hdr {
-    padding-top: 20px !important;
-    margin-bottom: 8px !important;
+  /* After game-cards, before the quote block */
+  body[data-ui="new"] #home-view .home-game-cards {
+    margin-bottom: 20px;
   }
 
-  /* After-content gaps */
-  body[data-ui="new"] .home-quote-block {
-    margin-bottom: 20px !important;
+  /* After quote-block, before CONTEST SPOTLIGHT (or before sidebar if no contests) */
+  body[data-ui="new"] #home-view .home-quote-block {
+    margin-bottom: 20px;
+  }
+
+  /* CONTEST SPOTLIGHT heading — gap already provided by quote margin-bottom above */
+  body[data-ui="new"] #home-view .home-contests-panel .home-section-hdr {
+    margin-bottom: 8px;
+  }
+
+  /* Sidebar blocks — 8px label→content, 20px between blocks */
+  body[data-ui="new"] #home-view .home-sidebar .home-sb-label,
+  body[data-ui="new"] #home-view .home-sidebar .home-sb-label-row {
+    margin-bottom: 8px;
+  }
+  body[data-ui="new"] #home-view .home-sidebar .home-sb-block {
+    margin-bottom: 20px;
   }
 }
 
