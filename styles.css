@@ -24407,6 +24407,12 @@ body[data-ui="new"] #home-view .home-sidebar .home-sb-label-row {
   padding-bottom: 0;
 }
 
+/* card-body bottom padding would stack with the next label's padding-top — kill it */
+body[data-ui="new"] #home-view .home-sidebar .home-sb-card-body {
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
 /* ── STEP 2: every section title owns its own 20px above / 8px below ── */
 
 /* CASINO FLOOR */
