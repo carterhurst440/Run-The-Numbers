@@ -20986,6 +20986,7 @@ body.modal-open {
 .home-sb-chart-filters {
   display: flex;
   gap: 4px;
+  flex-wrap: wrap;
 }
 
 .home-sb-chart-btn {
@@ -21002,16 +21003,21 @@ body.modal-open {
   transition: color 0.15s, border-color 0.15s;
 }
 
-.home-sb-chart-btn.is-active,
+.home-sb-chart-btn.is-active {
+  color: #0e0e0d;
+  background: #ffffff;
+  border-color: #ffffff;
+}
+
 .home-sb-chart-btn:hover {
-  color: #c8ff00;
-  border-color: #c8ff00;
+  color: #ffffff;
+  border-color: rgba(255,255,255,0.6);
 }
 
 .home-sb-chart-game-filters {
   display: flex;
   gap: 4px;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .home-sb-chart-game-btn {
@@ -24444,6 +24450,15 @@ body[data-ui="new"] #home-view .home-sidebar .home-sb-label-row {
 /* ── STEP 3: content-block gap (game-cards → quote block) ── */
 body[data-ui="new"] #home-view .home-game-cards {
   margin-bottom: 20px;
+}
+
+/* ── STEP 4: un-double the padding on labels that sit inside a label-row ──
+   STEP 2 gives padding-top: 20px to BOTH .home-sb-label-row AND any
+   .home-sb-label nested inside — doubling the gap. The label-row owns the
+   rhythm; the inner label contributes nothing extra. */
+body[data-ui="new"] #home-view .home-sidebar .home-sb-label-row .home-sb-label {
+  padding-top: 0;
+  margin-bottom: 0;
 }
 
 /* Stat blocks: 12px side margins by default (mobile-first).
