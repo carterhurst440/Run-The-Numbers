@@ -1344,6 +1344,7 @@
                     <div class="beta-draw-brand-row">
                       <p class="beta-game-panel-kicker">Guess 10</p>
                       <span class="game-beta-pill beta-draw-beta-pill">Beta</span>
+                      <button type="button" id="g10-how-to-play-btn" class="cs-hist-modal-btn">HOW TO PLAY</button>
                     </div>
                     <h2 id="red-black-table-title">Cards Dealt</h2>
                   </div>
@@ -1440,30 +1441,6 @@
                 <ul id="red-black-history" class="beta-game-list beta-history-list" aria-live="polite"></ul>
               </section>
 
-              <section class="beta-game-panel" aria-labelledby="red-black-overview-title">
-                <p class="beta-game-panel-kicker">How It Works</p>
-                <h2 id="red-black-overview-title">Core Loop</h2>
-                <ol class="beta-game-list">
-                  <li>Place one base wager.</li>
-                  <li>Choose COLOR, SUIT, or RANK before each draw.</li>
-                  <li>Pick valid values and review the multiplier.</li>
-                  <li>Draw one card. A match multiplies the current pot.</li>
-                  <li>Cash out after a hit, or continue predicting.</li>
-                </ol>
-              </section>
-
-              <section class="beta-game-panel" aria-labelledby="red-black-rules-title">
-                <p class="beta-game-panel-kicker">Rules</p>
-                <h2 id="red-black-rules-title">Selection Rules</h2>
-                <ul class="beta-game-list beta-game-list-bulleted">
-                  <li>52-card standard deck. No Joker.</li>
-                  <li>A fresh deck is shuffled before every draw.</li>
-                  <li>COLOR requires exactly 1 pick.</li>
-                  <li>SUIT allows 1 to 3 suits. RANK allows 1 to 12 ranks.</li>
-                  <li>Multiplier is shown live before each draw and applies to the current pot on a hit.</li>
-                  <li>Cash out pays the full base wager plus winnings minus the rung commission.</li>
-                </ul>
-              </section>
             </div>
 
           </div>
@@ -4460,6 +4437,43 @@
     </div>
   </div>
   <!-- Color Scheme: How to Play modal (root level so it clears the Three.js stacking context) -->
+  <!-- Guess 10 — How to Play modal -->
+  <div id="g10-how-to-play-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="g10-htp-title" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="g10-htp-title">How to Play — Guess 10</h2>
+        <button type="button" class="modal-close" id="g10-how-to-play-close" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body cs-htp-body">
+        <div class="cs-htp-section">
+          <div class="cs-htp-label">CORE LOOP</div>
+          <ol class="cs-htp-text" style="margin:0;padding-left:1.2em;line-height:1.7">
+            <li>Place one base wager.</li>
+            <li>Choose COLOR, SUIT, or RANK before each draw.</li>
+            <li>Pick valid values and review the multiplier.</li>
+            <li>Draw one card — a match multiplies the current pot.</li>
+            <li>Cash out after a hit, or keep predicting.</li>
+          </ol>
+        </div>
+        <div class="cs-htp-section">
+          <div class="cs-htp-label">SELECTION RULES</div>
+          <ul class="cs-htp-text" style="margin:0;padding-left:1.2em;line-height:1.7">
+            <li>52-card standard deck — no Joker.</li>
+            <li>A fresh deck is shuffled before every draw.</li>
+            <li>COLOR requires exactly 1 pick.</li>
+            <li>SUIT allows 1 to 3 suits. RANK allows 1 to 12 ranks.</li>
+            <li>Multiplier is shown live before each draw and applies to the current pot on a hit.</li>
+            <li>Cash out pays the full base wager plus winnings minus the commission ladder rate.</li>
+          </ul>
+        </div>
+        <div class="cs-htp-section">
+          <div class="cs-htp-label">COMMISSION LADDER</div>
+          <p class="cs-htp-text">The ladder starts at 10% commission and drops 1% with each successive hit in a hand — down to 1% at rung 10. The longer your streak, the cheaper it gets to cash out.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="cs-how-to-play-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="cs-htp-title" hidden>
     <div class="modal-content">
       <div class="modal-header">

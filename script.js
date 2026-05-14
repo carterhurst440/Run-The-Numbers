@@ -18320,6 +18320,9 @@ const redBlackPotCommissionEl = document.getElementById("red-black-pot-commissio
 const redBlackNextPotTotalEl = document.getElementById("red-black-next-pot-total");
 const redBlackChipSelectorEl = document.getElementById("red-black-chip-selector");
 const redBlackChipRackEditButton = document.getElementById("red-black-chip-rack-edit");
+const g10HowToPlayBtn   = document.getElementById("g10-how-to-play-btn");
+const g10HowToPlayModal = document.getElementById("g10-how-to-play-modal");
+const g10HowToPlayClose = document.getElementById("g10-how-to-play-close");
 const redBlackCategoryButtons = Array.from(document.querySelectorAll("[data-red-black-category]"));
 const redBlackValueSelectorEl = document.getElementById("red-black-value-selector");
 const redBlackSelectionHintEl = document.getElementById("red-black-selection-hint");
@@ -33689,6 +33692,17 @@ redBlackChipSelectorEl?.addEventListener("click", (event) => {
 redBlackChipRackEditButton?.addEventListener("click", () => {
   if (redBlackChipRackEditButton.disabled) return;
   openChipEditorModal();
+});
+
+// Guess 10 — How to Play modal
+if (g10HowToPlayBtn) g10HowToPlayBtn.addEventListener("click", () => {
+  if (g10HowToPlayModal) { g10HowToPlayModal.hidden = false; document.body.classList.add("modal-open"); }
+});
+if (g10HowToPlayClose) g10HowToPlayClose.addEventListener("click", () => {
+  if (g10HowToPlayModal) { g10HowToPlayModal.hidden = true; document.body.classList.remove("modal-open"); }
+});
+if (g10HowToPlayModal) g10HowToPlayModal.addEventListener("click", e => {
+  if (e.target === g10HowToPlayModal) { g10HowToPlayModal.hidden = true; document.body.classList.remove("modal-open"); }
 });
 
 redBlackCategoryButtons.forEach((button) => {
