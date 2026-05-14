@@ -21797,8 +21797,8 @@ body[data-ui="new"] #run-the-numbers-view .rtn-card-count[data-count="0"] {
       inset 0 1px 0 rgba(232, 160, 32, 0.08);
     transition: transform 180ms ease-out;
     overflow: hidden;
-    /* collapsed: show just the 52px heading above the chip rack */
-    transform: translateY(calc(100% - 52px));
+    /* collapsed: show just the heading tab above the chip rack */
+    transform: translateY(calc(100% - 68px));
     max-height: 50dvh; /* half screen when expanded */
   }
 
@@ -21829,18 +21829,18 @@ body[data-ui="new"] #run-the-numbers-view .rtn-card-count[data-count="0"] {
   }
 
   /* Cards panel: extra bottom breathing room so the last card isn't hidden
-     under the 52px collapsed WAGERS tab floating above the chip rack */
+     under the collapsed WAGERS tab floating above the chip rack */
   body[data-ui="new"] #run-the-numbers-view .table-panel {
-    padding-bottom: calc(52px + 20px);
+    padding-bottom: calc(68px + 20px);
   }
 
   /* Heading row */
   .rtn-wagers-heading {
     flex-shrink: 0;
-    height: 52px;
+    height: 68px;
     display: flex;
     align-items: center;
-    padding: 0 16px;
+    padding: 0 20px;
   }
 
   .rtn-wagers-toggle {
@@ -21915,6 +21915,14 @@ body[data-ui="new"] #run-the-numbers-view .rtn-card-count[data-count="0"] {
   }
 
   .rtn-wagers-body[aria-hidden="true"] {
+    display: none;
+  }
+
+  /* Hide instructional text inside the mobile wagers drawer — not needed */
+  body[data-ui="new"] #run-the-numbers-view #status {
+    display: none;
+  }
+  body[data-ui="new"] #run-the-numbers-view .bets-subheading {
     display: none;
   }
 
