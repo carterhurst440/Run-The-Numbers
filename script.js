@@ -786,16 +786,6 @@ if (typeof window !== "undefined") {
     applyShapeTradersTradeSheetState();
     applyRtnWagersState();
   });
-
-  // RTN wagers drawer toggle
-  if (rtnWagersToggleEl) {
-    rtnWagersToggleEl.addEventListener("click", () => {
-      toggleRtnWagers();
-    });
-  }
-
-  // Initialize wagers drawer state
-  applyRtnWagersState();
 }
 
 function stripSupabaseRedirectHash() {
@@ -37047,4 +37037,12 @@ function destroyColorSchemeGame() {
   _csDm=null; _csGm2=null; _csHistoryData=[];
   _csRoundId=null; _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null; _csTargetQuats=null; _csCANNON=null;
   if (window.csGame) { delete window.csGame; }
+}
+
+// ---- RTN Wagers Drawer: deferred init (must be after all const declarations) ----
+if (typeof window !== "undefined") {
+  if (rtnWagersToggleEl) {
+    rtnWagersToggleEl.addEventListener("click", () => { toggleRtnWagers(); });
+  }
+  applyRtnWagersState();
 }
