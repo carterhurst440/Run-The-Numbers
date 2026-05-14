@@ -21220,11 +21220,6 @@ body[data-ui="new"] #run-the-numbers-view {
   background: #0a0a08;
 }
 
-/* Constrain the view to the viewport so inner panels can scroll independently */
-body[data-ui="new"] #run-the-numbers-view {
-  overflow: hidden;
-}
-
 body[data-ui="new"] #run-the-numbers-view .layout {
   background: #0a0a08;
   overflow: hidden; /* prevents layout from growing past its flex bounds */
@@ -21875,7 +21870,7 @@ body[data-ui="new"] #run-the-numbers-view .rtn-card-count[data-count="0"] {
   }
 
   .rtn-wagers-body[aria-hidden="true"] {
-    visibility: hidden;
+    display: none;
   }
 
   /* Wagers table */
