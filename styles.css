@@ -21535,6 +21535,8 @@ body[data-ui="new"] #run-the-numbers-view .chip-bar {
   background: #0d0d0b;
   border-top: 1px solid #2e2e26;
   box-shadow: none;
+  flex-shrink: 0;   /* don't let flex squeeze it — both rows must stay visible */
+  overflow: visible; /* base rule has overflow:hidden which clips actions row */
 }
 
 body[data-ui="new"] #run-the-numbers-view .chip-bar::before,
