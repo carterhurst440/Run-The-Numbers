@@ -21754,39 +21754,22 @@ body[data-ui="new"] #run-the-numbers-view .rtn-card-count[data-count="0"] {
    ============================================================ */
 
 /* Desktop: drawer is invisible; bets-panel stays in betting-scroll */
-#rtn-wagers-drawer {
-  display: none;
-}
-
-/* Desktop: wagers drawer renders as a static bets section inside the betting panel */
+/* Desktop: rtn-wagers-drawer IS the betting-panel — heading hidden, body is a flex column */
 @media (min-width: 960px) {
-  body[data-ui="new"] #run-the-numbers-view #rtn-wagers-drawer {
-    display: block;
-    position: static;
-    transform: none;
-    background: transparent;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-    max-height: none;
-    overflow: visible;
-    z-index: auto;
-    bottom: auto;
-    left: auto;
-    right: auto;
-    transition: none;
-  }
   body[data-ui="new"] #run-the-numbers-view .rtn-wagers-heading {
     display: none;
   }
   body[data-ui="new"] #run-the-numbers-view .rtn-wagers-body {
-    display: block;
-    overflow: visible;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
     padding: 0;
   }
-  /* Always show bets content on desktop regardless of aria-hidden state */
+  /* Always show on desktop regardless of aria-hidden state */
   body[data-ui="new"] #run-the-numbers-view .rtn-wagers-body[aria-hidden="true"] {
-    display: block;
+    display: flex;
   }
 }
 
@@ -21892,51 +21875,19 @@ body[data-ui="new"] #run-the-numbers-view .rtn-card-count[data-count="0"] {
     line-height: 1;
   }
 
-  /* Body (scrollable bet list) */
+  /* Body: fills remaining drawer height — betting-scroll inside handles scroll */
   .rtn-wagers-body {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 0 16px 16px;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
     -webkit-overflow-scrolling: touch;
   }
 
   .rtn-wagers-body[aria-hidden="true"] {
     display: none;
-  }
-
-  /* Wagers table */
-  .rtn-wagers-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 11px;
-    font-family: inherit;
-    color: #c0c090;
-  }
-
-  .rtn-wagers-table thead th {
-    font-size: 8px;
-    letter-spacing: 0.16em;
-    color: #7a7a58;
-    text-transform: uppercase;
-    text-align: left;
-    padding: 0 8px 6px 0;
-    border-bottom: 1px solid #252520;
-    font-weight: 600;
-  }
-
-  .rtn-wagers-table tbody td {
-    padding: 7px 8px 7px 0;
-    border-bottom: 1px solid #1a1a16;
-    vertical-align: middle;
-  }
-
-  .rtn-wagers-table tr.empty td {
-    color: #545440;
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    padding-top: 12px;
-    border-bottom: none;
   }
 
   /* Dealer zone: compact always-visible strip at the top */
