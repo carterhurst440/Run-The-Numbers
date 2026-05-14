@@ -26848,7 +26848,7 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
       const plText = pl >= 0 ? `+${formatCurrency(Math.abs(pl))}` : `-${formatCurrency(Math.abs(pl))}`;
       const netClass = pl > 0 ? "is-win" : pl < 0 ? "is-loss" : "is-neutral";
       const side = entry.side === "sell" ? "SELL" : "BUY";
-      const tradeModeLabel = entry.contestId ? escapeAssistantHtml(getActivityEntryModeLabel(entry)) : "NORMAL";
+      const tradeModeLabel = (entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL";
       const tradeDetail = `${formatCurrency(entry.quantity)} shares @ ${formatCurrency(entry.price)} · ${formatCurrency(entry.totalValue)} total`;
       return `
         <li class="activity-log-item">
@@ -26872,7 +26872,7 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
     const net = Number(entry.net ?? 0);
     const netText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
     const netClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
-    const handModeLabel = entry.contestId ? escapeAssistantHtml(getActivityEntryModeLabel(entry)) : "NORMAL";
+    const handModeLabel = (entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL";
     const detailBits = [`${formatCurrency(entry.totalWager)}w · ${formatCurrency(entry.totalReturn)}r`];
     if (entry.totalCards > 0) {
       detailBits.push(`${entry.totalCards} card${entry.totalCards === 1 ? "" : "s"}`);
@@ -35015,7 +35015,7 @@ function renderHomeSidebarActivity() {
     const dataAttrs = handId ? ` data-hand-review-id="${escapeAssistantHtml(handId)}"` : "";
     const tradeAttr = isTrade ? ` data-activity-idx="${idx}"` : "";
     const modeLabel = entry.entryType !== "account"
-      ? (entry.contestId ? escapeAssistantHtml(getActivityEntryModeLabel(entry)) : "NORMAL")
+      ? ((entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL")
       : "";
     const modeBadge = modeLabel ? ` <span class="home-sb-act-mode">${modeLabel}</span>` : "";
 
