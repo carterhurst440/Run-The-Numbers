@@ -7807,7 +7807,8 @@ body.theme-angelic {
   flex-direction: column;
   gap: 0;
   overflow-x: visible;
-  overflow-y: visible;
+  overflow-y: hidden; /* locked rungs are ~invisible but still take height — clip them */
+  max-height: 224px;  /* show ~7 rungs max; full ladder via modal (click any rung) */
   scroll-snap-type: none;
 }
 #home-view .home-sidebar .home-rank-ladder-rung {
