@@ -22848,6 +22848,100 @@ body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="3"].active::before {
   border-color: rgba(184,120,240,0.38);
 }
 
+/* ─────────────────────────────────────────────────────────────────
+   GUESS 10 — HOW TO PLAY button + modal
+───────────────────────────────────────────────────────────────── */
+
+/* Make brand row full width so button can be right-aligned */
+body[data-ui="new"] #red-black-view .beta-draw-brand-row {
+  display: flex;
+  width: 100%;
+}
+
+@keyframes g10-htp-sweep {
+  0%   { transform: translateX(-130%) skewX(-20deg); }
+  100% { transform: translateX(260%)  skewX(-20deg); }
+}
+
+#g10-how-to-play-btn {
+  display: inline-flex !important; /* override cs-hist-modal-btn display:none */
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  background: none;
+  border: 1px solid rgba(0, 229, 255, 0.28);
+  color: rgba(255, 255, 255, 0.65);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 7.5px;
+  letter-spacing: 0.09em;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  white-space: nowrap;
+  isolation: isolate;
+  margin-left: auto;
+}
+#g10-how-to-play-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 45%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 229, 255, 0.18) 40%,
+    rgba(255, 255, 255, 0.22) 50%,
+    rgba(0, 229, 255, 0.18) 60%,
+    transparent 100%
+  );
+  animation: g10-htp-sweep 3s ease-in-out infinite;
+  pointer-events: none;
+}
+#g10-how-to-play-btn:hover {
+  border-color: rgba(0, 229, 255, 0.6);
+  color: #fff;
+}
+#g10-how-to-play-btn:hover::before {
+  animation-duration: 1.2s;
+}
+
+/* Modal: dark background, cyan border, scrollable body */
+#g10-how-to-play-modal .modal-content {
+  background: #080b0c;
+  border-color: rgba(0, 229, 255, 0.2);
+  max-height: min(600px, 85vh);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+#g10-how-to-play-modal .modal-header {
+  flex-shrink: 0;
+}
+#g10-how-to-play-modal .modal-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+/* Swap green accent → cyan throughout */
+#g10-how-to-play-modal .cs-htp-label {
+  color: #00e5ff;
+}
+#g10-how-to-play-modal .cs-htp-rule {
+  background: rgba(0, 229, 255, 0.03);
+  border-left-color: rgba(0, 229, 255, 0.25);
+}
+#g10-how-to-play-modal .cs-htp-rule-head {
+  color: rgba(0, 229, 255, 0.85);
+}
+#g10-how-to-play-modal .cs-htp-odd {
+  background: rgba(0, 229, 255, 0.03);
+  border-left-color: rgba(0, 229, 255, 0.25);
+}
+#g10-how-to-play-modal .cs-htp-odd-key {
+  color: rgba(0, 229, 255, 0.85);
+}
+
 /* ---- On-table chips inside CS bet zones — per-tone colors ---- */
 #color-scheme-view .chip-stack .chip {
   border-radius: 50%;
