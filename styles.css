@@ -21712,6 +21712,234 @@ body[data-ui="new"] #run-the-numbers-view .table-panel::after {
 }
 
 /* ============================================================
+   RTN — DESKTOP: HORIZONTAL CARD SCROLL + CARD COUNT
+   ============================================================ */
+
+/* Single scrollable row of dealt cards — no wrapping */
+body[data-ui="new"] #run-the-numbers-view .draws {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  padding-bottom: 6px; /* room for scrollbar */
+}
+
+body[data-ui="new"] #run-the-numbers-view .draws .card {
+  flex: 0 0 var(--card-width);
+  scroll-snap-align: start;
+}
+
+/* draws-title-row: heading + card count badge inline */
+body[data-ui="new"] #run-the-numbers-view .draws-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+body[data-ui="new"] #run-the-numbers-view .rtn-card-count {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #0e0e0c;
+  background: #e8a020;
+  border-radius: 999px;
+  padding: 1px 7px;
+  min-width: 20px;
+  text-align: center;
+  line-height: 1.6;
+  display: inline-block;
+}
+
+body[data-ui="new"] #run-the-numbers-view .rtn-card-count:empty,
+body[data-ui="new"] #run-the-numbers-view .rtn-card-count[data-count="0"] {
+  display: none;
+}
+
+/* ============================================================
+   RTN WAGERS DRAWER — hidden on desktop, drawer on mobile
+   ============================================================ */
+
+/* Desktop: drawer is invisible; bets-panel stays in betting-scroll */
+#rtn-wagers-drawer {
+  display: none;
+}
+
+/* ============================================================
+   RTN — MOBILE LAYOUT (max-width: 959px)
+   ============================================================ */
+
+@media (max-width: 959px) {
+  /* Wagers drawer: show on mobile */
+  #run-the-numbers-view #rtn-wagers-drawer {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    background: #0e0e0c;
+    border-top: 2px solid #e8a020;
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+    box-shadow:
+      0 -16px 40px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(232, 160, 32, 0.08);
+    transition: transform 180ms ease-out;
+    overflow: hidden;
+    /* collapsed: only heading visible */
+    transform: translateY(calc(100% - 52px));
+  }
+
+  #run-the-numbers-view #rtn-wagers-drawer[data-wagers-state="expanded"] {
+    transform: translateY(0);
+    max-height: 55vh; /* keep cards visible above the drawer */
+  }
+
+  /* Heading row */
+  .rtn-wagers-heading {
+    flex-shrink: 0;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+  }
+
+  .rtn-wagers-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    width: 100%;
+    -webkit-tap-highlight-color: transparent;
+    appearance: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+
+  .rtn-wagers-toggle:focus-visible {
+    outline: 2px solid #e8a020;
+    outline-offset: 2px;
+  }
+
+  .rtn-wagers-grabber {
+    width: 2.4rem;
+    height: 0.28rem;
+    border-radius: 999px;
+    background: rgba(232, 160, 32, 0.5);
+    flex-shrink: 0;
+  }
+
+  .rtn-wagers-title {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: #e8a020;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  .rtn-wagers-count {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #0e0e0c;
+    background: #e8a020;
+    border-radius: 999px;
+    padding: 1px 6px;
+    min-width: 18px;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  .rtn-wagers-hint {
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    color: #686850;
+    text-transform: uppercase;
+    margin-left: auto;
+    line-height: 1;
+  }
+
+  /* Body (scrollable bet list) */
+  .rtn-wagers-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0 16px 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .rtn-wagers-body[aria-hidden="true"] {
+    visibility: hidden;
+  }
+
+  /* Wagers table */
+  .rtn-wagers-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    font-family: inherit;
+    color: #c0c090;
+  }
+
+  .rtn-wagers-table thead th {
+    font-size: 8px;
+    letter-spacing: 0.16em;
+    color: #7a7a58;
+    text-transform: uppercase;
+    text-align: left;
+    padding: 0 8px 6px 0;
+    border-bottom: 1px solid #252520;
+    font-weight: 600;
+  }
+
+  .rtn-wagers-table tbody td {
+    padding: 7px 8px 7px 0;
+    border-bottom: 1px solid #1a1a16;
+    vertical-align: middle;
+  }
+
+  .rtn-wagers-table tr.empty td {
+    color: #545440;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    padding-top: 12px;
+    border-bottom: none;
+  }
+
+  /* On mobile, hide the bets-panel from inside the betting-scroll
+     (wagers drawer takes over that role) */
+  #run-the-numbers-view .bets-panel {
+    display: none;
+  }
+
+  /* Dealer zone: compact always-visible strip at the top */
+  #run-the-numbers-view .dealer-zone {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: #0e0e0c;
+    border-bottom: 1px solid #2e2e26;
+    padding: 10px 16px;
+  }
+
+  /* Cards in a single horizontal scrollable row on mobile too */
+  #run-the-numbers-view .draws {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    min-height: calc(var(--card-height) + 0.2rem);
+    padding-bottom: 4px;
+  }
+}
+
+/* ============================================================
    NEW UI SKIN — SHAPE TRADERS NEON FUTURE THEME
    ============================================================ */
 

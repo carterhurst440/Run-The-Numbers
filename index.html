@@ -1489,7 +1489,10 @@
               <div class="dealer-header">
                 <div class="dealer-title-group">
                   <p class="dealer-game-tag">Run the Numbers</p>
-                  <h2 class="draws-title">Cards Dealt</h2>
+                  <div class="draws-title-row">
+                    <h2 class="draws-title">Cards Dealt</h2>
+                    <span id="rtn-card-count" class="rtn-card-count" aria-live="polite" aria-atomic="true">0</span>
+                  </div>
                 </div>
                 <label class="advanced-toggle deal-mode-toggle is-active" id="auto-deal-toggle-wrap">
                   <input type="checkbox" id="auto-deal-toggle" checked aria-checked="true" />
@@ -2373,6 +2376,33 @@
             </button>
           </form>
         </aside>
+
+        <!-- RTN WAGERS DRAWER (mobile pull-up, sits above chip rack) -->
+        <section id="rtn-wagers-drawer" class="rtn-wagers-drawer" data-wagers-state="collapsed" aria-label="Active wagers">
+          <div class="rtn-wagers-heading">
+            <button type="button" id="rtn-wagers-toggle" class="rtn-wagers-toggle" aria-expanded="false" aria-controls="rtn-wagers-body" aria-label="Expand wagers panel">
+              <span class="rtn-wagers-grabber"></span>
+              <span class="rtn-wagers-title">WAGERS</span>
+              <span id="rtn-wagers-count" class="rtn-wagers-count">0</span>
+              <span class="rtn-wagers-hint">Tap to open</span>
+            </button>
+          </div>
+          <div id="rtn-wagers-body" class="rtn-wagers-body" aria-hidden="true">
+            <table class="rtn-wagers-table">
+              <thead>
+                <tr>
+                  <th scope="col">Bet</th>
+                  <th scope="col">Units</th>
+                  <th scope="col">Hits</th>
+                  <th scope="col">Paid</th>
+                </tr>
+              </thead>
+              <tbody id="rtn-wagers-bets-body">
+                <tr class="empty"><td colspan="4">No bets placed.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         <div class="chip-bar chip-rack" aria-label="Bet controls">
           <div class="chip-selector-row chip-rack__row">

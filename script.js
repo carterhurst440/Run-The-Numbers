@@ -784,7 +784,18 @@ if (typeof window !== "undefined") {
 
   window.addEventListener("resize", () => {
     applyShapeTradersTradeSheetState();
+    applyRtnWagersState();
   });
+
+  // RTN wagers drawer toggle
+  if (rtnWagersToggleEl) {
+    rtnWagersToggleEl.addEventListener("click", () => {
+      toggleRtnWagers();
+    });
+  }
+
+  // Initialize wagers drawer state
+  applyRtnWagersState();
 }
 
 function stripSupabaseRedirectHash() {
@@ -7501,6 +7512,42 @@ function toggleShapeTradersTradeSheet() {
     return;
   }
   setShapeTradersTradeSheetCollapsed(!shapeTradersTradeSheetCollapsed);
+}
+
+/* ---- RTN Wagers Drawer ---- */
+let rtnWagersCollapsed = true;
+
+function isRtnWagersMobile() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 959px)").matches;
+}
+
+function applyRtnWagersState() {
+  if (!rtnWagersDrawerEl || !rtnWagersToggleEl) return;
+  const isMobile = isRtnWagersMobile();
+  if (!isMobile) rtnWagersCollapsed = false;
+  const isCollapsed = isMobile && rtnWagersCollapsed;
+  rtnWagersDrawerEl.dataset.wagersState = isCollapsed ? "collapsed" : "expanded";
+  rtnWagersToggleEl.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
+  rtnWagersToggleEl.setAttribute("aria-label", isCollapsed ? "Expand wagers panel" : "Collapse wagers panel");
+  if (rtnWagersBodyEl) rtnWagersBodyEl.setAttribute("aria-hidden", isCollapsed ? "true" : "false");
+  if (rtnWagersHintEl) rtnWagersHintEl.textContent = isCollapsed ? "Tap to open" : "Tap to close";
+}
+
+function setRtnWagersCollapsed(nextCollapsed) {
+  if (!isRtnWagersMobile()) { rtnWagersCollapsed = false; }
+  else { rtnWagersCollapsed = Boolean(nextCollapsed); }
+  applyRtnWagersState();
+}
+
+function toggleRtnWagers() {
+  if (!isRtnWagersMobile()) return;
+  setRtnWagersCollapsed(!rtnWagersCollapsed);
+}
+
+function updateRtnCardCount() {
+  if (!rtnCardCountEl || !drawsContainer) return;
+  const count = drawsContainer.querySelectorAll(".card").length;
+  rtnCardCountEl.textContent = count > 0 ? String(count) : "";
 }
 
 function pulseShapeTraderTradeButton(button) {
@@ -17811,6 +17858,7 @@ function renderRtnDrawsFromServerState(drawnCards = [], { animateNewCards = fals
   const nextCards = sanitizeStoredDrawnCards(drawnCards);
   if (forceRebuild || drawsContainer.children.length > nextCards.length) {
     drawsContainer.innerHTML = "";
+    updateRtnCardCount();
     nextCards.forEach((card) => {
       renderDraw(card, { animate: false });
     });
@@ -18140,6 +18188,13 @@ const carterCashEl = document.getElementById("carter-cash");
 const carterCashDeltaEl = document.getElementById("carter-cash-delta");
 const handToastContainer = document.getElementById("hand-toast-container");
 const betsBody = document.getElementById("bets-body");
+const rtnCardCountEl = document.getElementById("rtn-card-count");
+const rtnWagersDrawerEl = document.getElementById("rtn-wagers-drawer");
+const rtnWagersToggleEl = document.getElementById("rtn-wagers-toggle");
+const rtnWagersBodyEl = document.getElementById("rtn-wagers-body");
+const rtnWagersCountEl = document.getElementById("rtn-wagers-count");
+const rtnWagersHintEl = rtnWagersToggleEl ? rtnWagersToggleEl.querySelector(".rtn-wagers-hint") : null;
+const rtnWagersBetsBody = document.getElementById("rtn-wagers-bets-body");
 const dealButton = document.getElementById("deal-button");
 const rebetButton = document.getElementById("rebet-button");
 const autoDealToggleInput = document.getElementById("auto-deal-toggle");
@@ -20583,13 +20638,15 @@ function setSelectedChip(value, announce = true) {
 function renderBets() {
   betsBody.innerHTML = "";
   if (bets.length === 0) {
-    const row = document.createElement("tr");
-    row.className = "empty";
-    const cell = document.createElement("td");
-    cell.colSpan = 4;
-    cell.textContent = "No bets placed.";
-    row.appendChild(cell);
-    betsBody.appendChild(row);
+    const emptyRow = document.createElement("tr");
+    emptyRow.className = "empty";
+    const emptyCell = document.createElement("td");
+    emptyCell.colSpan = 4;
+    emptyCell.textContent = "No bets placed.";
+    emptyRow.appendChild(emptyCell);
+    betsBody.appendChild(emptyRow);
+    if (rtnWagersBetsBody) rtnWagersBetsBody.innerHTML = betsBody.innerHTML;
+    if (rtnWagersCountEl) rtnWagersCountEl.textContent = "0";
     updateDealButtonState();
     setClearBetsDisabled(true);
     updateBetSpotTotals();
@@ -20617,6 +20674,11 @@ function renderBets() {
     row.appendChild(paidCell);
     betsBody.appendChild(row);
   });
+
+  // Mirror to mobile wagers drawer
+  if (rtnWagersBetsBody) rtnWagersBetsBody.innerHTML = betsBody.innerHTML;
+  if (rtnWagersCountEl) rtnWagersCountEl.textContent = String(bets.length);
+
   updateDealButtonState();
   setClearBetsDisabled(!bettingOpen);
   updateBetSpotTotals();
@@ -27737,6 +27799,7 @@ function resetTable(
 ) {
   if (clearDraws) {
     drawsContainer.innerHTML = "";
+    updateRtnCardCount();
   }
   if (message) {
     statusEl.textContent = message;
@@ -28083,9 +28146,11 @@ function renderDraw(card, { animate = true } = {}) {
   if (animate) {
     requestAnimationFrame(() => {
       cardEl.classList.add("dealt-in");
+      updateRtnCardCount();
     });
   } else {
     cardEl.classList.add("dealt-static");
+    updateRtnCardCount();
   }
 }
 
@@ -28365,6 +28430,7 @@ async function dealHandLegacy() {
   updateRebetButtonState();
   resetBetCounters();
   drawsContainer.innerHTML = "";
+  updateRtnCardCount();
   statusEl.textContent = "Dealing...";
   updateAutoDealToggleUI();
   updatePauseButton();
