@@ -21128,6 +21128,10 @@ body.modal-open {
   .home-main {
     border-right: none;
     overflow: visible; /* allow card glow to bleed to screen edge; #home-view overflow:clip is the safety net */
+  }
+
+  /* Higher specificity needed to beat base .home-main { padding: 0 0 48px } */
+  body[data-ui="new"] .home-main {
     padding-bottom: 0; /* desktop 48px gap is meaningless when sidebar stacks below on mobile */
   }
 
