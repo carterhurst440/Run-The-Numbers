@@ -21712,21 +21712,14 @@ body[data-ui="new"] #run-the-numbers-view .table-panel::after {
 }
 
 /* ============================================================
-   RTN — DESKTOP: HORIZONTAL CARD SCROLL + CARD COUNT
+   RTN — DESKTOP: CARD COUNT BADGE
    ============================================================ */
 
-/* Single scrollable row of dealt cards — no wrapping */
+/* Cards wrap normally — table-panel handles the scroll */
 body[data-ui="new"] #run-the-numbers-view .draws {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-snap-type: x proximity;
-  padding-bottom: 6px; /* room for scrollbar */
-}
-
-body[data-ui="new"] #run-the-numbers-view .draws .card {
-  flex: 0 0 var(--card-width);
-  scroll-snap-align: start;
+  flex-wrap: wrap;
+  overflow-x: hidden;
+  overflow-y: visible;
 }
 
 /* draws-title-row: heading + card count badge inline */
@@ -21928,14 +21921,11 @@ body[data-ui="new"] #run-the-numbers-view .rtn-card-count[data-count="0"] {
     padding: 10px 16px;
   }
 
-  /* Cards in a single horizontal scrollable row on mobile too */
+  /* Cards wrap normally on mobile — dealer-zone handles height */
   #run-the-numbers-view .draws {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scroll-snap-type: x proximity;
-    min-height: calc(var(--card-height) + 0.2rem);
-    padding-bottom: 4px;
+    flex-wrap: wrap;
+    overflow-x: hidden;
+    overflow-y: visible;
   }
 }
 
