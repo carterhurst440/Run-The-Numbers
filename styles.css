@@ -22906,22 +22906,18 @@ body[data-ui="new"] #red-black-view .beta-draw-brand-row {
   animation-duration: 1.2s;
 }
 
-/* Modal: dark background, cyan border, scrollable body */
+/* Modal: dark background, cyan border, scrollable body — mirrors CS pattern exactly */
 #g10-how-to-play-modal .modal-content {
   background: #080b0c;
   border-color: rgba(0, 229, 255, 0.2);
-  max-height: min(600px, 85vh);
-  overflow: hidden;
+  max-height: min(88vh, 640px);
   display: flex;
   flex-direction: column;
 }
-#g10-how-to-play-modal .modal-header {
-  flex-shrink: 0;
-}
 #g10-how-to-play-modal .modal-body {
-  flex: 1 1 auto;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  flex: 1;
+  min-height: 0;
 }
 /* Swap green accent → cyan throughout */
 #g10-how-to-play-modal .cs-htp-label {
