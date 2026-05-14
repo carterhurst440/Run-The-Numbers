@@ -1471,13 +1471,22 @@
                     <span id="rtn-card-count" class="rtn-card-count" aria-live="polite" aria-atomic="true">0</span>
                   </div>
                 </div>
-                <label class="advanced-toggle deal-mode-toggle is-active" id="auto-deal-toggle-wrap">
-                  <input type="checkbox" id="auto-deal-toggle" checked aria-checked="true" />
-                  <span class="toggle-label">Auto Deal</span>
-                  <span class="toggle-visual" aria-hidden="true">
-                    <span class="toggle-thumb"></span>
-                  </span>
-                </label>
+                <div class="dealer-toggles">
+                  <label class="advanced-toggle deal-mode-toggle is-active" id="auto-deal-toggle-wrap">
+                    <input type="checkbox" id="auto-deal-toggle" checked aria-checked="true" />
+                    <span class="toggle-label">Auto Deal</span>
+                    <span class="toggle-visual" aria-hidden="true">
+                      <span class="toggle-thumb"></span>
+                    </span>
+                  </label>
+                  <label class="advanced-toggle deal-mode-toggle" id="auto-rebet-toggle-wrap">
+                    <input type="checkbox" id="auto-rebet-toggle" aria-checked="false" />
+                    <span class="toggle-label">Auto Rebet</span>
+                    <span class="toggle-visual" aria-hidden="true">
+                      <span class="toggle-thumb"></span>
+                    </span>
+                  </label>
+                </div>
               </div>
               <div class="draws" id="draws" aria-label="Cards dealt this hand"></div>
             </section>

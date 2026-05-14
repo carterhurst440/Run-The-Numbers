@@ -21255,6 +21255,14 @@ body[data-ui="new"] #run-the-numbers-view .dealer-header {
   border-bottom: none;
 }
 
+body[data-ui="new"] #run-the-numbers-view .dealer-toggles {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 body[data-ui="new"] #run-the-numbers-view .dealer-game-tag {
   font-size: 9px;
   letter-spacing: 0.22em;

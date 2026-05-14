@@ -18201,6 +18201,8 @@ const dealButton = document.getElementById("deal-button");
 const rebetButton = document.getElementById("rebet-button");
 const autoDealToggleInput = document.getElementById("auto-deal-toggle");
 const autoDealToggleWrap = document.getElementById("auto-deal-toggle-wrap");
+const autoRebetToggleInput = document.getElementById("auto-rebet-toggle");
+const autoRebetToggleWrap = document.getElementById("auto-rebet-toggle-wrap");
 const clearBetsButtons = Array.from(
   document.querySelectorAll('[data-action="clear-bets"]')
 );
@@ -19220,6 +19222,7 @@ let activeUsersChartPeriod = "all";
 let activeUsersSelectedSeriesKeys = ["dau", "wau", "mau"];
 let activeUsersSeriesInitialized = false;
 let autoDealEnabled = true;
+let autoRebetEnabled = false;
 let carterCash = 0;
   let carterCashProgress = 0;
   let carterCashAnimating = false;
@@ -23223,6 +23226,23 @@ function setAutoDealEnabled(enabled) {
       ? "Auto Deal is on. Press Deal Hand to run the hand to completion."
       : "Auto Deal is off. Press Deal Hand to reveal one card at a time.";
   }
+}
+
+function updateAutoRebetToggleUI() {
+  if (autoRebetToggleInput) {
+    autoRebetToggleInput.checked = autoRebetEnabled;
+    autoRebetToggleInput.setAttribute("aria-checked", String(autoRebetEnabled));
+    autoRebetToggleInput.disabled = dealing;
+  }
+  if (autoRebetToggleWrap) {
+    autoRebetToggleWrap.classList.toggle("is-active", autoRebetEnabled);
+    autoRebetToggleWrap.classList.toggle("is-disabled", dealing);
+  }
+}
+
+function setAutoRebetEnabled(enabled) {
+  autoRebetEnabled = enabled;
+  updateAutoRebetToggleUI();
 }
 
 function setAdvancedMode(enabled) {
@@ -28335,9 +28355,21 @@ async function endHand(stopperCard, context = {}) {
   resetBets();
   setBettingEnabled(true);
   updateAutoDealToggleUI();
+  updateAutoRebetToggleUI();
   updateDealButtonState();
   updateRebetButtonState();
   updatePauseButton();
+
+  // Auto Rebet: silently restore the last bet layout so the user only needs to hit Deal
+  if (autoRebetEnabled && lastBetLayout.length > 0) {
+    const totalNeeded = layoutTotalUnits(lastBetLayout);
+    if (totalNeeded > 0 && totalNeeded <= bankroll) {
+      applyBetLayout(lastBetLayout);
+      handleBankrollChanged();
+      updateDealButtonState();
+      updateRebetButtonState();
+    }
+  }
 }
 
 async function processCard(card, context) {
@@ -28758,6 +28790,12 @@ dealButton.addEventListener("click", () => {
 if (autoDealToggleInput) {
   autoDealToggleInput.addEventListener("change", (event) => {
     setAutoDealEnabled(Boolean(event.target.checked));
+  });
+}
+
+if (autoRebetToggleInput) {
+  autoRebetToggleInput.addEventListener("change", (event) => {
+    setAutoRebetEnabled(Boolean(event.target.checked));
   });
 }
 
