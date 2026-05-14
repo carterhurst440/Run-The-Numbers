@@ -28630,9 +28630,21 @@ async function dealHandServer() {
         resetBets();
         setBettingEnabled(true);
         updateAutoDealToggleUI();
+        updateAutoRebetToggleUI();
         updateDealButtonState();
         updateRebetButtonState();
         updatePauseButton();
+
+        // Auto Rebet: restore last bet layout so user only needs to tap Deal
+        if (autoRebetEnabled && lastBetLayout.length > 0) {
+          const totalNeeded = layoutTotalUnits(lastBetLayout);
+          if (totalNeeded > 0 && totalNeeded <= bankroll) {
+            applyBetLayout(lastBetLayout);
+            handleBankrollChanged();
+            updateDealButtonState();
+            updateRebetButtonState();
+          }
+        }
         return;
       }
 
