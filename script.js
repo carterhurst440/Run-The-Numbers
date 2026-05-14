@@ -7511,11 +7511,22 @@ function isRtnWagersMobile() {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 959px)").matches;
 }
 
+function updateRtnChipBarHeight() {
+  if (!rtnWagersDrawerEl) return;
+  const chipBar = document.querySelector("#run-the-numbers-view .chip-bar");
+  if (!chipBar) return;
+  const h = chipBar.getBoundingClientRect().height;
+  if (h > 0) {
+    rtnWagersDrawerEl.style.setProperty("--rtn-chip-bar-height", `${Math.round(h)}px`);
+  }
+}
+
 function applyRtnWagersState() {
   if (!rtnWagersDrawerEl || !rtnWagersToggleEl) return;
   const isMobile = isRtnWagersMobile();
   if (!isMobile) rtnWagersCollapsed = false;
   const isCollapsed = isMobile && rtnWagersCollapsed;
+  updateRtnChipBarHeight();
   rtnWagersDrawerEl.dataset.wagersState = isCollapsed ? "collapsed" : "expanded";
   rtnWagersToggleEl.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
   rtnWagersToggleEl.setAttribute("aria-label", isCollapsed ? "Expand wagers panel" : "Collapse wagers panel");

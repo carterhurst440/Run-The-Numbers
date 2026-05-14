@@ -21220,8 +21220,14 @@ body[data-ui="new"] #run-the-numbers-view {
   background: #0a0a08;
 }
 
+/* Constrain the view to the viewport so inner panels can scroll independently */
+body[data-ui="new"] #run-the-numbers-view {
+  overflow: hidden;
+}
+
 body[data-ui="new"] #run-the-numbers-view .layout {
   background: #0a0a08;
+  overflow: hidden; /* prevents layout from growing past its flex bounds */
 }
 
 /* ---- Panels — sharp corners ---- */
@@ -21762,14 +21768,15 @@ body[data-ui="new"] #run-the-numbers-view .rtn-card-count[data-count="0"] {
    ============================================================ */
 
 @media (max-width: 959px) {
-  /* Wagers drawer: show on mobile */
+  /* Wagers drawer: show on mobile, anchored above the chip rack */
   #run-the-numbers-view #rtn-wagers-drawer {
     display: flex;
     flex-direction: column;
     position: fixed;
     left: 0;
     right: 0;
-    bottom: 0;
+    /* sits flush on top of the chip rack — height measured by JS and set as CSS var */
+    bottom: var(--rtn-chip-bar-height, 110px);
     z-index: 30;
     background: #0e0e0c;
     border-top: 2px solid #e8a020;
@@ -21780,13 +21787,13 @@ body[data-ui="new"] #run-the-numbers-view .rtn-card-count[data-count="0"] {
       inset 0 1px 0 rgba(232, 160, 32, 0.08);
     transition: transform 180ms ease-out;
     overflow: hidden;
-    /* collapsed: only heading visible */
+    /* collapsed: show just the 52px heading above the chip rack */
     transform: translateY(calc(100% - 52px));
+    max-height: 66dvh; /* never taller than 2/3 of the screen */
   }
 
   #run-the-numbers-view #rtn-wagers-drawer[data-wagers-state="expanded"] {
     transform: translateY(0);
-    max-height: 55vh; /* keep cards visible above the drawer */
   }
 
   /* Heading row */
