@@ -24516,9 +24516,7 @@ body[data-ui="new"] .home-stat-block .hsb-label {
 }
 
 body[data-ui="new"] .home-stat-block .hsb-label::before {
-  content: "// ";
-  color: #686850;
-  font-weight: 400;
+  content: none;
 }
 
 /* Value number */
