@@ -21764,6 +21764,17 @@ body[data-ui="new"] #run-the-numbers-view .rtn-card-count[data-count="0"] {
 /* Desktop: drawer is invisible; bets-panel stays in betting-scroll */
 /* Desktop: rtn-wagers-drawer IS the betting-panel — heading hidden, body is a flex column */
 @media (min-width: 960px) {
+  /* Fix: .app uses min-height:100vh so the flex chain never produces a
+     constrained height for descendants — overflow-y:auto never fires.
+     Anchoring the view to exactly (viewport - header) breaks the chain
+     and lets .betting-scroll scroll instead of the whole page. */
+  body[data-ui="new"] #run-the-numbers-view {
+    height: calc(100dvh - 50px); /* 50px = .header height */
+    max-height: calc(100dvh - 50px);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
   body[data-ui="new"] #run-the-numbers-view .rtn-wagers-heading {
     display: none;
   }
