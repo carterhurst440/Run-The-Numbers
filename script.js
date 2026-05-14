@@ -7512,12 +7512,14 @@ function isRtnWagersMobile() {
 }
 
 function updateRtnChipBarHeight() {
-  if (!rtnWagersDrawerEl) return;
-  const chipBar = document.querySelector("#run-the-numbers-view .chip-bar");
+  const rtnView = document.getElementById("run-the-numbers-view");
+  if (!rtnView) return;
+  const chipBar = rtnView.querySelector(".chip-bar");
   if (!chipBar) return;
   const h = chipBar.getBoundingClientRect().height;
   if (h > 0) {
-    rtnWagersDrawerEl.style.setProperty("--rtn-chip-bar-height", `${Math.round(h)}px`);
+    // Set on the view element so all descendant CSS rules can inherit it
+    rtnView.style.setProperty("--rtn-chip-bar-height", `${Math.round(h)}px`);
   }
 }
 
