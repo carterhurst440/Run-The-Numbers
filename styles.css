@@ -22875,6 +22875,7 @@ body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="3"].active::before {
   white-space: nowrap;
   isolation: isolate;
   align-self: flex-start;
+  margin-left: auto;
 }
 #g10-how-to-play-btn::before {
   content: '';
