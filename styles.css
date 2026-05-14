@@ -22676,9 +22676,14 @@ body[data-ui="new"] #red-black-view .secondary.beta-value-button.active {
   box-shadow: none;
   transform: none;
 }
-body[data-ui="new"] #red-black-view .secondary.beta-value-button:hover {
+body[data-ui="new"] #red-black-view .secondary.beta-value-button:hover:not(:disabled) {
   border-color: rgba(0, 229, 255, 0.3);
   color: #33edff;
+}
+body[data-ui="new"] #red-black-view .secondary.beta-value-button.is-at-max {
+  opacity: 0.28;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* ---- Status / summary ---- */
@@ -26558,4 +26563,32 @@ body[data-ui="new"] #paytable-modal .modal-actions .secondary {
 body[data-ui="new"] #paytable-modal .modal-actions .secondary:hover:not(:disabled) {
   border-color: rgba(232, 160, 32, 0.35);
   color: #e8a020;
+}
+
+/* ── Activity log MODE badge (alr-top row) ──────────────────────── */
+body[data-ui="new"] .alr-mode {
+  font-size: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.1em;
+  color: #585840;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 2px;
+  padding: 1px 5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+/* ── Home sidebar MODE badge (inside home-sb-act-left) ─────────── */
+.home-sb-act-mode {
+  display: inline-block;
+  font-size: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.08em;
+  color: #484834;
+  text-transform: uppercase;
+  margin-left: 5px;
+  vertical-align: middle;
 }

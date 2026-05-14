@@ -21044,10 +21044,12 @@ function renderRedBlackValueSelector() {
       button.classList.add("is-suit-value");
     }
     const isSelected = redBlackSelectedValues.includes(item.key);
+    const atMax = redBlackCategory !== "color" && !isSelected && redBlackSelectedValues.length >= config.max;
     button.classList.toggle("active", isSelected);
+    button.classList.toggle("is-at-max", atMax);
     button.setAttribute("aria-pressed", String(isSelected));
-    button.disabled = redBlackSettlementPending;
-    button.setAttribute("aria-disabled", String(redBlackSettlementPending));
+    button.disabled = redBlackSettlementPending || atMax;
+    button.setAttribute("aria-disabled", String(redBlackSettlementPending || atMax));
     button.addEventListener("click", () => {
       if (redBlackSettlementPending) return;
       toggleGuess10Value(item.key);
@@ -21740,11 +21742,14 @@ function setGuess10Category(category) {
 function toggleGuess10Value(value) {
   const config = getRedBlackSelectionConfig();
   if (redBlackCategory === "color") {
+    if (redBlackSelectedValues[0] === value) return; // already selected, nothing to do
     redBlackSelectedValues = [value];
   } else if (redBlackSelectedValues.includes(value)) {
     redBlackSelectedValues = redBlackSelectedValues.filter((entry) => entry !== value);
   } else if (redBlackSelectedValues.length < config.max) {
     redBlackSelectedValues = [...redBlackSelectedValues, value];
+  } else {
+    return; // at max capacity — do nothing, no re-render
   }
   renderRedBlackValueSelector();
   updateRedBlackMultiplierChip();
@@ -26843,11 +26848,13 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
       const plText = pl >= 0 ? `+${formatCurrency(Math.abs(pl))}` : `-${formatCurrency(Math.abs(pl))}`;
       const netClass = pl > 0 ? "is-win" : pl < 0 ? "is-loss" : "is-neutral";
       const side = entry.side === "sell" ? "SELL" : "BUY";
-      const tradeDetail = `${formatCurrency(entry.quantity)} shares @ ${formatCurrency(entry.price)} · ${formatCurrency(entry.totalValue)} total · ${escapeAssistantHtml(getActivityEntryModeLabel(entry))}`;
+      const tradeModeLabel = entry.contestId ? escapeAssistantHtml(getActivityEntryModeLabel(entry)) : "NORMAL";
+      const tradeDetail = `${formatCurrency(entry.quantity)} shares @ ${formatCurrency(entry.price)} · ${formatCurrency(entry.totalValue)} total`;
       return `
         <li class="activity-log-item">
           <div class="alr-top">
             <span class="alr-label">ST · <b>${escapeAssistantHtml(side)}</b></span>
+            <span class="alr-mode">${tradeModeLabel}</span>
             <span class="alr-net ${netClass}">${escapeAssistantHtml(plText)}</span>
             <span class="alr-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
           </div>
@@ -26865,8 +26872,8 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
     const net = Number(entry.net ?? 0);
     const netText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
     const netClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
-    const detailBits = [escapeAssistantHtml(getActivityEntryModeLabel(entry))];
-    detailBits.push(`${formatCurrency(entry.totalWager)}w · ${formatCurrency(entry.totalReturn)}r`);
+    const handModeLabel = entry.contestId ? escapeAssistantHtml(getActivityEntryModeLabel(entry)) : "NORMAL";
+    const detailBits = [`${formatCurrency(entry.totalWager)}w · ${formatCurrency(entry.totalReturn)}r`];
     if (entry.totalCards > 0) {
       detailBits.push(`${entry.totalCards} card${entry.totalCards === 1 ? "" : "s"}`);
     }
@@ -26887,6 +26894,7 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
       <li class="activity-log-item">
         <div class="alr-top">
           <span class="alr-label">${escapeAssistantHtml(gameShort)} · <b>#${escapeAssistantHtml(String(handNum))}</b></span>
+          <span class="alr-mode">${handModeLabel}</span>
           <span class="alr-net ${netClass}">${escapeAssistantHtml(netText)}</span>
           <span class="alr-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
         </div>
@@ -26909,7 +26917,8 @@ function renderActivityLogList({
   tradeFilter = "all",
   updateControls = () => {},
   showReviewButtons = true,
-  emptyMessage = "No activity yet. Play a hand or make a trade to start the log."
+  emptyMessage = "No activity yet. Play a hand or make a trade to start the log.",
+  isAppend = false
 } = {}) {
   if (!listEl) {
     return;
@@ -26917,12 +26926,13 @@ function renderActivityLogList({
 
   updateControls();
 
-  if (loading) {
+  if (loading && !isAppend) {
     listEl.innerHTML = `
       <li class="activity-log-item activity-log-item-empty">
         <p>Loading activity…</p>
       </li>
     `;
+    listEl.dataset.renderedCount = "0";
     return;
   }
 
@@ -26934,6 +26944,7 @@ function renderActivityLogList({
         <p>${entries.length ? "No activity matches the selected filters." : emptyMessage}</p>
       </li>
     `;
+    listEl.dataset.renderedCount = "0";
     if (loadMoreButton) {
       loadMoreButton.hidden = !hasMore;
       loadMoreButton.disabled = loading;
@@ -26942,7 +26953,17 @@ function renderActivityLogList({
     return;
   }
 
-  listEl.innerHTML = buildActivityLogEntriesMarkup(visibleEntries, { showReviewButtons });
+  if (isAppend) {
+    const prevCount = parseInt(listEl.dataset.renderedCount || "0", 10);
+    const newEntries = visibleEntries.slice(prevCount);
+    if (newEntries.length > 0) {
+      listEl.insertAdjacentHTML("beforeend", buildActivityLogEntriesMarkup(newEntries, { showReviewButtons }));
+    }
+    listEl.dataset.renderedCount = String(visibleEntries.length);
+  } else {
+    listEl.innerHTML = buildActivityLogEntriesMarkup(visibleEntries, { showReviewButtons });
+    listEl.dataset.renderedCount = String(visibleEntries.length);
+  }
 
   if (loadMoreButton) {
     loadMoreButton.hidden = !hasMore;
@@ -26951,7 +26972,7 @@ function renderActivityLogList({
   }
 }
 
-function renderActivityLogPage() {
+function renderActivityLogPage({ isAppend = false } = {}) {
   renderActivityLogList({
     listEl: activityLogListEl,
     loadMoreButton: activityLogLoadMoreButton,
@@ -26961,7 +26982,8 @@ function renderActivityLogPage() {
     selectedGames: activityLogSelectedGames,
     tradeFilter: activityLogTradeFilter,
     updateControls: updateActivityLogFilterControls,
-    showReviewButtons: true
+    showReviewButtons: true,
+    isAppend
   });
 }
 
@@ -27481,7 +27503,7 @@ async function loadActivityLogPage({ force = false, append = false } = {}) {
     activityLogHasMore = false;
   } finally {
     activityLogLoading = false;
-    renderActivityLogPage();
+    renderActivityLogPage({ isAppend: append });
     renderHomeSidebarActivity();
   }
 }
@@ -34992,9 +35014,13 @@ function renderHomeSidebarActivity() {
     const isClickable = handId || isTrade;
     const dataAttrs = handId ? ` data-hand-review-id="${escapeAssistantHtml(handId)}"` : "";
     const tradeAttr = isTrade ? ` data-activity-idx="${idx}"` : "";
+    const modeLabel = entry.entryType !== "account"
+      ? (entry.contestId ? escapeAssistantHtml(getActivityEntryModeLabel(entry)) : "NORMAL")
+      : "";
+    const modeBadge = modeLabel ? ` <span class="home-sb-act-mode">${modeLabel}</span>` : "";
 
     return `<li class="home-sb-activity-item${isClickable ? " is-clickable" : ""}"${dataAttrs}${tradeAttr}${isClickable ? ' tabindex="0" role="button"' : ""}>
-      <span class="home-sb-act-left">${label}</span>
+      <span class="home-sb-act-left">${label}${modeBadge}</span>
       <span class="home-sb-act-right ${resultClass}">${escapeAssistantHtml(resultText)}</span>
       <span class="home-sb-act-time">${escapeAssistantHtml(ts)}</span>
     </li>`;
