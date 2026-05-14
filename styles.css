@@ -22919,6 +22919,10 @@ body[data-ui="new"] #red-black-view .beta-draw-brand-row {
   flex: 1;
   min-height: 0;
 }
+/* Header title in Guess 10 cyan */
+#g10-how-to-play-modal .modal-header h2 {
+  color: #00e5ff;
+}
 /* Swap green accent → cyan throughout */
 #g10-how-to-play-modal .cs-htp-label {
   color: #00e5ff;
