@@ -20676,7 +20676,8 @@ function renderBets() {
     betsBody.appendChild(row);
   });
 
-  if (rtnWagersCountEl) rtnWagersCountEl.textContent = String(bets.length);
+  const totalWagered = bets.reduce((sum, b) => sum + (b.units || 0), 0);
+  if (rtnWagersCountEl) rtnWagersCountEl.textContent = String(totalWagered);
 
   updateDealButtonState();
   setClearBetsDisabled(!bettingOpen);
