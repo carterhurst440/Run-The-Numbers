@@ -26424,3 +26424,106 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   .cs-col-outcome .cs-oc-gt-value { font-size: clamp(18px, 5vw, 24px); }
   .cs-roll-tracker { right: clamp(128px, 40vw, 165px); }
 }
+
+/* ============================================================
+   Paytable modal — RTN amber theme
+   The modal lives outside #run-the-numbers-view so it doesn't
+   inherit RTN's scoped CSS vars. These rules push the amber
+   palette into the modal directly.
+   ============================================================ */
+body[data-ui="new"] #paytable-modal {
+  /* Override inherited lime-green vars with RTN amber */
+  --paytable-option-border-hover: #e8a020;
+  --paytable-option-border-selected: #e8a020;
+  --paytable-option-shadow-hover: none;
+  --paytable-option-shadow-selected: none;
+  --paytable-panel-bg: #171714;
+  --paytable-panel-border: #2a2a1e;
+  --paytable-panel-shadow: none;
+  --paytable-option-bg: #0e0e0c;
+  --paytable-option-border: #2a2a1e;
+  --paytable-option-shadow: none;
+  --paytable-option-name-color: #d8c8a0;
+  --paytable-option-steps-color: #a08840;
+  --icon-button-border-hover: #e8a020;
+  --icon-button-shadow-hover: 0 4px 12px rgba(232, 160, 32, 0.2);
+}
+
+body[data-ui="new"] #paytable-modal .modal-content {
+  background: #0e0e0c;
+  border-color: #2a2a1e;
+  border-radius: 2px;
+  box-shadow: 0 32px 64px rgba(0, 0, 0, 0.7);
+}
+
+body[data-ui="new"] #paytable-modal .modal-header {
+  border-bottom-color: #2a2a1e;
+}
+
+body[data-ui="new"] #paytable-modal .modal-header h2 {
+  color: #e8a020;
+  letter-spacing: 0.16em;
+}
+
+body[data-ui="new"] #paytable-modal .modal-close {
+  color: #686850;
+  border-color: #2a2a1e;
+  border-radius: 2px;
+  background: transparent;
+}
+
+body[data-ui="new"] #paytable-modal .modal-close:hover {
+  color: #e8a020;
+  border-color: rgba(232, 160, 32, 0.4);
+}
+
+/* Panel inside the modal */
+body[data-ui="new"] #paytable-modal .paytable-panel-header h2 {
+  color: #e8a020;
+  font-size: 7.5px;
+  letter-spacing: 0.18em;
+}
+
+body[data-ui="new"] #paytable-modal .paytable-panel-header p {
+  color: #686850;
+  font-size: 11px;
+}
+
+/* Paytable option radio buttons — amber checked state */
+body[data-ui="new"] #paytable-modal .paytable-option input:checked {
+  border-color: #e8a020;
+  background: #e8a020;
+  box-shadow: 0 0 8px rgba(232, 160, 32, 0.5);
+}
+
+/* Apply / Cancel buttons */
+body[data-ui="new"] #paytable-modal .modal-actions .primary {
+  background: linear-gradient(135deg, #e8a020, #b07010);
+  border-color: rgba(232, 160, 32, 0.5);
+  color: #0a0a08;
+  letter-spacing: 0.12em;
+  border-radius: 2px;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+
+body[data-ui="new"] #paytable-modal .modal-actions .primary:hover:not(:disabled) {
+  box-shadow: 0 8px 20px rgba(232, 160, 32, 0.28);
+}
+
+body[data-ui="new"] #paytable-modal .modal-actions .secondary {
+  background: rgba(232, 160, 32, 0.06);
+  border-color: rgba(232, 160, 32, 0.18);
+  color: #686850;
+  letter-spacing: 0.12em;
+  border-radius: 2px;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+
+body[data-ui="new"] #paytable-modal .modal-actions .secondary:hover:not(:disabled) {
+  border-color: rgba(232, 160, 32, 0.35);
+  color: #e8a020;
+}
