@@ -21839,20 +21839,21 @@ body[data-ui="new"] #run-the-numbers-view .rtn-card-count[data-count="0"] {
     flex-shrink: 0;
     height: 68px;
     display: flex;
-    align-items: center;
-    padding: 0 20px;
+    align-items: stretch;
+    padding: 0;
   }
 
   .rtn-wagers-toggle {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 10px;
-    padding: 0;
+    padding: 0 20px;
     border: 0;
     background: transparent;
     color: inherit;
     cursor: pointer;
     width: 100%;
+    height: 100%;
     -webkit-tap-highlight-color: transparent;
     appearance: none;
     user-select: none;
