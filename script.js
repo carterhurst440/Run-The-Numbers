@@ -18195,7 +18195,6 @@ const rtnWagersToggleEl = document.getElementById("rtn-wagers-toggle");
 const rtnWagersBodyEl = document.getElementById("rtn-wagers-body");
 const rtnWagersCountEl = document.getElementById("rtn-wagers-count");
 const rtnWagersHintEl = rtnWagersToggleEl ? rtnWagersToggleEl.querySelector(".rtn-wagers-hint") : null;
-const rtnWagersBetsBody = document.getElementById("rtn-wagers-bets-body");
 const dealButton = document.getElementById("deal-button");
 const rebetButton = document.getElementById("rebet-button");
 const autoDealToggleInput = document.getElementById("auto-deal-toggle");
@@ -20646,7 +20645,6 @@ function renderBets() {
     emptyCell.textContent = "No bets placed.";
     emptyRow.appendChild(emptyCell);
     betsBody.appendChild(emptyRow);
-    if (rtnWagersBetsBody) rtnWagersBetsBody.innerHTML = betsBody.innerHTML;
     if (rtnWagersCountEl) rtnWagersCountEl.textContent = "0";
     updateDealButtonState();
     setClearBetsDisabled(true);
@@ -20676,8 +20674,6 @@ function renderBets() {
     betsBody.appendChild(row);
   });
 
-  // Mirror to mobile wagers drawer
-  if (rtnWagersBetsBody) rtnWagersBetsBody.innerHTML = betsBody.innerHTML;
   if (rtnWagersCountEl) rtnWagersCountEl.textContent = String(bets.length);
 
   updateDealButtonState();

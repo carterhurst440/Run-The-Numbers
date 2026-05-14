@@ -21758,6 +21758,38 @@ body[data-ui="new"] #run-the-numbers-view .rtn-card-count[data-count="0"] {
   display: none;
 }
 
+/* Desktop: wagers drawer renders as a static bets section inside the betting panel */
+@media (min-width: 960px) {
+  body[data-ui="new"] #run-the-numbers-view #rtn-wagers-drawer {
+    display: block;
+    position: static;
+    transform: none;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    max-height: none;
+    overflow: visible;
+    z-index: auto;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    transition: none;
+  }
+  body[data-ui="new"] #run-the-numbers-view .rtn-wagers-heading {
+    display: none;
+  }
+  body[data-ui="new"] #run-the-numbers-view .rtn-wagers-body {
+    display: block;
+    overflow: visible;
+    padding: 0;
+  }
+  /* Always show bets content on desktop regardless of aria-hidden state */
+  body[data-ui="new"] #run-the-numbers-view .rtn-wagers-body[aria-hidden="true"] {
+    display: block;
+  }
+}
+
 /* ============================================================
    RTN — MOBILE LAYOUT (max-width: 959px)
    ============================================================ */
@@ -21905,12 +21937,6 @@ body[data-ui="new"] #run-the-numbers-view .rtn-card-count[data-count="0"] {
     letter-spacing: 0.08em;
     padding-top: 12px;
     border-bottom: none;
-  }
-
-  /* On mobile, hide the bets-panel from inside the betting-scroll
-     (wagers drawer takes over that role) */
-  #run-the-numbers-view .bets-panel {
-    display: none;
   }
 
   /* Dealer zone: compact always-visible strip at the top */
