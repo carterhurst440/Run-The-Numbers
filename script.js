@@ -36325,13 +36325,15 @@ function csSeededRng(seed) {
   return () => { s^=s<<13; s^=s>>17; s^=s<<5; return (s>>>0)/0x100000000; };
 }
 
-function csBakeClip(CANNON, targetColor, targetNum) {
+function csBakeClip(CANNON, targetColor, targetNum, variant = 0) {
   // validColorFaces: which face indices count as this color
   const validColorFaces = CS_COLS.reduce((a,c,i)=>{ if(c.name===targetColor) a.push(i); return a; }, []);
   const numFaceValues = [1,6,2,5,3,4];
   const normals = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+  // Each variant uses a different seed band so the 3 clips are genuinely distinct
+  const seedStart = variant * 800;
 
-  for (let seed = 0; seed < 800; seed++) {
+  for (let seed = seedStart; seed < seedStart + 800; seed++) {
     const rng = csSeededRng(seed*97 + validColorFaces[0]*31 + targetNum*17);
     const world = new CANNON.World();
     world.gravity.set(0,-26,0);
@@ -36395,10 +36397,12 @@ async function csBakeAllClips(CANNON, onProgress) {
   let n=0;
   for(const color of COLORS){
     for(let num=1;num<=6;num++){
-      _csClips.set(`${color}_${num}`, csBakeClip(CANNON,color,num));
-      n++;
-      if(onProgress) onProgress(n,18);
-      if(n%2===0) await new Promise(r=>setTimeout(r,0)); // yield
+      for(let v=0;v<3;v++){
+        _csClips.set(`${color}_${num}_${v}`, csBakeClip(CANNON,color,num,v));
+        n++;
+        if(onProgress) onProgress(n,54);
+        if(n%2===0) await new Promise(r=>setTimeout(r,0)); // yield
+      }
     }
   }
 }
@@ -36445,17 +36449,18 @@ async function csLoadOrBakeAllClips(CANNON, onProgress) {
   _csClips = new Map();
   const ALL_OUTCOMES = [];
   for (const color of ['RED','YELLOW','BLUE'])
-    for (let num=1; num<=6; num++) ALL_OUTCOMES.push(`${color}_${num}`);
+    for (let num=1; num<=6; num++)
+      for (let v=0; v<3; v++) ALL_OUTCOMES.push(`${color}_${num}_${v}`);
 
-  // 1. Try to load all 18 from DB first
+  // 1. Try to load all 54 from DB first
   const dbClips = await csLoadClipsFromDB();
   for (const [k,v] of dbClips) _csClips.set(k, v);
 
   // 2. Determine which are missing
   const missing = ALL_OUTCOMES.filter(o => !_csClips.has(o));
   if (missing.length === 0) {
-    if (onProgress) onProgress(18, 18);
-    console.log('[CS clips] all 18 clips served from DB — no baking needed');
+    if (onProgress) onProgress(54, 54);
+    console.log('[CS clips] all 54 clips served from DB — no baking needed');
     return;
   }
 
@@ -36464,12 +36469,16 @@ async function csLoadOrBakeAllClips(CANNON, onProgress) {
   let baked = 0;
   // Count DB hits as already "done" in progress
   let done = ALL_OUTCOMES.length - missing.length;
-  if (onProgress) onProgress(done, 18);
+  if (onProgress) onProgress(done, 54);
 
   for (const outcome of missing) {
-    const [color, numStr] = outcome.split('_');
+    const parts = outcome.split('_');
+    // key format: COLOR_NUM_VARIANT (e.g. "RED_1_0", "YELLOW_10_2" — but numbers are 1–6 so safe)
+    const variant = Number(parts[parts.length - 1]);
+    const numStr = parts[parts.length - 2];
+    const color = parts.slice(0, parts.length - 2).join('_');
     const num = Number(numStr);
-    const clip = csBakeClip(CANNON, color, num);
+    const clip = csBakeClip(CANNON, color, num, variant);
     if (clip) {
       _csClips.set(outcome, clip);
       freshlyBaked.set(outcome, clip);
@@ -36477,7 +36486,7 @@ async function csLoadOrBakeAllClips(CANNON, onProgress) {
       console.warn('[CS clips] bake failed for', outcome);
     }
     done++; baked++;
-    if (onProgress) onProgress(done, 18);
+    if (onProgress) onProgress(done, 54);
     if (baked % 2 === 0) await new Promise(r => setTimeout(r, 0)); // yield
   }
 
@@ -36940,7 +36949,10 @@ function initColorSchemeGame() {
         const sr=_csPendingServerRoll.roll;
         const colorName=sr.color==='R'?'RED':sr.color==='Y'?'YELLOW':'BLUE';
         const number=Number(sr.number);
-        const clip=_csClips?.get(`${colorName}_${number}`);
+        const variant=Math.floor(Math.random()*3);
+        const clip=_csClips?.get(`${colorName}_${number}_${variant}`)
+          ??_csClips?.get(`${colorName}_${number}_0`)
+          ??_csClips?.get(`${colorName}_${number}`);
 
         // Clear old dice, create fresh meshes for clip playback
         _csDice.forEach(d=>{if(_csScene)_csScene.remove(d.mesh);if(_csWorld)_csWorld.remove(d.body);});
