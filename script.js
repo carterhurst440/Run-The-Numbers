@@ -28360,14 +28360,22 @@ async function endHand(stopperCard, context = {}) {
   updateRebetButtonState();
   updatePauseButton();
 
-  // Auto Rebet: silently restore the last bet layout so the user only needs to hit Deal
+  // Auto Rebet: restore last bet layout so user only needs to hit Deal
   if (autoRebetEnabled && lastBetLayout.length > 0) {
     const totalNeeded = layoutTotalUnits(lastBetLayout);
-    if (totalNeeded > 0 && totalNeeded <= bankroll) {
-      applyBetLayout(lastBetLayout);
-      handleBankrollChanged();
-      updateDealButtonState();
-      updateRebetButtonState();
+    if (totalNeeded > 0) {
+      if (totalNeeded <= bankroll) {
+        applyBetLayout(lastBetLayout);
+        handleBankrollChanged();
+        updateDealButtonState();
+        updateRebetButtonState();
+      } else {
+        signalInsufficientBankroll(
+          totalNeeded,
+          `Not enough bankroll to auto-rebet ${formatCurrency(totalNeeded)} units.`
+        );
+        setAutoRebetEnabled(false);
+      }
     }
   }
 }
@@ -28638,11 +28646,19 @@ async function dealHandServer() {
         // Auto Rebet: restore last bet layout so user only needs to tap Deal
         if (autoRebetEnabled && lastBetLayout.length > 0) {
           const totalNeeded = layoutTotalUnits(lastBetLayout);
-          if (totalNeeded > 0 && totalNeeded <= bankroll) {
-            applyBetLayout(lastBetLayout);
-            handleBankrollChanged();
-            updateDealButtonState();
-            updateRebetButtonState();
+          if (totalNeeded > 0) {
+            if (totalNeeded <= bankroll) {
+              applyBetLayout(lastBetLayout);
+              handleBankrollChanged();
+              updateDealButtonState();
+              updateRebetButtonState();
+            } else {
+              signalInsufficientBankroll(
+                totalNeeded,
+                `Not enough bankroll to auto-rebet ${formatCurrency(totalNeeded)} units.`
+              );
+              setAutoRebetEnabled(false);
+            }
           }
         }
         return;
