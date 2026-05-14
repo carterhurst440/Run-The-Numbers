@@ -22852,12 +22852,6 @@ body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="3"].active::before {
    GUESS 10 — HOW TO PLAY button + modal
 ───────────────────────────────────────────────────────────────── */
 
-/* Make brand row full width so button can be right-aligned */
-body[data-ui="new"] #red-black-view .beta-draw-brand-row {
-  display: flex;
-  width: 100%;
-}
-
 @keyframes g10-htp-sweep {
   0%   { transform: translateX(-130%) skewX(-20deg); }
   100% { transform: translateX(260%)  skewX(-20deg); }
@@ -22880,7 +22874,7 @@ body[data-ui="new"] #red-black-view .beta-draw-brand-row {
   text-transform: uppercase;
   white-space: nowrap;
   isolation: isolate;
-  margin-left: auto;
+  align-self: flex-start;
 }
 #g10-how-to-play-btn::before {
   content: '';
