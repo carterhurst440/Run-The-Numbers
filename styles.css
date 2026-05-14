@@ -21225,6 +21225,15 @@ body[data-ui="new"] #run-the-numbers-view .layout {
   overflow: hidden; /* prevents layout from growing past its flex bounds */
 }
 
+/* Desktop: .layout has height:100% which consumes the full view height
+   and leaves no room for the chip-bar flex sibling. Override to auto so
+   flex:1 1 auto distributes correctly: layout gets (view - chipBar) height. */
+@media (min-width: 960px) {
+  body[data-ui="new"] #run-the-numbers-view .layout {
+    height: auto;
+  }
+}
+
 /* ---- Panels — sharp corners ---- */
 body[data-ui="new"] #run-the-numbers-view .panel {
   border-radius: 2px;
