@@ -13754,6 +13754,30 @@ async function buildContestLeaderboard(contest) {
     return [];
   }
 
+  // Fetch per-user game activity counts for this contest in parallel
+  const [rtnRows, g10Rows, stRows, rybRows] = await Promise.all([
+    supabase.from("rtn_live_hands").select("user_id").eq("contest_id", contest.id).neq("status", "active")
+      .then(({ data }) => data || []),
+    supabase.from("guess10_live_hands").select("user_id").eq("contest_id", contest.id).neq("status", "active")
+      .then(({ data }) => data || []),
+    supabase.from("shape_trader_trades").select("user_id").eq("contest_id", contest.id)
+      .then(({ data }) => data || []),
+    supabase.from("color_scheme_rounds").select("user_id").eq("contest_id", contest.id).eq("status", "completed")
+      .then(({ data }) => data || [])
+  ]);
+
+  function countByUser(rows) {
+    return rows.reduce((acc, row) => {
+      if (row.user_id) acc[row.user_id] = (acc[row.user_id] || 0) + 1;
+      return acc;
+    }, {});
+  }
+
+  const rtnCounts = countByUser(rtnRows);
+  const g10Counts = countByUser(g10Rows);
+  const stCounts  = countByUser(stRows);
+  const rybCounts = countByUser(rybRows);
+
   const criteria = getContestCriteria(contest);
   const qualificationRequirement = getContestQualificationRequirement(contest);
 
@@ -13768,7 +13792,11 @@ async function buildContestLeaderboard(contest) {
       displayName: entry.display_name || getContestDisplayName(null, entry.user_id),
       participantEmail: entry.participant_email || "",
       score: criteria.score(contestEntry),
-      qualifies: Number(contestEntry.carter_cash ?? 0) >= qualificationRequirement
+      qualifies: Number(contestEntry.carter_cash ?? 0) >= qualificationRequirement,
+      rtnHands: rtnCounts[entry.user_id] || 0,
+      g10Hands: g10Counts[entry.user_id] || 0,
+      stTrades: stCounts[entry.user_id]  || 0,
+      rybRounds: rybCounts[entry.user_id] || 0
     };
   });
 
@@ -14367,8 +14395,12 @@ function buildContestResultRow(entry, contest, { showEmail = false, rankLabel = 
     detailParts.push(email);
   }
   const score = document.createElement("span");
-  score.textContent = `${formatCurrency(entry.score)} credits • ${formatCurrency(entry.carter_cash)} Carter Cash`;
+  score.textContent = `${formatCurrency(entry.score)} credits • ${formatCurrency(entry.carter_cash)} CC`;
   detailParts.push(score);
+  const gameCounts = document.createElement("span");
+  gameCounts.className = "contest-result-game-stats";
+  gameCounts.textContent = `RTN ${entry.rtnHands ?? 0} • G10 ${entry.g10Hands ?? 0} • ST ${entry.stTrades ?? 0} • RYB ${entry.rybRounds ?? 0}`;
+  detailParts.push(gameCounts);
   if (award > 0) {
     const awardEl = document.createElement("span");
     awardEl.className = "contest-result-award";
@@ -14484,9 +14516,13 @@ function renderContestLeaderboard(list = contestLeaderboard, contest = currentCo
 
     const score = document.createElement("span");
     score.className = "contest-player-score";
-    score.textContent = `${criteria.scoreLabel}: ${formatCurrency(entry.score)} • Carter Cash: ${formatCurrency(entry.carter_cash)}`;
+    score.textContent = `${criteria.scoreLabel}: ${formatCurrency(entry.score)} • CC: ${formatCurrency(entry.carter_cash)}`;
 
-    item.append(meta, score);
+    const stats = document.createElement("span");
+    stats.className = "contest-player-stats";
+    stats.textContent = `RTN ${entry.rtnHands} • G10 ${entry.g10Hands} • ST ${entry.stTrades} • RYB ${entry.rybRounds}`;
+
+    item.append(meta, score, stats);
     contestLeaderboardListEl.appendChild(item);
   });
 }
@@ -15775,20 +15811,7 @@ function renderPlayerContestRow(contest, participantStats = 0) {
   });
 
   if (status === "live" || status === "pending") {
-    if (playerEntry) {
-      const usingMode = isUsingContestMode(contest.id);
-      const switchButton = document.createElement("button");
-      switchButton.type = "button";
-      switchButton.className = usingMode ? "primary is-joined" : "primary";
-      switchButton.textContent = usingMode ? "Contest Mode Active" : "Switch To Mode";
-      switchButton.disabled = usingMode;
-      if (!usingMode) {
-        switchButton.addEventListener("click", () => {
-          void switchToContestMode(contest.id, { navigateToPlay: true });
-        });
-      }
-      actions.append(switchButton);
-    } else {
+    if (!playerEntry) {
       const joinButton = document.createElement("button");
       joinButton.type = "button";
       joinButton.className = "primary";

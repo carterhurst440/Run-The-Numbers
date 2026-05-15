@@ -24365,6 +24365,12 @@ body[data-ui="new"] .contest-player-rank,
 body[data-ui="new"] .contest-player-score {
   color: #505040;
 }
+body[data-ui="new"] .contest-player-stats {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: #3a3a2c;
+  margin-top: 2px;
+}
 
 body[data-ui="new"] .contest-result-award {
   color: #c8ff00;
@@ -24372,6 +24378,11 @@ body[data-ui="new"] .contest-result-award {
 
 body[data-ui="new"] .contest-result-detail {
   color: #505040;
+}
+body[data-ui="new"] .contest-result-game-stats {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: #3a3a2c;
 }
 
 /* Journey chart modal */
