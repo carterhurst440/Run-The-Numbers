@@ -32306,7 +32306,9 @@ function renderAdminActivityChart() {
 function renderAdminActivityLegend(datasets) {
   const el = document.getElementById("activity-ts-legend");
   if (!el) return;
-  el.innerHTML = datasets.map(ds =>
+  // Only show lines that have at least one non-zero value in the current window
+  const active = datasets.filter(ds => ds.data.some(v => Number(v) > 0));
+  el.innerHTML = active.map(ds =>
     `<span class="ats-legend-item">` +
     `<span class="ats-legend-swatch" style="background:${ds.borderColor}"></span>` +
     `<span class="ats-legend-label">${ds.label}</span>` +
