@@ -122,7 +122,7 @@ BEGIN
   RAISE NOTICE 'daily_profit_loss rows after recompute: %',
     (SELECT COUNT(*) FROM public.daily_profit_loss);
   RAISE NOTICE 'normal rows: %',
-    (SELECT COUNT(*) FROM public.daily_profit_loss WHERE mode = ''normal'');
+    (SELECT COUNT(*) FROM public.daily_profit_loss WHERE mode = 'normal');
   RAISE NOTICE 'contest rows: %',
-    (SELECT COUNT(*) FROM public.daily_profit_loss WHERE mode = ''contest'');
+    (SELECT COUNT(*) FROM public.daily_profit_loss WHERE mode = 'contest');
 END $$;

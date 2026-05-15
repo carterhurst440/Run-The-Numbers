@@ -26816,6 +26816,57 @@ body[data-ui="new"] .alr-mode {
   align-self: center;
 }
 
+/* ── Activity log balance-after pill ───────────────────────────── */
+body[data-ui="new"] .alr-balance {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: rgba(226, 248, 255, 0.35);
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* ── Admin User Lookup card ──────────────────────────────────────── */
+.admin-user-lookup-card {
+  padding: 16px 20px 20px;
+}
+.admin-user-lookup-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  align-items: center;
+}
+.admin-user-lookup-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(226, 248, 255, 0.15);
+  border-radius: 4px;
+  color: rgba(226, 248, 255, 0.85);
+  font-family: monospace;
+  font-size: 13px;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.15s;
+  min-width: 0;
+}
+.admin-user-lookup-input::placeholder {
+  color: rgba(226, 248, 255, 0.25);
+}
+.admin-user-lookup-input:focus {
+  border-color: rgba(0, 255, 136, 0.4);
+}
+.admin-user-lookup-btn {
+  flex-shrink: 0;
+}
+.admin-user-lookup-hint {
+  margin-top: 8px;
+  font-family: monospace;
+  font-size: 11px;
+  color: rgba(255, 180, 80, 0.8);
+  min-height: 16px;
+}
+
 /* ── Home sidebar MODE badge (inside home-sb-act-left) ─────────── */
 .home-sb-act-mode {
   display: inline-block;

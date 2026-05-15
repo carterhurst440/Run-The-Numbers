@@ -2936,6 +2936,26 @@
                   </section>
                 </div>
 
+                <!-- ── Admin User Lookup ──────────────────────────────────── -->
+                <div class="analytics-activity-card admin-user-lookup-card">
+                  <div class="overview-chart-header">
+                    <h3>User Activity Log Lookup</h3>
+                  </div>
+                  <p class="analytics-card-subhead">Paste any user ID to open their full activity log — all four game tables with balance after every row.</p>
+                  <div class="admin-user-lookup-row">
+                    <input
+                      type="text"
+                      id="admin-user-lookup-input"
+                      class="admin-user-lookup-input"
+                      placeholder="Paste user UUID…"
+                      spellcheck="false"
+                      autocomplete="off"
+                    />
+                    <button type="button" class="primary admin-user-lookup-btn" id="admin-user-lookup-btn">Open Log</button>
+                  </div>
+                  <p class="admin-user-lookup-hint" id="admin-user-lookup-hint"></p>
+                </div>
+
                 <!-- LEGACY CHART MARKUP REMOVED — replaced by activity-ts-card above -->
                 <div class="analytics-overview-chart" style="display:none" aria-hidden="true">
                   <!-- old overview chart placeholder — kept for DOM ref safety -->
@@ -3880,6 +3900,11 @@
                   <input type="checkbox" data-player-activity-log-filter="game_003" checked />
                   <span class="activity-log-checkbox-mark" aria-hidden="true"></span>
                   <span>Shape Traders</span>
+                </label>
+                <label class="activity-log-checkbox">
+                  <input type="checkbox" data-player-activity-log-filter="game_004" checked />
+                  <span class="activity-log-checkbox-mark" aria-hidden="true"></span>
+                  <span>Color Scheme</span>
                 </label>
               </div>
               <div class="activity-log-subfilters" aria-label="Filter Shape Traders trades by side">

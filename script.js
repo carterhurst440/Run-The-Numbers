@@ -26911,6 +26911,8 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
       const side = entry.side === "sell" ? "SELL" : "BUY";
       const tradeModeLabel = (entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL";
       const tradeDetail = `${formatCurrency(entry.quantity)} shares @ ${formatCurrency(entry.price)} · ${formatCurrency(entry.totalValue)} total`;
+      const balAfter = entry.newAccountValue != null
+        ? `<span class="alr-balance">bal ${formatCurrency(entry.newAccountValue)}</span>` : "";
       return `
         <li class="activity-log-item">
           <div class="alr-top">
@@ -26921,6 +26923,30 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
           </div>
           <div class="alr-sub">
             <span class="alr-detail">${tradeDetail}</span>
+            ${balAfter}
+          </div>
+        </li>
+      `;
+    }
+
+    if (entry.entryType === "ryb_round") {
+      const net = Number(entry.net ?? 0);
+      const netText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
+      const netClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
+      const modeLbl = (entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL";
+      const balAfter = entry.newAccountValue != null
+        ? `<span class="alr-balance">bal ${formatCurrency(entry.newAccountValue)}</span>` : "";
+      return `
+        <li class="activity-log-item">
+          <div class="alr-top">
+            <span class="alr-label">RYB</span>
+            <span class="alr-mode">${modeLbl}</span>
+            <span class="alr-net ${netClass}">${escapeAssistantHtml(netText)}</span>
+            <span class="alr-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
+          </div>
+          <div class="alr-sub">
+            <span class="alr-detail">${formatCurrency(entry.totalWager)}w · ${formatCurrency(entry.totalReturn)}r</span>
+            ${balAfter}
           </div>
         </li>
       `;
@@ -26948,6 +26974,8 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
     if (entry.gameKey === GAME_KEYS.GUESS_10 && entry.commissionKept > 0) {
       detailBits.push(`${formatCurrency(entry.commissionKept)} commission`);
     }
+    const balAfter = entry.newAccountValue != null
+      ? `<span class="alr-balance">bal ${formatCurrency(entry.newAccountValue)}</span>` : "";
     const reviewBtn = showReviewButtons && entry.handId
       ? `<button type="button" class="alr-review history-review-button" data-hand-review-id="${escapeAssistantHtml(entry.handId)}">Review →</button>`
       : "";
@@ -26961,6 +26989,7 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
         </div>
         <div class="alr-sub">
           <span class="alr-detail">${detailBits.join(" · ")}</span>
+          ${balAfter}
           ${reviewBtn}
         </div>
       </li>
@@ -27106,6 +27135,23 @@ async function fetchAdminActivityLogRows(userId, limitCount = 100) {
   return Array.isArray(data) ? data : [];
 }
 
+function mapColorSchemeRoundToActivityLogEntry(row) {
+  const modeType = String(row?.mode_type || (row?.contest_id ? "contest" : "normal")).trim().toLowerCase();
+  return {
+    id: `ryb:${row?.id || row?.created_at || Date.now()}`,
+    entryType: "ryb_round",
+    gameKey: GAME_KEYS.COLOR_SCHEME,
+    gameLabel: "Color Scheme",
+    createdAt: row?.created_at || new Date().toISOString(),
+    modeType,
+    contestId: row?.contest_id || null,
+    totalWager: roundCurrencyValue(Number(row?.total_wager || 0)),
+    totalReturn: roundCurrencyValue(Number(row?.total_paid || 0)),
+    net: roundCurrencyValue(Number(row?.net || row?.net_profit || 0)),
+    newAccountValue: roundCurrencyValue(Number(row?.new_account_value || 0)),
+  };
+}
+
 function mapAdminActivityLogRowToEntry(row) {
   const entryType = String(row?.entry_type || "").trim().toLowerCase();
   if (entryType === "trade") {
@@ -27131,6 +27177,19 @@ function mapAdminActivityLogRowToEntry(row) {
       amount: row?.amount || null,
       previous_balance: row?.previous_balance || null,
       new_balance: row?.new_account_value || null
+    });
+  }
+
+  if (entryType === "ryb_round") {
+    return mapColorSchemeRoundToActivityLogEntry({
+      id: row?.id || null,
+      created_at: row?.created_at || null,
+      mode_type: row?.mode_type || null,
+      contest_id: row?.contest_id || null,
+      total_wager: row?.total_wager || null,
+      total_paid: row?.total_paid || null,
+      net: row?.net || null,
+      new_account_value: row?.new_account_value || null,
     });
   }
 
@@ -33319,7 +33378,8 @@ async function openPlayerActivityLogModal(userId, playerName) {
   playerActivityLogSelectedGames = new Set([
     GAME_KEYS.RUN_THE_NUMBERS,
     GAME_KEYS.GUESS_10,
-    GAME_KEYS.SHAPE_TRADERS
+    GAME_KEYS.SHAPE_TRADERS,
+    GAME_KEYS.COLOR_SCHEME
   ]);
   playerActivityLogTradeFilter = "all";
   playerActivityLogEntries = [];
@@ -34107,6 +34167,36 @@ document.getElementById("clear-player-filter")?.addEventListener("click", () => 
   console.info("[RTN] Filter cleared");
   refreshBetAnalyticsSection();
 });
+
+// ── Admin User Lookup ─────────────────────────────────────────────────────
+const _adminUserLookupInput = document.getElementById("admin-user-lookup-input");
+const _adminUserLookupBtn   = document.getElementById("admin-user-lookup-btn");
+const _adminUserLookupHint  = document.getElementById("admin-user-lookup-hint");
+
+function _doAdminUserLookup() {
+  const raw = (_adminUserLookupInput?.value || "").trim();
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRe.test(raw)) {
+    if (_adminUserLookupHint) {
+      _adminUserLookupHint.textContent = "⚠ Please enter a valid UUID (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)";
+    }
+    return;
+  }
+  if (_adminUserLookupHint) _adminUserLookupHint.textContent = "";
+  // Resolve a display name from known player list or fall back to truncated ID
+  const known = adminActivityPlayers.find(p => p.userId === raw);
+  const name  = known?.displayName || `User …${raw.slice(-8)}`;
+  void openPlayerActivityLogModal(raw, name);
+}
+
+if (_adminUserLookupBtn) {
+  _adminUserLookupBtn.addEventListener("click", _doAdminUserLookup);
+}
+if (_adminUserLookupInput) {
+  _adminUserLookupInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") _doAdminUserLookup();
+  });
+}
 
 // Refresh all analytics with current filter
 function refreshAnalytics() {

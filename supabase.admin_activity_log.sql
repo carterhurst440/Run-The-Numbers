@@ -36,12 +36,16 @@ begin
     raise exception 'A target user is required';
   end if;
 
-  if (auth.jwt() ->> 'email') is distinct from 'carterwarrenhurst@gmail.com' then
+  if (auth.jwt() ->> 'email') not in (
+    'carterwarrenhurst@gmail.com',
+    'carterscasinoapp@gmail.com'
+  ) then
     raise exception 'Not authorized to view admin activity log';
   end if;
 
   return query
   with merged as (
+    -- ── RTN live hands ────────────────────────────────────────────────────
     select
       'hand'::text as entry_type,
       rlh.id::text as id,
@@ -73,22 +77,23 @@ begin
 
     union all
 
+    -- ── Guess 10 live hands ───────────────────────────────────────────────
     select
       'hand'::text as entry_type,
-      gh.id::text as id,
-      gh.created_at,
-      gh.game_id,
-      gh.mode_type,
-      gh.contest_id,
-      gh.total_cards::integer as total_cards,
-      gh.stopper_label,
-      gh.stopper_suit,
-      gh.total_wager,
-      gh.total_paid,
-      gh.net,
-      gh.commission_kept,
-      gh.new_account_value,
-      gh.drawn_cards,
+      glh.id::text as id,
+      glh.started_at as created_at,
+      glh.game_id,
+      glh.mode_type,
+      glh.contest_id,
+      glh.total_cards::integer as total_cards,
+      glh.stopper_label,
+      glh.stopper_suit,
+      glh.total_wager,
+      glh.total_paid,
+      glh.net,
+      glh.commission_kept,
+      glh.new_account_value,
+      glh.drawn_cards,
       null::text as trade_side,
       null::text as shape,
       null::numeric as quantity,
@@ -98,12 +103,13 @@ begin
       null::text as event_type,
       null::numeric as amount,
       null::numeric as previous_balance
-    from public.game_hands gh
-    where gh.user_id = target_user_id
-      and coalesce(gh.game_id, 'game_001') <> 'game_001'
+    from public.guess10_live_hands glh
+    where glh.user_id = target_user_id
+      and glh.status <> 'active'
 
     union all
 
+    -- ── Shape Trader trades ───────────────────────────────────────────────
     select
       'trade'::text as entry_type,
       st.id::text as id,
@@ -134,6 +140,39 @@ begin
 
     union all
 
+    -- ── Color Scheme rounds ───────────────────────────────────────────────
+    select
+      'ryb_round'::text as entry_type,
+      csr.id::text as id,
+      csr.created_at,
+      'game_004'::text as game_id,
+      case when csr.contest_id is null then 'normal' else 'contest' end as mode_type,
+      csr.contest_id,
+      null::integer as total_cards,
+      null::text as stopper_label,
+      null::text as stopper_suit,
+      csr.total_wagered as total_wager,
+      csr.total_returned as total_paid,
+      csr.net_profit as net,
+      null::numeric as commission_kept,
+      csr.new_account_value,
+      null::jsonb as drawn_cards,
+      null::text as trade_side,
+      null::text as shape,
+      null::numeric as quantity,
+      null::numeric as total_value,
+      null::numeric as shape_price,
+      csr.net_profit,
+      null::text as event_type,
+      null::numeric as amount,
+      null::numeric as previous_balance
+    from public.color_scheme_rounds csr
+    where csr.user_id = target_user_id
+      and csr.status = 'completed'
+
+    union all
+
+    -- ── Account events ────────────────────────────────────────────────────
     select
       'account'::text as entry_type,
       ae.id::text as id,
