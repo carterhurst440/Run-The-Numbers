@@ -7,6 +7,9 @@
 --
 -- Called from the leaderboard to show RTN / G10 / ST / RYB
 -- breakdowns per player without exposing individual hand details.
+--
+-- Uses correlated subqueries (not multi-table LEFT JOIN) to
+-- avoid combinatorial explosion in the intermediate result set.
 -- ============================================================
 
 create or replace function public.get_contest_game_stats(
@@ -25,28 +28,27 @@ stable
 as $$
   select
     ce.user_id,
-    count(distinct rlh.id)  as rtn_hands,
-    count(distinct glh.id)  as g10_hands,
-    count(distinct stt.id)  as st_trades,
-    count(distinct csr.id)  as ryb_rounds
+    (select count(*)
+       from public.rtn_live_hands
+      where user_id    = ce.user_id
+        and contest_id = p_contest_id
+        and status    <> 'active') as rtn_hands,
+    (select count(*)
+       from public.guess10_live_hands
+      where user_id    = ce.user_id
+        and contest_id = p_contest_id
+        and status    <> 'active') as g10_hands,
+    (select count(*)
+       from public.shape_trader_trades
+      where user_id    = ce.user_id
+        and contest_id = p_contest_id) as st_trades,
+    (select count(*)
+       from public.color_scheme_rounds
+      where user_id    = ce.user_id
+        and contest_id = p_contest_id
+        and status     = 'completed') as ryb_rounds
   from public.contest_entries ce
-  left join public.rtn_live_hands rlh
-    on rlh.user_id    = ce.user_id
-   and rlh.contest_id = p_contest_id
-   and rlh.status    <> 'active'
-  left join public.guess10_live_hands glh
-    on glh.user_id    = ce.user_id
-   and glh.contest_id = p_contest_id
-   and glh.status    <> 'active'
-  left join public.shape_trader_trades stt
-    on stt.user_id    = ce.user_id
-   and stt.contest_id = p_contest_id
-  left join public.color_scheme_rounds csr
-    on csr.user_id    = ce.user_id
-   and csr.contest_id = p_contest_id
-   and csr.status     = 'completed'
-  where ce.contest_id = p_contest_id
-  group by ce.user_id;
+  where ce.contest_id = p_contest_id;
 $$;
 
 grant execute on function public.get_contest_game_stats(uuid) to authenticated;

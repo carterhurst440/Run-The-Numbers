@@ -13758,8 +13758,10 @@ async function buildContestLeaderboard(contest) {
   // (direct table queries are blocked by RLS for other users' rows)
   const gameStatsByUser = {};
   try {
-    const { data: statsRows } = await supabase.rpc("get_contest_game_stats", { p_contest_id: contest.id });
-    if (Array.isArray(statsRows)) {
+    const { data: statsRows, error: statsError } = await supabase.rpc("get_contest_game_stats", { p_contest_id: contest.id });
+    if (statsError) {
+      console.error("[RTN] contest game stats RPC error", statsError);
+    } else if (Array.isArray(statsRows)) {
       statsRows.forEach((row) => {
         gameStatsByUser[row.user_id] = {
           rtnHands:  Number(row.rtn_hands  || 0),
@@ -13770,7 +13772,7 @@ async function buildContestLeaderboard(contest) {
       });
     }
   } catch(e) {
-    console.warn("[RTN] contest game stats fetch failed", e);
+    console.error("[RTN] contest game stats fetch failed", e);
   }
 
   const criteria = getContestCriteria(contest);
