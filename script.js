@@ -36325,19 +36325,6 @@ function csSeededRng(seed) {
   return () => { s^=s<<13; s^=s>>17; s^=s<<5; return (s>>>0)/0x100000000; };
 }
 
-// Lazily created Audio element — reused across rolls
-let _csDiceAudio = null;
-
-function csDiceRollSound() {
-  try {
-    if (!_csDiceAudio) {
-      _csDiceAudio = new Audio('/sounds/dice-roll.mp3');
-      _csDiceAudio.volume = 0.7;
-    }
-    _csDiceAudio.currentTime = 0;
-    _csDiceAudio.play().catch(() => {}); // silent fail if browser blocks autoplay
-  } catch(e) { /* silent fail */ }
-}
 
 function csBakeClip(CANNON, targetColor, targetNum, variant = 0) {
   // validColorFaces: which face indices count as this color
@@ -36985,10 +36972,8 @@ function initColorSchemeGame() {
         if(clip){
           _csClipFrame=0; _csClipActive=clip;
           _csClipOnDone=()=>csOnSettled(THREE,CANNON);
-          csDiceRollSound();
         } else {
           // Fallback: physics (bake failed for this combo)
-          csDiceRollSound();
           csThrowDice(THREE,CANNON);
         }
       };
