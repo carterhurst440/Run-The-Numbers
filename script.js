@@ -32269,6 +32269,7 @@ function renderAdminActivityChart() {
           titleColor: "#e2f8ff",
           bodyColor:  "rgba(226,248,255,0.7)",
           padding:    { x: 12, y: 10 },
+          itemSort: (a, b) => Number(b.raw) - Number(a.raw),
           callbacks: {
             label: (item) => `  ${item.dataset.label}: ${item.raw}`,
           },
