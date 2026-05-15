@@ -2850,6 +2850,7 @@
                     <span class="apnl-summary-label">Total:</span>
                     <span class="apnl-summary-value" id="apnl-total">—</span>
                   </div>
+                  <p class="apnl-error" id="apnl-error" hidden></p>
                   <div class="overview-chart-container">
                     <canvas id="apnl-chart"></canvas>
                     <div class="overview-chart-loading apnl-loading" style="display:none">
@@ -2941,19 +2942,12 @@
                   <div class="overview-chart-header">
                     <h3>User Activity Log Lookup</h3>
                   </div>
-                  <p class="analytics-card-subhead">Paste any user ID to open their full activity log — all four game tables with balance after every row.</p>
+                  <p class="analytics-card-subhead">Select any player to open their full activity log — all four game tables with account balance after every row.</p>
                   <div class="admin-user-lookup-row">
-                    <input
-                      type="text"
-                      id="admin-user-lookup-input"
-                      class="admin-user-lookup-input"
-                      placeholder="Paste user UUID…"
-                      spellcheck="false"
-                      autocomplete="off"
-                    />
-                    <button type="button" class="primary admin-user-lookup-btn" id="admin-user-lookup-btn">Open Log</button>
+                    <select id="admin-user-lookup-select" class="admin-user-lookup-input">
+                      <option value="">— Select a player —</option>
+                    </select>
                   </div>
-                  <p class="admin-user-lookup-hint" id="admin-user-lookup-hint"></p>
                 </div>
 
                 <!-- LEGACY CHART MARKUP REMOVED — replaced by activity-ts-card above -->

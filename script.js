@@ -32260,6 +32260,7 @@ async function loadAdminActivityPlayers() {
     renderAdminActivityPlayerList();
     updateAdminActivityDropdownLabel();
     populateAdminPnlPlayerSelect();
+    populateAdminUserLookupSelect();
   } catch (e) {
     console.error("[RTN] loadAdminActivityPlayers error", e);
   }
@@ -32594,7 +32595,7 @@ async function loadAdminPnlChart() {
     }
   } catch (e) {
     console.error("[RTN] loadAdminPnlChart failed", e);
-    _apnlRender([]);
+    _apnlRender([], e);
   } finally {
     adminPnlLoading = false;
     const loadingEl2 = document.querySelector(".apnl-loading");
@@ -32602,20 +32603,34 @@ async function loadAdminPnlChart() {
   }
 }
 
-function _apnlRender(entries) {
-  const canvas = document.getElementById("apnl-chart");
-  if (!(canvas instanceof HTMLCanvasElement)) return;
+function _apnlRender(entries, err = null) {
+  const canvas   = document.getElementById("apnl-chart");
+  const totalEl  = document.getElementById("apnl-total");
+  const errorEl  = document.getElementById("apnl-error");
 
   if (adminPnlChartInst) {
     adminPnlChartInst.destroy();
     adminPnlChartInst = null;
   }
 
+  if (err) {
+    const msg = String(err?.message || err || "").toLowerCase();
+    const isNotFound = msg.includes("could not find") || msg.includes("does not exist") || msg.includes("pgrst");
+    if (totalEl) { totalEl.textContent = "—"; totalEl.classList.remove("is-negative"); }
+    if (errorEl) {
+      errorEl.textContent = isNotFound
+        ? "⚠ RPCs not deployed — run supabase.rpc.get_admin_pnl_daily.sql and supabase.rpc.get_admin_pnl_live.sql in Supabase"
+        : `⚠ ${err?.message || "Load failed — check console"}`;
+      errorEl.hidden = false;
+    }
+    return;
+  }
+  if (errorEl) errorEl.hidden = true;
+
   const labels   = entries.map(e => e.label);
   const values   = entries.map(e => Math.round(Number(e.value) * 100) / 100);
   const totalVal = values.reduce((s, v) => s + v, 0);
 
-  const totalEl = document.getElementById("apnl-total");
   if (totalEl) {
     totalEl.textContent = labels.length ? formatSignedCurrency(totalVal) : "—";
     totalEl.classList.toggle("is-negative", totalVal < 0);
@@ -34169,32 +34184,28 @@ document.getElementById("clear-player-filter")?.addEventListener("click", () => 
 });
 
 // ── Admin User Lookup ─────────────────────────────────────────────────────
-const _adminUserLookupInput = document.getElementById("admin-user-lookup-input");
-const _adminUserLookupBtn   = document.getElementById("admin-user-lookup-btn");
-const _adminUserLookupHint  = document.getElementById("admin-user-lookup-hint");
+const _adminUserLookupSelect = document.getElementById("admin-user-lookup-select");
 
-function _doAdminUserLookup() {
-  const raw = (_adminUserLookupInput?.value || "").trim();
-  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRe.test(raw)) {
-    if (_adminUserLookupHint) {
-      _adminUserLookupHint.textContent = "⚠ Please enter a valid UUID (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)";
-    }
-    return;
-  }
-  if (_adminUserLookupHint) _adminUserLookupHint.textContent = "";
-  // Resolve a display name from known player list or fall back to truncated ID
-  const known = adminActivityPlayers.find(p => p.userId === raw);
-  const name  = known?.displayName || `User …${raw.slice(-8)}`;
-  void openPlayerActivityLogModal(raw, name);
+function populateAdminUserLookupSelect() {
+  const sel = _adminUserLookupSelect;
+  if (!sel || !adminActivityPlayers.length) return;
+  sel.innerHTML = '<option value="">— Select a player —</option>';
+  adminActivityPlayers.forEach(p => {
+    const opt = document.createElement("option");
+    opt.value       = p.userId;
+    opt.textContent = p.displayName;
+    sel.appendChild(opt);
+  });
 }
 
-if (_adminUserLookupBtn) {
-  _adminUserLookupBtn.addEventListener("click", _doAdminUserLookup);
-}
-if (_adminUserLookupInput) {
-  _adminUserLookupInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") _doAdminUserLookup();
+if (_adminUserLookupSelect) {
+  _adminUserLookupSelect.addEventListener("change", () => {
+    const userId = _adminUserLookupSelect.value;
+    if (!userId) return;
+    const player = adminActivityPlayers.find(p => p.userId === userId);
+    void openPlayerActivityLogModal(userId, player?.displayName || userId.slice(-8));
+    // Reset select back to placeholder after opening
+    _adminUserLookupSelect.value = "";
   });
 }
 

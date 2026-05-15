@@ -14090,6 +14090,13 @@ body.play-assistant-open .play-assistant-fab {
 .apnl-summary-value.is-negative {
   color: #ff6b35;
 }
+.apnl-error {
+  margin: 0 16px 10px;
+  font-family: monospace;
+  font-size: 11px;
+  color: rgba(255, 180, 80, 0.85);
+  letter-spacing: 0.04em;
+}
 
 .activity-filters {
   justify-content: flex-end;
@@ -14476,6 +14483,7 @@ body.play-assistant-open .play-assistant-fab {
   width: min(980px, 94vw);
   max-width: 980px;
   max-height: min(90vh, 920px);
+  overflow: hidden;
 }
 
 .player-bankroll-modal-body {
@@ -26832,13 +26840,10 @@ body[data-ui="new"] .alr-balance {
   padding: 16px 20px 20px;
 }
 .admin-user-lookup-row {
-  display: flex;
-  gap: 10px;
   margin-top: 12px;
-  align-items: center;
 }
 .admin-user-lookup-input {
-  flex: 1;
+  width: 100%;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(226, 248, 255, 0.15);
   border-radius: 4px;
@@ -26848,23 +26853,11 @@ body[data-ui="new"] .alr-balance {
   padding: 8px 12px;
   outline: none;
   transition: border-color 0.15s;
-  min-width: 0;
+  cursor: pointer;
 }
-.admin-user-lookup-input::placeholder {
-  color: rgba(226, 248, 255, 0.25);
-}
-.admin-user-lookup-input:focus {
+.admin-user-lookup-input:focus,
+.admin-user-lookup-input:hover {
   border-color: rgba(0, 255, 136, 0.4);
-}
-.admin-user-lookup-btn {
-  flex-shrink: 0;
-}
-.admin-user-lookup-hint {
-  margin-top: 8px;
-  font-family: monospace;
-  font-size: 11px;
-  color: rgba(255, 180, 80, 0.8);
-  min-height: 16px;
 }
 
 /* ── Home sidebar MODE badge (inside home-sb-act-left) ─────────── */
