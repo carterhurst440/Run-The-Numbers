@@ -19251,6 +19251,23 @@ let adminActivityChartInstance = null;
 let adminActivityPlayers = [];
 let adminActivityPlayersLoaded = false;
 let adminActivityDropdownOpen = false;
+
+// ── Admin PNL Chart ───────────────────────────────────────────────────────
+const ADMIN_PNL_PERIODS = {
+  "24h": { label: "24HR", useLive: true,  bucket: "1 hour",   ms: 24 * 60 * 60 * 1000 },
+  "1w":  { label: "1WK",  useLive: false, days: 7   },
+  "1m":  { label: "1M",   useLive: false, days: 30  },
+  "3m":  { label: "3M",   useLive: false, days: 90  },
+  "6m":  { label: "6M",   useLive: false, days: 182 },
+  "1y":  { label: "1Y",   useLive: false, days: 365 },
+};
+let adminPnlPeriod       = "1w";
+let adminPnlGameFilter   = new Set(["rtn", "g10", "st", "ryb"]);
+let adminPnlModes        = new Set(["normal", "contest"]);
+let adminPnlSelectedPlayer = null; // uuid string or null = all players
+let adminPnlChartInst    = null;
+let adminPnlLoading      = false;
+
 let autoDealEnabled = true;
 let autoRebetEnabled = false;
 let carterCash = 0;
@@ -22388,7 +22405,21 @@ async function fetchDailyProfitLossRows(userId) {
     page += 1;
   }
 
-  return allRows;
+  // Aggregate across modes (normal + contest) so the player home chart gets
+  // one row per profit_date regardless of how many mode rows exist after migration.
+  const agg = {};
+  allRows.forEach(row => {
+    const key = row.profit_date;
+    if (!agg[key]) {
+      agg[key] = { profit_date: key, pnl_total: 0, pnl_rtn: 0, pnl_g10: 0, pnl_shape_traders: 0, pnl_ryb: 0 };
+    }
+    agg[key].pnl_total         += Number(row.pnl_total         || 0);
+    agg[key].pnl_rtn           += Number(row.pnl_rtn           || 0);
+    agg[key].pnl_g10           += Number(row.pnl_g10           || 0);
+    agg[key].pnl_shape_traders += Number(row.pnl_shape_traders || 0);
+    agg[key].pnl_ryb           += Number(row.pnl_ryb           || 0);
+  });
+  return Object.values(agg).sort((a, b) => a.profit_date.localeCompare(b.profit_date));
 }
 
 function buildHandsChartBuckets(period, startDate, endDate = new Date()) {
@@ -30621,6 +30652,7 @@ adminTabButtons.forEach(button => {
       if (adminRanksContent) adminRanksContent.hidden = true;
       void loadAdminActivityTimeseries();
       void loadAdminActivityPlayers();
+      void loadAdminPnlChart();
       loadAdminAiConversations();
       initializeAnalyticsBettingGrid();
       loadPlayerFilter();
@@ -30798,6 +30830,61 @@ document.addEventListener("click", e => {
   updateAdminActivityDropdownLabel();
   renderAdminActivityChart();
 });
+
+// ── Admin PNL Chart event listeners ──────────────────────────────────────
+
+// Period buttons
+document.querySelectorAll("[data-apnl-period]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const period = btn.dataset.apnlPeriod;
+    if (!period) return;
+    adminPnlPeriod = period;
+    document.querySelectorAll(".admin-pnl-periods .chart-filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    void loadAdminPnlChart();
+  });
+});
+
+// Game toggles
+document.querySelectorAll("[data-apnl-game]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const game = btn.dataset.apnlGame;
+    if (!game) return;
+    if (adminPnlGameFilter.has(game)) {
+      adminPnlGameFilter.delete(game);
+      btn.classList.remove("active");
+    } else {
+      adminPnlGameFilter.add(game);
+      btn.classList.add("active");
+    }
+    void loadAdminPnlChart();
+  });
+});
+
+// Mode checkboxes
+const _apnlModeNormal  = document.getElementById("apnl-mode-normal");
+const _apnlModeContest = document.getElementById("apnl-mode-contest");
+if (_apnlModeNormal) {
+  _apnlModeNormal.addEventListener("change", () => {
+    if (_apnlModeNormal.checked) adminPnlModes.add("normal"); else adminPnlModes.delete("normal");
+    void loadAdminPnlChart();
+  });
+}
+if (_apnlModeContest) {
+  _apnlModeContest.addEventListener("change", () => {
+    if (_apnlModeContest.checked) adminPnlModes.add("contest"); else adminPnlModes.delete("contest");
+    void loadAdminPnlChart();
+  });
+}
+
+// Player select
+const _apnlPlayerSel = document.getElementById("apnl-player-select");
+if (_apnlPlayerSel) {
+  _apnlPlayerSel.addEventListener("change", () => {
+    adminPnlSelectedPlayer = _apnlPlayerSel.value || null;
+    void loadAdminPnlChart();
+  });
+}
 
 if (activeUsersSeriesFiltersEl) {
   activeUsersSeriesFiltersEl.addEventListener("change", (event) => {
@@ -32113,6 +32200,7 @@ async function loadAdminActivityPlayers() {
     adminActivityPlayersLoaded = true;
     renderAdminActivityPlayerList();
     updateAdminActivityDropdownLabel();
+    populateAdminPnlPlayerSelect();
   } catch (e) {
     console.error("[RTN] loadAdminActivityPlayers error", e);
   }
@@ -32322,6 +32410,245 @@ function setAdminActivityDropdownOpen(open) {
   const panel = document.getElementById("activity-ts-dropdown-panel");
   if (btn)   btn.setAttribute("aria-expanded", String(open));
   if (panel) panel.hidden = !open;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ADMIN PNL CHART  (bar chart using get_admin_pnl_daily + get_admin_pnl_live)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function _apnlSumGames(row) {
+  let total = 0;
+  if (adminPnlGameFilter.has("rtn")) total += Number(row.pnl_rtn           || 0);
+  if (adminPnlGameFilter.has("g10")) total += Number(row.pnl_g10           || 0);
+  if (adminPnlGameFilter.has("st"))  total += Number(row.pnl_shape_traders || 0);
+  if (adminPnlGameFilter.has("ryb")) total += Number(row.pnl_ryb           || 0);
+  return total;
+}
+
+function _apnlBuildDailySpine(startDate, endDate, dayMap) {
+  const entries = [];
+  const cur = new Date(startDate);
+  cur.setHours(0, 0, 0, 0);
+  const todayKey = new Date().toISOString().slice(0, 10);
+  while (cur <= endDate) {
+    const key = cur.toISOString().slice(0, 10);
+    const label = key === todayKey
+      ? "Today"
+      : new Date(key + "T12:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    entries.push({ key, label, value: dayMap[key] || 0 });
+    cur.setDate(cur.getDate() + 1);
+  }
+  return entries;
+}
+
+function _apnlBuildLiveSpine(startAt, endAt, bucketMap) {
+  const entries = [];
+  const stepMs  = 60 * 60 * 1000;
+  const cur     = new Date(startAt);
+  cur.setMinutes(0, 0, 0);
+  while (cur < endAt) {
+    const hourKey  = cur.toISOString().slice(0, 13); // "2025-05-15T14"
+    const matchKey = Object.keys(bucketMap).find(k => k.slice(0, 13) === hourKey);
+    const label    = cur.toLocaleTimeString("en-US", { hour: "numeric", hour12: true });
+    entries.push({ key: cur.toISOString(), label, value: matchKey ? bucketMap[matchKey] : 0 });
+    cur.setTime(cur.getTime() + stepMs);
+  }
+  return entries;
+}
+
+async function loadAdminPnlChart() {
+  if (!supabase || adminPnlLoading) return;
+  adminPnlLoading = true;
+  const loadingEl = document.querySelector(".apnl-loading");
+  if (loadingEl) loadingEl.style.display = "flex";
+
+  try {
+    const cfg      = ADMIN_PNL_PERIODS[adminPnlPeriod] || ADMIN_PNL_PERIODS["1w"];
+    const modesArr = [...adminPnlModes];
+    if (!modesArr.length || !adminPnlGameFilter.size) {
+      _apnlRender([]);
+      return;
+    }
+    const userId = adminPnlSelectedPlayer || null;
+
+    if (cfg.useLive) {
+      // ── 24HR: live tables with hourly buckets ─────────────────────────
+      const endAt   = new Date();
+      const startAt = new Date(endAt.getTime() - cfg.ms);
+      const { data, error } = await supabase.rpc("get_admin_pnl_live", {
+        p_start_at: startAt.toISOString(),
+        p_end_at:   endAt.toISOString(),
+        p_bucket:   cfg.bucket,
+        p_modes:    modesArr,
+        p_user_id:  userId,
+      });
+      if (error) throw error;
+      const bucketMap = {};
+      (Array.isArray(data) ? data : []).forEach(row => {
+        const k = row.bucket;
+        if (!bucketMap[k]) bucketMap[k] = 0;
+        bucketMap[k] += _apnlSumGames(row);
+      });
+      _apnlRender(_apnlBuildLiveSpine(startAt, endAt, bucketMap));
+    } else {
+      // ── Daily: daily_profit_loss + live for today ─────────────────────
+      const now      = new Date();
+      const startDay = new Date(now);
+      startDay.setDate(startDay.getDate() - cfg.days);
+      startDay.setHours(0, 0, 0, 0);
+      const startDateStr = startDay.toISOString().slice(0, 10);
+      const yesterday    = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().slice(0, 10);
+      const todayStr     = now.toISOString().slice(0, 10);
+      const todayUTCMidnight = new Date(todayStr + "T00:00:00.000Z");
+
+      const [dailyRes, liveRes] = await Promise.all([
+        supabase.rpc("get_admin_pnl_daily", {
+          p_start_date: startDateStr,
+          p_end_date:   yesterdayStr,
+          p_modes:      modesArr,
+          p_user_id:    userId,
+        }),
+        supabase.rpc("get_admin_pnl_live", {
+          p_start_at: todayUTCMidnight.toISOString(),
+          p_end_at:   now.toISOString(),
+          p_bucket:   "1 day",
+          p_modes:    modesArr,
+          p_user_id:  userId,
+        }),
+      ]);
+      if (dailyRes.error) throw dailyRes.error;
+      if (liveRes.error)  throw liveRes.error;
+
+      const dayMap = {};
+      (Array.isArray(dailyRes.data) ? dailyRes.data : []).forEach(row => {
+        const k = row.profit_date;
+        if (!dayMap[k]) dayMap[k] = 0;
+        dayMap[k] += _apnlSumGames(row);
+      });
+      let todayVal = 0;
+      (Array.isArray(liveRes.data) ? liveRes.data : []).forEach(row => { todayVal += _apnlSumGames(row); });
+      dayMap[todayStr] = todayVal;
+
+      _apnlRender(_apnlBuildDailySpine(startDay, now, dayMap));
+    }
+  } catch (e) {
+    console.error("[RTN] loadAdminPnlChart failed", e);
+    _apnlRender([]);
+  } finally {
+    adminPnlLoading = false;
+    const loadingEl2 = document.querySelector(".apnl-loading");
+    if (loadingEl2) loadingEl2.style.display = "none";
+  }
+}
+
+function _apnlRender(entries) {
+  const canvas = document.getElementById("apnl-chart");
+  if (!(canvas instanceof HTMLCanvasElement)) return;
+
+  if (adminPnlChartInst) {
+    adminPnlChartInst.destroy();
+    adminPnlChartInst = null;
+  }
+
+  const labels   = entries.map(e => e.label);
+  const values   = entries.map(e => Math.round(Number(e.value) * 100) / 100);
+  const totalVal = values.reduce((s, v) => s + v, 0);
+
+  const totalEl = document.getElementById("apnl-total");
+  if (totalEl) {
+    totalEl.textContent = labels.length ? formatSignedCurrency(totalVal) : "—";
+    totalEl.classList.toggle("is-negative", totalVal < 0);
+  }
+
+  if (!labels.length) return;
+
+  const posColor = "rgba(22,163,74,0.85)";
+  const negColor = "rgba(249,115,22,0.85)";
+  const bgColors = values.map(v => v >= 0 ? posColor : negColor);
+
+  const maxBars = {
+    "24h": 24, "1w": 7, "1m": 30, "3m": 90, "6m": 182, "1y": 365
+  };
+  const maxBarsForPeriod = maxBars[adminPnlPeriod] || 30;
+  const thickness = maxBarsForPeriod >= 180 ? 8 : maxBarsForPeriod >= 60 ? 12 : 18;
+
+  adminPnlChartInst = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: "PNL",
+        data: values,
+        backgroundColor: bgColors,
+        borderColor:      bgColors,
+        borderWidth: 0,
+        borderRadius: 3,
+        borderSkipped: false,
+        maxBarThickness: thickness,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          mode: "index",
+          intersect: false,
+          backgroundColor: "rgba(8,15,26,0.97)",
+          borderColor:     "rgba(0,255,136,0.2)",
+          borderWidth: 1,
+          titleColor: "#e2f8ff",
+          bodyColor:  "rgba(226,248,255,0.7)",
+          padding:    { x: 12, y: 10 },
+          callbacks: {
+            label: ctx => `  PNL: ${formatSignedCurrency(Number(ctx.raw))}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid:   { color: "rgba(226,248,255,0.05)" },
+          border: { color: "rgba(226,248,255,0.08)" },
+          ticks:  {
+            color: "rgba(226,248,255,0.4)",
+            font:  { family: "monospace", size: 11 },
+            maxTicksLimit: adminPnlPeriod === "1y" ? 13 : 8,
+            maxRotation: 0,
+          },
+        },
+        y: {
+          grid:   { color: "rgba(226,248,255,0.05)" },
+          border: { color: "rgba(226,248,255,0.08)" },
+          ticks:  {
+            color: "rgba(226,248,255,0.4)",
+            font:  { family: "monospace", size: 11 },
+            callback: v => formatSignedCurrency(Number(v)),
+          },
+        },
+      },
+    },
+  });
+}
+
+function populateAdminPnlPlayerSelect() {
+  const sel = document.getElementById("apnl-player-select");
+  if (!sel || !adminActivityPlayers.length) return;
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">All Players</option>';
+  adminActivityPlayers.forEach(p => {
+    const opt = document.createElement("option");
+    opt.value       = p.userId;
+    opt.textContent = p.displayName;
+    sel.appendChild(opt);
+  });
+  // Restore previous selection if still valid
+  if (prev && [...sel.options].some(o => o.value === prev)) {
+    sel.value = prev;
+  }
+  adminPnlSelectedPlayer = sel.value || null;
 }
 
 async function loadPlayerBankrollHistory(userId) {
@@ -33785,6 +34112,7 @@ document.getElementById("clear-player-filter")?.addEventListener("click", () => 
 function refreshAnalytics() {
   refreshBetBadgeCounts();
   void loadAdminActivityTimeseries();
+  void loadAdminPnlChart();
   loadAdminAiConversations();
 }
 

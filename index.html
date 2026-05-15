@@ -2814,6 +2814,51 @@
                   <div id="activity-ts-legend" class="activity-ts-legend"></div>
                 </div>
 
+                <!-- ── Admin PNL Chart ────────────────────────────────────── -->
+                <div class="analytics-overview-chart" id="apnl-card">
+                  <div class="overview-chart-header">
+                    <h3>PNL</h3>
+                    <div class="overview-chart-controls">
+                      <div class="chart-filters admin-pnl-periods">
+                        <button type="button" class="chart-filter-btn" data-apnl-period="24h">24HR</button>
+                        <button type="button" class="chart-filter-btn active" data-apnl-period="1w">1WK</button>
+                        <button type="button" class="chart-filter-btn" data-apnl-period="1m">1M</button>
+                        <button type="button" class="chart-filter-btn" data-apnl-period="3m">3M</button>
+                        <button type="button" class="chart-filter-btn" data-apnl-period="6m">6M</button>
+                        <button type="button" class="chart-filter-btn" data-apnl-period="1y">1Y</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="admin-pnl-toolbar">
+                    <div class="admin-pnl-game-toggles chart-filters">
+                      <button type="button" class="chart-filter-btn active" data-apnl-game="rtn">RTN</button>
+                      <button type="button" class="chart-filter-btn active" data-apnl-game="g10">G10</button>
+                      <button type="button" class="chart-filter-btn active" data-apnl-game="st">ST</button>
+                      <button type="button" class="chart-filter-btn active" data-apnl-game="ryb">RYB</button>
+                    </div>
+                    <div class="admin-pnl-mode-row">
+                      <label class="admin-pnl-mode-label"><input type="checkbox" id="apnl-mode-normal" checked> Normal</label>
+                      <label class="admin-pnl-mode-label"><input type="checkbox" id="apnl-mode-contest" checked> Contest</label>
+                    </div>
+                    <div class="admin-pnl-player-row">
+                      <select id="apnl-player-select" class="admin-pnl-player-select">
+                        <option value="">All Players</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="apnl-summary">
+                    <span class="apnl-summary-label">Total:</span>
+                    <span class="apnl-summary-value" id="apnl-total">—</span>
+                  </div>
+                  <div class="overview-chart-container">
+                    <canvas id="apnl-chart"></canvas>
+                    <div class="overview-chart-loading apnl-loading" style="display:none">
+                      <div class="spinner"></div>
+                      <p>Loading PNL data...</p>
+                    </div>
+                  </div>
+                </div>
+
                 <!-- ── AI Conversations ─────────────────────────────────── -->
                 <div class="analytics-activity-card">
                   <div class="overview-chart-header">

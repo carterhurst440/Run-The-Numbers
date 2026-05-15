@@ -14010,6 +14010,87 @@ body.play-assistant-open .play-assistant-fab {
   color: rgba(226, 248, 255, 0.55);
 }
 
+/* ── Admin PNL Chart ─────────────────────────────────────────────────────── */
+.admin-pnl-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 0 16px 12px;
+}
+.admin-pnl-game-toggles {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.admin-pnl-mode-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.admin-pnl-mode-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: rgba(226, 248, 255, 0.6);
+  cursor: pointer;
+  user-select: none;
+  text-transform: uppercase;
+}
+.admin-pnl-mode-label input[type="checkbox"] {
+  accent-color: #00ff88;
+  cursor: pointer;
+  width: 13px;
+  height: 13px;
+}
+.admin-pnl-player-row {
+  margin-left: auto;
+}
+.admin-pnl-player-select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(226, 248, 255, 0.15);
+  border-radius: 4px;
+  color: rgba(226, 248, 255, 0.75);
+  font-family: monospace;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  padding: 5px 10px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.admin-pnl-player-select:focus,
+.admin-pnl-player-select:hover {
+  border-color: rgba(0, 255, 136, 0.35);
+  color: #e2f8ff;
+}
+.apnl-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 16px 10px;
+}
+.apnl-summary-label {
+  font-family: monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: rgba(226, 248, 255, 0.35);
+  text-transform: uppercase;
+}
+.apnl-summary-value {
+  font-family: monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: #00ff88;
+  letter-spacing: 0.02em;
+}
+.apnl-summary-value.is-negative {
+  color: #ff6b35;
+}
+
 .activity-filters {
   justify-content: flex-end;
 }
