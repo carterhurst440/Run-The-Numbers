@@ -1014,47 +1014,13 @@
                       View Split &amp; Bankruptcy rules
                       <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><circle cx="6.5" cy="6.5" r="6" stroke="currentColor" stroke-width="1.2"/><text x="6.5" y="10" text-anchor="middle" font-size="8" font-family="monospace" fill="currentColor">i</text></svg>
                     </button>
-                    <div id="shape-traders-admin-test-controls" class="shape-traders-admin-test-controls" hidden>
-                      <div id="shape-traders-admin-asset-selector" class="shape-traders-admin-asset-selector" aria-label="Admin shape selector"></div>
-                      <input
-                        id="shape-traders-admin-price-input"
-                        class="shape-traders-admin-price-input"
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        inputmode="decimal"
-                        placeholder="Set price"
-                        aria-label="Set selected asset price"
-                      />
-                      <button
-                        type="button"
-                        class="secondary shape-traders-mini-button"
-                        id="shape-traders-set-price-999"
-                      >
-                        999.00
-                      </button>
-                      <button
-                        type="button"
-                        class="secondary shape-traders-mini-button"
-                        id="shape-traders-set-price-101"
-                      >
-                        1.01
-                      </button>
-                      <button
-                        type="button"
-                        class="secondary shape-traders-mini-button"
-                        id="shape-traders-apply-price"
-                      >
-                        Apply
-                      </button>
-                    </div>
                     <button
                       type="button"
-                      class="secondary shape-traders-mini-button"
-                      id="shape-traders-market-reset"
+                      class="secondary shape-traders-mini-button st-admin-tools-trigger"
+                      id="st-admin-tools-open"
                       hidden
                     >
-                      Reset
+                      Admin Tools
                     </button>
                   </div>
                 </div>
@@ -1331,6 +1297,46 @@
             </div>
             <div class="modal-actions">
               <button type="button" class="primary" id="shape-traders-rules-ok">OK</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ST Admin Tools modal -->
+        <div
+          class="modal"
+          id="st-admin-tools-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="st-admin-tools-title"
+          hidden
+        >
+          <div class="modal-content st-admin-tools-modal-content">
+            <div class="modal-header">
+              <h2 class="modal-title" id="st-admin-tools-title">ST Admin Tools</h2>
+              <button type="button" class="modal-close" id="st-admin-tools-close" aria-label="Close admin tools">×</button>
+            </div>
+            <div class="modal-body st-admin-tools-body">
+              <p class="st-admin-tools-label">Set Asset Price</p>
+              <div id="shape-traders-admin-asset-selector" class="shape-traders-admin-asset-selector" aria-label="Admin shape selector"></div>
+              <div class="st-admin-tools-price-row">
+                <input
+                  id="shape-traders-admin-price-input"
+                  class="shape-traders-admin-price-input"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  inputmode="decimal"
+                  placeholder="Set price"
+                  aria-label="Set selected asset price"
+                />
+                <button type="button" class="secondary shape-traders-mini-button" id="shape-traders-set-price-999">999.00</button>
+                <button type="button" class="secondary shape-traders-mini-button" id="shape-traders-set-price-101">1.01</button>
+                <button type="button" class="secondary shape-traders-mini-button" id="shape-traders-apply-price">Apply</button>
+              </div>
+              <div class="st-admin-tools-reset-row">
+                <p class="st-admin-tools-label">Market Reset</p>
+                <button type="button" class="secondary shape-traders-mini-button" id="shape-traders-market-reset">Reset</button>
+              </div>
             </div>
           </div>
         </div>

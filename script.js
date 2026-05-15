@@ -4960,7 +4960,6 @@ function setShapeTraderResetProgress(message, { buttonLabel = "RESET", disableCo
   const adminVisible = isAdmin();
   const adminControlsDisabled = disableControls || !adminVisible;
   if (shapeTradersMarketResetButton) {
-    shapeTradersMarketResetButton.hidden = !adminVisible;
     shapeTradersMarketResetButton.textContent = buttonLabel;
     shapeTradersMarketResetButton.disabled = disableControls || !adminVisible;
   }
@@ -4993,7 +4992,6 @@ function setShapeTraderResetProgress(message, { buttonLabel = "RESET", disableCo
 function clearShapeTraderResetProgress() {
   const adminVisible = isAdmin();
   if (shapeTradersMarketResetButton) {
-    shapeTradersMarketResetButton.hidden = !adminVisible;
     shapeTradersMarketResetButton.textContent = "RESET";
     shapeTradersMarketResetButton.disabled = !adminVisible;
   }
@@ -7356,7 +7354,6 @@ function renderShapeTradersControls(now = Date.now()) {
   }
   const adminControlsDisabled = !isAdmin() || shapeTradersResetInFlight || shapeTradersTradeActionInFlight;
   if (shapeTradersMarketResetButton) {
-    shapeTradersMarketResetButton.hidden = !isAdmin();
     shapeTradersMarketResetButton.disabled = adminControlsDisabled;
   }
   if (shapeTradersSetPrice999Button) {
@@ -9083,30 +9080,11 @@ function updateAdminVisibility(user = currentUser) {
       drawerColorSchemeLink.setAttribute("hidden", "");
     }
   }
-  if (shapeTradersAdminTestControls) {
+  // Show/hide the Admin Tools trigger button (controls now live in modal)
+  if (stAdminToolsOpenBtn) {
+    stAdminToolsOpenBtn.hidden = !adminVisible;
     if (adminVisible) {
-      shapeTradersAdminTestControls.removeAttribute("hidden");
-      shapeTradersAdminTestControls.removeAttribute("aria-hidden");
       renderShapeTradersAdminAssetSelector();
-    } else {
-      shapeTradersAdminTestControls.setAttribute("hidden", "");
-      shapeTradersAdminTestControls.setAttribute("aria-hidden", "true");
-      if (shapeTradersAdminAssetSelectorEl) {
-        shapeTradersAdminAssetSelectorEl.innerHTML = "";
-      }
-      if (shapeTradersAdminPriceInput) {
-        shapeTradersAdminPriceInput.value = "";
-        shapeTradersAdminPriceInput.disabled = true;
-      }
-      if (shapeTradersSetPrice999Button) {
-        shapeTradersSetPrice999Button.disabled = true;
-      }
-      if (shapeTradersSetPrice101Button) {
-        shapeTradersSetPrice101Button.disabled = true;
-      }
-      if (shapeTradersApplyPriceButton) {
-        shapeTradersApplyPriceButton.disabled = true;
-      }
     }
   }
   renderGameLogoTargets();
@@ -18379,8 +18357,11 @@ const shapeTradersTradeBodyEl = document.getElementById("shape-traders-trade-bod
 const shapeTradersTradeHintEl = document.querySelector(".shape-traders-trade-sheet-hint");
 const shapeTradersLiquidateButton = document.getElementById("shape-traders-liquidate-nav");
 const shapeTradersMarketResetButton = document.getElementById("shape-traders-market-reset");
-const shapeTradersAdminTestControls = document.getElementById("shape-traders-admin-test-controls");
+const shapeTradersAdminTestControls = document.getElementById("shape-traders-admin-test-controls"); // legacy ref (now null — controls moved to modal)
 const shapeTradersAdminAssetSelectorEl = document.getElementById("shape-traders-admin-asset-selector");
+const stAdminToolsModal = document.getElementById("st-admin-tools-modal");
+const stAdminToolsOpenBtn = document.getElementById("st-admin-tools-open");
+const stAdminToolsCloseBtn = document.getElementById("st-admin-tools-close");
 const shapeTradersAdminPriceInput = document.getElementById("shape-traders-admin-price-input");
 const shapeTradersSetPrice999Button = document.getElementById("shape-traders-set-price-999");
 const shapeTradersSetPrice101Button = document.getElementById("shape-traders-set-price-101");
@@ -34436,6 +34417,23 @@ if (shapeTradersSetPrice101Button) {
 if (shapeTradersApplyPriceButton) {
   shapeTradersApplyPriceButton.addEventListener("click", () => {
     void adminSetShapeTraderMarketPrice(shapeTradersAdminPriceInput?.value, shapeTradersAdminSelectedAsset);
+  });
+}
+
+// ST Admin Tools modal
+if (stAdminToolsOpenBtn) {
+  stAdminToolsOpenBtn.addEventListener("click", () => {
+    if (stAdminToolsModal) stAdminToolsModal.hidden = false;
+  });
+}
+if (stAdminToolsCloseBtn) {
+  stAdminToolsCloseBtn.addEventListener("click", () => {
+    if (stAdminToolsModal) stAdminToolsModal.hidden = true;
+  });
+}
+if (stAdminToolsModal) {
+  stAdminToolsModal.addEventListener("click", (e) => {
+    if (e.target === stAdminToolsModal) stAdminToolsModal.hidden = true;
   });
 }
 

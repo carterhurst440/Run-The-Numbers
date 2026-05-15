@@ -2498,6 +2498,38 @@ body[data-app-state="loading"] #app-shell {
   font-size: 0.78rem;
 }
 
+/* ST Admin Tools modal */
+.st-admin-tools-modal-content {
+  max-width: 380px;
+  width: 100%;
+}
+.st-admin-tools-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.st-admin-tools-label {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  font-family: monospace;
+  letter-spacing: 0.08em;
+  color: rgba(226, 248, 255, 0.45);
+  text-transform: uppercase;
+}
+.st-admin-tools-price-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+.st-admin-tools-reset-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid rgba(226, 248, 255, 0.08);
+}
+
 .shape-traders-panel-heading h2 {
   margin: 0.15rem 0 0;
   font-size: 1.18rem;
