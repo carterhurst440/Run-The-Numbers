@@ -13754,29 +13754,24 @@ async function buildContestLeaderboard(contest) {
     return [];
   }
 
-  // Fetch per-user game activity counts for this contest in parallel
-  const [rtnRows, g10Rows, stRows, rybRows] = await Promise.all([
-    supabase.from("rtn_live_hands").select("user_id").eq("contest_id", contest.id).neq("status", "active")
-      .then(({ data }) => data || []),
-    supabase.from("guess10_live_hands").select("user_id").eq("contest_id", contest.id).neq("status", "active")
-      .then(({ data }) => data || []),
-    supabase.from("shape_trader_trades").select("user_id").eq("contest_id", contest.id)
-      .then(({ data }) => data || []),
-    supabase.from("color_scheme_rounds").select("user_id").eq("contest_id", contest.id).eq("status", "completed")
-      .then(({ data }) => data || [])
-  ]);
-
-  function countByUser(rows) {
-    return rows.reduce((acc, row) => {
-      if (row.user_id) acc[row.user_id] = (acc[row.user_id] || 0) + 1;
-      return acc;
-    }, {});
+  // Fetch per-user game activity counts via SECURITY DEFINER RPC
+  // (direct table queries are blocked by RLS for other users' rows)
+  const gameStatsByUser = {};
+  try {
+    const { data: statsRows } = await supabase.rpc("get_contest_game_stats", { p_contest_id: contest.id });
+    if (Array.isArray(statsRows)) {
+      statsRows.forEach((row) => {
+        gameStatsByUser[row.user_id] = {
+          rtnHands:  Number(row.rtn_hands  || 0),
+          g10Hands:  Number(row.g10_hands  || 0),
+          stTrades:  Number(row.st_trades  || 0),
+          rybRounds: Number(row.ryb_rounds || 0)
+        };
+      });
+    }
+  } catch(e) {
+    console.warn("[RTN] contest game stats fetch failed", e);
   }
-
-  const rtnCounts = countByUser(rtnRows);
-  const g10Counts = countByUser(g10Rows);
-  const stCounts  = countByUser(stRows);
-  const rybCounts = countByUser(rybRows);
 
   const criteria = getContestCriteria(contest);
   const qualificationRequirement = getContestQualificationRequirement(contest);
@@ -13793,10 +13788,7 @@ async function buildContestLeaderboard(contest) {
       participantEmail: entry.participant_email || "",
       score: criteria.score(contestEntry),
       qualifies: Number(contestEntry.carter_cash ?? 0) >= qualificationRequirement,
-      rtnHands: rtnCounts[entry.user_id] || 0,
-      g10Hands: g10Counts[entry.user_id] || 0,
-      stTrades: stCounts[entry.user_id]  || 0,
-      rybRounds: rybCounts[entry.user_id] || 0
+      ...(gameStatsByUser[entry.user_id] || { rtnHands: 0, g10Hands: 0, stTrades: 0, rybRounds: 0 })
     };
   });
 
