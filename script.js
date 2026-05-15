@@ -19238,6 +19238,38 @@ let overviewGameSelectionsInitialized = false;
 let activeUsersChartPeriod = "all";
 let activeUsersSelectedSeriesKeys = ["dau", "wau", "mau"];
 let activeUsersSeriesInitialized = false;
+
+// ── Activity Timeseries (new admin analytics chart) ───────────────────────
+const ADMIN_ACTIVITY_PERIODS = {
+  "1h":  { ms: 60 * 60 * 1000,            bucket: "5 minutes", label: "1HR"  },
+  "24h": { ms: 24 * 60 * 60 * 1000,       bucket: "1 hour",    label: "24HR" },
+  "1w":  { ms: 7 * 24 * 60 * 60 * 1000,   bucket: "12 hours",  label: "1WK"  },
+  "1m":  { ms: 30 * 24 * 60 * 60 * 1000,  bucket: "1 day",     label: "1M"   },
+  "3m":  { ms: 90 * 24 * 60 * 60 * 1000,  bucket: "3 days",    label: "3M"   },
+  "6m":  { ms: 182 * 24 * 60 * 60 * 1000, bucket: "1 week",    label: "6M"   },
+  "1y":  { ms: 365 * 24 * 60 * 60 * 1000, bucket: "2 weeks",   label: "1Y"   },
+};
+const ADMIN_ACTIVITY_GAME_COLORS = {
+  rtn: "#00ff88",
+  g10: "#00aaff",
+  st:  "#ff6600",
+  ryb: "#cc44ff",
+};
+const ADMIN_ACTIVITY_PLAYER_PALETTE = [
+  "#00ff88", "#00aaff", "#ff6600", "#cc44ff",
+  "#ffcc00", "#ff4488", "#00ffdd", "#ff8800",
+  "#88ff00", "#ff00aa", "#00ffbb", "#aa00ff",
+];
+let adminActivityPeriod = "1m";
+let adminActivityGameFilter = new Set(["rtn", "g10", "st", "ryb"]);
+let adminActivityLineMode = "aggregate";
+let adminActivitySelectedPlayers = new Set();
+let adminActivityRawData = [];
+let adminActivityLoading = false;
+let adminActivityChartInstance = null;
+let adminActivityPlayers = [];
+let adminActivityPlayersLoaded = false;
+let adminActivityDropdownOpen = false;
 let autoDealEnabled = true;
 let autoRebetEnabled = false;
 let carterCash = 0;
@@ -30606,13 +30638,11 @@ adminTabButtons.forEach(button => {
       if (adminContestsContent) adminContestsContent.hidden = true;
       if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
-      loadPlayerFilter(); // Load player list for filter
-      initializeAnalyticsBettingGrid();
-      renderOverviewChart("year");
-      renderActiveUsersChart("year");
-      loadMostActiveThisWeek();
-      loadPnlRankings();
+      void loadAdminActivityTimeseries();
+      void loadAdminActivityPlayers();
       loadAdminAiConversations();
+      initializeAnalyticsBettingGrid();
+      loadPlayerFilter();
     } else if (targetTab === "contests") {
       adminPrizesContent.hidden = true;
       if (adminGamesContent) adminGamesContent.hidden = true;
@@ -30694,6 +30724,98 @@ activeUsersFilterButtons.forEach((button) => {
     const period = button.dataset.activeUsersPeriod || "year";
     renderActiveUsersChart(period);
   });
+});
+
+// ── Activity Timeseries event listeners ──────────────────────────────────
+
+// Period filter
+document.querySelectorAll(".activity-ts-periods .chart-filter-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const period = btn.dataset.atsPeriod;
+    if (!period) return;
+    adminActivityPeriod = period;
+    document.querySelectorAll(".activity-ts-periods .chart-filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    void loadAdminActivityTimeseries();
+  });
+});
+
+// Game toggles (multi-select: click to toggle on/off)
+document.querySelectorAll("[data-ats-game]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const game = btn.dataset.atsGame;
+    if (!game) return;
+    if (adminActivityGameFilter.has(game)) {
+      adminActivityGameFilter.delete(game);
+      btn.classList.remove("active");
+    } else {
+      adminActivityGameFilter.add(game);
+      btn.classList.add("active");
+    }
+    renderAdminActivityChart();
+  });
+});
+
+// Line mode buttons (single-select)
+document.querySelectorAll("[data-ats-mode]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const mode = btn.dataset.atsMode;
+    if (!mode) return;
+    adminActivityLineMode = mode;
+    document.querySelectorAll("[data-ats-mode]").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    const playerRow = document.getElementById("activity-ts-player-row");
+    if (playerRow) playerRow.hidden = mode !== "player";
+    if (mode === "player") {
+      void loadAdminActivityPlayers();
+    }
+    renderAdminActivityChart();
+  });
+});
+
+// Player dropdown toggle
+document.addEventListener("click", e => {
+  const btn   = document.getElementById("activity-ts-dropdown-btn");
+  const panel = document.getElementById("activity-ts-dropdown-panel");
+  if (!btn || !panel) return;
+  if (btn.contains(e.target)) {
+    setAdminActivityDropdownOpen(!adminActivityDropdownOpen);
+  } else if (!panel.contains(e.target)) {
+    setAdminActivityDropdownOpen(false);
+  }
+});
+
+// Player list checkboxes (delegated)
+document.addEventListener("change", e => {
+  const cb = e.target;
+  if (!(cb instanceof HTMLInputElement) || !cb.classList.contains("ats-player-checkbox")) return;
+  const playerId = cb.dataset.playerId;
+  if (!playerId) return;
+  if (cb.checked) {
+    adminActivitySelectedPlayers.add(playerId);
+  } else {
+    adminActivitySelectedPlayers.delete(playerId);
+  }
+  updateAdminActivityDropdownLabel();
+  renderAdminActivityChart();
+});
+
+// Select All
+document.addEventListener("click", e => {
+  if (e.target.id !== "activity-ts-select-all") return;
+  adminActivitySelectedPlayers = new Set(adminActivityPlayers.map(p => p.userId));
+  renderAdminActivityPlayerList();
+  updateAdminActivityDropdownLabel();
+  renderAdminActivityChart();
+});
+
+// Deselect All
+document.addEventListener("click", e => {
+  if (e.target.id !== "activity-ts-deselect-all") return;
+  adminActivitySelectedPlayers = new Set();
+  renderAdminActivityPlayerList();
+  updateAdminActivityDropdownLabel();
+  renderAdminActivityChart();
 });
 
 if (activeUsersSeriesFiltersEl) {
@@ -31955,6 +32077,267 @@ async function invokeAdminAnalytics(action, payload = {}) {
     throw error;
   }
   return data || {};
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ACTIVITY TIMESERIES CHART  (replaces multi-chart edge-function analytics)
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function loadAdminActivityTimeseries() {
+  if (!supabase || adminActivityLoading) return;
+  adminActivityLoading = true;
+  const loadingEl = document.querySelector(".activity-ts-loading");
+  if (loadingEl) loadingEl.style.display = "flex";
+  try {
+    const cfg = ADMIN_ACTIVITY_PERIODS[adminActivityPeriod] || ADMIN_ACTIVITY_PERIODS["1m"];
+    const endAt = new Date();
+    const startAt = new Date(endAt.getTime() - cfg.ms);
+    const { data, error } = await supabase.rpc("get_admin_activity_timeseries", {
+      p_start_at: startAt.toISOString(),
+      p_end_at:   endAt.toISOString(),
+      p_bucket:   cfg.bucket,
+    });
+    if (error) {
+      console.error("[RTN] get_admin_activity_timeseries error", error);
+      adminActivityRawData = [];
+    } else {
+      adminActivityRawData = Array.isArray(data) ? data : [];
+    }
+  } catch (e) {
+    console.error("[RTN] loadAdminActivityTimeseries failed", e);
+    adminActivityRawData = [];
+  } finally {
+    adminActivityLoading = false;
+    const loadingEl2 = document.querySelector(".activity-ts-loading");
+    if (loadingEl2) loadingEl2.style.display = "none";
+    renderAdminActivityChart();
+  }
+}
+
+async function loadAdminActivityPlayers() {
+  if (adminActivityPlayersLoaded) return;
+  try {
+    const { data, error } = await supabase.rpc("get_admin_analytics_players");
+    if (error) throw error;
+    adminActivityPlayers = (Array.isArray(data) ? data : [])
+      .map(p => ({
+        userId:      p.id,
+        displayName: p.username ||
+                     [p.first_name, p.last_name].filter(Boolean).join(" ").trim() ||
+                     `User ${String(p.id || "").slice(0, 8)}`,
+      }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    // Default: all players selected
+    adminActivitySelectedPlayers = new Set(adminActivityPlayers.map(p => p.userId));
+    adminActivityPlayersLoaded = true;
+    renderAdminActivityPlayerList();
+    updateAdminActivityDropdownLabel();
+  } catch (e) {
+    console.error("[RTN] loadAdminActivityPlayers error", e);
+  }
+}
+
+function _atsHex(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function formatAdminActivityLabel(bucketIso) {
+  const d = new Date(bucketIso);
+  if (adminActivityPeriod === "1h") {
+    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  }
+  if (adminActivityPeriod === "24h") {
+    return d.toLocaleTimeString("en-US", { hour: "numeric", hour12: true });
+  }
+  if (adminActivityPeriod === "1w") {
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) +
+           " " + d.toLocaleTimeString("en-US", { hour: "numeric", hour12: true });
+  }
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function buildAdminActivitySeries() {
+  const activeGames = ["rtn", "g10", "st", "ryb"].filter(g => adminActivityGameFilter.has(g));
+  const activePlayers = adminActivitySelectedPlayers.size > 0
+    ? adminActivityPlayers.filter(p => adminActivitySelectedPlayers.has(p.userId))
+    : adminActivityPlayers;
+  const activePlayerIds = activePlayers.map(p => p.userId);
+
+  // lookup: "bucket|||game|||userId" → cnt
+  const lookup = {};
+  adminActivityRawData.forEach(row => {
+    const key = `${row.bucket}|||${row.game}|||${row.user_id}`;
+    lookup[key] = (lookup[key] || 0) + Number(row.cnt || 0);
+  });
+
+  // Collect and sort unique bucket timestamps from data
+  const bucketSet = new Set(adminActivityRawData.map(r => r.bucket));
+  const buckets = Array.from(bucketSet).sort();
+  if (!buckets.length) return { labels: [], datasets: [] };
+
+  const labels = buckets.map(b => formatAdminActivityLabel(b));
+  const sparse = buckets.length > 50;
+  const getTotal = (bucket, game, uid) => lookup[`${bucket}|||${game}|||${uid}`] || 0;
+  const sumBucket = (bucket, games, uids) =>
+    games.reduce((s, g) => s + uids.reduce((s2, u) => s2 + getTotal(bucket, g, u), 0), 0);
+
+  let datasets = [];
+
+  if (adminActivityLineMode === "aggregate") {
+    datasets = [{
+      label: "All Activity",
+      data:  buckets.map(b => sumBucket(b, activeGames, activePlayerIds)),
+      borderColor:     "#00ff88",
+      backgroundColor: _atsHex("#00ff88", 0.07),
+      borderWidth: 2,
+      fill: true,
+      tension: 0.3,
+      pointRadius:      sparse ? 0 : 3,
+      pointHoverRadius: 5,
+    }];
+
+  } else if (adminActivityLineMode === "game") {
+    datasets = activeGames.map(game => {
+      const color = ADMIN_ACTIVITY_GAME_COLORS[game] || "#888";
+      return {
+        label:           game.toUpperCase(),
+        data:            buckets.map(b => activePlayerIds.reduce((s, u) => s + getTotal(b, game, u), 0)),
+        borderColor:     color,
+        backgroundColor: _atsHex(color, 0.07),
+        borderWidth: 2,
+        fill: false,
+        tension: 0.3,
+        pointRadius:      sparse ? 0 : 3,
+        pointHoverRadius: 5,
+      };
+    });
+
+  } else if (adminActivityLineMode === "player") {
+    datasets = activePlayers.map((player, i) => {
+      const color = ADMIN_ACTIVITY_PLAYER_PALETTE[i % ADMIN_ACTIVITY_PLAYER_PALETTE.length];
+      return {
+        label:           player.displayName,
+        data:            buckets.map(b => sumBucket(b, activeGames, [player.userId])),
+        borderColor:     color,
+        backgroundColor: _atsHex(color, 0.07),
+        borderWidth: 2,
+        fill: false,
+        tension: 0.3,
+        pointRadius:      sparse ? 0 : 3,
+        pointHoverRadius: 5,
+      };
+    });
+  }
+
+  return { labels, datasets };
+}
+
+function renderAdminActivityChart() {
+  const canvas = document.getElementById("activity-ts-chart");
+  if (!(canvas instanceof HTMLCanvasElement)) return;
+
+  const { labels, datasets } = buildAdminActivitySeries();
+
+  if (adminActivityChartInstance) {
+    adminActivityChartInstance.destroy();
+    adminActivityChartInstance = null;
+  }
+
+  if (!labels.length) {
+    renderAdminActivityLegend([]);
+    return;
+  }
+
+  adminActivityChartInstance = new Chart(canvas, {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          mode: "index",
+          intersect: false,
+          backgroundColor: "rgba(8,15,26,0.97)",
+          borderColor:     "rgba(0,255,136,0.2)",
+          borderWidth: 1,
+          titleColor: "#e2f8ff",
+          bodyColor:  "rgba(226,248,255,0.7)",
+          padding:    { x: 12, y: 10 },
+          callbacks: {
+            label: (item) => `  ${item.dataset.label}: ${item.raw}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid:   { color: "rgba(226,248,255,0.05)" },
+          border: { color: "rgba(226,248,255,0.08)" },
+          ticks:  {
+            color: "rgba(226,248,255,0.4)",
+            font:  { family: "monospace", size: 11 },
+            maxTicksLimit: 8,
+            maxRotation:   0,
+          },
+        },
+        y: {
+          grid:   { color: "rgba(226,248,255,0.05)" },
+          border: { color: "rgba(226,248,255,0.08)" },
+          ticks:  {
+            color:     "rgba(226,248,255,0.4)",
+            font:      { family: "monospace", size: 11 },
+            precision: 0,
+          },
+          min: 0,
+        },
+      },
+    },
+  });
+
+  renderAdminActivityLegend(datasets);
+}
+
+function renderAdminActivityLegend(datasets) {
+  const el = document.getElementById("activity-ts-legend");
+  if (!el) return;
+  el.innerHTML = datasets.map(ds =>
+    `<span class="ats-legend-item">` +
+    `<span class="ats-legend-swatch" style="background:${ds.borderColor}"></span>` +
+    `<span class="ats-legend-label">${ds.label}</span>` +
+    `</span>`
+  ).join("");
+}
+
+function renderAdminActivityPlayerList() {
+  const listEl = document.getElementById("activity-ts-player-list");
+  if (!listEl) return;
+  listEl.innerHTML = adminActivityPlayers.map(p =>
+    `<li><label class="ats-player-option">` +
+    `<input type="checkbox" class="ats-player-checkbox" data-player-id="${p.userId}"` +
+    ` ${adminActivitySelectedPlayers.has(p.userId) ? "checked" : ""}>` +
+    `<span>${p.displayName}</span></label></li>`
+  ).join("");
+}
+
+function updateAdminActivityDropdownLabel() {
+  const el = document.getElementById("activity-ts-dropdown-label");
+  if (!el) return;
+  const sel   = adminActivitySelectedPlayers.size;
+  const total = adminActivityPlayers.length;
+  el.textContent = (!sel || sel === total) ? "All Players" : `${sel} of ${total} players`;
+}
+
+function setAdminActivityDropdownOpen(open) {
+  adminActivityDropdownOpen = open;
+  const btn   = document.getElementById("activity-ts-dropdown-btn");
+  const panel = document.getElementById("activity-ts-dropdown-panel");
+  if (btn)   btn.setAttribute("aria-expanded", String(open));
+  if (panel) panel.hidden = !open;
 }
 
 async function loadPlayerBankrollHistory(userId) {
@@ -33417,16 +33800,7 @@ document.getElementById("clear-player-filter")?.addEventListener("click", () => 
 // Refresh all analytics with current filter
 function refreshAnalytics() {
   refreshBetBadgeCounts();
-
-  // Reload overview chart
-  const activeFilterBtn = document.querySelector(".overview-filters .chart-filter-btn.active");
-  const period = activeFilterBtn?.dataset.period || "year";
-  renderOverviewChart(period);
-  const activeUsersFilterBtn = document.querySelector(".active-users-filters .chart-filter-btn.active");
-  const activeUsersPeriod = activeUsersFilterBtn?.dataset.activeUsersPeriod || "year";
-  renderActiveUsersChart(activeUsersPeriod);
-  loadMostActiveThisWeek();
-  loadPnlRankings();
+  void loadAdminActivityTimeseries();
   loadAdminAiConversations();
 }
 

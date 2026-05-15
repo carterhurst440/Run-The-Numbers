@@ -2753,10 +2753,181 @@
             </div>
             <section class="admin-tab-content" id="admin-analytics-content" hidden>
               <section class="route-section analytics-section">
-                <h2>Betting Analytics</h2>
-                
-                <div class="analytics-overview-chart">
+
+                <!-- ── Activity Timeseries Chart ───────────────────────── -->
+                <div class="analytics-overview-chart" id="activity-ts-card">
                   <div class="overview-chart-header">
+                    <h3>Activity</h3>
+                    <div class="overview-chart-controls">
+                      <div class="chart-filters activity-ts-periods">
+                        <button type="button" class="chart-filter-btn" data-ats-period="1h">1HR</button>
+                        <button type="button" class="chart-filter-btn" data-ats-period="24h">24HR</button>
+                        <button type="button" class="chart-filter-btn" data-ats-period="1w">1WK</button>
+                        <button type="button" class="chart-filter-btn active" data-ats-period="1m">1M</button>
+                        <button type="button" class="chart-filter-btn" data-ats-period="3m">3M</button>
+                        <button type="button" class="chart-filter-btn" data-ats-period="6m">6M</button>
+                        <button type="button" class="chart-filter-btn" data-ats-period="1y">1Y</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="activity-ts-toolbar">
+                    <div class="activity-ts-game-toggles chart-filters">
+                      <button type="button" class="chart-filter-btn active" data-ats-game="rtn">RTN</button>
+                      <button type="button" class="chart-filter-btn active" data-ats-game="g10">G10</button>
+                      <button type="button" class="chart-filter-btn active" data-ats-game="st">ST</button>
+                      <button type="button" class="chart-filter-btn active" data-ats-game="ryb">RYB</button>
+                    </div>
+                    <div class="activity-ts-line-modes chart-filters">
+                      <button type="button" class="chart-filter-btn active" data-ats-mode="aggregate">AGG</button>
+                      <button type="button" class="chart-filter-btn" data-ats-mode="game">GAMES</button>
+                      <button type="button" class="chart-filter-btn" data-ats-mode="player">PLAYERS</button>
+                    </div>
+                  </div>
+                  <div class="activity-ts-player-row" id="activity-ts-player-row" hidden>
+                    <div class="activity-ts-player-multiselect">
+                      <button type="button" class="activity-ts-dropdown-btn" id="activity-ts-dropdown-btn" aria-expanded="false" aria-haspopup="listbox">
+                        <span id="activity-ts-dropdown-label">All Players</span>
+                        <span aria-hidden="true">▾</span>
+                      </button>
+                      <div class="activity-ts-dropdown-panel" id="activity-ts-dropdown-panel" hidden>
+                        <div class="activity-ts-dropdown-actions">
+                          <button type="button" id="activity-ts-select-all" class="analytics-inline-action">Select All</button>
+                          <button type="button" id="activity-ts-deselect-all" class="analytics-inline-action">Deselect All</button>
+                        </div>
+                        <ul id="activity-ts-player-list" class="activity-ts-player-list"></ul>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="overview-chart-container">
+                    <canvas id="activity-ts-chart"></canvas>
+                    <div class="overview-chart-loading activity-ts-loading">
+                      <div class="spinner"></div>
+                      <p>Loading activity data...</p>
+                    </div>
+                  </div>
+                  <div id="activity-ts-legend" class="activity-ts-legend"></div>
+                </div>
+
+                <!-- ── AI Conversations ─────────────────────────────────── -->
+                <div class="analytics-activity-card">
+                  <div class="overview-chart-header">
+                    <h3>AI Conversations</h3>
+                    <button type="button" id="admin-ai-conversations-refresh" class="link-button">Refresh</button>
+                  </div>
+                  <p id="admin-ai-conversations-subhead" class="analytics-card-subhead">Recent AI chat turns with stored conversation details and confirmed actions.</p>
+                  <ul id="admin-ai-conversations-list" class="analytics-activity-list" aria-live="polite"></ul>
+                  <button type="button" id="admin-ai-conversations-load-more" class="btn-secondary analytics-load-more" hidden>Load More</button>
+                </div>
+
+                <!-- ── RTN Bet Analytics ─────────────────────────────────── -->
+                <div class="analytics-bet-filters-row">
+                  <p id="analytics-bet-filter-subhead" class="analytics-description">Showing all-time bet counts. Click on any bet to view detailed statistics.</p>
+                  <div class="chart-filters bet-grid-filters">
+                    <button type="button" class="chart-filter-btn" data-bet-period="day">24H</button>
+                    <button type="button" class="chart-filter-btn" data-bet-period="week">1W</button>
+                    <button type="button" class="chart-filter-btn" data-bet-period="month">1M</button>
+                    <button type="button" class="chart-filter-btn active" data-bet-period="all">ALL</button>
+                  </div>
+                </div>
+                <div class="analytics-player-filter analytics-bet-player-filter">
+                  <label for="player-filter-select">Filter RTN Bets By Players:</label>
+                  <div class="player-filter-wrapper">
+                    <select id="player-filter-select" multiple size="5">
+                      <option value="all" selected>All Players</option>
+                    </select>
+                    <div class="player-filter-actions">
+                      <button type="button" id="apply-player-filter" class="btn-primary">Apply Filter</button>
+                      <button type="button" id="clear-player-filter" class="btn-secondary">Clear</button>
+                    </div>
+                  </div>
+                  <p class="filter-hint">Applies to the Run The Numbers bet counts and bet analytics modal only.</p>
+                </div>
+                <div class="analytics-betting-panel">
+                  <section class="analytics-number-bets" aria-labelledby="analytics-number-bets-heading">
+                    <div class="bets-heading-row">
+                      <h3 class="bets-heading" id="analytics-number-bets-heading">Number Bets</h3>
+                    </div>
+                    <div class="playmat analytics-playmat" role="group" aria-label="Number bet analytics">
+                      <!-- Number bets A-10 -->
+                    </div>
+                  </section>
+                  <section class="analytics-specific-card-bets" aria-labelledby="analytics-specific-card-bets-heading">
+                    <div class="bets-heading-row">
+                      <h3 class="bets-heading" id="analytics-specific-card-bets-heading">Specific Card Bets</h3>
+                    </div>
+                    <div class="specific-cards-grid analytics-grid" role="group" aria-label="Specific card bet analytics">
+                      <!-- Specific card bets -->
+                    </div>
+                  </section>
+                  <section class="analytics-bust-card-bets" aria-labelledby="analytics-bust-card-bets-heading">
+                    <div class="bets-heading-row">
+                      <h3 class="bets-heading" id="analytics-bust-card-bets-heading">Bust Card Bets</h3>
+                    </div>
+                    <div class="bust-grid analytics-grid" role="group" aria-label="Bust card bet analytics">
+                      <!-- Bust bets -->
+                    </div>
+                  </section>
+                  <section class="analytics-suit-bets" aria-labelledby="analytics-suit-bets-heading">
+                    <div class="bets-heading-row">
+                      <h3 class="bets-heading" id="analytics-suit-bets-heading">Suit Bets</h3>
+                    </div>
+                    <div class="suit-bet-groups analytics-suit-bet-groups" role="group" aria-label="Suit bet analytics">
+                      <!-- Suit bets -->
+                    </div>
+                  </section>
+                  <section class="analytics-card-count-bets" aria-labelledby="analytics-card-count-bets-heading">
+                    <div class="bets-heading-row">
+                      <h3 class="bets-heading" id="analytics-card-count-bets-heading">Card Count Bets</h3>
+                    </div>
+                    <div class="card-count-grid analytics-grid" role="group" aria-label="Card count bet analytics">
+                      <!-- Count bets -->
+                    </div>
+                  </section>
+                </div>
+
+                <!-- LEGACY CHART MARKUP REMOVED — replaced by activity-ts-card above -->
+                <div class="analytics-overview-chart" style="display:none" aria-hidden="true">
+                  <!-- old overview chart placeholder — kept for DOM ref safety -->
+                  <div class="overview-chart-loading hands-overview-chart-loading" style="display:none"></div>
+                  <div id="overview-game-filters" hidden></div>
+                  <canvas id="overview-analytics-chart" hidden></canvas>
+                </div>
+                <div style="display:none" aria-hidden="true">
+                  <canvas id="active-users-analytics-chart" hidden></canvas>
+                  <canvas id="most-active-analytics-chart" hidden></canvas>
+                  <canvas id="admin-pnl-chart" hidden></canvas>
+                  <select id="player-filter-select-legacy" hidden></select>
+                  <ul id="most-active-week-list" hidden></ul>
+                  <ul id="pnl-rank-list" hidden></ul>
+                  <p id="overview-chart-subhead" hidden></p>
+                  <p id="active-users-subhead" hidden></p>
+                  <p id="most-active-subhead" hidden></p>
+                  <p id="pnl-rank-subhead" hidden></p>
+                  <p id="admin-pnl-subhead" hidden></p>
+                  <p id="admin-pnl-total" hidden></p>
+                  <p id="admin-pnl-change" hidden></p>
+                  <p id="most-active-chart-subhead" hidden></p>
+                  <div id="most-active-player-filters" hidden></div>
+                  <div id="overview-select-all" hidden></div>
+                  <div id="overview-deselect-all" hidden></div>
+                  <div id="active-users-series-filters" hidden></div>
+                  <div id="active-users-select-all" hidden></div>
+                  <div id="active-users-deselect-all" hidden></div>
+                  <div id="most-active-select-all" hidden></div>
+                  <div id="most-active-deselect-all" hidden></div>
+                  <div id="admin-pnl-player-filters" hidden></div>
+                  <div id="admin-pnl-select-all" hidden></div>
+                  <div id="admin-pnl-deselect-all" hidden></div>
+                  <div id="admin-pnl-tooltip" hidden></div>
+                  <button id="most-active-load-more" hidden></button>
+                  <button id="pnl-rank-load-more" hidden></button>
+                </div>
+
+                <!-- end admin-analytics-content inner -->
+                <div id="ANALYTICS_SECTION_END_MARKER" hidden></div>
+
+                <!-- [old chart markup removed]
+                  <div class="overview-chart-header" style="display:none">
                     <h3>Hands &amp; Trades</h3>
                     <div class="overview-chart-controls">
                       <div class="chart-filters overview-filters">
@@ -2906,80 +3077,7 @@
                   <ul id="pnl-rank-list" class="analytics-activity-list" aria-live="polite"></ul>
                   <button type="button" id="pnl-rank-load-more" class="btn-secondary analytics-load-more" hidden>Load More</button>
                 </div>
-                <div class="analytics-activity-card">
-                  <div class="overview-chart-header">
-                    <h3>AI Conversations</h3>
-                    <button type="button" id="admin-ai-conversations-refresh" class="link-button">Refresh</button>
-                  </div>
-                  <p id="admin-ai-conversations-subhead" class="analytics-card-subhead">Recent AI chat turns with stored conversation details and confirmed actions.</p>
-                  <ul id="admin-ai-conversations-list" class="analytics-activity-list" aria-live="polite"></ul>
-                  <button type="button" id="admin-ai-conversations-load-more" class="btn-secondary analytics-load-more" hidden>Load More</button>
-                </div>
-                <div class="analytics-bet-filters-row">
-                  <p id="analytics-bet-filter-subhead" class="analytics-description">Showing all-time bet counts. Click on any bet to view detailed statistics.</p>
-                  <div class="chart-filters bet-grid-filters">
-                    <button type="button" class="chart-filter-btn" data-bet-period="day">24H</button>
-                    <button type="button" class="chart-filter-btn" data-bet-period="week">1W</button>
-                    <button type="button" class="chart-filter-btn" data-bet-period="month">1M</button>
-                    <button type="button" class="chart-filter-btn active" data-bet-period="all">ALL</button>
-                  </div>
-                </div>
-                <div class="analytics-player-filter analytics-bet-player-filter">
-                  <label for="player-filter-select">Filter RTN Bets By Players:</label>
-                  <div class="player-filter-wrapper">
-                    <select id="player-filter-select" multiple size="5">
-                      <option value="all" selected>All Players</option>
-                      <!-- Players populated dynamically -->
-                    </select>
-                    <div class="player-filter-actions">
-                      <button type="button" id="apply-player-filter" class="btn-primary">Apply Filter</button>
-                      <button type="button" id="clear-player-filter" class="btn-secondary">Clear</button>
-                    </div>
-                  </div>
-                  <p class="filter-hint">Applies to the Run The Numbers bet counts and bet analytics modal only.</p>
-                </div>
-                <div class="analytics-betting-panel">
-                  <section class="analytics-number-bets" aria-labelledby="analytics-number-bets-heading">
-                    <div class="bets-heading-row">
-                      <h3 class="bets-heading" id="analytics-number-bets-heading">Number Bets</h3>
-                    </div>
-                    <div class="playmat analytics-playmat" role="group" aria-label="Number bet analytics">
-                      <!-- Number bets A-10 -->
-                    </div>
-                  </section>
-                  <section class="analytics-specific-card-bets" aria-labelledby="analytics-specific-card-bets-heading">
-                    <div class="bets-heading-row">
-                      <h3 class="bets-heading" id="analytics-specific-card-bets-heading">Specific Card Bets</h3>
-                    </div>
-                    <div class="specific-cards-grid analytics-grid" role="group" aria-label="Specific card bet analytics">
-                      <!-- Specific card bets -->
-                    </div>
-                  </section>
-                  <section class="analytics-bust-card-bets" aria-labelledby="analytics-bust-card-bets-heading">
-                    <div class="bets-heading-row">
-                      <h3 class="bets-heading" id="analytics-bust-card-bets-heading">Bust Card Bets</h3>
-                    </div>
-                    <div class="bust-grid analytics-grid" role="group" aria-label="Bust card bet analytics">
-                      <!-- Bust bets -->
-                    </div>
-                  </section>
-                  <section class="analytics-suit-bets" aria-labelledby="analytics-suit-bets-heading">
-                    <div class="bets-heading-row">
-                      <h3 class="bets-heading" id="analytics-suit-bets-heading">Suit Bets</h3>
-                    </div>
-                    <div class="suit-bet-groups analytics-suit-bet-groups" role="group" aria-label="Suit bet analytics">
-                      <!-- Suit bets -->
-                    </div>
-                  </section>
-                  <section class="analytics-card-count-bets" aria-labelledby="analytics-card-count-bets-heading">
-                    <div class="bets-heading-row">
-                      <h3 class="bets-heading" id="analytics-card-count-bets-heading">Card Count Bets</h3>
-                    </div>
-                    <div class="card-count-grid analytics-grid" role="group" aria-label="Card count bet analytics">
-                      <!-- Count bets -->
-                    </div>
-                  </section>
-                </div>
+                <!-- [old AI conversations + bet grid removed — now appear above] -->
               </section>
             </section>
             <section class="admin-tab-content" id="admin-contests-content" hidden>
