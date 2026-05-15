@@ -35600,7 +35600,6 @@ let _csClips = null;       // Map<"RED_3", Float32Array> — null until baked
 let _csClipActive = null;  // clip currently playing, or null
 let _csClipFrame = 0;      // current frame index
 let _csClipOnDone = null;  // callback when clip finishes
-let _csDiceAudioCtx = null; // reused AudioContext for roll sounds
 
 const CS_ODDS = {
   RED:9,BLUE:9,YELLOW:9,PURPLE:5,GREEN:5,ORANGE:5,COLOR_TIE:4,
@@ -36326,74 +36325,17 @@ function csSeededRng(seed) {
   return () => { s^=s<<13; s^=s>>17; s^=s<<5; return (s>>>0)/0x100000000; };
 }
 
-function csDiceRollSound(frameCount = 120) {
+// Lazily created Audio element — reused across rolls
+let _csDiceAudio = null;
+
+function csDiceRollSound() {
   try {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    if (!_csDiceAudioCtx || _csDiceAudioCtx.state === 'closed') {
-      _csDiceAudioCtx = new AC();
+    if (!_csDiceAudio) {
+      _csDiceAudio = new Audio('/sounds/dice-roll.mp3');
+      _csDiceAudio.volume = 0.7;
     }
-    const ctx = _csDiceAudioCtx;
-    if (ctx.state === 'suspended') ctx.resume();
-
-    // Duration matches the clip so sound ends as dice settle
-    const duration = Math.max(0.8, Math.min(frameCount / 60, 4.0));
-    const sr = ctx.sampleRate;
-    const totalSamples = Math.floor(sr * duration);
-    const buf = ctx.createBuffer(1, totalSamples, sr);
-    const d = buf.getChannelData(0);
-
-    // Build impact times — bounces that slow and space out over time
-    const impacts = [];
-    let t = 0.03;
-    let gap = 0.048;
-    while (t < duration - 0.04) {
-      impacts.push(t);
-      gap *= 1.35;
-      t += gap;
-    }
-
-    // Write a noise burst at each impact
-    impacts.forEach((it, idx) => {
-      const progress = it / duration;
-      const amp = (1.0 - progress * 0.65) * (idx === 0 ? 1.0 : 0.7);
-      const decayLen = Math.floor(sr * 0.048 * (1 - progress * 0.45));
-      const start = Math.floor(it * sr);
-      for (let i = 0; i < decayLen && start + i < totalSamples; i++) {
-        d[start + i] += (Math.random() * 2 - 1) * amp * Math.exp(-i / (decayLen * 0.22));
-      }
-    });
-
-    // Subtle continuous rattle between impacts
-    for (let i = 0; i < totalSamples; i++) {
-      d[i] += (Math.random() * 2 - 1) * (1 - i / totalSamples) * 0.06;
-    }
-
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-
-    // High-pass — cuts low rumble, keeps the crisp plastic clack
-    const hp = ctx.createBiquadFilter();
-    hp.type = 'highpass';
-    hp.frequency.value = 900;
-
-    // Slight peak at ~2.5 kHz for the "click" of dice faces
-    const pk = ctx.createBiquadFilter();
-    pk.type = 'peaking';
-    pk.frequency.value = 2500;
-    pk.gain.value = 5;
-    pk.Q.value = 1.2;
-
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.38, ctx.currentTime);
-
-    src.connect(hp);
-    hp.connect(pk);
-    pk.connect(gain);
-    gain.connect(ctx.destination);
-
-    src.start(ctx.currentTime);
-    src.stop(ctx.currentTime + duration + 0.15);
+    _csDiceAudio.currentTime = 0;
+    _csDiceAudio.play().catch(() => {}); // silent fail if browser blocks autoplay
   } catch(e) { /* silent fail */ }
 }
 
@@ -37043,7 +36985,7 @@ function initColorSchemeGame() {
         if(clip){
           _csClipFrame=0; _csClipActive=clip;
           _csClipOnDone=()=>csOnSettled(THREE,CANNON);
-          csDiceRollSound(clip.length / 14);
+          csDiceRollSound();
         } else {
           // Fallback: physics (bake failed for this combo)
           csDiceRollSound();
