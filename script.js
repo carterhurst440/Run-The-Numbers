@@ -32517,8 +32517,12 @@ function _apnlBuildLiveSpine(startAt, endAt, bucketMap) {
 }
 
 async function loadAdminPnlChart() {
-  if (!supabase || adminPnlLoading) return;
+  if (!supabase || adminPnlLoading) {
+    console.warn("[RTN] loadAdminPnlChart skipped — supabase:", !!supabase, "loading:", adminPnlLoading);
+    return;
+  }
   adminPnlLoading = true;
+  console.log("[RTN] loadAdminPnlChart start — period:", adminPnlPeriod, "modes:", [...adminPnlModes], "games:", [...adminPnlGameFilter]);
   const loadingEl = document.querySelector(".apnl-loading");
   if (loadingEl) loadingEl.style.display = "flex";
 
@@ -32578,6 +32582,8 @@ async function loadAdminPnlChart() {
           p_user_id:  userId,
         }),
       ]);
+      console.log("[RTN] apnl daily rows:", dailyRes.data?.length, dailyRes.error);
+      console.log("[RTN] apnl live rows:", liveRes.data?.length, liveRes.error);
       if (dailyRes.error) throw dailyRes.error;
       if (liveRes.error)  throw liveRes.error;
 
