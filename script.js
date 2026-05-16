@@ -30710,7 +30710,10 @@ adminTabButtons.forEach(button => {
       if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
       void loadAdminActivityTimeseries();
-      void loadAdminActivityPlayers();
+      void loadAdminActivityPlayers().then(() => {
+        populateAdminPnlPlayerSelect();
+        populateAdminUserLookupSelect();
+      });
       void loadAdminPnlChart();
       loadAdminAiConversations();
       initializeAnalyticsBettingGrid();

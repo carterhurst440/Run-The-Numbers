@@ -16,7 +16,7 @@ create or replace function public.get_admin_pnl_live(
   p_end_at    timestamptz,
   p_bucket    interval,
   p_modes     text[],
-  p_user_id   uuid
+  p_user_id   uuid default null
 )
 returns table (
   bucket            timestamptz,
@@ -44,10 +44,10 @@ begin
 
   rtn_data as (
     select
-      date_bin(p_bucket, started_at, p_start_at)                  as bucket,
-      case when contest_id is null then 'normal' else 'contest' end as mode,
-      rlh.user_id,
-      sum(coalesce(net, 0))::numeric                              as pnl
+      date_bin(p_bucket, started_at, p_start_at)                   as ts,
+      case when contest_id is null then 'normal' else 'contest' end as grp_mode,
+      rlh.user_id                                                   as grp_user,
+      sum(coalesce(net, 0))::numeric                                as pnl
     from public.rtn_live_hands rlh
     where started_at >= p_start_at
       and started_at <= p_end_at
@@ -59,10 +59,10 @@ begin
 
   g10_data as (
     select
-      date_bin(p_bucket, started_at, p_start_at)                  as bucket,
-      case when contest_id is null then 'normal' else 'contest' end as mode,
-      glh.user_id,
-      sum(coalesce(net, 0))::numeric                              as pnl
+      date_bin(p_bucket, started_at, p_start_at)                   as ts,
+      case when contest_id is null then 'normal' else 'contest' end as grp_mode,
+      glh.user_id                                                   as grp_user,
+      sum(coalesce(net, 0))::numeric                                as pnl
     from public.guess10_live_hands glh
     where started_at >= p_start_at
       and started_at <= p_end_at
@@ -74,10 +74,10 @@ begin
 
   st_data as (
     select
-      date_bin(p_bucket, executed_at, p_start_at)                 as bucket,
-      case when contest_id is null then 'normal' else 'contest' end as mode,
-      stt.user_id,
-      sum(coalesce(net_profit, 0))::numeric                       as pnl
+      date_bin(p_bucket, executed_at, p_start_at)                  as ts,
+      case when contest_id is null then 'normal' else 'contest' end as grp_mode,
+      stt.user_id                                                   as grp_user,
+      sum(coalesce(net_profit, 0))::numeric                        as pnl
     from public.shape_trader_trades stt
     where executed_at >= p_start_at
       and executed_at <= p_end_at
@@ -88,10 +88,10 @@ begin
 
   ryb_data as (
     select
-      date_bin(p_bucket, created_at, p_start_at)                  as bucket,
-      case when contest_id is null then 'normal' else 'contest' end as mode,
-      csr.user_id,
-      sum(coalesce(net_profit, 0))::numeric                       as pnl
+      date_bin(p_bucket, created_at, p_start_at)                   as ts,
+      case when contest_id is null then 'normal' else 'contest' end as grp_mode,
+      csr.user_id                                                   as grp_user,
+      sum(coalesce(net_profit, 0))::numeric                        as pnl
     from public.color_scheme_rounds csr
     where created_at >= p_start_at
       and created_at <= p_end_at
@@ -102,28 +102,28 @@ begin
   ),
 
   spine as (
-    select bucket, mode, user_id from rtn_data
+    select ts, grp_mode, grp_user from rtn_data
     union
-    select bucket, mode, user_id from g10_data
+    select ts, grp_mode, grp_user from g10_data
     union
-    select bucket, mode, user_id from st_data
+    select ts, grp_mode, grp_user from st_data
     union
-    select bucket, mode, user_id from ryb_data
+    select ts, grp_mode, grp_user from ryb_data
   )
 
   select
-    sp.bucket,
-    sp.mode,
-    sp.user_id,
-    coalesce(r.pnl,  0) as pnl_rtn,
-    coalesce(g.pnl,  0) as pnl_g10,
-    coalesce(s.pnl,  0) as pnl_shape_traders,
-    coalesce(y.pnl,  0) as pnl_ryb
+    sp.ts                        as bucket,
+    sp.grp_mode                  as mode,
+    sp.grp_user                  as user_id,
+    coalesce(r.pnl,  0)          as pnl_rtn,
+    coalesce(g.pnl,  0)          as pnl_g10,
+    coalesce(s.pnl,  0)          as pnl_shape_traders,
+    coalesce(y.pnl,  0)          as pnl_ryb
   from spine sp
-  left join rtn_data r  on r.bucket  = sp.bucket and r.mode  = sp.mode and r.user_id  = sp.user_id
-  left join g10_data g  on g.bucket  = sp.bucket and g.mode  = sp.mode and g.user_id  = sp.user_id
-  left join st_data  s  on s.bucket  = sp.bucket and s.mode  = sp.mode and s.user_id  = sp.user_id
-  left join ryb_data y  on y.bucket  = sp.bucket and y.mode  = sp.mode and y.user_id  = sp.user_id;
+  left join rtn_data r on r.ts = sp.ts and r.grp_mode = sp.grp_mode and r.grp_user = sp.grp_user
+  left join g10_data g on g.ts = sp.ts and g.grp_mode = sp.grp_mode and g.grp_user = sp.grp_user
+  left join st_data  s on s.ts = sp.ts and s.grp_mode = sp.grp_mode and s.grp_user = sp.grp_user
+  left join ryb_data y on y.ts = sp.ts and y.grp_mode = sp.grp_mode and y.grp_user = sp.grp_user;
 end;
 $$;
 

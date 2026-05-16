@@ -15,7 +15,7 @@ create or replace function public.get_admin_pnl_daily(
   p_start_date  date,
   p_end_date    date,
   p_modes       text[],
-  p_user_id     uuid
+  p_user_id     uuid default null
 )
 returns table (
   profit_date       date,
