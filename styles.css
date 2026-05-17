@@ -9216,6 +9216,13 @@ body.theme-angelic {
   flex-shrink: 0;
 }
 
+.nav-logo {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: block;
+}
+
 .nav-brand {
   font-size: 11px;
   letter-spacing: 0.2em;
