@@ -26715,8 +26715,10 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
         isClickable = true;
       }
     } else {
-      // RTN / G10
-      game = entry.gameKey === GAME_KEYS.GUESS_10 ? "G10" : "RTN";
+      // RTN / G10 / COLOR_SCHEME (entryType:"hand")
+      game = entry.gameKey === GAME_KEYS.GUESS_10 ? "G10"
+           : entry.gameKey === GAME_KEYS.COLOR_SCHEME ? "RYB"
+           : "RTN";
       shortId = entry.handNumber || entry.handId?.slice(-4) || "—";
       modeLabel = (entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL";
       net = Number(entry.net ?? 0);
