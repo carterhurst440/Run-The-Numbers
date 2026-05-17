@@ -28491,9 +28491,6 @@ async function endHand(stopperCard, context = {}) {
   await incrementProfileHandProgress(1, GAME_KEYS.RUN_THE_NUMBERS);
   await ensureProfileSynced({ force: true });
   await refreshGameAssetsFromBackend().catch((err) => console.warn("[RTN] Game asset sync error:", err));
-  await logRunTheNumbersHandAndBets(stopperCard, context, betSnapshots, netThisHand, {
-    gameKey: GAME_KEYS.RUN_THE_NUMBERS
-  });
   resetBets();
   setBettingEnabled(true);
   updateAutoDealToggleUI();
@@ -28686,7 +28683,8 @@ async function dealHandServer() {
           setBettingEnabled(true);
           updateDealButtonState();
           updateRebetButtonState();
-          return dealHandLegacy();
+          showToast("Unable to connect to game server. Please check your connection and try again.", "error");
+          return;
         }
       } catch (startError) {
         if (isRtnActiveHandConflict(startError)) {
@@ -28697,7 +28695,8 @@ async function dealHandServer() {
             setBettingEnabled(true);
             updateDealButtonState();
             updateRebetButtonState();
-            return dealHandLegacy();
+            showToast("Unable to connect to game server. Please check your connection and try again.", "error");
+            return;
           }
           if (!rtnServerHandId) {
             throw startError;
