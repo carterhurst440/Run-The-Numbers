@@ -216,8 +216,8 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${recipient.contest_title}</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap');
     ${potStyles}
     body { margin:0; padding:0; background:${BG}; }
     a { color:inherit; }
@@ -286,7 +286,7 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
             <td style="border-top:1px solid rgba(104,104,80,0.2);padding:16px 0 0;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td><p style="margin:0;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.1em;">CARTERSCASINO.APP</p></td>
+                  <td><p style="margin:0;font-family:${MONO};font-size:10px;font-weight:700;letter-spacing:0.1em;"><a href="${appBaseUrl}" style="color:${LIME};text-decoration:none;text-transform:uppercase;">CARTERSCASINO.APP</a></p></td>
                   <td align="right"><p style="margin:0;font-family:${MONO};font-size:10px;color:${DIM};letter-spacing:0.06em;">${dateRange}</p></td>
                 </tr>
                 <tr>
