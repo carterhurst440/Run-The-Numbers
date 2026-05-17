@@ -18209,6 +18209,10 @@ const bankrollChartChangeEl = document.getElementById("bankroll-chart-change");
 const bankrollChartTooltip = document.getElementById("bankroll-chart-tooltip");
 const bankrollChartTooltipDateEl = document.getElementById("bankroll-chart-tooltip-date");
 const bankrollChartTooltipValueEl = document.getElementById("bankroll-chart-tooltip-value");
+const homePnlTooltip = document.getElementById("home-pnl-tooltip");
+const homePnlTooltipDateEl = document.getElementById("home-pnl-tooltip-date");
+const homePnlTooltipValueEl = document.getElementById("home-pnl-tooltip-value");
+const homePnlChartWrapEl = document.getElementById("home-pnl-chart-wrap");
 const activityFilterButtons = Array.from(document.querySelectorAll("[data-activity-period]"));
 const pnlRankFilterButtons = Array.from(document.querySelectorAll("[data-pnl-rank-period]"));
 const overviewChartSubheadEl = document.getElementById("overview-chart-subhead");
@@ -22346,6 +22350,27 @@ function drawRoundedChartBar(ctx, x, y, width, height, radius, options = {}) {
   }
   ctx.closePath();
   ctx.fill();
+}
+
+function hideHomePnlTooltip() {
+  if (homePnlTooltip) homePnlTooltip.hidden = true;
+}
+
+function showHomePnlTooltip(bar) {
+  if (!homePnlTooltip || !homePnlTooltipDateEl || !homePnlTooltipValueEl || !bar) return;
+  homePnlTooltipDateEl.textContent = bar.label;
+  const v = Number(bar.value || 0);
+  homePnlTooltipValueEl.textContent = v >= 0 ? `+${formatCurrency(v)}` : formatSignedCurrency(v);
+  homePnlTooltipValueEl.classList.toggle("is-negative", v < 0);
+  const wrapperRect = homePnlChartWrapEl?.getBoundingClientRect();
+  homePnlTooltip.hidden = false;
+  if (!wrapperRect) return;
+  const tooltipWidth = homePnlTooltip.offsetWidth || 112;
+  const horizontalPadding = 10;
+  const minLeft = tooltipWidth / 2 + horizontalPadding;
+  const maxLeft = wrapperRect.width - tooltipWidth / 2 - horizontalPadding;
+  homePnlTooltip.style.left = `${Math.max(minLeft, Math.min(maxLeft, bar.centerX))}px`;
+  homePnlTooltip.style.top = `${Math.max(8, bar.anchorY)}px`;
 }
 
 function hideBankrollChartTooltip() {
@@ -29164,6 +29189,17 @@ if (bankrollChartCanvas && bankrollChartWrapper) {
   });
 }
 
+if (homePnlChartCanvas) {
+  homePnlChartCanvas.addEventListener("mousemove", (event) => {
+    const rect = homePnlChartCanvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const hit = homePnlHoverBars.find((bar) => x >= bar.x && x <= bar.x + bar.width && y >= bar.y && y <= bar.y + bar.height);
+    if (hit) { showHomePnlTooltip(hit); } else { hideHomePnlTooltip(); }
+  });
+  homePnlChartCanvas.addEventListener("mouseleave", () => { hideHomePnlTooltip(); });
+}
+
 if (adminPnlChartCanvas && adminPnlChartWrapper) {
   adminPnlChartCanvas.addEventListener("mousemove", (event) => {
     const rect = adminPnlChartCanvas.getBoundingClientRect();
@@ -35744,6 +35780,7 @@ function drawHomePnlChart() {
   const barSpacing = 2;
   const barW = n > 1 ? Math.max(2, (chartW - barSpacing * (n - 1)) / n) : chartW;
 
+  homePnlHoverBars = [];
   values.forEach((val, i) => {
     const x = pad.left + i * (barW + barSpacing);
     const barH = Math.max(1, (Math.abs(val) / maxAbs) * (chartH / 2 - 2));
@@ -35752,6 +35789,17 @@ function drawHomePnlChart() {
     ctx.globalAlpha = 0.85;
     ctx.fillRect(x, y, barW, barH);
     ctx.globalAlpha = 1;
+
+    // Hit-test region (full column height for easy hover)
+    const pt = points[i];
+    const label = formatBankrollTickLabel(pt, i, homePnlChartPeriod);
+    homePnlHoverBars.push({
+      x, y: 0, width: barW + barSpacing, height: h,
+      centerX: x + barW / 2,
+      anchorY: Math.max(y - 6, 4),
+      value: val,
+      label
+    });
   });
 
   // zero line
