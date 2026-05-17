@@ -27596,6 +27596,7 @@ async function fetchHandReviewEntry(reviewId) {
     totalWager: roundCurrencyValue(Number(handRow?.total_wager || 0)),
     totalReturn: roundCurrencyValue(Number(handRow?.total_paid || 0)),
     net: roundCurrencyValue(Number(handRow?.net || 0)),
+    newAccountValue: handRow?.new_account_value ? roundCurrencyValue(Number(handRow.new_account_value)) : null,
     stopperLabel: handRow?.stopper_label || null,
     stopperSuit: handRow?.stopper_suit || null,
     drawnCards: sanitizeStoredDrawnCards(handRow?.drawn_cards),
@@ -27614,7 +27615,7 @@ async function fetchHandReviewEntry(reviewId) {
           .select('bet_key, amount_wagered, outcome, amount_returned, net_profit')
           .eq('round_id', reviewId),
         supabase.from('color_scheme_rounds')
-          .select('roll_1,roll_2,roll_3,red_total,yellow_total,blue_total,purple_total,green_total,orange_total,primary_score,secondary_score,grand_total,total_wagered,total_returned,net_profit')
+          .select('roll_1,roll_2,roll_3,red_total,yellow_total,blue_total,purple_total,green_total,orange_total,primary_score,secondary_score,grand_total,total_wagered,total_returned,net_profit,new_account_value')
           .eq('id', reviewId)
           .maybeSingle()
       ]);
@@ -27635,9 +27636,10 @@ async function fetchHandReviewEntry(reviewId) {
           secondaryScore: Number(roundRow.secondary_score || 0),
           grandTotal:     Number(roundRow.grand_total     || 0),
         };
-        baseEntry.totalWager  = roundCurrencyValue(Number(roundRow.total_wagered));
-        baseEntry.totalReturn = roundCurrencyValue(Number(roundRow.total_returned));
-        baseEntry.net         = roundCurrencyValue(Number(roundRow.net_profit));
+        baseEntry.totalWager       = roundCurrencyValue(Number(roundRow.total_wagered));
+        baseEntry.totalReturn      = roundCurrencyValue(Number(roundRow.total_returned));
+        baseEntry.net              = roundCurrencyValue(Number(roundRow.net_profit));
+        if (roundRow.new_account_value) baseEntry.newAccountValue = roundCurrencyValue(Number(roundRow.new_account_value));
 
         // Re-derive each bet's outcome from authoritative round color totals.
         // The stored `outcome` in color_scheme_bets can be wrong if a double-settle
