@@ -21842,7 +21842,7 @@ async function fetchGameHandsRecords({
     while (csHasMore) {
       let query = supabase
         .from("color_scheme_rounds")
-        .select("id, user_id, created_at, contest_id, mode_type, total_wagered, total_returned, net_profit")
+        .select("id, user_id, created_at, contest_id, total_wagered, total_returned, net_profit")
         .eq("status", "completed")
         .order("created_at", { ascending: true })
         .range(csPage * csPageSize, (csPage + 1) * csPageSize - 1);
@@ -21861,7 +21861,7 @@ async function fetchGameHandsRecords({
           user_id: row.user_id,
           created_at: row.created_at,
           game_id: GAME_KEYS.COLOR_SCHEME,
-          mode_type: row.mode_type || "normal",
+          mode_type: row.contest_id ? "contest" : "normal",
           contest_id: row.contest_id || null,
           total_cards: 0,
           stopper_label: null,
