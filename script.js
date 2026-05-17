@@ -18121,6 +18121,12 @@ const redBlackChipRackEditButton = document.getElementById("red-black-chip-rack-
 const g10HowToPlayBtn   = document.getElementById("g10-how-to-play-btn");
 const g10HowToPlayModal = document.getElementById("g10-how-to-play-modal");
 const g10HowToPlayClose = document.getElementById("g10-how-to-play-close");
+const rtnHowToPlayBtn   = document.getElementById("rtn-how-to-play-btn");
+const rtnHowToPlayModal = document.getElementById("rtn-how-to-play-modal");
+const rtnHowToPlayClose = document.getElementById("rtn-how-to-play-close");
+const stHowToPlayBtn    = document.getElementById("st-how-to-play-btn");
+const stHowToPlayModal  = document.getElementById("st-how-to-play-modal");
+const stHowToPlayClose  = document.getElementById("st-how-to-play-close");
 const redBlackCategoryButtons = Array.from(document.querySelectorAll("[data-red-black-category]"));
 const redBlackValueSelectorEl = document.getElementById("red-black-value-selector");
 const redBlackSelectionHintEl = document.getElementById("red-black-selection-hint");
@@ -34311,6 +34317,28 @@ if (g10HowToPlayClose) g10HowToPlayClose.addEventListener("click", () => {
 });
 if (g10HowToPlayModal) g10HowToPlayModal.addEventListener("click", e => {
   if (e.target === g10HowToPlayModal) { g10HowToPlayModal.hidden = true; document.body.classList.remove("modal-open"); }
+});
+
+// Run the Numbers — How to Play modal
+if (rtnHowToPlayBtn) rtnHowToPlayBtn.addEventListener("click", () => {
+  if (rtnHowToPlayModal) { rtnHowToPlayModal.hidden = false; document.body.classList.add("modal-open"); }
+});
+if (rtnHowToPlayClose) rtnHowToPlayClose.addEventListener("click", () => {
+  if (rtnHowToPlayModal) { rtnHowToPlayModal.hidden = true; document.body.classList.remove("modal-open"); }
+});
+if (rtnHowToPlayModal) rtnHowToPlayModal.addEventListener("click", e => {
+  if (e.target === rtnHowToPlayModal) { rtnHowToPlayModal.hidden = true; document.body.classList.remove("modal-open"); }
+});
+
+// Shape Traders — How to Play modal
+if (stHowToPlayBtn) stHowToPlayBtn.addEventListener("click", () => {
+  if (stHowToPlayModal) { stHowToPlayModal.hidden = false; document.body.classList.add("modal-open"); }
+});
+if (stHowToPlayClose) stHowToPlayClose.addEventListener("click", () => {
+  if (stHowToPlayModal) { stHowToPlayModal.hidden = true; document.body.classList.remove("modal-open"); }
+});
+if (stHowToPlayModal) stHowToPlayModal.addEventListener("click", e => {
+  if (e.target === stHowToPlayModal) { stHowToPlayModal.hidden = true; document.body.classList.remove("modal-open"); }
 });
 
 redBlackCategoryButtons.forEach((button) => {

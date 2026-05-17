@@ -1010,6 +1010,7 @@
                     <h2 id="shape-traders-market-title">Live Asset Prices</h2>
                   </div>
                   <div class="shape-traders-panel-heading-actions">
+                    <button type="button" id="st-how-to-play-btn" class="cs-hist-modal-btn">HOW TO PLAY</button>
                     <button type="button" class="shape-traders-rules-btn" id="shape-traders-rules-open" aria-label="View Split and Bankruptcy rules">
                       View Split &amp; Bankruptcy rules
                       <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><circle cx="6.5" cy="6.5" r="6" stroke="currentColor" stroke-width="1.2"/><text x="6.5" y="10" text-anchor="middle" font-size="8" font-family="monospace" fill="currentColor">i</text></svg>
@@ -1440,14 +1441,6 @@
               </section>
             </div>
 
-            <div class="beta-bottom-panels">
-              <section class="beta-game-panel beta-inline-panel" aria-labelledby="red-black-history-title">
-                <p class="beta-game-panel-kicker">Hand Log</p>
-                <h2 id="red-black-history-title">Revealed History</h2>
-                <ul id="red-black-history" class="beta-game-list beta-history-list" aria-live="polite"></ul>
-              </section>
-
-            </div>
 
           </div>
         </section>
@@ -1476,6 +1469,7 @@
                     <h2 class="draws-title">Cards Dealt</h2>
                     <span id="rtn-card-count" class="rtn-card-count" aria-live="polite" aria-atomic="true">0</span>
                   </div>
+                  <button type="button" id="rtn-how-to-play-btn" class="cs-hist-modal-btn">HOW TO PLAY</button>
                 </div>
                 <div class="dealer-toggles">
                   <label class="advanced-toggle deal-mode-toggle is-active" id="auto-deal-toggle-wrap">
@@ -4613,6 +4607,80 @@
       </div>
     </div>
   </div>
+  <!-- Run the Numbers — How to Play modal -->
+  <div id="rtn-how-to-play-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="rtn-htp-title" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="rtn-htp-title">How to Play — Run the Numbers</h2>
+        <button type="button" class="modal-close" id="rtn-how-to-play-close" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body cs-htp-body">
+        <div class="cs-htp-section">
+          <div class="cs-htp-label">CORE LOOP</div>
+          <ol class="cs-htp-text" style="padding-left:1.2em">
+            <li>Place bets on any combination of wager regions before the hand.</li>
+            <li>Cards are dealt one at a time from a shuffled 52-card deck.</li>
+            <li>The hand continues until a Stopper card appears — ending the hand.</li>
+            <li>All open bets resolve based on the cards dealt and the stopper.</li>
+          </ol>
+        </div>
+        <div class="cs-htp-section">
+          <div class="cs-htp-label">WAGER REGIONS</div>
+          <ul class="cs-htp-text" style="padding-left:1.2em">
+            <li>Bet on card counts, suit runs, color streaks, rank thresholds, and more.</li>
+            <li>Each region has its own paytable and stopper rules.</li>
+            <li>Multiple bets can be active in the same hand.</li>
+          </ul>
+        </div>
+        <div class="cs-htp-section">
+          <div class="cs-htp-label">STOPPER CARDS</div>
+          <p class="cs-htp-text">Certain cards act as stoppers and immediately end the hand. Which cards are stoppers depends on the active paytable. When a stopper lands, all bets resolve against the final card count and hand state.</p>
+        </div>
+        <div class="cs-htp-section">
+          <div class="cs-htp-label">AUTO DEAL &amp; AUTO REBET</div>
+          <p class="cs-htp-text">Enable Auto Deal to draw cards automatically without clicking after each card. Enable Auto Rebet to carry your previous wagers into the next hand automatically.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shape Traders — How to Play modal -->
+  <div id="st-how-to-play-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="st-htp-title" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="st-htp-title">How to Play — Shape Traders</h2>
+        <button type="button" class="modal-close" id="st-how-to-play-close" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body cs-htp-body">
+        <div class="cs-htp-section">
+          <div class="cs-htp-label">CORE LOOP</div>
+          <ol class="cs-htp-text" style="padding-left:1.2em">
+            <li>Six shape assets trade in a simulated market driven by card draws.</li>
+            <li>Buy and sell shares to grow your account balance.</li>
+            <li>Prices update each round based on the cards dealt.</li>
+            <li>Sell positions to lock in profit — or cut losses before they deepen.</li>
+          </ol>
+        </div>
+        <div class="cs-htp-section">
+          <div class="cs-htp-label">PRICE MOVEMENT</div>
+          <ul class="cs-htp-text" style="padding-left:1.2em">
+            <li>Each card drawn affects one or more assets based on suit and rank.</li>
+            <li>Assets can trend up, trend down, or stay flat across a session.</li>
+            <li>Market cap bars show relative asset size — larger assets move slower.</li>
+          </ul>
+        </div>
+        <div class="cs-htp-section">
+          <div class="cs-htp-label">SPLITS &amp; BANKRUPTCY</div>
+          <p class="cs-htp-text">When an asset price crosses a high threshold it may split — shares double and price halves. When it hits zero the asset goes bankrupt and all holdings in that asset are wiped. Use the Split &amp; Bankruptcy rules button for exact thresholds.</p>
+        </div>
+        <div class="cs-htp-section">
+          <div class="cs-htp-label">LIQUIDATE ALL</div>
+          <p class="cs-htp-text">Sells every open position at current market prices instantly. Use it to exit all trades in one click when you want to lock in your overall account value.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Color Scheme: How to Play modal (root level so it clears the Three.js stacking context) -->
   <!-- Guess 10 — How to Play modal -->
   <div id="g10-how-to-play-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="g10-htp-title" hidden>
