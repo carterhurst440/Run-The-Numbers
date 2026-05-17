@@ -92,7 +92,6 @@ const BG = `#0a0a09`;
 const FG = `#ddd5bc`;
 const DIM = `#686850`;
 const LIME = `#c8ff00`;
-const BORDER = `rgba(200,255,0,0.15)`;
 
 function formatContestStartTime(value: string | null) {
   if (!value) return null;
@@ -116,50 +115,23 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
   const appBaseUrl = (Deno.env.get("APP_BASE_URL") || "https://carterscasino.app").replace(/\/+$/, "");
   const joinUrl = `${appBaseUrl}/#/contests?contest=${encodeURIComponent(contestId)}`;
 
-  const startBlock = formattedStart
-    ? `<tr>
-        <td style="padding:0 0 28px;">
-          <table role="presentation" cellpadding="0" cellspacing="0">
-            <tr>
-              <td style="padding-right:32px;">
-                <p style="margin:0 0 4px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">// starts</p>
-                <p style="margin:0;font-family:${MONO};font-size:13px;color:${FG};">${formattedStart}</p>
-              </td>
-              <td>
-                <p style="margin:0 0 4px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">// runs for</p>
-                <p style="margin:0;font-family:${MONO};font-size:13px;color:${FG};">${contestLengthHours}h</p>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>`
-    : `<tr>
-        <td style="padding:0 0 28px;">
-          <table role="presentation" cellpadding="0" cellspacing="0">
-            <tr>
-              <td style="padding-right:32px;">
-                <p style="margin:0 0 4px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">// starts when</p>
-                <p style="margin:0;font-family:${MONO};font-size:13px;color:${FG};">${contestantRequirement} player${contestantRequirement === 1 ? "" : "s"} join</p>
-              </td>
-              <td>
-                <p style="margin:0 0 4px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">// runs for</p>
-                <p style="margin:0;font-family:${MONO};font-size:13px;color:${FG};">${contestLengthHours}h</p>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>`;
+  const logoMark = `<table cellpadding="0" cellspacing="0" style="display:inline-table;width:20px;height:20px;background:#c8ff00;"><tr><td style="padding:2px;"><table cellpadding="0" cellspacing="0" style="width:16px;height:16px;background:#0a0a09;"><tr><td style="padding:4px;"><div style="width:8px;height:8px;background:#c8ff00;"></div></td></tr></table></td></tr></table>`;
+
+  const startLabel = formattedStart ? "STARTS" : "STARTS WHEN";
+  const startValue = formattedStart
+    ? formattedStart
+    : `${contestantRequirement} player${contestantRequirement === 1 ? "" : "s"} join`;
 
   const bodyCopy = formattedStart
-    ? `hey ${firstName} — a new contest has been published and is scheduled to start soon. join before it fills up.`
-    : `hey ${firstName} — a new contest has been published. it will start as soon as ${contestantRequirement} player${contestantRequirement === 1 ? "" : "s"} join. be one of them.`;
+    ? `hey ${firstName} — a new contest is scheduled. get in before it starts.`
+    : `hey ${firstName} — a new contest is waiting. it starts as soon as ${contestantRequirement} player${contestantRequirement === 1 ? "" : "s"} join.`;
 
-  const detailsBlock = recipient.contest_details?.trim()
+  const detailsRow = recipient.contest_details?.trim()
     ? `<tr>
-        <td style="padding:0 0 28px;">
-          <div style="padding:16px;background:rgba(255,255,255,0.03);border-left:2px solid ${BORDER};">
-            <p style="margin:0 0 6px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">// details</p>
-            <p style="margin:0;font-family:${MONO};font-size:13px;color:${FG};line-height:1.65;opacity:0.82;">${recipient.contest_details.trim()}</p>
+        <td style="padding:0 0 36px;">
+          <p style="margin:0 0 6px;font-family:${MONO};font-size:9px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">DETAILS</p>
+          <div style="padding:14px 16px;border-left:2px solid rgba(200,255,0,0.25);">
+            <p style="margin:0;font-family:${MONO};font-size:12px;color:${FG};line-height:1.7;opacity:0.82;">${recipient.contest_details.trim()}</p>
           </div>
         </td>
       </tr>`
@@ -170,59 +142,95 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${recipient.contest_title} — new contest published</title>
+  <title>${recipient.contest_title}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap');
-    body { margin: 0; padding: 0; background: ${BG}; }
-    a { color: inherit; }
+    body { margin:0; padding:0; background:${BG}; }
+    a { color:inherit; }
   </style>
 </head>
 <body style="margin:0;padding:0;background:${BG};">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BG};">
     <tr>
-      <td align="center" style="padding:32px 16px 40px;">
-        <table role="presentation" width="100%" style="max-width:540px;" cellpadding="0" cellspacing="0">
+      <td align="center" style="padding:28px 20px 40px;">
+        <table role="presentation" width="100%" style="max-width:520px;" cellpadding="0" cellspacing="0">
 
-          <!-- HEADER -->
+          <!-- TOP BAR -->
           <tr>
-            <td style="padding:0 0 32px;">
-              <p style="margin:0;font-family:${MONO};font-size:11px;font-weight:700;color:${LIME};letter-spacing:0.18em;text-transform:uppercase;">// carter's casino</p>
+            <td style="padding:0 0 24px;border-bottom:1px solid rgba(200,255,0,0.15);">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <table role="presentation" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="vertical-align:middle;padding-right:9px;">${logoMark}</td>
+                        <td style="vertical-align:middle;"><span style="font-family:${MONO};font-size:11px;font-weight:700;color:${FG};letter-spacing:0.12em;text-transform:uppercase;">CARTER'S CASINO</span></td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};letter-spacing:0.14em;text-transform:uppercase;">NEW CONTEST</span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
-          <!-- HERO -->
+          <!-- CONTEST TITLE -->
           <tr>
-            <td style="padding:0 0 32px;border-bottom:1px solid ${BORDER};">
-              <p style="margin:0 0 10px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.2em;">// new contest</p>
-              <h1 style="margin:0;font-family:${MONO};font-size:28px;font-weight:800;color:${FG};line-height:1.15;letter-spacing:-0.01em;">${recipient.contest_title}</h1>
+            <td style="padding:32px 0 40px;">
+              <h1 style="margin:0;font-family:${MONO};font-size:38px;font-weight:800;color:${FG};line-height:1.1;letter-spacing:-0.02em;">${recipient.contest_title}</h1>
             </td>
           </tr>
 
           <!-- START / DURATION -->
-          <tr><td style="padding:28px 0 0;"></td></tr>
-          ${startBlock}
+          <tr>
+            <td style="padding:0 0 36px;">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding-right:40px;">
+                    <p style="margin:0 0 6px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">${startLabel}</p>
+                    <p style="margin:0;font-family:${MONO};font-size:16px;font-weight:700;color:${FG};">${startValue}</p>
+                  </td>
+                  <td>
+                    <p style="margin:0 0 6px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">RUNS FOR</p>
+                    <p style="margin:0;font-family:${MONO};font-size:16px;font-weight:700;color:${FG};">${contestLengthHours}h</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
-          <!-- DETAILS -->
-          ${detailsBlock}
+          <!-- DETAILS (optional) -->
+          ${detailsRow}
 
           <!-- BODY COPY -->
           <tr>
             <td style="padding:0 0 32px;">
-              <p style="margin:0;font-family:${MONO};font-size:13px;color:${DIM};line-height:1.7;">${bodyCopy}</p>
+              <p style="margin:0;font-family:${MONO};font-size:12px;color:${DIM};line-height:1.75;">${bodyCopy}</p>
             </td>
           </tr>
 
           <!-- CTA -->
           <tr>
             <td style="padding:0 0 40px;">
-              <a href="${joinUrl}" style="display:inline-block;padding:13px 28px;background:${LIME};color:#0a0a09;font-family:${MONO};font-size:12px;font-weight:700;letter-spacing:0.14em;text-decoration:none;text-transform:uppercase;">view contest →</a>
+              <a href="${joinUrl}" style="display:block;padding:16px 24px;background:${LIME};color:#0a0a09;font-family:${MONO};font-size:12px;font-weight:800;letter-spacing:0.16em;text-decoration:none;text-transform:uppercase;text-align:center;">VIEW CONTEST &#8594;</a>
             </td>
           </tr>
 
-          <!-- FOOTER -->
+          <!-- FOOTER BAR -->
           <tr>
-            <td style="border-top:1px solid rgba(104,104,80,0.25);padding:20px 0 0;">
-              <p style="margin:0;font-family:${MONO};font-size:10px;color:${DIM};line-height:1.6;">to stop receiving contest emails, open the app &rsaquo; contests &rsaquo; notifications</p>
+            <td style="border-top:1px solid rgba(104,104,80,0.2);padding:16px 0 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td><p style="margin:0;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.1em;">CARTERSCASINO.APP</p></td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 0 0;">
+                    <p style="margin:0;font-family:${MONO};font-size:10px;color:rgba(104,104,80,0.5);line-height:1.6;">to stop receiving contest emails, open the app &rsaquo; contests &rsaquo; notifications</p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 

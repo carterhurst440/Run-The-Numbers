@@ -92,12 +92,9 @@ async function sendEmailWithRetry(
 
 const MONO = `'JetBrains Mono', 'Courier New', monospace`;
 const BG = `#0a0a09`;
-const BG2 = `#111110`;
 const FG = `#ddd5bc`;
 const DIM = `#686850`;
 const LIME = `#c8ff00`;
-const LIME_DIM = `rgba(200,255,0,0.12)`;
-const BORDER = `rgba(200,255,0,0.15)`;
 
 function formatPrizeMoney(value: number) {
   return new Intl.NumberFormat("en-US", {
@@ -107,70 +104,75 @@ function formatPrizeMoney(value: number) {
   }).format(value);
 }
 
-function formatContestStartTime(value: string) {
-  const startTime = new Date(value);
-  if (Number.isNaN(startTime.getTime())) {
-    return "right now";
-  }
-  return startTime.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: CONTEST_EMAIL_TIME_ZONE,
-    timeZoneName: "short"
-  });
+function formatDateRange(starts: string, ends: string): string {
+  const s = new Date(starts);
+  const e = new Date(ends);
+  if (Number.isNaN(s.getTime())) return "";
+  const startStr = s.toLocaleString("en-US", { month: "short", day: "numeric", timeZone: CONTEST_EMAIL_TIME_ZONE });
+  if (Number.isNaN(e.getTime())) return startStr.toUpperCase();
+  const sameMonth = s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear();
+  const endStr = sameMonth
+    ? e.toLocaleString("en-US", { day: "numeric", timeZone: CONTEST_EMAIL_TIME_ZONE })
+    : e.toLocaleString("en-US", { month: "short", day: "numeric", timeZone: CONTEST_EMAIL_TIME_ZONE });
+  return `${startStr} – ${endStr}`.toUpperCase();
 }
 
-function buildPotBlock(recipient: RecipientRow): { tickerStyles: string; html: string } {
+function buildPotSection(recipient: RecipientRow): { potStyles: string; potHtml: string } {
   const baseAmount = Math.max(0, Number(recipient.prize_static_amount ?? 0));
   const unitAmount = Math.max(0, Number(recipient.prize_variable_unit_amount ?? 0));
   const isVariable = recipient.prize_mode === "variable" && recipient.prize_variable_basis !== "none" && unitAmount > 0;
-  const basisLabel = recipient.prize_variable_basis === "qualifying_contestant" ? "qualifying player" : "player";
-
-  const potNumStyle = `font-family:${MONO};font-size:52px;font-weight:800;color:${LIME};line-height:60px;letter-spacing:-0.02em;`;
+  const basisLabel = recipient.prize_variable_basis === "qualifying_contestant" ? "QUALIFYING PLAYER" : "PLAYER";
+  const numStyle = `font-family:${MONO};font-size:72px;font-weight:800;color:${LIME};line-height:80px;letter-spacing:-0.03em;`;
 
   if (!isVariable) {
-    const growthNote = `<p style="margin:6px 0 0;font-family:${MONO};font-size:11px;color:${DIM};text-transform:uppercase;letter-spacing:0.12em;">fixed pot</p>`;
     return {
-      tickerStyles: "",
-      html: `<div style="margin:0 0 28px;">
-        <p style="margin:0 0 6px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">// pot</p>
-        <div style="${potNumStyle}">${formatPrizeMoney(baseAmount)}</div>
-        ${growthNote}
-      </div>`
+      potStyles: "",
+      potHtml: `
+        <p style="margin:0 0 10px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.18em;">PRIZE POT</p>
+        <div style="${numStyle}">${formatPrizeMoney(baseAmount)}</div>`
     };
   }
 
-  // Build ticker frames: base → base + 5 increments
   const FRAME_COUNT = 6;
   const frames = Array.from({ length: FRAME_COUNT }, (_, i) => formatPrizeMoney(baseAmount + i * unitAmount));
-  // translateY to show last frame: -((N-1)/N * 100)%
   const endPct = (((FRAME_COUNT - 1) / FRAME_COUNT) * 100).toFixed(4);
-  const durationS = (FRAME_COUNT - 1) * 0.7;
-
-  const growthNote = baseAmount > 0
-    ? `starts at ${formatPrizeMoney(baseAmount)} · grows ${formatPrizeMoney(unitAmount)} per ${basisLabel}`
-    : `grows ${formatPrizeMoney(unitAmount)} per ${basisLabel}`;
+  const durationS = ((FRAME_COUNT - 1) * 0.7).toFixed(1);
+  const growthCopy = baseAmount > 0
+    ? `${formatPrizeMoney(unitAmount)} added to the pot with each new entry. starts at ${formatPrizeMoney(baseAmount)}.`
+    : `${formatPrizeMoney(unitAmount)} added to the pot with each new entry.`;
 
   return {
-    tickerStyles: `
+    potStyles: `
       @keyframes pot-tick {
         from { transform: translateY(0); }
         to   { transform: translateY(-${endPct}%); }
       }
-      .pot-ticker {
-        animation: pot-tick ${durationS}s steps(${FRAME_COUNT - 1}, end) infinite alternate;
-      }`,
-    html: `<div style="margin:0 0 28px;">
-      <p style="margin:0 0 6px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">// pot</p>
-      <div style="height:60px;overflow:hidden;">
-        <div class="pot-ticker">
-          ${frames.map(f => `<div style="${potNumStyle}">${f}</div>`).join("\n          ")}
-        </div>
-      </div>
-      <p style="margin:6px 0 0;font-family:${MONO};font-size:11px;color:${DIM};letter-spacing:0.04em;">${growthNote}</p>
-    </div>`
+      .pot-ticker { animation: pot-tick ${durationS}s steps(${FRAME_COUNT - 1}, end) infinite alternate; }`,
+    potHtml: `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px;">
+        <tr>
+          <td><p style="margin:0;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.18em;">PRIZE POT</p></td>
+          <td align="right" style="vertical-align:middle;"><p style="margin:0;font-family:${MONO};font-size:9px;color:${DIM};text-transform:uppercase;letter-spacing:0.12em;">UPDATED LIVE</p></td>
+        </tr>
+      </table>
+      <table role="presentation" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="vertical-align:bottom;">
+            <div style="height:80px;overflow:hidden;">
+              <div class="pot-ticker">
+                ${frames.map(f => `<div style="${numStyle}">${f}</div>`).join("\n                ")}
+              </div>
+            </div>
+          </td>
+          <td style="vertical-align:bottom;padding:0 0 10px 16px;">
+            <div style="padding:6px 10px;border:1px solid ${LIME};display:inline-block;">
+              <p style="margin:0;font-family:${MONO};font-size:9px;font-weight:700;color:${LIME};text-transform:uppercase;letter-spacing:0.1em;">+${formatPrizeMoney(unitAmount)}</p>
+              <p style="margin:3px 0 0;font-family:${MONO};font-size:9px;font-weight:700;color:${LIME};text-transform:uppercase;letter-spacing:0.1em;">PER ${basisLabel}</p>
+            </div>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:10px 0 0;font-family:${MONO};font-size:12px;color:${DIM};line-height:1.65;">${growthCopy}</p>`
   };
 }
 
@@ -178,9 +180,8 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
   const firstName = recipient.first_name?.trim() || "there";
   const startTime = new Date(recipient.starts_at);
   const endTime = new Date(recipient.ends_at);
-  const durationMs = Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())
-    ? 0
-    : Math.max(0, endTime.getTime() - startTime.getTime());
+  const durationMs = !Number.isNaN(startTime.getTime()) && !Number.isNaN(endTime.getTime())
+    ? Math.max(0, endTime.getTime() - startTime.getTime()) : 0;
   const totalMinutes = Math.round(durationMs / 60000);
   const durationHours = Math.floor(totalMinutes / 60);
   const durationMinutes = totalMinutes % 60;
@@ -191,15 +192,22 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
 
   const appBaseUrl = (Deno.env.get("APP_BASE_URL") || "https://carterscasino.app").replace(/\/+$/, "");
   const joinUrl = `${appBaseUrl}/#/contests?contest=${encodeURIComponent(contestId)}`;
-  const formattedStart = formatContestStartTime(recipient.starts_at);
+  const dateRange = formatDateRange(recipient.starts_at, recipient.ends_at);
 
-  const { tickerStyles, html: potHtml } = buildPotBlock(recipient);
+  const { potStyles, potHtml } = buildPotSection(recipient);
 
-  const detailsBlock = recipient.contest_details?.trim()
-    ? `<div style="margin:0 0 28px;padding:16px;background:rgba(255,255,255,0.03);border-left:2px solid ${BORDER};">
-        <p style="margin:0 0 6px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">// details</p>
-        <p style="margin:0;font-family:${MONO};font-size:13px;color:${FG};line-height:1.65;opacity:0.82;">${recipient.contest_details.trim()}</p>
-      </div>`
+  // Logo mark: nested tables, renders in all email clients
+  const logoMark = `<table cellpadding="0" cellspacing="0" style="display:inline-table;width:20px;height:20px;background:#c8ff00;"><tr><td style="padding:2px;"><table cellpadding="0" cellspacing="0" style="width:16px;height:16px;background:#0a0a09;"><tr><td style="padding:4px;"><div style="width:8px;height:8px;background:#c8ff00;"></div></td></tr></table></td></tr></table>`;
+
+  const detailsRow = recipient.contest_details?.trim()
+    ? `<tr>
+        <td style="padding:0 0 36px;">
+          <p style="margin:0 0 6px;font-family:${MONO};font-size:9px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">DETAILS</p>
+          <div style="padding:14px 16px;border-left:2px solid rgba(200,255,0,0.25);">
+            <p style="margin:0;font-family:${MONO};font-size:12px;color:${FG};line-height:1.7;opacity:0.82;">${recipient.contest_details.trim()}</p>
+          </div>
+        </td>
+      </tr>`
     : "";
 
   return `<!DOCTYPE html>
@@ -207,81 +215,86 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${recipient.contest_title} — contest is live</title>
+  <title>${recipient.contest_title}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap');
-    ${tickerStyles}
-    body { margin: 0; padding: 0; background: ${BG}; }
-    a { color: inherit; }
+    ${potStyles}
+    body { margin:0; padding:0; background:${BG}; }
+    a { color:inherit; }
   </style>
 </head>
 <body style="margin:0;padding:0;background:${BG};">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BG};">
     <tr>
-      <td align="center" style="padding:32px 16px 40px;">
-        <table role="presentation" width="100%" style="max-width:540px;" cellpadding="0" cellspacing="0">
+      <td align="center" style="padding:28px 20px 40px;">
+        <table role="presentation" width="100%" style="max-width:520px;" cellpadding="0" cellspacing="0">
 
-          <!-- HEADER -->
+          <!-- TOP BAR -->
           <tr>
-            <td style="padding:0 0 32px;">
-              <p style="margin:0;font-family:${MONO};font-size:11px;font-weight:700;color:${LIME};letter-spacing:0.18em;text-transform:uppercase;">// carter's casino</p>
-            </td>
-          </tr>
-
-          <!-- HERO -->
-          <tr>
-            <td style="padding:0 0 32px;border-bottom:1px solid ${BORDER};">
-              <p style="margin:0 0 10px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.2em;">// contest is now live</p>
-              <h1 style="margin:0;font-family:${MONO};font-size:28px;font-weight:800;color:${FG};line-height:1.15;letter-spacing:-0.01em;">${recipient.contest_title}</h1>
-            </td>
-          </tr>
-
-          <!-- POT -->
-          <tr>
-            <td style="padding:28px 0 0;">
-              ${potHtml}
-            </td>
-          </tr>
-
-          <!-- DETAILS -->
-          ${detailsBlock ? `<tr><td>${detailsBlock}</td></tr>` : ""}
-
-          <!-- WHEN / DURATION -->
-          <tr>
-            <td style="padding:0 0 28px;">
-              <table role="presentation" cellpadding="0" cellspacing="0">
+            <td style="padding:0 0 24px;border-bottom:1px solid rgba(200,255,0,0.15);">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="padding-right:32px;">
-                    <p style="margin:0 0 4px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">// started</p>
-                    <p style="margin:0;font-family:${MONO};font-size:13px;color:${FG};">${formattedStart}</p>
+                  <td style="vertical-align:middle;">
+                    <table role="presentation" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="vertical-align:middle;padding-right:9px;">${logoMark}</td>
+                        <td style="vertical-align:middle;"><span style="font-family:${MONO};font-size:11px;font-weight:700;color:${FG};letter-spacing:0.12em;text-transform:uppercase;">CARTER'S CASINO</span></td>
+                      </tr>
+                    </table>
                   </td>
-                  <td>
-                    <p style="margin:0 0 4px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">// runs for</p>
-                    <p style="margin:0;font-family:${MONO};font-size:13px;color:${FG};">${durationLabel}</p>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="font-family:${MONO};font-size:10px;font-weight:700;color:${LIME};letter-spacing:0.14em;text-transform:uppercase;">&#9679; CONTEST IS LIVE</span>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
 
+          <!-- CONTEST TITLE -->
+          <tr>
+            <td style="padding:32px 0 40px;">
+              <h1 style="margin:0;font-family:${MONO};font-size:38px;font-weight:800;color:${FG};line-height:1.1;letter-spacing:-0.02em;">${recipient.contest_title}</h1>
+            </td>
+          </tr>
+
+          <!-- PRIZE POT -->
+          <tr>
+            <td style="padding:0 0 36px;">
+              ${potHtml}
+            </td>
+          </tr>
+
+          <!-- DETAILS (optional) -->
+          ${detailsRow}
+
           <!-- BODY COPY -->
           <tr>
             <td style="padding:0 0 32px;">
-              <p style="margin:0;font-family:${MONO};font-size:13px;color:${DIM};line-height:1.7;">hey ${firstName} — a new contest just started. switch to contest mode in the app to compete on the leaderboard.</p>
+              <p style="margin:0;font-family:${MONO};font-size:12px;color:${DIM};line-height:1.75;">hey ${firstName} — switch to contest mode in the app to get on the leaderboard. runs for ${durationLabel}.</p>
             </td>
           </tr>
 
           <!-- CTA -->
           <tr>
             <td style="padding:0 0 40px;">
-              <a href="${joinUrl}" style="display:inline-block;padding:13px 28px;background:${LIME};color:#0a0a09;font-family:${MONO};font-size:12px;font-weight:700;letter-spacing:0.14em;text-decoration:none;text-transform:uppercase;">play now →</a>
+              <a href="${joinUrl}" style="display:block;padding:16px 24px;background:${LIME};color:#0a0a09;font-family:${MONO};font-size:12px;font-weight:800;letter-spacing:0.16em;text-decoration:none;text-transform:uppercase;text-align:center;">PLAY NOW &#8594;</a>
             </td>
           </tr>
 
-          <!-- FOOTER -->
+          <!-- FOOTER BAR -->
           <tr>
-            <td style="border-top:1px solid rgba(104,104,80,0.25);padding:20px 0 0;">
-              <p style="margin:0;font-family:${MONO};font-size:10px;color:${DIM};line-height:1.6;">to stop receiving contest emails, open the app &rsaquo; contests &rsaquo; notifications</p>
+            <td style="border-top:1px solid rgba(104,104,80,0.2);padding:16px 0 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td><p style="margin:0;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.1em;">CARTERSCASINO.APP</p></td>
+                  <td align="right"><p style="margin:0;font-family:${MONO};font-size:10px;color:${DIM};letter-spacing:0.06em;">${dateRange}</p></td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding:10px 0 0;">
+                    <p style="margin:0;font-family:${MONO};font-size:10px;color:rgba(104,104,80,0.5);line-height:1.6;">to stop receiving contest emails, open the app &rsaquo; contests &rsaquo; notifications</p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
