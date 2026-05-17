@@ -22730,14 +22730,10 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
     const hasSnapshots = Array.isArray(snapshotRows) && snapshotRows.length > 0;
 
     if (hasSnapshots) {
-      // Fetch all sources for today's live data including server-draw and contest
-      const [todayHands, todayRtnLive, todayG10Live, todayTrades, todayCsRounds] = await Promise.all([
-        fetchGameHandsRecords({
-          startAt: liveTodayStart,
-          endAt: liveTodayEnd,
-          userIds: [currentUser.id],
-          fields: ["user_id", "created_at", "game_id", "net"]
-        }),
+      // Fetch all sources for today's live data.
+      // NOTE: fetchGameHandsRecords now reads rtn_live_hands (game_hands was dropped),
+      // so we do NOT include it here — todayRtnLive already covers that table.
+      const [todayRtnLive, todayG10Live, todayTrades, todayCsRounds] = await Promise.all([
         (async () => {
           const { data } = await supabase
             .from("rtn_live_hands")
@@ -22783,7 +22779,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
       };
 
       // All hands — split by contest_id for mode tracking
-      [...todayHands, ...todayRtnLive, ...todayG10Live].forEach((row) => {
+      [...todayRtnLive, ...todayG10Live].forEach((row) => {
         const dayKey = formatAnalyticsDateKey(row?.created_at);
         if (dayKey !== todayKey) return;
         const net = roundCurrencyValue(Number(row?.net || 0));
@@ -22872,12 +22868,10 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
           }]
         : historicalRows;
     } else {
-      // No snapshots — build from raw records across all sources including server-draw + contest
-      const [allLegacyHands, allRtnLive, allG10Live, allTrades, allCsRounds] = await Promise.all([
-        fetchGameHandsRecords({
-          userIds: [currentUser.id],
-          fields: ["user_id", "created_at", "game_id", "net"]
-        }),
+      // No snapshots — build from raw records.
+      // NOTE: fetchGameHandsRecords now reads rtn_live_hands (game_hands was dropped),
+      // so we do NOT include it — allRtnLive already covers that table.
+      const [allRtnLive, allG10Live, allTrades, allCsRounds] = await Promise.all([
         (async () => {
           const { data } = await supabase
             .from("rtn_live_hands")
@@ -22911,7 +22905,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
         })()
       ]);
 
-      const allHands = [...allLegacyHands, ...allRtnLive, ...allG10Live];
+      const allHands = [...allRtnLive, ...allG10Live];
 
       const dailyTotals = new Map();
       const ensureDay = (dayKey, createdAt) => {
@@ -36256,15 +36250,10 @@ let _csRoundHistory = [];
 let _csHistoryData = [];
 let _csRoundId = null;
 let _csPendingServerRoll = null;
-let _csWaitingForServer = false;
-let _csSettleArgsCache = null;
 let _csChipButtons = [];
 let _csTargetQuats = null; // {color:{x,y,z,w}, number:{x,y,z,w}} — server-determined face targets
 let _csCANNON = null;       // stored when game initializes so async roll handler can access it
-let _csClips = null;       // Map<"RED_3", Float32Array> — null until baked
-let _csClipActive = null;  // clip currently playing, or null
-let _csClipFrame = 0;      // current frame index
-let _csClipOnDone = null;  // callback when clip finishes
+let _csAnim = null;        // active animation state object, or null
 
 const CS_ODDS = {
   RED:9,BLUE:9,YELLOW:9,PURPLE:5,GREEN:5,ORANGE:5,COLOR_TIE:4,
@@ -36810,50 +36799,36 @@ async function csInvokeServerRoll() {
       await persistBankroll();  // commit wager deduction to server
     }
     const { data, error } = await supabase.rpc('cs_perform_roll', { _round_id: _csRoundId });
-    if (error || !data?.roll) { console.warn('[CS] cs_perform_roll failed:', error); return; }
+    if (error || !data?.roll) {
+      console.warn('[CS] cs_perform_roll failed:', error);
+      // Fallback: if this is a non-first roll, check if the server actually wrote the roll result
+      // (400 can happen even if the RPC partially succeeded)
+      if (_csRoundId) {
+        try {
+          const rollNum = _csRoll === 0 ? 'roll_1' : _csRoll === 1 ? 'roll_2' : 'roll_3';
+          const { data: rData } = await supabase
+            .from('color_scheme_rounds')
+            .select(`${rollNum}`)
+            .eq('id', _csRoundId)
+            .maybeSingle();
+          const savedRoll = rData?.[rollNum];
+          if (savedRoll && typeof savedRoll === 'object' && savedRoll.color && savedRoll.number) {
+            // RPC wrote the result before failing — use it
+            _csPendingServerRoll = { roll: savedRoll };
+            const colorName = savedRoll.color === 'R' ? 'RED' : savedRoll.color === 'Y' ? 'YELLOW' : 'BLUE';
+            _csTargetQuats = csCalcTargetFaceQuats(colorName, Number(savedRoll.number));
+            return; // success via fallback
+          }
+        } catch(fbErr) { console.warn('[CS] fallback round fetch failed:', fbErr); }
+      }
+      return;
+    }
     _csPendingServerRoll = data;
     // Pre-compute target face quaternions so the animate loop can guide the dice naturally
     const sr = data.roll;
     if (sr) {
       const colorName = sr.color === 'R' ? 'RED' : sr.color === 'Y' ? 'YELLOW' : 'BLUE';
       _csTargetQuats = csCalcTargetFaceQuats(colorName, Number(sr.number));
-    }
-    if (_csWaitingForServer) {
-      // Dice already stopped before server responded — smoothly animate to correct face
-      _csWaitingForServer = false;
-      _csSettling = false;         // stop animate loop from re-firing csOnSettled
-      _csProcessingSettle = true;  // guard against concurrent call from animation frame
-      const { THREE, CANNON } = _csSettleArgsCache || {};
-      if (THREE && CANNON && _csTargetQuats) {
-        // Capture current die orientations as animation start points
-        const startQuatData = _csDice.map(d => ({
-          x: d.body.quaternion.x, y: d.body.quaternion.y,
-          z: d.body.quaternion.z, w: d.body.quaternion.w,
-          isColor: d.isColor
-        }));
-        const startTime = performance.now();
-        const duration = 380;
-        function smoothCatchUp() {
-          const progress = Math.min(1, (performance.now() - startTime) / duration);
-          const eased = 1 - Math.pow(1 - progress, 3); // cubic ease-out
-          _csDice.forEach(d => {
-            const sd = startQuatData.find(s => s.isColor === d.isColor);
-            const tgt = d.isColor ? _csTargetQuats.color : _csTargetQuats.number;
-            if (!sd || !tgt) return;
-            const from = new CANNON.Quaternion(sd.x, sd.y, sd.z, sd.w);
-            from.slerp(new CANNON.Quaternion(tgt.x, tgt.y, tgt.z, tgt.w), eased, d.body.quaternion);
-            d.mesh.quaternion.copy(d.body.quaternion);
-          });
-          if (progress < 1) {
-            requestAnimationFrame(smoothCatchUp);
-          } else {
-            csProcessSettle(THREE, CANNON);
-          }
-        }
-        requestAnimationFrame(smoothCatchUp);
-      } else if (THREE && CANNON) {
-        csProcessSettle(THREE, CANNON);
-      }
     }
   } catch(e) { console.warn('[CS] Server roll error:', e); }
 }
@@ -36985,179 +36960,115 @@ function csCalcTargetFaceQuats(colorName, number) {
   };
 }
 
-function csSeededRng(seed) {
-  let s = (seed >>> 0) || 1;
-  return () => { s^=s<<13; s^=s>>17; s^=s<<5; return (s>>>0)/0x100000000; };
-}
+function csPlayDiceAnimation(THREE, onDone) {
+  const COLOR_X = -0.8, NUM_X = 0.8, FIXED_Z = 0;
+  const SPAWN_Y = 6.2, LAND_Y = 0.5;
+  const TUMBLE_DUR = 0.88; // seconds — tumble/fall phase
+  const SETTLE_DUR = 0.32; // seconds — slerp-to-face phase
 
+  // Clear old dice
+  _csDice.forEach(d => { if (_csScene) _csScene.remove(d.mesh); if (_csWorld) _csWorld.remove(d.body); });
+  _csDice = [];
+  _csProcessingSettle = false;
+  _csAnim = null;
 
-function csBakeClip(CANNON, targetColor, targetNum, variant = 0) {
-  // validColorFaces: which face indices count as this color
-  const validColorFaces = CS_COLS.reduce((a,c,i)=>{ if(c.name===targetColor) a.push(i); return a; }, []);
-  const numFaceValues = [1,6,2,5,3,4];
-  const normals = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
-  // Each variant uses a different seed band so the 3 clips are genuinely distinct
-  const seedStart = variant * 800;
+  // Lightweight mesh-only dice (pure animation, no physics bodies needed)
+  function mkDie(textures, x) {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      textures.map(t => new THREE.MeshLambertMaterial({ map: t }))
+    );
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    mesh.position.set(x, SPAWN_Y, FIXED_Z);
+    _csScene.add(mesh);
+    // Stub body — only needed so csGetTopFace fallback doesn't crash; never simulated
+    const body = { position: { x, y: LAND_Y, z: FIXED_Z, set() {} }, quaternion: { x: 0, y: 0, z: 0, w: 1, set(x,y,z,w){ this.x=x;this.y=y;this.z=z;this.w=w; }, copy(q){ this.x=q.x;this.y=q.y;this.z=q.z;this.w=q.w; } } };
+    return { mesh, body };
+  }
 
-  for (let seed = seedStart; seed < seedStart + 800; seed++) {
-    const rng = csSeededRng(seed*97 + validColorFaces[0]*31 + targetNum*17);
-    const world = new CANNON.World();
-    world.gravity.set(0,-26,0);
-    world.broadphase = new CANNON.NaiveBroadphase();
-    world.solver.iterations = 20;
-    const dm=new CANNON.Material('d'), gm=new CANNON.Material('g');
-    world.addContactMaterial(new CANNON.ContactMaterial(dm,gm,{restitution:.45,friction:.4}));
-    world.addContactMaterial(new CANNON.ContactMaterial(dm,dm,{restitution:.2,friction:.4}));
-    [[-4.2,0,0],[4.2,0,0],[0,0,-4.2],[0,0,4.2]].forEach(([x,y,z],i)=>{
-      const b=new CANNON.Body({mass:0}), ix=i<2;
-      b.addShape(new CANNON.Box(new CANNON.Vec3(ix?.1:6,4,ix?6:.1)));
-      b.position.set(x,y+2,z); world.addBody(b);
-    });
-    const gb=new CANNON.Body({mass:0,material:gm});
-    gb.addShape(new CANNON.Plane()); gb.quaternion.setFromEuler(-Math.PI/2,0,0); world.addBody(gb);
+  const cd = mkDie(csMakeColorDie(THREE), COLOR_X);
+  const nd = mkDie(csMakeNumberDie(THREE), NUM_X);
+  _csDice = [{ ...cd, isColor: true }, { ...nd, isColor: false }];
 
-    function spawnDie(xOff) {
-      const body=new CANNON.Body({mass:0.8,material:dm,linearDamping:.15,angularDamping:.45});
-      body.addShape(new CANNON.Box(new CANNON.Vec3(.46,.46,.46)));
-      body.position.set(xOff*0.5+(rng()-.5)*.4, 5+rng()*.8, (rng()-.5)*.6);
-      body.quaternion.setFromEuler(rng()*Math.PI*2,rng()*Math.PI*2,rng()*Math.PI*2);
-      body.velocity.set((rng()-.5)*1.5,0,(rng()-.5)*.15);
-      body.angularVelocity.set((rng()-.5)*18,(rng()-.5)*18,(rng()-.5)*18);
-      world.addBody(body); return body;
-    }
-    const cb=spawnDie(-1.6), nb=spawnDie(1.6);
-    const frameData=[];
+  // Random spin parameters for visual variety on each roll
+  const r = () => (Math.random() - 0.5) * 2;
+  const av = { cx: r()*13, cy: r()*11, cz: r()*12, nx: r()*12, ny: r()*13, nz: r()*11 };
+  // Random start angles so dice don't always start from the same face
+  const saC = { x: r()*Math.PI*2, y: r()*Math.PI*2, z: r()*Math.PI*2 };
+  const saN = { x: r()*Math.PI*2, y: r()*Math.PI*2, z: r()*Math.PI*2 };
 
-    for(let f=0;f<300;f++){
-      world.step(1/60,1/60,3);
-      frameData.push(
-        cb.position.x,cb.position.y,cb.position.z,
-        cb.quaternion.x,cb.quaternion.y,cb.quaternion.z,cb.quaternion.w,
-        nb.position.x,nb.position.y,nb.position.z,
-        nb.quaternion.x,nb.quaternion.y,nb.quaternion.z,nb.quaternion.w
-      );
-      if(f>=60){
-        const at=(b)=>{const v=b.velocity,av=b.angularVelocity;return[v.x,v.y,v.z,av.x,av.y,av.z].every(c=>Math.abs(c)<0.06);};
-        if(at(cb)&&at(nb)){
-          const up=new CANNON.Vec3(0,1,0);
-          let cFace=0,nFace=0,bc=-Infinity,bn=-Infinity;
-          normals.forEach(([nx,ny,nz],i)=>{
-            const n=new CANNON.Vec3(nx,ny,nz);
-            const dc=cb.quaternion.vmult(n).dot(up), dn=nb.quaternion.vmult(n).dot(up);
-            if(dc>bc){bc=dc;cFace=i;} if(dn>bn){bn=dn;nFace=i;}
-          });
-          if(validColorFaces.includes(cFace)&&numFaceValues[nFace]===targetNum)
-            return new Float32Array(frameData);
-          break;
+  const startTime = performance.now() / 1000;
+  let phase = 'tumble';
+  let settleStartTime = 0;
+  const sqC = new THREE.Quaternion(); // quaternion at tumble→settle transition
+  const sqN = new THREE.Quaternion();
+
+  _csAnim = {
+    tick(nowSec) {
+      const cDie = _csDice.find(d => d.isColor);
+      const nDie = _csDice.find(d => !d.isColor);
+      if (!cDie || !nDie) { _csAnim = null; return; }
+
+      const t = nowSec - startTime;
+
+      if (phase === 'tumble') {
+        const p = Math.min(1, t / TUMBLE_DUR);
+        // Ease-in-out cubic for drop — slow release, accelerate, slow landing impact
+        const yEase = p < 0.5 ? 4*p*p*p : 1 - Math.pow(-2*p+2, 3)/2;
+        const y = SPAWN_Y + (LAND_Y - SPAWN_Y) * yEase;
+
+        // Spin decays as dice approach floor
+        const spinDecay = Math.pow(Math.max(0, 1 - p*1.1), 0.5);
+        const tC = t * spinDecay;
+        const tN = t * spinDecay;
+
+        cDie.mesh.quaternion.setFromEuler(new THREE.Euler(saC.x + av.cx*tC, saC.y + av.cy*tC, saC.z + av.cz*tC, 'XYZ'));
+        nDie.mesh.quaternion.setFromEuler(new THREE.Euler(saN.x + av.nx*tN, saN.y + av.ny*tN, saN.z + av.nz*tN, 'XYZ'));
+        cDie.mesh.position.set(COLOR_X, y, FIXED_Z);
+        nDie.mesh.position.set(NUM_X, y, FIXED_Z);
+
+        if (p >= 1) {
+          phase = 'settle';
+          settleStartTime = nowSec;
+          sqC.copy(cDie.mesh.quaternion);
+          sqN.copy(nDie.mesh.quaternion);
+        }
+      } else {
+        // Settle phase: slerp rotation to exact target face, small settle bounce
+        const st = nowSec - settleStartTime;
+        const p = Math.min(1, st / SETTLE_DUR);
+        const eased = 1 - Math.pow(1 - p, 3); // ease-out cubic
+
+        // Tiny bounce: die rises slightly then settles perfectly flat
+        const bounce = p < 0.4 ? LAND_Y + Math.sin(p / 0.4 * Math.PI) * 0.09 : LAND_Y;
+
+        if (_csTargetQuats) {
+          const tqC = new THREE.Quaternion(_csTargetQuats.color.x, _csTargetQuats.color.y, _csTargetQuats.color.z, _csTargetQuats.color.w);
+          const tqN = new THREE.Quaternion(_csTargetQuats.number.x, _csTargetQuats.number.y, _csTargetQuats.number.z, _csTargetQuats.number.w);
+          cDie.mesh.quaternion.copy(sqC).slerp(tqC, eased);
+          nDie.mesh.quaternion.copy(sqN).slerp(tqN, eased);
+        }
+        cDie.mesh.position.set(COLOR_X, bounce, FIXED_Z);
+        nDie.mesh.position.set(NUM_X, bounce, FIXED_Z);
+
+        if (p >= 1) {
+          // Hard-snap to exact target — guaranteed perfectly flat face
+          if (_csTargetQuats) {
+            const tc = _csTargetQuats.color, tn = _csTargetQuats.number;
+            cDie.mesh.quaternion.set(tc.x, tc.y, tc.z, tc.w);
+            nDie.mesh.quaternion.set(tn.x, tn.y, tn.z, tn.w);
+            // Sync stub bodies for face-read fallback (guest path)
+            cDie.body.quaternion.set(tc.x, tc.y, tc.z, tc.w);
+            nDie.body.quaternion.set(tn.x, tn.y, tn.z, tn.w);
+          }
+          cDie.mesh.position.set(COLOR_X, LAND_Y, FIXED_Z);
+          nDie.mesh.position.set(NUM_X, LAND_Y, FIXED_Z);
+          _csAnim = null;
+          if (onDone) onDone();
         }
       }
     }
-  }
-  console.warn('[CS bake] no clip for',targetColor,targetNum);
-  return null;
-}
-
-async function csBakeAllClips(CANNON, onProgress) {
-  _csClips = new Map();
-  const COLORS=['RED','YELLOW','BLUE'];
-  let n=0;
-  for(const color of COLORS){
-    for(let num=1;num<=6;num++){
-      for(let v=0;v<3;v++){
-        _csClips.set(`${color}_${num}_${v}`, csBakeClip(CANNON,color,num,v));
-        n++;
-        if(onProgress) onProgress(n,54);
-        if(n%2===0) await new Promise(r=>setTimeout(r,0)); // yield
-      }
-    }
-  }
-}
-
-// ── DB-backed clip cache ──────────────────────────────────────────────────────
-// Table: cs_animation_clips (outcome text PK, frames float8[], created_at timestamptz)
-// Public-read RLS policy — clips are identical for all users, no PII.
-
-async function csLoadClipsFromDB() {
-  if (!supabase) return new Map();
-  try {
-    const { data, error } = await supabase
-      .from('cs_animation_clips')
-      .select('outcome, frames');
-    if (error) { console.warn('[CS clips] DB load error:', error.message); return new Map(); }
-    const map = new Map();
-    for (const row of (data || [])) {
-      if (row.outcome && Array.isArray(row.frames) && row.frames.length > 0) {
-        map.set(row.outcome, new Float32Array(row.frames));
-      }
-    }
-    console.log(`[CS clips] loaded ${map.size}/18 clips from DB`);
-    return map;
-  } catch(e) { console.warn('[CS clips] DB load exception:', e); return new Map(); }
-}
-
-async function csSaveClipsToDB(newClips) {
-  // newClips: Map<outcome, Float32Array>
-  if (!supabase || !newClips || newClips.size === 0) return;
-  try {
-    const rows = [];
-    for (const [outcome, fa] of newClips) {
-      rows.push({ outcome, frames: Array.from(fa) });
-    }
-    const { error } = await supabase
-      .from('cs_animation_clips')
-      .upsert(rows, { onConflict: 'outcome' });
-    if (error) console.warn('[CS clips] DB save error:', error.message);
-    else console.log(`[CS clips] saved ${rows.length} clip(s) to DB`);
-  } catch(e) { console.warn('[CS clips] DB save exception:', e); }
-}
-
-async function csLoadOrBakeAllClips(CANNON, onProgress) {
-  _csClips = new Map();
-  const ALL_OUTCOMES = [];
-  for (const color of ['RED','YELLOW','BLUE'])
-    for (let num=1; num<=6; num++)
-      for (let v=0; v<3; v++) ALL_OUTCOMES.push(`${color}_${num}_${v}`);
-
-  // 1. Try to load all 54 from DB first
-  const dbClips = await csLoadClipsFromDB();
-  for (const [k,v] of dbClips) _csClips.set(k, v);
-
-  // 2. Determine which are missing
-  const missing = ALL_OUTCOMES.filter(o => !_csClips.has(o));
-  if (missing.length === 0) {
-    if (onProgress) onProgress(54, 54);
-    console.log('[CS clips] all 54 clips served from DB — no baking needed');
-    return;
-  }
-
-  console.log(`[CS clips] baking ${missing.length} missing clip(s):`, missing);
-  const freshlyBaked = new Map();
-  let baked = 0;
-  // Count DB hits as already "done" in progress
-  let done = ALL_OUTCOMES.length - missing.length;
-  if (onProgress) onProgress(done, 54);
-
-  for (const outcome of missing) {
-    const parts = outcome.split('_');
-    // key format: COLOR_NUM_VARIANT (e.g. "RED_1_0", "YELLOW_10_2" — but numbers are 1–6 so safe)
-    const variant = Number(parts[parts.length - 1]);
-    const numStr = parts[parts.length - 2];
-    const color = parts.slice(0, parts.length - 2).join('_');
-    const num = Number(numStr);
-    const clip = csBakeClip(CANNON, color, num, variant);
-    if (clip) {
-      _csClips.set(outcome, clip);
-      freshlyBaked.set(outcome, clip);
-    } else {
-      console.warn('[CS clips] bake failed for', outcome);
-    }
-    done++; baked++;
-    if (onProgress) onProgress(done, 54);
-    if (baked % 2 === 0) await new Promise(r => setTimeout(r, 0)); // yield
-  }
-
-  // 3. Persist freshly baked clips back to DB (fire-and-forget — don't block the UI)
-  csSaveClipsToDB(freshlyBaked);
+  };
 }
 
 function csIsAtRest() {
@@ -37169,11 +37080,6 @@ function csIsAtRest() {
 
 function csOnSettled(THREE, CANNON) {
   if (_csProcessingSettle) return;
-  if (!_csPendingServerRoll && supabase && !isGuestRuntimeUser()) {
-    _csWaitingForServer = true;
-    _csSettleArgsCache = { THREE, CANNON };
-    return;
-  }
   _csProcessingSettle = true;
   _csSettling = false;
   csProcessSettle(THREE, CANNON);
@@ -37233,31 +37139,6 @@ function csProcessSettle(THREE, CANNON) {
   finally { _csProcessingSettle=false; }
 }
 
-function csThrowDice(THREE, CANNON) {
-  _csTargetQuats = null; // cleared on each throw; set when server result arrives
-  _csCANNON = CANNON;
-  _csProcessingSettle=false;
-  // clear old dice
-  _csDice.forEach(d=>{ if(_csScene) _csScene.remove(d.mesh); if(_csWorld) _csWorld.remove(d.body); });
-  _csDice=[];
-  // create new
-  function createDie(textures, xOff) {
-    const mesh=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),textures.map(t=>new THREE.MeshLambertMaterial({map:t})));
-    mesh.castShadow=true; mesh.receiveShadow=true; _csScene.add(mesh);
-    const body=new CANNON.Body({mass:0.8,material:_csDm,linearDamping:.15,angularDamping:.45});
-    body.addShape(new CANNON.Box(new CANNON.Vec3(.46,.46,.46)));
-    body.position.set(xOff*0.5+(Math.random()-.5)*.4,5+Math.random()*.8,(Math.random()-.5)*.6);
-    body.quaternion.setFromEuler(Math.random()*Math.PI*2,Math.random()*Math.PI*2,Math.random()*Math.PI*2);
-    body.velocity.set((Math.random()-.5)*1.5,0,(Math.random()-.5)*1.5);
-    body.angularVelocity.set((Math.random()-.5)*18,(Math.random()-.5)*18,(Math.random()-.5)*18);
-    _csWorld.addBody(body);
-    return {mesh,body};
-  }
-  const cd=createDie(csMakeColorDie(THREE),-1.6);
-  const nd=createDie(csMakeNumberDie(THREE),1.6);
-  _csDice=[{...cd,isColor:true},{...nd,isColor:false}];
-  _csSettling=false; setTimeout(()=>{_csSettling=true;},1100);
-}
 
 let _csDm = null, _csGm2 = null;
 
@@ -37378,7 +37259,7 @@ function initColorSchemeGame() {
     _csGameActive = true;
     _csRound = 1; _csRoll = 0; _csRoundRolls = [];
     _csBets = {}; _csBetState = 'open'; _csRoundHistory = []; _csHistoryData = [];
-    _csRoundId = null; _csPendingServerRoll = null; _csWaitingForServer = false; _csSettleArgsCache = null;
+    _csRoundId = null; _csPendingServerRoll = null; _csTargetQuats = null; _csAnim = null;
     // Reset histogram UI (desktop + modal)
     const histChart = csEl('cs-histChart');
     if (histChart) histChart.innerHTML = '<div class="cs-hist-empty" id="cs-histEmpty">NO HISTORY YET</div>';
@@ -37484,50 +37365,35 @@ function initColorSchemeGame() {
     const bNew=csEl('cs-bNew'); if(bNew) bNew.style.display='none';
     const bRebetInit=csEl('cs-rebetBtn'); if(bRebetInit){bRebetInit.style.display='none';bRebetInit.disabled=true;}
 
-    // Disable roll button until clips are loaded/baked (reset display in case previous round hid it)
+    // Roll button — enable immediately (no clip baking needed)
     const bRoll=csEl('cs-bRoll');
-    if(bRoll){bRoll.style.display='';bRoll.disabled=true;bRoll.textContent='PREPARING…';}
+    if(bRoll){bRoll.style.display='';bRoll.disabled=true;bRoll.textContent='⬡ ROLL DICE';}
     const sBar=csEl('cs-statusBar');
-    if(sBar){sBar.textContent='Loading dice…';sBar.classList.add('cs-active');}
 
-    csLoadOrBakeAllClips(CANNON, (done, total)=>{
-      if(sBar){
-        if(done<total) sBar.textContent=`Preparing dice… ${done}/${total}`;
-        else sBar.textContent='Dice ready!';
-      }
-    }).catch(err=>{
-      console.error('[CS] clip load/bake failed:', err);
-      // Fall back gracefully — enable roll button without clips (physics fallback)
-      if(bRoll){bRoll.disabled=false;bRoll.textContent='⬡ ROLL DICE';}
-      if(sBar){sBar.textContent='';sBar.classList.remove('cs-active');}
-    }).then(async ()=>{
-      if(sBar){sBar.textContent='';sBar.classList.remove('cs-active');}
+    // Sweep: mark any leftover complete/in_progress+old rounds as completed so they
+    // never resurface on another device. Fire-and-forget, don't await.
+    if (supabase && !isGuestRuntimeUser()) {
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) return;
+        const stale = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+        // Mark 'complete' (bad spelling) → 'completed'
+        supabase.from('color_scheme_rounds')
+          .update({ status: 'completed' })
+          .eq('user_id', user.id)
+          .eq('status', 'complete')
+          .then(() => {});
+        // Mark old in_progress rounds (>4h) → 'abandoned'
+        supabase.from('color_scheme_rounds')
+          .update({ status: 'abandoned' })
+          .eq('user_id', user.id)
+          .eq('status', 'in_progress')
+          .lt('created_at', stale)
+          .then(() => {});
+      });
+    }
 
-      // Sweep: mark any leftover complete/in_progress+old rounds as completed so they
-      // never resurface on another device. Fire-and-forget, don't await.
-      if (supabase && !isGuestRuntimeUser()) {
-        supabase.auth.getUser().then(({ data: { user } }) => {
-          if (!user) return;
-          const stale = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
-          // Mark 'complete' (bad spelling) → 'completed'
-          supabase.from('color_scheme_rounds')
-            .update({ status: 'completed' })
-            .eq('user_id', user.id)
-            .eq('status', 'complete')
-            .then(() => {});
-          // Mark old in_progress rounds (>4h) → 'abandoned'
-          supabase.from('color_scheme_rounds')
-            .update({ status: 'abandoned' })
-            .eq('user_id', user.id)
-            .eq('status', 'in_progress')
-            .lt('created_at', stale)
-            .then(() => {});
-        });
-      }
-
-      // Restore any genuinely in-progress round (sets _csBets, _csRoundRolls, _csRoll) — no refunds
-      await csRestoreIncompleteRound();
-
+    // Restore any genuinely in-progress round (sets _csBets, _csRoundRolls, _csRoll) — no refunds
+    csRestoreIncompleteRound().then(() => {
       // Set roll button state based on restored round (or fresh start)
       if(bRoll){
         if(_csRoll===3){
@@ -37539,119 +37405,91 @@ function initColorSchemeGame() {
           bRoll.textContent = _csRoll===0 ? '⬡ ROLL DICE' : _csRoll===1 ? '⬡ NEXT ROLL' : '⬡ FINAL ROLL';
         }
       }
-
-      // Wire up the roll handler now that clips are ready
-      bRoll._csHandler = async function() {
-        this.disabled=true;
-
-        // ── Profile guard ─────────────────────────────────────────────────
-        // If the player's profile hasn't loaded yet, don't try to start a
-        // server round — bankroll, contest state, etc. are all unavailable.
-        if (!currentProfile && !isGuestRuntimeUser()) {
-          showToast('Profile loading… try again in a moment', 'info');
-          this.disabled = false;
-          return;
-        }
-
-        _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null;
-        _csTargetQuats=null; _csClipActive=null; _csClipFrame=0;
-
-        // ── Cross-device guard ────────────────────────────────────────────
-        // If we have a round ID, verify it's still in-progress on the server
-        // before starting any animation. Another device may have already
-        // completed this round.
-        if (_csRoundId && supabase && !isGuestRuntimeUser()) {
-          const { data: rCheck } = await supabase
-            .from('color_scheme_rounds')
-            .select('status, roll_1, roll_2, roll_3')
-            .eq('id', _csRoundId)
-            .maybeSingle();
-          const alreadyDone = rCheck && (
-            rCheck.status !== 'in_progress' ||
-            (rCheck.roll_1 && rCheck.roll_2 && rCheck.roll_3)
-          );
-          if (alreadyDone) {
-            showToast('ROUND HAS RESOLVED ON ANOTHER DEVICE', 'error');
-            // Mark completed locally so it doesn't resurface
-            await supabase.from('color_scheme_rounds')
-              .update({ status: 'completed' }).eq('id', _csRoundId);
-            _csRoundId = null;
-            this.style.display = 'none';
-            const bNewResolved = csEl('cs-bNew');
-            if (bNewResolved) bNewResolved.style.display = '';
-            csSetBetState('settling');
-            return;
-          }
-        }
-        // ─────────────────────────────────────────────────────────────────
-
-        const sBar2=csEl('cs-statusBar');
-        if(sBar2){sBar2.textContent='ROLLING…';sBar2.classList.add('cs-active');}
-        csSetBetState('locked');
-
-        await csInvokeServerRoll();
-
-        // If server roll failed for a non-guest user, show a retry toast and
-        // re-enable the button. Do NOT nuke the round — a network blip or
-        // transient RPC error is not the same as "resolved on another device"
-        // (that case is already caught by the pre-flight DB check above).
-        if (!_csPendingServerRoll && !isGuestRuntimeUser()) {
-          showToast('Server error — tap Roll to try again', 'error');
-          this.disabled = false;
-          const sBar3 = csEl('cs-statusBar');
-          if (sBar3) { sBar3.textContent = ''; sBar3.classList.remove('cs-active'); }
-          csSetBetState('locked');
-          return;
-        }
-
-        // Guest mode fallback
-        if(!_csPendingServerRoll){
-          const gc=['R','Y','B'];
-          const gColor=gc[Math.floor(Math.random()*3)];
-          const gNum=Math.floor(Math.random()*6)+1;
-          _csPendingServerRoll={roll:{color:gColor,number:gNum}};
-        }
-
-        const sr=_csPendingServerRoll.roll;
-        const colorName=sr.color==='R'?'RED':sr.color==='Y'?'YELLOW':'BLUE';
-        const number=Number(sr.number);
-        const variant=Math.floor(Math.random()*3);
-        const clip=_csClips?.get(`${colorName}_${number}_${variant}`)
-          ??_csClips?.get(`${colorName}_${number}_0`)
-          ??_csClips?.get(`${colorName}_${number}`);
-
-        // Clear old dice, create fresh meshes for clip playback
-        _csDice.forEach(d=>{if(_csScene)_csScene.remove(d.mesh);if(_csWorld)_csWorld.remove(d.body);});
-        _csDice=[]; _csProcessingSettle=false; _csSettling=false;
-
-        function mkDie(textures){
-          const mesh=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),textures.map(t=>new THREE.MeshLambertMaterial({map:t})));
-          mesh.castShadow=true; mesh.receiveShadow=true; _csScene.add(mesh);
-          const body=new CANNON.Body({mass:0,material:_csDm});
-          body.addShape(new CANNON.Box(new CANNON.Vec3(.46,.46,.46)));
-          _csWorld.addBody(body); return {mesh,body};
-        }
-        const cd=mkDie(csMakeColorDie(THREE)); const nd=mkDie(csMakeNumberDie(THREE));
-        _csDice=[{...cd,isColor:true},{...nd,isColor:false}];
-
-        if(clip){
-          _csClipFrame=0; _csClipActive=clip;
-          _csClipOnDone=()=>csOnSettled(THREE,CANNON);
-        } else {
-          // Fallback: physics (bake failed for this combo)
-          csThrowDice(THREE,CANNON);
-        }
-      };
-      bRoll.addEventListener('click', bRoll._csHandler);
     });
+
+    // Wire up the roll handler
+    bRoll._csHandler = async function() {
+      this.disabled=true;
+
+      // ── Profile guard ─────────────────────────────────────────────────
+      // If the player's profile hasn't loaded yet, don't try to start a
+      // server round — bankroll, contest state, etc. are all unavailable.
+      if (!currentProfile && !isGuestRuntimeUser()) {
+        showToast('Profile loading… try again in a moment', 'info');
+        this.disabled = false;
+        return;
+      }
+
+      _csPendingServerRoll=null; _csTargetQuats=null; _csAnim=null;
+
+      // ── Cross-device guard ────────────────────────────────────────────
+      // If we have a round ID, verify it's still in-progress on the server
+      // before starting any animation. Another device may have already
+      // completed this round.
+      if (_csRoundId && supabase && !isGuestRuntimeUser()) {
+        const { data: rCheck } = await supabase
+          .from('color_scheme_rounds')
+          .select('status, roll_1, roll_2, roll_3')
+          .eq('id', _csRoundId)
+          .maybeSingle();
+        const alreadyDone = rCheck && (
+          rCheck.status !== 'in_progress' ||
+          (rCheck.roll_1 && rCheck.roll_2 && rCheck.roll_3)
+        );
+        if (alreadyDone) {
+          showToast('ROUND HAS RESOLVED ON ANOTHER DEVICE', 'error');
+          // Mark completed locally so it doesn't resurface
+          await supabase.from('color_scheme_rounds')
+            .update({ status: 'completed' }).eq('id', _csRoundId);
+          _csRoundId = null;
+          this.style.display = 'none';
+          const bNewResolved = csEl('cs-bNew');
+          if (bNewResolved) bNewResolved.style.display = '';
+          csSetBetState('settling');
+          return;
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────
+
+      const sBar2=csEl('cs-statusBar');
+      if(sBar2){sBar2.textContent='ROLLING…';sBar2.classList.add('cs-active');}
+      csSetBetState('locked');
+
+      await csInvokeServerRoll();
+
+      // If server roll failed for a non-guest user, show a retry toast and
+      // re-enable the button. Do NOT nuke the round — a network blip or
+      // transient RPC error is not the same as "resolved on another device"
+      // (that case is already caught by the pre-flight DB check above).
+      if (!_csPendingServerRoll && !isGuestRuntimeUser()) {
+        showToast('Server error — tap Roll to try again', 'error');
+        this.disabled = false;
+        const sBar3 = csEl('cs-statusBar');
+        if (sBar3) { sBar3.textContent = ''; sBar3.classList.remove('cs-active'); }
+        csSetBetState('locked');
+        return;
+      }
+
+      // Guest mode fallback
+      if(!_csPendingServerRoll){
+        const gc=['R','Y','B'];
+        const gColor=gc[Math.floor(Math.random()*3)];
+        const gNum=Math.floor(Math.random()*6)+1;
+        _csPendingServerRoll={roll:{color:gColor,number:gNum}};
+        const colorName=gColor==='R'?'RED':gColor==='Y'?'YELLOW':'BLUE';
+        _csTargetQuats=csCalcTargetFaceQuats(colorName,gNum);
+      }
+
+      csPlayDiceAnimation(THREE, () => csOnSettled(THREE, CANNON));
+    };
+    bRoll.addEventListener('click', bRoll._csHandler);
 
     // New round button
     const bNew2=csEl('cs-bNew');
     if (bNew2) {
       bNew2._csHandler = function() {
         _csRound++; _csRoll=0; _csRoundRolls.length=0; _csProcessingSettle=false; _csSettleFired=false;
-        _csRoundId=null; _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null; _csTargetQuats=null;
-        _csClipActive=null; _csClipFrame=0; _csClipOnDone=null;
+        _csRoundId=null; _csPendingServerRoll=null; _csTargetQuats=null; _csAnim=null;
         _csDice.forEach(d=>{if(_csScene)_csScene.remove(d.mesh);if(_csWorld)_csWorld.remove(d.body);}); _csDice=[];
         csResetOutcome(); csClearBetResults(); csRenderTotalWagered(); csResetTracker();
         _csBets={}; csSetBetState('open');
@@ -37685,8 +37523,7 @@ function initColorSchemeGame() {
         if (bankroll < totalNeeded) { showToast('Not enough balance to rebet.','error'); return; }
         // --- New round reset (same as New Round button) ---
         _csRound++; _csRoll=0; _csRoundRolls.length=0; _csProcessingSettle=false; _csSettleFired=false;
-        _csRoundId=null; _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null; _csTargetQuats=null;
-        _csClipActive=null; _csClipFrame=0; _csClipOnDone=null;
+        _csRoundId=null; _csPendingServerRoll=null; _csTargetQuats=null; _csAnim=null;
         _csDice.forEach(d=>{if(_csScene)_csScene.remove(d.mesh);if(_csWorld)_csWorld.remove(d.body);}); _csDice=[];
         csResetOutcome(); csClearBetResults(); csRenderTotalWagered(); csResetTracker();
         _csBets={}; csSetBetState('open');
@@ -37731,38 +37568,15 @@ function initColorSchemeGame() {
     if (howToPlayModal) howToPlayModal.addEventListener('click', e => { if (e.target === howToPlayModal) closeHowToPlay(); });
 
     // Animate loop
-    _csLastTime=null;
     function csAnimate(ts) {
       _csAnimId=requestAnimationFrame(csAnimate);
-      const dt=_csLastTime?Math.min((ts-_csLastTime)/1000,.05):1/60;
       _csLastTime=ts;
 
-      if(_csClipActive){
-        // Keyframe playback — skip live physics
-        const totalFrames=_csClipActive.length/14;
-        if(_csClipFrame<totalFrames){
-          const o=_csClipFrame*14;
-          const cd=_csDice.find(d=>d.isColor), nd=_csDice.find(d=>!d.isColor);
-          if(cd){cd.mesh.position.set(_csClipActive[o],_csClipActive[o+1],_csClipActive[o+2]);cd.mesh.quaternion.set(_csClipActive[o+3],_csClipActive[o+4],_csClipActive[o+5],_csClipActive[o+6]);}
-          if(nd){nd.mesh.position.set(_csClipActive[o+7],_csClipActive[o+8],_csClipActive[o+9]);nd.mesh.quaternion.set(_csClipActive[o+10],_csClipActive[o+11],_csClipActive[o+12],_csClipActive[o+13]);}
-          _csClipFrame++;
-          if(_csClipFrame>=totalFrames){
-            // Sync physics bodies to final clip frame so the live-physics branch
-            // doesn't snap meshes back to wherever the bodies happen to be sitting.
-            _csDice.forEach(d=>{
-              d.body.position.set(d.mesh.position.x,d.mesh.position.y,d.mesh.position.z);
-              d.body.quaternion.set(d.mesh.quaternion.x,d.mesh.quaternion.y,d.mesh.quaternion.z,d.mesh.quaternion.w);
-              d.body.velocity.set(0,0,0);
-              d.body.angularVelocity.set(0,0,0);
-            });
-            const cb=_csClipOnDone; _csClipActive=null; _csClipOnDone=null; if(cb)cb();
-          }
-        }
-      } else {
-        // Live physics (idle or fallback)
-        _csWorld.step(1/60,dt,3);
-        _csDice.forEach(d=>{d.mesh.position.copy(d.body.position);d.mesh.quaternion.copy(d.body.quaternion);});
-        if(_csSettling&&csIsAtRest()) csOnSettled(THREE,CANNON);
+      if (_csAnim) {
+        _csAnim.tick(performance.now() / 1000);
+      } else if (_csDice.length && _csWorld) {
+        // Idle physics step only if world exists (no-op with stub bodies)
+        // (kept for guest-mode fallback path; normally _csAnim handles everything)
       }
       _csRenderer.render(_csScene,_csCamera);
     }
@@ -37827,9 +37641,9 @@ function destroyColorSchemeGame() {
   // Dispose Three.js
   if (_csResizeObserver) { _csResizeObserver.disconnect(); _csResizeObserver=null; }
   if (_csRenderer) { _csRenderer.dispose(); _csRenderer=null; }
-  _csScene=null; _csCamera=null; _csWorld=null; _csDice=[]; _csSettling=false; _csLastTime=null; _csProcessingSettle=false;
+  _csScene=null; _csCamera=null; _csWorld=null; _csDice=[]; _csSettling=false; _csLastTime=null; _csProcessingSettle=false; _csAnim=null;
   _csDm=null; _csGm2=null; _csHistoryData=[];
-  _csRoundId=null; _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null; _csTargetQuats=null; _csCANNON=null;
+  _csRoundId=null; _csPendingServerRoll=null; _csTargetQuats=null; _csCANNON=null;
   if (window.csGame) { delete window.csGame; }
 }
 
