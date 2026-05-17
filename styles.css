@@ -25976,7 +25976,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .cs-rts-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .cs-rts-color-name { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; }
 .cs-rts-num { margin-left: auto; font-size: 16px; font-weight: 700; color: #a8ff3e; }
-.cs-rts-secondary { font-size: 8px; color: #7a7a72; letter-spacing: 0.04em; }
+.cs-rts-secondary { font-size: 8px; color: #7a7a72; letter-spacing: 0.04em; min-height: 1.4em; }
 
 /* Outcome col */
 .cs-col-outcome {
@@ -26623,7 +26623,7 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   .cs-rts-idx    { font-size: 7px; margin-bottom: 3px; }
   .cs-rts-num    { font-size: 14px; }
   .cs-rts-color-name { font-size: 9px; }
-  .cs-rts-secondary  { font-size: 7px; }
+  .cs-rts-secondary  { font-size: 7px; min-height: 1.4em; }
   .cs-rts-dot    { width: 6px; height: 6px; }
   .cs-rts-color-row  { gap: 4px; margin-bottom: 2px; }
 
