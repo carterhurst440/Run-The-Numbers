@@ -30118,6 +30118,8 @@ if (activityLogRefreshButton) {
 
 if (activityLogLoadMoreButton) {
   activityLogLoadMoreButton.addEventListener("click", () => {
+    activityLogLoadMoreButton.disabled = true;
+    activityLogLoadMoreButton.textContent = "Loading…";
     void loadActivityLogPage({ append: true });
   });
 }
