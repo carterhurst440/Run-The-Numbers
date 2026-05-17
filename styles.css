@@ -26835,6 +26835,77 @@ body[data-ui="new"] .alr-balance {
   margin-left: auto;
 }
 
+/* ── Activity log table-row layout ─────────────────────────────── */
+body[data-ui="new"] .alr-row {
+  display: grid;
+  grid-template-columns:
+    36px          /* GAME  */
+    40px          /* #ID   */
+    58px          /* MODE  */
+    1fr           /* NET   */
+    90px          /* BAL   */
+    100px;        /* DATE  */
+  align-items: center;
+  gap: 0 8px;
+  padding: 7px 4px;
+  border-bottom: 1px solid #1e1e1a;
+  min-height: 34px;
+}
+body[data-ui="new"] .alr-row:last-child { border-bottom: none; }
+body[data-ui="new"] .alr-row-clickable {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+body[data-ui="new"] .alr-row-clickable:hover,
+body[data-ui="new"] .alr-row-clickable:focus-visible {
+  background: rgba(200, 255, 0, 0.03);
+  outline: none;
+}
+
+body[data-ui="new"] .alr-col {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body[data-ui="new"] .alr-col-game {
+  color: #686850;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+body[data-ui="new"] .alr-col-id {
+  color: #a8a870;
+  font-weight: 600;
+}
+body[data-ui="new"] .alr-col-mode {
+  font-size: 8px;
+  color: #585840;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+body[data-ui="new"] .alr-col-net {
+  font-size: 10px;
+  font-weight: 600;
+  text-align: right;
+}
+body[data-ui="new"] .alr-col-net.is-win    { color: #c8ff00; }
+body[data-ui="new"] .alr-col-net.is-loss   { color: #cc5555; }
+body[data-ui="new"] .alr-col-net.is-neutral { color: #aaaa74; }
+body[data-ui="new"] .alr-col-bal {
+  color: rgba(226, 248, 255, 0.28);
+  font-size: 9px;
+  text-align: right;
+}
+body[data-ui="new"] .alr-col-date {
+  color: #484838;
+  font-size: 8px;
+  text-align: right;
+  letter-spacing: 0.04em;
+}
+
 /* ── Admin User Lookup card ──────────────────────────────────────── */
 .admin-user-lookup-card {
   padding: 16px 20px 20px;

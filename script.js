@@ -26669,119 +26669,78 @@ function getActivityLogGameLogoMarkup(gameKey) {
 }
 
 function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true } = {}) {
-  return entries.map((entry) => {
+  return entries.map((entry, _i) => {
+    // ── derive shared columns ────────────────────────────────────────────
+    let game = "";
+    let shortId = "—";
+    let modeLabel = "";
+    let net = 0;
+    let netClass = "is-neutral";
+    let netText = "";
+    let bal = null;
+    let clickAttr = "";
+    let isClickable = false;
+
     if (entry.entryType === "account") {
-      const amount = Number(entry.amount ?? 0);
-      const amountText = formatSignedCurrency(amount);
-      const netClass = amount > 0 ? "is-win" : amount < 0 ? "is-loss" : "is-neutral";
-      const accountTitle = entry.eventType === "daily_credit_refresh" ? "Account Refresh" : "Account Update";
-      const accountDetail = entry.eventType === "daily_credit_refresh"
-        ? `Daily refresh · ${formatCurrency(entry.previousBalance)} → ${formatCurrency(entry.newAccountValue)}`
-        : `Balance adjusted · ${formatCurrency(entry.previousBalance)} → ${formatCurrency(entry.newAccountValue)}`;
-      return `
-        <li class="activity-log-item">
-          <div class="alr-top">
-            <span class="alr-label"><b>${escapeAssistantHtml(accountTitle)}</b></span>
-            <span class="alr-net ${netClass}">${escapeAssistantHtml(amountText)}</span>
-            <span class="alr-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
-          </div>
-          <div class="alr-sub">
-            <span class="alr-detail">${escapeAssistantHtml(accountDetail)}</span>
-          </div>
-        </li>
-      `;
-    }
-
-    if (entry.entryType === "trade") {
-      const pl = Number(entry.netProfit ?? 0);
-      const plText = pl >= 0 ? `+${formatCurrency(Math.abs(pl))}` : `-${formatCurrency(Math.abs(pl))}`;
-      const netClass = pl > 0 ? "is-win" : pl < 0 ? "is-loss" : "is-neutral";
+      game = "ACCT";
+      shortId = "—";
+      modeLabel = "—";
+      net = Number(entry.amount ?? 0);
+      netClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
+      netText = formatSignedCurrency(net);
+      bal = entry.newAccountValue ?? null;
+    } else if (entry.entryType === "trade") {
       const side = entry.side === "sell" ? "SELL" : "BUY";
-      const tradeModeLabel = (entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL";
-      const tradeDetail = `${formatCurrency(entry.quantity)} shares @ ${formatCurrency(entry.price)} · ${formatCurrency(entry.totalValue)} total`;
-      const balAfter = entry.newAccountValue != null
-        ? `<span class="alr-balance">bal ${formatCurrency(entry.newAccountValue)}</span>` : "";
-      return `
-        <li class="activity-log-item">
-          <div class="alr-top">
-            <span class="alr-label">ST · <b>${escapeAssistantHtml(side)}</b></span>
-            <span class="alr-mode">${tradeModeLabel}</span>
-            <span class="alr-net ${netClass}">${escapeAssistantHtml(plText)}</span>
-            <span class="alr-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
-          </div>
-          <div class="alr-sub">
-            <span class="alr-detail">${tradeDetail}</span>
-            ${balAfter}
-          </div>
-        </li>
-      `;
+      game = `ST·${side}`;
+      shortId = entry.id?.split(":")[1]?.slice(-4) || "—";
+      modeLabel = (entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL";
+      net = Number(entry.netProfit ?? 0);
+      netClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
+      netText = net >= 0 ? `+${formatCurrency(Math.abs(net))}` : `-${formatCurrency(Math.abs(net))}`;
+      bal = entry.newAccountValue ?? null;
+      if (showReviewButtons) {
+        clickAttr = ` data-activity-trade-entry-id="${escapeAssistantHtml(entry.id || "")}"`;
+        isClickable = true;
+      }
+    } else if (entry.entryType === "ryb_round") {
+      game = "RYB";
+      shortId = entry.handId?.slice(-4) || entry.id?.split(":")[1]?.slice(-4) || "—";
+      modeLabel = (entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL";
+      net = Number(entry.net ?? 0);
+      netClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
+      netText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
+      bal = entry.newAccountValue ?? null;
+      if (showReviewButtons && entry.handId) {
+        clickAttr = ` data-hand-review-id="${escapeAssistantHtml(entry.handId)}"`;
+        isClickable = true;
+      }
+    } else {
+      // RTN / G10
+      game = entry.gameKey === GAME_KEYS.GUESS_10 ? "G10" : "RTN";
+      shortId = entry.handNumber || entry.handId?.slice(-4) || "—";
+      modeLabel = (entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL";
+      net = Number(entry.net ?? 0);
+      netClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
+      netText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
+      bal = entry.newAccountValue ?? null;
+      if (showReviewButtons && entry.handId) {
+        clickAttr = ` data-hand-review-id="${escapeAssistantHtml(entry.handId)}"`;
+        isClickable = true;
+      }
     }
 
-    if (entry.entryType === "ryb_round") {
-      const net = Number(entry.net ?? 0);
-      const netText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
-      const netClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
-      const modeLbl = (entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL";
-      const balAfter = entry.newAccountValue != null
-        ? `<span class="alr-balance">bal ${formatCurrency(entry.newAccountValue)}</span>` : "";
-      return `
-        <li class="activity-log-item">
-          <div class="alr-top">
-            <span class="alr-label">RYB</span>
-            <span class="alr-mode">${modeLbl}</span>
-            <span class="alr-net ${netClass}">${escapeAssistantHtml(netText)}</span>
-            <span class="alr-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
-          </div>
-          <div class="alr-sub">
-            <span class="alr-detail">${formatCurrency(entry.totalWager)}w · ${formatCurrency(entry.totalReturn)}r</span>
-            ${balAfter}
-          </div>
-        </li>
-      `;
-    }
+    const balText = bal && Number(bal) > 0 ? formatCurrency(Number(bal)) : "—";
+    const ts = formatActivityLogTimestamp(entry.createdAt);
+    const clickableClass = isClickable ? " alr-row-clickable" : "";
 
-    const gameShort = entry.gameKey === GAME_KEYS.GUESS_10 ? "G10"
-      : entry.gameKey === GAME_KEYS.COLOR_SCHEME ? "RYB"
-      : "RTN";
-    const handNum = entry.handNumber || entry.handId?.slice(-4) || "—";
-    const net = Number(entry.net ?? 0);
-    const netText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
-    const netClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
-    const handModeLabel = (entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL";
-    const detailBits = [`${formatCurrency(entry.totalWager)}w · ${formatCurrency(entry.totalReturn)}r`];
-    if (entry.totalCards > 0) {
-      detailBits.push(`${entry.totalCards} card${entry.totalCards === 1 ? "" : "s"}`);
-    }
-    if (entry.stopperLabel) {
-      detailBits.push(
-        entry.stopperLabel === "Joker"
-          ? "Joker"
-          : `${entry.stopperLabel}${entry.stopperSuit ? entry.stopperSuit : ""}`
-      );
-    }
-    if (entry.gameKey === GAME_KEYS.GUESS_10 && entry.commissionKept > 0) {
-      detailBits.push(`${formatCurrency(entry.commissionKept)} commission`);
-    }
-    const balAfter = entry.newAccountValue != null
-      ? `<span class="alr-balance">bal ${formatCurrency(entry.newAccountValue)}</span>` : "";
-    const reviewBtn = showReviewButtons && entry.handId
-      ? `<button type="button" class="alr-review history-review-button" data-hand-review-id="${escapeAssistantHtml(entry.handId)}">Review →</button>`
-      : "";
-    return `
-      <li class="activity-log-item">
-        <div class="alr-top">
-          <span class="alr-label">${escapeAssistantHtml(gameShort)} · <b>#${escapeAssistantHtml(String(handNum))}</b></span>
-          <span class="alr-mode">${handModeLabel}</span>
-          <span class="alr-net ${netClass}">${escapeAssistantHtml(netText)}</span>
-          <span class="alr-time">${escapeAssistantHtml(formatActivityLogTimestamp(entry.createdAt))}</span>
-        </div>
-        <div class="alr-sub">
-          <span class="alr-detail">${detailBits.join(" · ")}</span>
-          ${balAfter}
-          ${reviewBtn}
-        </div>
-      </li>
-    `;
+    return `<li class="activity-log-item alr-row${clickableClass}"${clickAttr}${isClickable ? ' tabindex="0" role="button"' : ""}>
+      <span class="alr-col alr-col-game">${escapeAssistantHtml(game)}</span>
+      <span class="alr-col alr-col-id">#${escapeAssistantHtml(String(shortId))}</span>
+      <span class="alr-col alr-col-mode">${escapeAssistantHtml(modeLabel)}</span>
+      <span class="alr-col alr-col-net ${netClass}">${escapeAssistantHtml(netText)}</span>
+      <span class="alr-col alr-col-bal">${escapeAssistantHtml(balText)}</span>
+      <span class="alr-col alr-col-date">${escapeAssistantHtml(ts)}</span>
+    </li>`;
   }).join("");
 }
 
@@ -30121,11 +30080,28 @@ if (historyList) {
 
 if (activityLogListEl) {
   activityLogListEl.addEventListener("click", (event) => {
-    const button = event.target instanceof HTMLElement ? event.target.closest("[data-hand-review-id]") : null;
-    if (!(button instanceof HTMLElement)) {
-      return;
+    if (!(event.target instanceof HTMLElement)) return;
+    const row = event.target.closest("[data-hand-review-id], [data-activity-trade-entry-id]");
+    if (!(row instanceof HTMLElement)) return;
+    if (row.dataset.handReviewId) {
+      void openHandReviewModal(row.dataset.handReviewId, row);
+    } else if (row.dataset.activityTradeEntryId) {
+      const entry = activityLogEntries.find((e) => e.id === row.dataset.activityTradeEntryId);
+      if (entry) openHomeTradeDetailModal(entry);
     }
-    void openHandReviewModal(button.dataset.handReviewId || "", button);
+  });
+  activityLogListEl.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    if (!(event.target instanceof HTMLElement)) return;
+    const row = event.target.closest("[data-hand-review-id], [data-activity-trade-entry-id]");
+    if (!(row instanceof HTMLElement)) return;
+    event.preventDefault();
+    if (row.dataset.handReviewId) {
+      void openHandReviewModal(row.dataset.handReviewId, row);
+    } else if (row.dataset.activityTradeEntryId) {
+      const entry = activityLogEntries.find((e) => e.id === row.dataset.activityTradeEntryId);
+      if (entry) openHomeTradeDetailModal(entry);
+    }
   });
 }
 
