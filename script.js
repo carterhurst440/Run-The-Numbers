@@ -13916,28 +13916,10 @@ async function fetchContestJourneyEventStream(contestId, userId) {
 
   // ── Direct-query fallback (only sees current user's rows via RLS) ────────────
   const pageSize = 1000;
-  const handRows = [];
   const rtnHandRows = [];
   const g10HandRows = [];
   const tradeRows = [];
   const csRoundRows = [];
-
-  let handPage = 0;
-  let hasMoreHands = true;
-  while (hasMoreHands) {
-    const { data, error } = await supabase
-      .from("game_hands")
-      .select("id, created_at, game_id, new_account_value")
-      .eq("user_id", userId)
-      .eq("contest_id", contestId)
-      .order("created_at", { ascending: true })
-      .range(handPage * pageSize, (handPage + 1) * pageSize - 1);
-    if (error) throw error;
-    const rows = Array.isArray(data) ? data : [];
-    handRows.push(...rows);
-    hasMoreHands = rows.length === pageSize;
-    handPage += 1;
-  }
 
   let rtnHandPage = 0;
   let hasMoreRtnHands = true;
@@ -17347,57 +17329,9 @@ async function insertGuess10DrawPlayRecords(rows = []) {
   return true;
 }
 
-async function insertGameHandRecord(handPayload, betRows = []) {
-  let payload = { ...handPayload };
-  let { data: hand, error: handError } = await supabase
-    .from("game_hands")
-    .insert(payload)
-    .select()
-    .single();
-
-  if (
-    handError &&
-    (
-      isMissingColumnError(handError, "game_id")
-      || isMissingColumnError(handError, "commission_kept")
-      || isMissingColumnError(handError, "mode_type")
-      || isMissingColumnError(handError, "contest_id")
-      || isMissingColumnError(handError, "new_account_value")
-      || isMissingColumnError(handError, "drawn_cards")
-    )
-  ) {
-    const {
-      game_id: _gameId,
-      commission_kept: _commissionKept,
-      mode_type: _modeType,
-      contest_id: _contestId,
-      new_account_value: _newAccountValue,
-      drawn_cards: _drawnCards,
-      ...fallbackPayload
-    } = payload;
-    payload = fallbackPayload;
-    ({ data: hand, error: handError } = await supabase
-      .from("game_hands")
-      .insert(payload)
-      .select()
-      .single());
-  }
-
-  if (handError) {
-    throw handError;
-  }
-
-  if (!Array.isArray(betRows) || betRows.length === 0) {
-    return hand;
-  }
-
-  const { error: betsError } = await supabase.from("bet_plays").insert(betRows);
-  if (betsError) {
-    throw betsError;
-  }
-
-  return hand;
-}
+// insertGameHandRecord removed — game_hands is deprecated.
+// RTN hands are written by start_rtn_hand/draw_rtn_card RPCs → rtn_live_hands.
+// G10 hands are written by the guess10 server RPC → guess10_live_hands.
 
 async function logStandaloneGameHand({
   gameKey = GAME_KEYS.RUN_THE_NUMBERS,
@@ -21268,18 +21202,6 @@ async function finalizeGuess10Hand({
     }
     await incrementProfileHandProgress(1, GAME_KEYS.GUESS_10);
     await ensureProfileSynced({ force: true });
-    if (!skipHandLog) {
-      await logStandaloneGameHand({
-        gameKey: GAME_KEYS.GUESS_10,
-        stopperCard,
-        totalCards: completedCards,
-        totalWager: completedBet,
-        totalPaid: totalReturn,
-        net,
-        commissionKept,
-        handHistory
-      });
-    }
   } catch (error) {
     console.error(error);
     showToast("Could not record Guess 10 hand", "error");
@@ -22034,64 +21956,9 @@ async function fetchGameHandsRecords({
     return g10Records;
   };
 
+  // game_hands is deprecated — RTN sourced from rtn_live_hands,
+  // G10 from guess10_live_hands, CS from color_scheme_rounds.
   const allRecords = [];
-  const pageSize = 1000;
-  let page = 0;
-  let hasMore = true;
-  let includeGameId = fields.includes("game_id");
-
-  while (hasMore) {
-    const selectFields = fields.filter((field) => field !== "game_id" || includeGameId).join(", ");
-    let query = supabase
-      .from("game_hands")
-      .select(selectFields)
-      .order("created_at", { ascending: true })
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-
-    if (startAt) {
-      query = query.gte("created_at", startAt.toISOString());
-    }
-
-    if (endAt) {
-      query = query.lte("created_at", endAt.toISOString());
-    }
-
-    if (Array.isArray(userIds) && userIds.length > 0) {
-      query = query.in("user_id", userIds);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      if (includeGameId && isMissingColumnError(error, "game_id")) {
-        includeGameId = false;
-        page = 0;
-        hasMore = true;
-        allRecords.length = 0;
-        continue;
-      }
-      throw error;
-    }
-
-    const rows = Array.isArray(data) ? data : [];
-    rows.forEach((row) => {
-      if (resolveGameKey(row?.game_id) === GAME_KEYS.RUN_THE_NUMBERS) {
-        return; // RTN sourced from rtn_live_hands below
-      }
-      if (resolveGameKey(row?.game_id) === GAME_KEYS.GUESS_10) {
-        return; // G10 sourced from guess10_live_hands below
-      }
-      if (resolveGameKey(row?.game_id) === GAME_KEYS.COLOR_SCHEME) {
-        return; // CS sourced from color_scheme_rounds below
-      }
-      allRecords.push({
-        ...row,
-        game_id: resolveGameKey(row?.game_id)
-      });
-    });
-
-    hasMore = rows.length === pageSize;
-    page += 1;
-  }
 
   const fetchColorSchemeRoundsRecords = async () => {
     if (!supabase) return [];
@@ -22205,44 +22072,8 @@ function isShapeTraderRealizedPnlRecord(row) {
   return Number.isFinite(Number(rawNetProfit));
 }
 
-async function fetchAdminGameHandsRecords({
-  startAt = null,
-  endAt = null,
-  userIds = null
-} = {}) {
-  if (!supabase) {
-    return [];
-  }
-  const allRows = [];
-  const pageSize = 1000;
-  let page = 0;
-  let hasMore = true;
-
-  while (hasMore) {
-    const query = supabase
-      .rpc("get_admin_game_hands", {
-        start_at: startAt ? startAt.toISOString() : null,
-        end_at: endAt ? endAt.toISOString() : null,
-        target_user_ids: Array.isArray(userIds) && userIds.length ? userIds : null
-      })
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-
-    const { data, error } = await query;
-    if (error) {
-      throw error;
-    }
-
-    const rows = Array.isArray(data) ? data : [];
-    allRows.push(...rows);
-    hasMore = rows.length === pageSize;
-    page += 1;
-  }
-
-  return allRows.map((row) => ({
-    ...row,
-    game_id: resolveGameKey(row?.game_id)
-  }));
-}
+// fetchAdminGameHandsRecords removed — game_hands is deprecated.
+// All RTN hands are in rtn_live_hands, G10 in guess10_live_hands.
 
 async function fetchAdminShapeTraderTradeRecords({
   startAt = null,
@@ -22339,21 +22170,16 @@ async function loadAdminAnalyticsRawRecords({
   endAt = new Date(),
   userIds = null
 } = {}) {
-  const [handResult, tradeResult, liveHandResult, csResult] = await Promise.allSettled([
-    fetchAdminGameHandsRecords({ startAt, endAt, userIds }),
+  const [tradeResult, liveHandResult, csResult] = await Promise.allSettled([
     fetchAdminShapeTraderTradeRecords({ startAt, endAt, userIds }),
     fetchAdminLiveHandsRecords({ startAt, endAt, userIds }),
     fetchAdminColorSchemeRoundRecords({ startAt, endAt, userIds })
   ]);
 
-  const legacyHands = handResult.status === "fulfilled" ? handResult.value : [];
   const tradeRecords = tradeResult.status === "fulfilled" ? tradeResult.value : [];
-  const liveHands = liveHandResult.status === "fulfilled" ? liveHandResult.value : [];
-  const csRecords = csResult.status === "fulfilled" ? csResult.value : [];
+  const handRecords  = liveHandResult.status === "fulfilled" ? liveHandResult.value : [];
+  const csRecords    = csResult.status === "fulfilled" ? csResult.value : [];
 
-  if (handResult.status === "rejected") {
-    console.warn("[RTN] admin game hands raw fetch failed", handResult.reason);
-  }
   if (tradeResult.status === "rejected") {
     console.warn("[RTN] admin shape trader raw fetch failed", tradeResult.reason);
   }
@@ -22363,13 +22189,9 @@ async function loadAdminAnalyticsRawRecords({
   if (csResult.status === "rejected") {
     console.warn("[RTN] admin color scheme rounds fetch failed", csResult.reason);
   }
-  if (handResult.status === "rejected" && tradeResult.status === "rejected" &&
-      liveHandResult.status === "rejected" && csResult.status === "rejected") {
-    throw handResult.reason || tradeResult.reason || new Error("Admin analytics raw fetch failed");
+  if (tradeResult.status === "rejected" && liveHandResult.status === "rejected" && csResult.status === "rejected") {
+    throw tradeResult.reason || liveHandResult.reason || new Error("Admin analytics raw fetch failed");
   }
-
-  // Merge legacy + server-draw hands (deduplicate is not needed — different tables)
-  const handRecords = [...legacyHands, ...liveHands];
 
   return {
     handRecords,
@@ -27731,17 +27553,36 @@ async function fetchHandReviewEntry(reviewId) {
       new_account_value: rtnHandRow.new_account_value,
       drawn_cards: rtnHandRow.drawn_cards
     };
-  } else {
-    const { data: gameHandRow, error: handError } = await supabase
-      .from("game_hands")
-      .select("id, user_id, created_at, game_id, total_cards, stopper_label, stopper_suit, total_wager, total_paid, net, commission_kept, new_account_value, drawn_cards")
+  }
+
+  // Check guess10_live_hands if not found in rtn_live_hands
+  if (!handRow) {
+    const { data: g10HandRow, error: g10HandError } = await supabase
+      .from("guess10_live_hands")
+      .select("id, user_id, started_at, mode_type, contest_id, total_cards, total_wager, total_paid, net, commission_kept, new_account_value, drawn_cards")
       .eq("id", reviewId)
       .maybeSingle();
 
-    if (handError) {
-      throw handError;
+    if (g10HandError && !isMissingRelationError(g10HandError, "guess10_live_hands")) {
+      throw g10HandError;
     }
-    handRow = gameHandRow || null;
+    if (g10HandRow) {
+      handRow = {
+        id: g10HandRow.id,
+        user_id: g10HandRow.user_id,
+        created_at: g10HandRow.started_at,
+        game_id: GAME_KEYS.GUESS_10,
+        total_cards: g10HandRow.total_cards,
+        stopper_label: null,
+        stopper_suit: null,
+        total_wager: g10HandRow.total_wager,
+        total_paid: g10HandRow.total_paid,
+        net: g10HandRow.net,
+        commission_kept: g10HandRow.commission_kept,
+        new_account_value: g10HandRow.new_account_value,
+        drawn_cards: g10HandRow.drawn_cards
+      };
+    }
   }
 
   // CS rounds live in color_scheme_rounds, not rtn_live_hands or game_hands
