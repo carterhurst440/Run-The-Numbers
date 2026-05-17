@@ -87,16 +87,17 @@ async function sendEmailWithRetry(
   };
 }
 
+const MONO = `'JetBrains Mono', 'Courier New', monospace`;
+const BG = `#0a0a09`;
+const FG = `#ddd5bc`;
+const DIM = `#686850`;
+const LIME = `#c8ff00`;
+const BORDER = `rgba(200,255,0,0.15)`;
+
 function formatContestStartTime(value: string | null) {
-  if (!value) {
-    return null;
-  }
-
+  if (!value) return null;
   const startTime = new Date(value);
-  if (Number.isNaN(startTime.getTime())) {
-    return null;
-  }
-
+  if (Number.isNaN(startTime.getTime())) return null;
   return startTime.toLocaleString("en-US", {
     month: "short",
     day: "numeric",
@@ -114,26 +115,123 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
   const formattedStart = formatContestStartTime(recipient.starts_at);
   const appBaseUrl = (Deno.env.get("APP_BASE_URL") || "https://carterscasino.app").replace(/\/+$/, "");
   const joinUrl = `${appBaseUrl}/#/contests?contest=${encodeURIComponent(contestId)}`;
-  const introCopy = formattedStart
-    ? `Hi ${firstName}, a new Run The Numbers contest has been published and is scheduled to begin ${formattedStart}. It will run for ${contestLengthHours} hour${contestLengthHours === 1 ? "" : "s"}.`
-    : `Hi ${firstName}, a new Run The Numbers contest has been published. This one will stay in a pending state until ${contestantRequirement} contestants have joined, then it will start immediately and run for ${contestLengthHours} hour${contestLengthHours === 1 ? "" : "s"}.`;
 
-  return `
-    <div style="font-family: Arial, sans-serif; background: #071632; color: #ecf7ff; padding: 24px;">
-      <div style="max-width: 640px; margin: 0 auto; background: #0b1d45; border: 1px solid rgba(63,240,255,0.2); border-radius: 16px; padding: 28px;">
-        <p style="margin: 0 0 8px; color: #37f0ff; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase;">Contest Alert</p>
-        <h1 style="margin: 0 0 16px; font-size: 28px;">${recipient.contest_title} is open for entry</h1>
-        <p style="margin: 0 0 18px; font-size: 16px; line-height: 1.6;">${introCopy}</p>
-        ${recipient.contest_details?.trim()
-          ? `<p style="margin: 0 0 18px; padding: 14px 16px; border-radius: 14px; background: rgba(255,255,255,0.04); color: rgba(236,247,255,0.88); font-size: 14px; line-height: 1.6;">${recipient.contest_details.trim()}</p>`
-          : ""}
-        <div style="margin: 0 0 18px;">
-          <a href="${joinUrl}" style="display: inline-block; padding: 14px 22px; border-radius: 999px; background: linear-gradient(135deg, #3ff0ff, #7f8dff); color: #03111f; font-size: 14px; font-weight: 700; letter-spacing: 0.14em; text-decoration: none; text-transform: uppercase;">View Contest</a>
-        </div>
-        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: rgba(236,247,255,0.78);">If you no longer want these emails, open the Contests page in the app and turn off contest notification emails.</p>
-      </div>
-    </div>
-  `;
+  const startBlock = formattedStart
+    ? `<tr>
+        <td style="padding:0 0 28px;">
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding-right:32px;">
+                <p style="margin:0 0 4px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">// starts</p>
+                <p style="margin:0;font-family:${MONO};font-size:13px;color:${FG};">${formattedStart}</p>
+              </td>
+              <td>
+                <p style="margin:0 0 4px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">// runs for</p>
+                <p style="margin:0;font-family:${MONO};font-size:13px;color:${FG};">${contestLengthHours}h</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>`
+    : `<tr>
+        <td style="padding:0 0 28px;">
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding-right:32px;">
+                <p style="margin:0 0 4px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">// starts when</p>
+                <p style="margin:0;font-family:${MONO};font-size:13px;color:${FG};">${contestantRequirement} player${contestantRequirement === 1 ? "" : "s"} join</p>
+              </td>
+              <td>
+                <p style="margin:0 0 4px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">// runs for</p>
+                <p style="margin:0;font-family:${MONO};font-size:13px;color:${FG};">${contestLengthHours}h</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>`;
+
+  const bodyCopy = formattedStart
+    ? `hey ${firstName} — a new contest has been published and is scheduled to start soon. join before it fills up.`
+    : `hey ${firstName} — a new contest has been published. it will start as soon as ${contestantRequirement} player${contestantRequirement === 1 ? "" : "s"} join. be one of them.`;
+
+  const detailsBlock = recipient.contest_details?.trim()
+    ? `<tr>
+        <td style="padding:0 0 28px;">
+          <div style="padding:16px;background:rgba(255,255,255,0.03);border-left:2px solid ${BORDER};">
+            <p style="margin:0 0 6px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">// details</p>
+            <p style="margin:0;font-family:${MONO};font-size:13px;color:${FG};line-height:1.65;opacity:0.82;">${recipient.contest_details.trim()}</p>
+          </div>
+        </td>
+      </tr>`
+    : "";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${recipient.contest_title} — new contest published</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap');
+    body { margin: 0; padding: 0; background: ${BG}; }
+    a { color: inherit; }
+  </style>
+</head>
+<body style="margin:0;padding:0;background:${BG};">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BG};">
+    <tr>
+      <td align="center" style="padding:32px 16px 40px;">
+        <table role="presentation" width="100%" style="max-width:540px;" cellpadding="0" cellspacing="0">
+
+          <!-- HEADER -->
+          <tr>
+            <td style="padding:0 0 32px;">
+              <p style="margin:0;font-family:${MONO};font-size:11px;font-weight:700;color:${LIME};letter-spacing:0.18em;text-transform:uppercase;">// carter's casino</p>
+            </td>
+          </tr>
+
+          <!-- HERO -->
+          <tr>
+            <td style="padding:0 0 32px;border-bottom:1px solid ${BORDER};">
+              <p style="margin:0 0 10px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.2em;">// new contest</p>
+              <h1 style="margin:0;font-family:${MONO};font-size:28px;font-weight:800;color:${FG};line-height:1.15;letter-spacing:-0.01em;">${recipient.contest_title}</h1>
+            </td>
+          </tr>
+
+          <!-- START / DURATION -->
+          <tr><td style="padding:28px 0 0;"></td></tr>
+          ${startBlock}
+
+          <!-- DETAILS -->
+          ${detailsBlock}
+
+          <!-- BODY COPY -->
+          <tr>
+            <td style="padding:0 0 32px;">
+              <p style="margin:0;font-family:${MONO};font-size:13px;color:${DIM};line-height:1.7;">${bodyCopy}</p>
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td style="padding:0 0 40px;">
+              <a href="${joinUrl}" style="display:inline-block;padding:13px 28px;background:${LIME};color:#0a0a09;font-family:${MONO};font-size:12px;font-weight:700;letter-spacing:0.14em;text-decoration:none;text-transform:uppercase;">view contest →</a>
+            </td>
+          </tr>
+
+          <!-- FOOTER -->
+          <tr>
+            <td style="border-top:1px solid rgba(104,104,80,0.25);padding:20px 0 0;">
+              <p style="margin:0;font-family:${MONO};font-size:10px;color:${DIM};line-height:1.6;">to stop receiving contest emails, open the app &rsaquo; contests &rsaquo; notifications</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 }
 
 Deno.serve(async (request) => {
