@@ -18530,6 +18530,8 @@ const handReviewTotalsEl = document.getElementById("hand-review-totals");
 const handReviewTotalWagerEl = document.getElementById("hand-review-total-wager");
 const handReviewTotalReturnEl = document.getElementById("hand-review-total-return");
 const handReviewTotalNetEl = document.getElementById("hand-review-total-net");
+const handReviewBalanceRowEl = document.getElementById("hand-review-balance-row");
+const handReviewTotalBalanceEl = document.getElementById("hand-review-total-balance");
 const handReviewCloseButton = document.getElementById("hand-review-close");
 const handReviewOkButton = document.getElementById("hand-review-ok");
 const activityLogListEl = document.getElementById("activity-log-list");
@@ -21848,7 +21850,7 @@ async function fetchGameHandsRecords({
     while (csHasMore) {
       let query = supabase
         .from("color_scheme_rounds")
-        .select("id, user_id, created_at, contest_id, total_wagered, total_returned, net_profit")
+        .select("id, user_id, created_at, contest_id, total_wagered, total_returned, net_profit, new_account_value")
         .eq("status", "completed")
         .order("created_at", { ascending: true })
         .range(csPage * csPageSize, (csPage + 1) * csPageSize - 1);
@@ -21876,7 +21878,7 @@ async function fetchGameHandsRecords({
           total_paid: row.total_returned || 0,
           net: row.net_profit || 0,
           commission_kept: 0,
-          new_account_value: 0,
+          new_account_value: row.new_account_value || 0,
           drawn_cards: []
         });
       });
@@ -27459,6 +27461,9 @@ function renderHandReviewModalEntry(entry) {
       entry.net > 0 ? "review-hand-positive" : entry.net < 0 ? "review-hand-negative" : "review-hand-neutral"
     }`;
   }
+  const bal = entry.newAccountValue != null ? Number(entry.newAccountValue) : null;
+  if (handReviewBalanceRowEl) handReviewBalanceRowEl.hidden = !(bal && bal > 0);
+  if (handReviewTotalBalanceEl && bal && bal > 0) handReviewTotalBalanceEl.textContent = formatCurrency(bal);
 }
 
 function renderHandReviewLoadingState(trigger = null) {
@@ -27483,6 +27488,7 @@ function renderHandReviewLoadingState(trigger = null) {
     handReviewTotalNetEl.textContent = "—";
     handReviewTotalNetEl.className = "review-hand-total-value review-hand-neutral";
   }
+  if (handReviewBalanceRowEl) handReviewBalanceRowEl.hidden = true;
 }
 
 async function fetchHandReviewEntry(reviewId) {
@@ -27553,7 +27559,7 @@ async function fetchHandReviewEntry(reviewId) {
   if (!handRow) {
     const { data: csRound, error: csErr } = await supabase
       .from('color_scheme_rounds')
-      .select('id, user_id, created_at, total_wagered, total_returned, net_profit, status')
+      .select('id, user_id, created_at, total_wagered, total_returned, net_profit, new_account_value, status')
       .eq('id', reviewId)
       .maybeSingle();
     if (csErr && !isMissingRelationError(csErr, 'color_scheme_rounds')) throw csErr;
@@ -27570,7 +27576,7 @@ async function fetchHandReviewEntry(reviewId) {
         total_paid: csRound.total_returned || 0,
         net: csRound.net_profit || 0,
         commission_kept: 0,
-        new_account_value: 0,
+        new_account_value: csRound.new_account_value || 0,
         drawn_cards: []
       };
     }
