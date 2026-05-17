@@ -4,20 +4,23 @@
 -- Context: The RTN server-path (start_rtn_hand / draw_rtn_card)
 -- writes directly to rtn_live_hands. But before the server path
 -- was fully deployed, hands were dealt client-side and saved via
--- logRunTheNumbersHandAndBets → game_hands only.
+-- logRunTheNumbersHandAndBets → game_hands only. Additionally,
+-- while both paths were active, game_hands accumulated rows that
+-- the server path never wrote to rtn_live_hands.
 --
--- This script inserts those orphaned game_hands RTN rows into
--- rtn_live_hands so the PNL and activity systems are complete.
+-- De-duplication: ID-based only — if game_hands.id already exists
+-- in rtn_live_hands (from the original migration or any prior run),
+-- skip it. This is safe and idempotent.
 --
--- De-duplication: A game_hands row is considered "already present"
--- in rtn_live_hands if there is a row with the same user_id, the
--- same net (rounded to 2dp), and an ended_at within 5 minutes of
--- game_hands.created_at. Server-path hands satisfy this because
--- draw_rtn_card sets ended_at the moment the stopper fires, and
--- logRunTheNumbersHandAndBets runs immediately afterward.
+-- Note: server-path hands written after rtn_live_hands was deployed
+-- have a different UUID in rtn_live_hands than in game_hands (the
+-- server generates a new id; game_hands got its own id via
+-- logRunTheNumbersHandAndBets). Those server-path game_hands rows
+-- will be inserted as additional rows here. They will not affect
+-- live PNL going forward (logRunTheNumbersHandAndBets has been
+-- removed), and can be deduped later if needed.
 --
--- Safe to re-run: uses ON CONFLICT (id) DO NOTHING, with the
--- game_hands.id as the rtn_live_hands.id for migrated rows.
+-- Safe to re-run: ON CONFLICT (id) DO NOTHING.
 -- ============================================================
 
 insert into public.rtn_live_hands (
@@ -102,28 +105,20 @@ select
 
 from public.game_hands gh
 where coalesce(gh.game_id, 'game_001') = 'game_001'
-  -- Only migrate rows not already represented in rtn_live_hands.
-  -- A server-path hand writes ended_at the moment the stopper fires;
-  -- logRunTheNumbersHandAndBets fires immediately after, so the gap
-  -- between rtn_live_hands.ended_at and game_hands.created_at is
-  -- typically < 10 seconds. 5 minutes is a very conservative window.
+  -- ID-based dedup: skip any row whose game_hands.id already
+  -- exists in rtn_live_hands (from a prior migration run).
   and not exists (
-    select 1
-    from public.rtn_live_hands rlh
-    where rlh.user_id = gh.user_id
-      and round(rlh.net::numeric, 2) = round(gh.net::numeric, 2)
-      and rlh.ended_at is not null
-      and abs(extract(epoch from (rlh.ended_at - gh.created_at))) < 300
+    select 1 from public.rtn_live_hands rlh where rlh.id = gh.id
   )
 
 on conflict (id) do nothing;
 
--- ── Verification: how many rows were migrated? ───────────────
+-- ── Verification ─────────────────────────────────────────────
 select
-  count(*)                                    as migrated_rows,
+  count(*)                                       as migrated_rows,
   count(*) filter (where contest_id is not null) as contest_rows,
   count(*) filter (where contest_id is null)     as normal_rows,
-  min(created_at)                             as oldest_hand,
-  max(created_at)                             as newest_hand
+  min(created_at)                                as oldest_hand,
+  max(created_at)                                as newest_hand
 from public.rtn_live_hands
 where (hand_state ->> 'migrated_from_game_hands')::boolean is true;
