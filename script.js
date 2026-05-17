@@ -29195,17 +29195,6 @@ if (bankrollChartCanvas && bankrollChartWrapper) {
   });
 }
 
-if (homePnlChartCanvas) {
-  homePnlChartCanvas.addEventListener("mousemove", (event) => {
-    const rect = homePnlChartCanvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    const hit = homePnlHoverBars.find((bar) => x >= bar.x && x <= bar.x + bar.width && y >= bar.y && y <= bar.y + bar.height);
-    if (hit) { showHomePnlTooltip(hit); } else { hideHomePnlTooltip(); }
-  });
-  homePnlChartCanvas.addEventListener("mouseleave", () => { hideHomePnlTooltip(); });
-}
-
 if (adminPnlChartCanvas && adminPnlChartWrapper) {
   adminPnlChartCanvas.addEventListener("mousemove", (event) => {
     const rect = adminPnlChartCanvas.getBoundingClientRect();
@@ -35512,6 +35501,17 @@ let homePnlChartGame = "all";
 let homePnlMode = "all";
 let homePnlCtx = homePnlChartCanvas ? homePnlChartCanvas.getContext("2d") : null;
 let homePnlHoverBars = [];
+
+if (homePnlChartCanvas) {
+  homePnlChartCanvas.addEventListener("mousemove", (event) => {
+    const rect = homePnlChartCanvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const hit = homePnlHoverBars.find((bar) => x >= bar.x && x <= bar.x + bar.width && y >= bar.y && y <= bar.y + bar.height);
+    if (hit) { showHomePnlTooltip(hit); } else { hideHomePnlTooltip(); }
+  });
+  homePnlChartCanvas.addEventListener("mouseleave", () => { hideHomePnlTooltip(); });
+}
 
 function renderHomePlayerHero() {
   if (!currentProfile) { homeGlitchSection('hero'); return; }
