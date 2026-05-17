@@ -786,51 +786,6 @@ begin
       gen_random_uuid()::text
     );
 
-    insert into public.game_hands (
-      id,
-      user_id,
-      game_id,
-      mode_type,
-      contest_id,
-      stopper_label,
-      stopper_suit,
-      total_cards,
-      total_wager,
-      total_paid,
-      net,
-      commission_kept,
-      new_account_value,
-      drawn_cards,
-      created_at
-    )
-    values (
-      v_hand.id,
-      auth.uid(),
-      'game_002',
-      v_hand.mode_type,
-      v_hand.contest_id,
-      v_hand.stopper_label,
-      v_hand.stopper_suit,
-      v_hand.total_cards,
-      v_hand.total_wager,
-      v_hand.total_paid,
-      v_hand.net,
-      v_hand.commission_kept,
-      v_hand.new_account_value,
-      v_hand.drawn_cards,
-      v_hand.started_at
-    )
-    on conflict (id) do update
-    set
-      stopper_label = excluded.stopper_label,
-      stopper_suit = excluded.stopper_suit,
-      total_cards = excluded.total_cards,
-      total_wager = excluded.total_wager,
-      total_paid = excluded.total_paid,
-      net = excluded.net,
-      commission_kept = excluded.commission_kept,
-      new_account_value = excluded.new_account_value,
-      drawn_cards = excluded.drawn_cards;
   end if;
 
   return jsonb_build_object(
@@ -957,50 +912,6 @@ begin
     order by gdp.draw_index desc, gdp.placed_at desc
     limit 1
   );
-
-  insert into public.game_hands (
-    id,
-    user_id,
-    game_id,
-    mode_type,
-    contest_id,
-    stopper_label,
-    stopper_suit,
-    total_cards,
-    total_wager,
-    total_paid,
-    net,
-    commission_kept,
-    new_account_value,
-    drawn_cards,
-    created_at
-  )
-  values (
-    v_hand.id,
-    auth.uid(),
-    'game_002',
-    v_hand.mode_type,
-    v_hand.contest_id,
-    v_hand.stopper_label,
-    v_hand.stopper_suit,
-    v_hand.total_cards,
-    v_hand.total_wager,
-    v_hand.total_paid,
-    v_hand.net,
-    v_hand.commission_kept,
-    v_hand.new_account_value,
-    v_hand.drawn_cards,
-    v_hand.started_at
-  )
-  on conflict (id) do update
-  set
-    total_cards = excluded.total_cards,
-    total_wager = excluded.total_wager,
-    total_paid = excluded.total_paid,
-    net = excluded.net,
-    commission_kept = excluded.commission_kept,
-    new_account_value = excluded.new_account_value,
-    drawn_cards = excluded.drawn_cards;
 
   return jsonb_build_object(
     'hand_id', v_hand.id,
