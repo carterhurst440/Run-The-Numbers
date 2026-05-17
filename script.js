@@ -27284,7 +27284,7 @@ async function loadActivityLogPage({ force = false, append = false } = {}) {
   }
 
   activityLogLoading = true;
-  renderActivityLogPage();
+  if (!append) renderActivityLogPage(); // don't wipe existing rows on append
 
   try {
     const tradesQuery = supabase
