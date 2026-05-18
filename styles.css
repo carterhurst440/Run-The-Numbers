@@ -16662,7 +16662,7 @@ body.state-open      .auth-vault-corners {
   opacity: 0;
 }
 
-/* Form content fades out */
+/* Form content vanishes immediately as animation begins */
 body.state-unlocking .auth-vault-form,
 body.state-unlocking .auth-vault-welcome,
 body.state-unlocking .auth-vault-tagline,
@@ -16671,10 +16671,9 @@ body.state-open      .auth-vault-form,
 body.state-open      .auth-vault-welcome,
 body.state-open      .auth-vault-tagline,
 body.state-open      .auth-vault-switch {
-  transition: opacity 0.45s ease, filter 0.45s ease, transform 0.5s ease;
+  transition: opacity 0.15s ease-in, filter 0.15s ease-in;
   opacity: 0;
-  filter: blur(2px);
-  transform: translateY(-4px);
+  filter: blur(3px);
   pointer-events: none;
 }
 
