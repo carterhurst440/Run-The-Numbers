@@ -9223,6 +9223,15 @@ body.theme-angelic {
   display: block;
 }
 
+.nav-logo--mobile {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .nav-logo--desktop { display: none; }
+  .nav-logo--mobile { display: block; }
+}
+
 .nav-brand {
   font-size: 11px;
   letter-spacing: 0.2em;
