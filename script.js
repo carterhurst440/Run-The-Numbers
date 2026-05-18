@@ -36778,6 +36778,14 @@ function initColorSchemeGame() {
         return;
       }
 
+      // ── Bet guard ─────────────────────────────────────────────────────
+      // First roll only — once a round is in progress the dice must keep rolling.
+      if (_csRoll === 0 && Object.keys(_csBets).length === 0) {
+        showToast('Place at least one bet before rolling.', 'error');
+        this.disabled = false;
+        return;
+      }
+
       _csPendingServerRoll=null; _csWaitingForServer=false; _csSettleArgsCache=null;
       _csTargetQuats=null; _csClipActive=null; _csClipFrame=0;
 
