@@ -16224,7 +16224,7 @@ function closeCarterCashModal() {
   const modal = document.getElementById("carter-cash-modal");
   if (!modal) return;
   modal.hidden = true;
-  carterCashInfoButton?.focus();
+  // focus returned to triggering element if available
 }
 
 async function openGameActivityChart(gameId) {
@@ -18058,7 +18058,6 @@ const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-
 const dashboardEmailEl = document.getElementById("dashboard-email");
 const dashboardCreditsEl = document.getElementById("dashboard-credits");
 const dashboardCarterEl = document.getElementById("dashboard-carter-cash");
-const carterCashInfoButton = document.getElementById("carter-cash-info-button");
 const homeRankPanelEl = document.getElementById("home-rank-panel");
 const homeRankTitleEl = document.getElementById("home-rank-title");
 const homeRankHandsProgressTextEl = document.getElementById("home-rank-hands-progress-text");
@@ -28782,14 +28781,6 @@ if (notificationsListEl) {
   });
 }
 
-if (carterCashInfoButton) {
-  carterCashInfoButton.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    openCarterCashModal();
-  });
-}
-
 // Tap-to-reveal exact bankroll / CC amount
 const _bankrollTapAreaEl = document.getElementById("bankroll-tap-area");
 const _ccTapAreaEl = document.getElementById("cc-tap-area");
@@ -35310,7 +35301,7 @@ let _csWaitingForServer = false;
 let _csSettleArgsCache = null;
 
 const CS_ODDS = {
-  RED:9,BLUE:9,YELLOW:9,PURPLE:5,GREEN:5,ORANGE:5,COLOR_TIE:4,
+  RED:9,BLUE:9,YELLOW:9,PURPLE:5,GREEN:5,ORANGE:5,COLOR_TIE:3,
   TYPE_PRIMARY:1,TYPE_SECONDARY:1,TYPE_TIE:50,
   PUR_LO:3,PUR_MID:9,PUR_HI:31,GRN_LO:3,GRN_MID:9,GRN_HI:31,ORG_LO:3,ORG_MID:9,ORG_HI:31,
   BLU_1:11,BLU_2:10,BLU_3:10,BLU_4:9,BLU_5:9,BLU_6:8,BLU_7P:5,

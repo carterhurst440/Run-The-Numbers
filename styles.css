@@ -9631,14 +9631,6 @@ body.theme-angelic {
   flex-shrink: 0;
 }
 
-.carter-cash-info-button {
-  width: 16px;
-  height: 16px;
-  color: rgba(185, 255, 210, 0.82);
-  margin-left: 0.05rem;
-  position: relative;
-  z-index: 2;
-}
 
 @media (min-width: 481px) {
   .bankroll-units {
