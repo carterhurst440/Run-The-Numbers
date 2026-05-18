@@ -154,7 +154,7 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
 
           <!-- TOP BAR: lime strip -->
           <tr>
-            <td bgcolor="#c8ff00" style="padding:14px 24px;background-color:#c8ff00;">
+            <td bgcolor="#c8ff00" data-ogsc="#c8ff00" data-ogsb="#c8ff00" style="padding:14px 24px;background-color:#c8ff00 !important;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="vertical-align:middle;">
@@ -199,7 +199,7 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
 
               <!-- CTA -->
               <div style="margin:0 0 32px;">
-                <a href="${joinUrl}" style="display:block;padding:16px 24px;background-color:#c8ff00;color:#0a0a09;font-family:${MONO};font-size:12px;font-weight:800;letter-spacing:0.16em;text-decoration:none;text-transform:uppercase;text-align:center;">VIEW CONTEST &#8594;</a>
+                <a href="${joinUrl}" data-ogsc="#0a0a09" data-ogsb="#c8ff00" style="display:block;padding:16px 24px;background-color:#c8ff00 !important;color:#0a0a09 !important;font-family:${MONO};font-size:12px;font-weight:800;letter-spacing:0.16em;text-decoration:none;text-transform:uppercase;text-align:center;">VIEW CONTEST &#8594;</a>
               </div>
 
               <!-- FOOTER -->
