@@ -91,9 +91,9 @@ async function sendEmailWithRetry(
 }
 
 const MONO = `'JetBrains Mono', 'Courier New', monospace`;
-const BG = `#0a0a09`;
-const FG = `#ddd5bc`;
-const DIM = `#686850`;
+const BG = `#ffffff`;
+const FG = `#0a0a09`;
+const DIM = `#888878`;
 const LIME = `#c8ff00`;
 
 function formatPrizeMoney(value: number) {
@@ -117,25 +117,20 @@ function formatDateRange(starts: string, ends: string): string {
   return `${startStr} – ${endStr}`.toUpperCase();
 }
 
-function buildPotSection(recipient: RecipientRow): { potStyles: string; potHtml: string } {
+function buildPotSection(recipient: RecipientRow): string {
   const baseAmount = Math.max(0, Number(recipient.prize_static_amount ?? 0));
   const unitAmount = Math.max(0, Number(recipient.prize_variable_unit_amount ?? 0));
   const isVariable = recipient.prize_mode === "variable" && recipient.prize_variable_basis !== "none" && unitAmount > 0;
   const basisLabel = recipient.prize_variable_basis === "qualifying_contestant" ? "qualifying player" : "player";
-  const numInline = `font-family:'Arial Black','Arial Bold',Arial,sans-serif;font-size:72px;font-weight:900;color:#c8ff00;line-height:1;letter-spacing:-0.02em;`;
-  const potStyles = `.pot-num{font-family:'Arial Black','Arial Bold',Arial,sans-serif!important;font-size:72px!important;font-weight:900!important;color:#c8ff00!important;}`;
 
   const growthNote = isVariable
-    ? `<p style="margin:12px 0 0;font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;color:#686850;line-height:1.6;">${formatPrizeMoney(unitAmount)} added to the pot with each new ${basisLabel}${baseAmount > 0 ? `. starts at ${formatPrizeMoney(baseAmount)}` : ""}.</p>`
-    : `<p style="margin:12px 0 0;font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;color:#686850;letter-spacing:0.04em;">fixed pot &mdash; winner takes all</p>`;
+    ? `<p style="margin:10px 0 0;font-family:${MONO};font-size:11px;color:${DIM};line-height:1.6;">${formatPrizeMoney(unitAmount)} added to the pot with each new ${basisLabel}${baseAmount > 0 ? `. starts at ${formatPrizeMoney(baseAmount)}` : ""}.</p>`
+    : `<p style="margin:10px 0 0;font-family:${MONO};font-size:11px;color:${DIM};">fixed pot &mdash; winner takes all</p>`;
 
-  return {
-    potStyles,
-    potHtml: `
-      <p style="margin:0 0 10px;font-family:'JetBrains Mono','Courier New',monospace;font-size:10px;font-weight:700;color:#686850;text-transform:uppercase;letter-spacing:0.18em;">PRIZE POT</p>
-      <div class="pot-num" style="${numInline}">${formatPrizeMoney(baseAmount)}</div>
-      ${growthNote}`
-  };
+  return `
+    <p style="margin:0 0 8px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.18em;">PRIZE POT</p>
+    <div style="font-family:'Arial Black','Arial Bold',Arial,sans-serif;font-size:64px;font-weight:900;color:${FG};line-height:1;letter-spacing:-0.02em;">${formatPrizeMoney(baseAmount)}</div>
+    ${growthNote}`;
 }
 
 function buildEmailHtml(recipient: RecipientRow, contestId: string) {
@@ -156,16 +151,16 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
   const joinUrl = `${appBaseUrl}/#/contests?contest=${encodeURIComponent(contestId)}`;
   const dateRange = formatDateRange(recipient.starts_at, recipient.ends_at);
 
-  const { potStyles, potHtml } = buildPotSection(recipient);
+  const potHtml = buildPotSection(recipient);
 
-  const logoMark = `<span style="font-family:'JetBrains Mono','Courier New',monospace;font-size:16px;font-weight:800;color:#c8ff00;margin-right:8px;">&#9632;</span>`;
+  const logoMark = `<span style="font-family:${MONO};font-size:15px;font-weight:800;color:#0a0a09;margin-right:8px;">&#9632;</span>`;
 
   const detailsRow = recipient.contest_details?.trim()
     ? `<tr>
-        <td style="padding:0 0 36px;">
+        <td style="padding:0 0 28px;">
           <p style="margin:0 0 6px;font-family:${MONO};font-size:9px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">DETAILS</p>
-          <div style="padding:14px 16px;border-left:2px solid rgba(200,255,0,0.25);">
-            <p style="margin:0;font-family:${MONO};font-size:12px;color:${FG};line-height:1.7;opacity:0.82;">${recipient.contest_details.trim()}</p>
+          <div style="padding:14px 16px;border-left:2px solid #e0e0d8;">
+            <p style="margin:0;font-family:${MONO};font-size:12px;color:${FG};line-height:1.7;">${recipient.contest_details.trim()}</p>
           </div>
         </td>
       </tr>`
@@ -176,100 +171,68 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="light dark">
-  <meta name="supported-color-schemes" content="light dark">
   <title>${recipient.contest_title}</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap">
   <style>
-    ${potStyles}
-    :root { color-scheme: light dark; }
-    body, .body { margin:0; padding:0; background-color:#0a0a09 !important; }
+    body { margin:0; padding:0; background-color:#ffffff; }
     a { color:inherit; }
-    .email-bg {
-      background-color:#0a0a09 !important;
-      color:#ddd5bc !important;
-    }
-    /* Gmail mobile */
-    u + .body .email-bg { background-color:#0a0a09 !important; }
-    u + .body .email-bg td { background-color:#0a0a09 !important; }
-    u + .body .email-bg table { background-color:#0a0a09 !important; }
-    /* Outlook.com */
-    #MessageViewBody .email-bg { background-color:#0a0a09 !important; }
-    @media (prefers-color-scheme: dark) {
-      .email-bg { background-color:#0a0a09 !important; }
-      .email-bg td { background-color:#0a0a09 !important; }
-      .email-bg table { background-color:#0a0a09 !important; }
-    }
   </style>
 </head>
-<body class="body" style="margin:0;padding:0;background-color:#0a0a09;">
-  <div class="email-bg" style="background-color:#0a0a09;margin:0;padding:0;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0a09" style="background-color:#0a0a09;">
+<body style="margin:0;padding:0;background-color:#ffffff;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="background-color:#ffffff;">
     <tr>
-      <td align="center" bgcolor="#0a0a09" style="padding:28px 20px 40px;background-color:#0a0a09;">
-        <table role="presentation" width="100%" style="max-width:520px;" cellpadding="0" cellspacing="0" bgcolor="#0a0a09">
+      <td align="center" bgcolor="#ffffff" style="padding:0;background-color:#ffffff;">
+        <table role="presentation" width="100%" style="max-width:560px;" cellpadding="0" cellspacing="0" bgcolor="#ffffff">
 
-          <!-- TOP BAR -->
+          <!-- TOP BAR: lime strip -->
           <tr>
-            <td bgcolor="#0a0a09" style="padding:0 0 20px;border-bottom:1px solid rgba(200,255,0,0.15);background-color:#0a0a09;">
+            <td bgcolor="#c8ff00" style="padding:14px 24px;background-color:#c8ff00;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="vertical-align:middle;white-space:nowrap;">
-                    ${logoMark}<span style="font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;font-weight:700;color:#c8ff00;letter-spacing:0.12em;text-transform:uppercase;">CARTER'S CASINO</span>
+                  <td style="vertical-align:middle;">
+                    ${logoMark}<span style="font-family:${MONO};font-size:11px;font-weight:700;color:#0a0a09;letter-spacing:0.12em;text-transform:uppercase;">CARTER'S CASINO</span>
                   </td>
                   <td align="right" style="vertical-align:middle;white-space:nowrap;">
-                    <span style="font-family:'JetBrains Mono','Courier New',monospace;font-size:10px;font-weight:700;color:#c8ff00;letter-spacing:0.14em;text-transform:uppercase;">&#9679; CONTEST IS LIVE</span>
+                    <span style="font-family:${MONO};font-size:10px;font-weight:700;color:#0a0a09;letter-spacing:0.14em;text-transform:uppercase;">&#9679; CONTEST IS LIVE</span>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
 
-          <!-- CONTEST TITLE -->
+          <!-- CONTENT -->
           <tr>
-            <td bgcolor="#0a0a09" style="padding:28px 0 36px;background-color:#0a0a09;">
-              <div style="margin:0;font-family:'Arial Black','Arial Bold',Arial,sans-serif;font-size:36px;font-weight:900;color:#ddd5bc;line-height:1.1;">${recipient.contest_title}</div>
-            </td>
-          </tr>
+            <td bgcolor="#ffffff" style="padding:32px 24px 0;background-color:#ffffff;">
 
-          <!-- PRIZE POT -->
-          <tr>
-            <td bgcolor="#0a0a09" style="padding:0 0 36px;background-color:#0a0a09;">
-              ${potHtml}
-            </td>
-          </tr>
+              <!-- CONTEST TITLE -->
+              <div style="margin:0 0 32px;font-family:'Arial Black','Arial Bold',Arial,sans-serif;font-size:36px;font-weight:900;color:#0a0a09;line-height:1.1;">${recipient.contest_title}</div>
 
-          <!-- DETAILS (optional) -->
-          ${detailsRow}
+              <!-- PRIZE POT -->
+              <div style="margin:0 0 28px;padding:20px 24px;background-color:#f5f5f0;">
+                ${potHtml}
+              </div>
 
-          <!-- BODY COPY -->
-          <tr>
-            <td bgcolor="#0a0a09" style="padding:0 0 32px;background-color:#0a0a09;">
-              <p style="margin:0;font-family:${MONO};font-size:12px;color:#686850;line-height:1.75;">hey ${firstName} — switch to contest mode in the app to get on the leaderboard. runs for ${durationLabel}.</p>
-            </td>
-          </tr>
+              <!-- DETAILS (optional) -->
+              ${detailsRow ? `<div style="margin:0 0 28px;">${recipient.contest_details?.trim() ? `<p style="margin:0 0 6px;font-family:${MONO};font-size:9px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">DETAILS</p><div style="padding:14px 16px;border-left:2px solid #e0e0d8;"><p style="margin:0;font-family:${MONO};font-size:12px;color:${FG};line-height:1.7;">${recipient.contest_details.trim()}</p></div>` : ""}</div>` : ""}
 
-          <!-- CTA -->
-          <tr>
-            <td bgcolor="#0a0a09" style="padding:0 0 40px;background-color:#0a0a09;">
-              <a href="${joinUrl}" style="display:block;padding:16px 24px;background:#c8ff00;color:#0a0a09;font-family:${MONO};font-size:12px;font-weight:800;letter-spacing:0.16em;text-decoration:none;text-transform:uppercase;text-align:center;">PLAY NOW &#8594;</a>
-            </td>
-          </tr>
+              <!-- BODY COPY -->
+              <p style="margin:0 0 28px;font-family:${MONO};font-size:12px;color:${DIM};line-height:1.75;">hey ${firstName} — switch to contest mode in the app to get on the leaderboard. runs for ${durationLabel}.</p>
 
-          <!-- FOOTER BAR -->
-          <tr>
-            <td bgcolor="#0a0a09" style="border-top:1px solid rgba(104,104,80,0.2);padding:16px 0 0;background-color:#0a0a09;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0a09">
+              <!-- CTA -->
+              <div style="margin:0 0 32px;">
+                <a href="${joinUrl}" style="display:block;padding:16px 24px;background-color:#c8ff00;color:#0a0a09;font-family:${MONO};font-size:12px;font-weight:800;letter-spacing:0.16em;text-decoration:none;text-transform:uppercase;text-align:center;">PLAY NOW &#8594;</a>
+              </div>
+
+              <!-- FOOTER -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e8e8e0;">
                 <tr>
-                  <td bgcolor="#0a0a09" style="background-color:#0a0a09;"><p style="margin:0;font-family:${MONO};font-size:10px;font-weight:700;letter-spacing:0.1em;"><a href="${appBaseUrl}" style="color:#c8ff00;text-decoration:none;text-transform:uppercase;">CARTERSCASINO.APP</a></p></td>
-                  <td bgcolor="#0a0a09" align="right" style="background-color:#0a0a09;"><p style="margin:0;font-family:${MONO};font-size:10px;color:#686850;letter-spacing:0.06em;">${dateRange}</p></td>
-                </tr>
-                <tr>
-                  <td bgcolor="#0a0a09" colspan="2" style="padding:10px 0 0;background-color:#0a0a09;">
-                    <p style="margin:0;font-family:${MONO};font-size:10px;color:rgba(104,104,80,0.5);line-height:1.6;">to stop receiving contest emails, open the app &rsaquo; contests &rsaquo; notifications</p>
+                  <td style="padding:16px 0 24px;">
+                    <p style="margin:0 0 4px;font-family:${MONO};font-size:10px;font-weight:700;letter-spacing:0.1em;"><a href="${appBaseUrl}" style="color:#0a0a09;text-decoration:none;text-transform:uppercase;">CARTERSCASINO.APP</a>${dateRange ? ` <span style="color:${DIM};font-weight:400;">— ${dateRange}</span>` : ""}</p>
+                    <p style="margin:0;font-family:${MONO};font-size:10px;color:${DIM};line-height:1.6;">to stop receiving contest emails, open the app &rsaquo; contests &rsaquo; notifications</p>
                   </td>
                 </tr>
               </table>
+
             </td>
           </tr>
 
@@ -277,7 +240,6 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
       </td>
     </tr>
   </table>
-  </div>
 </body>
 </html>`;
 }
