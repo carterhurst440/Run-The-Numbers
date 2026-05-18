@@ -36060,7 +36060,8 @@ async function csSettleBetsOnServer(roundId, totals, grandTotal) {
     if (settleErr) console.error('[CS] round settle update failed:', settleErr.message, settleErr);
 
     await incrementProfileHandProgress(1, GAME_KEYS.COLOR_SCHEME);
-    await ensureProfileSynced({ force: true });
+    // Do NOT call ensureProfileSynced here — profiles.credits is stale relative to
+    // the just-settled bankroll and would overwrite the correct post-round balance.
     _csRoundId = null;
   } catch(e) { console.warn('[CS] csSettleBetsOnServer error:', e); }
   finally {
@@ -36848,13 +36849,13 @@ function initColorSchemeGame() {
       bRebet._csHandler = function() {
         // Guard: must have saved bets, board must be empty, round must not have started
         if (!Object.keys(_csLastBets).length) return;
-        if (Object.keys(_csBets).length > 0) return;  // board already has bets
         if (_csBetState !== 'open') return;            // round in progress
+        if (Object.keys(_csBets).length > 0) { showToast('Clear your current bets before using Rebet.', 'error'); return; }
+        // Check affordability before touching anything
+        const totalNeeded = Object.values(_csLastBets).reduce((a,b)=>a+b,0);
+        if (bankroll < totalNeeded) { showToast('Not enough balance to rebet.', 'error'); return; }
         // Disable immediately — no double-clicks
         this.disabled = true; this.style.display = 'none';
-        // Check affordability before resetting anything
-        const totalNeeded = Object.values(_csLastBets).reduce((a,b)=>a+b,0);
-        if (bankroll < totalNeeded) { showToast('Not enough balance to rebet.','error'); return; }
         // --- New round reset (same as New Round button) ---
         _csRound++; _csRoll=0; _csRoundRolls.length=0; _csProcessingSettle=false; _csSettleFired=false;
         _csRoundId=null; _csPendingServerRoll=null; _csTargetQuats=null; _csClipActive=null; _csClipFrame=0; _csClipOnDone=null; _csWaitingForServer=false; _csSettleArgsCache=null;
