@@ -9295,7 +9295,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
       cardEl.style.removeProperty('border');
       cardEl.style.removeProperty('background');
       cardEl.style.removeProperty('box-shadow');
-      cardEl.querySelectorAll(':scope > *:not(.mark-stage)').forEach(el => {
+      cardEl.querySelectorAll(':scope > *:not(.mark-stage):not(.auth-vault-grant)').forEach(el => {
         el.style.removeProperty('opacity');
         el.style.removeProperty('visibility');
       });
@@ -9830,7 +9830,7 @@ function playUnlock() {
     card.style.border = 'none';
     card.style.background = 'transparent';
     card.style.boxShadow = 'none';
-    card.querySelectorAll(':scope > *:not(.mark-stage)').forEach(el => {
+    card.querySelectorAll(':scope > *:not(.mark-stage):not(.auth-vault-grant)').forEach(el => {
       el.style.opacity = '0';
       el.style.visibility = 'hidden';
     });
