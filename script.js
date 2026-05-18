@@ -15916,7 +15916,12 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
         showToast(err?.message || "Unable to load leaderboard", "error");
       }
     });
-    actions.append(joinButton, lbButton);
+    // If player has already joined, only show the leaderboard button
+    if (playerEntry) {
+      actions.append(lbButton);
+    } else {
+      actions.append(joinButton, lbButton);
+    }
   } else {
     actions.append(joinButton);
   }
