@@ -122,14 +122,14 @@ function buildPotSection(recipient: RecipientRow): { potStyles: string; potHtml:
   const unitAmount = Math.max(0, Number(recipient.prize_variable_unit_amount ?? 0));
   const isVariable = recipient.prize_mode === "variable" && recipient.prize_variable_basis !== "none" && unitAmount > 0;
   const basisLabel = recipient.prize_variable_basis === "qualifying_contestant" ? "QUALIFYING PLAYER" : "PLAYER";
-  const numStyle = `font-family:${MONO};font-size:72px;font-weight:800;color:${LIME};line-height:80px;letter-spacing:-0.03em;`;
+  const numInline = `font-family:'JetBrains Mono','Courier New',monospace;font-size:72px;font-weight:800;color:${LIME};line-height:80px;letter-spacing:-0.02em;`;
 
   if (!isVariable) {
     return {
-      potStyles: "",
+      potStyles: `.pot-num{font-family:'JetBrains Mono','Courier New',monospace!important;font-size:72px!important;font-weight:800!important;}`,
       potHtml: `
-        <p style="margin:0 0 10px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.18em;">PRIZE POT</p>
-        <div style="${numStyle}">${formatPrizeMoney(baseAmount)}</div>`
+        <p style="margin:0 0 10px;font-family:'JetBrains Mono','Courier New',monospace;font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.18em;">PRIZE POT</p>
+        <div class="pot-num" style="${numInline}">${formatPrizeMoney(baseAmount)}</div>`
     };
   }
 
@@ -143,6 +143,7 @@ function buildPotSection(recipient: RecipientRow): { potStyles: string; potHtml:
 
   return {
     potStyles: `
+      .pot-num{font-family:'JetBrains Mono','Courier New',monospace!important;font-size:72px!important;font-weight:800!important;}
       @keyframes pot-tick {
         from { transform: translateY(0); }
         to   { transform: translateY(-${endPct}%); }
@@ -151,8 +152,8 @@ function buildPotSection(recipient: RecipientRow): { potStyles: string; potHtml:
     potHtml: `
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px;">
         <tr>
-          <td><p style="margin:0;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.18em;">PRIZE POT</p></td>
-          <td align="right" style="vertical-align:middle;"><p style="margin:0;font-family:${MONO};font-size:9px;color:${DIM};text-transform:uppercase;letter-spacing:0.12em;">UPDATED LIVE</p></td>
+          <td><p style="margin:0;font-family:'JetBrains Mono','Courier New',monospace;font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.18em;">PRIZE POT</p></td>
+          <td align="right" style="vertical-align:middle;"><p style="margin:0;font-family:'JetBrains Mono','Courier New',monospace;font-size:9px;color:${DIM};text-transform:uppercase;letter-spacing:0.12em;">UPDATED LIVE</p></td>
         </tr>
       </table>
       <table role="presentation" cellpadding="0" cellspacing="0">
@@ -160,19 +161,19 @@ function buildPotSection(recipient: RecipientRow): { potStyles: string; potHtml:
           <td style="vertical-align:bottom;">
             <div style="height:80px;overflow:hidden;">
               <div class="pot-ticker">
-                ${frames.map(f => `<div style="${numStyle}">${f}</div>`).join("\n                ")}
+                ${frames.map(f => `<div class="pot-num" style="${numInline}">${f}</div>`).join("\n                ")}
               </div>
             </div>
           </td>
           <td style="vertical-align:bottom;padding:0 0 10px 16px;">
             <div style="padding:6px 10px;border:1px solid ${LIME};display:inline-block;">
-              <p style="margin:0;font-family:${MONO};font-size:9px;font-weight:700;color:${LIME};text-transform:uppercase;letter-spacing:0.1em;">+${formatPrizeMoney(unitAmount)}</p>
-              <p style="margin:3px 0 0;font-family:${MONO};font-size:9px;font-weight:700;color:${LIME};text-transform:uppercase;letter-spacing:0.1em;">PER ${basisLabel}</p>
+              <p style="margin:0;font-family:'JetBrains Mono','Courier New',monospace;font-size:9px;font-weight:700;color:${LIME};text-transform:uppercase;letter-spacing:0.1em;">+${formatPrizeMoney(unitAmount)}</p>
+              <p style="margin:3px 0 0;font-family:'JetBrains Mono','Courier New',monospace;font-size:9px;font-weight:700;color:${LIME};text-transform:uppercase;letter-spacing:0.1em;">PER ${basisLabel}</p>
             </div>
           </td>
         </tr>
       </table>
-      <p style="margin:10px 0 0;font-family:${MONO};font-size:12px;color:${DIM};line-height:1.65;">${growthCopy}</p>`
+      <p style="margin:10px 0 0;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;color:${DIM};line-height:1.65;">${growthCopy}</p>`
   };
 }
 
@@ -253,7 +254,7 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
           <!-- CONTEST TITLE -->
           <tr>
             <td style="padding:32px 0 40px;">
-              <h1 style="margin:0;font-family:${MONO};font-size:38px;font-weight:800;color:${FG};line-height:1.1;letter-spacing:-0.02em;">${recipient.contest_title}</h1>
+              <div style="margin:0;font-family:'JetBrains Mono','Courier New',monospace;font-size:38px;font-weight:800;color:${FG};line-height:1.1;letter-spacing:-0.02em;">${recipient.contest_title}</div>
             </td>
           </tr>
 

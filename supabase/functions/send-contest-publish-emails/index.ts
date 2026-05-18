@@ -179,7 +179,7 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
           <!-- CONTEST TITLE -->
           <tr>
             <td style="padding:32px 0 40px;">
-              <h1 style="margin:0;font-family:${MONO};font-size:38px;font-weight:800;color:${FG};line-height:1.1;letter-spacing:-0.02em;">${recipient.contest_title}</h1>
+              <div style="margin:0;font-family:'JetBrains Mono','Courier New',monospace;font-size:38px;font-weight:800;color:${FG};line-height:1.1;letter-spacing:-0.02em;">${recipient.contest_title}</div>
             </td>
           </tr>
 
