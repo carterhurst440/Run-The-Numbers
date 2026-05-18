@@ -17991,8 +17991,43 @@ function initTheme() {
 }
 
 const bankrollEl = document.getElementById("bankroll");
+const bankrollExactTooltipEl = document.getElementById("bankroll-exact-tooltip");
+const bankrollExactValueEl = document.getElementById("bankroll-exact-value");
 const carterCashEl = document.getElementById("carter-cash");
+const ccExactTooltipEl = document.getElementById("cc-exact-tooltip");
+const ccExactValueEl = document.getElementById("cc-exact-value");
 const carterCashDeltaEl = document.getElementById("carter-cash-delta");
+
+let _headerExactDismissTimer = null;
+
+function _showHeaderExactTooltip(tooltipEl) {
+  if (!tooltipEl) return;
+  // Hide any other open tooltip first
+  [bankrollExactTooltipEl, ccExactTooltipEl].forEach((el) => {
+    if (el && el !== tooltipEl) {
+      el.hidden = true;
+      el.classList.remove("is-visible");
+    }
+  });
+  clearTimeout(_headerExactDismissTimer);
+  tooltipEl.hidden = false;
+  // Force reflow for transition
+  void tooltipEl.offsetWidth;
+  tooltipEl.classList.add("is-visible");
+  _headerExactDismissTimer = setTimeout(() => {
+    tooltipEl.classList.remove("is-visible");
+    setTimeout(() => { tooltipEl.hidden = true; }, 220);
+  }, 3000);
+}
+
+function _hideHeaderExactTooltips() {
+  clearTimeout(_headerExactDismissTimer);
+  [bankrollExactTooltipEl, ccExactTooltipEl].forEach((el) => {
+    if (!el) return;
+    el.classList.remove("is-visible");
+    setTimeout(() => { el.hidden = true; }, 220);
+  });
+}
 const handToastContainer = document.getElementById("hand-toast-container");
 const betsBody = document.getElementById("bets-body");
 const rtnCardCountEl = document.getElementById("rtn-card-count");
@@ -20003,7 +20038,11 @@ function updateBankroll() {
   if (bankrollAnimating) {
     stopBankrollAnimation();
   }
-  bankrollEl.textContent = formatCurrency(getDisplayedHeaderBankrollValue());
+  const displayedValue = getDisplayedHeaderBankrollValue();
+  bankrollEl.textContent = formatCompactHeader(displayedValue);
+  if (bankrollExactValueEl) {
+    bankrollExactValueEl.textContent = formatCurrency(displayedValue);
+  }
 }
 
 function updateDashboardCarterDisplay(value = carterCash) {
@@ -20020,7 +20059,10 @@ function updateDashboardCarterDisplay(value = carterCash) {
 function updateCarterCashDisplay() {
   if (carterCashEl) {
     const safeValue = Number.isFinite(carterCash) ? Math.max(0, Math.round(carterCash)) : 0;
-    carterCashEl.textContent = formatCurrency(safeValue);
+    carterCashEl.textContent = formatCompactHeader(safeValue);
+    if (ccExactValueEl) {
+      ccExactValueEl.textContent = formatCurrency(safeValue);
+    }
   }
   updateDashboardCarterDisplay(carterCash);
 }
@@ -21646,6 +21688,26 @@ function formatCurrency(value) {
   });
 }
 
+// Compact header display — keeps the header tight on narrow screens.
+// Values >= $1K are abbreviated (e.g. 1.2K, 50K, 1.2M).
+// Full precision is surfaced via the tap-to-reveal exact tooltip.
+function formatCompactHeader(value) {
+  const n = Number(value || 0);
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) {
+    const m = n / 1_000_000;
+    return m.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + "M";
+  }
+  if (abs >= 100_000) {
+    return Math.round(n / 1_000).toLocaleString() + "K";
+  }
+  if (abs >= 1_000) {
+    const k = n / 1_000;
+    return k.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "K";
+  }
+  return formatCurrency(n);
+}
+
 function formatSignedCurrency(value) {
   const amount = Number(Number(value || 0).toFixed(2));
   if (amount > 0) {
@@ -23172,7 +23234,9 @@ function stopBankrollAnimation(restoreDisplay = true) {
       "bankroll-pulse"
     );
     if (restoreDisplay) {
-      bankrollEl.textContent = formatCurrency(getDisplayedHeaderBankrollValue());
+      const v = getDisplayedHeaderBankrollValue();
+      bankrollEl.textContent = formatCompactHeader(v);
+      if (bankrollExactValueEl) bankrollExactValueEl.textContent = formatCurrency(v);
     }
   }
 }
@@ -23231,7 +23295,8 @@ function animateBankrollOutcome(delta) {
   const displayedValue = roundCurrencyValue(getDisplayedHeaderBankrollValue());
 
   if (!Number.isFinite(delta)) {
-    bankrollEl.textContent = formatCurrency(displayedValue);
+    bankrollEl.textContent = formatCompactHeader(displayedValue);
+    if (bankrollExactValueEl) bankrollExactValueEl.textContent = formatCurrency(displayedValue);
     return;
   }
 
@@ -23241,11 +23306,14 @@ function animateBankrollOutcome(delta) {
     bankrollAnimating = true;
     bankrollEl.classList.remove("bankroll-positive", "bankroll-negative");
     bankrollEl.classList.add("bankroll-neutral", "bankroll-pulse");
-    bankrollEl.textContent = formatCurrency(displayedValue);
+    bankrollEl.textContent = formatCompactHeader(displayedValue);
+    if (bankrollExactValueEl) bankrollExactValueEl.textContent = formatCurrency(displayedValue);
     bankrollDeltaTimeout = window.setTimeout(() => {
       if (bankrollEl) {
+        const v = getDisplayedHeaderBankrollValue();
         bankrollEl.classList.remove("bankroll-neutral", "bankroll-pulse");
-        bankrollEl.textContent = formatCurrency(getDisplayedHeaderBankrollValue());
+        bankrollEl.textContent = formatCompactHeader(v);
+        if (bankrollExactValueEl) bankrollExactValueEl.textContent = formatCurrency(v);
       }
       bankrollAnimating = false;
       bankrollDeltaTimeout = null;
@@ -23261,11 +23329,14 @@ function animateBankrollOutcome(delta) {
     "bankroll-neutral"
   );
   bankrollEl.classList.add(directionClass, "bankroll-pulse");
-  bankrollEl.textContent = formatCurrency(displayedValue);
+  bankrollEl.textContent = formatCompactHeader(displayedValue);
+  if (bankrollExactValueEl) bankrollExactValueEl.textContent = formatCurrency(displayedValue);
   bankrollDeltaTimeout = window.setTimeout(() => {
     if (bankrollEl) {
+      const v = getDisplayedHeaderBankrollValue();
       bankrollEl.classList.remove(directionClass, "bankroll-pulse");
-      bankrollEl.textContent = formatCurrency(getDisplayedHeaderBankrollValue());
+      bankrollEl.textContent = formatCompactHeader(v);
+      if (bankrollExactValueEl) bankrollExactValueEl.textContent = formatCurrency(v);
     }
     bankrollAnimating = false;
     bankrollDeltaTimeout = null;
@@ -29296,6 +29367,35 @@ if (carterCashInfoButton) {
     openCarterCashModal();
   });
 }
+
+// Tap-to-reveal exact bankroll / CC amount
+const _bankrollTapAreaEl = document.getElementById("bankroll-tap-area");
+const _ccTapAreaEl = document.getElementById("cc-tap-area");
+
+if (_bankrollTapAreaEl && bankrollExactTooltipEl) {
+  _bankrollTapAreaEl.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (bankrollExactTooltipEl.classList.contains("is-visible")) {
+      _hideHeaderExactTooltips();
+    } else {
+      _showHeaderExactTooltip(bankrollExactTooltipEl);
+    }
+  });
+}
+
+if (_ccTapAreaEl && ccExactTooltipEl) {
+  _ccTapAreaEl.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (ccExactTooltipEl.classList.contains("is-visible")) {
+      _hideHeaderExactTooltips();
+    } else {
+      _showHeaderExactTooltip(ccExactTooltipEl);
+    }
+  });
+}
+
+// Dismiss on outside tap
+document.addEventListener("click", () => _hideHeaderExactTooltips());
 
 const carterCashModalEl = document.getElementById("carter-cash-modal");
 const carterCashModalClose = document.getElementById("carter-cash-modal-close");
@@ -36550,7 +36650,11 @@ function csSetBetState(state) {
 }
 
 function csRenderBank() {
-  if (bankrollEl) bankrollEl.textContent = formatCurrency(getDisplayedHeaderBankrollValue());
+  if (bankrollEl) {
+    const v = getDisplayedHeaderBankrollValue();
+    bankrollEl.textContent = formatCompactHeader(v);
+    if (bankrollExactValueEl) bankrollExactValueEl.textContent = formatCurrency(v);
+  }
 }
 
 function csAddChipToZone(betId, value) {

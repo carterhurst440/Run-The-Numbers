@@ -207,14 +207,22 @@
           <div class="header-actions">
             <div class="header-metrics" role="status" aria-live="polite">
               <div class="bankroll">
-                <div class="bankroll-main">
+                <button type="button" class="bankroll-main" id="bankroll-tap-area" aria-label="Bankroll — tap to see exact amount">
                   <span class="bankroll-label">BANK</span>
                   <span id="bankroll" class="bankroll-value">1000</span>
+                </button>
+                <div class="header-exact-tooltip" id="bankroll-exact-tooltip" aria-live="polite" hidden>
+                  <span id="bankroll-exact-value"></span>
                 </div>
               </div>
               <div class="carter-cash" aria-live="polite">
-                <span class="carter-label">CC</span>
-                <span id="carter-cash" class="carter-value">0</span>
+                <button type="button" class="cc-tap-area" id="cc-tap-area" aria-label="Carter Cash — tap to see exact amount">
+                  <span class="carter-label">CC</span>
+                  <span id="carter-cash" class="carter-value">0</span>
+                </button>
+                <div class="header-exact-tooltip" id="cc-exact-tooltip" aria-live="polite" hidden>
+                  <span id="cc-exact-value"></span>
+                </div>
                 <button
                   type="button"
                   id="carter-cash-info-button"

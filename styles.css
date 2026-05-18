@@ -9583,10 +9583,12 @@ body.theme-angelic {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .bankroll {
   flex-shrink: 0;
+  position: relative;
 }
 
 .bankroll-main {
@@ -19817,6 +19819,80 @@ body.modal-open {
 .carter-value {
   color: #c8ff00;
   text-shadow: none;
+}
+
+/* Tap-to-reveal exact amount — bankroll + CC */
+.bankroll-main,
+.cc-tap-area {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+.bankroll-main:focus-visible,
+.cc-tap-area:focus-visible {
+  outline: 1px solid rgba(200, 255, 0, 0.4);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+.bankroll {
+  position: relative;
+}
+
+.carter-cash {
+  position: relative;
+}
+
+.header-exact-tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 200;
+  background: #111110;
+  border: 1px solid #383828;
+  border-radius: 6px;
+  padding: 5px 10px;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #d8d0b8;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+}
+
+.header-exact-tooltip.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.header-exact-tooltip::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 12px;
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  background: #111110;
+  border-top: 1px solid #383828;
+  border-left: 1px solid #383828;
 }
 
 .notification-toggle,
