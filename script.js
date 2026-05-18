@@ -27204,6 +27204,14 @@ async function fetchHandReviewEntry(reviewId) {
             net_profit:      won ? payout : -Number(bet.amount_wagered)
           };
         });
+
+        // Fallback: if round totals were never written (mid-settle page refresh),
+        // compute them from the re-derived bet data so the modal shows correct values.
+        if (!roundRow.total_wagered && csBets.length) {
+          baseEntry.totalWager  = roundCurrencyValue(csBets.reduce((s, b) => s + Number(b.amount_wagered || 0), 0));
+          baseEntry.totalReturn = roundCurrencyValue(csBets.reduce((s, b) => s + Number(b.amount_returned || 0), 0));
+          baseEntry.net         = roundCurrencyValue(baseEntry.totalReturn - baseEntry.totalWager);
+        }
       }
     }
     return { ...baseEntry, bets: csBets, rolls, colorTotals };
@@ -36469,7 +36477,7 @@ async function csRestoreIncompleteRound() {
     const cutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
     const { data: round } = await supabase
       .from('color_scheme_rounds')
-      .select('id, status, roll_1, roll_2, roll_3, created_at')
+      .select('id, status, roll_1, roll_2, roll_3, created_at, total_wagered, red_total, yellow_total, blue_total, purple_total, green_total, orange_total, grand_total')
       .eq('user_id', user.id)
       .eq('status', 'in_progress')   // only exact in_progress — excludes complete/completed/abandoned
       .gte('created_at', cutoff)      // ignore rounds older than 4 hours
@@ -36478,9 +36486,54 @@ async function csRestoreIncompleteRound() {
       .maybeSingle();
     if (!round) return false;
 
-    // If all 3 rolls are already stored, this round finished on another device.
-    // Mark it completed so it never surfaces again, and don't restore.
+    // If all 3 rolls are already stored, this round finished (here or another device).
     if (round.roll_1 && round.roll_2 && round.roll_3) {
+      // If totals were never written (page refresh mid-settle), heal the round now.
+      if (!round.total_wagered) {
+        try {
+          const { data: betRows } = await supabase
+            .from('color_scheme_bets')
+            .select('bet_key, amount_wagered')
+            .eq('round_id', round.id);
+          if (betRows?.length) {
+            const ct = {
+              RED:    Number(round.red_total    || 0),
+              BLUE:   Number(round.blue_total   || 0),
+              YELLOW: Number(round.yellow_total || 0),
+              PURPLE: Number(round.purple_total || 0),
+              GREEN:  Number(round.green_total  || 0),
+              ORANGE: Number(round.orange_total || 0),
+            };
+            const gt = Number(round.grand_total || 0);
+            let totalWagered = 0, totalReturned = 0;
+            await Promise.all(betRows.map(bet => {
+              const won  = csIsCurrentlyWinning(bet.bet_key, ct, gt);
+              const base = won ? Math.floor(Number(bet.amount_wagered) * (CS_ODDS[bet.bet_key] || 1)) : 0;
+              const payout = (won && bet.bet_key === 'TYPE_PRIMARY') ? Math.floor(base * 0.95) : base;
+              totalWagered  += Number(bet.amount_wagered);
+              totalReturned += won ? Number(bet.amount_wagered) + payout : 0;
+              return supabase.from('color_scheme_bets').update({
+                outcome:         won ? 'W' : 'L',
+                amount_returned: won ? Number(bet.amount_wagered) + payout : 0,
+                net_profit:      won ? payout : -Number(bet.amount_wagered),
+              }).eq('round_id', round.id).eq('bet_key', bet.bet_key);
+            }));
+            const netProfit = totalReturned - totalWagered;
+            bankroll = roundCurrencyValue(bankroll + totalReturned);
+            await persistBankroll();
+            animateBankrollOutcome(netProfit);
+            await supabase.from('color_scheme_rounds').update({
+              total_wagered:    totalWagered,
+              total_returned:   totalReturned,
+              net_profit:       netProfit,
+              new_account_value: roundCurrencyValue(bankroll),
+            }).eq('id', round.id);
+            showToast(`Round recovered — ${netProfit >= 0 ? '+' : ''}${formatCurrency(netProfit)} net.`, netProfit >= 0 ? 'success' : 'info');
+          }
+        } catch (healErr) {
+          console.warn('[CS] orphaned round heal failed:', healErr);
+        }
+      }
       await supabase.from('color_scheme_rounds')
         .update({ status: 'completed' })
         .eq('id', round.id);
