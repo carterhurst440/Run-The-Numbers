@@ -9282,6 +9282,13 @@ async function setRoute(route, { replaceHash = false } = {}) {
   hideAllRoutes();
   if (authView) {
     setViewVisibility(authView, false);
+    document.body.classList.remove('state-unlocking', 'state-open');
+    const markStageEl = document.getElementById('auth-mark-stage');
+    if (markStageEl) {
+      markStageEl.style.removeProperty('--mark-from-x');
+      markStageEl.style.removeProperty('--mark-from-y');
+      markStageEl.style.removeProperty('--mark-from-scale');
+    }
   }
   if (signupView) {
     setViewVisibility(signupView, false);
@@ -9799,6 +9806,29 @@ async function ensureProfileSynced({ force = false } = {}) {
   return appliedFallback;
 }
 
+function playUnlock() {
+  const markStage = document.querySelector('.mark-stage');
+  if (!markStage) {
+    setRoute("home");
+    return;
+  }
+  const rect = markStage.getBoundingClientRect();
+  const startCX = rect.left + rect.width / 2;
+  const startCY = rect.top + rect.height / 2;
+  const viewCX  = window.innerWidth  / 2;
+  const viewCY  = window.innerHeight / 2;
+  markStage.style.setProperty('--mark-from-x', (startCX - viewCX) + 'px');
+  markStage.style.setProperty('--mark-from-y', (startCY - viewCY) + 'px');
+  document.body.classList.add('state-unlocking');
+  setTimeout(() => {
+    document.body.classList.remove('state-unlocking');
+    document.body.classList.add('state-open');
+    setTimeout(() => {
+      setRoute("home");
+    }, 800);
+  }, 1500);
+}
+
 async function handleAuthFormSubmit(event) {
   event.preventDefault();
   event.stopPropagation();
@@ -9897,8 +9927,7 @@ async function handleAuthFormSubmit(event) {
       console.warn("[RTN] post-signin profile sync failed", err);
     }
 
-    showToast("Signed in", "success");
-    await setRoute("home");
+    playUnlock();
   } catch (error) {
     console.error(error);
     const message = error?.message || "Authentication failed";
