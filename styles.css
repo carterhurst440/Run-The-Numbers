@@ -16605,6 +16605,45 @@ body.state-open .auth-vault-floor {
 }
 .auth-vault-link:hover { text-shadow: 0 0 10px rgba(200,255,0,0.55); }
 
+/* ── Mobile compact — fits without scrolling on most phones ── */
+@media (max-height: 750px) and (max-width: 600px) {
+  .auth-vault-screen {
+    padding: 16px 12px;
+  }
+  .auth-vault-card {
+    padding: 22px 20px 22px;
+  }
+  .mark-stage {
+    width: 90px;
+    height: 90px;
+    margin-bottom: 14px;
+  }
+  .auth-vault-welcome {
+    font-size: clamp(19px, 5vw, 24px);
+    margin-bottom: 4px;
+  }
+  .auth-vault-tagline {
+    font-size: 11.5px;
+    margin: 8px 0 18px;
+  }
+  .auth-vault-form {
+    gap: 10px;
+  }
+  .auth-vault-field input {
+    padding: 10px 14px;
+  }
+  .auth-vault-form #auth-submit {
+    margin-top: 6px;
+    padding: 12px 18px;
+  }
+  .auth-vault-switch {
+    margin-top: 12px;
+  }
+  .auth-vault-switch.auth-vault-switch-row {
+    margin-top: 14px;
+  }
+}
+
 /* ── VAULT UNLOCK SEQUENCE ─────────────────────────────────
    body.state-unlocking → body.state-open
    ────────────────────────────────────────────────────────── */
