@@ -28695,6 +28695,7 @@ if (accountModeSelect) {
     }
     await applyAccountModeSelection(nextMode, { resetHistory: true });
     closeShapeTradersModeSwitchModal({ restoreFocus: false, confirmed: true, force: true });
+    renderHomeSystemBlock();
   });
 }
 
