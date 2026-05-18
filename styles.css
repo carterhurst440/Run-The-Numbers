@@ -16764,11 +16764,13 @@ body.state-unlocking .scan-beam {
   font-family: "JetBrains Mono", ui-monospace, monospace;
   font-weight: 800;
   font-size: 16px;
+  line-height: 1.1;
   letter-spacing: 0.42em;
   color: #c8ff00;
   text-transform: uppercase;
   text-shadow: 0 0 12px rgba(200,255,0,0.55), 0 0 28px rgba(200,255,0,0.3);
   position: relative;
+  display: block;
 }
 .auth-vault-grant .gsub {
   margin-top: 8px;
