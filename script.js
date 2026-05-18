@@ -14476,7 +14476,10 @@ function renderContestLeaderboard(list = contestLeaderboard, contest = currentCo
     stats.className = "contest-player-stats";
     stats.textContent = `RTN ${entry.rtnHands} • G10 ${entry.g10Hands} • ST ${entry.stTrades} • RYB ${entry.rybRounds}`;
 
-    item.append(meta, score, stats);
+    const rightCol = document.createElement("div");
+    rightCol.className = "contest-player-right";
+    rightCol.append(score, stats);
+    item.append(meta, rightCol);
     contestLeaderboardListEl.appendChild(item);
   });
 }

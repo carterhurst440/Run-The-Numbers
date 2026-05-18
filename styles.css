@@ -18968,6 +18968,8 @@ body.modal-open {
 .contest-modal-body {
   overflow-y: auto;
   overflow-x: hidden;
+  min-height: 0;
+  flex: 1 1 0;
 }
 
 .admin-contest-card,
@@ -18977,6 +18979,8 @@ body.modal-open {
   border: 1px solid var(--betting-panel-border);
   background: var(--betting-panel-bg);
   box-shadow: var(--betting-panel-shadow);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .contests-shell .admin-contest-card,
@@ -19187,10 +19191,27 @@ body.modal-open {
 .contest-player-meta {
   display: grid;
   gap: 0.15rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.contest-player-right {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+  min-width: 0;
+  max-width: 55%;
+  text-align: right;
 }
 
 .contest-player-name {
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .contest-player-rank,
