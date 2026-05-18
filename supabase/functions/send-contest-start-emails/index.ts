@@ -219,19 +219,24 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap">
   <style>
     ${potStyles}
-    body { margin:0; padding:0; background:${BG}; }
+    body { margin:0; padding:0; background-color:#0a0a09 !important; }
     a { color:inherit; }
+    /* force dark bg in Gmail mobile */
+    u + .body { background-color:#0a0a09 !important; }
+    u + .body table { background-color:#0a0a09 !important; }
+    u + .body td { background-color:#0a0a09 !important; }
+    u + .body .email-outer { background-color:#0a0a09 !important; }
   </style>
 </head>
-<body style="margin:0;padding:0;background:${BG};">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BG};">
+<body class="body" style="margin:0;padding:0;background-color:#0a0a09;">
+  <table class="email-outer" role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0a09" style="background-color:#0a0a09;">
     <tr>
-      <td align="center" style="padding:28px 20px 40px;">
-        <table role="presentation" width="100%" style="max-width:520px;" cellpadding="0" cellspacing="0">
+      <td align="center" bgcolor="#0a0a09" style="padding:28px 20px 40px;background-color:#0a0a09;">
+        <table role="presentation" width="100%" style="max-width:520px;" cellpadding="0" cellspacing="0" bgcolor="#0a0a09">
 
           <!-- TOP BAR -->
           <tr>
-            <td style="padding:0 0 20px;border-bottom:1px solid rgba(200,255,0,0.15);">
+            <td bgcolor="#0a0a09" style="padding:0 0 20px;border-bottom:1px solid rgba(200,255,0,0.15);background-color:#0a0a09;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="vertical-align:middle;white-space:nowrap;">
@@ -247,14 +252,14 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
 
           <!-- CONTEST TITLE -->
           <tr>
-            <td style="padding:28px 0 36px;">
+            <td bgcolor="#0a0a09" style="padding:28px 0 36px;background-color:#0a0a09;">
               <div style="margin:0;font-family:'Arial Black','Arial Bold',Arial,sans-serif;font-size:36px;font-weight:900;color:#ddd5bc;line-height:1.1;">${recipient.contest_title}</div>
             </td>
           </tr>
 
           <!-- PRIZE POT -->
           <tr>
-            <td style="padding:0 0 36px;">
+            <td bgcolor="#0a0a09" style="padding:0 0 36px;background-color:#0a0a09;">
               ${potHtml}
             </td>
           </tr>
@@ -264,28 +269,28 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
 
           <!-- BODY COPY -->
           <tr>
-            <td style="padding:0 0 32px;">
-              <p style="margin:0;font-family:${MONO};font-size:12px;color:${DIM};line-height:1.75;">hey ${firstName} — switch to contest mode in the app to get on the leaderboard. runs for ${durationLabel}.</p>
+            <td bgcolor="#0a0a09" style="padding:0 0 32px;background-color:#0a0a09;">
+              <p style="margin:0;font-family:${MONO};font-size:12px;color:#686850;line-height:1.75;">hey ${firstName} — switch to contest mode in the app to get on the leaderboard. runs for ${durationLabel}.</p>
             </td>
           </tr>
 
           <!-- CTA -->
           <tr>
-            <td style="padding:0 0 40px;">
-              <a href="${joinUrl}" style="display:block;padding:16px 24px;background:${LIME};color:#0a0a09;font-family:${MONO};font-size:12px;font-weight:800;letter-spacing:0.16em;text-decoration:none;text-transform:uppercase;text-align:center;">PLAY NOW &#8594;</a>
+            <td bgcolor="#0a0a09" style="padding:0 0 40px;background-color:#0a0a09;">
+              <a href="${joinUrl}" style="display:block;padding:16px 24px;background:#c8ff00;color:#0a0a09;font-family:${MONO};font-size:12px;font-weight:800;letter-spacing:0.16em;text-decoration:none;text-transform:uppercase;text-align:center;">PLAY NOW &#8594;</a>
             </td>
           </tr>
 
           <!-- FOOTER BAR -->
           <tr>
-            <td style="border-top:1px solid rgba(104,104,80,0.2);padding:16px 0 0;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <td bgcolor="#0a0a09" style="border-top:1px solid rgba(104,104,80,0.2);padding:16px 0 0;background-color:#0a0a09;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0a09">
                 <tr>
-                  <td><p style="margin:0;font-family:${MONO};font-size:10px;font-weight:700;letter-spacing:0.1em;"><a href="${appBaseUrl}" style="color:${LIME};text-decoration:none;text-transform:uppercase;">CARTERSCASINO.APP</a></p></td>
-                  <td align="right"><p style="margin:0;font-family:${MONO};font-size:10px;color:${DIM};letter-spacing:0.06em;">${dateRange}</p></td>
+                  <td bgcolor="#0a0a09" style="background-color:#0a0a09;"><p style="margin:0;font-family:${MONO};font-size:10px;font-weight:700;letter-spacing:0.1em;"><a href="${appBaseUrl}" style="color:#c8ff00;text-decoration:none;text-transform:uppercase;">CARTERSCASINO.APP</a></p></td>
+                  <td bgcolor="#0a0a09" align="right" style="background-color:#0a0a09;"><p style="margin:0;font-family:${MONO};font-size:10px;color:#686850;letter-spacing:0.06em;">${dateRange}</p></td>
                 </tr>
                 <tr>
-                  <td colspan="2" style="padding:10px 0 0;">
+                  <td bgcolor="#0a0a09" colspan="2" style="padding:10px 0 0;background-color:#0a0a09;">
                     <p style="margin:0;font-family:${MONO};font-size:10px;color:rgba(104,104,80,0.5);line-height:1.6;">to stop receiving contest emails, open the app &rsaquo; contests &rsaquo; notifications</p>
                   </td>
                 </tr>

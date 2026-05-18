@@ -145,25 +145,29 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
   <title>${recipient.contest_title}</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap">
   <style>
-    body { margin:0; padding:0; background:${BG}; }
+    body { margin:0; padding:0; background-color:#0a0a09 !important; }
     a { color:inherit; }
+    u + .body { background-color:#0a0a09 !important; }
+    u + .body table { background-color:#0a0a09 !important; }
+    u + .body td { background-color:#0a0a09 !important; }
+    u + .body .email-outer { background-color:#0a0a09 !important; }
   </style>
 </head>
-<body style="margin:0;padding:0;background:${BG};">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BG};">
+<body class="body" style="margin:0;padding:0;background-color:#0a0a09;">
+  <table class="email-outer" role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0a09" style="background-color:#0a0a09;">
     <tr>
-      <td align="center" style="padding:28px 20px 40px;">
-        <table role="presentation" width="100%" style="max-width:520px;" cellpadding="0" cellspacing="0">
+      <td align="center" bgcolor="#0a0a09" style="padding:28px 20px 40px;background-color:#0a0a09;">
+        <table role="presentation" width="100%" style="max-width:520px;" cellpadding="0" cellspacing="0" bgcolor="#0a0a09">
 
           <!-- TOP BAR -->
           <tr>
-            <td style="padding:0 0 20px;border-bottom:1px solid rgba(200,255,0,0.15);">
+            <td bgcolor="#0a0a09" style="padding:0 0 20px;border-bottom:1px solid rgba(200,255,0,0.15);background-color:#0a0a09;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="vertical-align:middle;white-space:nowrap;">
+                  <td bgcolor="#0a0a09" style="vertical-align:middle;white-space:nowrap;background-color:#0a0a09;">
                     ${logoMark}<span style="font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;font-weight:700;color:#c8ff00;letter-spacing:0.12em;text-transform:uppercase;">CARTER'S CASINO</span>
                   </td>
-                  <td align="right" style="vertical-align:middle;white-space:nowrap;">
+                  <td bgcolor="#0a0a09" align="right" style="vertical-align:middle;white-space:nowrap;background-color:#0a0a09;">
                     <span style="font-family:'JetBrains Mono','Courier New',monospace;font-size:10px;font-weight:700;color:#686850;letter-spacing:0.14em;text-transform:uppercase;">NEW CONTEST</span>
                   </td>
                 </tr>
@@ -173,23 +177,23 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
 
           <!-- CONTEST TITLE -->
           <tr>
-            <td style="padding:28px 0 36px;">
+            <td bgcolor="#0a0a09" style="padding:28px 0 36px;background-color:#0a0a09;">
               <div style="margin:0;font-family:'Arial Black','Arial Bold',Arial,sans-serif;font-size:36px;font-weight:900;color:#ddd5bc;line-height:1.1;">${recipient.contest_title}</div>
             </td>
           </tr>
 
           <!-- START / DURATION -->
           <tr>
-            <td style="padding:0 0 36px;">
+            <td bgcolor="#0a0a09" style="padding:0 0 36px;background-color:#0a0a09;">
               <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="padding-right:40px;">
-                    <p style="margin:0 0 6px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">${startLabel}</p>
-                    <p style="margin:0;font-family:${MONO};font-size:16px;font-weight:700;color:${FG};">${startValue}</p>
+                  <td bgcolor="#0a0a09" style="padding-right:40px;background-color:#0a0a09;">
+                    <p style="margin:0 0 6px;font-family:${MONO};font-size:10px;font-weight:700;color:#686850;text-transform:uppercase;letter-spacing:0.16em;">${startLabel}</p>
+                    <p style="margin:0;font-family:${MONO};font-size:16px;font-weight:700;color:#ddd5bc;">${startValue}</p>
                   </td>
-                  <td>
-                    <p style="margin:0 0 6px;font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.16em;">RUNS FOR</p>
-                    <p style="margin:0;font-family:${MONO};font-size:16px;font-weight:700;color:${FG};">${contestLengthHours}h</p>
+                  <td bgcolor="#0a0a09" style="background-color:#0a0a09;">
+                    <p style="margin:0 0 6px;font-family:${MONO};font-size:10px;font-weight:700;color:#686850;text-transform:uppercase;letter-spacing:0.16em;">RUNS FOR</p>
+                    <p style="margin:0;font-family:${MONO};font-size:16px;font-weight:700;color:#ddd5bc;">${contestLengthHours}h</p>
                   </td>
                 </tr>
               </table>
@@ -201,27 +205,27 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
 
           <!-- BODY COPY -->
           <tr>
-            <td style="padding:0 0 32px;">
-              <p style="margin:0;font-family:${MONO};font-size:12px;color:${DIM};line-height:1.75;">${bodyCopy}</p>
+            <td bgcolor="#0a0a09" style="padding:0 0 32px;background-color:#0a0a09;">
+              <p style="margin:0;font-family:${MONO};font-size:12px;color:#686850;line-height:1.75;">${bodyCopy}</p>
             </td>
           </tr>
 
           <!-- CTA -->
           <tr>
-            <td style="padding:0 0 40px;">
-              <a href="${joinUrl}" style="display:block;padding:16px 24px;background:${LIME};color:#0a0a09;font-family:${MONO};font-size:12px;font-weight:800;letter-spacing:0.16em;text-decoration:none;text-transform:uppercase;text-align:center;">VIEW CONTEST &#8594;</a>
+            <td bgcolor="#0a0a09" style="padding:0 0 40px;background-color:#0a0a09;">
+              <a href="${joinUrl}" style="display:block;padding:16px 24px;background:#c8ff00;color:#0a0a09;font-family:${MONO};font-size:12px;font-weight:800;letter-spacing:0.16em;text-decoration:none;text-transform:uppercase;text-align:center;">VIEW CONTEST &#8594;</a>
             </td>
           </tr>
 
           <!-- FOOTER BAR -->
           <tr>
-            <td style="border-top:1px solid rgba(104,104,80,0.2);padding:16px 0 0;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <td bgcolor="#0a0a09" style="border-top:1px solid rgba(104,104,80,0.2);padding:16px 0 0;background-color:#0a0a09;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0a09">
                 <tr>
-                  <td><p style="margin:0;font-family:${MONO};font-size:10px;font-weight:700;letter-spacing:0.1em;"><a href="${appBaseUrl}" style="color:${LIME};text-decoration:none;text-transform:uppercase;">CARTERSCASINO.APP</a></p></td>
+                  <td bgcolor="#0a0a09" style="background-color:#0a0a09;"><p style="margin:0;font-family:${MONO};font-size:10px;font-weight:700;letter-spacing:0.1em;"><a href="${appBaseUrl}" style="color:#c8ff00;text-decoration:none;text-transform:uppercase;">CARTERSCASINO.APP</a></p></td>
                 </tr>
                 <tr>
-                  <td style="padding:10px 0 0;">
+                  <td bgcolor="#0a0a09" style="padding:10px 0 0;background-color:#0a0a09;">
                     <p style="margin:0;font-family:${MONO};font-size:10px;color:rgba(104,104,80,0.5);line-height:1.6;">to stop receiving contest emails, open the app &rsaquo; contests &rsaquo; notifications</p>
                   </td>
                 </tr>
