@@ -121,60 +121,20 @@ function buildPotSection(recipient: RecipientRow): { potStyles: string; potHtml:
   const baseAmount = Math.max(0, Number(recipient.prize_static_amount ?? 0));
   const unitAmount = Math.max(0, Number(recipient.prize_variable_unit_amount ?? 0));
   const isVariable = recipient.prize_mode === "variable" && recipient.prize_variable_basis !== "none" && unitAmount > 0;
-  const basisLabel = recipient.prize_variable_basis === "qualifying_contestant" ? "QUALIFYING PLAYER" : "PLAYER";
-  const numInline = `font-family:'Arial Black','Arial Bold',Arial,sans-serif;font-size:72px;font-weight:900;color:${LIME};line-height:80px;letter-spacing:-0.02em;`;
+  const basisLabel = recipient.prize_variable_basis === "qualifying_contestant" ? "qualifying player" : "player";
+  const numInline = `font-family:'Arial Black','Arial Bold',Arial,sans-serif;font-size:72px;font-weight:900;color:#c8ff00;line-height:1;letter-spacing:-0.02em;`;
+  const potStyles = `.pot-num{font-family:'Arial Black','Arial Bold',Arial,sans-serif!important;font-size:72px!important;font-weight:900!important;color:#c8ff00!important;}`;
 
-  if (!isVariable) {
-    return {
-      potStyles: `.pot-num{font-family:'Arial Black','Arial Bold',Arial,sans-serif!important;font-size:72px!important;font-weight:900!important;}`,
-      potHtml: `
-        <p style="margin:0 0 10px;font-family:'JetBrains Mono','Courier New',monospace;font-size:10px;font-weight:700;color:#686850;text-transform:uppercase;letter-spacing:0.18em;">PRIZE POT</p>
-        <div class="pot-num" style="${numInline}">${formatPrizeMoney(baseAmount)}</div>
-        <p style="margin:10px 0 0;font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;color:#686850;letter-spacing:0.04em;">fixed pot &mdash; winner takes all</p>`
-    };
-  }
-
-  const FRAME_COUNT = 6;
-  const frames = Array.from({ length: FRAME_COUNT }, (_, i) => formatPrizeMoney(baseAmount + i * unitAmount));
-  const endPct = (((FRAME_COUNT - 1) / FRAME_COUNT) * 100).toFixed(4);
-  const durationS = ((FRAME_COUNT - 1) * 0.7).toFixed(1);
-  const growthCopy = baseAmount > 0
-    ? `${formatPrizeMoney(unitAmount)} added to the pot with each new entry. starts at ${formatPrizeMoney(baseAmount)}.`
-    : `${formatPrizeMoney(unitAmount)} added to the pot with each new entry.`;
+  const growthNote = isVariable
+    ? `<p style="margin:12px 0 0;font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;color:#686850;line-height:1.6;">${formatPrizeMoney(unitAmount)} added to the pot with each new ${basisLabel}${baseAmount > 0 ? `. starts at ${formatPrizeMoney(baseAmount)}` : ""}.</p>`
+    : `<p style="margin:12px 0 0;font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;color:#686850;letter-spacing:0.04em;">fixed pot &mdash; winner takes all</p>`;
 
   return {
-    potStyles: `
-      .pot-num{font-family:'Arial Black','Arial Bold',Arial,sans-serif!important;font-size:72px!important;font-weight:900!important;}
-      @keyframes pot-tick {
-        from { transform: translateY(0); }
-        to   { transform: translateY(-${endPct}%); }
-      }
-      .pot-ticker { animation: pot-tick ${durationS}s steps(${FRAME_COUNT - 1}, end) infinite alternate; }`,
+    potStyles,
     potHtml: `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px;">
-        <tr>
-          <td><p style="margin:0;font-family:'JetBrains Mono','Courier New',monospace;font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.18em;">PRIZE POT</p></td>
-          <td align="right" style="vertical-align:middle;"><p style="margin:0;font-family:'JetBrains Mono','Courier New',monospace;font-size:9px;color:${DIM};text-transform:uppercase;letter-spacing:0.12em;">UPDATED LIVE</p></td>
-        </tr>
-      </table>
-      <table role="presentation" cellpadding="0" cellspacing="0">
-        <tr>
-          <td style="vertical-align:bottom;">
-            <div style="height:80px;overflow:hidden;">
-              <div class="pot-ticker">
-                ${frames.map(f => `<div class="pot-num" style="${numInline}">${f}</div>`).join("\n                ")}
-              </div>
-            </div>
-          </td>
-          <td style="vertical-align:bottom;padding:0 0 10px 16px;">
-            <div style="padding:6px 10px;border:1px solid ${LIME};display:inline-block;">
-              <p style="margin:0;font-family:'JetBrains Mono','Courier New',monospace;font-size:9px;font-weight:700;color:${LIME};text-transform:uppercase;letter-spacing:0.1em;">+${formatPrizeMoney(unitAmount)}</p>
-              <p style="margin:3px 0 0;font-family:'JetBrains Mono','Courier New',monospace;font-size:9px;font-weight:700;color:${LIME};text-transform:uppercase;letter-spacing:0.1em;">PER ${basisLabel}</p>
-            </div>
-          </td>
-        </tr>
-      </table>
-      <p style="margin:10px 0 0;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;color:${DIM};line-height:1.65;">${growthCopy}</p>`
+      <p style="margin:0 0 10px;font-family:'JetBrains Mono','Courier New',monospace;font-size:10px;font-weight:700;color:#686850;text-transform:uppercase;letter-spacing:0.18em;">PRIZE POT</p>
+      <div class="pot-num" style="${numInline}">${formatPrizeMoney(baseAmount)}</div>
+      ${growthNote}`
   };
 }
 
@@ -216,17 +176,30 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
   <title>${recipient.contest_title}</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap">
   <style>
     ${potStyles}
+    :root { color-scheme: light dark; }
     body, .body { margin:0; padding:0; background-color:#0a0a09 !important; }
     a { color:inherit; }
-    .email-bg { background-color:#0a0a09 !important; }
+    .email-bg {
+      background-color:#0a0a09 !important;
+      color:#ddd5bc !important;
+    }
+    /* Gmail mobile */
     u + .body .email-bg { background-color:#0a0a09 !important; }
     u + .body .email-bg td { background-color:#0a0a09 !important; }
     u + .body .email-bg table { background-color:#0a0a09 !important; }
+    /* Outlook.com */
     #MessageViewBody .email-bg { background-color:#0a0a09 !important; }
+    @media (prefers-color-scheme: dark) {
+      .email-bg { background-color:#0a0a09 !important; }
+      .email-bg td { background-color:#0a0a09 !important; }
+      .email-bg table { background-color:#0a0a09 !important; }
+    }
   </style>
 </head>
 <body class="body" style="margin:0;padding:0;background-color:#0a0a09;">

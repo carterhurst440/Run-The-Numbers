@@ -142,16 +142,24 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
   <title>${recipient.contest_title}</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap">
   <style>
+    :root { color-scheme: light dark; }
     body, .body { margin:0; padding:0; background-color:#0a0a09 !important; }
     a { color:inherit; }
-    .email-bg { background-color:#0a0a09 !important; }
+    .email-bg { background-color:#0a0a09 !important; color:#ddd5bc !important; }
     u + .body .email-bg { background-color:#0a0a09 !important; }
     u + .body .email-bg td { background-color:#0a0a09 !important; }
     u + .body .email-bg table { background-color:#0a0a09 !important; }
     #MessageViewBody .email-bg { background-color:#0a0a09 !important; }
+    @media (prefers-color-scheme: dark) {
+      .email-bg { background-color:#0a0a09 !important; }
+      .email-bg td { background-color:#0a0a09 !important; }
+      .email-bg table { background-color:#0a0a09 !important; }
+    }
   </style>
 </head>
 <body class="body" style="margin:0;padding:0;background-color:#0a0a09;">
