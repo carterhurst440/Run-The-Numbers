@@ -115,7 +115,7 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
   const appBaseUrl = (Deno.env.get("APP_BASE_URL") || "https://carterscasino.app").replace(/\/+$/, "");
   const joinUrl = `${appBaseUrl}/#/contests?contest=${encodeURIComponent(contestId)}`;
 
-  const logoMark = `<table cellpadding="0" cellspacing="0" style="display:inline-table;width:20px;height:20px;background:#c8ff00;"><tr><td style="padding:2px;"><table cellpadding="0" cellspacing="0" style="width:16px;height:16px;background:#0a0a09;"><tr><td style="padding:4px;"><div style="width:8px;height:8px;background:#c8ff00;"></div></td></tr></table></td></tr></table>`;
+  const logoMark = `<span style="font-family:'JetBrains Mono','Courier New',monospace;font-size:16px;font-weight:800;color:#c8ff00;margin-right:8px;">&#9632;</span>`;
 
   const startLabel = formattedStart ? "STARTS" : "STARTS WHEN";
   const startValue = formattedStart
@@ -157,19 +157,14 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
 
           <!-- TOP BAR -->
           <tr>
-            <td style="padding:0 0 24px;border-bottom:1px solid rgba(200,255,0,0.15);">
+            <td style="padding:0 0 20px;border-bottom:1px solid rgba(200,255,0,0.15);">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="vertical-align:middle;">
-                    <table role="presentation" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td style="vertical-align:middle;padding-right:9px;">${logoMark}</td>
-                        <td style="vertical-align:middle;"><span style="font-family:${MONO};font-size:11px;font-weight:700;color:${FG};letter-spacing:0.12em;text-transform:uppercase;">CARTER'S CASINO</span></td>
-                      </tr>
-                    </table>
+                  <td style="vertical-align:middle;white-space:nowrap;">
+                    ${logoMark}<span style="font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;font-weight:700;color:#c8ff00;letter-spacing:0.12em;text-transform:uppercase;">CARTER'S CASINO</span>
                   </td>
-                  <td align="right" style="vertical-align:middle;">
-                    <span style="font-family:${MONO};font-size:10px;font-weight:700;color:${DIM};letter-spacing:0.14em;text-transform:uppercase;">NEW CONTEST</span>
+                  <td align="right" style="vertical-align:middle;white-space:nowrap;">
+                    <span style="font-family:'JetBrains Mono','Courier New',monospace;font-size:10px;font-weight:700;color:#686850;letter-spacing:0.14em;text-transform:uppercase;">NEW CONTEST</span>
                   </td>
                 </tr>
               </table>
@@ -178,8 +173,8 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
 
           <!-- CONTEST TITLE -->
           <tr>
-            <td style="padding:32px 0 40px;">
-              <div style="margin:0;font-family:'JetBrains Mono','Courier New',monospace;font-size:38px;font-weight:800;color:${FG};line-height:1.1;letter-spacing:-0.02em;">${recipient.contest_title}</div>
+            <td style="padding:28px 0 36px;">
+              <div style="margin:0;font-family:'JetBrains Mono','Courier New',monospace;font-size:36px;font-weight:800;color:#ddd5bc;line-height:1.1;">${recipient.contest_title}</div>
             </td>
           </tr>
 
