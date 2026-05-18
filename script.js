@@ -9289,6 +9289,8 @@ async function setRoute(route, { replaceHash = false } = {}) {
       markStageEl.style.removeProperty('--mark-from-y');
       markStageEl.style.removeProperty('--mark-from-scale');
     }
+    const cardEl = document.querySelector('.auth-vault-card');
+    if (cardEl) cardEl.style.removeProperty('height');
   }
   if (signupView) {
     setViewVisibility(signupView, false);
@@ -9811,6 +9813,11 @@ function playUnlock() {
   if (!markStage) {
     setRoute("home");
     return;
+  }
+  // Lock card height before mark leaves flow (prevents layout collapse / text jump)
+  const card = document.querySelector('.auth-vault-card');
+  if (card) {
+    card.style.height = card.offsetHeight + 'px';
   }
   const rect = markStage.getBoundingClientRect();
   const startCX = rect.left + rect.width / 2;
