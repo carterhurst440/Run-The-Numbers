@@ -10377,309 +10377,6 @@ function closeNumberBetsModal({ restoreFocus = true } = {}) {
   }
 }
 
-function openBetAnalyticsModal() {
-  if (!betAnalyticsModal) {
-    return;
-  }
-
-  betAnalyticsModal.hidden = false;
-  betAnalyticsModal.classList.add("is-open");
-  betAnalyticsModal.setAttribute("aria-hidden", "false");
-  document.body.classList.add("modal-open");
-  
-  const okButton = betAnalyticsModal.querySelector("#bet-analytics-ok");
-  if (okButton) {
-    okButton.focus();
-  }
-}
-
-function closeBetAnalyticsModal() {
-  if (!betAnalyticsModal) {
-    return;
-  }
-
-  betAnalyticsModal.classList.remove("is-open");
-  betAnalyticsModal.setAttribute("aria-hidden", "true");
-  betAnalyticsModal.hidden = true;
-
-  if (
-    (!resetModal || resetModal.hidden) &&
-    (!shippingModal || shippingModal.hidden) &&
-    (!paytableModal || paytableModal.hidden) &&
-    (!adminPrizeModal || adminPrizeModal.hidden) &&
-    (!prizeImageModal || prizeImageModal.hidden) &&
-    (!numberBetsModal || numberBetsModal.hidden)
-  ) {
-    document.body.classList.remove("modal-open");
-  }
-}
-
-async function loadBetAnalytics(betKey, betLabel) {
-  if (!supabase) {
-    console.warn("[RTN] Cannot load bet analytics: Supabase client not initialized");
-    return;
-  }
-
-  console.info(`[RTN] Loading analytics for bet: ${betKey}`);
-
-  // Store bet key globally for chart filter buttons
-  window.currentAnalyticsBetKey = betKey;
-
-  // Update modal title
-  const modalTitle = document.getElementById("bet-analytics-title");
-  if (modalTitle) {
-    modalTitle.textContent = `${betLabel} Analytics`;
-  }
-
-  // Query bet_plays table with pagination (handle more than 1000 records)
-  const allData = [];
-  const pageSize = 1000;
-  let page = 0;
-  let hasMore = true;
-
-  while (hasMore) {
-    let query = supabase
-      .from("bet_plays")
-      .select("amount_wagered, amount_paid, net")
-      .eq("bet_key", betKey)
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-    
-    // Apply player filter if selected
-    if (selectedPlayerIds && selectedPlayerIds.length > 0) {
-      query = query.in("user_id", selectedPlayerIds);
-    }
-    
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("[RTN] Error loading bet analytics:", error);
-      
-      document.getElementById("analytics-total-bets").textContent = "0";
-      document.getElementById("analytics-total-wagered").textContent = "$0";
-      document.getElementById("analytics-net-return").textContent = "$0";
-      document.getElementById("analytics-house-edge").textContent = "0.00%";
-      openBetAnalyticsModal();
-      return;
-    }
-
-    if (data && data.length > 0) {
-      allData.push(...data);
-      hasMore = data.length === pageSize;
-      page++;
-    } else {
-      hasMore = false;
-    }
-  }
-
-  console.info(`[RTN] Loaded ${allData.length} bet plays for ${betKey}`);
-
-  // Calculate statistics using correct column names
-  const totalBets = allData.length;
-  const totalWagered = allData.reduce((sum, play) => sum + (play.amount_wagered || 0), 0);
-  const totalPaidOut = allData.reduce((sum, play) => sum + (play.amount_paid || 0), 0);
-  const netReturn = totalPaidOut; // Net player return is total amount paid to players
-  const houseEdge = totalWagered > 0 ? (((totalWagered - totalPaidOut) / totalWagered) * 100).toFixed(2) : "0.00";
-
-  // Update modal content
-  document.getElementById("analytics-total-bets").textContent = totalBets.toLocaleString();
-  document.getElementById("analytics-total-wagered").textContent = `$${totalWagered.toLocaleString()}`;
-  document.getElementById("analytics-net-return").textContent = `$${netReturn.toLocaleString()}`;
-  document.getElementById("analytics-house-edge").textContent = `${houseEdge}%`;
-
-  // Reset filter buttons to "all" active state
-  document.querySelectorAll(".analytics-modal .chart-filter-btn[data-period]").forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.period === "all");
-  });
-
-  // Render chart with default "all" time period
-  await renderBetVolumeChart(betKey, "all");
-
-  openBetAnalyticsModal();
-}
-
-// Global variable to store chart instance
-let betVolumeChartInstance = null;
-
-async function renderBetVolumeChart(betKey, period) {
-  if (!supabase) {
-    console.warn("[RTN] Cannot render chart: Supabase client not initialized");
-    return;
-  }
-
-  console.info(`[RTN] Rendering bet volume chart for ${betKey} with period: ${period}`);
-
-  // Calculate date range based on period
-  const now = new Date();
-  let startDate = null;
-
-  switch (period) {
-    case "week":
-      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      break;
-    case "month":
-      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      break;
-    case "90days":
-      startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-      break;
-    case "year":
-      startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-      break;
-    case "all":
-    default:
-      startDate = null; // No date filter
-      break;
-  }
-
-  // Build query with pagination
-  const allPlays = [];
-  const pageSize = 1000;
-  let page = 0;
-  let hasMore = true;
-
-  while (hasMore) {
-    let query = supabase
-      .from("bet_plays")
-      .select("id, placed_at")
-      .eq("bet_key", betKey)
-      .order("placed_at", { ascending: true })
-      .range(page * pageSize, (page + 1) * pageSize - 1);
-
-    if (startDate) {
-      query = query.gte("placed_at", startDate.toISOString());
-    }
-    
-    // Apply player filter if selected
-    if (selectedPlayerIds && selectedPlayerIds.length > 0) {
-      query = query.in("user_id", selectedPlayerIds);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("[RTN] Error loading chart data:", error);
-      return;
-    }
-
-    if (data && data.length > 0) {
-      allPlays.push(...data);
-      hasMore = data.length === pageSize;
-      page++;
-    } else {
-      hasMore = false;
-    }
-  }
-
-  console.info(`[RTN] Loaded ${allPlays.length} plays for chart`);
-
-  // Determine the date range to fill
-  const effectiveStartDate = startDate || (allPlays.length > 0 ? new Date(allPlays[0].placed_at) : new Date());
-  const endDate = new Date();
-  
-  // Fill all dates in range
-  const allDates = [];
-  const currentDate = new Date(effectiveStartDate);
-  currentDate.setHours(0, 0, 0, 0);
-  
-  while (currentDate <= endDate) {
-    allDates.push(currentDate.toISOString().split("T")[0]);
-    currentDate.setDate(currentDate.getDate() + 1);
-  }
-
-  // Group by date and count unique IDs
-  const countsByDate = {};
-  allDates.forEach(date => {
-    countsByDate[date] = 0;
-  });
-  
-  // Count each record (each has unique ID)
-  allPlays.forEach(play => {
-    const date = new Date(play.placed_at).toISOString().split("T")[0];
-    if (countsByDate.hasOwnProperty(date)) {
-      countsByDate[date]++;
-    }
-  });
-
-  // Convert to arrays for Chart.js
-  const dates = allDates;
-  const counts = dates.map(date => countsByDate[date]);
-
-  // Get canvas context
-  const canvas = document.getElementById("bet-analytics-chart");
-  if (!canvas) {
-    console.warn("[RTN] Chart canvas not found");
-    return;
-  }
-
-  const ctx = canvas.getContext("2d");
-
-  // Destroy existing chart if it exists
-  if (betVolumeChartInstance) {
-    betVolumeChartInstance.destroy();
-  }
-
-  // Create new chart
-  betVolumeChartInstance = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: dates,
-      datasets: [{
-        label: "Bet Plays",
-        data: counts,
-        borderColor: "rgba(53, 255, 234, 1)",
-        backgroundColor: "rgba(53, 255, 234, 0.2)",
-        borderWidth: 2,
-        fill: true,
-        tension: 0.3
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
-        },
-        tooltip: {
-          mode: "index",
-          intersect: false,
-          backgroundColor: "rgba(9, 18, 32, 0.95)",
-          titleColor: "rgba(53, 255, 234, 1)",
-          bodyColor: "rgba(226, 248, 255, 0.9)",
-          borderColor: "rgba(53, 255, 234, 0.5)",
-          borderWidth: 1,
-          padding: 12,
-          displayColors: false
-        }
-      },
-      scales: {
-        x: {
-          grid: {
-            color: "rgba(53, 255, 234, 0.1)"
-          },
-          ticks: {
-            color: "rgba(173, 225, 247, 0.75)",
-            maxRotation: 45,
-            minRotation: 0
-          }
-        },
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: "rgba(53, 255, 234, 0.1)"
-          },
-          ticks: {
-            color: "rgba(173, 225, 247, 0.75)",
-            precision: 0
-          }
-        }
-      }
-    }
-  });
-
-  console.info("[RTN] Chart rendered successfully");
-}
-
 // Global variable for overview chart
 let overviewChartInstance = null;
 let activeUsersChartInstance = null;
@@ -11138,37 +10835,6 @@ async function renderActiveUsersChart(period = "year") {
   activeUsersFilterButtons.forEach((btn) => {
     btn.disabled = false;
   });
-}
-
-// Load badge count for individual bet - uses EXACT same query as modal
-async function loadBetBadgeCount(betKey) {
-  if (!supabase) return 0;
-
-  let query = supabase
-    .from("bet_plays")
-    .select("id", { count: "exact", head: true })
-    .eq("bet_key", betKey);
-
-  const startDate = getAnalyticsPeriodStart(analyticsBetBadgePeriod);
-  if (startDate) {
-    query = query.gte("placed_at", startDate.toISOString());
-  }
-  
-  // Apply player filter if selected
-  if (selectedPlayerIds && selectedPlayerIds.length > 0) {
-    query = query.in("user_id", selectedPlayerIds);
-  }
-  
-  const { count, error } = await query;
-
-  if (error) {
-    console.error(`[RTN] Error loading count for ${betKey}:`, error);
-    return 0;
-  }
-
-  const exactCount = count ?? 0;
-  console.info(`[RTN] Badge count for ${betKey} (${analyticsBetBadgePeriod}): ${exactCount}`);
-  return exactCount;
 }
 
 async function notifyAdminPurchase({ purchase, prize, shipping }) {
@@ -18585,8 +18251,6 @@ const activityLogLoadMoreButton = document.getElementById("activity-log-load-mor
 const activityLogFilterInputs = Array.from(document.querySelectorAll("[data-activity-log-filter]"));
 const activityLogTradeFilterSelect = document.getElementById("activity-log-trade-filter");
 const outOfCreditsCopyEl = document.getElementById("out-of-credits-copy");
-const betAnalyticsModal = document.getElementById("bet-analytics-modal");
-const betAnalyticsClose = document.getElementById("bet-analytics-close");
 const playerBankrollModal = document.getElementById("player-bankroll-modal");
 const playerBankrollClose = document.getElementById("player-bankroll-close");
 const playerBankrollTitleEl = document.getElementById("player-bankroll-title");
@@ -18694,16 +18358,6 @@ const mostActiveLoadMoreButton = document.getElementById("most-active-load-more"
 const pnlRankListEl = document.getElementById("pnl-rank-list");
 const pnlRankSubheadEl = document.getElementById("pnl-rank-subhead");
 const pnlRankLoadMoreButton = document.getElementById("pnl-rank-load-more");
-const adminAiConversationsListEl = document.getElementById("admin-ai-conversations-list");
-const adminAiConversationsSubheadEl = document.getElementById("admin-ai-conversations-subhead");
-const adminAiConversationsRefreshButton = document.getElementById("admin-ai-conversations-refresh");
-const adminAiConversationsLoadMoreButton = document.getElementById("admin-ai-conversations-load-more");
-const adminAiConversationModal = document.getElementById("admin-ai-conversation-modal");
-const adminAiConversationClose = document.getElementById("admin-ai-conversation-close");
-const adminAiConversationTitleEl = document.getElementById("admin-ai-conversation-title");
-const adminAiConversationMetaEl = document.getElementById("admin-ai-conversation-meta");
-const adminAiConversationThreadEl = document.getElementById("admin-ai-conversation-thread");
-const adminAiConversationActionsEl = document.getElementById("admin-ai-conversation-actions");
 const rankLadderModal = document.getElementById("rank-ladder-modal");
 const rankLadderListEl = document.getElementById("rank-ladder-list");
 const rankLadderCloseButton = document.getElementById("rank-ladder-close");
@@ -19303,11 +18957,6 @@ let playerActivityLogTradeFilter = "all";
 let handReviewModalTrigger = null;
 let handReviewRequestToken = 0;
 let chipEditorModalTrigger = null;
-let adminAiConversationEntries = [];
-let adminAiConversationVisibleCount = 20;
-let adminAiConversationLoading = false;
-let activeAdminAiConversation = null;
-
 let shippingModalTrigger = null;
 let activeShippingPurchase = null;
 let adminModalTrigger = null;
@@ -26359,8 +26008,7 @@ function closeHandReviewModal({ restoreFocus = false } = {}) {
     (!paytableModal || paytableModal.hidden) &&
     (!adminPrizeModal || adminPrizeModal.hidden) &&
     (!prizeImageModal || prizeImageModal.hidden) &&
-    (!numberBetsModal || numberBetsModal.hidden) &&
-    (!betAnalyticsModal || betAnalyticsModal.hidden)
+    (!numberBetsModal || numberBetsModal.hidden)
   ) {
     document.body.classList.remove("modal-open");
   }
@@ -27117,234 +26765,6 @@ async function loadPlayerActivityLogModal({ force = false, append = false } = {}
   } finally {
     playerActivityLogLoading = false;
     renderPlayerActivityLogModal();
-  }
-}
-
-function getAdminAiConversationGameLabel(gameId = "") {
-  const normalized = resolveGameKey(gameId);
-  return getGameLabel(normalized || gameId || "Unknown Game");
-}
-
-function summarizeAdminAiConversationActions(actions = []) {
-  if (!Array.isArray(actions) || !actions.length) {
-    return "No confirmed actions recorded.";
-  }
-  return actions.map((action) => {
-    const type = String(action?.actionType || "").trim();
-    if (type === "wagers_staged") {
-      const totalUnits = Number(action?.totalUnits || 0);
-      const wagerCount = Array.isArray(action?.wagersPlaced) ? action.wagersPlaced.length : 0;
-      return `${wagerCount.toLocaleString()} wager${wagerCount === 1 ? "" : "s"} staged for ${formatCurrency(totalUnits)} total`;
-    }
-    if (type === "bets_cleared") {
-      return "Current bets cleared";
-    }
-    if (type === "rules_saved") {
-      const ruleCount = Array.isArray(action?.rulesMade) ? action.rulesMade.length : 0;
-      return `${ruleCount.toLocaleString()} rule${ruleCount === 1 ? "" : "s"} saved`;
-    }
-    if (type === "rules_cleared") {
-      return "Saved rules cleared";
-    }
-    return type || "Action recorded";
-  }).join(" · ");
-}
-
-function renderAdminAiConversationEntries() {
-  if (!adminAiConversationsListEl) {
-    return;
-  }
-
-  if (adminAiConversationLoading) {
-    adminAiConversationsListEl.innerHTML = '<li class="analytics-activity-item analytics-activity-empty">Loading AI conversations...</li>';
-    return;
-  }
-
-  if (!adminAiConversationEntries.length) {
-    adminAiConversationsListEl.innerHTML = '<li class="analytics-activity-item analytics-activity-empty">No AI conversations have been stored yet.</li>';
-    if (adminAiConversationsLoadMoreButton) {
-      adminAiConversationsLoadMoreButton.hidden = true;
-    }
-    return;
-  }
-
-  adminAiConversationsListEl.innerHTML = "";
-  const fragment = document.createDocumentFragment();
-  adminAiConversationEntries.slice(0, adminAiConversationVisibleCount).forEach((entry, index) => {
-    const details = entry?.conversation_details && typeof entry.conversation_details === "object"
-      ? entry.conversation_details
-      : {};
-    const actions = Array.isArray(entry?.actions_performed) ? entry.actions_performed : [];
-    const item = document.createElement("li");
-    item.className = "analytics-activity-item";
-
-    const rank = document.createElement("span");
-    rank.className = "analytics-activity-rank";
-    rank.textContent = `#${index + 1}`;
-
-    const body = document.createElement("div");
-    body.className = "analytics-activity-body";
-
-    const name = document.createElement("span");
-    name.className = "analytics-activity-name";
-    name.textContent = `${entry.user_name || getContestDisplayName(null, entry.user_id)} · ${getAdminAiConversationGameLabel(entry.game_id)}`;
-
-    const meta = document.createElement("span");
-    meta.className = "analytics-activity-meta";
-    meta.textContent = `${formatActivityLogTimestamp(entry.created_at)} · ${String(details.userMessage || "No prompt captured").slice(0, 120)}${String(details.userMessage || "").length > 120 ? "..." : ""}`;
-
-    const value = document.createElement("span");
-    value.className = "analytics-activity-value";
-    value.textContent = actions.length ? `${actions.length.toLocaleString()} action${actions.length === 1 ? "" : "s"}` : "Chat Only";
-
-    const actionsWrap = document.createElement("div");
-    actionsWrap.className = "analytics-activity-actions";
-
-    const viewButton = document.createElement("button");
-    viewButton.type = "button";
-    viewButton.className = "analytics-inline-action";
-    viewButton.dataset.adminAiConversationId = String(entry.id || "");
-    viewButton.textContent = "View Conversation";
-
-    body.append(name, meta);
-    actionsWrap.append(value, viewButton);
-    item.append(rank, body, actionsWrap);
-    fragment.appendChild(item);
-  });
-  adminAiConversationsListEl.appendChild(fragment);
-
-  if (adminAiConversationsSubheadEl) {
-    const total = adminAiConversationEntries.length;
-    adminAiConversationsSubheadEl.textContent = `Showing ${Math.min(adminAiConversationVisibleCount, total).toLocaleString()} of ${total.toLocaleString()} recent AI chat turns, including stored transcript details and confirmed actions.`;
-  }
-
-  if (adminAiConversationsLoadMoreButton) {
-    const remaining = adminAiConversationEntries.length - adminAiConversationVisibleCount;
-    adminAiConversationsLoadMoreButton.hidden = remaining <= 0;
-    if (remaining > 0) {
-      adminAiConversationsLoadMoreButton.textContent = `Load More (${remaining.toLocaleString()} left)`;
-    }
-  }
-}
-
-async function loadAdminAiConversations() {
-  if (!supabase || !adminAiConversationsListEl) {
-    return;
-  }
-
-  adminAiConversationLoading = true;
-  adminAiConversationVisibleCount = 20;
-  renderAdminAiConversationEntries();
-
-  try {
-    const { data, error } = await supabase.rpc("get_admin_ai_chat_conversations", {
-      limit_count: 200,
-      target_user_ids: null
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    adminAiConversationEntries = Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error("[RTN] Unable to load admin AI conversations", error);
-    adminAiConversationEntries = [];
-  } finally {
-    adminAiConversationLoading = false;
-    renderAdminAiConversationEntries();
-  }
-}
-
-function renderAdminAiConversationModal(entry) {
-  if (!entry || !adminAiConversationThreadEl || !adminAiConversationActionsEl) {
-    return;
-  }
-
-  const details = entry?.conversation_details && typeof entry.conversation_details === "object"
-    ? entry.conversation_details
-    : {};
-  const threadMessages = Array.isArray(details.threadMessages) ? details.threadMessages : [];
-  const actions = Array.isArray(entry?.actions_performed) ? entry.actions_performed : [];
-
-  if (adminAiConversationTitleEl) {
-    adminAiConversationTitleEl.textContent = `${entry.user_name || "Player"} · ${getAdminAiConversationGameLabel(entry.game_id)}`;
-  }
-  if (adminAiConversationMetaEl) {
-    adminAiConversationMetaEl.textContent = `${formatActivityLogTimestamp(entry.created_at)} · ${entry.user_id || "Unknown user"} · ${actions.length.toLocaleString()} action${actions.length === 1 ? "" : "s"} recorded`;
-  }
-
-  adminAiConversationThreadEl.innerHTML = threadMessages.length
-    ? threadMessages.map((message) => `
-        <article class="admin-ai-message" data-role="${escapeAssistantHtml(String(message.role || "assistant"))}">
-          <div class="admin-ai-message-head">
-            <span class="admin-ai-message-role">${escapeAssistantHtml(String(message.role || "assistant"))}</span>
-            <span class="admin-ai-message-time">${escapeAssistantHtml(formatActivityLogTimestamp(message.timestamp || entry.created_at))}</span>
-          </div>
-          <div class="admin-ai-message-body">${formatAssistantMessageHtml(String(message.text || ""))}</div>
-        </article>
-      `).join("")
-    : `<article class="admin-ai-message"><div class="admin-ai-message-body">No thread snapshot was stored for this turn.</div></article>`;
-
-  adminAiConversationActionsEl.innerHTML = actions.length
-    ? actions.map((action) => {
-        const rulesMade = Array.isArray(action?.rulesMade) ? action.rulesMade : [];
-        const wagersPlaced = Array.isArray(action?.wagersPlaced) ? action.wagersPlaced : [];
-        return `
-          <article class="admin-ai-action-card">
-            <div class="admin-ai-action-head">
-              <span class="admin-ai-action-type">${escapeAssistantHtml(String(action?.actionType || "action"))}</span>
-              <span class="admin-ai-action-time">${escapeAssistantHtml(formatActivityLogTimestamp(action?.performedAt || entry.created_at))}</span>
-            </div>
-            <p class="admin-ai-action-summary">${escapeAssistantHtml(String(action?.summary || summarizeAdminAiConversationActions([action])))}</p>
-            ${wagersPlaced.length ? `<p class="admin-ai-action-detail">${escapeAssistantHtml(wagersPlaced.map((bet) => `${Number(bet?.units || 0)}u ${String(bet?.label || bet?.key || "Bet")}`).join(" · "))}</p>` : ""}
-            ${rulesMade.length ? `<p class="admin-ai-action-detail">${escapeAssistantHtml(rulesMade.map((rule) => `${String(rule?.side || "rule")} ${String(rule?.assetId || "any")} @ ${formatCurrency(Number(rule?.threshold || 0))}`).join(" · "))}</p>` : ""}
-          </article>
-        `;
-      }).join("")
-    : `<article class="admin-ai-action-card"><p class="admin-ai-action-summary">No confirmed actions were recorded for this conversation turn.</p></article>`;
-}
-
-function openAdminAiConversationModal(entryId) {
-  if (!adminAiConversationModal) {
-    return;
-  }
-  const entry = adminAiConversationEntries.find((candidate) => String(candidate?.id || "") === String(entryId || ""));
-  if (!entry) {
-    return;
-  }
-  activeAdminAiConversation = entry;
-  renderAdminAiConversationModal(entry);
-  adminAiConversationModal.hidden = false;
-  adminAiConversationModal.classList.add("is-open");
-  adminAiConversationModal.setAttribute("aria-hidden", "false");
-  document.body.classList.add("modal-open");
-  adminAiConversationClose?.focus();
-}
-
-function closeAdminAiConversationModal() {
-  if (!adminAiConversationModal) {
-    return;
-  }
-  adminAiConversationModal.classList.remove("is-open");
-  adminAiConversationModal.setAttribute("aria-hidden", "true");
-  adminAiConversationModal.hidden = true;
-  activeAdminAiConversation = null;
-  if (
-    (!playerBankrollModal || playerBankrollModal.hidden) &&
-    (!playerHandsModal || playerHandsModal.hidden) &&
-    (!playerActivityLogModal || playerActivityLogModal.hidden) &&
-    (!playerModeBreakdownModal || playerModeBreakdownModal.hidden) &&
-    (!betAnalyticsModal || betAnalyticsModal.hidden) &&
-    (!resetModal || resetModal.hidden) &&
-    (!shippingModal || shippingModal.hidden) &&
-    (!paytableModal || paytableModal.hidden) &&
-    (!adminPrizeModal || adminPrizeModal.hidden) &&
-    (!prizeImageModal || prizeImageModal.hidden) &&
-    (!numberBetsModal || numberBetsModal.hidden) &&
-    (!handReviewModal || handReviewModal.hidden)
-  ) {
-    document.body.classList.remove("modal-open");
   }
 }
 
@@ -30290,20 +29710,6 @@ if (handReviewModal) {
   });
 }
 
-if (betAnalyticsClose) {
-  betAnalyticsClose.addEventListener("click", () => {
-    closeBetAnalyticsModal();
-  });
-}
-
-if (betAnalyticsModal) {
-  betAnalyticsModal.addEventListener("click", (event) => {
-    if (event.target === betAnalyticsModal) {
-      closeBetAnalyticsModal();
-    }
-  });
-}
-
 if (mostActiveWeekListEl) {
   mostActiveWeekListEl.addEventListener("click", (event) => {
     const bankrollButton =
@@ -30357,29 +29763,6 @@ if (pnlRankListEl) {
         bankrollButton.dataset.playerBankrollName || "Player"
       );
     }
-  });
-}
-
-if (adminAiConversationsListEl) {
-  adminAiConversationsListEl.addEventListener("click", (event) => {
-    const button =
-      event.target instanceof HTMLElement ? event.target.closest("[data-admin-ai-conversation-id]") : null;
-    if (button instanceof HTMLElement) {
-      openAdminAiConversationModal(button.dataset.adminAiConversationId || "");
-    }
-  });
-}
-
-if (adminAiConversationsRefreshButton) {
-  adminAiConversationsRefreshButton.addEventListener("click", () => {
-    void loadAdminAiConversations();
-  });
-}
-
-if (adminAiConversationsLoadMoreButton) {
-  adminAiConversationsLoadMoreButton.addEventListener("click", () => {
-    adminAiConversationVisibleCount += 20;
-    renderAdminAiConversationEntries();
   });
 }
 
@@ -30476,20 +29859,6 @@ if (playerActivityLogModal) {
   });
 }
 
-if (adminAiConversationClose) {
-  adminAiConversationClose.addEventListener("click", () => {
-    closeAdminAiConversationModal();
-  });
-}
-
-if (adminAiConversationModal) {
-  adminAiConversationModal.addEventListener("click", (event) => {
-    if (event.target === adminAiConversationModal) {
-      closeAdminAiConversationModal();
-    }
-  });
-}
-
 if (playerActivityLogRefreshButton) {
   playerActivityLogRefreshButton.addEventListener("click", () => {
     void loadPlayerActivityLogModal({ force: true });
@@ -30576,30 +29945,6 @@ playerBreakdownFilterButtons.forEach((button) => {
   });
 });
 
-// Chart filter buttons
-document.querySelectorAll(".analytics-modal .chart-filter-btn[data-period]").forEach(button => {
-  button.addEventListener("click", () => {
-    const period = button.dataset.period;
-    
-    // Update active state
-    document.querySelectorAll(".analytics-modal .chart-filter-btn[data-period]").forEach(btn => {
-      btn.classList.remove("active");
-    });
-    button.classList.add("active");
-    
-    // Get current bet key from modal title
-    const modalTitle = document.getElementById("bet-analytics-title");
-    if (modalTitle) {
-      const titleText = modalTitle.textContent;
-      // Extract bet key - need to store it globally when modal opens
-      if (window.currentAnalyticsBetKey) {
-        renderBetVolumeChart(window.currentAnalyticsBetKey, period);
-      }
-    }
-  });
-});
-
-
 // Admin tab switching
 adminTabButtons.forEach(button => {
   button.addEventListener("click", () => {
@@ -30638,9 +29983,6 @@ adminTabButtons.forEach(button => {
         populateAdminUserLookupSelect();
       });
       void loadAdminPnlChart();
-      loadAdminAiConversations();
-      initializeAnalyticsBettingGrid();
-      loadPlayerFilter();
     } else if (targetTab === "contests") {
       adminPrizesContent.hidden = true;
       if (adminGamesContent) adminGamesContent.hidden = true;
@@ -30900,12 +30242,6 @@ if (activeUsersDeselectAllButton) {
   });
 }
 
-// Player filter state for the RTN bet analytics section only
-let selectedPlayerIds = null; // null = all players, [] = specific players
-let playerEmailMap = {}; // Map of user_id to email for display
-let analyticsBetBadgePeriod = "all";
-let analyticsPlayerFilterPromise = null;
-let analyticsPlayerFilterLoaded = false;
 let analyticsMostActiveRequestId = 0;
 let analyticsMostActiveEntries = [];
 let analyticsMostActiveVisibleCount = 10;
@@ -31213,10 +30549,6 @@ function cacheAnalyticsProfiles(profiles) {
   (profiles || []).forEach((profile) => {
     if (!profile?.id) return;
     analyticsProfileCache.set(profile.id, profile);
-    playerEmailMap[profile.id] =
-      profile.username ||
-      [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() ||
-      `User ${profile.id.substring(0, 8)}`;
   });
 }
 
@@ -31241,53 +30573,6 @@ async function loadAnalyticsProfilesByIds(userIds) {
   }
 
   return new Map(uniqueIds.map((id) => [id, analyticsProfileCache.get(id) || null]));
-}
-
-function populatePlayerFilterOptions(profiles) {
-  const select = document.getElementById("player-filter-select");
-  if (!select) {
-    console.warn("[RTN] Player filter select not found");
-    return;
-  }
-
-  const sortedProfiles = [...(profiles || [])].sort((a, b) => {
-    const nameA = getContestDisplayName(a, a?.id).toLowerCase();
-    const nameB = getContestDisplayName(b, b?.id).toLowerCase();
-    return nameA.localeCompare(nameB);
-  });
-
-  select.innerHTML = '<option value="all" selected>All Players</option>';
-  const selectedIdSet = selectedPlayerIds && selectedPlayerIds.length > 0 ? new Set(selectedPlayerIds) : null;
-
-  const fragment = document.createDocumentFragment();
-  sortedProfiles.forEach((profile) => {
-    if (!profile?.id) return;
-    const option = document.createElement("option");
-    option.value = profile.id;
-    option.textContent = getContestDisplayName(profile, profile.id);
-    option.selected = selectedIdSet ? selectedIdSet.has(profile.id) : false;
-    fragment.appendChild(option);
-  });
-
-  select.appendChild(fragment);
-}
-
-async function loadPlayerFilterFromProfilesFallback() {
-  const { data: profiles, error } = await supabase
-    .from("profiles")
-    .select("id, username, first_name, last_name, hands_played_all_time, trades_made_all_time")
-    .order("username", { ascending: true });
-
-  if (error) {
-    throw error;
-  }
-
-  return Array.isArray(profiles)
-    ? profiles.filter((profile) =>
-        Math.max(0, Number(profile?.hands_played_all_time || 0)) > 0 ||
-        Math.max(0, Number(profile?.trades_made_all_time || 0)) > 0
-      )
-    : [];
 }
 
 function isMissingRpcError(error) {
@@ -32889,7 +32174,6 @@ function closePlayerBankrollModal() {
 
   if (
     (!playerActivityLogModal || playerActivityLogModal.hidden) &&
-    (!betAnalyticsModal || betAnalyticsModal.hidden) &&
     (!resetModal || resetModal.hidden) &&
     (!shippingModal || shippingModal.hidden) &&
     (!paytableModal || paytableModal.hidden) &&
@@ -33092,7 +32376,6 @@ function closePlayerHandsModal() {
     (!playerBankrollModal || playerBankrollModal.hidden) &&
     (!playerActivityLogModal || playerActivityLogModal.hidden) &&
     (!playerModeBreakdownModal || playerModeBreakdownModal.hidden) &&
-    (!betAnalyticsModal || betAnalyticsModal.hidden) &&
     (!resetModal || resetModal.hidden) &&
     (!shippingModal || shippingModal.hidden) &&
     (!paytableModal || paytableModal.hidden) &&
@@ -33301,7 +32584,6 @@ function closePlayerActivityLogModal() {
     (!playerBankrollModal || playerBankrollModal.hidden) &&
     (!playerHandsModal || playerHandsModal.hidden) &&
     (!playerModeBreakdownModal || playerModeBreakdownModal.hidden) &&
-    (!betAnalyticsModal || betAnalyticsModal.hidden) &&
     (!resetModal || resetModal.hidden) &&
     (!shippingModal || shippingModal.hidden) &&
     (!paytableModal || paytableModal.hidden) &&
@@ -33362,7 +32644,6 @@ function closePlayerModeBreakdownModal() {
   if (
     (!playerBankrollModal || playerBankrollModal.hidden) &&
     (!playerActivityLogModal || playerActivityLogModal.hidden) &&
-    (!betAnalyticsModal || betAnalyticsModal.hidden) &&
     (!resetModal || resetModal.hidden) &&
     (!shippingModal || shippingModal.hidden) &&
     (!paytableModal || paytableModal.hidden) &&
@@ -33617,101 +32898,6 @@ async function renderPlayerModeBreakdown(userId, period = "year") {
   if (playerModeBreakdownGameTotalEl) {
     playerModeBreakdownGameTotalEl.textContent = formatRankRequirementValue(gameTotalHands);
   }
-}
-
-function updateAnalyticsBetFilterUI() {
-  const subhead = document.getElementById("analytics-bet-filter-subhead");
-  const labels = {
-    hour: "Showing bet counts from the last hour. Click on any bet to view detailed statistics.",
-    day: "Showing bet counts from the last 24 hours. Click on any bet to view detailed statistics.",
-    week: "Showing bet counts from the last 7 days. Click on any bet to view detailed statistics.",
-    month: "Showing bet counts from the last 30 days. Click on any bet to view detailed statistics.",
-    all: "Showing all-time bet counts. Click on any bet to view detailed statistics."
-  };
-
-  document.querySelectorAll("[data-bet-period]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.betPeriod === analyticsBetBadgePeriod);
-  });
-
-  if (subhead) {
-    subhead.textContent = labels[analyticsBetBadgePeriod] || labels.all;
-  }
-}
-
-function refreshBetBadgeCounts() {
-  document.querySelectorAll(".analytics-bet-spot").forEach((button) => {
-    const betKey = button.dataset.betKey;
-    const badge = button.querySelector(".bet-count-badge");
-
-    if (!badge || !betKey) return;
-    badge.textContent = "...";
-
-    loadBetBadgeCount(betKey).then((count) => {
-      badge.textContent = count.toLocaleString();
-    });
-  });
-}
-
-document.querySelectorAll("[data-bet-period]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const nextPeriod = button.dataset.betPeriod || "all";
-    if (analyticsBetBadgePeriod === nextPeriod) return;
-    analyticsBetBadgePeriod = nextPeriod;
-    updateAnalyticsBetFilterUI();
-    refreshBetBadgeCounts();
-  });
-});
-
-// Load all players for filter
-async function loadPlayerFilter() {
-  if (!supabase) return;
-
-  const select = document.getElementById("player-filter-select");
-  if (!select) {
-    console.warn("[RTN] Player filter select not found");
-    return;
-  }
-
-  if (analyticsPlayerFilterLoaded) {
-    populatePlayerFilterOptions(Array.from(analyticsProfileCache.values()));
-    return;
-  }
-
-  if (analyticsPlayerFilterPromise) {
-    return analyticsPlayerFilterPromise;
-  }
-
-  console.info("[RTN] Loading players for filter");
-  select.innerHTML = '<option value="all" selected>Loading players...</option>';
-
-  analyticsPlayerFilterPromise = (async () => {
-    try {
-      let profiles = [];
-      const { data, error } = await supabase.rpc("get_admin_analytics_players");
-
-      if (error) {
-        if (!isMissingRpcError(error)) {
-          console.warn("[RTN] get_admin_analytics_players failed, using fallback:", error);
-        }
-        profiles = await loadPlayerFilterFromProfilesFallback();
-      } else {
-        profiles = Array.isArray(data) ? data : [];
-      }
-
-      playerEmailMap = {};
-      cacheAnalyticsProfiles(profiles);
-      populatePlayerFilterOptions(profiles);
-      analyticsPlayerFilterLoaded = true;
-      console.info(`[RTN] Populated filter with ${profiles.length} players`);
-    } catch (error) {
-      console.error("[RTN] Error loading player filter:", error);
-      select.innerHTML = '<option value="all" selected>All Players (Error loading)</option>';
-    } finally {
-      analyticsPlayerFilterPromise = null;
-    }
-  })();
-
-  return analyticsPlayerFilterPromise;
 }
 
 async function loadMostActiveThisWeek() {
@@ -34088,33 +33274,6 @@ async function loadMostActiveHandsFallback(startDate) {
   }));
 }
 
-// Apply player filter
-document.getElementById("apply-player-filter")?.addEventListener("click", () => {
-  const select = document.getElementById("player-filter-select");
-  const selectedOptions = Array.from(select.selectedOptions);
-  
-  if (selectedOptions.some(opt => opt.value === "all")) {
-    selectedPlayerIds = null; // All players
-    console.info("[RTN] Filter set to: All Players");
-  } else {
-    selectedPlayerIds = selectedOptions.map(opt => opt.value);
-    console.info(`[RTN] Filter set to: ${selectedPlayerIds.length} player(s)`);
-  }
-
-  refreshBetAnalyticsSection();
-});
-
-// Clear player filter
-document.getElementById("clear-player-filter")?.addEventListener("click", () => {
-  const select = document.getElementById("player-filter-select");
-  Array.from(select.options).forEach(opt => {
-    opt.selected = opt.value === "all";
-  });
-  selectedPlayerIds = null;
-  console.info("[RTN] Filter cleared");
-  refreshBetAnalyticsSection();
-});
-
 // ── Admin User Lookup ─────────────────────────────────────────────────────
 const _adminUserLookupSelect = document.getElementById("admin-user-lookup-select");
 
@@ -34139,275 +33298,6 @@ if (_adminUserLookupSelect) {
     // Reset select back to placeholder after opening
     _adminUserLookupSelect.value = "";
   });
-}
-
-// Refresh all analytics with current filter
-function refreshAnalytics() {
-  refreshBetBadgeCounts();
-  void loadAdminActivityTimeseries();
-  void loadAdminPnlChart();
-  loadAdminAiConversations();
-}
-
-function refreshBetAnalyticsSection() {
-  refreshBetBadgeCounts();
-}
-
-function initializeAnalyticsBettingGrid() {
-  // Populate number bets
-  const numberBetsContainer = document.querySelector(".analytics-number-bets .analytics-playmat");
-  if (numberBetsContainer && numberBetsContainer.children.length === 0) {
-    for (const rank of NUMBER_RANKS) {
-      const button = document.createElement("button");
-      button.className = "bet-spot analytics-bet-spot";
-      button.type = "button";
-      const betKey = `number-${rank}`;
-      button.dataset.betKey = betKey;
-      button.dataset.betLabel = `${rank === 'A' ? 'Ace' : rank}`;
-      button.innerHTML = `<span class="bet-label">${rank}</span>`;
-      button.addEventListener("click", () => {
-        loadBetAnalytics(button.dataset.betKey, button.dataset.betLabel);
-      });
-      numberBetsContainer.appendChild(button);
-      
-      // Add badge with loading state
-      const badge = document.createElement('span');
-      badge.className = 'bet-count-badge';
-      badge.textContent = '...';
-      button.appendChild(badge);
-      
-    }
-  }
-
-  // Populate specific card bets
-  const specificCardsContainer = document.querySelector(".analytics-specific-card-bets .analytics-grid");
-  if (specificCardsContainer && specificCardsContainer.children.length === 0) {
-    const suits = [
-      { symbol: "♥", name: "Hearts", class: "hearts" },
-      { symbol: "♣", name: "Clubs", class: "clubs" },
-      { symbol: "♠", name: "Spades", class: "spades" },
-      { symbol: "♦", name: "Diamonds", class: "diamonds" }
-    ];
-    
-    for (const suit of suits) {
-      for (const rank of NUMBER_RANKS) {
-        const button = document.createElement("button");
-        button.className = "bet-spot specific-card-bet analytics-bet-spot";
-        button.type = "button";
-        const betKey = `card-${rank}${suit.symbol}`;
-        button.dataset.betKey = betKey;
-        button.dataset.betLabel = `${rank === 'A' ? 'Ace' : rank} of ${suit.name}`;
-        button.innerHTML = `
-          <span class="bet-label">
-            <span class="card-rank">${rank}</span>
-            <span class="card-suit ${suit.class}">${suit.symbol}</span>
-          </span>
-        `;
-        button.addEventListener("click", () => {
-          loadBetAnalytics(button.dataset.betKey, button.dataset.betLabel);
-        });
-        specificCardsContainer.appendChild(button);
-        
-        // Add badge with loading state
-        const badge = document.createElement('span');
-        badge.className = 'bet-count-badge';
-        badge.textContent = '...';
-        button.appendChild(badge);
-        
-      }
-    }
-  }
-
-  // Populate bust bets
-  const bustBetsContainer = document.querySelector(".analytics-bust-card-bets .analytics-grid");
-  if (bustBetsContainer && bustBetsContainer.children.length === 0) {
-    const bustSuits = [
-      { key: "bust-hearts", label: "Bust Hearts", icon: "♥", text: "Hearts" },
-      { key: "bust-clubs", label: "Bust Clubs", icon: "♣", text: "Clubs" },
-      { key: "bust-spades", label: "Bust Spades", icon: "♠", text: "Spades" },
-      { key: "bust-diamonds", label: "Bust Diamonds", icon: "♦", text: "Diamonds" }
-    ];
-    const bustFaces = [
-      { key: "bust-jack", label: "Bust Jack", text: "Jack" },
-      { key: "bust-queen", label: "Bust Queen", text: "Queen" },
-      { key: "bust-king", label: "Bust King", text: "King" }
-    ];
-    
-    for (const bust of bustSuits) {
-      const button = document.createElement("button");
-      button.className = "bet-spot bust-bet analytics-bet-spot";
-      button.type = "button";
-      button.dataset.betKey = bust.key;
-      button.dataset.betLabel = bust.label;
-      button.innerHTML = `
-        <span class="bet-label">
-          <span class="suit-icon">${bust.icon}</span>
-          <span class="bet-text">${bust.text}</span>
-        </span>
-      `;
-      button.addEventListener("click", () => {
-        loadBetAnalytics(button.dataset.betKey, button.dataset.betLabel);
-      });
-      bustBetsContainer.appendChild(button);
-      
-      // Add badge with loading state
-      const badge = document.createElement('span');
-      badge.className = 'bet-count-badge';
-      badge.textContent = '...';
-      button.appendChild(badge);
-      
-    }
-    
-    for (const bust of bustFaces) {
-      const button = document.createElement("button");
-      button.className = "bet-spot bust-bet analytics-bet-spot";
-      button.type = "button";
-      button.dataset.betKey = bust.key;
-      button.dataset.betLabel = bust.label;
-      button.innerHTML = `<span class="bet-label">${bust.text}</span>`;
-      button.addEventListener("click", () => {
-        loadBetAnalytics(button.dataset.betKey, button.dataset.betLabel);
-      });
-      bustBetsContainer.appendChild(button);
-      
-      // Add badge with loading state
-      const badge = document.createElement('span');
-      badge.className = 'bet-count-badge';
-      badge.textContent = '...';
-      button.appendChild(badge);
-      
-    }
-    
-    const jokerButton = document.createElement("button");
-    jokerButton.className = "bet-spot bust-bet analytics-bet-spot";
-    jokerButton.type = "button";
-    jokerButton.dataset.betKey = "bust-joker";
-    jokerButton.dataset.betLabel = "Bust Joker";
-    jokerButton.innerHTML = `<span class="bet-label">Joker</span>`;
-    jokerButton.addEventListener("click", () => {
-      loadBetAnalytics(jokerButton.dataset.betKey, jokerButton.dataset.betLabel);
-    });
-    bustBetsContainer.appendChild(jokerButton);
-    
-    // Add badge with loading state for joker
-    const jokerBadge = document.createElement('span');
-    jokerBadge.className = 'bet-count-badge';
-    jokerBadge.textContent = '...';
-    jokerButton.appendChild(jokerBadge);
-    
-  }
-
-  const suitBetsContainer = document.querySelector(".analytics-suit-bets .analytics-suit-bet-groups");
-  if (suitBetsContainer && suitBetsContainer.children.length === 0) {
-    const suitBetGroups = [
-      {
-        title: "None",
-        odds: "6:5",
-        bets: [
-          { key: "suit-none-hearts", label: "No Hearts", icon: "♥", text: "Hearts" },
-          { key: "suit-none-clubs", label: "No Clubs", icon: "♣", text: "Clubs" },
-          { key: "suit-none-spades", label: "No Spades", icon: "♠", text: "Spades" },
-          { key: "suit-none-diamonds", label: "No Diamonds", icon: "♦", text: "Diamonds" }
-        ]
-      },
-      {
-        title: "Any",
-        odds: "3:4",
-        bets: [
-          { key: "suit-any-hearts", label: "Any Hearts", icon: "♥", text: "Hearts" },
-          { key: "suit-any-clubs", label: "Any Clubs", icon: "♣", text: "Clubs" },
-          { key: "suit-any-spades", label: "Any Spades", icon: "♠", text: "Spades" },
-          { key: "suit-any-diamonds", label: "Any Diamonds", icon: "♦", text: "Diamonds" }
-        ]
-      },
-      {
-        title: "First",
-        odds: "3:1",
-        bets: [
-          { key: "suit-first-hearts", label: "First Hearts", icon: "♥", text: "Hearts" },
-          { key: "suit-first-clubs", label: "First Clubs", icon: "♣", text: "Clubs" },
-          { key: "suit-first-spades", label: "First Spades", icon: "♠", text: "Spades" },
-          { key: "suit-first-diamonds", label: "First Diamonds", icon: "♦", text: "Diamonds" }
-        ]
-      }
-    ];
-
-    for (const group of suitBetGroups) {
-      const groupEl = document.createElement("div");
-      groupEl.className = "suit-bet-group";
-      groupEl.innerHTML = `
-        <div class="suit-bet-group-header">
-          <h4 class="suit-bet-group-title">${group.title}</h4>
-          <span class="suit-bet-group-odds">${group.odds}</span>
-        </div>
-      `;
-      const gridEl = document.createElement("div");
-      gridEl.className = "suit-bet-grid analytics-grid";
-
-      for (const suitBet of group.bets) {
-        const button = document.createElement("button");
-        button.className = "bet-spot suit-bet analytics-bet-spot";
-        button.type = "button";
-        button.dataset.betKey = suitBet.key;
-        button.dataset.betLabel = suitBet.label;
-        button.innerHTML = `
-          <span class="bet-label">
-            <span class="suit-icon">${suitBet.icon}</span>
-            <span class="bet-text">${suitBet.text}</span>
-          </span>
-        `;
-        button.addEventListener("click", () => {
-          loadBetAnalytics(button.dataset.betKey, button.dataset.betLabel);
-        });
-        const badge = document.createElement("span");
-        badge.className = "bet-count-badge";
-        badge.textContent = "...";
-        button.appendChild(badge);
-        gridEl.appendChild(button);
-      }
-
-      groupEl.appendChild(gridEl);
-      suitBetsContainer.appendChild(groupEl);
-    }
-  }
-
-  // Populate card count bets
-  const countBetsContainer = document.querySelector(".analytics-card-count-bets .analytics-grid");
-  if (countBetsContainer && countBetsContainer.children.length === 0) {
-    const counts = [
-      { key: "count-1", label: "1 Card" },
-      { key: "count-2", label: "2 Cards" },
-      { key: "count-3", label: "3 Cards" },
-      { key: "count-4", label: "4 Cards" },
-      { key: "count-5", label: "5 Cards" },
-      { key: "count-6", label: "6 Cards" },
-      { key: "count-7", label: "7 Cards" },
-      { key: "count-8", label: "8+ Cards" }
-    ];
-    
-    for (const count of counts) {
-      const button = document.createElement("button");
-      button.className = "bet-spot count-bet analytics-bet-spot";
-      button.type = "button";
-      button.dataset.betKey = count.key;
-      button.dataset.betLabel = count.label;
-      button.innerHTML = `<span class="bet-label">${count.label}</span>`;
-      button.addEventListener("click", () => {
-        loadBetAnalytics(button.dataset.betKey, button.dataset.betLabel);
-      });
-      countBetsContainer.appendChild(button);
-      
-      // Add badge with loading state
-      const badge = document.createElement('span');
-      badge.className = 'bet-count-badge';
-      badge.textContent = '...';
-      button.appendChild(badge);
-      
-    }
-  }
-
-  updateAnalyticsBetFilterUI();
-  refreshBetBadgeCounts();
 }
 
 if (showSignUpButton) {

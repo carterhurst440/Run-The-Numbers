@@ -2877,83 +2877,6 @@
                   </div>
                 </div>
 
-                <!-- ── AI Conversations ─────────────────────────────────── -->
-                <div class="analytics-activity-card">
-                  <div class="overview-chart-header">
-                    <h3>AI Conversations</h3>
-                    <button type="button" id="admin-ai-conversations-refresh" class="link-button">Refresh</button>
-                  </div>
-                  <p id="admin-ai-conversations-subhead" class="analytics-card-subhead">Recent AI chat turns with stored conversation details and confirmed actions.</p>
-                  <ul id="admin-ai-conversations-list" class="analytics-activity-list" aria-live="polite"></ul>
-                  <button type="button" id="admin-ai-conversations-load-more" class="btn-secondary analytics-load-more" hidden>Load More</button>
-                </div>
-
-                <!-- ── RTN Bet Analytics ─────────────────────────────────── -->
-                <div class="analytics-bet-filters-row">
-                  <p id="analytics-bet-filter-subhead" class="analytics-description">Showing all-time bet counts. Click on any bet to view detailed statistics.</p>
-                  <div class="chart-filters bet-grid-filters">
-                    <button type="button" class="chart-filter-btn" data-bet-period="day">24H</button>
-                    <button type="button" class="chart-filter-btn" data-bet-period="week">1W</button>
-                    <button type="button" class="chart-filter-btn" data-bet-period="month">1M</button>
-                    <button type="button" class="chart-filter-btn active" data-bet-period="all">ALL</button>
-                  </div>
-                </div>
-                <div class="analytics-player-filter analytics-bet-player-filter">
-                  <label for="player-filter-select">Filter RTN Bets By Players:</label>
-                  <div class="player-filter-wrapper">
-                    <select id="player-filter-select" multiple size="5">
-                      <option value="all" selected>All Players</option>
-                    </select>
-                    <div class="player-filter-actions">
-                      <button type="button" id="apply-player-filter" class="btn-primary">Apply Filter</button>
-                      <button type="button" id="clear-player-filter" class="btn-secondary">Clear</button>
-                    </div>
-                  </div>
-                  <p class="filter-hint">Applies to the Run The Numbers bet counts and bet analytics modal only.</p>
-                </div>
-                <div class="analytics-betting-panel">
-                  <section class="analytics-number-bets" aria-labelledby="analytics-number-bets-heading">
-                    <div class="bets-heading-row">
-                      <h3 class="bets-heading" id="analytics-number-bets-heading">Number Bets</h3>
-                    </div>
-                    <div class="playmat analytics-playmat" role="group" aria-label="Number bet analytics">
-                      <!-- Number bets A-10 -->
-                    </div>
-                  </section>
-                  <section class="analytics-specific-card-bets" aria-labelledby="analytics-specific-card-bets-heading">
-                    <div class="bets-heading-row">
-                      <h3 class="bets-heading" id="analytics-specific-card-bets-heading">Specific Card Bets</h3>
-                    </div>
-                    <div class="specific-cards-grid analytics-grid" role="group" aria-label="Specific card bet analytics">
-                      <!-- Specific card bets -->
-                    </div>
-                  </section>
-                  <section class="analytics-bust-card-bets" aria-labelledby="analytics-bust-card-bets-heading">
-                    <div class="bets-heading-row">
-                      <h3 class="bets-heading" id="analytics-bust-card-bets-heading">Bust Card Bets</h3>
-                    </div>
-                    <div class="bust-grid analytics-grid" role="group" aria-label="Bust card bet analytics">
-                      <!-- Bust bets -->
-                    </div>
-                  </section>
-                  <section class="analytics-suit-bets" aria-labelledby="analytics-suit-bets-heading">
-                    <div class="bets-heading-row">
-                      <h3 class="bets-heading" id="analytics-suit-bets-heading">Suit Bets</h3>
-                    </div>
-                    <div class="suit-bet-groups analytics-suit-bet-groups" role="group" aria-label="Suit bet analytics">
-                      <!-- Suit bets -->
-                    </div>
-                  </section>
-                  <section class="analytics-card-count-bets" aria-labelledby="analytics-card-count-bets-heading">
-                    <div class="bets-heading-row">
-                      <h3 class="bets-heading" id="analytics-card-count-bets-heading">Card Count Bets</h3>
-                    </div>
-                    <div class="card-count-grid analytics-grid" role="group" aria-label="Card count bet analytics">
-                      <!-- Count bets -->
-                    </div>
-                  </section>
-                </div>
-
                 <!-- ── Admin User Lookup ──────────────────────────────────── -->
                 <div class="analytics-activity-card admin-user-lookup-card">
                   <div class="overview-chart-header">
@@ -3715,61 +3638,6 @@
 
     <div
       class="modal"
-      id="bet-analytics-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="bet-analytics-title"
-      hidden
-    >
-      <div class="modal-content analytics-modal">
-        <div class="modal-header">
-          <h2 id="bet-analytics-title">Bet Analytics</h2>
-          <button type="button" class="modal-close" id="bet-analytics-close" aria-label="Close analytics">×</button>
-        </div>
-        <div class="modal-body analytics-modal-body">
-          <div class="analytics-left">
-            <div class="analytics-stats">
-              <div class="analytics-stat">
-                <span class="stat-label">Total Bets Placed</span>
-                <span class="stat-value" id="analytics-total-bets">-</span>
-              </div>
-              <div class="analytics-stat">
-                <span class="stat-label">Total Amount Wagered</span>
-                <span class="stat-value" id="analytics-total-wagered">-</span>
-              </div>
-              <div class="analytics-stat">
-                <span class="stat-label">Net Player Return</span>
-                <span class="stat-value" id="analytics-net-return">-</span>
-              </div>
-              <div class="analytics-stat">
-                <span class="stat-label">House Edge</span>
-                <span class="stat-value" id="analytics-house-edge">-</span>
-              </div>
-            </div>
-          </div>
-          <div class="analytics-right">
-            <div class="analytics-chart-section">
-              <div class="chart-header">
-                <h3 class="chart-title">Bet Volume Over Time</h3>
-                <div class="chart-filters">
-                  <button type="button" class="chart-filter-btn" data-period="week">1W</button>
-                  <button type="button" class="chart-filter-btn" data-period="month">1M</button>
-                  <button type="button" class="chart-filter-btn" data-period="90days">3M</button>
-                  <button type="button" class="chart-filter-btn" data-period="year">1Y</button>
-                  <button type="button" class="chart-filter-btn active" data-period="all">ALL</button>
-                </div>
-              </div>
-              <div class="chart-container">
-                <canvas id="bet-analytics-chart"></canvas>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div
-      class="modal"
       id="shipping-modal"
       role="dialog"
       aria-modal="true"
@@ -4387,39 +4255,6 @@
           </div>
           <p id="admin-contest-message" class="admin-message" role="status" aria-live="polite"></p>
         </form>
-      </div>
-    </div>
-
-    <div
-      class="modal"
-      id="admin-ai-conversation-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="admin-ai-conversation-title"
-      hidden
-    >
-      <div class="modal-content analytics-modal admin-ai-conversation-modal">
-        <div class="modal-header">
-          <h2 id="admin-ai-conversation-title">AI Conversation</h2>
-          <button type="button" class="modal-close" id="admin-ai-conversation-close" aria-label="Close AI conversation">×</button>
-        </div>
-        <div class="modal-body admin-ai-conversation-modal-body">
-          <div class="admin-ai-conversation-meta-card">
-            <p id="admin-ai-conversation-meta" class="analytics-card-subhead">Conversation metadata</p>
-          </div>
-          <section class="admin-ai-conversation-section" aria-labelledby="admin-ai-conversation-thread-title">
-            <div class="route-section-heading">
-              <h3 id="admin-ai-conversation-thread-title">Conversation Details</h3>
-            </div>
-            <div id="admin-ai-conversation-thread" class="admin-ai-conversation-thread"></div>
-          </section>
-          <section class="admin-ai-conversation-section" aria-labelledby="admin-ai-conversation-actions-title">
-            <div class="route-section-heading">
-              <h3 id="admin-ai-conversation-actions-title">Actions Performed</h3>
-            </div>
-            <div id="admin-ai-conversation-actions" class="admin-ai-conversation-actions"></div>
-          </section>
-        </div>
       </div>
     </div>
 
