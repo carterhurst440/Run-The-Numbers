@@ -12661,6 +12661,7 @@ function syncActiveAccountMode({ forceApply = false, resetHistory = false } = {}
   // Re-evaluate game lock states: contest mode unlocks tier-gated games
   // that the contest allows; normal mode re-applies tier gates.
   renderGameLogoTargets();
+  renderHomeSystemBlock();
 }
 
 function formatContestDateTime(value) {
@@ -34657,8 +34658,7 @@ function renderHomeSystemBlock() {
   const modeEl = document.getElementById("hss-mode");
   const sessionEl = document.getElementById("hss-session");
   if (modeEl) {
-    const modeSelect = document.getElementById("account-mode-select");
-    modeEl.textContent = modeSelect ? modeSelect.value.toUpperCase().replace(/_/g, " ") : "NORMAL";
+    modeEl.textContent = getAccountModeLabel().toUpperCase();
   }
   if (sessionEl) {
     sessionEl.textContent = currentUser && currentUser.id !== (typeof GUEST_USER !== "undefined" ? GUEST_USER.id : null) ? "ACTIVE" : "GUEST";
