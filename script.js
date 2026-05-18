@@ -214,6 +214,25 @@ function isGameLockedForPlayer(gameKey) {
   return true;
 }
 
+// Like isGameLockedForPlayer but evaluates against a specific target mode
+// rather than the currently active mode. Used to block mode switches that
+// would leave the player inside a game they can't access in the new mode.
+function isGameLockedInMode(gameKey, mode) {
+  if (isAdmin(currentUser)) return false;
+  const record = getGameAssetRecord(gameKey);
+  const unlockTier = record?.unlock_tier;
+  if (!unlockTier) return false;
+  const profileTier = currentProfile?.current_rank_tier ?? null;
+  const stateTier   = currentRankState?.currentRank?.tier ?? null;
+  const cachedTier  = (profileTier == null && stateTier == null) ? loadStoredPlayerTier() : null;
+  if (profileTier == null && stateTier == null && cachedTier == null) return true;
+  const playerTier = Math.max(Number(profileTier ?? 1), Number(stateTier ?? 1), Number(cachedTier ?? 1));
+  if (playerTier >= unlockTier) return false;
+  const modeContest = getModeContest(mode);
+  if (modeContest && contestAllowsGame(modeContest, gameKey)) return false;
+  return true;
+}
+
 function sanitizeGameAssetColor(value) {
   const normalized = String(value || "").trim();
   if (!normalized) {
@@ -750,6 +769,7 @@ function getGameKeyForRoute(route) {
   if (route === "run-the-numbers") return GAME_KEYS.RUN_THE_NUMBERS;
   if (route === "red-black") return GAME_KEYS.GUESS_10;
   if (route === "shape-traders") return GAME_KEYS.SHAPE_TRADERS;
+  if (route === "color-scheme") return GAME_KEYS.COLOR_SCHEME;
   return null;
 }
 
@@ -28604,6 +28624,18 @@ if (accountModeSelect) {
   accountModeSelect.addEventListener("change", async (event) => {
     const nextMode = parseAccountModeValue(event.target?.value || ACCOUNT_MODE_NORMAL);
     const previousModeValue = getAccountModeValue(currentAccountMode);
+
+    // Block switching to a mode where the current game is restricted.
+    // e.g. if the player is on Shape Traders (contest-only) and tries to
+    // switch to Normal Mode, the game would be locked — don't allow it.
+    const currentGameKey = getGameKeyForRoute(currentRoute);
+    if (currentGameKey && isGameLockedInMode(currentGameKey, nextMode)) {
+      accountModeSelect.value = previousModeValue;
+      const gameName = getGameLabel(currentGameKey);
+      showToast(`${gameName} isn't available in that mode. Leave the game first.`, "error");
+      return;
+    }
+
     const canSwitch = await maybeHandleShapeTraderModeSwitch(nextMode);
     if (!canSwitch) {
       accountModeSelect.value = previousModeValue;
