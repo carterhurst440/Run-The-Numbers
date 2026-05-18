@@ -14393,7 +14393,9 @@ async function openContestJourneyModal(contest, entry) {
   contestJourneyModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
   contestJourneyModalOpen = true;
-  drawContestJourneyChart([]);
+  // Defer the initial placeholder draw by one animation frame so the browser
+  // has laid out the modal and the canvas clientWidth/clientHeight are non-zero.
+  requestAnimationFrame(() => drawContestJourneyChart([]));
 
   try {
     const points = await loadContestJourneyPoints(contest, entry);

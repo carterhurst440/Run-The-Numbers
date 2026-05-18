@@ -24890,6 +24890,13 @@ body[data-ui="new"] .contest-result-game-stats {
   color: #3a3a2c;
 }
 
+/* Journey chart modal — prevent flex: 1 1 0 from collapsing the body to 0px.
+   The chart has a fixed height; the body must size to its content. */
+.contest-journey-modal .contest-modal-body {
+  flex: 0 0 auto;
+  min-height: auto;
+}
+
 /* Journey chart modal */
 body[data-ui="new"] .contest-journey-chart-wrap {
   border-radius: 2px;
