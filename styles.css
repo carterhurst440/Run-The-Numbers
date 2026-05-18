@@ -19887,6 +19887,43 @@ body.modal-open {
   border-left: 1px solid #383828;
 }
 
+/* CC tooltip — wider to fit earn rules */
+.cc-exact-tooltip {
+  white-space: normal;
+  min-width: 220px;
+  padding: 8px 12px;
+}
+
+.cc-tooltip-amount {
+  font-size: 13px;
+  font-weight: 800;
+  color: #c8ff00;
+  letter-spacing: 0.06em;
+  margin-bottom: 7px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #2a2a20;
+}
+
+.cc-tooltip-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cc-tooltip-rule {
+  font-size: 10px;
+  font-weight: 600;
+  color: #888878;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+}
+
+.cc-tooltip-rule-use {
+  margin-top: 2px;
+  color: #606050;
+  font-style: italic;
+}
+
 .notification-toggle,
 .menu-toggle {
   width: 32px;
