@@ -122,11 +122,11 @@ function buildPotSection(recipient: RecipientRow): { potStyles: string; potHtml:
   const unitAmount = Math.max(0, Number(recipient.prize_variable_unit_amount ?? 0));
   const isVariable = recipient.prize_mode === "variable" && recipient.prize_variable_basis !== "none" && unitAmount > 0;
   const basisLabel = recipient.prize_variable_basis === "qualifying_contestant" ? "QUALIFYING PLAYER" : "PLAYER";
-  const numInline = `font-family:'JetBrains Mono','Courier New',monospace;font-size:72px;font-weight:800;color:${LIME};line-height:80px;letter-spacing:-0.02em;`;
+  const numInline = `font-family:'Arial Black','Arial Bold',Arial,sans-serif;font-size:72px;font-weight:900;color:${LIME};line-height:80px;letter-spacing:-0.02em;`;
 
   if (!isVariable) {
     return {
-      potStyles: `.pot-num{font-family:'JetBrains Mono','Courier New',monospace!important;font-size:72px!important;font-weight:800!important;}`,
+      potStyles: `.pot-num{font-family:'Arial Black','Arial Bold',Arial,sans-serif!important;font-size:72px!important;font-weight:900!important;}`,
       potHtml: `
         <p style="margin:0 0 10px;font-family:'JetBrains Mono','Courier New',monospace;font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.18em;">PRIZE POT</p>
         <div class="pot-num" style="${numInline}">${formatPrizeMoney(baseAmount)}</div>`
@@ -143,7 +143,7 @@ function buildPotSection(recipient: RecipientRow): { potStyles: string; potHtml:
 
   return {
     potStyles: `
-      .pot-num{font-family:'JetBrains Mono','Courier New',monospace!important;font-size:72px!important;font-weight:800!important;}
+      .pot-num{font-family:'Arial Black','Arial Bold',Arial,sans-serif!important;font-size:72px!important;font-weight:900!important;}
       @keyframes pot-tick {
         from { transform: translateY(0); }
         to   { transform: translateY(-${endPct}%); }
@@ -248,7 +248,7 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
           <!-- CONTEST TITLE -->
           <tr>
             <td style="padding:28px 0 36px;">
-              <div style="margin:0;font-family:'JetBrains Mono','Courier New',monospace;font-size:36px;font-weight:800;color:#ddd5bc;line-height:1.1;">${recipient.contest_title}</div>
+              <div style="margin:0;font-family:'Arial Black','Arial Bold',Arial,sans-serif;font-size:36px;font-weight:900;color:#ddd5bc;line-height:1.1;">${recipient.contest_title}</div>
             </td>
           </tr>
 
