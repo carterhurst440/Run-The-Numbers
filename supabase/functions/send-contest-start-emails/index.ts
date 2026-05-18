@@ -128,8 +128,9 @@ function buildPotSection(recipient: RecipientRow): { potStyles: string; potHtml:
     return {
       potStyles: `.pot-num{font-family:'Arial Black','Arial Bold',Arial,sans-serif!important;font-size:72px!important;font-weight:900!important;}`,
       potHtml: `
-        <p style="margin:0 0 10px;font-family:'JetBrains Mono','Courier New',monospace;font-size:10px;font-weight:700;color:${DIM};text-transform:uppercase;letter-spacing:0.18em;">PRIZE POT</p>
-        <div class="pot-num" style="${numInline}">${formatPrizeMoney(baseAmount)}</div>`
+        <p style="margin:0 0 10px;font-family:'JetBrains Mono','Courier New',monospace;font-size:10px;font-weight:700;color:#686850;text-transform:uppercase;letter-spacing:0.18em;">PRIZE POT</p>
+        <div class="pot-num" style="${numInline}">${formatPrizeMoney(baseAmount)}</div>
+        <p style="margin:10px 0 0;font-family:'JetBrains Mono','Courier New',monospace;font-size:11px;color:#686850;letter-spacing:0.04em;">fixed pot &mdash; winner takes all</p>`
     };
   }
 
@@ -219,17 +220,18 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap">
   <style>
     ${potStyles}
-    body { margin:0; padding:0; background-color:#0a0a09 !important; }
+    body, .body { margin:0; padding:0; background-color:#0a0a09 !important; }
     a { color:inherit; }
-    /* force dark bg in Gmail mobile */
-    u + .body { background-color:#0a0a09 !important; }
-    u + .body table { background-color:#0a0a09 !important; }
-    u + .body td { background-color:#0a0a09 !important; }
-    u + .body .email-outer { background-color:#0a0a09 !important; }
+    .email-bg { background-color:#0a0a09 !important; }
+    u + .body .email-bg { background-color:#0a0a09 !important; }
+    u + .body .email-bg td { background-color:#0a0a09 !important; }
+    u + .body .email-bg table { background-color:#0a0a09 !important; }
+    #MessageViewBody .email-bg { background-color:#0a0a09 !important; }
   </style>
 </head>
 <body class="body" style="margin:0;padding:0;background-color:#0a0a09;">
-  <table class="email-outer" role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0a09" style="background-color:#0a0a09;">
+  <div class="email-bg" style="background-color:#0a0a09;margin:0;padding:0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0a09" style="background-color:#0a0a09;">
     <tr>
       <td align="center" bgcolor="#0a0a09" style="padding:28px 20px 40px;background-color:#0a0a09;">
         <table role="presentation" width="100%" style="max-width:520px;" cellpadding="0" cellspacing="0" bgcolor="#0a0a09">
@@ -302,6 +304,7 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
       </td>
     </tr>
   </table>
+  </div>
 </body>
 </html>`;
 }

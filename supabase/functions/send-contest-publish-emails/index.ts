@@ -145,16 +145,18 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
   <title>${recipient.contest_title}</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap">
   <style>
-    body { margin:0; padding:0; background-color:#0a0a09 !important; }
+    body, .body { margin:0; padding:0; background-color:#0a0a09 !important; }
     a { color:inherit; }
-    u + .body { background-color:#0a0a09 !important; }
-    u + .body table { background-color:#0a0a09 !important; }
-    u + .body td { background-color:#0a0a09 !important; }
-    u + .body .email-outer { background-color:#0a0a09 !important; }
+    .email-bg { background-color:#0a0a09 !important; }
+    u + .body .email-bg { background-color:#0a0a09 !important; }
+    u + .body .email-bg td { background-color:#0a0a09 !important; }
+    u + .body .email-bg table { background-color:#0a0a09 !important; }
+    #MessageViewBody .email-bg { background-color:#0a0a09 !important; }
   </style>
 </head>
 <body class="body" style="margin:0;padding:0;background-color:#0a0a09;">
-  <table class="email-outer" role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0a09" style="background-color:#0a0a09;">
+  <div class="email-bg" style="background-color:#0a0a09;margin:0;padding:0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0a09" style="background-color:#0a0a09;">
     <tr>
       <td align="center" bgcolor="#0a0a09" style="padding:28px 20px 40px;background-color:#0a0a09;">
         <table role="presentation" width="100%" style="max-width:520px;" cellpadding="0" cellspacing="0" bgcolor="#0a0a09">
@@ -237,6 +239,7 @@ function buildEmailHtml(recipient: RecipientRow, contestId: string) {
       </td>
     </tr>
   </table>
+  </div>
 </body>
 </html>`;
 }
