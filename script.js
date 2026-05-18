@@ -9290,7 +9290,16 @@ async function setRoute(route, { replaceHash = false } = {}) {
       markStageEl.style.removeProperty('--mark-from-scale');
     }
     const cardEl = document.querySelector('.auth-vault-card');
-    if (cardEl) cardEl.style.removeProperty('height');
+    if (cardEl) {
+      cardEl.style.removeProperty('height');
+      cardEl.style.removeProperty('border');
+      cardEl.style.removeProperty('background');
+      cardEl.style.removeProperty('box-shadow');
+      cardEl.querySelectorAll(':scope > *:not(.mark-stage)').forEach(el => {
+        el.style.removeProperty('opacity');
+        el.style.removeProperty('visibility');
+      });
+    }
   }
   if (signupView) {
     setViewVisibility(signupView, false);
@@ -9814,10 +9823,17 @@ function playUnlock() {
     setRoute("home");
     return;
   }
-  // Lock card height before mark leaves flow (prevents layout collapse / text jump)
+  // Instantly hide everything in the card except the mark
   const card = document.querySelector('.auth-vault-card');
   if (card) {
     card.style.height = card.offsetHeight + 'px';
+    card.style.border = 'none';
+    card.style.background = 'transparent';
+    card.style.boxShadow = 'none';
+    card.querySelectorAll(':scope > *:not(.mark-stage)').forEach(el => {
+      el.style.opacity = '0';
+      el.style.visibility = 'hidden';
+    });
   }
   const rect = markStage.getBoundingClientRect();
   const startCX = rect.left + rect.width / 2;
