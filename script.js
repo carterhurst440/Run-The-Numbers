@@ -36958,6 +36958,8 @@ async function csSettleBetsOnServer(roundId, totals, grandTotal) {
     // Return winnings to bankroll and animate header
     bankroll = roundCurrencyValue(bankroll + totalReturned);
     animateBankrollOutcome(netThisRound);  // shows toast + animates header
+    // Count total wagered this round toward Carter Cash progress (same pattern as RTN)
+    applyPlaythrough(totalWagered);
     await persistBankroll();
 
     const { error: settleErr } = await supabase.from('color_scheme_rounds').update({
