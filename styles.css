@@ -16536,7 +16536,7 @@ body.state-open .auth-vault-floor {
   border-radius: 0;
   padding: 14px 16px;
   font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 14px;
+  font-size: 16px; /* 16px minimum prevents iOS auto-zoom on focus */
   letter-spacing: 0.04em;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
