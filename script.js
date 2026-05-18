@@ -19011,6 +19011,7 @@ let redBlackDeck = [];
 let redBlackCurrentPot = 0;
 let redBlackServerHandId = null;
 let guess10ServerStartPending = false;
+let g10DealInFlight = false;
 let redBlackCategory = "color";
 let redBlackSelectedValues = ["red"];
 let redBlackLastBet = 0;
@@ -20638,7 +20639,7 @@ function setRedBlackStatus(message) {
 
 function updateRedBlackActionState() {
   const selectionValid = isRedBlackSelectionValid();
-  const handLocked = redBlackHandActive || redBlackSettlementPending;
+  const handLocked = redBlackHandActive || redBlackSettlementPending || guess10ServerStartPending || g10DealInFlight;
   const redBlackChipButtons = Array.from(redBlackChipSelectorEl?.querySelectorAll("[data-red-black-chip]") || []);
   redBlackChipButtons.forEach((button) => {
     button.disabled = handLocked;
@@ -20664,7 +20665,7 @@ function updateRedBlackActionState() {
     redBlackRebetButton.disabled = handLocked || redBlackBet > 0 || redBlackLastBet <= 0;
   }
   if (redBlackDealButton) {
-    redBlackDealButton.disabled = redBlackSettlementPending || redBlackBet <= 0 || !selectionValid;
+    redBlackDealButton.disabled = redBlackSettlementPending || guess10ServerStartPending || g10DealInFlight || redBlackBet <= 0 || !selectionValid;
   }
   if (redBlackWithdrawButton) {
     redBlackWithdrawButton.disabled =
@@ -21000,6 +21001,7 @@ function resetGuess10Hand({ keepBet = true } = {}) {
   redBlackHandActive = false;
   redBlackAwaitingDecision = false;
   redBlackSettlementPending = false;
+  g10DealInFlight = false;
   redBlackDeck = [];
   redBlackCurrentPot = 0;
   redBlackServerHandId = null;
@@ -21208,7 +21210,7 @@ async function dealGuess10CardLegacy() {
 }
 
 function rebetGuess10Hand() {
-  if (redBlackHandActive || redBlackSettlementPending || redBlackLastBet <= 0) {
+  if (redBlackHandActive || redBlackSettlementPending || guess10ServerStartPending || g10DealInFlight || redBlackLastBet <= 0) {
     return;
   }
   const availableToStage = getGuess10AvailableToStage();
@@ -21350,9 +21352,16 @@ async function cashoutGuess10HandServer() {
 }
 
 async function dealGuess10Card() {
+  // Hard guards — must be fully resolved before any new action
+  if (redBlackSettlementPending || guess10ServerStartPending || g10DealInFlight) {
+    return;
+  }
   if (redBlackBet <= 0 || !isRedBlackSelectionValid()) {
     return;
   }
+  g10DealInFlight = true;
+  updateRedBlackActionState();
+  try {
   if (!redBlackHandActive) {
     const canStart = await guardAgainstShapeTraderExposureBeforeGameStart(GAME_KEYS.GUESS_10);
     if (!canStart) {
@@ -21478,6 +21487,10 @@ async function dealGuess10Card() {
   } catch (error) {
     console.error("[RTN] Guess 10 server draw failed", error);
     showToast(error?.message || "Unable to draw a Guess 10 card", "error");
+  }
+  } finally {
+    g10DealInFlight = false;
+    updateRedBlackActionState();
   }
 }
 
