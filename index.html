@@ -44,33 +44,58 @@
       aria-atomic="true"
     ></div>
     <section id="auth-view" class="route-view auth-view auth-screen" hidden>
-      <div class="auth-card">
-        <h1 id="auth-login-title">CARTERS CASINO WELCOMES YOU</h1>
-        <p id="auth-login-subtext" class="auth-description">The premiere NEO casino experience</p>
-        <form id="auth-form" class="auth-form">
-          <label for="auth-email">Email</label>
-          <input type="email" id="auth-email" name="email" autocomplete="email" required />
-          <label for="auth-password">Password</label>
-          <input
-            type="password"
-            id="auth-password"
-            name="password"
-            autocomplete="current-password"
-            required
-          />
-          <button type="submit" id="auth-submit">Log In</button>
-          <p id="auth-error" class="auth-error" role="alert" hidden></p>
-          <p id="auth-resend-wrap" class="auth-error auth-error-action" hidden>
-            <button type="button" id="auth-resend-confirmation" class="auth-inline-link">Send new email</button>
+      <!-- Floor reveal backdrop — rises as vault opens -->
+      <div class="auth-vault-floor"></div>
+
+      <div class="auth-vault-screen">
+        <div class="auth-vault-card">
+          <div class="auth-vault-corners">
+            <span></span><span></span><span></span><span></span>
+          </div>
+
+          <!-- Animated brand mark -->
+          <div class="mark-stage" id="auth-mark-stage">
+            <svg class="mark" viewBox="0 0 200 200" aria-label="Carter's Casino mark" aria-hidden="true">
+              <rect class="frame" x="20" y="20" width="160" height="160"></rect>
+              <rect class="pip"   x="68" y="68" width="64"  height="64"></rect>
+            </svg>
+            <div class="lock-pulse"></div>
+            <div class="scan-beam"></div>
+          </div>
+
+          <h1 class="auth-vault-welcome">WELCOME TO <span class="auth-vault-lime">CARTER'S CASINO</span></h1>
+          <p class="auth-vault-tagline">Where the <em>HOUSE</em> is your friend<br>and your <em>FRIENDS</em> are your competition.</p>
+
+          <form id="auth-form" class="auth-vault-form" novalidate>
+            <div class="auth-vault-field">
+              <label for="auth-email">Email</label>
+              <input type="email" id="auth-email" name="email" autocomplete="email" placeholder="your@email.com" required />
+            </div>
+            <div class="auth-vault-field">
+              <label for="auth-password">Password</label>
+              <input type="password" id="auth-password" name="password" autocomplete="current-password" placeholder="••••••••" required />
+            </div>
+            <button type="submit" id="auth-submit">Log In</button>
+            <p id="auth-error" class="auth-error auth-vault-error" role="alert" hidden></p>
+            <p id="auth-resend-wrap" class="auth-error auth-error-action" hidden>
+              <button type="button" id="auth-resend-confirmation" class="auth-inline-link">Send new email</button>
+            </p>
+          </form>
+
+          <p class="auth-vault-switch">
+            <button type="button" id="show-forgot-password" class="auth-vault-link">Forgot password?</button>
           </p>
-        </form>
-        <p class="auth-switch">
-          <button type="button" id="show-forgot-password" class="auth-switch-button">Forgot password?</button>
-        </p>
-        <p class="auth-switch">
-          New here?
-          <button type="button" id="show-signup" class="auth-switch-button">Create an account</button>
-        </p>
+          <p class="auth-vault-switch auth-vault-switch-row">
+            <span>New here?</span>
+            <button type="button" id="show-signup" class="auth-vault-link">Create an account</button>
+          </p>
+
+          <!-- ACCESS GRANTED overlay — shown after vault unlocks -->
+          <div class="auth-vault-grant">
+            <div class="gline" data-text="Access Granted">Access Granted</div>
+            <div class="gsub">Welcome back · Loading the floor</div>
+          </div>
+        </div>
       </div>
     </section>
     <section id="signup-view" class="route-view auth-screen" hidden>

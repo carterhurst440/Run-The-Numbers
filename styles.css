@@ -16325,6 +16325,512 @@ body.modal-open {
   line-height: 1.5;
 }
 
+/* ===========================================================
+   VAULT LOGIN — #auth-view redesign
+   =========================================================== */
+
+/* Reset the old layout vars for the login view specifically */
+.auth-view {
+  position: fixed !important;
+  inset: 0 !important;
+  min-height: unset !important;
+  display: grid !important;
+  place-items: center !important;
+  padding: 32px !important;
+  background: #0a0a09 !important;
+  overflow: hidden;
+}
+
+/* Dot-grid backdrop */
+.auth-view::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(200,255,0,0.12) 1px, transparent 1px);
+  background-size: 16px 16px;
+  mask-image: radial-gradient(60% 50% at 50% 40%, black 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(60% 50% at 50% 40%, black 30%, transparent 75%);
+  opacity: 0.55;
+  z-index: 0;
+}
+
+.auth-vault-screen {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: grid;
+  place-items: center;
+}
+
+/* Floor reveal — rises behind everything in state-open */
+.auth-vault-floor {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 35%, rgba(200,255,0,0.10) 0%, transparent 50%),
+    radial-gradient(rgba(57,255,122,0.18) 1px, transparent 1px) 0 0 / 18px 18px,
+    #0a0a09;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+body.state-open .auth-vault-floor {
+  animation: authFloorRise 0.9s ease 0.7s 1 forwards;
+}
+@keyframes authFloorRise {
+  from { opacity: 0; }
+  to   { opacity: 0.7; }
+}
+
+/* Card */
+.auth-vault-card {
+  width: min(560px, 100%);
+  border: 1px solid rgba(221,213,188,0.18);
+  background: #0d0d0b;
+  padding: clamp(40px, 8vw, 56px) clamp(28px, 8vw, 56px) clamp(36px, 7vw, 48px);
+  position: relative;
+  box-shadow: 0 30px 80px -30px rgba(0,0,0,0.8);
+}
+
+/* Corner ticks */
+.auth-vault-corners {
+  position: absolute;
+  inset: 14px;
+  pointer-events: none;
+}
+.auth-vault-corners span {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-color: #c8ff00;
+  border-style: solid;
+  border-width: 0;
+  opacity: 0.9;
+}
+.auth-vault-corners span:nth-child(1) { top: 0; left: 0;  border-top-width: 1.5px; border-left-width: 1.5px; }
+.auth-vault-corners span:nth-child(2) { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+.auth-vault-corners span:nth-child(3) { bottom: 0; left: 0;  border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.auth-vault-corners span:nth-child(4) { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+
+/* Animated brand mark */
+.mark-stage {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 28px;
+  display: grid;
+  place-items: center;
+}
+.mark {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+.frame {
+  fill: none;
+  stroke: #c8ff00;
+  stroke-width: 14;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: authFrameRot 2.4s cubic-bezier(.7,0,.3,1) infinite;
+  filter: drop-shadow(0 0 6px rgba(200,255,0,0.55));
+}
+.pip {
+  fill: #c8ff00;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: authPipRot 2.4s cubic-bezier(.7,0,.3,1) infinite;
+  filter: drop-shadow(0 0 6px rgba(200,255,0,0.55));
+}
+@keyframes authPipRot {
+  0%,  18% { transform: rotate(0deg)  scale(1); }
+  50%, 68% { transform: rotate(45deg) scale(0.78); }
+  100%     { transform: rotate(90deg) scale(1); }
+}
+@keyframes authFrameRot {
+  0%,  18% { transform: rotate(0deg); }
+  50%, 68% { transform: rotate(-45deg); }
+  100%     { transform: rotate(-90deg); }
+}
+
+/* Lock-click pulse ring */
+.lock-pulse {
+  position: absolute;
+  inset: -8px;
+  pointer-events: none;
+  border: 2px solid #c8ff00;
+  opacity: 0;
+}
+/* Scan beam */
+.scan-beam {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  height: 2px;
+  background: #c8ff00;
+  box-shadow: 0 0 16px 2px #c8ff00, 0 0 36px 6px rgba(200,255,0,0.55);
+  top: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Headline */
+.auth-vault-welcome {
+  text-align: center;
+  margin: 0 0 6px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-weight: 800;
+  font-size: clamp(26px, 6vw, 38px);
+  line-height: 0.98;
+  letter-spacing: -0.005em;
+  color: #ddd5bc;
+}
+.auth-vault-lime { color: #c8ff00; }
+
+/* Tagline */
+.auth-vault-tagline {
+  text-align: center;
+  margin: 18px 0 36px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: #686850;
+  line-height: 1.45;
+  font-style: normal;
+}
+.auth-vault-tagline em {
+  font-style: normal;
+  color: #c8ff00;
+}
+
+/* Form */
+.auth-vault-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+.auth-vault-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.auth-vault-field label {
+  font-size: 10.5px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #686850;
+  font-weight: 500;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+.auth-vault-field input {
+  background: #0a0a09;
+  color: #ddd5bc;
+  border: 1px solid rgba(221,213,188,0.18);
+  border-radius: 0;
+  padding: 14px 16px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.auth-vault-field input:focus {
+  outline: none;
+  border-color: #c8ff00;
+  box-shadow: 0 0 0 1px #c8ff00, 0 0 18px -4px rgba(200,255,0,0.55);
+  background: #0c0c0a;
+}
+.auth-vault-field input::placeholder {
+  color: rgba(221,213,188,0.3);
+}
+.auth-vault-form #auth-submit {
+  margin-top: 10px;
+  padding: 16px 18px;
+  background: #c8ff00;
+  color: #0a0a09;
+  border: 0;
+  border-radius: 0;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.1s;
+  box-shadow: 0 0 0 1px #c8ff00, 0 0 18px 0 rgba(200,255,0,0.55), 0 0 48px 4px rgba(200,255,0,0.25);
+}
+.auth-vault-form #auth-submit:hover:not(:disabled) { filter: brightness(1.06); }
+.auth-vault-form #auth-submit:active { transform: translateY(1px); }
+.auth-vault-form #auth-submit:disabled { cursor: progress; opacity: 0.95; }
+.auth-vault-error {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  margin-top: 4px;
+}
+
+/* Switch rows */
+.auth-vault-switch {
+  margin: 18px 0 0;
+  text-align: center;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #686850;
+}
+.auth-vault-switch.auth-vault-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 28px;
+}
+.auth-vault-link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #c8ff00;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.auth-vault-link:hover { text-shadow: 0 0 10px rgba(200,255,0,0.55); }
+
+/* ── VAULT UNLOCK SEQUENCE ─────────────────────────────────
+   body.state-unlocking → body.state-open
+   ────────────────────────────────────────────────────────── */
+
+/* Card chrome fades while mark lifts */
+body.state-unlocking .auth-vault-card,
+body.state-open      .auth-vault-card {
+  transition: border-color 0.5s ease, background-color 0.5s ease, box-shadow 0.5s ease;
+  border-color: transparent;
+  background-color: transparent;
+  box-shadow: none;
+}
+body.state-unlocking .auth-vault-corners,
+body.state-open      .auth-vault-corners {
+  transition: opacity 0.4s ease;
+  opacity: 0;
+}
+
+/* Form content fades out */
+body.state-unlocking .auth-vault-form,
+body.state-unlocking .auth-vault-welcome,
+body.state-unlocking .auth-vault-tagline,
+body.state-unlocking .auth-vault-switch,
+body.state-open      .auth-vault-form,
+body.state-open      .auth-vault-welcome,
+body.state-open      .auth-vault-tagline,
+body.state-open      .auth-vault-switch {
+  transition: opacity 0.45s ease, filter 0.45s ease, transform 0.5s ease;
+  opacity: 0;
+  filter: blur(2px);
+  transform: translateY(-4px);
+  pointer-events: none;
+}
+
+/* Mark FLIP: lifts out of card and flies to viewport center */
+body.state-unlocking .mark-stage,
+body.state-open      .mark-stage {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  margin: 0;
+  z-index: 20;
+  animation: authMarkFly 0.9s cubic-bezier(.65,0,.35,1) forwards;
+}
+body.state-open .mark-stage {
+  animation: authMarkFly 0.9s cubic-bezier(.65,0,.35,1) forwards,
+             authMarkOpen 0.7s ease 0.9s forwards;
+}
+@keyframes authMarkFly {
+  from {
+    transform:
+      translate(calc(-50% + var(--mark-from-x, 0px)), calc(-50% + var(--mark-from-y, 0px)))
+      scale(var(--mark-from-scale, 1));
+  }
+  to { transform: translate(-50%, -50%) scale(1.8); }
+}
+@keyframes authMarkOpen {
+  to { transform: translate(-50%, -50%) scale(2.2); }
+}
+
+/* Spinning animations stop; mark locks into diamond pose */
+body.state-unlocking .frame,
+body.state-open      .frame {
+  animation: none;
+  transform: rotate(-45deg);
+  transition: transform 0.7s cubic-bezier(.65,0,.35,1);
+}
+body.state-unlocking .pip,
+body.state-open      .pip {
+  animation: none;
+  transform: rotate(45deg) scale(0.78);
+  transition: transform 0.7s cubic-bezier(.65,0,.35,1), opacity 0.4s ease 0.6s;
+}
+/* Vault open: pip retracts, frame opens */
+body.state-open .pip {
+  transform: rotate(45deg) scale(0);
+  opacity: 0;
+}
+body.state-open .frame {
+  transform: rotate(0deg) scale(1.6);
+  stroke-width: 8;
+  transition: transform 0.9s cubic-bezier(.65,0,.35,1), stroke-width 0.9s ease;
+}
+
+/* Lock-click pulse */
+body.state-unlocking .lock-pulse {
+  animation: authLockPulse 0.65s ease-out 0.55s 1 forwards;
+}
+@keyframes authLockPulse {
+  0%   { transform: scale(0.85); opacity: 0; }
+  35%  { transform: scale(1);    opacity: 1;
+         box-shadow: 0 0 30px 0 rgba(200,255,0,0.85), inset 0 0 20px 0 rgba(200,255,0,0.55); }
+  100% { transform: scale(1.45); opacity: 0; box-shadow: none; }
+}
+
+/* Scan beam sweep */
+body.state-unlocking .scan-beam {
+  animation: authScanSweep 0.9s ease-in-out 0.8s 1 forwards;
+}
+@keyframes authScanSweep {
+  0%   { transform: translateY(-80px); opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateY(80px);  opacity: 0; }
+}
+
+/* ACCESS GRANTED */
+.auth-vault-grant {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 22;
+  width: max-content;
+}
+.auth-vault-grant .gline {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.42em;
+  color: #c8ff00;
+  text-transform: uppercase;
+  text-shadow: 0 0 12px rgba(200,255,0,0.55), 0 0 28px rgba(200,255,0,0.3);
+  position: relative;
+}
+.auth-vault-grant .gsub {
+  margin-top: 8px;
+  font-size: 9px;
+  letter-spacing: 0.4em;
+  color: #686850;
+  text-transform: uppercase;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+/* RGB-split glitch layers */
+.auth-vault-grant .gline::before,
+.auth-vault-grant .gline::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  pointer-events: none;
+  opacity: 0;
+}
+.auth-vault-grant .gline::before { color: #ff2d4a; mix-blend-mode: screen; }
+.auth-vault-grant .gline::after  { color: #1f6bff; mix-blend-mode: screen; }
+
+body.state-open .auth-vault-grant {
+  animation: authGrantIn 0.45s ease 0.4s 1 forwards;
+}
+@keyframes authGrantIn {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 8px)); letter-spacing: 0.28em; }
+  to   { opacity: 1; transform: translate(-50%, -50%);              letter-spacing: 0.42em; }
+}
+
+/* Glitch on the ACCESS GRANTED text */
+body.state-open .auth-vault-grant .gline {
+  animation: authGlitchJitter 0.9s steps(1) 0.55s infinite;
+}
+body.state-open .auth-vault-grant .gline::before {
+  animation: authGlitchR 0.9s steps(1) 0.55s infinite;
+}
+body.state-open .auth-vault-grant .gline::after {
+  animation: authGlitchB 0.9s steps(1) 0.55s infinite;
+}
+@keyframes authGlitchJitter {
+  0%   { transform: translate(0,0);      clip-path: none; }
+  8%   { transform: translate(-3px,0);   clip-path: inset(15% 0 65% 0); }
+  14%  { transform: translate(2px,-1px); clip-path: inset(55% 0 25% 0); }
+  20%  { transform: translate(-2px,1px); clip-path: inset(5% 0 80% 0); }
+  26%  { transform: translate(3px,0);    clip-path: inset(70% 0 10% 0); }
+  32%  { transform: translate(-1px,-2px);clip-path: inset(30% 0 45% 0); }
+  38%  { transform: translate(0,0);      clip-path: none; }
+  52%  { transform: translate(4px,0);    clip-path: inset(40% 0 35% 0); }
+  58%  { transform: translate(-3px,1px); clip-path: inset(8% 0 70% 0); }
+  64%  { transform: translate(2px,-1px); clip-path: inset(60% 0 20% 0); }
+  70%  { transform: translate(0,0);      clip-path: none; }
+  86%  { transform: translate(-2px,0);   clip-path: inset(25% 0 55% 0); }
+  92%  { transform: translate(2px,0);    clip-path: inset(50% 0 30% 0); }
+  100% { transform: translate(0,0);      clip-path: none; }
+}
+@keyframes authGlitchR {
+  0%   { opacity:0;    transform:translate(0,0); }
+  8%   { opacity:0.9;  transform:translate(-5px,0); }
+  14%  { opacity:0.9;  transform:translate(-6px,1px); }
+  20%  { opacity:0.85; transform:translate(-4px,-1px); }
+  26%  { opacity:0.9;  transform:translate(-7px,0); }
+  32%  { opacity:0.8;  transform:translate(-3px,2px); }
+  38%  { opacity:0;    transform:translate(0,0); }
+  52%  { opacity:0.9;  transform:translate(-6px,0); }
+  58%  { opacity:0.85; transform:translate(-4px,-1px); }
+  64%  { opacity:0.9;  transform:translate(-5px,1px); }
+  70%  { opacity:0;    transform:translate(0,0); }
+  86%  { opacity:0.85; transform:translate(-4px,0); }
+  92%  { opacity:0.9;  transform:translate(-5px,0); }
+  100% { opacity:0;    transform:translate(0,0); }
+}
+@keyframes authGlitchB {
+  0%   { opacity:0;    transform:translate(0,0); }
+  8%   { opacity:0.9;  transform:translate(5px,0); }
+  14%  { opacity:0.9;  transform:translate(6px,-1px); }
+  20%  { opacity:0.85; transform:translate(4px,1px); }
+  26%  { opacity:0.9;  transform:translate(7px,0); }
+  32%  { opacity:0.8;  transform:translate(3px,-2px); }
+  38%  { opacity:0;    transform:translate(0,0); }
+  52%  { opacity:0.9;  transform:translate(6px,0); }
+  58%  { opacity:0.85; transform:translate(4px,1px); }
+  64%  { opacity:0.9;  transform:translate(5px,-1px); }
+  70%  { opacity:0;    transform:translate(0,0); }
+  86%  { opacity:0.85; transform:translate(4px,0); }
+  92%  { opacity:0.9;  transform:translate(5px,0); }
+  100% { opacity:0;    transform:translate(0,0); }
+}
+
+/* Reduced motion: skip FLIP/glitch/scan, just fade state-open in */
+@media (prefers-reduced-motion: reduce) {
+  body.state-unlocking .mark-stage,
+  body.state-open      .mark-stage { animation: none !important; position: relative !important; left: auto !important; top: auto !important; transform: none !important; }
+  body.state-unlocking .lock-pulse,
+  body.state-unlocking .scan-beam  { animation: none !important; }
+  body.state-open .auth-vault-grant { animation: none !important; opacity: 1 !important; }
+  body.state-open .auth-vault-grant .gline,
+  body.state-open .auth-vault-grant .gline::before,
+  body.state-open .auth-vault-grant .gline::after { animation: none !important; }
+}
+
+/* ── END VAULT LOGIN ───────────────────────────────────────── */
+
 .route-shell {
   width: min(960px, 100%);
   margin: 0 auto;
