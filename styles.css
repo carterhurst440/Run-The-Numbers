@@ -19887,11 +19887,20 @@ body.modal-open {
   border-left: 1px solid #383828;
 }
 
-/* CC tooltip — wider to fit earn rules */
+/* CC tooltip — wider to fit earn rules; right-aligned so it doesn't overflow on mobile */
 .cc-exact-tooltip {
   white-space: normal;
   min-width: 220px;
+  max-width: min(260px, 90vw);
   padding: 8px 12px;
+  left: auto;
+  right: 0;
+}
+
+/* Move the caret arrow to the right side to match right-alignment */
+.cc-exact-tooltip::before {
+  left: auto;
+  right: 12px;
 }
 
 .cc-tooltip-amount {
