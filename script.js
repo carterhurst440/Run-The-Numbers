@@ -36973,9 +36973,14 @@ async function csSettleBetsOnServer(roundId, totals, grandTotal) {
     await ensureProfileSynced({ force: true });
     _csRoundId = null;
   } catch(e) { console.warn('[CS] csSettleBetsOnServer error:', e); }
+  finally {
+    // Settlement complete (or failed) — unlock the NEW ROUND button
+    const bNew = csEl('cs-bNew');
+    if (bNew) { bNew.disabled = false; bNew.textContent = '↺ New Round'; }
+  }
 }
 
-function csEvaluateBets(totals, grandTotal) {
+function csEvaluateBets(totals, grandTotal, capturedRoundId) {
   csClearLiveBetGlow();
   const primarySum=totals.RED+totals.BLUE+totals.YELLOW;
   const secondarySum=totals.PURPLE+totals.GREEN+totals.ORANGE;
@@ -36998,7 +37003,15 @@ function csEvaluateBets(totals, grandTotal) {
   });
   csUpdateLiveBetGlow(totals, grandTotal);
   csAddHistogramBar(_csRound, grandTotal, totals);
-  if (_csRoundId) csSettleBetsOnServer(_csRoundId, totals, grandTotal);
+  // Use the captured round ID (snapshotted before any NEW ROUND click could null _csRoundId)
+  const roundIdToSettle = capturedRoundId ?? _csRoundId;
+  if (roundIdToSettle) {
+    void csSettleBetsOnServer(roundIdToSettle, totals, grandTotal);
+  } else {
+    // Guest or no active round — no server settle; unlock NEW ROUND immediately
+    const bNew = csEl('cs-bNew');
+    if (bNew) { bNew.disabled = false; bNew.textContent = '↺ New Round'; }
+  }
 }
 
 function csClearBetResults() {
@@ -37308,7 +37321,9 @@ function csProcessSettle(THREE, CANNON) {
       if(bRoll){bRoll.disabled=false;bRoll.textContent=_csRoll===2?'⬡ FINAL ROLL':'⬡ NEXT ROLL';}
     } else {
       const bRoll=csEl('cs-bRoll'); if(bRoll) bRoll.style.display='none';
-      const bNew=csEl('cs-bNew'); if(bNew) bNew.style.display='';
+      // Show NEW ROUND disabled while settlement is in flight — enabled by csSettleBetsOnServer finally
+      const bNew=csEl('cs-bNew');
+      if(bNew) { bNew.style.display=''; bNew.disabled=true; bNew.textContent='SAVING…'; }
       // Save bets for Rebet (button shown only after New Round is clicked)
       if (Object.keys(_csBets).length) {
         _csLastBets = {..._csBets};
@@ -37320,7 +37335,9 @@ function csProcessSettle(THREE, CANNON) {
       });
       const finalOutcome=csCalcOutcome(_csRoundRolls);
       const grandTotal=Object.values(finalOutcome.totals).reduce((a,b)=>a+b,0);
-      setTimeout(()=>csEvaluateBets(finalOutcome.totals,grandTotal),400);
+      // Snapshot _csRoundId NOW — a premature NEW ROUND click must not null it before the settle fires
+      const settleRoundId = _csRoundId;
+      setTimeout(()=>csEvaluateBets(finalOutcome.totals,grandTotal,settleRoundId),400);
     }
   } catch(e) { console.error('[CS] onSettled error:',e); }
   finally { _csProcessingSettle=false; }
