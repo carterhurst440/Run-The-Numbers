@@ -23213,6 +23213,87 @@ body[data-ui="new"] #cs-chipBar .chip-choice[data-tone="3"].active::before {
   color: rgba(0, 229, 255, 0.85);
 }
 
+/* ── RTN How to Play button — always visible, amber sweep animation ──────── */
+@keyframes rtn-htp-sweep {
+  0%   { transform: translateX(-130%) skewX(-20deg); }
+  100% { transform: translateX(260%)  skewX(-20deg); }
+}
+#rtn-how-to-play-btn {
+  display: inline-flex !important; /* override cs-hist-modal-btn display:none */
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  background: none;
+  border: 1px solid rgba(232, 160, 32, 0.28);
+  color: rgba(255, 255, 255, 0.65);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 7.5px;
+  letter-spacing: 0.09em;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  white-space: nowrap;
+  isolation: isolate;
+}
+#rtn-how-to-play-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 45%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(232, 160, 32, 0.18) 40%,
+    rgba(255, 255, 255, 0.22) 50%,
+    rgba(232, 160, 32, 0.18) 60%,
+    transparent 100%
+  );
+  animation: rtn-htp-sweep 3s ease-in-out infinite;
+  pointer-events: none;
+}
+#rtn-how-to-play-btn:hover {
+  border-color: rgba(232, 160, 32, 0.6);
+  color: #fff;
+}
+#rtn-how-to-play-btn:hover::before {
+  animation-duration: 1.2s;
+}
+
+/* Modal: dark bg, amber border, fixed height, scrollable body */
+#rtn-how-to-play-modal .modal-content {
+  background: #0b0a08;
+  border-color: rgba(232, 160, 32, 0.2);
+  max-height: min(88vh, 640px);
+  display: flex;
+  flex-direction: column;
+}
+#rtn-how-to-play-modal .modal-body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+#rtn-how-to-play-modal .modal-header h2 {
+  color: #e8a020;
+}
+#rtn-how-to-play-modal .cs-htp-label {
+  color: #e8a020;
+}
+#rtn-how-to-play-modal .cs-htp-rule {
+  background: rgba(232, 160, 32, 0.03);
+  border-left-color: rgba(232, 160, 32, 0.25);
+}
+#rtn-how-to-play-modal .cs-htp-rule-head {
+  color: rgba(232, 160, 32, 0.85);
+}
+#rtn-how-to-play-modal .cs-htp-odd {
+  background: rgba(232, 160, 32, 0.03);
+  border-left-color: rgba(232, 160, 32, 0.25);
+}
+#rtn-how-to-play-modal .cs-htp-odd-key {
+  color: rgba(232, 160, 32, 0.85);
+}
+
 /* ---- On-table chips inside CS bet zones — per-tone colors ---- */
 #color-scheme-view .chip-stack .chip {
   border-radius: 50%;
