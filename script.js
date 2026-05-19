@@ -36035,6 +36035,33 @@ async function csSettleBetsOnServer(roundId, totals, grandTotal) {
   if (_csSettleFired) { console.warn('[CS] csSettleBetsOnServer: duplicate call blocked'); return; }
   _csSettleFired = true;
   try {
+    // ── Fast path: DB trigger (trg_cs_settle_on_roll3) fires synchronously
+    // inside the cs_perform_roll transaction, so total_wagered is already > 0
+    // by the time we reach this code.  Read the settled values and update the
+    // in-memory bankroll + UI without writing anything redundant.
+    const { data: roundSnap } = await supabase
+      .from('color_scheme_rounds')
+      .select('total_wagered, total_returned, net_profit, new_account_value')
+      .eq('id', roundId)
+      .maybeSingle();
+
+    if (Number(roundSnap?.total_wagered || 0) > 0) {
+      const netThisRound   = Number(roundSnap.net_profit        || 0);
+      const totalWageredDB = Number(roundSnap.total_wagered     || 0);
+      const newAcctValue   = Number(roundSnap.new_account_value || bankroll);
+      bankroll = roundCurrencyValue(newAcctValue);
+      animateBankrollOutcome(netThisRound);  // toast + header animation
+      applyPlaythrough(totalWageredDB);       // Carter Cash progress (client-only)
+      // profiles.credits and hands-played progress already updated by trigger —
+      // skip persistBankroll() and incrementProfileHandProgress().
+      console.info('[CS] server trigger settled round; client skipping redundant writes');
+      return;
+    }
+
+    // ── Fallback: trigger did not fire (e.g. trigger was dropped or a DB
+    // config issue prevented it).  Settle client-side instead.
+    // This path should be unreachable once trg_cs_settle_on_roll3 is deployed.
+    console.warn('[CS] trigger settlement not detected — falling back to client-side settle');
     const { data: bets, error } = await supabase
       .from('color_scheme_bets').select('id, bet_key, amount_wagered').eq('round_id', roundId);
     if (error || !bets?.length) return;
@@ -36058,14 +36085,10 @@ async function csSettleBetsOnServer(roundId, totals, grandTotal) {
       return sum + (won ? bet.amount_wagered + payout : 0);
     }, 0);
     const netThisRound = totalReturned - totalWagered;
-
-    // Return winnings to bankroll and animate header
     bankroll = roundCurrencyValue(bankroll + totalReturned);
-    animateBankrollOutcome(netThisRound);  // shows toast + animates header
-    // Count total wagered this round toward Carter Cash progress (same pattern as RTN)
+    animateBankrollOutcome(netThisRound);
     applyPlaythrough(totalWagered);
     await persistBankroll();
-
     const { error: settleErr } = await supabase.from('color_scheme_rounds').update({
       total_wagered: totalWagered,
       total_returned: totalReturned,
@@ -36073,13 +36096,7 @@ async function csSettleBetsOnServer(roundId, totals, grandTotal) {
       new_account_value: roundCurrencyValue(bankroll)
     }).eq('id', roundId);
     if (settleErr) console.error('[CS] round settle update failed:', settleErr.message, settleErr);
-
     await incrementProfileHandProgress(1, GAME_KEYS.COLOR_SCHEME);
-    // Do NOT call ensureProfileSynced here — profiles.credits is stale relative to
-    // the just-settled bankroll and would overwrite the correct post-round balance.
-    // NOTE: status intentionally stays 'in_progress' and _csRoundId is NOT nulled here.
-    // The round is only marked 'completed' when the user explicitly clicks NEW ROUND,
-    // ensuring csRestoreIncompleteRound can always reconcile an interrupted session.
   } catch(e) { console.warn('[CS] csSettleBetsOnServer error:', e); }
   finally {
     // Settlement complete (or failed) — unlock the NEW ROUND button
@@ -36949,12 +36966,13 @@ function initColorSchemeGame() {
           .eq('id', _csRoundId)
           .maybeSingle();
         // A round is "already done on another device" if:
-        //  (a) its status is no longer 'in_progress' — another device marked it completed, OR
-        //  (b) all 3 rolls are present in DB but we haven't rolled all 3 locally yet —
-        //      meaning another device (or session) rolled after us.
-        // We specifically DO NOT flag a round as done when _csRoll === 3, because with
-        // the new design rounds stay 'in_progress' until NEW ROUND is clicked, so a
-        // freshly-settled round on THIS device will have all 3 rolls but _csRoll === 3.
+        //  (a) its status is no longer 'in_progress' — another device (or the
+        //      DB trigger trg_cs_settle_on_roll3) has already completed it, OR
+        //  (b) all 3 rolls are present in DB but we haven't rolled all 3 locally
+        //      yet — meaning another device rolled after us.
+        // NOTE: the DB trigger sets status='completed' synchronously inside the
+        // cs_perform_roll transaction on roll 3.  After that point the ROLL button
+        // is hidden, so in practice this guard only fires before rolls 1 and 2.
         const alreadyDone = rCheck && (
           rCheck.status !== 'in_progress' ||
           (rCheck.roll_1 && rCheck.roll_2 && rCheck.roll_3 && _csRoll < 3)
@@ -37059,7 +37077,9 @@ function initColorSchemeGame() {
         // Show REBET now — board is empty and open, prior to first roll
         const bRebetAfterNew=csEl('cs-rebetBtn');
         if(bRebetAfterNew && Object.keys(_csLastBets||{}).length){bRebetAfterNew.style.display='';bRebetAfterNew.disabled=false;}
-        // Mark the previous round completed now that the user has acknowledged it.
+        // Ensure the previous round is marked completed.  The DB trigger
+        // (trg_cs_settle_on_roll3) already sets status='completed' synchronously,
+        // so this is normally a no-op — kept as a belt-and-suspenders safety net.
         if (prevRoundId && supabase && !isGuestRuntimeUser()) {
           supabase.from('color_scheme_rounds').update({ status: 'completed' }).eq('id', prevRoundId).then(() => {});
         }
@@ -37110,7 +37130,9 @@ function initColorSchemeGame() {
           csRenderBetZone(betId);
         }
         csRenderBank(); csRenderTotalWagered();
-        // Mark the previous round completed now that the user has acknowledged it.
+        // Ensure the previous round is marked completed.  The DB trigger
+        // (trg_cs_settle_on_roll3) already sets status='completed' synchronously,
+        // so this is normally a no-op — kept as a belt-and-suspenders safety net.
         if (prevRoundId && supabase && !isGuestRuntimeUser()) {
           supabase.from('color_scheme_rounds').update({ status: 'completed' }).eq('id', prevRoundId).then(() => {});
         }
