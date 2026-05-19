@@ -36488,7 +36488,10 @@ async function csRestoreIncompleteRound() {
       .from('color_scheme_rounds')
       .select('id, status, roll_1, roll_2, roll_3, created_at, total_wagered, red_total, yellow_total, blue_total, purple_total, green_total, orange_total, grand_total, pre_hand_account_value')
       .eq('user_id', user.id)
-      .eq('status', 'in_progress')   // only exact in_progress — excludes complete/completed/abandoned
+      // Include 'complete' (no 'd') — the cs_perform_roll RPC writes that spelling on the
+      // 3rd roll.  The stale-sweep later normalises it to 'completed', but we need to catch
+      // it here before that race completes.  Excludes 'completed' and 'abandoned' (truly done).
+      .in('status', ['in_progress', 'complete'])
       .gte('created_at', cutoff)      // ignore rounds older than 4 hours
       .order('created_at', { ascending: false })
       .limit(1)
@@ -36498,6 +36501,12 @@ async function csRestoreIncompleteRound() {
     // If all 3 rolls are already stored, this round is done — heal if needed,
     // then restore the completed-round UI so the player must click NEW ROUND.
     if (round.roll_1 && round.roll_2 && round.roll_3) {
+      // Set these IMMEDIATELY — before any async work — so that even if the heal
+      // or UI-restore throws, the caller still sees _csRoll === 3 and shows NEW ROUND
+      // instead of a fresh empty board.
+      _csRoundId = round.id;
+      _csRoll = 3;
+
       // Fetch bet rows once — used for both heal logic and UI display below.
       const { data: betRows } = await supabase
         .from('color_scheme_bets')
@@ -36587,10 +36596,8 @@ async function csRestoreIncompleteRound() {
         console.warn('[CS] restore: grand_total = 0, cannot reconcile bets. Showing UI for player to acknowledge.');
       }
 
-      // Set round ID so NEW ROUND / REBET handlers can mark this round completed.
-      _csRoundId = round.id;
-
       // ── Restore completed-round UI ────────────────────────────────────────
+      // (_csRoundId and _csRoll were already set at the top of this block.)
       // Parse rolls so the tracker and outcome can be rendered.
       const CC = { R: 'RED', B: 'BLUE', Y: 'YELLOW' };
       _csRoundRolls = [];
@@ -36598,7 +36605,6 @@ async function csRestoreIncompleteRound() {
         if (!rc) break;
         _csRoundRolls.push({ color: CC[rc.color] || rc.color, number: Number(rc.number || 0) });
       }
-      _csRoll = 3; // signals post-restore block to show NEW ROUND
 
       // Restore bets for display and save to _csLastBets so Rebet works next round.
       _csBets = {};
@@ -36859,10 +36865,15 @@ function initColorSchemeGame() {
         supabase.auth.getUser().then(({ data: { user } }) => {
           if (!user) return;
           const stale = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+          // Normalise 'complete' (RPC spelling) → 'completed', but only for rounds older
+          // than 2 minutes.  Fresh rounds are still 'complete' right after roll 3 fires and
+          // we must not race csRestoreIncompleteRound by converting them before it runs.
+          const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
           supabase.from('color_scheme_rounds')
             .update({ status: 'completed' })
             .eq('user_id', user.id)
             .eq('status', 'complete')
+            .lt('created_at', twoMinAgo)
             .then(() => {});
           supabase.from('color_scheme_rounds')
             .update({ status: 'abandoned' })
