@@ -36067,7 +36067,6 @@ async function csSettleBetsOnServer(roundId, totals, grandTotal) {
     await persistBankroll();
 
     const { error: settleErr } = await supabase.from('color_scheme_rounds').update({
-      status: 'completed',
       total_wagered: totalWagered,
       total_returned: totalReturned,
       net_profit: netThisRound,
@@ -36078,7 +36077,9 @@ async function csSettleBetsOnServer(roundId, totals, grandTotal) {
     await incrementProfileHandProgress(1, GAME_KEYS.COLOR_SCHEME);
     // Do NOT call ensureProfileSynced here — profiles.credits is stale relative to
     // the just-settled bankroll and would overwrite the correct post-round balance.
-    _csRoundId = null;
+    // NOTE: status intentionally stays 'in_progress' and _csRoundId is NOT nulled here.
+    // The round is only marked 'completed' when the user explicitly clicks NEW ROUND,
+    // ensuring csRestoreIncompleteRound can always reconcile an interrupted session.
   } catch(e) { console.warn('[CS] csSettleBetsOnServer error:', e); }
   finally {
     // Settlement complete (or failed) — unlock the NEW ROUND button
@@ -36503,12 +36504,33 @@ async function csRestoreIncompleteRound() {
         .select('bet_key, amount_wagered')
         .eq('round_id', round.id);
 
-      // Heal orphaned round: all 3 rolls present + color totals computed, but
-      // settlement was never written (page was refreshed mid-settle).
-      // GUARD: only heal if grand_total > 0 — if it's 0 the server hadn't finished
-      // computing color totals, so we can't determine outcomes. Attempting to heal
-      // with zero totals would mark all bets as losses and corrupt the balance.
-      if (!round.total_wagered && Number(round.grand_total || 0) > 0 && betRows?.length) {
+      // ── Three-sub-case reconciliation ────────────────────────────────────
+      // The round stays 'in_progress' in DB until the player explicitly clicks
+      // NEW ROUND — that handler marks it 'completed'. Here we only need to
+      // credit the balance if it hasn't been done yet, then restore the UI.
+      //
+      //  Case A — total_wagered > 0:
+      //    csSettleBetsOnServer ran in the previous session and wrote settlement
+      //    data + credited profiles.credits. renderHeaderFromProfile will load
+      //    the correct balance on page load. Nothing to do here — skip straight
+      //    to UI restore.
+      //
+      //  Case B — total_wagered = 0 && grand_total > 0:
+      //    Page was refreshed between the 3rd roll and settlement completing.
+      //    Heal the balance and write the settlement data now (without marking
+      //    'completed' — that still happens on NEW ROUND click).
+      //
+      //  Case C — total_wagered = 0 && grand_total = 0:
+      //    Server trigger hadn't computed color totals yet when the page was
+      //    refreshed. Can't determine outcomes safely. Restore UI only; balance
+      //    is untouched (bets were deducted but will be reconciled when the DB
+      //    trigger eventually fires — or the player accepts the loss and moves on).
+
+      if (Number(round.total_wagered || 0) > 0) {
+        // Case A — already settled. Nothing to do; fall through to UI restore.
+        console.info('[CS] restore: settlement already written (total_wagered > 0), skipping heal.');
+      } else if (Number(round.grand_total || 0) > 0 && betRows?.length) {
+        // Case B — heal needed.
         try {
           const ct = {
             RED:    Number(round.red_total    || 0),
@@ -36540,22 +36562,17 @@ async function csRestoreIncompleteRound() {
           const baseCredits = Number(freshProfile?.credits ?? bankroll);
           const healedBalance = roundCurrencyValue(baseCredits + totalReturned);
           bankroll = healedBalance;
-          // Write profiles.credits directly and set lastSyncedBankroll BEFORE any
-          // async gap — this prevents a concurrent ensureProfileSynced from
-          // overwriting the healed balance with a stale fetch.
+          // Write profiles.credits and sync guards BEFORE any async gap.
           if (!isGuestRuntimeUser() && user?.id) {
-            await supabase.from('profiles')
-              .update({ credits: healedBalance })
-              .eq('id', user.id);
+            await supabase.from('profiles').update({ credits: healedBalance }).eq('id', user.id);
           }
           lastSyncedBankroll = healedBalance;
           if (currentProfile) currentProfile = { ...currentProfile, credits: healedBalance };
           await persistBankroll();
           animateBankrollOutcome(netProfit);
-          // Write status + new_account_value atomically — round is not marked
-          // completed until the final balance is stored.
+          // Write settlement data WITHOUT status:'completed' — the round stays
+          // 'in_progress' until the player clicks NEW ROUND.
           await supabase.from('color_scheme_rounds').update({
-            status:           'completed',
             total_wagered:    totalWagered,
             total_returned:   totalReturned,
             net_profit:       netProfit,
@@ -36563,18 +36580,15 @@ async function csRestoreIncompleteRound() {
           }).eq('id', round.id);
         } catch (healErr) {
           console.warn('[CS] orphaned round heal failed:', healErr);
-          // Heal failed — mark completed without touching balance.
-          await supabase.from('color_scheme_rounds')
-            .update({ status: 'completed' })
-            .eq('id', round.id);
+          // Heal failed — fall through to UI restore; balance untouched.
         }
       } else {
-        // No heal needed (round already settled, or grand_total=0 — can't compute outcomes).
-        // Mark completed only; do not touch profiles.credits.
-        await supabase.from('color_scheme_rounds')
-          .update({ status: 'completed' })
-          .eq('id', round.id);
+        // Case C — grand_total = 0, can't compute outcomes. Fall through to UI restore.
+        console.warn('[CS] restore: grand_total = 0, cannot reconcile bets. Showing UI for player to acknowledge.');
       }
+
+      // Set round ID so NEW ROUND / REBET handlers can mark this round completed.
+      _csRoundId = round.id;
 
       // ── Restore completed-round UI ────────────────────────────────────────
       // Parse rolls so the tracker and outcome can be rendered.
@@ -36907,9 +36921,16 @@ function initColorSchemeGame() {
           .select('status, roll_1, roll_2, roll_3')
           .eq('id', _csRoundId)
           .maybeSingle();
+        // A round is "already done on another device" if:
+        //  (a) its status is no longer 'in_progress' — another device marked it completed, OR
+        //  (b) all 3 rolls are present in DB but we haven't rolled all 3 locally yet —
+        //      meaning another device (or session) rolled after us.
+        // We specifically DO NOT flag a round as done when _csRoll === 3, because with
+        // the new design rounds stay 'in_progress' until NEW ROUND is clicked, so a
+        // freshly-settled round on THIS device will have all 3 rolls but _csRoll === 3.
         const alreadyDone = rCheck && (
           rCheck.status !== 'in_progress' ||
-          (rCheck.roll_1 && rCheck.roll_2 && rCheck.roll_3)
+          (rCheck.roll_1 && rCheck.roll_2 && rCheck.roll_3 && _csRoll < 3)
         );
         if (alreadyDone) {
           showToast('ROUND HAS RESOLVED ON ANOTHER DEVICE', 'error');
@@ -36992,6 +37013,9 @@ function initColorSchemeGame() {
     const bNew2=csEl('cs-bNew');
     if (bNew2) {
       bNew2._csHandler = function() {
+        // Capture the previous round ID before we null it — we'll mark it completed
+        // now that the player has explicitly acknowledged the result.
+        const prevRoundId = _csRoundId;
         _csRound++; _csRoll=0; _csRoundRolls.length=0; _csProcessingSettle=false; _csSettleFired=false;
         _csRoundId=null; _csPendingServerRoll=null; _csTargetQuats=null; _csClipActive=null; _csClipFrame=0; _csClipOnDone=null; _csWaitingForServer=false; _csSettleArgsCache=null;
         _csDice.forEach(d=>{if(_csScene)_csScene.remove(d.mesh);if(_csWorld)_csWorld.remove(d.body);}); _csDice=[];
@@ -37008,6 +37032,10 @@ function initColorSchemeGame() {
         // Show REBET now — board is empty and open, prior to first roll
         const bRebetAfterNew=csEl('cs-rebetBtn');
         if(bRebetAfterNew && Object.keys(_csLastBets||{}).length){bRebetAfterNew.style.display='';bRebetAfterNew.disabled=false;}
+        // Mark the previous round completed now that the user has acknowledged it.
+        if (prevRoundId && supabase && !isGuestRuntimeUser()) {
+          supabase.from('color_scheme_rounds').update({ status: 'completed' }).eq('id', prevRoundId).then(() => {});
+        }
       };
       bNew2.addEventListener('click',bNew2._csHandler);
     }
@@ -37032,6 +37060,8 @@ function initColorSchemeGame() {
         // Disable immediately — no double-clicks
         this.disabled = true; this.style.display = 'none';
         // --- New round reset (same as New Round button) ---
+        // Capture prevRoundId before null so we can mark it completed (fire-and-forget).
+        const prevRoundId = _csRoundId;
         _csRound++; _csRoll=0; _csRoundRolls.length=0; _csProcessingSettle=false; _csSettleFired=false;
         _csRoundId=null; _csPendingServerRoll=null; _csTargetQuats=null; _csClipActive=null; _csClipFrame=0; _csClipOnDone=null; _csWaitingForServer=false; _csSettleArgsCache=null;
         _csDice.forEach(d=>{if(_csScene)_csScene.remove(d.mesh);if(_csWorld)_csWorld.remove(d.body);}); _csDice=[];
@@ -37053,6 +37083,10 @@ function initColorSchemeGame() {
           csRenderBetZone(betId);
         }
         csRenderBank(); csRenderTotalWagered();
+        // Mark the previous round completed now that the user has acknowledged it.
+        if (prevRoundId && supabase && !isGuestRuntimeUser()) {
+          supabase.from('color_scheme_rounds').update({ status: 'completed' }).eq('id', prevRoundId).then(() => {});
+        }
       };
       bRebet.addEventListener('click', bRebet._csHandler);
     }
