@@ -36564,12 +36564,28 @@ async function csRestoreIncompleteRound() {
             }).eq('round_id', round.id).eq('bet_key', bet.bet_key);
           }));
           const netProfit = totalReturned - totalWagered;
-          // Fetch fresh profiles.credits as the base — do NOT use in-memory bankroll
-          // which may be an uninitialized default. This is the post-bet balance.
-          const { data: freshProfile } = await supabase
-            .from('profiles').select('credits').eq('id', user.id).maybeSingle();
-          const baseCredits = Number(freshProfile?.credits ?? bankroll);
-          const healedBalance = roundCurrencyValue(baseCredits + totalReturned);
+          // Compute the healed balance using pre_hand_account_value + netProfit when
+          // available.  This formula is correct regardless of whether persistBankroll()
+          // ran before the refresh — it doesn't depend on whether the bet deduction has
+          // been written to profiles.credits yet.
+          //
+          // The old formula (freshProfile.credits + totalReturned) only works when
+          // profiles.credits already has the bets deducted.  If the user refreshed
+          // before persistBankroll() completed on roll 1, profiles.credits still holds
+          // the pre-bet value and the old formula over-credits by totalWagered.
+          //
+          // Fallback: if pre_hand wasn't recorded (null / 0), read fresh profiles.credits
+          // and assume it IS the post-bet value (best we can do without the anchor).
+          const preHand = Number(round.pre_hand_account_value || 0);
+          let healedBalance;
+          if (preHand > 0) {
+            healedBalance = roundCurrencyValue(preHand + netProfit);
+          } else {
+            const { data: freshProfile } = await supabase
+              .from('profiles').select('credits').eq('id', user.id).maybeSingle();
+            const baseCredits = Number(freshProfile?.credits ?? bankroll);
+            healedBalance = roundCurrencyValue(baseCredits + totalReturned);
+          }
           bankroll = healedBalance;
           // Write profiles.credits and sync guards BEFORE any async gap.
           if (!isGuestRuntimeUser() && user?.id) {
