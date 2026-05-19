@@ -36523,83 +36523,163 @@ async function csRestoreIncompleteRound() {
       .maybeSingle();
     if (!round) return false;
 
-    // If all 3 rolls are already stored, this round finished (here or another device).
+    // If all 3 rolls are already stored, this round is done — heal if needed,
+    // then restore the completed-round UI so the player must click NEW ROUND.
     if (round.roll_1 && round.roll_2 && round.roll_3) {
-      // If totals were never written (page refresh mid-settle), heal the round now.
-      // GUARD: only heal if grand_total > 0 — if it's 0 the server hadn't finished
-      // computing color totals when the refresh happened, so we can't determine
-      // which bets won. Attempting to heal with zero totals would incorrectly mark
-      // all bets as losses and corrupt profiles.credits. Mark as completed and skip.
-      if (!round.total_wagered && Number(round.grand_total || 0) > 0) {
+      // Fetch bet rows once — used for both heal logic and UI display below.
+      const { data: betRows } = await supabase
+        .from('color_scheme_bets')
+        .select('bet_key, amount_wagered')
+        .eq('round_id', round.id);
+
+      // Heal orphaned round: all 3 rolls present + color totals computed, but
+      // settlement was never written (page was refreshed mid-settle).
+      // GUARD: skip entirely if grand_total=0 — server hadn't finished computing
+      // color totals, so we can't determine outcomes. Would corrupt balance.
+      if (!round.total_wagered && Number(round.grand_total || 0) > 0 && betRows?.length) {
         try {
-          const { data: betRows } = await supabase
-            .from('color_scheme_bets')
-            .select('bet_key, amount_wagered')
-            .eq('round_id', round.id);
-          if (betRows?.length) {
-            const ct = {
-              RED:    Number(round.red_total    || 0),
-              BLUE:   Number(round.blue_total   || 0),
-              YELLOW: Number(round.yellow_total || 0),
-              PURPLE: Number(round.purple_total || 0),
-              GREEN:  Number(round.green_total  || 0),
-              ORANGE: Number(round.orange_total || 0),
-            };
-            const gt = Number(round.grand_total || 0);
-            let totalWagered = 0, totalReturned = 0;
-            await Promise.all(betRows.map(bet => {
-              const won  = csIsCurrentlyWinning(bet.bet_key, ct, gt);
-              const base = won ? Math.floor(Number(bet.amount_wagered) * (CS_ODDS[bet.bet_key] || 1)) : 0;
-              const payout = (won && bet.bet_key === 'TYPE_PRIMARY') ? Math.floor(base * 0.95) : base;
-              totalWagered  += Number(bet.amount_wagered);
-              totalReturned += won ? Number(bet.amount_wagered) + payout : 0;
-              return supabase.from('color_scheme_bets').update({
-                outcome:         won ? 'W' : 'L',
-                amount_returned: won ? Number(bet.amount_wagered) + payout : 0,
-                net_profit:      won ? payout : -Number(bet.amount_wagered),
-              }).eq('round_id', round.id).eq('bet_key', bet.bet_key);
-            }));
-            const netProfit = totalReturned - totalWagered;
-            // Use pre_hand_account_value for deterministic reconciliation:
-            //   post_round = pre_hand + net_profit  (no DB race, no stale reads)
-            // Fall back to fetching fresh DB credits for older rounds that predate the column.
-            let baseCredits;
-            if (Number(round.pre_hand_account_value || 0) > 0) {
-              baseCredits = Number(round.pre_hand_account_value);
-            } else {
-              const { data: freshProfile } = await supabase
-                .from('profiles').select('credits').eq('id', user.id).maybeSingle();
-              baseCredits = Number(freshProfile?.credits ?? bankroll);
-            }
-            const healedBalance = roundCurrencyValue(baseCredits + netProfit);
-            bankroll = healedBalance;
-            // Write profiles.credits directly and set lastSyncedBankroll BEFORE any
-            // async gap — this prevents a concurrent ensureProfileSynced from
-            // overwriting the healed balance with a stale fetch.
-            if (!isGuestRuntimeUser() && user?.id) {
-              await supabase.from('profiles')
-                .update({ credits: healedBalance })
-                .eq('id', user.id);
-            }
-            lastSyncedBankroll = healedBalance;
-            if (currentProfile) currentProfile = { ...currentProfile, credits: healedBalance };
-            await persistBankroll();
-            animateBankrollOutcome(netProfit);
-            await supabase.from('color_scheme_rounds').update({
-              total_wagered:    totalWagered,
-              total_returned:   totalReturned,
-              net_profit:       netProfit,
-              new_account_value: healedBalance,
-            }).eq('id', round.id);
-            showToast(`Round recovered — ${netProfit >= 0 ? '+' : ''}${formatCurrency(netProfit)} net.`, netProfit >= 0 ? 'success' : 'info');
+          const ct = {
+            RED:    Number(round.red_total    || 0),
+            BLUE:   Number(round.blue_total   || 0),
+            YELLOW: Number(round.yellow_total || 0),
+            PURPLE: Number(round.purple_total || 0),
+            GREEN:  Number(round.green_total  || 0),
+            ORANGE: Number(round.orange_total || 0),
+          };
+          const gt = Number(round.grand_total || 0);
+          let totalWagered = 0, totalReturned = 0;
+          await Promise.all(betRows.map(bet => {
+            const won  = csIsCurrentlyWinning(bet.bet_key, ct, gt);
+            const base = won ? Math.floor(Number(bet.amount_wagered) * (CS_ODDS[bet.bet_key] || 1)) : 0;
+            const payout = (won && bet.bet_key === 'TYPE_PRIMARY') ? Math.floor(base * 0.95) : base;
+            totalWagered  += Number(bet.amount_wagered);
+            totalReturned += won ? Number(bet.amount_wagered) + payout : 0;
+            return supabase.from('color_scheme_bets').update({
+              outcome:         won ? 'W' : 'L',
+              amount_returned: won ? Number(bet.amount_wagered) + payout : 0,
+              net_profit:      won ? payout : -Number(bet.amount_wagered),
+            }).eq('round_id', round.id).eq('bet_key', bet.bet_key);
+          }));
+          const netProfit = totalReturned - totalWagered;
+          // Use pre_hand_account_value for deterministic reconciliation:
+          //   post_round = pre_hand + net_profit  (no DB race, no stale reads)
+          // Fall back to fetching fresh DB credits for older rounds that predate the column.
+          let baseCredits;
+          if (Number(round.pre_hand_account_value || 0) > 0) {
+            baseCredits = Number(round.pre_hand_account_value);
+          } else {
+            const { data: freshProfile } = await supabase
+              .from('profiles').select('credits').eq('id', user.id).maybeSingle();
+            baseCredits = Number(freshProfile?.credits ?? bankroll);
           }
+          const healedBalance = roundCurrencyValue(baseCredits + netProfit);
+          bankroll = healedBalance;
+          // Write profiles.credits directly and set lastSyncedBankroll BEFORE any
+          // async gap — this prevents a concurrent ensureProfileSynced from
+          // overwriting the healed balance with a stale fetch.
+          if (!isGuestRuntimeUser() && user?.id) {
+            await supabase.from('profiles')
+              .update({ credits: healedBalance })
+              .eq('id', user.id);
+          }
+          lastSyncedBankroll = healedBalance;
+          if (currentProfile) currentProfile = { ...currentProfile, credits: healedBalance };
+          await persistBankroll();
+          animateBankrollOutcome(netProfit);
+          // Write status + new_account_value atomically — round is not marked
+          // completed until the final balance is stored.
+          await supabase.from('color_scheme_rounds').update({
+            status:           'completed',
+            total_wagered:    totalWagered,
+            total_returned:   totalReturned,
+            net_profit:       netProfit,
+            new_account_value: healedBalance,
+          }).eq('id', round.id);
         } catch (healErr) {
           console.warn('[CS] orphaned round heal failed:', healErr);
+          // Heal failed — still mark completed to prevent re-attempting on next load,
+          // but stamp the current bankroll as best-effort new_account_value.
+          await supabase.from('color_scheme_rounds')
+            .update({ status: 'completed', new_account_value: bankroll })
+            .eq('id', round.id);
         }
+      } else {
+        // No heal needed (round already settled, or grand_total=0 so we can't compute).
+        // Always write new_account_value so the round is never completed with a null value.
+        await supabase.from('color_scheme_rounds')
+          .update({ status: 'completed', new_account_value: bankroll })
+          .eq('id', round.id);
       }
-      await supabase.from('color_scheme_rounds')
-        .update({ status: 'completed' })
-        .eq('id', round.id);
+
+      // ── Restore completed-round UI ────────────────────────────────────────
+      // Parse rolls so the tracker and outcome can be rendered.
+      const CC = { R: 'RED', B: 'BLUE', Y: 'YELLOW' };
+      _csRoundRolls = [];
+      for (const rc of [round.roll_1, round.roll_2, round.roll_3]) {
+        if (!rc) break;
+        _csRoundRolls.push({ color: CC[rc.color] || rc.color, number: Number(rc.number || 0) });
+      }
+      _csRoll = 3; // signals post-restore block to show NEW ROUND
+
+      // Restore bets for display and save to _csLastBets so Rebet works next round.
+      _csBets = {};
+      if (betRows?.length) {
+        for (const bet of betRows) {
+          if (bet.bet_key) _csBets[bet.bet_key] = (_csBets[bet.bet_key] || 0) + Number(bet.amount_wagered || 0);
+        }
+        if (Object.keys(_csBets).length) _csLastBets = { ..._csBets };
+      }
+      Object.keys(_csBets).forEach(id => csRenderBetZone(id));
+      csRenderTotalWagered();
+
+      // Fill roll tracker and show outcome panel.
+      _csRoundRolls.forEach((r, i) => {
+        const fc = CS_COLS.find(x => x.name === r.color);
+        if (fc) csFillTrackSlot(i + 1, fc, r.number, _csRoundRolls);
+      });
+      csShowOutcome(_csRoundRolls);
+
+      // Update roll/color/number status elements.
+      const sRoll3 = csEl('cs-sRoll'); if (sRoll3) sRoll3.textContent = '3/3';
+      const sRound3 = csEl('cs-sRound'); if (sRound3) sRound3.textContent = _csRound;
+      const last = _csRoundRolls[2];
+      if (last) {
+        const fc = CS_COLS.find(x => x.name === last.color);
+        const sColor = csEl('cs-sColor');
+        if (sColor) { sColor.textContent = last.color; if (fc) sColor.style.color = fc.dot; }
+        const sNum = csEl('cs-sNum'); if (sNum) sNum.textContent = last.number;
+      }
+
+      // Show bet win/loss results if color totals are available.
+      if (Number(round.grand_total || 0) > 0) {
+        const ct = {
+          RED:    Number(round.red_total    || 0),
+          BLUE:   Number(round.blue_total   || 0),
+          YELLOW: Number(round.yellow_total || 0),
+          PURPLE: Number(round.purple_total || 0),
+          GREEN:  Number(round.green_total  || 0),
+          ORANGE: Number(round.orange_total || 0),
+        };
+        const gt = Number(round.grand_total || 0);
+        Object.entries(_csBets).forEach(([betId, stake]) => {
+          const won = csIsCurrentlyWinning(betId, ct, gt);
+          const basePayout = won ? Math.floor(stake * (CS_ODDS[betId] || 1)) : 0;
+          const payout = (won && betId === 'TYPE_PRIMARY') ? Math.floor(basePayout * 0.95) : basePayout;
+          const zone = csEl('cs-bz-' + betId);
+          const res  = csEl('cs-result-' + betId);
+          if (!zone || !res) return;
+          zone.classList.remove('cs-live-win');
+          zone.classList.add(won ? 'cs-win' : 'cs-lose');
+          res.textContent = won ? '+' + payout : '-' + stake;
+          res.className = 'cs-bz-result cs-show ' + (won ? 'cs-win-r' : 'cs-lose-r');
+        });
+        csUpdateLiveBetGlow(ct, gt);
+      }
+
+      // Lock the board — post-restore code will hide ROLL DICE and show NEW ROUND
+      // because _csRoll === 3.
+      csSetBetState('settling');
+      showToast('Round recovered — click NEW ROUND to continue.', 'info');
       return false;
     }
 
