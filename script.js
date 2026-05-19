@@ -35965,8 +35965,7 @@ async function csInvokeServerRoll() {
       const { data, error } = await supabase.rpc('start_cs_round', { _contest_id: contestId });
       if (error || !data?.round_id) { console.warn('[CS] start_cs_round failed:', error); return; }
       _csRoundId = data.round_id;
-      // Record pre-hand balance: bets were already deducted from bankroll locally,
-      // so true pre-hand value = current bankroll + total bets placed this round.
+      // Record pre-hand balance (fire-and-forget — does not affect balance logic).
       const _csPreHandValue = roundCurrencyValue(
         bankroll + Object.values(_csBets).reduce((s, v) => s + v, 0)
       );
@@ -36534,8 +36533,9 @@ async function csRestoreIncompleteRound() {
 
       // Heal orphaned round: all 3 rolls present + color totals computed, but
       // settlement was never written (page was refreshed mid-settle).
-      // GUARD: skip entirely if grand_total=0 — server hadn't finished computing
-      // color totals, so we can't determine outcomes. Would corrupt balance.
+      // GUARD: only heal if grand_total > 0 — if it's 0 the server hadn't finished
+      // computing color totals, so we can't determine outcomes. Attempting to heal
+      // with zero totals would mark all bets as losses and corrupt the balance.
       if (!round.total_wagered && Number(round.grand_total || 0) > 0 && betRows?.length) {
         try {
           const ct = {
@@ -36561,18 +36561,12 @@ async function csRestoreIncompleteRound() {
             }).eq('round_id', round.id).eq('bet_key', bet.bet_key);
           }));
           const netProfit = totalReturned - totalWagered;
-          // Use pre_hand_account_value for deterministic reconciliation:
-          //   post_round = pre_hand + net_profit  (no DB race, no stale reads)
-          // Fall back to fetching fresh DB credits for older rounds that predate the column.
-          let baseCredits;
-          if (Number(round.pre_hand_account_value || 0) > 0) {
-            baseCredits = Number(round.pre_hand_account_value);
-          } else {
-            const { data: freshProfile } = await supabase
-              .from('profiles').select('credits').eq('id', user.id).maybeSingle();
-            baseCredits = Number(freshProfile?.credits ?? bankroll);
-          }
-          const healedBalance = roundCurrencyValue(baseCredits + netProfit);
+          // Fetch fresh profiles.credits as the base — do NOT use in-memory bankroll
+          // which may be an uninitialized default. This is the post-bet balance.
+          const { data: freshProfile } = await supabase
+            .from('profiles').select('credits').eq('id', user.id).maybeSingle();
+          const baseCredits = Number(freshProfile?.credits ?? bankroll);
+          const healedBalance = roundCurrencyValue(baseCredits + totalReturned);
           bankroll = healedBalance;
           // Write profiles.credits directly and set lastSyncedBankroll BEFORE any
           // async gap — this prevents a concurrent ensureProfileSynced from
@@ -36597,17 +36591,16 @@ async function csRestoreIncompleteRound() {
           }).eq('id', round.id);
         } catch (healErr) {
           console.warn('[CS] orphaned round heal failed:', healErr);
-          // Heal failed — still mark completed to prevent re-attempting on next load,
-          // but stamp the current bankroll as best-effort new_account_value.
+          // Heal failed — mark completed without touching balance.
           await supabase.from('color_scheme_rounds')
-            .update({ status: 'completed', new_account_value: bankroll })
+            .update({ status: 'completed' })
             .eq('id', round.id);
         }
       } else {
-        // No heal needed (round already settled, or grand_total=0 so we can't compute).
-        // Always write new_account_value so the round is never completed with a null value.
+        // No heal needed (round already settled, or grand_total=0 — can't compute outcomes).
+        // Mark completed only; do not touch profiles.credits.
         await supabase.from('color_scheme_rounds')
-          .update({ status: 'completed', new_account_value: bankroll })
+          .update({ status: 'completed' })
           .eq('id', round.id);
       }
 
@@ -37054,7 +37047,13 @@ function initColorSchemeGame() {
         // Guard: must have saved bets, board must be empty, round must not have started
         if (!Object.keys(_csLastBets).length) return;
         if (_csBetState !== 'open') return;            // round in progress
-        if (Object.keys(_csBets).length > 0) { showToast('Clear your current bets before using Rebet.', 'error'); return; }
+        // If stale bets exist on the board for any reason, refund and clear them silently.
+        if (Object.keys(_csBets).length > 0) {
+          const staleRefund = Object.values(_csBets).reduce((a,b)=>a+b,0);
+          if (staleRefund > 0) { bankroll = roundCurrencyValue(bankroll + staleRefund); }
+          _csBets = {};
+          csClearChipStacks(); csRenderBank(); csRenderTotalWagered();
+        }
         // Check affordability before touching anything
         const totalNeeded = Object.values(_csLastBets).reduce((a,b)=>a+b,0);
         if (bankroll < totalNeeded) { showToast('Not enough balance to rebet.', 'error'); return; }
