@@ -20089,18 +20089,6 @@ function renderHeaderFromProfile(profile) {
     return;
   }
 
-  // Guard: if the incoming profile credits are lower than what we've already
-  // explicitly written to the DB (lastSyncedBankroll), the profile fetch is stale
-  // (e.g. a concurrent ensureProfileSynced fetched before a heal or settle wrote).
-  // Skip the bankroll overwrite — local state is more current.
-  const incomingCredits = Number(profile.credits || 0);
-  if (!isContestAccountMode() && lastSyncedBankroll > 0 && incomingCredits < lastSyncedBankroll) {
-    console.info(
-      `[RTN] renderHeaderFromProfile: skipping stale credits ${incomingCredits} (lastSynced=${lastSyncedBankroll})`
-    );
-    return;
-  }
-
   console.info(
     `[RTN] renderHeaderFromProfile updating header (bankroll=${profile.credits}, carterCash=${profile.carter_cash}, progress=${profile.carter_cash_progress})`
   );
