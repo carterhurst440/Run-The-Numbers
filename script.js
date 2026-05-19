@@ -20089,6 +20089,18 @@ function renderHeaderFromProfile(profile) {
     return;
   }
 
+  // Guard: if the incoming profile credits are lower than what we've already
+  // explicitly written to the DB (lastSyncedBankroll), the profile fetch is stale
+  // (e.g. a concurrent ensureProfileSynced fetched before a heal or settle wrote).
+  // Skip the bankroll overwrite — local state is more current.
+  const incomingCredits = Number(profile.credits || 0);
+  if (!isContestAccountMode() && lastSyncedBankroll > 0 && incomingCredits < lastSyncedBankroll) {
+    console.info(
+      `[RTN] renderHeaderFromProfile: skipping stale credits ${incomingCredits} (lastSynced=${lastSyncedBankroll})`
+    );
+    return;
+  }
+
   console.info(
     `[RTN] renderHeaderFromProfile updating header (bankroll=${profile.credits}, carterCash=${profile.carter_cash}, progress=${profile.carter_cash_progress})`
   );
@@ -36519,14 +36531,25 @@ async function csRestoreIncompleteRound() {
               }).eq('round_id', round.id).eq('bet_key', bet.bet_key);
             }));
             const netProfit = totalReturned - totalWagered;
-            bankroll = roundCurrencyValue(bankroll + totalReturned);
+            const healedBalance = roundCurrencyValue(bankroll + totalReturned);
+            bankroll = healedBalance;
+            // Write profiles.credits directly and set lastSyncedBankroll BEFORE any
+            // async gap — this prevents a concurrent ensureProfileSynced from
+            // overwriting the healed balance with a stale fetch.
+            if (!isGuestRuntimeUser() && user?.id) {
+              await supabase.from('profiles')
+                .update({ credits: healedBalance })
+                .eq('id', user.id);
+            }
+            lastSyncedBankroll = healedBalance;
+            if (currentProfile) currentProfile = { ...currentProfile, credits: healedBalance };
             await persistBankroll();
             animateBankrollOutcome(netProfit);
             await supabase.from('color_scheme_rounds').update({
               total_wagered:    totalWagered,
               total_returned:   totalReturned,
               net_profit:       netProfit,
-              new_account_value: roundCurrencyValue(bankroll),
+              new_account_value: healedBalance,
             }).eq('id', round.id);
             showToast(`Round recovered — ${netProfit >= 0 ? '+' : ''}${formatCurrency(netProfit)} net.`, netProfit >= 0 ? 'success' : 'info');
           }
