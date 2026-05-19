@@ -16613,17 +16613,17 @@ body.state-open .auth-vault-floor {
     padding: 28px 24px 26px;
   }
   .mark-stage {
-    width: 100px;
-    height: 100px;
+    width: 114px;
+    height: 114px;
     margin-bottom: 18px;
   }
   .auth-vault-welcome {
-    font-size: clamp(19px, 5vw, 24px);
-    margin-bottom: 5px;
+    font-size: clamp(17px, 4.5vw, 21px);
+    margin-bottom: 4px;
   }
   .auth-vault-tagline {
-    font-size: 12px;
-    margin: 9px 0 20px;
+    font-size: 11px;
+    margin: 8px 0 18px;
   }
   .auth-vault-form {
     gap: 12px;
