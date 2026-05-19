@@ -17556,8 +17556,17 @@ async function startRtnHandServer() {
       throw new Error("RTN start hand did not return a hand id.");
     }
 
+    // Capture pre-hand balance: RTN deducts bets locally before calling the RPC,
+    // so add the bet totals back to get the true pre-hand value.
+    const _rtnPreHandValue = roundCurrencyValue(
+      bankroll + bets.reduce((sum, b) => sum + (b.units || 0), 0)
+    );
     applyRtnServerAccountSnapshot(result);
     rtnServerHandId = result.hand_id;
+    supabase.from('rtn_live_hands')
+      .update({ pre_hand_account_value: _rtnPreHandValue })
+      .eq('id', rtnServerHandId)
+      .then(() => {});
     rtnPendingMidHandBetDrafts = [];
     replaceRtnBetsFromServerState(result?.bet_state || [], { animateStacks: false });
     renderRtnDrawsFromServerState(result?.drawn_cards || [], { animateNewCards: false });
@@ -21075,8 +21084,15 @@ async function startGuess10HandServer() {
       throw new Error("Guess 10 start hand did not return a hand id.");
     }
 
+    // Capture pre-hand balance: G10 deduction is server-side (applied by the RPC),
+    // so bankroll here is the true pre-deduction value.
+    const _g10PreHandValue = bankroll;
     applyGuess10ServerAccountSnapshot(result);
     redBlackServerHandId = result.hand_id;
+    supabase.from('guess10_live_hands')
+      .update({ pre_hand_account_value: _g10PreHandValue })
+      .eq('id', redBlackServerHandId)
+      .then(() => {});
     redBlackLastBet = roundCurrencyValue(Number(result.total_wager || result.wager_amount || redBlackBet));
     redBlackRung = Math.max(0, Math.round(Number(result.current_rung || 0)));
     redBlackCurrentPot = roundCurrencyValue(Number(result.current_pot || redBlackBet));
@@ -35949,6 +35965,15 @@ async function csInvokeServerRoll() {
       const { data, error } = await supabase.rpc('start_cs_round', { _contest_id: contestId });
       if (error || !data?.round_id) { console.warn('[CS] start_cs_round failed:', error); return; }
       _csRoundId = data.round_id;
+      // Record pre-hand balance: bets were already deducted from bankroll locally,
+      // so true pre-hand value = current bankroll + total bets placed this round.
+      const _csPreHandValue = roundCurrencyValue(
+        bankroll + Object.values(_csBets).reduce((s, v) => s + v, 0)
+      );
+      supabase.from('color_scheme_rounds')
+        .update({ pre_hand_account_value: _csPreHandValue })
+        .eq('id', _csRoundId)
+        .then(() => {});
       await csSaveBetsToServer(_csRoundId);
       await persistBankroll();  // commit wager deduction to server
     }
@@ -36489,7 +36514,7 @@ async function csRestoreIncompleteRound() {
     const cutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
     const { data: round } = await supabase
       .from('color_scheme_rounds')
-      .select('id, status, roll_1, roll_2, roll_3, created_at, total_wagered, red_total, yellow_total, blue_total, purple_total, green_total, orange_total, grand_total')
+      .select('id, status, roll_1, roll_2, roll_3, created_at, total_wagered, red_total, yellow_total, blue_total, purple_total, green_total, orange_total, grand_total, pre_hand_account_value')
       .eq('user_id', user.id)
       .eq('status', 'in_progress')   // only exact in_progress — excludes complete/completed/abandoned
       .gte('created_at', cutoff)      // ignore rounds older than 4 hours
@@ -36535,13 +36560,18 @@ async function csRestoreIncompleteRound() {
               }).eq('round_id', round.id).eq('bet_key', bet.bet_key);
             }));
             const netProfit = totalReturned - totalWagered;
-            // Fetch fresh profiles.credits from DB as the base — do NOT use in-memory
-            // bankroll which may be an uninitialized default (e.g. 1000) if ensureProfileSynced
-            // hasn't run yet. This prevents overwriting the real balance with a bad value.
-            const { data: freshProfile } = await supabase
-              .from('profiles').select('credits').eq('id', user.id).maybeSingle();
-            const baseCredits = Number(freshProfile?.credits ?? bankroll);
-            const healedBalance = roundCurrencyValue(baseCredits + totalReturned);
+            // Use pre_hand_account_value for deterministic reconciliation:
+            //   post_round = pre_hand + net_profit  (no DB race, no stale reads)
+            // Fall back to fetching fresh DB credits for older rounds that predate the column.
+            let baseCredits;
+            if (Number(round.pre_hand_account_value || 0) > 0) {
+              baseCredits = Number(round.pre_hand_account_value);
+            } else {
+              const { data: freshProfile } = await supabase
+                .from('profiles').select('credits').eq('id', user.id).maybeSingle();
+              baseCredits = Number(freshProfile?.credits ?? bankroll);
+            }
+            const healedBalance = roundCurrencyValue(baseCredits + netProfit);
             bankroll = healedBalance;
             // Write profiles.credits directly and set lastSyncedBankroll BEFORE any
             // async gap — this prevents a concurrent ensureProfileSynced from
