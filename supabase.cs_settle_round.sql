@@ -363,9 +363,17 @@ $$;
 
 -- ============================================================
 -- 3. Trigger on color_scheme_rounds
---    Fires AFTER UPDATE when roll_3 is newly written by
---    cs_perform_roll (OLD.roll_3 IS NULL → NEW.roll_3 IS NOT NULL)
---    and the round has a non-zero grand total.
+--    Fires AFTER UPDATE on either of two writes that cs_perform_roll
+--    may make on the 3rd roll:
+--
+--    Path A — roll_3 and grand_total written in the same statement:
+--      OLD.roll_3 IS NULL, NEW.roll_3 IS NOT NULL, grand_total > 0
+--
+--    Path B — grand_total written in a separate statement after roll_3:
+--      roll_3 already present, grand_total just became > 0
+--
+--    The FOR UPDATE + total_wagered > 0 guard inside cs_settle_round
+--    prevents double-settlement if both paths somehow fire.
 -- ============================================================
 drop trigger if exists trg_cs_settle_on_roll3 on public.color_scheme_rounds;
 
@@ -373,11 +381,24 @@ create trigger trg_cs_settle_on_roll3
   after update on public.color_scheme_rounds
   for each row
   when (
-    OLD.roll_3 is null
-    and NEW.roll_3 is not null
-    and coalesce(NEW.grand_total, 0) > 0
-    and NEW.status not in ('completed', 'abandoned')
+    -- shared guards
+    NEW.status not in ('completed', 'abandoned')
     and coalesce(OLD.total_wagered, 0) = 0
+    and (
+      -- Path A: roll_3 just written, grand_total already present
+      (
+        OLD.roll_3 is null
+        and NEW.roll_3 is not null
+        and coalesce(NEW.grand_total, 0) > 0
+      )
+      or
+      -- Path B: grand_total just written after roll_3 was already set
+      (
+        NEW.roll_3 is not null
+        and coalesce(OLD.grand_total, 0) = 0
+        and coalesce(NEW.grand_total, 0) > 0
+      )
+    )
   )
   execute function public.cs_settle_round_trigger();
 
