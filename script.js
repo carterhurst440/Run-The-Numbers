@@ -36054,6 +36054,22 @@ async function csSettleBetsOnServer(roundId, totals, grandTotal) {
       applyPlaythrough(totalWageredDB);       // Carter Cash progress (client-only)
       // profiles.credits and hands-played progress already updated by trigger —
       // skip persistBankroll() and incrementProfileHandProgress().
+      //
+      // The trigger changed profiles.updated_at, leaving currentProfile stale.
+      // Refresh it so subsequent persistBankroll calls (e.g. performAccountReset)
+      // pass the correct _expected_updated_at to save_player_balance_snapshot —
+      // otherwise the optimistic-lock check rejects the write and the reset fails.
+      if (currentUser?.id && currentProfile) {
+        const { data: fp } = await supabase
+          .from('profiles')
+          .select('updated_at, credits, carter_cash, carter_cash_progress')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+        if (fp && currentProfile) {
+          currentProfile = { ...currentProfile, ...fp };
+          lastSyncedBankroll = normalizeStoredCreditValue(fp.credits);
+        }
+      }
       console.info('[CS] server trigger settled round; client skipping redundant writes');
       return;
     }
