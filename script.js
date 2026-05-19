@@ -17556,17 +17556,8 @@ async function startRtnHandServer() {
       throw new Error("RTN start hand did not return a hand id.");
     }
 
-    // Capture pre-hand balance: RTN deducts bets locally before calling the RPC,
-    // so add the bet totals back to get the true pre-hand value.
-    const _rtnPreHandValue = roundCurrencyValue(
-      bankroll + bets.reduce((sum, b) => sum + (b.units || 0), 0)
-    );
     applyRtnServerAccountSnapshot(result);
     rtnServerHandId = result.hand_id;
-    supabase.from('rtn_live_hands')
-      .update({ pre_hand_account_value: _rtnPreHandValue })
-      .eq('id', rtnServerHandId)
-      .then(() => {});
     rtnPendingMidHandBetDrafts = [];
     replaceRtnBetsFromServerState(result?.bet_state || [], { animateStacks: false });
     renderRtnDrawsFromServerState(result?.drawn_cards || [], { animateNewCards: false });
@@ -21084,15 +21075,8 @@ async function startGuess10HandServer() {
       throw new Error("Guess 10 start hand did not return a hand id.");
     }
 
-    // Capture pre-hand balance: G10 deduction is server-side (applied by the RPC),
-    // so bankroll here is the true pre-deduction value.
-    const _g10PreHandValue = bankroll;
     applyGuess10ServerAccountSnapshot(result);
     redBlackServerHandId = result.hand_id;
-    supabase.from('guess10_live_hands')
-      .update({ pre_hand_account_value: _g10PreHandValue })
-      .eq('id', redBlackServerHandId)
-      .then(() => {});
     redBlackLastBet = roundCurrencyValue(Number(result.total_wager || result.wager_amount || redBlackBet));
     redBlackRung = Math.max(0, Math.round(Number(result.current_rung || 0)));
     redBlackCurrentPot = roundCurrencyValue(Number(result.current_pot || redBlackBet));
