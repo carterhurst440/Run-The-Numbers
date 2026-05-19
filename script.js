@@ -36501,7 +36501,11 @@ async function csRestoreIncompleteRound() {
     // If all 3 rolls are already stored, this round finished (here or another device).
     if (round.roll_1 && round.roll_2 && round.roll_3) {
       // If totals were never written (page refresh mid-settle), heal the round now.
-      if (!round.total_wagered) {
+      // GUARD: only heal if grand_total > 0 — if it's 0 the server hadn't finished
+      // computing color totals when the refresh happened, so we can't determine
+      // which bets won. Attempting to heal with zero totals would incorrectly mark
+      // all bets as losses and corrupt profiles.credits. Mark as completed and skip.
+      if (!round.total_wagered && Number(round.grand_total || 0) > 0) {
         try {
           const { data: betRows } = await supabase
             .from('color_scheme_bets')
@@ -36531,7 +36535,13 @@ async function csRestoreIncompleteRound() {
               }).eq('round_id', round.id).eq('bet_key', bet.bet_key);
             }));
             const netProfit = totalReturned - totalWagered;
-            const healedBalance = roundCurrencyValue(bankroll + totalReturned);
+            // Fetch fresh profiles.credits from DB as the base — do NOT use in-memory
+            // bankroll which may be an uninitialized default (e.g. 1000) if ensureProfileSynced
+            // hasn't run yet. This prevents overwriting the real balance with a bad value.
+            const { data: freshProfile } = await supabase
+              .from('profiles').select('credits').eq('id', user.id).maybeSingle();
+            const baseCredits = Number(freshProfile?.credits ?? bankroll);
+            const healedBalance = roundCurrencyValue(baseCredits + totalReturned);
             bankroll = healedBalance;
             // Write profiles.credits directly and set lastSyncedBankroll BEFORE any
             // async gap — this prevents a concurrent ensureProfileSynced from
