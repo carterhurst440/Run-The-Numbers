@@ -27573,6 +27573,21 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   .cs-roll-tracker { right: clamp(128px, 40vw, 165px); }
 }
 
+@media (min-width: 769px) {
+  /* Payout labels in CS bet zones — larger + brighter on desktop */
+  .cs-bz-odds {
+    font-size: 9px;
+    color: rgba(192, 186, 128, 0.6);
+  }
+  .cs-bet-zone.cs-has-bet .cs-bz-odds {
+    color: rgba(168, 255, 62, 0.7);
+  }
+  .cs-bz-commission {
+    font-size: 9px;
+    color: rgba(168, 255, 62, 0.5);
+  }
+}
+
 /* ============================================================
    Paytable modal — RTN amber theme
    The modal lives outside #run-the-numbers-view so it doesn't
