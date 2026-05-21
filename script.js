@@ -36354,7 +36354,6 @@ async function csSaveClipsToDB(newClips) {
 // ── Admin CS Clips panel ─────────────────────────────────────────────────
 let _adminCsSelectedColor = 'RED';
 let _adminCsSelectedNum = 1;
-let _adminCsCandidate = null; // { color, num, frames: Float32Array }
 
 // ── Admin mini-canvas (dice preview embedded in admin panel) ────────────────
 let _adminCsRenderer    = null;
@@ -36400,22 +36399,13 @@ function adminCsMiniLoop() {
 function adminCsMiniInit() {
   const canvas = document.getElementById('admin-cs-mini-canvas');
   if (!canvas) return;
-  // If already running, nothing to do
+  // If already running, just resume RAF
   if (_adminCsRenderer) {
     if (!_adminCsRafId) _adminCsRafId = requestAnimationFrame(adminCsMiniLoop);
     return;
   }
   const THREE = window.THREE;
-  if (!THREE) {
-    // Load CS libs then retry
-    const warning = document.getElementById('admin-cs-cannon-warning');
-    if (warning) { warning.textContent = '⚠ Loading physics engine…'; warning.removeAttribute('hidden'); }
-    csLoadLibraries(() => {
-      if (warning) warning.setAttribute('hidden', '');
-      adminCsMiniInit();
-    });
-    return;
-  }
+  if (!THREE) return; // caller must ensure libraries are loaded first
 
   const W = 320, H = 200;
   _adminCsRenderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -36495,15 +36485,34 @@ function adminCsMiniPlay(frames) {
 }
 
 // ── Tab open ──────────────────────────────────────────────────────────────────
-function adminCsClipsTabOpen() {
-  adminCsMiniInit();
+async function adminCsClipsTabOpen() {
+  // 1. Load clips from DB if CS game was never initialized
+  if (!_csClips || _csClips.size === 0) {
+    const status = document.getElementById('admin-cs-mini-status');
+    if (status) status.textContent = 'Loading clips from DB…';
+    const loaded = await csLoadClipsFromDB();
+    if (!_csClips) _csClips = new Map();
+    for (const [k, v] of loaded) _csClips.set(k, v);
+  }
+
+  // 2. Render variant slots now that clips are loaded
   adminCsRenderVariants();
+
   // Sync selector UI to current state
   document.querySelectorAll('.admin-cs-color-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.color === _adminCsSelectedColor);
   });
   document.querySelectorAll('.admin-cs-num-btn').forEach(b => {
     b.classList.toggle('active', Number(b.dataset.num) === _adminCsSelectedNum);
+  });
+
+  // 3. Load THREE/CANNON (no-op if already loaded), then init mini canvas
+  csLoadLibraries(() => {
+    adminCsMiniInit();
+    const status = document.getElementById('admin-cs-mini-status');
+    if (status && status.textContent.includes('Loading')) {
+      status.textContent = 'Select a slot to preview';
+    }
   });
 }
 
@@ -36562,96 +36571,6 @@ function adminCsRenderVariants() {
   });
 }
 
-async function adminCsBakeCandidate() {
-  const warning = document.getElementById('admin-cs-cannon-warning');
-  if (!_csCANNON) {
-    if (warning) warning.removeAttribute('hidden');
-    return;
-  }
-  if (warning) warning.setAttribute('hidden', '');
-  const btn = document.getElementById('admin-cs-generate-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Baking…'; }
-  try {
-    // Use a scratch variant index (99) to avoid polluting real slots
-    const frames = csBakeClip(_csCANNON, _adminCsSelectedColor, _adminCsSelectedNum, 99);
-    if (!frames) { showToast('Bake failed — no valid settle found', 'error'); return; }
-    _adminCsCandidate = { color: _adminCsSelectedColor, num: _adminCsSelectedNum, frames };
-    const frameCount = Math.round(frames.length / 14);
-    const panel = document.getElementById('admin-cs-candidate-panel');
-    const info  = document.getElementById('admin-cs-candidate-info');
-    if (info)  info.textContent  = `${frameCount} frames`;
-    if (panel) panel.removeAttribute('hidden');
-    // Preview immediately in the mini canvas
-    adminCsMiniPlay(frames);
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Generate New'; }
-  }
-}
-
-async function adminCsSaveCandidate() {
-  if (!_adminCsCandidate) return;
-  const slot = Number(document.getElementById('admin-cs-save-slot')?.value ?? 0);
-  const { color, num, frames } = _adminCsCandidate;
-  const key = `${color}_${num}_${slot}`;
-  _csClips?.set(key, frames);
-  await csSaveClipsToDB(new Map([[key, frames]]));
-  _adminCsCandidate = null;
-  document.getElementById('admin-cs-candidate-panel')?.setAttribute('hidden', '');
-  adminCsRenderVariants();
-  showToast(`Saved ${key}`, 'success');
-}
-
-async function adminCsBakeAllMissing() {
-  if (!_csCANNON) {
-    document.getElementById('admin-cs-cannon-warning')?.removeAttribute('hidden');
-    return;
-  }
-  document.getElementById('admin-cs-cannon-warning')?.setAttribute('hidden', '');
-  const btn = document.getElementById('admin-cs-bake-missing-btn');
-  const progressDiv  = document.getElementById('admin-cs-bake-progress');
-  const progressBar  = document.getElementById('admin-cs-progress-bar');
-  const progressText = document.getElementById('admin-cs-progress-text');
-  if (btn) btn.disabled = true;
-  if (progressDiv) progressDiv.removeAttribute('hidden');
-  const COLORS = ['RED', 'BLUE', 'YELLOW'];
-  // Count missing
-  let missing = 0;
-  for (const c of COLORS) for (let n=1;n<=6;n++) for (let v=0;v<5;v++)
-    if (!_csClips?.has(`${c}_${n}_${v}`)) missing++;
-  if (missing === 0) {
-    showToast('All clips already baked', 'info');
-    if (progressDiv) progressDiv.setAttribute('hidden', '');
-    if (btn) btn.disabled = false;
-    return;
-  }
-  let done = 0;
-  const newClips = new Map();
-  for (const c of COLORS) {
-    for (let n=1; n<=6; n++) {
-      for (let v=0; v<5; v++) {
-        const key = `${c}_${n}_${v}`;
-        if (!_csClips?.has(key)) {
-          const frames = csBakeClip(_csCANNON, c, n, v);
-          if (frames) { _csClips.set(key, frames); newClips.set(key, frames); }
-          done++;
-          if (progressBar)  progressBar.style.width  = `${Math.round(done/missing*100)}%`;
-          if (progressText) progressText.textContent = `Baking ${done}/${missing}…`;
-          await new Promise(r => setTimeout(r, 0)); // yield to keep UI responsive
-        }
-      }
-    }
-  }
-  await csSaveClipsToDB(newClips);
-  if (progressDiv)  progressDiv.setAttribute('hidden', '');
-  if (btn) btn.disabled = false;
-  adminCsRenderVariants();
-  showToast(`Baked ${newClips.size} missing clip(s) and saved to DB`, 'success');
-}
-
-// (adminCsStartTest / adminCsUpdateTestBanner / adminCsPlayTestClip /
-//  adminCsSaveTestClip / adminCsDiscardTest removed — preview is now
-//  handled inline by adminCsMiniPlay in the admin panel canvas)
-
 // Wire up admin CS clips event handlers (runs once at page init)
 (function adminCsClipsInit() {
   // Color selector
@@ -36661,8 +36580,6 @@ async function adminCsBakeAllMissing() {
     _adminCsSelectedColor = btn.dataset.color;
     document.querySelectorAll('.admin-cs-color-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    _adminCsCandidate = null;
-    document.getElementById('admin-cs-candidate-panel')?.setAttribute('hidden', '');
     adminCsRenderVariants();
   });
   // Number selector
@@ -36672,21 +36589,8 @@ async function adminCsBakeAllMissing() {
     _adminCsSelectedNum = Number(btn.dataset.num);
     document.querySelectorAll('.admin-cs-num-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    _adminCsCandidate = null;
-    document.getElementById('admin-cs-candidate-panel')?.setAttribute('hidden', '');
     adminCsRenderVariants();
   });
-  // Generate button — bakes + auto-plays in mini canvas
-  document.getElementById('admin-cs-generate-btn')?.addEventListener('click', () => void adminCsBakeCandidate());
-  // Save candidate to chosen slot
-  document.getElementById('admin-cs-save-btn')?.addEventListener('click', () => void adminCsSaveCandidate());
-  // Discard candidate
-  document.getElementById('admin-cs-discard-btn')?.addEventListener('click', () => {
-    _adminCsCandidate = null;
-    document.getElementById('admin-cs-candidate-panel')?.setAttribute('hidden', '');
-  });
-  // Bake all missing
-  document.getElementById('admin-cs-bake-missing-btn')?.addEventListener('click', () => void adminCsBakeAllMissing());
 })();
 
 async function csLoadOrBakeAllClips(CANNON, onProgress) {

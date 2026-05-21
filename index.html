@@ -3177,14 +3177,7 @@
               <section class="route-section admin-list-section">
                 <div class="admin-listing-header">
                   <h2>Color Scheme Clips</h2>
-                  <button type="button" class="secondary" id="admin-cs-bake-missing-btn">Bake All Missing</button>
-                </div>
-                <p id="admin-cs-cannon-warning" class="admin-cs-warning" hidden>
-                  ⚠ Loading physics engine…
-                </p>
-                <div id="admin-cs-bake-progress" class="admin-cs-bake-progress" hidden>
-                  <div class="admin-cs-progress-bar-wrap"><div id="admin-cs-progress-bar" class="admin-cs-progress-bar"></div></div>
-                  <span id="admin-cs-progress-text">Baking…</span>
+                  <p class="admin-cs-hint">Delete clips you don't like — missing slots are auto-generated next time Color Scheme loads.</p>
                 </div>
                 <div class="admin-cs-clips-ui">
                   <!-- LEFT: selector + variants -->
@@ -3209,26 +3202,8 @@
                     <div class="admin-cs-variants-panel">
                       <div class="admin-cs-variants-hdr">
                         <span>Outcome: <strong id="admin-cs-outcome-label">RED 1</strong></span>
-                        <button type="button" class="primary small" id="admin-cs-generate-btn">Generate New</button>
                       </div>
                       <div id="admin-cs-variants-list" class="admin-cs-variants-list"></div>
-                      <div id="admin-cs-candidate-panel" class="admin-cs-candidate-panel" hidden>
-                        <div class="admin-cs-candidate-hdr">
-                          <span class="admin-cs-candidate-title">NEW CANDIDATE</span>
-                          <span id="admin-cs-candidate-info"></span>
-                        </div>
-                        <div class="admin-cs-candidate-actions">
-                          <select id="admin-cs-save-slot" class="admin-cs-slot-select">
-                            <option value="0">→ Slot 0</option>
-                            <option value="1">→ Slot 1</option>
-                            <option value="2">→ Slot 2</option>
-                            <option value="3">→ Slot 3</option>
-                            <option value="4">→ Slot 4</option>
-                          </select>
-                          <button type="button" class="primary small" id="admin-cs-save-btn">Save</button>
-                          <button type="button" class="danger small" id="admin-cs-discard-btn">Discard</button>
-                        </div>
-                      </div>
                     </div>
                   </div>
                   <!-- RIGHT: mini dice preview canvas -->

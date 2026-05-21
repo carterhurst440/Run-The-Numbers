@@ -27589,22 +27589,9 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 }
 
 /* ── Admin CS Clips tab ───────────────────────────────────────── */
-.admin-cs-warning {
-  color: #e8a020; font-size: 13px; margin: 8px 0 14px; padding: 10px 14px;
-  background: rgba(232,160,32,0.08); border: 1px solid rgba(232,160,32,0.25);
-  border-radius: 6px;
+.admin-cs-hint {
+  font-size: 12px; color: #555; margin: 2px 0 0; line-height: 1.4;
 }
-.admin-cs-bake-progress {
-  margin: 10px 0 14px; display: flex; align-items: center; gap: 10px;
-}
-.admin-cs-progress-bar-wrap {
-  flex: 1; height: 6px; background: #222; border-radius: 3px; overflow: hidden;
-}
-.admin-cs-progress-bar {
-  height: 100%; width: 0%; background: #a8ff3e; border-radius: 3px;
-  transition: width 0.15s;
-}
-#admin-cs-progress-text { font-size: 12px; color: #888; white-space: nowrap; }
 .admin-cs-clips-ui {
   display: flex; gap: 24px; align-items: flex-start; margin-top: 16px;
   flex-wrap: wrap;
@@ -27667,26 +27654,6 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .admin-cs-variant-slot { color: #888; font-weight: 700; font-size: 11px; }
 .admin-cs-variant-frames { color: #ccc; }
 .admin-cs-variant-empty { color: #444; font-style: italic; }
-.admin-cs-candidate-panel {
-  margin-top: 6px; padding: 12px 14px; background: rgba(168,255,62,0.04);
-  border: 1px solid rgba(168,255,62,0.2); border-radius: 6px;
-}
-.admin-cs-candidate-hdr {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 10px;
-}
-.admin-cs-candidate-title {
-  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
-  color: #a8ff3e; font-weight: 700;
-}
-#admin-cs-candidate-info { font-size: 12px; color: #888; }
-.admin-cs-candidate-actions {
-  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
-}
-.admin-cs-slot-select {
-  background: #1e1e1e; border: 1px solid #333; color: #ccc;
-  padding: 4px 8px; font-size: 12px; border-radius: 4px; cursor: pointer;
-}
 
 /* ============================================================
    Paytable modal — RTN amber theme
