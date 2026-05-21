@@ -9386,6 +9386,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
 
   if (resolvedRoute === "color-scheme") {
     initColorSchemeGame();
+    adminCsUpdateTestBanner();
   } else {
     destroyColorSchemeGame();
   }
@@ -18359,6 +18360,7 @@ const adminAnalyticsContent = document.getElementById("admin-analytics-content")
 const adminContestsContent = document.getElementById("admin-contests-content");
 const adminDesignContent = document.getElementById("admin-design-content");
 const adminRanksContent = document.getElementById("admin-ranks-content");
+const adminCsClipsContent = document.getElementById("admin-cs-clips-content");
 const adminGameListEl = document.getElementById("admin-game-list");
 const adminGameMessage = document.getElementById("admin-game-message");
 const adminGamesMigrateButton = document.getElementById("admin-games-migrate-button");
@@ -30091,6 +30093,15 @@ adminTabButtons.forEach(button => {
       if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = false;
       void loadAdminRanks(true);
+    } else if (targetTab === "cs-clips") {
+      adminPrizesContent.hidden = true;
+      if (adminGamesContent) adminGamesContent.hidden = true;
+      adminAnalyticsContent.hidden = true;
+      if (adminContestsContent) adminContestsContent.hidden = true;
+      if (adminDesignContent) adminDesignContent.hidden = true;
+      if (adminRanksContent) adminRanksContent.hidden = true;
+      if (adminCsClipsContent) adminCsClipsContent.hidden = false;
+      adminCsClipsTabOpen();
     }
   });
 });
@@ -35386,6 +35397,7 @@ let _csPendingServerRoll = null;
 let _csChipButtons = [];
 let _csTargetQuats = null; // {color:{x,y,z,w}, number:{x,y,z,w}} — server-determined face targets
 let _csCANNON = null;       // stored when game initializes so async roll handler can access it
+let _csAdminTestClip = null;  // { color, num, variant, frames } — set by admin CS clips panel
 let _csClips = null;       // Map<"RED_3_0"…"RED_3_4", Float32Array> — null until baked
 let _csClipActive = null;  // clip currently playing, or null
 let _csClipFrame = 0;      // current frame index within active clip
@@ -36336,6 +36348,249 @@ async function csSaveClipsToDB(newClips) {
     else console.log(`[CS clips] saved ${rows.length} clip(s) to DB`);
   } catch(e) { console.warn('[CS clips] DB save exception:', e); }
 }
+
+// ── Admin CS Clips panel ─────────────────────────────────────────────────
+let _adminCsSelectedColor = 'RED';
+let _adminCsSelectedNum = 1;
+let _adminCsCandidate = null; // { color, num, frames: Float32Array }
+
+function adminCsClipsTabOpen() {
+  adminCsRenderVariants();
+  // Sync selector UI to current state
+  document.querySelectorAll('.admin-cs-color-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.color === _adminCsSelectedColor);
+  });
+  document.querySelectorAll('.admin-cs-num-btn').forEach(b => {
+    b.classList.toggle('active', Number(b.dataset.num) === _adminCsSelectedNum);
+  });
+}
+
+function adminCsRenderVariants() {
+  const list = document.getElementById('admin-cs-variants-list');
+  const label = document.getElementById('admin-cs-outcome-label');
+  if (!list) return;
+  if (label) label.textContent = `${_adminCsSelectedColor} ${_adminCsSelectedNum}`;
+  list.innerHTML = '';
+  const C = _adminCsSelectedColor, N = _adminCsSelectedNum;
+  for (let v = 0; v < 5; v++) {
+    const key = `${C}_${N}_${v}`;
+    const clip = _csClips?.get(key);
+    const row = document.createElement('div');
+    row.className = 'admin-cs-variant-row';
+    if (clip) {
+      const frames = Math.round(clip.length / 14);
+      row.innerHTML = `
+        <span class="admin-cs-variant-slot">Slot ${v}</span>
+        <span class="admin-cs-variant-frames">${frames} frames</span>
+        <button class="secondary small" data-variant="${v}" data-action="test-variant">▶ Test</button>
+        <button class="danger small" data-variant="${v}" data-action="delete-variant">✕</button>
+      `;
+    } else {
+      row.innerHTML = `
+        <span class="admin-cs-variant-slot">Slot ${v}</span>
+        <span class="admin-cs-variant-frames admin-cs-variant-empty">empty</span>
+        <span></span><span></span>
+      `;
+    }
+    list.appendChild(row);
+  }
+  // Wire row buttons
+  list.querySelectorAll('[data-action="test-variant"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const v = Number(btn.dataset.variant);
+      const key = `${_adminCsSelectedColor}_${_adminCsSelectedNum}_${v}`;
+      const frames = _csClips?.get(key);
+      if (!frames) return;
+      adminCsStartTest({ color: _adminCsSelectedColor, num: _adminCsSelectedNum, variant: v, frames });
+    });
+  });
+  list.querySelectorAll('[data-action="delete-variant"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const v = Number(btn.dataset.variant);
+      const key = `${_adminCsSelectedColor}_${_adminCsSelectedNum}_${v}`;
+      if (!confirm(`Delete ${key}?`)) return;
+      _csClips?.delete(key);
+      if (supabase) {
+        const { error } = await supabase.from('cs_animation_clips').delete().eq('outcome', key);
+        if (error) { showToast(`Delete failed: ${error.message}`, 'error'); return; }
+      }
+      adminCsRenderVariants();
+      showToast(`Deleted ${key}`, 'info');
+    });
+  });
+}
+
+async function adminCsBakeCandidate() {
+  const warning = document.getElementById('admin-cs-cannon-warning');
+  if (!_csCANNON) {
+    if (warning) warning.removeAttribute('hidden');
+    return;
+  }
+  if (warning) warning.setAttribute('hidden', '');
+  const btn = document.getElementById('admin-cs-generate-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Baking…'; }
+  try {
+    // Use a scratch variant index (99) to avoid polluting real slots
+    const frames = csBakeClip(_csCANNON, _adminCsSelectedColor, _adminCsSelectedNum, 99);
+    if (!frames) { showToast('Bake failed — no valid settle found', 'error'); return; }
+    _adminCsCandidate = { color: _adminCsSelectedColor, num: _adminCsSelectedNum, frames };
+    const frameCount = Math.round(frames.length / 14);
+    const panel = document.getElementById('admin-cs-candidate-panel');
+    const info  = document.getElementById('admin-cs-candidate-info');
+    if (info)  info.textContent  = `${frameCount} frames`;
+    if (panel) panel.removeAttribute('hidden');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Generate New'; }
+  }
+}
+
+async function adminCsSaveCandidate() {
+  if (!_adminCsCandidate) return;
+  const slot = Number(document.getElementById('admin-cs-save-slot')?.value ?? 0);
+  const { color, num, frames } = _adminCsCandidate;
+  const key = `${color}_${num}_${slot}`;
+  _csClips?.set(key, frames);
+  await csSaveClipsToDB(new Map([[key, frames]]));
+  _adminCsCandidate = null;
+  document.getElementById('admin-cs-candidate-panel')?.setAttribute('hidden', '');
+  adminCsRenderVariants();
+  showToast(`Saved ${key}`, 'success');
+}
+
+async function adminCsBakeAllMissing() {
+  if (!_csCANNON) {
+    document.getElementById('admin-cs-cannon-warning')?.removeAttribute('hidden');
+    return;
+  }
+  document.getElementById('admin-cs-cannon-warning')?.setAttribute('hidden', '');
+  const btn = document.getElementById('admin-cs-bake-missing-btn');
+  const progressDiv  = document.getElementById('admin-cs-bake-progress');
+  const progressBar  = document.getElementById('admin-cs-progress-bar');
+  const progressText = document.getElementById('admin-cs-progress-text');
+  if (btn) btn.disabled = true;
+  if (progressDiv) progressDiv.removeAttribute('hidden');
+  const COLORS = ['RED', 'BLUE', 'YELLOW'];
+  // Count missing
+  let missing = 0;
+  for (const c of COLORS) for (let n=1;n<=6;n++) for (let v=0;v<5;v++)
+    if (!_csClips?.has(`${c}_${n}_${v}`)) missing++;
+  if (missing === 0) {
+    showToast('All clips already baked', 'info');
+    if (progressDiv) progressDiv.setAttribute('hidden', '');
+    if (btn) btn.disabled = false;
+    return;
+  }
+  let done = 0;
+  const newClips = new Map();
+  for (const c of COLORS) {
+    for (let n=1; n<=6; n++) {
+      for (let v=0; v<5; v++) {
+        const key = `${c}_${n}_${v}`;
+        if (!_csClips?.has(key)) {
+          const frames = csBakeClip(_csCANNON, c, n, v);
+          if (frames) { _csClips.set(key, frames); newClips.set(key, frames); }
+          done++;
+          if (progressBar)  progressBar.style.width  = `${Math.round(done/missing*100)}%`;
+          if (progressText) progressText.textContent = `Baking ${done}/${missing}…`;
+          await new Promise(r => setTimeout(r, 0)); // yield to keep UI responsive
+        }
+      }
+    }
+  }
+  await csSaveClipsToDB(newClips);
+  if (progressDiv)  progressDiv.setAttribute('hidden', '');
+  if (btn) btn.disabled = false;
+  adminCsRenderVariants();
+  showToast(`Baked ${newClips.size} missing clip(s) and saved to DB`, 'success');
+}
+
+function adminCsStartTest(clip) {
+  _csAdminTestClip = clip;
+  // Navigate to CS and let the view show the test banner
+  void setRoute('color-scheme');
+}
+
+function adminCsUpdateTestBanner() {
+  const banner = document.getElementById('cs-admin-test-banner');
+  if (!banner) return;
+  if (!_csAdminTestClip) { banner.setAttribute('hidden', ''); return; }
+  const label = document.getElementById('cs-admin-test-banner-label');
+  if (label) label.textContent = `ADMIN TEST — ${_csAdminTestClip.color} ${_csAdminTestClip.num}  (${Math.round(_csAdminTestClip.frames.length/14)} frames)`;
+  banner.removeAttribute('hidden');
+}
+
+function adminCsPlayTestClip() {
+  if (!_csAdminTestClip || _csDice.length < 2) {
+    showToast('Roll once in CS to initialize the canvas, then test', 'info');
+    return;
+  }
+  _csClipActive  = _csAdminTestClip.frames;
+  _csClipFrame   = 0;
+  _csClipOnDone  = null;
+}
+
+async function adminCsSaveTestClip() {
+  if (!_csAdminTestClip) return;
+  const slot = Number(document.getElementById('cs-admin-test-save-slot')?.value ?? 0);
+  const { color, num, frames } = _csAdminTestClip;
+  const key = `${color}_${num}_${slot}`;
+  _csClips?.set(key, frames);
+  await csSaveClipsToDB(new Map([[key, frames]]));
+  _csAdminTestClip = null;
+  adminCsUpdateTestBanner();
+  showToast(`Saved ${key}`, 'success');
+}
+
+function adminCsDiscardTest() {
+  _csAdminTestClip = null;
+  adminCsUpdateTestBanner();
+}
+
+// Wire up admin CS clips event handlers (runs once at page init)
+(function adminCsClipsInit() {
+  // Color selector
+  document.getElementById('admin-cs-color-row')?.addEventListener('click', e => {
+    const btn = e.target.closest('.admin-cs-color-btn');
+    if (!btn) return;
+    _adminCsSelectedColor = btn.dataset.color;
+    document.querySelectorAll('.admin-cs-color-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    _adminCsCandidate = null;
+    document.getElementById('admin-cs-candidate-panel')?.setAttribute('hidden', '');
+    adminCsRenderVariants();
+  });
+  // Number selector
+  document.getElementById('admin-cs-num-row')?.addEventListener('click', e => {
+    const btn = e.target.closest('.admin-cs-num-btn');
+    if (!btn) return;
+    _adminCsSelectedNum = Number(btn.dataset.num);
+    document.querySelectorAll('.admin-cs-num-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    _adminCsCandidate = null;
+    document.getElementById('admin-cs-candidate-panel')?.setAttribute('hidden', '');
+    adminCsRenderVariants();
+  });
+  // Generate button
+  document.getElementById('admin-cs-generate-btn')?.addEventListener('click', () => void adminCsBakeCandidate());
+  // Save candidate
+  document.getElementById('admin-cs-save-btn')?.addEventListener('click', () => void adminCsSaveCandidate());
+  // Discard candidate
+  document.getElementById('admin-cs-discard-btn')?.addEventListener('click', () => {
+    _adminCsCandidate = null;
+    document.getElementById('admin-cs-candidate-panel')?.setAttribute('hidden', '');
+  });
+  // Test candidate in CS
+  document.getElementById('admin-cs-test-btn')?.addEventListener('click', () => {
+    if (!_adminCsCandidate) return;
+    adminCsStartTest({ ..._adminCsCandidate });
+  });
+  // Bake all missing
+  document.getElementById('admin-cs-bake-missing-btn')?.addEventListener('click', () => void adminCsBakeAllMissing());
+  // CS view test banner buttons
+  document.getElementById('cs-admin-test-play-btn')?.addEventListener('click', adminCsPlayTestClip);
+  document.getElementById('cs-admin-test-save-btn')?.addEventListener('click', () => void adminCsSaveTestClip());
+  document.getElementById('cs-admin-test-discard-btn')?.addEventListener('click', adminCsDiscardTest);
+})();
 
 async function csLoadOrBakeAllClips(CANNON, onProgress) {
   _csClips = new Map();
