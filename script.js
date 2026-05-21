@@ -9386,7 +9386,6 @@ async function setRoute(route, { replaceHash = false } = {}) {
 
   if (resolvedRoute === "color-scheme") {
     initColorSchemeGame();
-    adminCsUpdateTestBanner();
   } else {
     destroyColorSchemeGame();
   }
@@ -30102,6 +30101,9 @@ adminTabButtons.forEach(button => {
       if (adminRanksContent) adminRanksContent.hidden = true;
       if (adminCsClipsContent) adminCsClipsContent.hidden = false;
       adminCsClipsTabOpen();
+    } else {
+      // Pause the mini canvas RAF whenever we leave the CS Clips tab
+      adminCsMiniPause();
     }
   });
 });
@@ -35397,7 +35399,7 @@ let _csPendingServerRoll = null;
 let _csChipButtons = [];
 let _csTargetQuats = null; // {color:{x,y,z,w}, number:{x,y,z,w}} — server-determined face targets
 let _csCANNON = null;       // stored when game initializes so async roll handler can access it
-let _csAdminTestClip = null;  // { color, num, variant, frames } — set by admin CS clips panel
+// _csAdminTestClip removed — preview now lives in adminCsMiniPlay (admin panel canvas)
 let _csClips = null;       // Map<"RED_3_0"…"RED_3_4", Float32Array> — null until baked
 let _csClipActive = null;  // clip currently playing, or null
 let _csClipFrame = 0;      // current frame index within active clip
@@ -36354,7 +36356,147 @@ let _adminCsSelectedColor = 'RED';
 let _adminCsSelectedNum = 1;
 let _adminCsCandidate = null; // { color, num, frames: Float32Array }
 
+// ── Admin mini-canvas (dice preview embedded in admin panel) ────────────────
+let _adminCsRenderer    = null;
+let _adminCsScene       = null;
+let _adminCsCamera      = null;
+let _adminCsDice        = [];   // [{mesh, isColor}, ...]
+let _adminCsClipActive  = null; // Float32Array currently playing
+let _adminCsClipFrame   = 0;
+let _adminCsRafId       = null;
+let _adminCsLoopClip    = true; // auto-replay when done (good for previewing)
+
+// ── Mini-canvas RAF loop ────────────────────────────────────────────────────
+function adminCsMiniLoop() {
+  _adminCsRafId = requestAnimationFrame(adminCsMiniLoop);
+  if (!_adminCsRenderer || !_adminCsScene || !_adminCsCamera) return;
+  if (_adminCsClipActive) {
+    const totalFrames = _adminCsClipActive.length / 14;
+    if (_adminCsClipFrame < totalFrames) {
+      const o  = _adminCsClipFrame * 14;
+      const cd = _adminCsDice.find(d => d.isColor);
+      const nd = _adminCsDice.find(d => !d.isColor);
+      if (cd) {
+        cd.mesh.position.set(_adminCsClipActive[o],   _adminCsClipActive[o+1], _adminCsClipActive[o+2]);
+        cd.mesh.quaternion.set(_adminCsClipActive[o+3],_adminCsClipActive[o+4],_adminCsClipActive[o+5],_adminCsClipActive[o+6]);
+      }
+      if (nd) {
+        nd.mesh.position.set(_adminCsClipActive[o+7], _adminCsClipActive[o+8], _adminCsClipActive[o+9]);
+        nd.mesh.quaternion.set(_adminCsClipActive[o+10],_adminCsClipActive[o+11],_adminCsClipActive[o+12],_adminCsClipActive[o+13]);
+      }
+      _adminCsClipFrame++;
+    } else {
+      if (_adminCsLoopClip) {
+        _adminCsClipFrame = 0; // loop
+      } else {
+        _adminCsClipActive = null;
+      }
+    }
+  }
+  _adminCsRenderer.render(_adminCsScene, _adminCsCamera);
+}
+
+// ── Mini-canvas init / pause / resume / play ─────────────────────────────────
+function adminCsMiniInit() {
+  const canvas = document.getElementById('admin-cs-mini-canvas');
+  if (!canvas) return;
+  // If already running, nothing to do
+  if (_adminCsRenderer) {
+    if (!_adminCsRafId) _adminCsRafId = requestAnimationFrame(adminCsMiniLoop);
+    return;
+  }
+  const THREE = window.THREE;
+  if (!THREE) {
+    // Load CS libs then retry
+    const warning = document.getElementById('admin-cs-cannon-warning');
+    if (warning) { warning.textContent = '⚠ Loading physics engine…'; warning.removeAttribute('hidden'); }
+    csLoadLibraries(() => {
+      if (warning) warning.setAttribute('hidden', '');
+      adminCsMiniInit();
+    });
+    return;
+  }
+
+  const W = 320, H = 200;
+  _adminCsRenderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  _adminCsRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  _adminCsRenderer.setSize(W, H);
+  _adminCsRenderer.shadowMap.enabled = true;
+  _adminCsRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  _adminCsRenderer.setClearColor(0x080808);
+
+  _adminCsScene = new THREE.Scene();
+  _adminCsScene.fog = new THREE.Fog(0x080808, 10, 18);
+  _adminCsCamera = new THREE.PerspectiveCamera(36, W / H, 0.1, 100);
+  _adminCsCamera.position.set(0, 7, 7);
+  _adminCsCamera.lookAt(0, 0, 0);
+
+  // Lighting (same as main CS scene)
+  _adminCsScene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+  sun.position.set(4, 12, 6); sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.camera.near = 0.5; sun.shadow.camera.far = 50;
+  sun.shadow.camera.left = -7; sun.shadow.camera.right = 7;
+  sun.shadow.camera.top = 7;  sun.shadow.camera.bottom = -7;
+  _adminCsScene.add(sun);
+  const neon = new THREE.PointLight(0xffffff, 0.3, 20);
+  neon.position.set(-5, 2, 3); _adminCsScene.add(neon);
+  const rim = new THREE.PointLight(0xddddff, 0.2, 18);
+  rim.position.set(3, 4, -6); _adminCsScene.add(rim);
+
+  // Floor + grid
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(12, 12),
+    new THREE.MeshLambertMaterial({ color: 0x0a0a0a })
+  );
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; _adminCsScene.add(floor);
+  const gm = new THREE.LineBasicMaterial({ color: 0x2a2a2a, transparent: true, opacity: 1 });
+  for (let i = -5; i <= 5; i++) {
+    [[new THREE.Vector3(-8,0.002,i*1.2), new THREE.Vector3(8,0.002,i*1.2)],
+     [new THREE.Vector3(i*1.2,0.002,-8), new THREE.Vector3(i*1.2,0.002,8)]
+    ].forEach(pts => { _adminCsScene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), gm)); });
+  }
+
+  // Two dice meshes (no physics — just meshes for clip playback)
+  function addDieMesh(textures, isColor) {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      textures.map(t => new THREE.MeshLambertMaterial({ map: t }))
+    );
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    mesh.position.set(isColor ? -1.6 : 1.6, 0.6, 0);
+    _adminCsScene.add(mesh);
+    return { mesh, isColor };
+  }
+  _adminCsDice = [
+    addDieMesh(csMakeColorDie(THREE), true),
+    addDieMesh(csMakeNumberDie(THREE), false),
+  ];
+
+  _adminCsRafId = requestAnimationFrame(adminCsMiniLoop);
+}
+
+function adminCsMiniPause() {
+  if (_adminCsRafId) { cancelAnimationFrame(_adminCsRafId); _adminCsRafId = null; }
+}
+
+function adminCsMiniPlay(frames) {
+  // Ensure mini canvas is up
+  if (!_adminCsRenderer) adminCsMiniInit();
+  _adminCsClipActive = frames;
+  _adminCsClipFrame  = 0;
+  _adminCsLoopClip   = true;
+  const frameCount = Math.round(frames.length / 14);
+  const status = document.getElementById('admin-cs-mini-status');
+  if (status) status.textContent = `${frameCount} frames — looping`;
+  // Restart RAF if it was paused
+  if (!_adminCsRafId && _adminCsRenderer) _adminCsRafId = requestAnimationFrame(adminCsMiniLoop);
+}
+
+// ── Tab open ──────────────────────────────────────────────────────────────────
 function adminCsClipsTabOpen() {
+  adminCsMiniInit();
   adminCsRenderVariants();
   // Sync selector UI to current state
   document.querySelectorAll('.admin-cs-color-btn').forEach(b => {
@@ -36401,7 +36543,7 @@ function adminCsRenderVariants() {
       const key = `${_adminCsSelectedColor}_${_adminCsSelectedNum}_${v}`;
       const frames = _csClips?.get(key);
       if (!frames) return;
-      adminCsStartTest({ color: _adminCsSelectedColor, num: _adminCsSelectedNum, variant: v, frames });
+      adminCsMiniPlay(frames);
     });
   });
   list.querySelectorAll('[data-action="delete-variant"]').forEach(btn => {
@@ -36439,6 +36581,8 @@ async function adminCsBakeCandidate() {
     const info  = document.getElementById('admin-cs-candidate-info');
     if (info)  info.textContent  = `${frameCount} frames`;
     if (panel) panel.removeAttribute('hidden');
+    // Preview immediately in the mini canvas
+    adminCsMiniPlay(frames);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Generate New'; }
   }
@@ -36504,47 +36648,9 @@ async function adminCsBakeAllMissing() {
   showToast(`Baked ${newClips.size} missing clip(s) and saved to DB`, 'success');
 }
 
-function adminCsStartTest(clip) {
-  _csAdminTestClip = clip;
-  // Navigate to CS and let the view show the test banner
-  void setRoute('color-scheme');
-}
-
-function adminCsUpdateTestBanner() {
-  const banner = document.getElementById('cs-admin-test-banner');
-  if (!banner) return;
-  if (!_csAdminTestClip) { banner.setAttribute('hidden', ''); return; }
-  const label = document.getElementById('cs-admin-test-banner-label');
-  if (label) label.textContent = `ADMIN TEST — ${_csAdminTestClip.color} ${_csAdminTestClip.num}  (${Math.round(_csAdminTestClip.frames.length/14)} frames)`;
-  banner.removeAttribute('hidden');
-}
-
-function adminCsPlayTestClip() {
-  if (!_csAdminTestClip || _csDice.length < 2) {
-    showToast('Roll once in CS to initialize the canvas, then test', 'info');
-    return;
-  }
-  _csClipActive  = _csAdminTestClip.frames;
-  _csClipFrame   = 0;
-  _csClipOnDone  = null;
-}
-
-async function adminCsSaveTestClip() {
-  if (!_csAdminTestClip) return;
-  const slot = Number(document.getElementById('cs-admin-test-save-slot')?.value ?? 0);
-  const { color, num, frames } = _csAdminTestClip;
-  const key = `${color}_${num}_${slot}`;
-  _csClips?.set(key, frames);
-  await csSaveClipsToDB(new Map([[key, frames]]));
-  _csAdminTestClip = null;
-  adminCsUpdateTestBanner();
-  showToast(`Saved ${key}`, 'success');
-}
-
-function adminCsDiscardTest() {
-  _csAdminTestClip = null;
-  adminCsUpdateTestBanner();
-}
+// (adminCsStartTest / adminCsUpdateTestBanner / adminCsPlayTestClip /
+//  adminCsSaveTestClip / adminCsDiscardTest removed — preview is now
+//  handled inline by adminCsMiniPlay in the admin panel canvas)
 
 // Wire up admin CS clips event handlers (runs once at page init)
 (function adminCsClipsInit() {
@@ -36570,26 +36676,17 @@ function adminCsDiscardTest() {
     document.getElementById('admin-cs-candidate-panel')?.setAttribute('hidden', '');
     adminCsRenderVariants();
   });
-  // Generate button
+  // Generate button — bakes + auto-plays in mini canvas
   document.getElementById('admin-cs-generate-btn')?.addEventListener('click', () => void adminCsBakeCandidate());
-  // Save candidate
+  // Save candidate to chosen slot
   document.getElementById('admin-cs-save-btn')?.addEventListener('click', () => void adminCsSaveCandidate());
   // Discard candidate
   document.getElementById('admin-cs-discard-btn')?.addEventListener('click', () => {
     _adminCsCandidate = null;
     document.getElementById('admin-cs-candidate-panel')?.setAttribute('hidden', '');
   });
-  // Test candidate in CS
-  document.getElementById('admin-cs-test-btn')?.addEventListener('click', () => {
-    if (!_adminCsCandidate) return;
-    adminCsStartTest({ ..._adminCsCandidate });
-  });
   // Bake all missing
   document.getElementById('admin-cs-bake-missing-btn')?.addEventListener('click', () => void adminCsBakeAllMissing());
-  // CS view test banner buttons
-  document.getElementById('cs-admin-test-play-btn')?.addEventListener('click', adminCsPlayTestClip);
-  document.getElementById('cs-admin-test-save-btn')?.addEventListener('click', () => void adminCsSaveTestClip());
-  document.getElementById('cs-admin-test-discard-btn')?.addEventListener('click', adminCsDiscardTest);
 })();
 
 async function csLoadOrBakeAllClips(CANNON, onProgress) {

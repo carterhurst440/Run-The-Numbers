@@ -3180,54 +3180,62 @@
                   <button type="button" class="secondary" id="admin-cs-bake-missing-btn">Bake All Missing</button>
                 </div>
                 <p id="admin-cs-cannon-warning" class="admin-cs-warning" hidden>
-                  ⚠ Open Color Scheme and roll once to enable baking.
+                  ⚠ Loading physics engine…
                 </p>
                 <div id="admin-cs-bake-progress" class="admin-cs-bake-progress" hidden>
                   <div class="admin-cs-progress-bar-wrap"><div id="admin-cs-progress-bar" class="admin-cs-progress-bar"></div></div>
                   <span id="admin-cs-progress-text">Baking…</span>
                 </div>
                 <div class="admin-cs-clips-ui">
-                  <div class="admin-cs-selector">
-                    <div class="admin-cs-selector-label">Color</div>
-                    <div class="admin-cs-color-row" id="admin-cs-color-row">
-                      <button type="button" class="admin-cs-color-btn active" data-color="RED">RED</button>
-                      <button type="button" class="admin-cs-color-btn" data-color="BLUE">BLUE</button>
-                      <button type="button" class="admin-cs-color-btn" data-color="YELLOW">YELLOW</button>
+                  <!-- LEFT: selector + variants -->
+                  <div class="admin-cs-left-col">
+                    <div class="admin-cs-selector">
+                      <div class="admin-cs-selector-label">Color</div>
+                      <div class="admin-cs-color-row" id="admin-cs-color-row">
+                        <button type="button" class="admin-cs-color-btn active" data-color="RED">RED</button>
+                        <button type="button" class="admin-cs-color-btn" data-color="BLUE">BLUE</button>
+                        <button type="button" class="admin-cs-color-btn" data-color="YELLOW">YELLOW</button>
+                      </div>
+                      <div class="admin-cs-selector-label">Number</div>
+                      <div class="admin-cs-num-row" id="admin-cs-num-row">
+                        <button type="button" class="admin-cs-num-btn active" data-num="1">1</button>
+                        <button type="button" class="admin-cs-num-btn" data-num="2">2</button>
+                        <button type="button" class="admin-cs-num-btn" data-num="3">3</button>
+                        <button type="button" class="admin-cs-num-btn" data-num="4">4</button>
+                        <button type="button" class="admin-cs-num-btn" data-num="5">5</button>
+                        <button type="button" class="admin-cs-num-btn" data-num="6">6</button>
+                      </div>
                     </div>
-                    <div class="admin-cs-selector-label">Number</div>
-                    <div class="admin-cs-num-row" id="admin-cs-num-row">
-                      <button type="button" class="admin-cs-num-btn active" data-num="1">1</button>
-                      <button type="button" class="admin-cs-num-btn" data-num="2">2</button>
-                      <button type="button" class="admin-cs-num-btn" data-num="3">3</button>
-                      <button type="button" class="admin-cs-num-btn" data-num="4">4</button>
-                      <button type="button" class="admin-cs-num-btn" data-num="5">5</button>
-                      <button type="button" class="admin-cs-num-btn" data-num="6">6</button>
+                    <div class="admin-cs-variants-panel">
+                      <div class="admin-cs-variants-hdr">
+                        <span>Outcome: <strong id="admin-cs-outcome-label">RED 1</strong></span>
+                        <button type="button" class="primary small" id="admin-cs-generate-btn">Generate New</button>
+                      </div>
+                      <div id="admin-cs-variants-list" class="admin-cs-variants-list"></div>
+                      <div id="admin-cs-candidate-panel" class="admin-cs-candidate-panel" hidden>
+                        <div class="admin-cs-candidate-hdr">
+                          <span class="admin-cs-candidate-title">NEW CANDIDATE</span>
+                          <span id="admin-cs-candidate-info"></span>
+                        </div>
+                        <div class="admin-cs-candidate-actions">
+                          <select id="admin-cs-save-slot" class="admin-cs-slot-select">
+                            <option value="0">→ Slot 0</option>
+                            <option value="1">→ Slot 1</option>
+                            <option value="2">→ Slot 2</option>
+                            <option value="3">→ Slot 3</option>
+                            <option value="4">→ Slot 4</option>
+                          </select>
+                          <button type="button" class="primary small" id="admin-cs-save-btn">Save</button>
+                          <button type="button" class="danger small" id="admin-cs-discard-btn">Discard</button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div class="admin-cs-variants-panel">
-                    <div class="admin-cs-variants-hdr">
-                      <span>Outcome: <strong id="admin-cs-outcome-label">RED 1</strong></span>
-                      <button type="button" class="primary small" id="admin-cs-generate-btn">Generate New</button>
-                    </div>
-                    <div id="admin-cs-variants-list" class="admin-cs-variants-list"></div>
-                    <div id="admin-cs-candidate-panel" class="admin-cs-candidate-panel" hidden>
-                      <div class="admin-cs-candidate-hdr">
-                        <span class="admin-cs-candidate-title">NEW CANDIDATE</span>
-                        <span id="admin-cs-candidate-info"></span>
-                      </div>
-                      <div class="admin-cs-candidate-actions">
-                        <button type="button" class="secondary small" id="admin-cs-test-btn">▶ Test in CS</button>
-                        <select id="admin-cs-save-slot" class="admin-cs-slot-select">
-                          <option value="0">→ Slot 0</option>
-                          <option value="1">→ Slot 1</option>
-                          <option value="2">→ Slot 2</option>
-                          <option value="3">→ Slot 3</option>
-                          <option value="4">→ Slot 4</option>
-                        </select>
-                        <button type="button" class="primary small" id="admin-cs-save-btn">Save</button>
-                        <button type="button" class="danger small" id="admin-cs-discard-btn">Discard</button>
-                      </div>
-                    </div>
+                  <!-- RIGHT: mini dice preview canvas -->
+                  <div class="admin-cs-preview-col">
+                    <div class="admin-cs-preview-label">PREVIEW</div>
+                    <canvas id="admin-cs-mini-canvas" width="320" height="200"></canvas>
+                    <div id="admin-cs-mini-status" class="admin-cs-mini-status">Select a slot to preview</div>
                   </div>
                 </div>
               </section>
@@ -3288,19 +3296,6 @@
         </section>
 
         <section id="color-scheme-view" class="route-view app-page cs-view" hidden aria-labelledby="cs-view-title">
-          <div id="cs-admin-test-banner" class="cs-admin-test-banner" hidden>
-            <span id="cs-admin-test-banner-label">Testing clip…</span>
-            <button type="button" class="secondary small" id="cs-admin-test-play-btn">▶ Play Again</button>
-            <select id="cs-admin-test-save-slot" class="admin-cs-slot-select">
-              <option value="0">→ Slot 0</option>
-              <option value="1">→ Slot 1</option>
-              <option value="2">→ Slot 2</option>
-              <option value="3">→ Slot 3</option>
-              <option value="4">→ Slot 4</option>
-            </select>
-            <button type="button" class="primary small" id="cs-admin-test-save-btn">Save</button>
-            <button type="button" class="danger small" id="cs-admin-test-discard-btn">Discard</button>
-          </div>
           <h1 id="cs-view-title" class="sr-only">Color Scheme</h1>
 
           <!-- Game panel: topbar + mid section in one bordered card -->

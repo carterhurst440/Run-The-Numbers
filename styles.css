@@ -27606,8 +27606,25 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 }
 #admin-cs-progress-text { font-size: 12px; color: #888; white-space: nowrap; }
 .admin-cs-clips-ui {
-  display: flex; gap: 20px; align-items: flex-start; margin-top: 16px;
+  display: flex; gap: 24px; align-items: flex-start; margin-top: 16px;
   flex-wrap: wrap;
+}
+.admin-cs-left-col {
+  display: flex; flex-direction: column; gap: 16px; min-width: 280px; flex: 1;
+}
+.admin-cs-preview-col {
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
+  flex-shrink: 0;
+}
+.admin-cs-preview-label {
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #555;
+}
+#admin-cs-mini-canvas {
+  display: block; border-radius: 6px; border: 1px solid #222;
+  width: 320px; height: 200px;
+}
+.admin-cs-mini-status {
+  font-size: 11px; color: #555; font-style: italic;
 }
 .admin-cs-selector {
   display: flex; flex-direction: column; gap: 8px; min-width: 200px;
@@ -27670,18 +27687,6 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   background: #1e1e1e; border: 1px solid #333; color: #ccc;
   padding: 4px 8px; font-size: 12px; border-radius: 4px; cursor: pointer;
 }
-/* Test banner in CS view */
-.cs-admin-test-banner {
-  position: absolute; top: 0; left: 0; right: 0; z-index: 200;
-  background: rgba(168,255,62,0.12); border-bottom: 1px solid rgba(168,255,62,0.35);
-  display: flex; align-items: center; gap: 10px; padding: 8px 16px;
-  flex-wrap: wrap;
-}
-#cs-admin-test-banner-label {
-  font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
-  text-transform: uppercase; color: #a8ff3e; flex: 1; min-width: 160px;
-}
-#color-scheme-view { position: relative; }
 
 /* ============================================================
    Paytable modal — RTN amber theme
