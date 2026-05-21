@@ -36559,14 +36559,22 @@ function adminCsRenderVariants() {
     btn.addEventListener('click', async () => {
       const v = Number(btn.dataset.variant);
       const key = `${_adminCsSelectedColor}_${_adminCsSelectedNum}_${v}`;
-      if (!confirm(`Delete ${key}?`)) return;
+      if (!confirm(`Delete ${key}? A fresh clip will be generated next time Color Scheme loads.`)) return;
+      // Remove from in-memory map immediately
       _csClips?.delete(key);
       if (supabase) {
-        const { error } = await supabase.from('cs_animation_clips').delete().eq('outcome', key);
+        // Soft-delete: upsert an empty frames array.
+        // csLoadClipsFromDB skips rows where frames.length === 0, so this slot
+        // will appear "missing" and get freshly baked on the next CS game load.
+        // We use upsert instead of delete because RLS on this table blocks row
+        // deletions from the client but allows upserts.
+        const { error } = await supabase
+          .from('cs_animation_clips')
+          .upsert({ outcome: key, frames: [] }, { onConflict: 'outcome' });
         if (error) { showToast(`Delete failed: ${error.message}`, 'error'); return; }
       }
       adminCsRenderVariants();
-      showToast(`Deleted ${key}`, 'info');
+      showToast(`Removed ${key} — new clip generates on next CS load`, 'success');
     });
   });
 }
