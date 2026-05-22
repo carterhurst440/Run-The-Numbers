@@ -27657,17 +27657,8 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .admin-cs-empty-row {
   color: #444; font-style: italic; justify-content: center; font-size: 11px;
 }
-.admin-cs-active-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
-  color: #a8ff3e; min-width: 58px;
-}
-.admin-cs-variant-slot { color: #888; font-weight: 700; font-size: 11px; min-width: 28px; }
 .admin-cs-variant-frames { color: #ccc; flex: 1; }
-.admin-cs-variant-empty { color: #444; font-style: italic; flex: 1; }
-.admin-cs-variants-divider {
-  font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
-  color: #444; padding: 6px 10px 2px; font-weight: 700;
-}
+.admin-cs-variant-empty  { color: #444; font-style: italic; flex: 1; }
 
 /* ============================================================
    Paytable modal — RTN amber theme

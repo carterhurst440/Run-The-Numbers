@@ -3177,11 +3177,10 @@
               <section class="route-section admin-list-section">
                 <div class="admin-listing-header">
                   <h2>Color Scheme Clips</h2>
-                  <button type="button" class="danger small" id="admin-cs-wipe-all-btn">Wipe All Clips</button>
                 </div>
-                <p class="admin-cs-hint">Delete clips you don't like — missing slots are auto-generated next time Color Scheme loads.</p>
+                <p class="admin-cs-hint">Pick a roll outcome to preview its saved animation. Regenerate replaces it with a freshly baked clip.</p>
                 <div class="admin-cs-clips-ui">
-                  <!-- LEFT: selector + variants -->
+                  <!-- LEFT: selector + clip panel -->
                   <div class="admin-cs-left-col">
                     <div class="admin-cs-selector">
                       <div class="admin-cs-selector-label">Color</div>
@@ -3203,16 +3202,15 @@
                     <div class="admin-cs-variants-panel">
                       <div class="admin-cs-variants-hdr">
                         <span>Outcome: <strong id="admin-cs-outcome-label">RED 1</strong></span>
-                        <button type="button" class="secondary small" id="admin-cs-generate-btn">+ Generate New</button>
                       </div>
-                      <div id="admin-cs-variants-list" class="admin-cs-variants-list"></div>
+                      <div id="admin-cs-clip-panel" class="admin-cs-variants-list"></div>
                     </div>
                   </div>
                   <!-- RIGHT: mini dice preview canvas -->
                   <div class="admin-cs-preview-col">
                     <div class="admin-cs-preview-label">PREVIEW</div>
                     <canvas id="admin-cs-mini-canvas" width="320" height="200"></canvas>
-                    <div id="admin-cs-mini-status" class="admin-cs-mini-status">Select a slot to preview</div>
+                    <div id="admin-cs-mini-status" class="admin-cs-mini-status">Select an outcome to preview</div>
                   </div>
                 </div>
               </section>
