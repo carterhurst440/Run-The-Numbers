@@ -36719,7 +36719,20 @@ async function adminCsDeleteActiveClip(outcome) {
   });
   document.getElementById('admin-cs-generate-btn')
     ?.addEventListener('click', () => void adminCsGenerateVariant());
+  document.getElementById('admin-cs-wipe-all-btn')
+    ?.addEventListener('click', () => void adminCsWipeAllClips());
 })();
+
+async function adminCsWipeAllClips() {
+  if (!confirm('Wipe ALL rows from cs_animation_clips?\n\nFresh clips will be auto-generated next time Color Scheme loads.')) return;
+  if (supabase) {
+    const { error } = await supabase.rpc('admin_wipe_cs_clips');
+    if (error) { showToast(`Wipe failed: ${error.message}`, 'error'); return; }
+  }
+  if (_csClips) _csClips.clear();
+  adminCsRenderVariants();
+  showToast('All clips wiped — game will rebake on next CS load', 'success');
+}
 
 async function csLoadOrBakeAllClips(CANNON, onProgress) {
   _csClips = new Map();
