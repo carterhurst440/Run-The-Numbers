@@ -36512,13 +36512,11 @@ async function adminCsLoadVariantsFromDB() {
 async function adminCsClipsTabOpen() {
   const status = document.getElementById('admin-cs-mini-status');
 
-  // 1. Load active (game) clips if not already in memory
-  if (!_csClips || _csClips.size === 0) {
-    if (status) status.textContent = 'Loading clips…';
-    const loaded = await csLoadClipsFromDB();
-    if (!_csClips) _csClips = new Map();
-    for (const [k, v] of loaded) _csClips.set(k, v);
-  }
+  // 1. Always reload active (game) clips from DB so admin reflects true DB state
+  if (status) status.textContent = 'Loading clips…';
+  const loaded = await csLoadClipsFromDB();
+  if (!_csClips) _csClips = new Map();
+  for (const [k, v] of loaded) _csClips.set(k, v);
 
   // 2. Load draft variants from cs_clip_variants
   await adminCsLoadVariantsFromDB();
@@ -36662,10 +36660,11 @@ async function adminCsStarVariant(outcomeBase, variant_num) {
   const v = (_adminCsVariants.get(outcomeBase) || []).find(x => x.variant_num === variant_num);
   if (!v) return;
   if (supabase) {
-    const { error } = await supabase.from('cs_animation_clips').upsert(
-      { outcome: outcomeBase, frames: Array.from(v.frames) },
-      { onConflict: 'outcome' }
-    );
+    // Use SECURITY DEFINER RPC — direct upsert is blocked by RLS (UPDATE policy missing)
+    const { error } = await supabase.rpc('admin_star_cs_clip', {
+      p_outcome: outcomeBase,
+      p_frames: Array.from(v.frames)
+    });
     if (error) { showToast(`Star failed: ${error.message}`, 'error'); return; }
   }
   if (_csClips) _csClips.set(outcomeBase, v.frames);
