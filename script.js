@@ -36353,7 +36353,9 @@ async function csSaveClipsToDB(newClips) {
 
 // ── Admin CS Clips panel ─────────────────────────────────────────────────
 let _adminCsSelectedColor = 'RED';
-let _adminCsSelectedNum = 1;
+let _adminCsSelectedNum   = 1;
+// "RED_3" → [{variant_num:0, frames:Float32Array}, ...]
+let _adminCsVariants = new Map();
 
 // ── Admin mini-canvas (dice preview embedded in admin panel) ────────────────
 let _adminCsRenderer    = null;
@@ -36484,21 +36486,45 @@ function adminCsMiniPlay(frames) {
   if (!_adminCsRafId && _adminCsRenderer) _adminCsRafId = requestAnimationFrame(adminCsMiniLoop);
 }
 
+// ── DB helpers ────────────────────────────────────────────────────────────────
+async function adminCsLoadVariantsFromDB() {
+  if (!supabase) return;
+  try {
+    const { data, error } = await supabase
+      .from('cs_clip_variants')
+      .select('outcome_base, variant_num, frames')
+      .order('outcome_base').order('variant_num');
+    if (error) { console.warn('[CS admin] variants load error:', error.message); return; }
+    _adminCsVariants = new Map();
+    for (const row of (data || [])) {
+      if (!row.frames || row.frames.length === 0) continue;
+      if (!_adminCsVariants.has(row.outcome_base)) _adminCsVariants.set(row.outcome_base, []);
+      _adminCsVariants.get(row.outcome_base).push({
+        variant_num: row.variant_num,
+        frames: new Float32Array(row.frames)
+      });
+    }
+    console.log(`[CS admin] loaded variants for ${_adminCsVariants.size} outcomes`);
+  } catch(e) { console.warn('[CS admin] variants load exception:', e); }
+}
+
 // ── Tab open ──────────────────────────────────────────────────────────────────
 async function adminCsClipsTabOpen() {
-  // 1. Load clips from DB if CS game was never initialized
+  const status = document.getElementById('admin-cs-mini-status');
+
+  // 1. Load active (game) clips if not already in memory
   if (!_csClips || _csClips.size === 0) {
-    const status = document.getElementById('admin-cs-mini-status');
-    if (status) status.textContent = 'Loading clips from DB…';
+    if (status) status.textContent = 'Loading clips…';
     const loaded = await csLoadClipsFromDB();
     if (!_csClips) _csClips = new Map();
     for (const [k, v] of loaded) _csClips.set(k, v);
   }
 
-  // 2. Render variant slots now that clips are loaded
-  adminCsRenderVariants();
+  // 2. Load draft variants from cs_clip_variants
+  await adminCsLoadVariantsFromDB();
 
-  // Sync selector UI to current state
+  // 3. Render
+  adminCsRenderVariants();
   document.querySelectorAll('.admin-cs-color-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.color === _adminCsSelectedColor);
   });
@@ -36506,82 +36532,175 @@ async function adminCsClipsTabOpen() {
     b.classList.toggle('active', Number(b.dataset.num) === _adminCsSelectedNum);
   });
 
-  // 3. Load THREE/CANNON (no-op if already loaded), then init mini canvas
+  // 4. Load THREE + CANNON, then boot mini canvas
   csLoadLibraries(() => {
     adminCsMiniInit();
-    const status = document.getElementById('admin-cs-mini-status');
-    if (status && status.textContent.includes('Loading')) {
-      status.textContent = 'Select a slot to preview';
+    if (status && status.textContent === 'Loading clips…') {
+      status.textContent = 'Select a clip to preview';
     }
   });
 }
 
 function adminCsRenderVariants() {
-  const list = document.getElementById('admin-cs-variants-list');
+  const list  = document.getElementById('admin-cs-variants-list');
   const label = document.getElementById('admin-cs-outcome-label');
   if (!list) return;
+
+  const outcomeBase = `${_adminCsSelectedColor}_${_adminCsSelectedNum}`;
   if (label) label.textContent = `${_adminCsSelectedColor} ${_adminCsSelectedNum}`;
   list.innerHTML = '';
-  const C = _adminCsSelectedColor, N = _adminCsSelectedNum;
-  for (let v = 0; v < 5; v++) {
-    const key = `${C}_${N}_${v}`;
-    const clip = _csClips?.get(key);
+
+  // ── Active (game) clip ───────────────────────────────────────────────────
+  const activeFrames = _csClips?.get(outcomeBase);
+  const activeRow = document.createElement('div');
+  activeRow.className = 'admin-cs-variant-row admin-cs-active-row';
+  if (activeFrames) {
+    const fc = Math.round(activeFrames.length / 14);
+    activeRow.innerHTML = `
+      <span class="admin-cs-active-label">★ ACTIVE</span>
+      <span class="admin-cs-variant-frames">${fc} frames</span>
+      <button class="secondary small" data-action="preview-active">▶</button>
+      <button class="danger  small"   data-action="delete-active"  title="Hard-delete — game will rebake on next load">🗑</button>
+    `;
+    activeRow.querySelector('[data-action="preview-active"]')
+      .addEventListener('click', () => adminCsMiniPlay(activeFrames));
+    activeRow.querySelector('[data-action="delete-active"]')
+      .addEventListener('click', () => void adminCsDeleteActiveClip(outcomeBase));
+  } else {
+    activeRow.innerHTML = `
+      <span class="admin-cs-active-label">★ ACTIVE</span>
+      <span class="admin-cs-variant-frames admin-cs-variant-empty">none — will auto-bake on next CS load</span>
+    `;
+  }
+  list.appendChild(activeRow);
+
+  // ── Divider ──────────────────────────────────────────────────────────────
+  const div = document.createElement('div');
+  div.className = 'admin-cs-variants-divider';
+  div.textContent = 'DRAFT VARIANTS';
+  list.appendChild(div);
+
+  // ── Variant rows ─────────────────────────────────────────────────────────
+  const variants = _adminCsVariants.get(outcomeBase) || [];
+  for (const v of variants) {
+    const fc  = Math.round(v.frames.length / 14);
     const row = document.createElement('div');
     row.className = 'admin-cs-variant-row';
-    if (clip) {
-      const frames = Math.round(clip.length / 14);
-      row.innerHTML = `
-        <span class="admin-cs-variant-slot">Slot ${v}</span>
-        <span class="admin-cs-variant-frames">${frames} frames</span>
-        <button class="secondary small" data-variant="${v}" data-action="test-variant">▶ Test</button>
-        <button class="danger small" data-variant="${v}" data-action="delete-variant">✕</button>
-      `;
-    } else {
-      row.innerHTML = `
-        <span class="admin-cs-variant-slot">Slot ${v}</span>
-        <span class="admin-cs-variant-frames admin-cs-variant-empty">empty</span>
-        <span></span><span></span>
-      `;
-    }
+    row.innerHTML = `
+      <span class="admin-cs-variant-slot">V${v.variant_num}</span>
+      <span class="admin-cs-variant-frames">${fc} frames</span>
+      <button class="secondary small" data-action="preview"        title="Preview in canvas">▶</button>
+      <button class="primary   small" data-action="star"           title="Set as active clip">☆ Star</button>
+      <button class="danger    small" data-action="delete-variant" title="Hard-delete this variant">🗑</button>
+    `;
+    row.querySelector('[data-action="preview"]')
+      .addEventListener('click', () => adminCsMiniPlay(v.frames));
+    row.querySelector('[data-action="star"]')
+      .addEventListener('click', () => void adminCsStarVariant(outcomeBase, v.variant_num));
+    row.querySelector('[data-action="delete-variant"]')
+      .addEventListener('click', () => {
+        if (!confirm(`Hard-delete ${outcomeBase} V${v.variant_num}?`)) return;
+        void adminCsDeleteVariant(outcomeBase, v.variant_num);
+      });
     list.appendChild(row);
   }
-  // Wire row buttons
-  list.querySelectorAll('[data-action="test-variant"]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const v = Number(btn.dataset.variant);
-      const key = `${_adminCsSelectedColor}_${_adminCsSelectedNum}_${v}`;
-      const frames = _csClips?.get(key);
-      if (!frames) return;
-      adminCsMiniPlay(frames);
-    });
-  });
-  list.querySelectorAll('[data-action="delete-variant"]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const v = Number(btn.dataset.variant);
-      const key = `${_adminCsSelectedColor}_${_adminCsSelectedNum}_${v}`;
-      if (!confirm(`Delete ${key}? A fresh clip will be generated next time Color Scheme loads.`)) return;
-      // Remove from in-memory map immediately
-      _csClips?.delete(key);
-      if (supabase) {
-        // Soft-delete: upsert an empty frames array.
-        // csLoadClipsFromDB skips rows where frames.length === 0, so this slot
-        // will appear "missing" and get freshly baked on the next CS game load.
-        // We use upsert instead of delete because RLS on this table blocks row
-        // deletions from the client but allows upserts.
-        const { error } = await supabase
-          .from('cs_animation_clips')
-          .upsert({ outcome: key, frames: [] }, { onConflict: 'outcome' });
-        if (error) { showToast(`Delete failed: ${error.message}`, 'error'); return; }
-      }
-      adminCsRenderVariants();
-      showToast(`Removed ${key} — new clip generates on next CS load`, 'success');
-    });
-  });
+
+  // Empty state
+  if (variants.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'admin-cs-variant-row admin-cs-empty-row';
+    empty.innerHTML = `<span>No drafts yet — click Generate New to add one</span>`;
+    list.appendChild(empty);
+  }
+
+  // Update generate button label
+  const genBtn = document.getElementById('admin-cs-generate-btn');
+  if (genBtn) genBtn.disabled = variants.length >= 5;
+}
+
+// ── Variant actions ───────────────────────────────────────────────────────────
+async function adminCsGenerateVariant() {
+  const CANNON = window.CANNON;
+  if (!CANNON) { showToast('Physics engine not ready — wait a moment and try again', 'info'); return; }
+  const outcomeBase = `${_adminCsSelectedColor}_${_adminCsSelectedNum}`;
+  const existing    = _adminCsVariants.get(outcomeBase) || [];
+  if (existing.length >= 5) { showToast('Already 5 variants — delete one first', 'info'); return; }
+
+  const btn = document.getElementById('admin-cs-generate-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Baking…'; }
+  try {
+    // Pick the next unused variant number
+    const used = new Set(existing.map(v => v.variant_num));
+    let variant_num = 0;
+    while (used.has(variant_num)) variant_num++;
+
+    const frames = csBakeClip(CANNON, _adminCsSelectedColor, _adminCsSelectedNum);
+    if (!frames) { showToast('Bake failed — try again', 'error'); return; }
+
+    if (supabase) {
+      const { error } = await supabase.from('cs_clip_variants').upsert(
+        { outcome_base: outcomeBase, variant_num, frames: Array.from(frames) },
+        { onConflict: 'outcome_base,variant_num' }
+      );
+      if (error) { showToast(`Save failed: ${error.message}`, 'error'); return; }
+    }
+
+    if (!_adminCsVariants.has(outcomeBase)) _adminCsVariants.set(outcomeBase, []);
+    _adminCsVariants.get(outcomeBase).push({ variant_num, frames });
+    _adminCsVariants.get(outcomeBase).sort((a, b) => a.variant_num - b.variant_num);
+
+    adminCsRenderVariants();
+    adminCsMiniPlay(frames);
+    showToast(`Generated V${variant_num} for ${outcomeBase}`, 'success');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Generate New'; }
+  }
+}
+
+async function adminCsStarVariant(outcomeBase, variant_num) {
+  const v = (_adminCsVariants.get(outcomeBase) || []).find(x => x.variant_num === variant_num);
+  if (!v) return;
+  if (supabase) {
+    const { error } = await supabase.from('cs_animation_clips').upsert(
+      { outcome: outcomeBase, frames: Array.from(v.frames) },
+      { onConflict: 'outcome' }
+    );
+    if (error) { showToast(`Star failed: ${error.message}`, 'error'); return; }
+  }
+  if (_csClips) _csClips.set(outcomeBase, v.frames);
+  adminCsRenderVariants();
+  showToast(`★ ${outcomeBase} V${variant_num} is now the active game clip`, 'success');
+}
+
+async function adminCsDeleteVariant(outcomeBase, variant_num) {
+  if (supabase) {
+    const { error } = await supabase.from('cs_clip_variants')
+      .delete()
+      .eq('outcome_base', outcomeBase)
+      .eq('variant_num', variant_num);
+    if (error) { showToast(`Delete failed: ${error.message}`, 'error'); return; }
+  }
+  _adminCsVariants.set(
+    outcomeBase,
+    (_adminCsVariants.get(outcomeBase) || []).filter(v => v.variant_num !== variant_num)
+  );
+  adminCsRenderVariants();
+  showToast(`Deleted ${outcomeBase} V${variant_num}`, 'info');
+}
+
+async function adminCsDeleteActiveClip(outcome) {
+  if (!confirm(`Hard-delete the active clip for ${outcome}?\nThe game will auto-generate a replacement on next Color Scheme load.`)) return;
+  if (supabase) {
+    const { error } = await supabase.rpc('admin_delete_cs_clip', { p_outcome: outcome });
+    if (error) { showToast(`Delete failed: ${error.message}`, 'error'); return; }
+  }
+  if (_csClips) _csClips.delete(outcome);
+  adminCsRenderVariants();
+  showToast(`Deleted active clip for ${outcome}`, 'info');
 }
 
 // Wire up admin CS clips event handlers (runs once at page init)
 (function adminCsClipsInit() {
-  // Color selector
   document.getElementById('admin-cs-color-row')?.addEventListener('click', e => {
     const btn = e.target.closest('.admin-cs-color-btn');
     if (!btn) return;
@@ -36590,7 +36709,6 @@ function adminCsRenderVariants() {
     btn.classList.add('active');
     adminCsRenderVariants();
   });
-  // Number selector
   document.getElementById('admin-cs-num-row')?.addEventListener('click', e => {
     const btn = e.target.closest('.admin-cs-num-btn');
     if (!btn) return;
@@ -36599,6 +36717,8 @@ function adminCsRenderVariants() {
     btn.classList.add('active');
     adminCsRenderVariants();
   });
+  document.getElementById('admin-cs-generate-btn')
+    ?.addEventListener('click', () => void adminCsGenerateVariant());
 })();
 
 async function csLoadOrBakeAllClips(CANNON, onProgress) {
