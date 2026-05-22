@@ -36345,7 +36345,7 @@ async function csSaveClipsToDB(newClips) {
     }
     const { error } = await supabase
       .from('cs_animation_clips')
-      .upsert(rows, { onConflict: 'outcome' });
+      .upsert(rows, { onConflict: 'outcome', ignoreDuplicates: true }); // never overwrite starred clips
     if (error) console.warn('[CS clips] DB save error:', error.message);
     else console.log(`[CS clips] saved ${rows.length} clip(s) to DB`);
   } catch(e) { console.warn('[CS clips] DB save exception:', e); }
