@@ -36634,7 +36634,8 @@ async function adminCsGenerateVariant() {
     let variant_num = 0;
     while (used.has(variant_num)) variant_num++;
 
-    const frames = csBakeClip(CANNON, _adminCsSelectedColor, _adminCsSelectedNum);
+    const seedSlot = Math.floor(Math.random() * 200) + 1; // random window so each generate is different
+    const frames = csBakeClip(CANNON, _adminCsSelectedColor, _adminCsSelectedNum, seedSlot);
     if (!frames) { showToast('Bake failed — try again', 'error'); return; }
 
     if (supabase) {
