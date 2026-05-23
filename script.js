@@ -18360,6 +18360,7 @@ const adminContestsContent = document.getElementById("admin-contests-content");
 const adminDesignContent = document.getElementById("admin-design-content");
 const adminRanksContent = document.getElementById("admin-ranks-content");
 const adminCsClipsContent = document.getElementById("admin-cs-clips-content");
+const adminFateOrFortuneContent = document.getElementById("admin-fate-or-fortune-content");
 const adminGameListEl = document.getElementById("admin-game-list");
 const adminGameMessage = document.getElementById("admin-game-message");
 const adminGamesMigrateButton = document.getElementById("admin-games-migrate-button");
@@ -30048,6 +30049,7 @@ adminTabButtons.forEach(button => {
       if (adminContestsContent) adminContestsContent.hidden = true;
       if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
+      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
     } else if (targetTab === "games") {
       adminPrizesContent.hidden = true;
       if (adminGamesContent) adminGamesContent.hidden = false;
@@ -30055,6 +30057,7 @@ adminTabButtons.forEach(button => {
       if (adminContestsContent) adminContestsContent.hidden = true;
       if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
+      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
       void loadAdminGameAssets(true);
     } else if (targetTab === "analytics") {
       adminPrizesContent.hidden = true;
@@ -30063,6 +30066,7 @@ adminTabButtons.forEach(button => {
       if (adminContestsContent) adminContestsContent.hidden = true;
       if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
+      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
       void loadAdminActivityTimeseries();
       void loadAdminActivityPlayers().then(() => {
         populateAdminPnlPlayerSelect();
@@ -30076,6 +30080,7 @@ adminTabButtons.forEach(button => {
       if (adminContestsContent) adminContestsContent.hidden = false;
       if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
+      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
       loadAdminContestList(true);
     } else if (targetTab === "design") {
       adminPrizesContent.hidden = true;
@@ -30084,6 +30089,7 @@ adminTabButtons.forEach(button => {
       if (adminContestsContent) adminContestsContent.hidden = true;
       if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
+      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
     } else if (targetTab === "ranks") {
       adminPrizesContent.hidden = true;
       if (adminGamesContent) adminGamesContent.hidden = true;
@@ -30091,6 +30097,7 @@ adminTabButtons.forEach(button => {
       if (adminContestsContent) adminContestsContent.hidden = true;
       if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = false;
+      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
       void loadAdminRanks(true);
     } else if (targetTab === "cs-clips") {
       adminPrizesContent.hidden = true;
@@ -30100,13 +30107,66 @@ adminTabButtons.forEach(button => {
       if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
       if (adminCsClipsContent) adminCsClipsContent.hidden = false;
+      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
       adminCsClipsTabOpen();
+    } else if (targetTab === "fate-or-fortune") {
+      adminPrizesContent.hidden = true;
+      if (adminGamesContent) adminGamesContent.hidden = true;
+      adminAnalyticsContent.hidden = true;
+      if (adminContestsContent) adminContestsContent.hidden = true;
+      if (adminDesignContent) adminDesignContent.hidden = true;
+      if (adminRanksContent) adminRanksContent.hidden = true;
+      if (adminCsClipsContent) adminCsClipsContent.hidden = true;
+      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = false;
+      adminCsMiniPause();
+      void loadAdminFateOrFortuneStats();
     } else {
       // Pause the mini canvas RAF whenever we leave the CS Clips tab
       adminCsMiniPause();
     }
   });
 });
+
+async function loadAdminFateOrFortuneStats() {
+  const wrap = document.getElementById("admin-fof-stats-wrap");
+  if (!wrap) return;
+  wrap.textContent = "Loading character stats…";
+  if (!supabase) { wrap.textContent = "Supabase unavailable."; return; }
+  const { data, error } = await supabase
+    .from("fate_or_fortune_character_stats")
+    .select("*")
+    .order("character", { ascending: true });
+  if (error) {
+    wrap.textContent = `Error loading stats: ${error.message}`;
+    return;
+  }
+  if (!data || data.length === 0) {
+    wrap.textContent = "No character stats found. Run supabase.fate_or_fortune_character_stats.sql to seed.";
+    return;
+  }
+  const pct = (n) => `${(Number(n) * 100).toFixed(0)}%`;
+  const rows = data.map(r => `
+    <tr>
+      <td><strong>${String(r.character).toUpperCase()}</strong></td>
+      <td>${r.hp}</td>
+      <td>${r.damage}</td>
+      <td>${Number(r.crit_mult).toFixed(1)}x</td>
+      <td>${pct(r.crit_chance)}</td>
+      <td>${pct(r.accuracy)}</td>
+      <td>${pct(r.dodge)}</td>
+      <td>${Number(r.attack_time).toFixed(2)}s</td>
+    </tr>`).join("");
+  wrap.innerHTML = `
+    <table class="admin-fof-stats-table">
+      <thead>
+        <tr>
+          <th>Hero</th><th>HP</th><th>Damage</th><th>Crit Mult</th>
+          <th>Crit Chance</th><th>Accuracy</th><th>Dodge</th><th>Attack Time</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
 
 // Overview chart filter buttons
 document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(button => {
