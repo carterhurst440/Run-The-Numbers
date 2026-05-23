@@ -3221,8 +3221,25 @@
                 <div class="admin-listing-header">
                   <h2>Fate or Fortune</h2>
                 </div>
-                <p class="admin-cs-hint">Fantasy gambling battle simulator. Character stats table is seeded — tuning UI and battle simulator coming next.</p>
-                <div id="admin-fof-stats-wrap"></div>
+                <p class="admin-cs-hint">Adjust character stats with sliders, then run head-to-head simulations to see win rates.</p>
+                <div id="admin-fof-status" class="admin-fof-status"></div>
+                <div id="admin-fof-chars" class="admin-fof-chars"></div>
+                <div class="admin-fof-sim-panel">
+                  <h3>Run simulation</h3>
+                  <div class="admin-fof-sim-controls">
+                    <label class="admin-fof-sim-pick">Hero A <select id="admin-fof-sim-a"></select></label>
+                    <span class="admin-fof-vs">VS</span>
+                    <label class="admin-fof-sim-pick">Hero B <select id="admin-fof-sim-b"></select></label>
+                    <div class="admin-fof-vol-row">
+                      <span class="admin-fof-vol-label">Runs:</span>
+                      <button type="button" class="admin-fof-vol-btn active" data-vol="1000">Quick 1K</button>
+                      <button type="button" class="admin-fof-vol-btn" data-vol="10000">Medium 10K</button>
+                      <button type="button" class="admin-fof-vol-btn" data-vol="1000000">Serious 1M</button>
+                    </div>
+                    <button type="button" class="primary" id="admin-fof-run-sim">Run simulation</button>
+                  </div>
+                  <div id="admin-fof-sim-results" class="admin-fof-sim-results"></div>
+                </div>
               </section>
             </section>
           </div>

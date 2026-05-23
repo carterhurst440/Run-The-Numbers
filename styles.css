@@ -27592,18 +27592,135 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .admin-cs-hint {
   font-size: 12px; color: #555; margin: 2px 0 0; line-height: 1.4;
 }
-.admin-fof-stats-table {
-  margin-top: 16px; border-collapse: collapse; font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 12px; min-width: 640px;
+/* Fate or Fortune simulator */
+.admin-fof-status {
+  font-size: 12px; color: #555; min-height: 16px; margin: 6px 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
-.admin-fof-stats-table th,
-.admin-fof-stats-table td {
-  border: 1px solid #2a2a2a; padding: 8px 12px; text-align: right;
+.admin-fof-chars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
 }
-.admin-fof-stats-table th:first-child,
-.admin-fof-stats-table td:first-child { text-align: left; }
-.admin-fof-stats-table thead th {
+.admin-fof-char-card {
+  border: 1px solid #2a2a2a;
+  padding: 12px;
+  background: #fafafa;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.admin-fof-char-card.dirty {
+  background: #fff8e1;
+  border-color: #d4a017;
+}
+.admin-fof-char-card h3 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  letter-spacing: 1px;
+  border-bottom: 1px solid #2a2a2a;
+  padding-bottom: 6px;
+}
+.admin-fof-slider-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 50px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+.admin-fof-slider-row label {
+  text-transform: uppercase;
+  color: #555;
+  margin: 0;
+}
+.admin-fof-slider-row input[type=range] { width: 100%; }
+.admin-fof-val { text-align: right; font-weight: 600; }
+.admin-fof-char-actions {
+  display: flex; gap: 6px; margin-top: 10px; justify-content: flex-end;
+}
+.admin-fof-char-actions button {
+  font-size: 11px; padding: 4px 10px; cursor: pointer;
+  border: 1px solid #2a2a2a; background: #fff;
+}
+.admin-fof-char-actions .primary { background: #111; color: #fff; border-color: #111; }
+.admin-fof-sim-panel {
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid #2a2a2a;
+  background: #f5f5f5;
+}
+.admin-fof-sim-panel h3 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.admin-fof-sim-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+}
+.admin-fof-sim-pick { display: flex; gap: 6px; align-items: center; }
+.admin-fof-sim-pick select { padding: 4px 6px; font-family: inherit; font-size: 12px; }
+.admin-fof-vs { font-weight: 700; letter-spacing: 1px; }
+.admin-fof-vol-row { display: flex; gap: 4px; align-items: center; }
+.admin-fof-vol-label { color: #555; margin-right: 4px; }
+.admin-fof-vol-btn {
+  padding: 4px 10px;
+  border: 1px solid #2a2a2a;
+  background: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+}
+.admin-fof-vol-btn.active { background: #111; color: #fff; }
+.admin-fof-sim-results {
+  margin-top: 16px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+}
+.admin-fof-sim-bar {
+  display: flex; height: 26px; margin: 8px 0; border: 1px solid #2a2a2a;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.admin-fof-sim-bar > div {
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 600; min-width: 0; font-size: 11px;
+}
+.admin-fof-sim-bar-a { background: #4a7a52; }
+.admin-fof-sim-bar-b { background: #b85a3a; }
+.admin-fof-sim-table {
+  border-collapse: collapse;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  margin-top: 8px;
+}
+.admin-fof-sim-table th,
+.admin-fof-sim-table td {
+  border: 1px solid #2a2a2a;
+  padding: 6px 14px;
+  text-align: right;
+}
+.admin-fof-sim-table td:first-child,
+.admin-fof-sim-table th:first-child {
+  text-align: left;
+  color: #555;
+}
+.admin-fof-sim-table thead th,
+.admin-fof-sim-table tr:first-child th {
   background: #111; color: #fff; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.admin-fof-sim-meta {
+  margin-top: 8px;
+  color: #555;
+  font-size: 11px;
+}
+.admin-fof-sim-err {
+  color: #c33;
+  font-weight: 600;
 }
 .admin-cs-clips-ui {
   display: flex; gap: 24px; align-items: flex-start; margin-top: 16px;

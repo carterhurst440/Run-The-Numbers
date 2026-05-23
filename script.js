@@ -30127,46 +30127,259 @@ adminTabButtons.forEach(button => {
   });
 });
 
+// ── FATE OR FORTUNE — battle simulator ─────────────────────────
+let fofChars = [];
+let fofVol = 1000;
+
 async function loadAdminFateOrFortuneStats() {
-  const wrap = document.getElementById("admin-fof-stats-wrap");
-  if (!wrap) return;
-  wrap.textContent = "Loading character stats…";
-  if (!supabase) { wrap.textContent = "Supabase unavailable."; return; }
+  const status = document.getElementById("admin-fof-status");
+  if (status) status.textContent = "Loading character stats…";
+  if (!supabase) { if (status) status.textContent = "Supabase unavailable."; return; }
   const { data, error } = await supabase
     .from("fate_or_fortune_character_stats")
     .select("*")
     .order("character", { ascending: true });
-  if (error) {
-    wrap.textContent = `Error loading stats: ${error.message}`;
-    return;
-  }
+  if (error) { if (status) status.textContent = `Error: ${error.message}`; return; }
   if (!data || data.length === 0) {
-    wrap.textContent = "No character stats found. Run supabase.fate_or_fortune_character_stats.sql to seed.";
+    if (status) status.textContent = "No character stats found. Run supabase.fate_or_fortune_character_stats.sql to seed.";
     return;
   }
-  const pct = (n) => `${(Number(n) * 100).toFixed(0)}%`;
-  const rows = data.map(r => `
-    <tr>
-      <td><strong>${String(r.character).toUpperCase()}</strong></td>
-      <td>${r.hp}</td>
-      <td>${r.damage}</td>
-      <td>${Number(r.crit_mult).toFixed(1)}x</td>
-      <td>${pct(r.crit_chance)}</td>
-      <td>${pct(r.accuracy)}</td>
-      <td>${pct(r.dodge)}</td>
-      <td>${Number(r.attack_time).toFixed(2)}s</td>
-    </tr>`).join("");
-  wrap.innerHTML = `
-    <table class="admin-fof-stats-table">
-      <thead>
-        <tr>
-          <th>Hero</th><th>HP</th><th>Damage</th><th>Crit Mult</th>
-          <th>Crit Chance</th><th>Accuracy</th><th>Dodge</th><th>Attack Time</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>`;
+  fofChars = data.map(r => ({
+    character: r.character,
+    hp: Number(r.hp),
+    damage: Number(r.damage),
+    crit_mult: Number(r.crit_mult),
+    crit_chance: Number(r.crit_chance),
+    accuracy: Number(r.accuracy),
+    dodge: Number(r.dodge),
+    attack_time: Number(r.attack_time),
+  }));
+  if (status) status.textContent = "";
+  renderFofCharCards();
+  renderFofSimPickers();
 }
+
+function fofFmtStat(stat, value) {
+  if (stat === 'crit_chance' || stat === 'accuracy' || stat === 'dodge') {
+    return `${Math.round(value * 100)}%`;
+  }
+  if (stat === 'crit_mult') return `${Number(value).toFixed(1)}x`;
+  if (stat === 'attack_time') return `${Number(value).toFixed(2)}s`;
+  return `${value}`;
+}
+
+function fofSliderRow(idx, stat, label, value, min, max, step) {
+  return `
+    <div class="admin-fof-slider-row" data-idx="${idx}" data-stat="${stat}">
+      <label>${label}</label>
+      <input type="range" min="${min}" max="${max}" step="${step}" value="${value}">
+      <span class="admin-fof-val">${fofFmtStat(stat, value)}</span>
+    </div>
+  `;
+}
+
+function renderFofCharCards() {
+  const container = document.getElementById("admin-fof-chars");
+  if (!container) return;
+  container.innerHTML = fofChars.map((c, i) => `
+    <div class="admin-fof-char-card" data-idx="${i}">
+      <h3>${c.character.toUpperCase()}</h3>
+      ${fofSliderRow(i, 'hp', 'HP', c.hp, 1, 500, 1)}
+      ${fofSliderRow(i, 'damage', 'Damage', c.damage, 1, 200, 1)}
+      ${fofSliderRow(i, 'crit_mult', 'Crit Mult', c.crit_mult, 1, 5, 0.1)}
+      ${fofSliderRow(i, 'crit_chance', 'Crit Chance', c.crit_chance, 0, 1, 0.01)}
+      ${fofSliderRow(i, 'accuracy', 'Accuracy', c.accuracy, 0, 1, 0.01)}
+      ${fofSliderRow(i, 'dodge', 'Dodge', c.dodge, 0, 1, 0.01)}
+      ${fofSliderRow(i, 'attack_time', 'Attack Time', c.attack_time, 0.1, 5, 0.05)}
+      <div class="admin-fof-char-actions">
+        <button type="button" class="admin-fof-reset" data-idx="${i}">Reset</button>
+        <button type="button" class="admin-fof-save primary" data-idx="${i}">Save</button>
+      </div>
+    </div>
+  `).join('');
+  attachFofCardHandlers();
+}
+
+function attachFofCardHandlers() {
+  document.querySelectorAll('.admin-fof-slider-row input[type=range]').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const row = e.target.closest('.admin-fof-slider-row');
+      const idx = Number(row.dataset.idx);
+      const stat = row.dataset.stat;
+      const val = parseFloat(e.target.value);
+      fofChars[idx][stat] = val;
+      row.querySelector('.admin-fof-val').textContent = fofFmtStat(stat, val);
+      const card = row.closest('.admin-fof-char-card');
+      if (card) card.classList.add('dirty');
+    });
+  });
+  document.querySelectorAll('.admin-fof-save').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      await fofSaveChar(Number(e.currentTarget.dataset.idx));
+    });
+  });
+  document.querySelectorAll('.admin-fof-reset').forEach(btn => {
+    btn.addEventListener('click', async () => { await loadAdminFateOrFortuneStats(); });
+  });
+}
+
+async function fofSaveChar(idx) {
+  const c = fofChars[idx];
+  const status = document.getElementById("admin-fof-status");
+  if (status) status.textContent = `Saving ${c.character.toUpperCase()}…`;
+  const { error } = await supabase
+    .from('fate_or_fortune_character_stats')
+    .upsert({
+      character: c.character,
+      hp: Math.round(c.hp),
+      damage: Math.round(c.damage),
+      crit_mult: c.crit_mult,
+      crit_chance: c.crit_chance,
+      accuracy: c.accuracy,
+      dodge: c.dodge,
+      attack_time: c.attack_time,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'character' });
+  if (error) { if (status) status.textContent = `Save error: ${error.message}`; return; }
+  const card = document.querySelector(`.admin-fof-char-card[data-idx="${idx}"]`);
+  if (card) card.classList.remove('dirty');
+  if (status) status.textContent = `Saved ${c.character.toUpperCase()}.`;
+}
+
+function renderFofSimPickers() {
+  const aSel = document.getElementById('admin-fof-sim-a');
+  const bSel = document.getElementById('admin-fof-sim-b');
+  if (!aSel || !bSel) return;
+  const opts = fofChars.map(c => `<option value="${c.character}">${c.character.toUpperCase()}</option>`).join('');
+  aSel.innerHTML = opts;
+  bSel.innerHTML = opts;
+  if (fofChars.length >= 2) {
+    aSel.value = fofChars[0].character;
+    bSel.value = fofChars[1].character;
+  }
+}
+
+function fofSimulate(a, b, runs) {
+  const aHp = a.hp, aDmg = a.damage, aCm = a.crit_mult, aCc = a.crit_chance, aAt = a.attack_time;
+  const bHp = b.hp, bDmg = b.damage, bCm = b.crit_mult, bCc = b.crit_chance, bAt = b.attack_time;
+  const aHitChance = a.accuracy * (1 - b.dodge);
+  const bHitChance = b.accuracy * (1 - a.dodge);
+
+  let aWins = 0, draws = 0;
+  let totalTime = 0, totalAttacks = 0;
+  let aTries = 0, aHits = 0, aCrits = 0;
+  let bTries = 0, bHits = 0, bCrits = 0;
+  const MAX_ATTACKS = 10000;
+
+  for (let i = 0; i < runs; i++) {
+    let hpA = aHp, hpB = bHp;
+    let tA = aAt, tB = bAt;
+    let time = 0, attacks = 0;
+
+    while (hpA > 0 && hpB > 0 && attacks < MAX_ATTACKS) {
+      attacks++;
+      if (tA <= tB) {
+        time = tA;
+        aTries++;
+        if (Math.random() < aHitChance) {
+          aHits++;
+          let dmg = aDmg;
+          if (Math.random() < aCc) { dmg *= aCm; aCrits++; }
+          hpB -= dmg;
+        }
+        tA += aAt;
+      } else {
+        time = tB;
+        bTries++;
+        if (Math.random() < bHitChance) {
+          bHits++;
+          let dmg = bDmg;
+          if (Math.random() < bCc) { dmg *= bCm; bCrits++; }
+          hpA -= dmg;
+        }
+        tB += bAt;
+      }
+    }
+
+    if (hpA > 0 && hpB <= 0) aWins++;
+    else if (hpA > 0 && hpB > 0) draws++;
+    totalTime += time;
+    totalAttacks += attacks;
+  }
+
+  return {
+    runs, aWins, draws,
+    bWins: runs - aWins - draws,
+    avgDuration: totalTime / runs,
+    avgAttacks: totalAttacks / runs,
+    aHitChance, bHitChance,
+    aCritRate: aHits > 0 ? aCrits / aHits : 0,
+    bCritRate: bHits > 0 ? bCrits / bHits : 0,
+    aMissRate: aTries > 0 ? (aTries - aHits) / aTries : 0,
+    bMissRate: bTries > 0 ? (bTries - bHits) / bTries : 0,
+  };
+}
+
+async function runFofSim() {
+  const aKey = document.getElementById('admin-fof-sim-a').value;
+  const bKey = document.getElementById('admin-fof-sim-b').value;
+  const resultsEl = document.getElementById('admin-fof-sim-results');
+  if (!resultsEl) return;
+  if (aKey === bKey) {
+    resultsEl.innerHTML = '<div class="admin-fof-sim-err">Pick two different heroes.</div>';
+    return;
+  }
+  const a = fofChars.find(c => c.character === aKey);
+  const b = fofChars.find(c => c.character === bKey);
+  if (!a || !b) return;
+
+  resultsEl.innerHTML = `<div>Running ${fofVol.toLocaleString()} sims…</div>`;
+  await new Promise(r => setTimeout(r, 20));
+  const t0 = performance.now();
+  const result = fofSimulate(a, b, fofVol);
+  const elapsed = (performance.now() - t0).toFixed(0);
+  renderFofSimResults(a, b, result, elapsed);
+}
+
+function renderFofSimResults(a, b, r, elapsedMs) {
+  const resultsEl = document.getElementById('admin-fof-sim-results');
+  const aPct = (r.aWins / r.runs) * 100;
+  const bPct = (r.bWins / r.runs) * 100;
+  const drawPct = (r.draws / r.runs) * 100;
+  const aPrice = (r.aWins / r.runs).toFixed(3);
+  const bPrice = (r.bWins / r.runs).toFixed(3);
+
+  resultsEl.innerHTML = `
+    <div class="admin-fof-sim-bar">
+      <div class="admin-fof-sim-bar-a" style="width:${aPct.toFixed(2)}%">${aPct.toFixed(1)}%</div>
+      <div class="admin-fof-sim-bar-b" style="width:${bPct.toFixed(2)}%">${bPct.toFixed(1)}%</div>
+    </div>
+    <table class="admin-fof-sim-table">
+      <tr><th></th><th>${a.character.toUpperCase()}</th><th>${b.character.toUpperCase()}</th></tr>
+      <tr><td>Wins</td><td>${r.aWins.toLocaleString()}</td><td>${r.bWins.toLocaleString()}</td></tr>
+      <tr><td>Win %</td><td>${aPct.toFixed(2)}%</td><td>${bPct.toFixed(2)}%</td></tr>
+      <tr><td>Fair contract</td><td>$${aPrice}</td><td>$${bPrice}</td></tr>
+      <tr><td>Hit chance</td><td>${(r.aHitChance*100).toFixed(1)}%</td><td>${(r.bHitChance*100).toFixed(1)}%</td></tr>
+      <tr><td>Crit rate (of hits)</td><td>${(r.aCritRate*100).toFixed(1)}%</td><td>${(r.bCritRate*100).toFixed(1)}%</td></tr>
+      <tr><td>Miss rate</td><td>${(r.aMissRate*100).toFixed(1)}%</td><td>${(r.bMissRate*100).toFixed(1)}%</td></tr>
+    </table>
+    <div class="admin-fof-sim-meta">
+      Avg duration ${r.avgDuration.toFixed(2)}s · Avg attacks ${r.avgAttacks.toFixed(1)} · Draws ${r.draws.toLocaleString()} (${drawPct.toFixed(2)}%) · Took ${elapsedMs}ms
+    </div>
+  `;
+}
+
+(function fofInit() {
+  document.querySelectorAll('.admin-fof-vol-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.admin-fof-vol-btn').forEach(b => b.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      fofVol = Number(e.currentTarget.dataset.vol);
+    });
+  });
+  const runBtn = document.getElementById('admin-fof-run-sim');
+  if (runBtn) runBtn.addEventListener('click', () => { void runFofSim(); });
+})();
 
 // Overview chart filter buttons
 document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(button => {
