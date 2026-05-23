@@ -30131,6 +30131,7 @@ adminTabButtons.forEach(button => {
 let fofChars = [];
 let fofVol = 1000;
 let fofRunCounter = 0;
+let fofMatrix = {}; // key "charA|charB" → { winPct, runs }
 
 async function loadAdminFateOrFortuneStats() {
   const status = document.getElementById("admin-fof-status");
@@ -30158,6 +30159,53 @@ async function loadAdminFateOrFortuneStats() {
   if (status) status.textContent = "";
   renderFofCharCards();
   renderFofSimPickers();
+  renderFofMatrix();
+}
+
+function renderFofMatrix() {
+  const el = document.getElementById('admin-fof-matrix');
+  if (!el || fofChars.length === 0) return;
+  const head = '<tr><th>Player Hero</th>' +
+    fofChars.map(c => `<th>vs ${c.character.toUpperCase()}</th>`).join('') +
+    '</tr>';
+  const body = fofChars.map(row => {
+    const cells = fofChars.map(col => {
+      if (row.character === col.character) return '<td class="diag">—</td>';
+      const entry = fofMatrix[row.character + '|' + col.character];
+      if (!entry) return '<td class="empty">…</td>';
+      return `<td title="${entry.runs.toLocaleString()} sims">${entry.winPct.toFixed(1)}%</td>`;
+    }).join('');
+    return `<tr><td class="rowhdr">${row.character.toUpperCase()}</td>${cells}</tr>`;
+  }).join('');
+  el.innerHTML = `<table class="admin-fof-matrix-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+}
+
+function fofUpdateMatrix(a, b, result) {
+  const aWinPct = (result.aWins / result.runs) * 100;
+  const bWinPct = (result.bWins / result.runs) * 100;
+  fofMatrix[a.character + '|' + b.character] = { winPct: aWinPct, runs: result.runs };
+  fofMatrix[b.character + '|' + a.character] = { winPct: bWinPct, runs: result.runs };
+  renderFofMatrix();
+}
+
+async function runFofAllMatchups() {
+  if (fofChars.length < 2) return;
+  const resultsEl = document.getElementById('admin-fof-sim-results');
+  const pairs = [];
+  for (let i = 0; i < fofChars.length; i++) {
+    for (let j = i + 1; j < fofChars.length; j++) {
+      pairs.push([fofChars[i], fofChars[j]]);
+    }
+  }
+  for (let i = 0; i < pairs.length; i++) {
+    const [a, b] = pairs[i];
+    if (resultsEl) resultsEl.innerHTML = `<div>Running ${a.character.toUpperCase()} vs ${b.character.toUpperCase()} — ${fofVol.toLocaleString()} sims (${i+1}/${pairs.length})…</div>`;
+    await new Promise(r => setTimeout(r, 20));
+    fofRunCounter++;
+    const result = fofSimulate(a, b, fofVol);
+    fofUpdateMatrix(a, b, result);
+  }
+  if (resultsEl) resultsEl.innerHTML = `<div class="admin-fof-sim-runhdr">All ${pairs.length} matchups simulated at ${fofVol.toLocaleString()} runs each — matrix updated.</div>`;
 }
 
 function fofFmtStat(stat, value) {
@@ -30341,6 +30389,7 @@ async function runFofSim() {
   const result = fofSimulate(a, b, fofVol);
   const elapsed = (performance.now() - t0).toFixed(0);
   renderFofSimResults(a, b, result, elapsed, fofRunCounter);
+  fofUpdateMatrix(a, b, result);
 }
 
 function renderFofSimResults(a, b, r, elapsedMs, runNum) {
@@ -30382,6 +30431,8 @@ function renderFofSimResults(a, b, r, elapsedMs, runNum) {
   });
   const runBtn = document.getElementById('admin-fof-run-sim');
   if (runBtn) runBtn.addEventListener('click', () => { void runFofSim(); });
+  const runAllBtn = document.getElementById('admin-fof-run-all');
+  if (runAllBtn) runAllBtn.addEventListener('click', () => { void runFofAllMatchups(); });
 })();
 
 // Overview chart filter buttons

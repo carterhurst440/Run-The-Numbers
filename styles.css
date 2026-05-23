@@ -27730,6 +27730,49 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   color: #c33;
   font-weight: 600;
 }
+.admin-fof-matrix-panel {
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid #2a2a2a;
+  background: #fafafa;
+}
+.admin-fof-matrix-hdr {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  margin-bottom: 4px;
+}
+.admin-fof-matrix-panel h3 {
+  margin: 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.admin-fof-matrix-table {
+  border-collapse: collapse;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  margin-top: 12px;
+  min-width: 480px;
+}
+.admin-fof-matrix-table th,
+.admin-fof-matrix-table td {
+  border: 1px solid #2a2a2a;
+  padding: 8px 14px;
+  text-align: right;
+}
+.admin-fof-matrix-table thead th {
+  background: #111; color: #fff; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.admin-fof-matrix-table thead th:first-child,
+.admin-fof-matrix-table td.rowhdr {
+  text-align: left;
+  font-weight: 700;
+}
+.admin-fof-matrix-table td.diag {
+  background: #ececec; color: #999; text-align: center;
+}
+.admin-fof-matrix-table td.empty {
+  color: #bbb; text-align: center;
+}
 .admin-cs-clips-ui {
   display: flex; gap: 24px; align-items: flex-start; margin-top: 16px;
   flex-wrap: wrap;
