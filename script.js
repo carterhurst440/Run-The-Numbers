@@ -30155,6 +30155,7 @@ async function loadAdminFateOrFortuneStats() {
     accuracy: Number(r.accuracy),
     dodge: Number(r.dodge),
     attack_time: Number(r.attack_time),
+    constitution: Number(r.constitution ?? 0),
   }));
   if (status) status.textContent = "";
   renderFofCharCards();
@@ -30209,7 +30210,7 @@ async function runFofAllMatchups() {
 }
 
 function fofFmtStat(stat, value) {
-  if (stat === 'crit_chance' || stat === 'accuracy' || stat === 'dodge') {
+  if (stat === 'crit_chance' || stat === 'accuracy' || stat === 'dodge' || stat === 'constitution') {
     return `${Math.round(value * 100)}%`;
   }
   if (stat === 'crit_mult') return `${Number(value).toFixed(1)}x`;
@@ -30239,6 +30240,7 @@ function renderFofCharCards() {
       ${fofSliderRow(i, 'crit_chance', 'Crit Chance', c.crit_chance, 0, 1, 0.01)}
       ${fofSliderRow(i, 'accuracy', 'Accuracy', c.accuracy, 0, 1, 0.01)}
       ${fofSliderRow(i, 'dodge', 'Dodge', c.dodge, 0, 1, 0.01)}
+      ${fofSliderRow(i, 'constitution', 'Constitution', c.constitution, 0, 1, 0.01)}
       ${fofSliderRow(i, 'attack_time', 'Attack Time', c.attack_time, 0.1, 5, 0.05)}
       <div class="admin-fof-char-actions">
         <button type="button" class="admin-fof-reset" data-idx="${i}">Reset</button>
@@ -30287,6 +30289,7 @@ async function fofSaveChar(idx) {
       accuracy: c.accuracy,
       dodge: c.dodge,
       attack_time: c.attack_time,
+      constitution: c.constitution,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'character' });
   if (error) { if (status) status.textContent = `Save error: ${error.message}`; return; }
@@ -30309,10 +30312,13 @@ function renderFofSimPickers() {
 }
 
 function fofSimulate(a, b, runs) {
-  const aHp = a.hp, aDmg = a.damage, aCm = a.crit_mult, aCc = a.crit_chance, aAt = a.attack_time;
-  const bHp = b.hp, bDmg = b.damage, bCm = b.crit_mult, bCc = b.crit_chance, bAt = b.attack_time;
+  const aHp = a.hp, aDmg = a.damage, aCm = a.crit_mult, aAt = a.attack_time;
+  const bHp = b.hp, bDmg = b.damage, bCm = b.crit_mult, bAt = b.attack_time;
   const aHitChance = a.accuracy * (1 - b.dodge);
   const bHitChance = b.accuracy * (1 - a.dodge);
+  // Constitution suppresses the attacker's crit chance against this defender.
+  const aEffCrit = a.crit_chance * (1 - (b.constitution || 0));
+  const bEffCrit = b.crit_chance * (1 - (a.constitution || 0));
 
   let aWins = 0, draws = 0;
   let totalTime = 0, totalAttacks = 0;
@@ -30333,7 +30339,7 @@ function fofSimulate(a, b, runs) {
         if (Math.random() < aHitChance) {
           aHits++;
           let dmg = aDmg;
-          if (Math.random() < aCc) { dmg *= aCm; aCrits++; }
+          if (Math.random() < aEffCrit) { dmg *= aCm; aCrits++; }
           hpB -= dmg;
         }
         tA += aAt;
@@ -30343,7 +30349,7 @@ function fofSimulate(a, b, runs) {
         if (Math.random() < bHitChance) {
           bHits++;
           let dmg = bDmg;
-          if (Math.random() < bCc) { dmg *= bCm; bCrits++; }
+          if (Math.random() < bEffCrit) { dmg *= bCm; bCrits++; }
           hpA -= dmg;
         }
         tB += bAt;
@@ -30362,6 +30368,7 @@ function fofSimulate(a, b, runs) {
     avgDuration: totalTime / runs,
     avgAttacks: totalAttacks / runs,
     aHitChance, bHitChance,
+    aEffCrit, bEffCrit,
     aCritRate: aHits > 0 ? aCrits / aHits : 0,
     bCritRate: bHits > 0 ? bCrits / bHits : 0,
     aMissRate: aTries > 0 ? (aTries - aHits) / aTries : 0,
@@ -30412,6 +30419,7 @@ function renderFofSimResults(a, b, r, elapsedMs, runNum) {
       <tr><td>Win %</td><td>${aPct.toFixed(3)}%</td><td>${bPct.toFixed(3)}%</td></tr>
       <tr><td>Fair contract</td><td>$${aPrice}</td><td>$${bPrice}</td></tr>
       <tr><td>Hit chance</td><td>${(r.aHitChance*100).toFixed(1)}%</td><td>${(r.bHitChance*100).toFixed(1)}%</td></tr>
+      <tr><td>Eff. crit chance</td><td>${(r.aEffCrit*100).toFixed(2)}%</td><td>${(r.bEffCrit*100).toFixed(2)}%</td></tr>
       <tr><td>Crit rate (of hits)</td><td>${(r.aCritRate*100).toFixed(2)}%</td><td>${(r.bCritRate*100).toFixed(2)}%</td></tr>
       <tr><td>Miss rate</td><td>${(r.aMissRate*100).toFixed(2)}%</td><td>${(r.bMissRate*100).toFixed(2)}%</td></tr>
     </table>
