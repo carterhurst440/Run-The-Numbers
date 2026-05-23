@@ -30156,6 +30156,7 @@ async function loadAdminFateOrFortuneStats() {
     dodge: Number(r.dodge),
     attack_time: Number(r.attack_time),
     constitution: Number(r.constitution ?? 0),
+    special_abilities: Array.isArray(r.special_abilities) ? r.special_abilities : [],
   }));
   if (status) status.textContent = "";
   renderFofCharCards();
@@ -30242,6 +30243,7 @@ function renderFofCharCards() {
       ${fofSliderRow(i, 'dodge', 'Dodge', c.dodge, 0, 1, 0.01)}
       ${fofSliderRow(i, 'constitution', 'Constitution', c.constitution, 0, 1, 0.01)}
       ${fofSliderRow(i, 'attack_time', 'Attack Time', c.attack_time, 0.1, 5, 0.05)}
+      ${fofRenderSpecials(i, c)}
       <div class="admin-fof-char-actions">
         <button type="button" class="admin-fof-reset" data-idx="${i}">Reset</button>
         <button type="button" class="admin-fof-save primary" data-idx="${i}">Save</button>
@@ -30249,6 +30251,24 @@ function renderFofCharCards() {
     </div>
   `).join('');
   attachFofCardHandlers();
+}
+
+function fofRenderSpecials(idx, c) {
+  if (!c.special_abilities || c.special_abilities.length === 0) {
+    return `<div class="admin-fof-special-none">No special ability</div>`;
+  }
+  return c.special_abilities.map(ab => `
+    <div class="admin-fof-special">
+      <label class="admin-fof-special-toggle">
+        <input type="checkbox" class="admin-fof-special-cb"
+          data-idx="${idx}" data-ability-id="${ab.id}"
+          ${ab.enabled ? 'checked' : ''}>
+        <span class="admin-fof-special-name">${ab.name || ab.id}</span>
+        <span class="admin-fof-special-type">${ab.type}</span>
+      </label>
+      <div class="admin-fof-special-desc">${ab.description || ''}</div>
+    </div>
+  `).join('');
 }
 
 function attachFofCardHandlers() {
@@ -30261,6 +30281,16 @@ function attachFofCardHandlers() {
       fofChars[idx][stat] = val;
       row.querySelector('.admin-fof-val').textContent = fofFmtStat(stat, val);
       const card = row.closest('.admin-fof-char-card');
+      if (card) card.classList.add('dirty');
+    });
+  });
+  document.querySelectorAll('.admin-fof-special-cb').forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      const idx = Number(e.currentTarget.dataset.idx);
+      const id = e.currentTarget.dataset.abilityId;
+      const ability = (fofChars[idx].special_abilities || []).find(a => a.id === id);
+      if (ability) ability.enabled = e.currentTarget.checked;
+      const card = e.currentTarget.closest('.admin-fof-char-card');
       if (card) card.classList.add('dirty');
     });
   });
@@ -30290,6 +30320,7 @@ async function fofSaveChar(idx) {
       dodge: c.dodge,
       attack_time: c.attack_time,
       constitution: c.constitution,
+      special_abilities: c.special_abilities || [],
       updated_at: new Date().toISOString(),
     }, { onConflict: 'character' });
   if (error) { if (status) status.textContent = `Save error: ${error.message}`; return; }
@@ -30311,6 +30342,14 @@ function renderFofSimPickers() {
   }
 }
 
+function fofGetAbility(c, type) {
+  if (!c || !Array.isArray(c.special_abilities)) return null;
+  for (const ab of c.special_abilities) {
+    if (ab && ab.enabled && ab.type === type) return ab;
+  }
+  return null;
+}
+
 function fofSimulate(a, b, runs) {
   const aHp = a.hp, aDmg = a.damage, aCm = a.crit_mult, aAt = a.attack_time;
   const bHp = b.hp, bDmg = b.damage, bCm = b.crit_mult, bAt = b.attack_time;
@@ -30320,10 +30359,31 @@ function fofSimulate(a, b, runs) {
   const aEffCrit = a.crit_chance * (1 - (b.constitution || 0));
   const bEffCrit = b.crit_chance * (1 - (a.constitution || 0));
 
+  // Resolve ability params once per matchup (hot-loop optimization).
+  const aIK = fofGetAbility(a, 'INSTANT_KILL_CHANCE');
+  const bIK = fofGetAbility(b, 'INSTANT_KILL_CHANCE');
+  const aIKChance = aIK ? Number(aIK.effect?.instantKillChance) || 0 : 0;
+  const bIKChance = bIK ? Number(bIK.effect?.instantKillChance) || 0 : 0;
+
+  const aCNM = !!fofGetAbility(a, 'CRITICAL_HITS_CANNOT_MISS');
+  const bCNM = !!fofGetAbility(b, 'CRITICAL_HITS_CANNOT_MISS');
+
+  const aRH = fofGetAbility(a, 'ATTACK_REPLACED_BY_HEAL');
+  const bRH = fofGetAbility(b, 'ATTACK_REPLACED_BY_HEAL');
+  const aRHChance = aRH ? Number(aRH.effect?.replaceAttackChance) || 0 : 0;
+  const bRHChance = bRH ? Number(bRH.effect?.replaceAttackChance) || 0 : 0;
+  const aRHHeal = aRH ? (Number(aRH.effect?.healPercentMaxHp) || 0) * aHp : 0;
+  const bRHHeal = bRH ? (Number(bRH.effect?.healPercentMaxHp) || 0) * bHp : 0;
+
+  const aLS = fofGetAbility(a, 'LIFESTEAL');
+  const bLS = fofGetAbility(b, 'LIFESTEAL');
+  const aLSPct = aLS ? Number(aLS.effect?.healPercentOfDamageDealt) || 0 : 0;
+  const bLSPct = bLS ? Number(bLS.effect?.healPercentOfDamageDealt) || 0 : 0;
+
   let aWins = 0, draws = 0;
   let totalTime = 0, totalAttacks = 0;
-  let aTries = 0, aHits = 0, aCrits = 0;
-  let bTries = 0, bHits = 0, bCrits = 0;
+  let aTries = 0, aHits = 0, aCrits = 0, aIKHits = 0, aHealUses = 0, aLSHealed = 0;
+  let bTries = 0, bHits = 0, bCrits = 0, bIKHits = 0, bHealUses = 0, bLSHealed = 0;
   const MAX_ATTACKS = 10000;
 
   for (let i = 0; i < runs; i++) {
@@ -30335,24 +30395,91 @@ function fofSimulate(a, b, runs) {
       attacks++;
       if (tA <= tB) {
         time = tA;
+        tA += aAt;
+
+        // ATTACK_REPLACED_BY_HEAL — rolled at turn start, skips the attack.
+        if (aRHChance > 0 && Math.random() < aRHChance) {
+          aHealUses++;
+          hpA += aRHHeal;
+          if (hpA > aHp) hpA = aHp;
+          continue;
+        }
+
         aTries++;
-        if (Math.random() < aHitChance) {
+
+        // INSTANT_KILL_CHANCE — bypasses accuracy/crit entirely on proc.
+        if (aIKChance > 0 && Math.random() < aIKChance) {
+          aIKHits++;
+          aHits++;
+          hpB = 0;
+          continue;
+        }
+
+        // Normal attack — CRITICAL_HITS_CANNOT_MISS reorders the rolls.
+        let didHit = false, didCrit = false;
+        if (aCNM) {
+          if (Math.random() < aEffCrit) { didHit = true; didCrit = true; }
+          else if (Math.random() < aHitChance) didHit = true;
+        } else {
+          if (Math.random() < aHitChance) {
+            didHit = true;
+            if (Math.random() < aEffCrit) didCrit = true;
+          }
+        }
+        if (didHit) {
           aHits++;
           let dmg = aDmg;
-          if (Math.random() < aEffCrit) { dmg *= aCm; aCrits++; }
+          if (didCrit) { dmg *= aCm; aCrits++; }
           hpB -= dmg;
+          if (aLSPct > 0) {
+            const heal = dmg * aLSPct;
+            hpA += heal;
+            if (hpA > aHp) hpA = aHp;
+            aLSHealed += heal;
+          }
         }
-        tA += aAt;
       } else {
         time = tB;
+        tB += bAt;
+
+        if (bRHChance > 0 && Math.random() < bRHChance) {
+          bHealUses++;
+          hpB += bRHHeal;
+          if (hpB > bHp) hpB = bHp;
+          continue;
+        }
+
         bTries++;
-        if (Math.random() < bHitChance) {
+
+        if (bIKChance > 0 && Math.random() < bIKChance) {
+          bIKHits++;
+          bHits++;
+          hpA = 0;
+          continue;
+        }
+
+        let didHit = false, didCrit = false;
+        if (bCNM) {
+          if (Math.random() < bEffCrit) { didHit = true; didCrit = true; }
+          else if (Math.random() < bHitChance) didHit = true;
+        } else {
+          if (Math.random() < bHitChance) {
+            didHit = true;
+            if (Math.random() < bEffCrit) didCrit = true;
+          }
+        }
+        if (didHit) {
           bHits++;
           let dmg = bDmg;
-          if (Math.random() < bEffCrit) { dmg *= bCm; bCrits++; }
+          if (didCrit) { dmg *= bCm; bCrits++; }
           hpA -= dmg;
+          if (bLSPct > 0) {
+            const heal = dmg * bLSPct;
+            hpB += heal;
+            if (hpB > bHp) hpB = bHp;
+            bLSHealed += heal;
+          }
         }
-        tB += bAt;
       }
     }
 
@@ -30373,6 +30500,8 @@ function fofSimulate(a, b, runs) {
     bCritRate: bHits > 0 ? bCrits / bHits : 0,
     aMissRate: aTries > 0 ? (aTries - aHits) / aTries : 0,
     bMissRate: bTries > 0 ? (bTries - bHits) / bTries : 0,
+    aIKHits, bIKHits, aHealUses, bHealUses,
+    aLSHealed: aLSHealed / runs, bLSHealed: bLSHealed / runs,
   };
 }
 
@@ -30426,7 +30555,17 @@ function renderFofSimResults(a, b, r, elapsedMs, runNum) {
     <div class="admin-fof-sim-meta">
       Avg duration ${r.avgDuration.toFixed(2)}s · Avg attacks ${r.avgAttacks.toFixed(1)} · Draws ${r.draws.toLocaleString()} (${drawPct.toFixed(3)}%) · Took ${elapsedMs}ms
     </div>
+    ${fofRenderAbilityStats(a, b, r)}
   `;
+}
+
+function fofRenderAbilityStats(a, b, r) {
+  const lines = [];
+  if (r.aIKHits || r.bIKHits) lines.push(`Instant kills — ${a.character.toUpperCase()}: ${r.aIKHits.toLocaleString()} · ${b.character.toUpperCase()}: ${r.bIKHits.toLocaleString()}`);
+  if (r.aHealUses || r.bHealUses) lines.push(`Heal-replace procs — ${a.character.toUpperCase()}: ${r.aHealUses.toLocaleString()} · ${b.character.toUpperCase()}: ${r.bHealUses.toLocaleString()}`);
+  if (r.aLSHealed || r.bLSHealed) lines.push(`Avg lifesteal/fight — ${a.character.toUpperCase()}: ${r.aLSHealed.toFixed(1)} HP · ${b.character.toUpperCase()}: ${r.bLSHealed.toFixed(1)} HP`);
+  if (lines.length === 0) return '';
+  return `<div class="admin-fof-sim-abilities">${lines.map(l => `<div>${l}</div>`).join('')}</div>`;
 }
 
 (function fofInit() {

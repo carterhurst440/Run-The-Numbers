@@ -27635,6 +27635,52 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 }
 .admin-fof-slider-row input[type=range] { width: 100%; }
 .admin-fof-val { text-align: right; font-weight: 600; }
+.admin-fof-special {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px dashed #2a2a2a;
+  background: #fff;
+}
+.admin-fof-special-none {
+  margin-top: 10px;
+  font-size: 10px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.admin-fof-special-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.admin-fof-special-name {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.admin-fof-special-type {
+  font-size: 9px;
+  color: #888;
+  margin-left: auto;
+  letter-spacing: 0.5px;
+}
+.admin-fof-special-desc {
+  margin-top: 4px;
+  font-size: 10px;
+  color: #555;
+  line-height: 1.4;
+}
+.admin-fof-sim-abilities {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid #2a2a2a;
+  font-size: 11px;
+  color: #333;
+}
+.admin-fof-sim-abilities > div + div { margin-top: 4px; }
 .admin-fof-char-actions {
   display: flex; gap: 6px; margin-top: 10px; justify-content: flex-end;
 }
@@ -27746,12 +27792,12 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   text-transform: uppercase;
   letter-spacing: 1px;
 }
+#admin-fof-matrix { overflow-x: auto; }
 .admin-fof-matrix-table {
   border-collapse: collapse;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 12px;
   margin-top: 12px;
-  min-width: 480px;
 }
 .admin-fof-matrix-table th,
 .admin-fof-matrix-table td {
