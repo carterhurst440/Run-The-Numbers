@@ -27682,6 +27682,14 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 12px;
 }
+.admin-fof-sim-runhdr {
+  font-size: 12px;
+  color: #111;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
 .admin-fof-sim-bar {
   display: flex; height: 26px; margin: 8px 0; border: 1px solid #2a2a2a;
   font-family: 'JetBrains Mono', ui-monospace, monospace;

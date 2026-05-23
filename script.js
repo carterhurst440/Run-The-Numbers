@@ -30130,6 +30130,7 @@ adminTabButtons.forEach(button => {
 // ── FATE OR FORTUNE — battle simulator ─────────────────────────
 let fofChars = [];
 let fofVol = 1000;
+let fofRunCounter = 0;
 
 async function loadAdminFateOrFortuneStats() {
   const status = document.getElementById("admin-fof-status");
@@ -30335,21 +30336,23 @@ async function runFofSim() {
 
   resultsEl.innerHTML = `<div>Running ${fofVol.toLocaleString()} sims…</div>`;
   await new Promise(r => setTimeout(r, 20));
+  fofRunCounter++;
   const t0 = performance.now();
   const result = fofSimulate(a, b, fofVol);
   const elapsed = (performance.now() - t0).toFixed(0);
-  renderFofSimResults(a, b, result, elapsed);
+  renderFofSimResults(a, b, result, elapsed, fofRunCounter);
 }
 
-function renderFofSimResults(a, b, r, elapsedMs) {
+function renderFofSimResults(a, b, r, elapsedMs, runNum) {
   const resultsEl = document.getElementById('admin-fof-sim-results');
   const aPct = (r.aWins / r.runs) * 100;
   const bPct = (r.bWins / r.runs) * 100;
   const drawPct = (r.draws / r.runs) * 100;
-  const aPrice = (r.aWins / r.runs).toFixed(3);
-  const bPrice = (r.bWins / r.runs).toFixed(3);
+  const aPrice = (r.aWins / r.runs).toFixed(4);
+  const bPrice = (r.bWins / r.runs).toFixed(4);
 
   resultsEl.innerHTML = `
+    <div class="admin-fof-sim-runhdr">Run #${runNum} — ${r.runs.toLocaleString()} fresh simulations</div>
     <div class="admin-fof-sim-bar">
       <div class="admin-fof-sim-bar-a" style="width:${aPct.toFixed(2)}%">${aPct.toFixed(1)}%</div>
       <div class="admin-fof-sim-bar-b" style="width:${bPct.toFixed(2)}%">${bPct.toFixed(1)}%</div>
@@ -30357,14 +30360,14 @@ function renderFofSimResults(a, b, r, elapsedMs) {
     <table class="admin-fof-sim-table">
       <tr><th></th><th>${a.character.toUpperCase()}</th><th>${b.character.toUpperCase()}</th></tr>
       <tr><td>Wins</td><td>${r.aWins.toLocaleString()}</td><td>${r.bWins.toLocaleString()}</td></tr>
-      <tr><td>Win %</td><td>${aPct.toFixed(2)}%</td><td>${bPct.toFixed(2)}%</td></tr>
+      <tr><td>Win %</td><td>${aPct.toFixed(3)}%</td><td>${bPct.toFixed(3)}%</td></tr>
       <tr><td>Fair contract</td><td>$${aPrice}</td><td>$${bPrice}</td></tr>
       <tr><td>Hit chance</td><td>${(r.aHitChance*100).toFixed(1)}%</td><td>${(r.bHitChance*100).toFixed(1)}%</td></tr>
-      <tr><td>Crit rate (of hits)</td><td>${(r.aCritRate*100).toFixed(1)}%</td><td>${(r.bCritRate*100).toFixed(1)}%</td></tr>
-      <tr><td>Miss rate</td><td>${(r.aMissRate*100).toFixed(1)}%</td><td>${(r.bMissRate*100).toFixed(1)}%</td></tr>
+      <tr><td>Crit rate (of hits)</td><td>${(r.aCritRate*100).toFixed(2)}%</td><td>${(r.bCritRate*100).toFixed(2)}%</td></tr>
+      <tr><td>Miss rate</td><td>${(r.aMissRate*100).toFixed(2)}%</td><td>${(r.bMissRate*100).toFixed(2)}%</td></tr>
     </table>
     <div class="admin-fof-sim-meta">
-      Avg duration ${r.avgDuration.toFixed(2)}s · Avg attacks ${r.avgAttacks.toFixed(1)} · Draws ${r.draws.toLocaleString()} (${drawPct.toFixed(2)}%) · Took ${elapsedMs}ms
+      Avg duration ${r.avgDuration.toFixed(2)}s · Avg attacks ${r.avgAttacks.toFixed(1)} · Draws ${r.draws.toLocaleString()} (${drawPct.toFixed(3)}%) · Took ${elapsedMs}ms
     </div>
   `;
 }
