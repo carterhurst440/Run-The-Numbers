@@ -30571,9 +30571,11 @@ function fofRenderAbilityStats(a, b, r) {
 (function fofInit() {
   document.querySelectorAll('.admin-fof-vol-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
+      const v = Number(e.currentTarget.dataset.vol);
+      if (!Number.isFinite(v) || v <= 0) return;
       document.querySelectorAll('.admin-fof-vol-btn').forEach(b => b.classList.remove('active'));
       e.currentTarget.classList.add('active');
-      fofVol = Number(e.currentTarget.dataset.vol);
+      fofVol = v;
     });
   });
   const runBtn = document.getElementById('admin-fof-run-sim');

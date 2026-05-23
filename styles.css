@@ -27723,6 +27723,15 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   font-family: inherit;
 }
 .admin-fof-vol-btn.active { background: #111; color: #fff; }
+.admin-fof-runall-btn {
+  padding: 4px 10px;
+  border: 1px solid #2a2a2a;
+  background: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.admin-fof-runall-btn:hover { background: #111; color: #fff; }
 .admin-fof-sim-results {
   margin-top: 16px;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
