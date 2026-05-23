@@ -51,13 +51,13 @@ VALUES
   ('rogue',      60, 10, 3.2, 0.32, 0.76, 0.55, 0.62, 0.05, '[]'::jsonb),
   ('berserker', 115, 33, 3.5, 0.30, 0.62, 0.02, 1.00, 0.30, '[]'::jsonb),
   ('mage',       92, 44, 2.0, 0.18, 1.00, 0.08, 1.80, 0.10, '[]'::jsonb),
-  ('assassin',   70, 25, 2.5, 0.25, 0.85, 0.40, 0.75, 0.05,
+  ('assassin',   70, 14, 2.8, 0.24, 0.82, 0.38, 0.72, 0.05,
    '[{"id":"execution","name":"Execution","type":"INSTANT_KILL_CHANCE","enabled":true,"description":"Each attack has a 5% chance to instantly kill the opponent.","trigger":{"event":"ATTACK"},"effect":{"instantKillChance":0.05}}]'::jsonb),
-  ('ranger',     95, 22, 2.5, 0.20, 0.70, 0.25, 1.00, 0.15,
+  ('ranger',    105, 19, 2.2, 0.20, 0.88, 0.22, 0.92, 0.15,
    '[{"id":"deadeye","name":"Deadeye","type":"CRITICAL_HITS_CANNOT_MISS","enabled":true,"description":"Critical hit attempts bypass normal hit checks and cannot miss.","effect":{"criticalHitsBypassAccuracyCheck":true}}]'::jsonb),
-  ('warlock',    80, 35, 2.0, 0.12, 0.88, 0.10, 1.50, 0.08,
+  ('warlock',   120, 22, 1.8, 0.12, 0.84, 0.10, 1.25, 0.25,
    '[{"id":"regenerate","name":"Regenerate","type":"ATTACK_REPLACED_BY_HEAL","enabled":true,"description":"Each attack has a 10% chance to become a healing spell restoring 50% max HP instead of attacking.","trigger":{"event":"ATTACK_TURN_START"},"effect":{"replaceAttackChance":0.10,"healPercentMaxHp":0.50}}]'::jsonb),
-  ('paladin',   150, 20, 1.8, 0.10, 0.92, 0.06, 1.30, 0.35,
+  ('paladin',   155, 20, 1.7, 0.10, 0.90, 0.08, 1.20, 0.30,
    '[{"id":"holy_light","name":"Holy Light","type":"LIFESTEAL","enabled":true,"description":"Heals for 15% of damage dealt to the opponent.","effect":{"healPercentOfDamageDealt":0.15}}]'::jsonb)
 ON CONFLICT (character) DO UPDATE SET
   hp                = EXCLUDED.hp,
