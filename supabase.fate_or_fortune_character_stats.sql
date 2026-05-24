@@ -47,17 +47,17 @@ CREATE POLICY "anon_read_fof_stats"
 INSERT INTO public.fate_or_fortune_character_stats
   (character, hp, damage, crit_mult, crit_chance, accuracy, dodge, attack_time, constitution, special_abilities)
 VALUES
-  ('knight',    180, 16, 1.5, 0.05, 0.96, 0.04, 1.10, 0.50, '[]'::jsonb),
-  ('rogue',      60, 10, 3.2, 0.32, 0.76, 0.55, 0.62, 0.05, '[]'::jsonb),
-  ('berserker', 115, 33, 3.5, 0.30, 0.62, 0.02, 1.00, 0.30, '[]'::jsonb),
-  ('mage',       92, 44, 2.0, 0.18, 1.00, 0.08, 1.80, 0.10, '[]'::jsonb),
-  ('assassin',   70, 14, 2.8, 0.24, 0.82, 0.38, 0.72, 0.05,
-   '[{"id":"execution","name":"Execution","type":"INSTANT_KILL_CHANCE","enabled":true,"description":"Each attack has a 5% chance to instantly kill the opponent.","trigger":{"event":"ATTACK"},"effect":{"instantKillChance":0.05}}]'::jsonb),
-  ('ranger',    105, 19, 2.2, 0.20, 0.88, 0.22, 0.92, 0.15,
+  ('knight',    190, 17, 1.50, 0.05, 0.96, 0.04, 1.12, 0.38, '[]'::jsonb),
+  ('rogue',      58, 10, 3.30, 0.32, 0.76, 0.56, 0.64, 0.04, '[]'::jsonb),
+  ('berserker', 120, 34, 3.60, 0.30, 0.61, 0.02, 1.02, 0.10, '[]'::jsonb),
+  ('mage',       88, 46, 2.00, 0.17, 1.00, 0.08, 1.78, 0.18, '[]'::jsonb),
+  ('assassin',   55, 11, 2.90, 0.20, 0.76, 0.40, 0.72, 0.03,
+   '[{"id":"execution","name":"Execution","type":"INSTANT_KILL_CHANCE","enabled":true,"description":"Each attack has a 6% chance to instantly kill the opponent.","trigger":{"event":"ATTACK"},"effect":{"instantKillChance":0.06}}]'::jsonb),
+  ('ranger',     98, 18, 2.10, 0.18, 0.86, 0.20, 0.94, 0.14,
    '[{"id":"deadeye","name":"Deadeye","type":"CRITICAL_HITS_CANNOT_MISS","enabled":true,"description":"Critical hit attempts bypass normal hit checks and cannot miss.","effect":{"criticalHitsBypassAccuracyCheck":true}}]'::jsonb),
-  ('warlock',   120, 22, 1.8, 0.12, 0.84, 0.10, 1.25, 0.25,
-   '[{"id":"regenerate","name":"Regenerate","type":"ATTACK_REPLACED_BY_HEAL","enabled":true,"description":"Each attack has a 10% chance to become a healing spell restoring 100% max HP instead of attacking.","trigger":{"event":"ATTACK_TURN_START"},"effect":{"replaceAttackChance":0.10,"healPercentMaxHp":1.00}}]'::jsonb),
-  ('paladin',   155, 20, 1.7, 0.10, 0.90, 0.08, 1.20, 0.30,
+  ('warlock',   110, 20, 1.80, 0.11, 0.83, 0.09, 1.15, 0.22,
+   '[{"id":"regenerate","name":"Regenerate","type":"ATTACK_REPLACED_BY_FULL_HEAL","enabled":true,"description":"Each attack has a 10% chance to become a full heal spell instead of attacking. Cannot trigger twice consecutively.","trigger":{"event":"ATTACK_TURN_START"},"constraints":{"cannotTriggerConsecutively":true},"effect":{"replaceAttackChance":0.10,"healToFullHp":true}}]'::jsonb),
+  ('paladin',   165, 19, 1.65, 0.09, 0.89, 0.07, 1.22, 0.34,
    '[{"id":"holy_light","name":"Holy Light","type":"LIFESTEAL","enabled":true,"description":"Heals for 15% of damage dealt to the opponent.","effect":{"healPercentOfDamageDealt":0.15}}]'::jsonb)
 ON CONFLICT (character) DO UPDATE SET
   hp                = EXCLUDED.hp,

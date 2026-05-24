@@ -30368,12 +30368,16 @@ function fofSimulate(a, b, runs) {
   const aCNM = !!fofGetAbility(a, 'CRITICAL_HITS_CANNOT_MISS');
   const bCNM = !!fofGetAbility(b, 'CRITICAL_HITS_CANNOT_MISS');
 
-  const aRH = fofGetAbility(a, 'ATTACK_REPLACED_BY_HEAL');
-  const bRH = fofGetAbility(b, 'ATTACK_REPLACED_BY_HEAL');
+  const aRH = fofGetAbility(a, 'ATTACK_REPLACED_BY_HEAL') || fofGetAbility(a, 'ATTACK_REPLACED_BY_FULL_HEAL');
+  const bRH = fofGetAbility(b, 'ATTACK_REPLACED_BY_HEAL') || fofGetAbility(b, 'ATTACK_REPLACED_BY_FULL_HEAL');
   const aRHChance = aRH ? Number(aRH.effect?.replaceAttackChance) || 0 : 0;
   const bRHChance = bRH ? Number(bRH.effect?.replaceAttackChance) || 0 : 0;
-  const aRHHeal = aRH ? (Number(aRH.effect?.healPercentMaxHp) || 0) * aHp : 0;
-  const bRHHeal = bRH ? (Number(bRH.effect?.healPercentMaxHp) || 0) * bHp : 0;
+  const aRHFull = !!aRH?.effect?.healToFullHp;
+  const bRHFull = !!bRH?.effect?.healToFullHp;
+  const aRHHeal = aRHFull ? aHp : (aRH ? (Number(aRH.effect?.healPercentMaxHp) || 0) * aHp : 0);
+  const bRHHeal = bRHFull ? bHp : (bRH ? (Number(bRH.effect?.healPercentMaxHp) || 0) * bHp : 0);
+  const aRHNoStack = !!aRH?.constraints?.cannotTriggerConsecutively;
+  const bRHNoStack = !!bRH?.constraints?.cannotTriggerConsecutively;
 
   const aLS = fofGetAbility(a, 'LIFESTEAL');
   const bLS = fofGetAbility(b, 'LIFESTEAL');
@@ -30390,6 +30394,7 @@ function fofSimulate(a, b, runs) {
     let hpA = aHp, hpB = bHp;
     let tA = aAt, tB = bAt;
     let time = 0, attacks = 0;
+    let aLastHeal = false, bLastHeal = false;
 
     while (hpA > 0 && hpB > 0 && attacks < MAX_ATTACKS) {
       attacks++;
@@ -30397,13 +30402,16 @@ function fofSimulate(a, b, runs) {
         time = tA;
         tA += aAt;
 
-        // ATTACK_REPLACED_BY_HEAL — rolled at turn start, skips the attack.
-        if (aRHChance > 0 && Math.random() < aRHChance) {
+        // ATTACK_REPLACED_BY_HEAL / FULL_HEAL — rolled at turn start.
+        // If `cannotTriggerConsecutively`, the roll is skipped this turn.
+        if (aRHChance > 0 && !(aRHNoStack && aLastHeal) && Math.random() < aRHChance) {
           aHealUses++;
           hpA += aRHHeal;
           if (hpA > aHp) hpA = aHp;
+          aLastHeal = true;
           continue;
         }
+        aLastHeal = false;
 
         aTries++;
 
@@ -30442,12 +30450,14 @@ function fofSimulate(a, b, runs) {
         time = tB;
         tB += bAt;
 
-        if (bRHChance > 0 && Math.random() < bRHChance) {
+        if (bRHChance > 0 && !(bRHNoStack && bLastHeal) && Math.random() < bRHChance) {
           bHealUses++;
           hpB += bRHHeal;
           if (hpB > bHp) hpB = bHp;
+          bLastHeal = true;
           continue;
         }
+        bLastHeal = false;
 
         bTries++;
 
