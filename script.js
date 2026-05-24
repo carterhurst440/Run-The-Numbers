@@ -30384,17 +30384,51 @@ function fofSimulate(a, b, runs) {
   const aLSPct = aLS ? Number(aLS.effect?.healPercentOfDamageDealt) || 0 : 0;
   const bLSPct = bLS ? Number(bLS.effect?.healPercentOfDamageDealt) || 0 : 0;
 
-  let aWins = 0, draws = 0;
+  // BONUS_ATTACK — after a successful attack, chance for an immediate extra attack.
+  const aBA = fofGetAbility(a, 'BONUS_ATTACK');
+  const bBA = fofGetAbility(b, 'BONUS_ATTACK');
+  const aBAChance = aBA ? Number(aBA.effect?.bonusAttackChance) || 0 : 0;
+  const bBAChance = bBA ? Number(bBA.effect?.bonusAttackChance) || 0 : 0;
+  const aBACanMiss = aBA ? aBA.effect?.bonusAttackCanMiss !== false : true;
+  const bBACanMiss = bBA ? bBA.effect?.bonusAttackCanMiss !== false : true;
+  const aBACanCrit = aBA ? aBA.effect?.bonusAttackCanCrit !== false : true;
+  const bBACanCrit = bBA ? bBA.effect?.bonusAttackCanCrit !== false : true;
+
+  // DAMAGE_REFLECTION — defender may reflect % of damage back at attacker.
+  const aRefl = fofGetAbility(a, 'DAMAGE_REFLECTION');
+  const bRefl = fofGetAbility(b, 'DAMAGE_REFLECTION');
+  const aReflChance = aRefl ? Number(aRefl.effect?.reflectChance) || 0 : 0;
+  const bReflChance = bRefl ? Number(bRefl.effect?.reflectChance) || 0 : 0;
+  const aReflPct = aRefl ? Number(aRefl.effect?.reflectPercent) || 0 : 0;
+  const bReflPct = bRefl ? Number(bRefl.effect?.reflectPercent) || 0 : 0;
+
+  // DAMAGE_ABSORB_HEAL — defender may negate damage and heal for that amount.
+  const aAbs = fofGetAbility(a, 'DAMAGE_ABSORB_HEAL');
+  const bAbs = fofGetAbility(b, 'DAMAGE_ABSORB_HEAL');
+  const aAbsChance = aAbs ? Number(aAbs.effect?.absorbChance) || 0 : 0;
+  const bAbsChance = bAbs ? Number(bAbs.effect?.absorbChance) || 0 : 0;
+
+  // GUARANTEED_NEXT_CRIT — when struck by crit, next successful attack auto-crits.
+  const aGuarOnCrit = !!fofGetAbility(a, 'GUARANTEED_NEXT_CRIT');
+  const bGuarOnCrit = !!fofGetAbility(b, 'GUARANTEED_NEXT_CRIT');
+
+  let aWins = 0, bWins = 0, draws = 0;
   let totalTime = 0, totalAttacks = 0;
   let aTries = 0, aHits = 0, aCrits = 0, aIKHits = 0, aHealUses = 0, aLSHealed = 0;
   let bTries = 0, bHits = 0, bCrits = 0, bIKHits = 0, bHealUses = 0, bLSHealed = 0;
+  let aBonusFired = 0, bBonusFired = 0;
+  let aReflectFired = 0, bReflectFired = 0;
+  let aAbsorbFired = 0, bAbsorbFired = 0;
+  let aGuarUsed = 0, bGuarUsed = 0;
   const MAX_ATTACKS = 10000;
+  const MAX_BONUS_CHAIN = 5;
 
   for (let i = 0; i < runs; i++) {
     let hpA = aHp, hpB = bHp;
     let tA = aAt, tB = bAt;
     let time = 0, attacks = 0;
     let aLastHeal = false, bLastHeal = false;
+    let aGuarCrit = false, bGuarCrit = false;
 
     while (hpA > 0 && hpB > 0 && attacks < MAX_ATTACKS) {
       attacks++;
@@ -30403,7 +30437,6 @@ function fofSimulate(a, b, runs) {
         tA += aAt;
 
         // ATTACK_REPLACED_BY_HEAL / FULL_HEAL — rolled at turn start.
-        // If `cannotTriggerConsecutively`, the roll is skipped this turn.
         if (aRHChance > 0 && !(aRHNoStack && aLastHeal) && Math.random() < aRHChance) {
           aHealUses++;
           hpA += aRHHeal;
@@ -30413,39 +30446,87 @@ function fofSimulate(a, b, runs) {
         }
         aLastHeal = false;
 
-        aTries++;
+        // One main attack + possible bonus-attack chain. Each iteration is a
+        // distinct attack roll; bonus attacks honor canCrit/canMiss flags.
+        let isBonus = false;
+        let chain = 0;
+        do {
+          if (hpA <= 0 || hpB <= 0) break;
+          aTries++;
 
-        // INSTANT_KILL_CHANCE — bypasses accuracy/crit entirely on proc.
-        if (aIKChance > 0 && Math.random() < aIKChance) {
-          aIKHits++;
-          aHits++;
-          hpB = 0;
-          continue;
-        }
+          // INSTANT_KILL — rolls every attack, including bonus.
+          if (aIKChance > 0 && Math.random() < aIKChance) {
+            aIKHits++;
+            aHits++;
+            hpB = 0;
+            if (aGuarCrit) { aGuarUsed++; aGuarCrit = false; }
+            break;
+          }
 
-        // Normal attack — CRITICAL_HITS_CANNOT_MISS reorders the rolls.
-        let didHit = false, didCrit = false;
-        if (aCNM) {
-          if (Math.random() < aEffCrit) { didHit = true; didCrit = true; }
-          else if (Math.random() < aHitChance) didHit = true;
-        } else {
-          if (Math.random() < aHitChance) {
+          // Hit/crit resolution. Bonus attacks may have canMiss=false /
+          // canCrit=false overrides; main attacks always use full logic.
+          const canMiss = isBonus ? aBACanMiss : true;
+          const canCrit = isBonus ? aBACanCrit : true;
+          let didHit = false, didCrit = false;
+          if (!canMiss) {
             didHit = true;
-            if (Math.random() < aEffCrit) didCrit = true;
+            if (canCrit && Math.random() < aEffCrit) didCrit = true;
+          } else if (aCNM && canCrit) {
+            if (Math.random() < aEffCrit) { didHit = true; didCrit = true; }
+            else if (Math.random() < aHitChance) didHit = true;
+          } else {
+            if (Math.random() < aHitChance) {
+              didHit = true;
+              if (canCrit && Math.random() < aEffCrit) didCrit = true;
+            }
           }
-        }
-        if (didHit) {
-          aHits++;
-          let dmg = aDmg;
-          if (didCrit) { dmg *= aCm; aCrits++; }
-          hpB -= dmg;
-          if (aLSPct > 0) {
-            const heal = dmg * aLSPct;
-            hpA += heal;
-            if (hpA > aHp) hpA = aHp;
-            aLSHealed += heal;
+          // GUARANTEED_NEXT_CRIT overrides — but only if the attack landed.
+          if (didHit && aGuarCrit && canCrit) didCrit = true;
+
+          if (didHit) {
+            aHits++;
+            let dmg = aDmg;
+            if (didCrit) { dmg *= aCm; aCrits++; }
+
+            // Defender ABSORB first — fully negates damage.
+            let absorbed = false;
+            if (bAbsChance > 0 && Math.random() < bAbsChance) {
+              bAbsorbFired++;
+              hpB += dmg;
+              if (hpB > bHp) hpB = bHp;
+              absorbed = true;
+            }
+            if (!absorbed) {
+              hpB -= dmg;
+              // Defender REFLECT — sends % back at attacker.
+              if (bReflChance > 0 && Math.random() < bReflChance) {
+                bReflectFired++;
+                hpA -= dmg * bReflPct;
+              }
+              // Attacker LIFESTEAL on damage actually dealt.
+              if (aLSPct > 0) {
+                const heal = dmg * aLSPct;
+                hpA += heal;
+                if (hpA > aHp) hpA = aHp;
+                aLSHealed += heal;
+              }
+              // Defender REVENGE — if they got crit, arm their next attack.
+              if (didCrit && bGuarOnCrit) bGuarCrit = true;
+            }
+
+            // Attacker's revenge flag consumed on a successful attack
+            // (regardless of crit or whether damage was absorbed).
+            if (aGuarCrit) { aGuarUsed++; aGuarCrit = false; }
           }
-        }
+
+          // BONUS_ATTACK chain — only after a successful hit, only if both alive.
+          isBonus = (
+            didHit && hpA > 0 && hpB > 0 &&
+            aBAChance > 0 && chain < MAX_BONUS_CHAIN &&
+            Math.random() < aBAChance
+          );
+          if (isBonus) { aBonusFired++; chain++; }
+        } while (isBonus);
       } else {
         time = tB;
         tB += bAt;
@@ -30459,49 +30540,86 @@ function fofSimulate(a, b, runs) {
         }
         bLastHeal = false;
 
-        bTries++;
+        let isBonus = false;
+        let chain = 0;
+        do {
+          if (hpA <= 0 || hpB <= 0) break;
+          bTries++;
 
-        if (bIKChance > 0 && Math.random() < bIKChance) {
-          bIKHits++;
-          bHits++;
-          hpA = 0;
-          continue;
-        }
+          if (bIKChance > 0 && Math.random() < bIKChance) {
+            bIKHits++;
+            bHits++;
+            hpA = 0;
+            if (bGuarCrit) { bGuarUsed++; bGuarCrit = false; }
+            break;
+          }
 
-        let didHit = false, didCrit = false;
-        if (bCNM) {
-          if (Math.random() < bEffCrit) { didHit = true; didCrit = true; }
-          else if (Math.random() < bHitChance) didHit = true;
-        } else {
-          if (Math.random() < bHitChance) {
+          const canMiss = isBonus ? bBACanMiss : true;
+          const canCrit = isBonus ? bBACanCrit : true;
+          let didHit = false, didCrit = false;
+          if (!canMiss) {
             didHit = true;
-            if (Math.random() < bEffCrit) didCrit = true;
+            if (canCrit && Math.random() < bEffCrit) didCrit = true;
+          } else if (bCNM && canCrit) {
+            if (Math.random() < bEffCrit) { didHit = true; didCrit = true; }
+            else if (Math.random() < bHitChance) didHit = true;
+          } else {
+            if (Math.random() < bHitChance) {
+              didHit = true;
+              if (canCrit && Math.random() < bEffCrit) didCrit = true;
+            }
           }
-        }
-        if (didHit) {
-          bHits++;
-          let dmg = bDmg;
-          if (didCrit) { dmg *= bCm; bCrits++; }
-          hpA -= dmg;
-          if (bLSPct > 0) {
-            const heal = dmg * bLSPct;
-            hpB += heal;
-            if (hpB > bHp) hpB = bHp;
-            bLSHealed += heal;
+          if (didHit && bGuarCrit && canCrit) didCrit = true;
+
+          if (didHit) {
+            bHits++;
+            let dmg = bDmg;
+            if (didCrit) { dmg *= bCm; bCrits++; }
+
+            let absorbed = false;
+            if (aAbsChance > 0 && Math.random() < aAbsChance) {
+              aAbsorbFired++;
+              hpA += dmg;
+              if (hpA > aHp) hpA = aHp;
+              absorbed = true;
+            }
+            if (!absorbed) {
+              hpA -= dmg;
+              if (aReflChance > 0 && Math.random() < aReflChance) {
+                aReflectFired++;
+                hpB -= dmg * aReflPct;
+              }
+              if (bLSPct > 0) {
+                const heal = dmg * bLSPct;
+                hpB += heal;
+                if (hpB > bHp) hpB = bHp;
+                bLSHealed += heal;
+              }
+              if (didCrit && aGuarOnCrit) aGuarCrit = true;
+            }
+
+            if (bGuarCrit) { bGuarUsed++; bGuarCrit = false; }
           }
-        }
+
+          isBonus = (
+            didHit && hpA > 0 && hpB > 0 &&
+            bBAChance > 0 && chain < MAX_BONUS_CHAIN &&
+            Math.random() < bBAChance
+          );
+          if (isBonus) { bBonusFired++; chain++; }
+        } while (isBonus);
       }
     }
 
     if (hpA > 0 && hpB <= 0) aWins++;
-    else if (hpA > 0 && hpB > 0) draws++;
+    else if (hpA <= 0 && hpB > 0) bWins++;
+    else draws++;
     totalTime += time;
     totalAttacks += attacks;
   }
 
   return {
-    runs, aWins, draws,
-    bWins: runs - aWins - draws,
+    runs, aWins, bWins, draws,
     avgDuration: totalTime / runs,
     avgAttacks: totalAttacks / runs,
     aHitChance, bHitChance,
@@ -30512,6 +30630,10 @@ function fofSimulate(a, b, runs) {
     bMissRate: bTries > 0 ? (bTries - bHits) / bTries : 0,
     aIKHits, bIKHits, aHealUses, bHealUses,
     aLSHealed: aLSHealed / runs, bLSHealed: bLSHealed / runs,
+    aBonusFired, bBonusFired,
+    aReflectFired, bReflectFired,
+    aAbsorbFired, bAbsorbFired,
+    aGuarUsed, bGuarUsed,
   };
 }
 
@@ -30571,9 +30693,14 @@ function renderFofSimResults(a, b, r, elapsedMs, runNum) {
 
 function fofRenderAbilityStats(a, b, r) {
   const lines = [];
-  if (r.aIKHits || r.bIKHits) lines.push(`Instant kills — ${a.character.toUpperCase()}: ${r.aIKHits.toLocaleString()} · ${b.character.toUpperCase()}: ${r.bIKHits.toLocaleString()}`);
-  if (r.aHealUses || r.bHealUses) lines.push(`Heal-replace procs — ${a.character.toUpperCase()}: ${r.aHealUses.toLocaleString()} · ${b.character.toUpperCase()}: ${r.bHealUses.toLocaleString()}`);
-  if (r.aLSHealed || r.bLSHealed) lines.push(`Avg lifesteal/fight — ${a.character.toUpperCase()}: ${r.aLSHealed.toFixed(1)} HP · ${b.character.toUpperCase()}: ${r.bLSHealed.toFixed(1)} HP`);
+  const an = a.character.toUpperCase(), bn = b.character.toUpperCase();
+  if (r.aIKHits || r.bIKHits) lines.push(`Instant kills — ${an}: ${r.aIKHits.toLocaleString()} · ${bn}: ${r.bIKHits.toLocaleString()}`);
+  if (r.aHealUses || r.bHealUses) lines.push(`Heal-replace procs — ${an}: ${r.aHealUses.toLocaleString()} · ${bn}: ${r.bHealUses.toLocaleString()}`);
+  if (r.aLSHealed || r.bLSHealed) lines.push(`Avg lifesteal/fight — ${an}: ${r.aLSHealed.toFixed(1)} HP · ${bn}: ${r.bLSHealed.toFixed(1)} HP`);
+  if (r.aBonusFired || r.bBonusFired) lines.push(`Bonus attacks — ${an}: ${r.aBonusFired.toLocaleString()} · ${bn}: ${r.bBonusFired.toLocaleString()}`);
+  if (r.aReflectFired || r.bReflectFired) lines.push(`Reflects — ${an}: ${r.aReflectFired.toLocaleString()} · ${bn}: ${r.bReflectFired.toLocaleString()}`);
+  if (r.aAbsorbFired || r.bAbsorbFired) lines.push(`Absorbs — ${an}: ${r.aAbsorbFired.toLocaleString()} · ${bn}: ${r.bAbsorbFired.toLocaleString()}`);
+  if (r.aGuarUsed || r.bGuarUsed) lines.push(`Guaranteed-crit triggers — ${an}: ${r.aGuarUsed.toLocaleString()} · ${bn}: ${r.bGuarUsed.toLocaleString()}`);
   if (lines.length === 0) return '';
   return `<div class="admin-fof-sim-abilities">${lines.map(l => `<div>${l}</div>`).join('')}</div>`;
 }
