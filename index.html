@@ -3243,9 +3243,16 @@
                 <div class="admin-fof-matrix-panel">
                   <div class="admin-fof-matrix-hdr">
                     <h3>Win Probability Matrix</h3>
-                    <button type="button" class="admin-fof-runall-btn" id="admin-fof-run-all">Run all matchups</button>
+                    <div class="admin-fof-matrix-actions">
+                      <button type="button" class="admin-fof-runall-btn" id="admin-fof-run-all">Run all matchups</button>
+                      <label class="admin-fof-sim-pick">Master sims/matchup
+                        <input type="number" id="admin-fof-master-size" class="admin-fof-log-seed-input" value="10000000" min="1000" step="1000">
+                      </label>
+                      <button type="button" class="admin-fof-runall-btn" id="admin-fof-run-master">Run Master Matrix &amp; save to DB</button>
+                    </div>
                   </div>
-                  <p class="admin-cs-hint">Each row hero's win % vs each column opponent, from the most recent sim of that matchup.</p>
+                  <p class="admin-cs-hint">Each row hero's win % vs each column opponent. Loads from saved master odds on open; manual sims overwrite cells locally only — only "Run Master Matrix" writes back to DB.</p>
+                  <div id="admin-fof-master-status" class="admin-fof-status"></div>
                   <div id="admin-fof-matrix"></div>
                 </div>
                 <div class="admin-fof-log-panel">

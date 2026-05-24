@@ -30157,7 +30157,32 @@ async function loadAdminFateOrFortuneStats() {
     attack_time: Number(r.attack_time),
     constitution: Number(r.constitution ?? 0),
     special_abilities: Array.isArray(r.special_abilities) ? r.special_abilities : [],
+    vs_knight:    r.vs_knight    != null ? Number(r.vs_knight)    : null,
+    vs_rogue:     r.vs_rogue     != null ? Number(r.vs_rogue)     : null,
+    vs_berserker: r.vs_berserker != null ? Number(r.vs_berserker) : null,
+    vs_mage:      r.vs_mage      != null ? Number(r.vs_mage)      : null,
+    vs_assassin:  r.vs_assassin  != null ? Number(r.vs_assassin)  : null,
+    vs_ranger:    r.vs_ranger    != null ? Number(r.vs_ranger)    : null,
+    vs_warlock:   r.vs_warlock   != null ? Number(r.vs_warlock)   : null,
+    vs_paladin:   r.vs_paladin   != null ? Number(r.vs_paladin)   : null,
+    odds_sample_size: r.odds_sample_size != null ? Number(r.odds_sample_size) : null,
+    odds_computed_at: r.odds_computed_at || null,
   }));
+  // Hydrate the matrix from saved master-run odds so the panel shows
+  // the precomputed numbers without the user having to re-sim.
+  fofMatrix = {};
+  for (const opponent of fofChars) {
+    for (const challenger of fofChars) {
+      if (challenger.character === opponent.character) continue;
+      const dec = opponent[`vs_${challenger.character}`];
+      if (Number.isFinite(dec)) {
+        fofMatrix[`${challenger.character}|${opponent.character}`] = {
+          winPct: dec * 100,
+          runs: opponent.odds_sample_size || 0,
+        };
+      }
+    }
+  }
   if (status) status.textContent = "";
   renderFofCharCards();
   renderFofSimPickers();
@@ -30208,6 +30233,65 @@ async function runFofAllMatchups() {
     fofUpdateMatrix(a, b, result);
   }
   if (resultsEl) resultsEl.innerHTML = `<div class="admin-fof-sim-runhdr">All ${pairs.length} matchups simulated at ${fofVol.toLocaleString()} runs each — matrix updated.</div>`;
+}
+
+async function runFofMasterMatrix() {
+  if (fofChars.length < 2) return;
+  const sizeInput = document.getElementById('admin-fof-master-size');
+  const status = document.getElementById('admin-fof-master-status');
+  const sampleSize = Math.max(1000, Math.floor(Number(sizeInput?.value) || 10000000));
+  const pairs = [];
+  for (let i = 0; i < fofChars.length; i++) {
+    for (let j = i + 1; j < fofChars.length; j++) pairs.push([fofChars[i], fofChars[j]]);
+  }
+  const confirmMsg = `This will run ${pairs.length} matchups × ${sampleSize.toLocaleString()} sims each (~${(pairs.length * sampleSize).toLocaleString()} battles total).\n\nAt 10M sims this may take several minutes and freeze this tab between matchups. Proceed?`;
+  if (!window.confirm(confirmMsg)) return;
+
+  // Collect: per opponent row, map of challenger -> winPct (0..1)
+  const odds = {};
+  for (const c of fofChars) odds[c.character] = {};
+
+  const t0 = performance.now();
+  for (let i = 0; i < pairs.length; i++) {
+    const [a, b] = pairs[i];
+    if (status) status.textContent = `Master run ${i+1}/${pairs.length}: ${a.character.toUpperCase()} vs ${b.character.toUpperCase()} — ${sampleSize.toLocaleString()} sims… elapsed ${((performance.now()-t0)/1000).toFixed(1)}s`;
+    await new Promise(r => setTimeout(r, 20));
+    const r = fofSimulate(a, b, sampleSize);
+    const aWinDec = r.aWins / r.runs;
+    const bWinDec = r.bWins / r.runs;
+    // Convention: on row Y, vs_X = X's win % when Y is opponent.
+    // Matchup (a, b): aWinDec is a's win % when b is opponent, so it
+    // goes on row b in column vs_a; bWinDec on row a in column vs_b.
+    odds[b.character][a.character] = aWinDec;
+    odds[a.character][b.character] = bWinDec;
+    // Also update the live display matrix.
+    fofUpdateMatrix(a, b, r);
+  }
+
+  if (status) status.textContent = `All matchups done in ${((performance.now()-t0)/1000).toFixed(1)}s. Writing to DB…`;
+  const writtenAt = new Date().toISOString();
+  for (const opponent of fofChars) {
+    const updates = {
+      odds_sample_size: sampleSize,
+      odds_computed_at: writtenAt,
+    };
+    for (const challenger of fofChars) {
+      if (challenger.character === opponent.character) continue;
+      const dec = odds[opponent.character]?.[challenger.character];
+      if (Number.isFinite(dec)) updates[`vs_${challenger.character}`] = dec;
+    }
+    const { error } = await supabase
+      .from('fate_or_fortune_character_stats')
+      .update(updates)
+      .eq('character', opponent.character);
+    if (error) {
+      if (status) status.textContent = `DB write failed on row ${opponent.character}: ${error.message}`;
+      return;
+    }
+    // Reflect locally too so the in-memory char keeps the new odds.
+    Object.assign(opponent, updates);
+  }
+  if (status) status.textContent = `Saved ${pairs.length * 2} odds across ${fofChars.length} rows at ${new Date(writtenAt).toLocaleString()}.`;
 }
 
 function fofFmtStat(stat, value) {
@@ -31133,6 +31217,8 @@ function fofRenderAbilityStats(a, b, r) {
   if (runBtn) runBtn.addEventListener('click', () => { void runFofSim(); });
   const runAllBtn = document.getElementById('admin-fof-run-all');
   if (runAllBtn) runAllBtn.addEventListener('click', () => { void runFofAllMatchups(); });
+  const runMasterBtn = document.getElementById('admin-fof-run-master');
+  if (runMasterBtn) runMasterBtn.addEventListener('click', () => { void runFofMasterMatrix(); });
   const logRunBtn = document.getElementById('admin-fof-log-run');
   if (logRunBtn) logRunBtn.addEventListener('click', () => runFofSingleRound());
   const logCopyBtn = document.getElementById('admin-fof-log-copy');

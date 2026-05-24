@@ -26,6 +26,23 @@ ALTER TABLE public.fate_or_fortune_character_stats
 ALTER TABLE public.fate_or_fortune_character_stats
   ADD COLUMN IF NOT EXISTS special_abilities JSONB NOT NULL DEFAULT '[]'::jsonb;
 
+-- Precomputed matchup odds (one row per OPPONENT). Convention:
+--   On row Y, column `vs_X` = the win % that hero X achieves
+--   when Y is the opponent. Stored as decimal 0..1 (e.g. 0.462 = 46.2%).
+-- So when the server picks opponent = Y, one SELECT on row Y returns
+-- the 7 candidate hero odds with no JOIN, no CASE, no math.
+ALTER TABLE public.fate_or_fortune_character_stats
+  ADD COLUMN IF NOT EXISTS vs_knight        NUMERIC,
+  ADD COLUMN IF NOT EXISTS vs_rogue         NUMERIC,
+  ADD COLUMN IF NOT EXISTS vs_berserker     NUMERIC,
+  ADD COLUMN IF NOT EXISTS vs_mage          NUMERIC,
+  ADD COLUMN IF NOT EXISTS vs_assassin      NUMERIC,
+  ADD COLUMN IF NOT EXISTS vs_ranger        NUMERIC,
+  ADD COLUMN IF NOT EXISTS vs_warlock       NUMERIC,
+  ADD COLUMN IF NOT EXISTS vs_paladin       NUMERIC,
+  ADD COLUMN IF NOT EXISTS odds_sample_size INT,
+  ADD COLUMN IF NOT EXISTS odds_computed_at TIMESTAMPTZ;
+
 ALTER TABLE public.fate_or_fortune_character_stats ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "auth_all_fof_stats" ON public.fate_or_fortune_character_stats;

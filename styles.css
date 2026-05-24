@@ -27793,7 +27793,15 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 }
 .admin-fof-matrix-hdr {
   display: flex; justify-content: space-between; align-items: center; gap: 12px;
-  margin-bottom: 4px;
+  margin-bottom: 4px; flex-wrap: wrap;
+}
+.admin-fof-matrix-actions {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+}
+.admin-fof-matrix-actions input[type=number] {
+  width: 130px;
 }
 .admin-fof-matrix-panel h3 {
   margin: 0;
