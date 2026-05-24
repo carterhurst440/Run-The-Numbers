@@ -56,7 +56,7 @@ VALUES
   ('ranger',    105, 19, 2.2, 0.20, 0.88, 0.22, 0.92, 0.15,
    '[{"id":"deadeye","name":"Deadeye","type":"CRITICAL_HITS_CANNOT_MISS","enabled":true,"description":"Critical hit attempts bypass normal hit checks and cannot miss.","effect":{"criticalHitsBypassAccuracyCheck":true}}]'::jsonb),
   ('warlock',   120, 22, 1.8, 0.12, 0.84, 0.10, 1.25, 0.25,
-   '[{"id":"regenerate","name":"Regenerate","type":"ATTACK_REPLACED_BY_HEAL","enabled":true,"description":"Each attack has a 10% chance to become a healing spell restoring 50% max HP instead of attacking.","trigger":{"event":"ATTACK_TURN_START"},"effect":{"replaceAttackChance":0.10,"healPercentMaxHp":0.50}}]'::jsonb),
+   '[{"id":"regenerate","name":"Regenerate","type":"ATTACK_REPLACED_BY_HEAL","enabled":true,"description":"Each attack has a 10% chance to become a healing spell restoring 100% max HP instead of attacking.","trigger":{"event":"ATTACK_TURN_START"},"effect":{"replaceAttackChance":0.10,"healPercentMaxHp":1.00}}]'::jsonb),
   ('paladin',   155, 20, 1.7, 0.10, 0.90, 0.08, 1.20, 0.30,
    '[{"id":"holy_light","name":"Holy Light","type":"LIFESTEAL","enabled":true,"description":"Heals for 15% of damage dealt to the opponent.","effect":{"healPercentOfDamageDealt":0.15}}]'::jsonb)
 ON CONFLICT (character) DO UPDATE SET
