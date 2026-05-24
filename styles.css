@@ -27828,6 +27828,50 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .admin-fof-matrix-table td.empty {
   color: #bbb; text-align: center;
 }
+.admin-fof-log-panel {
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid #2a2a2a;
+  background: #fafafa;
+}
+.admin-fof-log-panel h3 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.admin-fof-log-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+}
+.admin-fof-log-seed-input {
+  width: 110px;
+  padding: 4px 6px;
+  font-family: inherit;
+  font-size: 12px;
+}
+.admin-fof-log-output {
+  margin-top: 12px;
+  max-height: 520px;
+  overflow: auto;
+  padding: 12px;
+  background: #111;
+  color: #e8e8d2;
+  border: 1px solid #2a2a2a;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre;
+}
+.admin-fof-log-output:empty::before {
+  content: 'Run a round to see the event log.';
+  color: #888;
+}
 .admin-cs-clips-ui {
   display: flex; gap: 24px; align-items: flex-start; margin-top: 16px;
   flex-wrap: wrap;

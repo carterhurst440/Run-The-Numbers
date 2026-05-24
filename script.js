@@ -30332,13 +30332,17 @@ async function fofSaveChar(idx) {
 function renderFofSimPickers() {
   const aSel = document.getElementById('admin-fof-sim-a');
   const bSel = document.getElementById('admin-fof-sim-b');
-  if (!aSel || !bSel) return;
+  const logA = document.getElementById('admin-fof-log-a');
+  const logB = document.getElementById('admin-fof-log-b');
   const opts = fofChars.map(c => `<option value="${c.character}">${c.character.toUpperCase()}</option>`).join('');
-  aSel.innerHTML = opts;
-  bSel.innerHTML = opts;
+  for (const sel of [aSel, bSel, logA, logB]) {
+    if (sel) sel.innerHTML = opts;
+  }
   if (fofChars.length >= 2) {
-    aSel.value = fofChars[0].character;
-    bSel.value = fofChars[1].character;
+    if (aSel) aSel.value = fofChars[0].character;
+    if (bSel) bSel.value = fofChars[1].character;
+    if (logA) logA.value = fofChars[0].character;
+    if (logB) logB.value = fofChars[1].character;
   }
 }
 
@@ -30348,6 +30352,416 @@ function fofGetAbility(c, type) {
     if (ab && ab.enabled && ab.type === type) return ab;
   }
   return null;
+}
+
+// Mulberry32 PRNG — seeded so single rounds are reproducible.
+function fofRng(seed) {
+  let s = (seed | 0) || 1;
+  return function() {
+    s = (s + 0x6D2B79F5) | 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function fofRound(n, p) {
+  const f = Math.pow(10, p == null ? 2 : p);
+  return Math.round(n * f) / f;
+}
+
+function fofProperName(c) {
+  return c.character.charAt(0).toUpperCase() + c.character.slice(1);
+}
+
+function fofSimulateOne(a, b, seed) {
+  if (seed == null || !Number.isFinite(seed)) {
+    seed = Math.floor(Math.random() * 1000000);
+  }
+  const rng = fofRng(seed);
+
+  const aHp = a.hp, aDmg = a.damage, aCm = a.crit_mult, aAt = a.attack_time;
+  const bHp = b.hp, bDmg = b.damage, bCm = b.crit_mult, bAt = b.attack_time;
+  const aHitChance = a.accuracy * (1 - b.dodge);
+  const bHitChance = b.accuracy * (1 - a.dodge);
+  const aEffCrit = a.crit_chance * (1 - (b.constitution || 0));
+  const bEffCrit = b.crit_chance * (1 - (a.constitution || 0));
+
+  const aIK = fofGetAbility(a, 'INSTANT_KILL_CHANCE');
+  const bIK = fofGetAbility(b, 'INSTANT_KILL_CHANCE');
+  const aIKChance = aIK ? Number(aIK.effect?.instantKillChance) || 0 : 0;
+  const bIKChance = bIK ? Number(bIK.effect?.instantKillChance) || 0 : 0;
+
+  const aCNM = !!fofGetAbility(a, 'CRITICAL_HITS_CANNOT_MISS');
+  const bCNM = !!fofGetAbility(b, 'CRITICAL_HITS_CANNOT_MISS');
+
+  const aRH = fofGetAbility(a, 'ATTACK_REPLACED_BY_HEAL') || fofGetAbility(a, 'ATTACK_REPLACED_BY_FULL_HEAL');
+  const bRH = fofGetAbility(b, 'ATTACK_REPLACED_BY_HEAL') || fofGetAbility(b, 'ATTACK_REPLACED_BY_FULL_HEAL');
+  const aRHChance = aRH ? Number(aRH.effect?.replaceAttackChance) || 0 : 0;
+  const bRHChance = bRH ? Number(bRH.effect?.replaceAttackChance) || 0 : 0;
+  const aRHFull = !!aRH?.effect?.healToFullHp;
+  const bRHFull = !!bRH?.effect?.healToFullHp;
+  const aRHHeal = aRHFull ? aHp : (aRH ? (Number(aRH.effect?.healPercentMaxHp) || 0) * aHp : 0);
+  const bRHHeal = bRHFull ? bHp : (bRH ? (Number(bRH.effect?.healPercentMaxHp) || 0) * bHp : 0);
+  const aRHNoStack = !!aRH?.constraints?.cannotTriggerConsecutively;
+  const bRHNoStack = !!bRH?.constraints?.cannotTriggerConsecutively;
+
+  const aLS = fofGetAbility(a, 'LIFESTEAL');
+  const bLS = fofGetAbility(b, 'LIFESTEAL');
+  const aLSPct = aLS ? Number(aLS.effect?.healPercentOfDamageDealt) || 0 : 0;
+  const bLSPct = bLS ? Number(bLS.effect?.healPercentOfDamageDealt) || 0 : 0;
+
+  const aBA = fofGetAbility(a, 'BONUS_ATTACK');
+  const bBA = fofGetAbility(b, 'BONUS_ATTACK');
+  const aBAChance = aBA ? Number(aBA.effect?.bonusAttackChance) || 0 : 0;
+  const bBAChance = bBA ? Number(bBA.effect?.bonusAttackChance) || 0 : 0;
+  const aBACanMiss = aBA ? aBA.effect?.bonusAttackCanMiss !== false : true;
+  const bBACanMiss = bBA ? bBA.effect?.bonusAttackCanMiss !== false : true;
+  const aBACanCrit = aBA ? aBA.effect?.bonusAttackCanCrit !== false : true;
+  const bBACanCrit = bBA ? bBA.effect?.bonusAttackCanCrit !== false : true;
+
+  const aRefl = fofGetAbility(a, 'DAMAGE_REFLECTION');
+  const bRefl = fofGetAbility(b, 'DAMAGE_REFLECTION');
+  const aReflChance = aRefl ? Number(aRefl.effect?.reflectChance) || 0 : 0;
+  const bReflChance = bRefl ? Number(bRefl.effect?.reflectChance) || 0 : 0;
+  const aReflPct = aRefl ? Number(aRefl.effect?.reflectPercent) || 0 : 0;
+  const bReflPct = bRefl ? Number(bRefl.effect?.reflectPercent) || 0 : 0;
+
+  const aAbs = fofGetAbility(a, 'DAMAGE_ABSORB_HEAL');
+  const bAbs = fofGetAbility(b, 'DAMAGE_ABSORB_HEAL');
+  const aAbsChance = aAbs ? Number(aAbs.effect?.absorbChance) || 0 : 0;
+  const bAbsChance = bAbs ? Number(bAbs.effect?.absorbChance) || 0 : 0;
+
+  const aGuarOnCrit = !!fofGetAbility(a, 'GUARANTEED_NEXT_CRIT');
+  const bGuarOnCrit = !!fofGetAbility(b, 'GUARANTEED_NEXT_CRIT');
+
+  // Ability id lookup for messaging.
+  const idOf = (c, type, alt) => {
+    const ab = fofGetAbility(c, type) || (alt ? fofGetAbility(c, alt) : null);
+    return ab ? ab.id : null;
+  };
+  const aIKId = idOf(a, 'INSTANT_KILL_CHANCE');
+  const bIKId = idOf(b, 'INSTANT_KILL_CHANCE');
+  const aRHId = idOf(a, 'ATTACK_REPLACED_BY_HEAL', 'ATTACK_REPLACED_BY_FULL_HEAL');
+  const bRHId = idOf(b, 'ATTACK_REPLACED_BY_HEAL', 'ATTACK_REPLACED_BY_FULL_HEAL');
+  const aLSId = idOf(a, 'LIFESTEAL');
+  const bLSId = idOf(b, 'LIFESTEAL');
+  const aBAId = idOf(a, 'BONUS_ATTACK');
+  const bBAId = idOf(b, 'BONUS_ATTACK');
+  const aReflId = idOf(a, 'DAMAGE_REFLECTION');
+  const bReflId = idOf(b, 'DAMAGE_REFLECTION');
+  const aAbsId = idOf(a, 'DAMAGE_ABSORB_HEAL');
+  const bAbsId = idOf(b, 'DAMAGE_ABSORB_HEAL');
+  const aRevId = idOf(a, 'GUARANTEED_NEXT_CRIT');
+  const bRevId = idOf(b, 'GUARANTEED_NEXT_CRIT');
+  const aCNMId = idOf(a, 'CRITICAL_HITS_CANNOT_MISS');
+  const bCNMId = idOf(b, 'CRITICAL_HITS_CANNOT_MISS');
+
+  const events = [];
+  const A_ID = a.character, B_ID = b.character;
+  const A_NAME = A_ID.toUpperCase(), B_NAME = B_ID.toUpperCase();
+
+  let hpA = aHp, hpB = bHp;
+  let tA = aAt, tB = bAt;
+  let time = 0, attacks = 0;
+  let aLastHeal = false, bLastHeal = false;
+  let aGuarCrit = false, bGuarCrit = false;
+  const MAX_ATTACKS = 1000;
+  const MAX_BONUS_CHAIN = 5;
+
+  // Generalized turn so we don't duplicate A and B logic in this verbose path.
+  function takeTurn(side) {
+    const isA = side === 'A';
+    const atkId   = isA ? A_ID   : B_ID;
+    const atkName = isA ? A_NAME : B_NAME;
+    const defId   = isA ? B_ID   : A_ID;
+    const defName = isA ? B_NAME : A_NAME;
+
+    const rhChance  = isA ? aRHChance : bRHChance;
+    const rhHeal    = isA ? aRHHeal   : bRHHeal;
+    const rhFull    = isA ? aRHFull   : bRHFull;
+    const rhNoStack = isA ? aRHNoStack: bRHNoStack;
+    const rhId      = isA ? aRHId     : bRHId;
+    const ikChance  = isA ? aIKChance : bIKChance;
+    const ikId      = isA ? aIKId     : bIKId;
+    const hitChance = isA ? aHitChance: bHitChance;
+    const effCrit   = isA ? aEffCrit  : bEffCrit;
+    const dmgBase   = isA ? aDmg      : bDmg;
+    const cm        = isA ? aCm       : bCm;
+    const cnm       = isA ? aCNM      : bCNM;
+    const cnmId     = isA ? aCNMId    : bCNMId;
+    const lsPct     = isA ? aLSPct    : bLSPct;
+    const lsId      = isA ? aLSId     : bLSId;
+    const baChance  = isA ? aBAChance : bBAChance;
+    const baCanMiss = isA ? aBACanMiss: bBACanMiss;
+    const baCanCrit = isA ? aBACanCrit: bBACanCrit;
+    const baId      = isA ? aBAId     : bBAId;
+    // Defender's reactive abilities:
+    const defAbsChance  = isA ? bAbsChance  : aAbsChance;
+    const defAbsId      = isA ? bAbsId      : aAbsId;
+    const defReflChance = isA ? bReflChance : aReflChance;
+    const defReflPct    = isA ? bReflPct    : aReflPct;
+    const defReflId     = isA ? bReflId     : aReflId;
+    const defGuarOnCrit = isA ? bGuarOnCrit : aGuarOnCrit;
+    const defRevId      = isA ? bRevId      : aRevId;
+    const atkMax        = isA ? aHp : bHp;
+    const defMax        = isA ? bHp : aHp;
+
+    const getAtkHp = () => isA ? hpA : hpB;
+    const setAtkHp = (v) => { if (isA) hpA = v; else hpB = v; };
+    const getDefHp = () => isA ? hpB : hpA;
+    const setDefHp = (v) => { if (isA) hpB = v; else hpA = v; };
+    const getAtkLastHeal = () => isA ? aLastHeal : bLastHeal;
+    const setAtkLastHeal = (v) => { if (isA) aLastHeal = v; else bLastHeal = v; };
+    const getAtkGuar = () => isA ? aGuarCrit : bGuarCrit;
+    const setAtkGuar = (v) => { if (isA) aGuarCrit = v; else bGuarCrit = v; };
+    const setDefGuar = (v) => { if (isA) bGuarCrit = v; else aGuarCrit = v; };
+
+    const T = fofRound(time, 2);
+
+    // ATTACK_REPLACED_BY_HEAL / FULL_HEAL
+    if (rhChance > 0 && !(rhNoStack && getAtkLastHeal()) && rng() < rhChance) {
+      const before = getAtkHp();
+      const newHp = Math.min(atkMax, before + rhHeal);
+      setAtkHp(newHp);
+      setAtkLastHeal(true);
+      events.push({
+        time: T,
+        type: 'SPECIAL_TRIGGER',
+        actorId: atkId,
+        specialId: rhId || 'heal',
+        message: `${atkName} casts ${(rhId || 'heal').toUpperCase()}, restoring HP to ${rhFull ? 'full' : Math.round(newHp)} (${Math.round(newHp)}/${Math.round(atkMax)}).`,
+      });
+      events.push({ time: T, type: 'HEAL', actorId: atkId, hpAfter: Math.round(newHp), message: `${atkName} heals to ${Math.round(newHp)} HP.` });
+      return;
+    }
+    setAtkLastHeal(false);
+
+    let isBonus = false;
+    let chain = 0;
+    do {
+      if (hpA <= 0 || hpB <= 0) break;
+
+      // INSTANT_KILL
+      if (ikChance > 0 && rng() < ikChance) {
+        events.push({
+          time: T,
+          type: 'SPECIAL_TRIGGER',
+          actorId: atkId,
+          specialId: ikId || 'instant_kill',
+          message: `${atkName} triggers ${(ikId || 'instant_kill').toUpperCase()} — instantly killing ${defName}!`,
+        });
+        setDefHp(0);
+        events.push({
+          time: T,
+          type: 'HIT',
+          actorId: atkId,
+          targetId: defId,
+          damage: Math.round(defMax),
+          targetHpAfter: 0,
+          message: `${atkName} delivers a killing blow to ${defName}.`,
+        });
+        events.push({
+          time: T,
+          type: 'TAKE_DAMAGE',
+          actorId: defId,
+          sourceId: atkId,
+          damage: Math.round(defMax),
+          hpAfter: 0,
+          message: `${defName} takes a fatal blow.`,
+        });
+        if (getAtkGuar()) setAtkGuar(false);
+        break;
+      }
+
+      // Hit/crit roll
+      const canMiss = isBonus ? baCanMiss : true;
+      const canCrit = isBonus ? baCanCrit : true;
+      let didHit = false, didCrit = false, fromCNM = false;
+      if (!canMiss) {
+        didHit = true;
+        if (canCrit && rng() < effCrit) didCrit = true;
+      } else if (cnm && canCrit) {
+        if (rng() < effCrit) { didHit = true; didCrit = true; fromCNM = true; }
+        else if (rng() < hitChance) didHit = true;
+      } else {
+        if (rng() < hitChance) {
+          didHit = true;
+          if (canCrit && rng() < effCrit) didCrit = true;
+        }
+      }
+      const fromRevenge = didHit && getAtkGuar() && canCrit && !didCrit;
+      if (didHit && getAtkGuar() && canCrit) didCrit = true;
+
+      if (!didHit) {
+        events.push({
+          time: T,
+          type: 'MISS',
+          actorId: atkId,
+          targetId: defId,
+          message: `${atkName} attacks ${defName}${isBonus ? ' (bonus)' : ''} but misses.`,
+        });
+      } else {
+        let dmg = dmgBase;
+        if (didCrit) dmg *= cm;
+        const dmgInt = Math.round(dmg);
+
+        // Defender ABSORB
+        let absorbed = false;
+        if (defAbsChance > 0 && rng() < defAbsChance) {
+          absorbed = true;
+          const beforeDef = getDefHp();
+          const newDef = Math.min(defMax, beforeDef + dmg);
+          setDefHp(newDef);
+          events.push({
+            time: T,
+            type: 'SPECIAL_TRIGGER',
+            actorId: defId,
+            specialId: defAbsId || 'absorb',
+            message: `${defName} activates ${(defAbsId || 'absorb').toUpperCase()}, fully absorbing ${dmgInt} damage and healing for the same amount.`,
+          });
+          events.push({
+            time: T,
+            type: didCrit ? 'CRITICAL_HIT' : 'HIT',
+            actorId: atkId,
+            targetId: defId,
+            damage: dmgInt,
+            targetHpAfter: Math.round(newDef),
+            absorbed: true,
+            message: `${atkName}${fromRevenge ? "'s guaranteed REVENGE" : ''}${fromCNM ? "'s DEADEYE" : ''} ${didCrit ? 'critical' : 'normal'} hit on ${defName} is absorbed.`,
+          });
+        } else {
+          const newDef = getDefHp() - dmg;
+          setDefHp(newDef);
+          events.push({
+            time: T,
+            type: didCrit ? 'CRITICAL_HIT' : 'HIT',
+            actorId: atkId,
+            targetId: defId,
+            damage: dmgInt,
+            targetHpAfter: Math.max(0, Math.round(newDef)),
+            message: `${atkName} ${didCrit ? `lands a${fromRevenge ? ' guaranteed REVENGE' : fromCNM ? ' DEADEYE' : ''} CRITICAL HIT on` : `hits ${isBonus ? '(bonus) ' : ''}`}${defName} for ${dmgInt} damage.`,
+          });
+          events.push({
+            time: T,
+            type: didCrit ? 'TAKE_CRITICAL_DAMAGE' : 'TAKE_DAMAGE',
+            actorId: defId,
+            sourceId: atkId,
+            damage: dmgInt,
+            hpAfter: Math.max(0, Math.round(newDef)),
+            message: `${defName} takes ${dmgInt}${didCrit ? ' critical' : ''} damage.`,
+          });
+
+          // Defender REVENGE arming (only on crit that actually landed)
+          if (didCrit && defGuarOnCrit) {
+            setDefGuar(true);
+            events.push({
+              time: T,
+              type: 'SPECIAL_TRIGGER',
+              actorId: defId,
+              specialId: defRevId || 'revenge',
+              message: `${defName} activates ${(defRevId || 'revenge').toUpperCase()}. Next successful attack is guaranteed critical.`,
+            });
+          }
+
+          // Defender REFLECT
+          if (defReflChance > 0 && getDefHp() > 0 && rng() < defReflChance) {
+            const reflectDmg = dmg * defReflPct;
+            const reflectInt = Math.round(reflectDmg);
+            const newAtk = getAtkHp() - reflectDmg;
+            setAtkHp(newAtk);
+            events.push({
+              time: T,
+              type: 'SPECIAL_TRIGGER',
+              actorId: defId,
+              specialId: defReflId || 'reflect',
+              message: `${defName} activates ${(defReflId || 'reflect').toUpperCase()}, reflecting ${reflectInt} damage back to ${atkName}.`,
+            });
+            events.push({
+              time: T,
+              type: 'TAKE_DAMAGE',
+              actorId: atkId,
+              sourceId: defId,
+              damage: reflectInt,
+              hpAfter: Math.max(0, Math.round(newAtk)),
+              reflected: true,
+              message: `${atkName} takes ${reflectInt} reflected damage.`,
+            });
+          }
+
+          // Attacker LIFESTEAL
+          if (lsPct > 0) {
+            const heal = dmg * lsPct;
+            const healInt = Math.round(heal);
+            if (healInt > 0) {
+              const before = getAtkHp();
+              const newAtk = Math.min(atkMax, before + heal);
+              setAtkHp(newAtk);
+              events.push({
+                time: T,
+                type: 'SPECIAL_TRIGGER',
+                actorId: atkId,
+                specialId: lsId || 'lifesteal',
+                message: `${atkName} heals ${healInt} HP via ${(lsId || 'lifesteal').toUpperCase()}.`,
+              });
+              events.push({ time: T, type: 'HEAL', actorId: atkId, hpAfter: Math.round(newAtk), message: `${atkName} heals to ${Math.round(newAtk)} HP.` });
+            }
+          }
+        }
+
+        // Consume revenge flag on any successful attack
+        if (getAtkGuar()) setAtkGuar(false);
+      }
+
+      // BONUS_ATTACK chain
+      isBonus = (
+        didHit && hpA > 0 && hpB > 0 &&
+        baChance > 0 && chain < MAX_BONUS_CHAIN &&
+        rng() < baChance
+      );
+      if (isBonus) {
+        chain++;
+        events.push({
+          time: T,
+          type: 'SPECIAL_TRIGGER',
+          actorId: atkId,
+          specialId: baId || 'bonus_attack',
+          message: `${atkName} triggers ${(baId || 'bonus_attack').toUpperCase()} — bonus attack!`,
+        });
+      }
+    } while (isBonus);
+  }
+
+  while (hpA > 0 && hpB > 0 && attacks < MAX_ATTACKS) {
+    attacks++;
+    if (tA <= tB) { time = tA; tA += aAt; takeTurn('A'); }
+    else          { time = tB; tB += bAt; takeTurn('B'); }
+  }
+
+  const finalT = fofRound(time, 2);
+  let winnerObj = null;
+  if (hpA > 0 && hpB <= 0) {
+    events.push({ time: finalT, type: 'DEFEAT', actorId: B_ID, message: `${B_NAME} is defeated.` });
+    events.push({ time: finalT, type: 'VICTORY', actorId: A_ID, message: `${A_NAME} wins the battle.` });
+    winnerObj = { id: A_ID, name: fofProperName(a) };
+  } else if (hpA <= 0 && hpB > 0) {
+    events.push({ time: finalT, type: 'DEFEAT', actorId: A_ID, message: `${A_NAME} is defeated.` });
+    events.push({ time: finalT, type: 'VICTORY', actorId: B_ID, message: `${B_NAME} wins the battle.` });
+    winnerObj = { id: B_ID, name: fofProperName(b) };
+  } else {
+    events.push({ time: finalT, type: 'DRAW', message: 'Both fighters fall — draw.' });
+  }
+
+  return {
+    roundId: 'round_' + String(seed).padStart(5, '0'),
+    seed,
+    fighterA: { id: A_ID, name: fofProperName(a) },
+    fighterB: { id: B_ID, name: fofProperName(b) },
+    winner: winnerObj,
+    durationSeconds: finalT,
+    events,
+  };
 }
 
 function fofSimulate(a, b, runs) {
@@ -30719,7 +31133,36 @@ function fofRenderAbilityStats(a, b, r) {
   if (runBtn) runBtn.addEventListener('click', () => { void runFofSim(); });
   const runAllBtn = document.getElementById('admin-fof-run-all');
   if (runAllBtn) runAllBtn.addEventListener('click', () => { void runFofAllMatchups(); });
+  const logRunBtn = document.getElementById('admin-fof-log-run');
+  if (logRunBtn) logRunBtn.addEventListener('click', () => runFofSingleRound());
+  const logCopyBtn = document.getElementById('admin-fof-log-copy');
+  if (logCopyBtn) logCopyBtn.addEventListener('click', () => {
+    const out = document.getElementById('admin-fof-log-output');
+    if (!out || !out.textContent) return;
+    navigator.clipboard?.writeText(out.textContent);
+    logCopyBtn.textContent = 'Copied!';
+    setTimeout(() => { logCopyBtn.textContent = 'Copy JSON'; }, 1200);
+  });
 })();
+
+function runFofSingleRound() {
+  const aKey = document.getElementById('admin-fof-log-a')?.value;
+  const bKey = document.getElementById('admin-fof-log-b')?.value;
+  const seedRaw = document.getElementById('admin-fof-log-seed')?.value;
+  const out = document.getElementById('admin-fof-log-output');
+  if (!out) return;
+  if (!aKey || !bKey) { out.textContent = 'No fighters loaded.'; return; }
+  if (aKey === bKey) { out.textContent = 'Pick two different heroes.'; return; }
+  const a = fofChars.find(c => c.character === aKey);
+  const b = fofChars.find(c => c.character === bKey);
+  if (!a || !b) return;
+  const seed = seedRaw && seedRaw.trim() !== '' ? Number(seedRaw) : undefined;
+  const log = fofSimulateOne(a, b, seed);
+  // Reflect the seed back into the input so the user sees what was used.
+  const seedInput = document.getElementById('admin-fof-log-seed');
+  if (seedInput && (seedRaw == null || seedRaw === '')) seedInput.value = log.seed;
+  out.textContent = JSON.stringify(log, null, 2);
+}
 
 // Overview chart filter buttons
 document.querySelectorAll(".overview-filters .chart-filter-btn").forEach(button => {
