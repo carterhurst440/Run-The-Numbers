@@ -3227,6 +3227,11 @@
               </section>
             </section>
             <section class="admin-tab-content" id="admin-fate-or-fortune-content" hidden>
+              <div class="admin-fof-subtabs">
+                <button type="button" class="admin-fof-subtab active" data-fof-subtab="tuning">Tuning</button>
+                <button type="button" class="admin-fof-subtab" data-fof-subtab="animations">Animations</button>
+              </div>
+              <div class="admin-fof-subtab-content" id="admin-fof-tuning-content">
               <section class="route-section admin-list-section">
                 <div class="admin-listing-header">
                   <h2>Fate or Fortune</h2>
@@ -3279,6 +3284,53 @@
                   <pre id="admin-fof-log-output" class="admin-fof-log-output"></pre>
                 </div>
               </section>
+              </div>
+              <div class="admin-fof-subtab-content" id="admin-fof-animations-content" hidden>
+                <section class="route-section admin-list-section">
+                  <div class="admin-listing-header">
+                    <h2>Fate or Fortune — Animations</h2>
+                  </div>
+                  <p class="admin-cs-hint">One clip per character × action. Paste a URL to the asset (sprite sheet, video, gif, lottie JSON, whatever). The clip_data column is JSONB so additional fields like duration/fps/loop can be added later without a schema change.</p>
+                  <div id="admin-fof-anim-status" class="admin-fof-status"></div>
+                  <div id="admin-fof-anim-grid" class="admin-fof-anim-grid-wrap"></div>
+                </section>
+                <div class="modal" id="admin-fof-anim-modal" role="dialog" aria-modal="true" hidden>
+                  <div class="modal-backdrop" data-fof-anim-close></div>
+                  <div class="modal-content admin-fof-anim-modal-content">
+                    <div class="modal-header">
+                      <h3 id="admin-fof-anim-modal-title">Edit clip</h3>
+                      <button type="button" class="modal-close" data-fof-anim-close aria-label="Close">×</button>
+                    </div>
+                    <div class="modal-body">
+                      <label class="admin-fof-anim-field">
+                        <span>Asset URL</span>
+                        <input type="url" id="admin-fof-anim-url" placeholder="https://…" autocomplete="off">
+                      </label>
+                      <label class="admin-fof-anim-field">
+                        <span>Duration (seconds, optional)</span>
+                        <input type="number" id="admin-fof-anim-duration" min="0" step="0.05" placeholder="auto">
+                      </label>
+                      <label class="admin-fof-anim-field">
+                        <span>Loop</span>
+                        <select id="admin-fof-anim-loop">
+                          <option value="false">No (play once)</option>
+                          <option value="true">Yes (loop continuously)</option>
+                        </select>
+                      </label>
+                      <label class="admin-fof-anim-field">
+                        <span>Notes (optional)</span>
+                        <input type="text" id="admin-fof-anim-notes" placeholder="anchor offsets, frame counts, etc.">
+                      </label>
+                      <div class="admin-fof-anim-preview" id="admin-fof-anim-preview"></div>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="secondary" id="admin-fof-anim-clear-btn">Clear</button>
+                      <button type="button" class="secondary" data-fof-anim-close>Cancel</button>
+                      <button type="button" class="primary" id="admin-fof-anim-save-btn">Save</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </section>
           </div>
         </section>

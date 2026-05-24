@@ -27588,6 +27588,84 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   }
 }
 
+/* ── Admin FOF sub-tabs ───────────────────────────────────────── */
+.admin-fof-subtabs {
+  display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid #2a2a2a;
+}
+.admin-fof-subtab {
+  padding: 8px 18px; background: transparent; border: none;
+  border-bottom: 2px solid transparent; cursor: pointer;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: 1px;
+}
+.admin-fof-subtab:hover { color: #111; }
+.admin-fof-subtab.active { color: #111; border-bottom-color: #111; font-weight: 700; }
+
+/* Animation grid */
+.admin-fof-anim-grid-wrap { margin-top: 12px; overflow-x: auto; }
+.admin-fof-anim-table {
+  border-collapse: collapse;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+}
+.admin-fof-anim-table th,
+.admin-fof-anim-table td {
+  border: 1px solid #2a2a2a; padding: 4px 6px; text-align: center;
+}
+.admin-fof-anim-table thead th {
+  background: #111; color: #fff; text-transform: uppercase;
+  letter-spacing: 0.5px; font-size: 10px; padding: 6px 8px;
+  writing-mode: horizontal-tb;
+}
+.admin-fof-anim-rowhdr {
+  background: #f5f5f5; font-weight: 700; text-align: left !important;
+  padding: 6px 10px !important;
+}
+.admin-fof-anim-cell {
+  display: inline-block; width: 28px; height: 28px;
+  border: 1px solid #2a2a2a; cursor: pointer;
+  font-family: inherit; font-size: 14px; line-height: 1;
+}
+.admin-fof-anim-cell-set   { background: #d4ead4; color: #2a5a2a; }
+.admin-fof-anim-cell-empty { background: #fff;    color: #ccc; }
+.admin-fof-anim-cell-set:hover   { background: #b9dfb9; }
+.admin-fof-anim-cell-empty:hover { background: #fff8e1; color: #888; border-color: #d4a017; }
+.admin-fof-anim-legend {
+  display: flex; gap: 18px; margin-top: 10px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px;
+  color: #555; align-items: center;
+}
+.admin-fof-anim-legend .admin-fof-anim-cell {
+  width: 18px; height: 18px; font-size: 12px; margin-right: 6px; vertical-align: middle;
+}
+
+/* Animation modal */
+.admin-fof-anim-modal-content { max-width: 520px; }
+.admin-fof-anim-field {
+  display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px;
+}
+.admin-fof-anim-field > span {
+  color: #555; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.admin-fof-anim-field input,
+.admin-fof-anim-field select {
+  padding: 6px 8px; font-family: inherit; font-size: 12px;
+  border: 1px solid #2a2a2a; background: #fff;
+}
+.admin-fof-anim-preview {
+  margin-top: 8px; min-height: 120px; max-height: 240px;
+  display: flex; align-items: center; justify-content: center;
+  background: #111; border: 1px solid #2a2a2a; overflow: hidden;
+}
+.admin-fof-anim-preview img,
+.admin-fof-anim-preview video {
+  max-width: 100%; max-height: 240px; object-fit: contain; display: block;
+}
+.admin-fof-anim-no-preview, .admin-fof-anim-preview-text {
+  color: #888; font-size: 11px; font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
 /* ── Admin CS Clips tab ───────────────────────────────────────── */
 .admin-cs-hint {
   font-size: 12px; color: #555; margin: 2px 0 0; line-height: 1.4;

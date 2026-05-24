@@ -30144,6 +30144,183 @@ let fofVol = 1000;
 let fofRunCounter = 0;
 let fofMatrix = {}; // key "charA|charB" → { winPct, runs }
 
+// ── FOF admin sub-tabs ────────────────────────────────────────
+const FOF_ACTIONS = [
+  'IDLE','HIT','CRITICAL_HIT','TAKE_DAMAGE','TAKE_CRITICAL_DAMAGE',
+  'DODGE','MISS','VICTORY','DEFEAT','SPECIAL'
+];
+let fofAnimRows = []; // [{character, action, clip_data, updated_at}]
+let fofAnimEditing = null; // { character, action } currently in modal
+
+function adminFofSwitchSubtab(target) {
+  document.querySelectorAll('.admin-fof-subtab').forEach(b => {
+    b.classList.toggle('active', b.dataset.fofSubtab === target);
+  });
+  document.querySelectorAll('.admin-fof-subtab-content').forEach(c => { c.hidden = true; });
+  const el = document.getElementById(`admin-fof-${target}-content`);
+  if (el) el.hidden = false;
+  if (target === 'animations') void loadAdminFofAnimations();
+}
+
+(function adminFofSubtabInit() {
+  document.querySelectorAll('.admin-fof-subtab').forEach(btn => {
+    btn.addEventListener('click', () => adminFofSwitchSubtab(btn.dataset.fofSubtab));
+  });
+  // Animation modal controls
+  document.querySelectorAll('[data-fof-anim-close]').forEach(el => {
+    el.addEventListener('click', () => adminFofAnimCloseModal());
+  });
+  const saveBtn = document.getElementById('admin-fof-anim-save-btn');
+  if (saveBtn) saveBtn.addEventListener('click', () => void adminFofAnimSave());
+  const clearBtn = document.getElementById('admin-fof-anim-clear-btn');
+  if (clearBtn) clearBtn.addEventListener('click', () => void adminFofAnimClear());
+  const urlInput = document.getElementById('admin-fof-anim-url');
+  if (urlInput) urlInput.addEventListener('input', () => adminFofAnimUpdatePreview(urlInput.value));
+})();
+
+async function loadAdminFofAnimations() {
+  const status = document.getElementById('admin-fof-anim-status');
+  if (status) status.textContent = 'Loading clips…';
+  const { data, error } = await supabase
+    .from('fate_or_fortune_animations')
+    .select('character, action, clip_data, updated_at');
+  if (error) {
+    if (status) status.textContent = `Error: ${error.message}`;
+    return;
+  }
+  fofAnimRows = Array.isArray(data) ? data : [];
+  if (status) status.textContent = '';
+  renderAdminFofAnimGrid();
+}
+
+function fofAnimGet(character, action) {
+  return fofAnimRows.find(r => r.character === character && r.action === action) || null;
+}
+
+function renderAdminFofAnimGrid() {
+  const wrap = document.getElementById('admin-fof-anim-grid');
+  if (!wrap) return;
+  // Use fofChars if loaded (from tuning sub-tab); fall back to fixed list.
+  const chars = (Array.isArray(fofChars) && fofChars.length > 0)
+    ? fofChars.map(c => c.character)
+    : ['knight','rogue','berserker','mage','assassin','ranger','warlock','paladin'];
+
+  const headRow = '<th>Character</th>' +
+    FOF_ACTIONS.map(a => `<th title="${a}">${a.replace(/_/g, ' ')}</th>`).join('');
+  const bodyRows = chars.map(ch => {
+    const cells = FOF_ACTIONS.map(act => {
+      const row = fofAnimGet(ch, act);
+      const set = !!(row?.clip_data?.url);
+      const cls = set ? 'admin-fof-anim-cell admin-fof-anim-cell-set'
+                      : 'admin-fof-anim-cell admin-fof-anim-cell-empty';
+      const label = set ? '●' : '○';
+      const title = set ? row.clip_data.url : 'No clip — click to set';
+      return `<td><button type="button" class="${cls}" data-char="${ch}" data-action="${act}" title="${title}">${label}</button></td>`;
+    }).join('');
+    return `<tr><td class="admin-fof-anim-rowhdr">${ch.toUpperCase()}</td>${cells}</tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <table class="admin-fof-anim-table">
+      <thead><tr>${headRow}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>
+    <div class="admin-fof-anim-legend">
+      <span><span class="admin-fof-anim-cell admin-fof-anim-cell-set">●</span> = clip set</span>
+      <span><span class="admin-fof-anim-cell admin-fof-anim-cell-empty">○</span> = empty — click to add</span>
+    </div>
+  `;
+  wrap.querySelectorAll('.admin-fof-anim-cell').forEach(btn => {
+    btn.addEventListener('click', () => {
+      adminFofAnimOpenModal(btn.dataset.char, btn.dataset.action);
+    });
+  });
+}
+
+function adminFofAnimOpenModal(character, action) {
+  fofAnimEditing = { character, action };
+  const row = fofAnimGet(character, action);
+  const d = row?.clip_data || {};
+  const titleEl = document.getElementById('admin-fof-anim-modal-title');
+  if (titleEl) titleEl.textContent = `${character.toUpperCase()} — ${action.replace(/_/g, ' ')}`;
+  const url = document.getElementById('admin-fof-anim-url');
+  const dur = document.getElementById('admin-fof-anim-duration');
+  const loop = document.getElementById('admin-fof-anim-loop');
+  const notes = document.getElementById('admin-fof-anim-notes');
+  if (url) url.value = d.url || '';
+  if (dur) dur.value = (d.duration != null) ? d.duration : '';
+  if (loop) loop.value = d.loop ? 'true' : 'false';
+  if (notes) notes.value = d.notes || '';
+  adminFofAnimUpdatePreview(d.url || '');
+  const modal = document.getElementById('admin-fof-anim-modal');
+  if (modal) modal.hidden = false;
+}
+
+function adminFofAnimCloseModal() {
+  fofAnimEditing = null;
+  const modal = document.getElementById('admin-fof-anim-modal');
+  if (modal) modal.hidden = true;
+}
+
+function adminFofAnimUpdatePreview(url) {
+  const prev = document.getElementById('admin-fof-anim-preview');
+  if (!prev) return;
+  if (!url || !url.trim()) { prev.innerHTML = '<div class="admin-fof-anim-no-preview">No URL yet</div>'; return; }
+  const u = url.trim();
+  const lower = u.toLowerCase();
+  if (lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.mov')) {
+    prev.innerHTML = `<video src="${u}" autoplay loop muted playsinline></video>`;
+  } else if (lower.endsWith('.json')) {
+    prev.innerHTML = `<div class="admin-fof-anim-preview-text">Lottie / JSON asset — preview not rendered here.</div>`;
+  } else {
+    prev.innerHTML = `<img src="${u}" alt="preview" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'admin-fof-anim-no-preview',textContent:'Failed to load preview'}))">`;
+  }
+}
+
+async function adminFofAnimSave() {
+  if (!fofAnimEditing) return;
+  const { character, action } = fofAnimEditing;
+  const url = document.getElementById('admin-fof-anim-url')?.value.trim() || '';
+  const durRaw = document.getElementById('admin-fof-anim-duration')?.value;
+  const loopRaw = document.getElementById('admin-fof-anim-loop')?.value;
+  const notes = document.getElementById('admin-fof-anim-notes')?.value.trim() || '';
+  const clip = { url };
+  if (durRaw !== '' && durRaw != null && !Number.isNaN(Number(durRaw))) clip.duration = Number(durRaw);
+  clip.loop = loopRaw === 'true';
+  if (notes) clip.notes = notes;
+  const status = document.getElementById('admin-fof-anim-status');
+  if (status) status.textContent = `Saving ${character.toUpperCase()} ${action}…`;
+  const { error } = await supabase
+    .from('fate_or_fortune_animations')
+    .upsert({ character, action, clip_data: clip, updated_at: new Date().toISOString() },
+            { onConflict: 'character,action' });
+  if (error) { if (status) status.textContent = `Save error: ${error.message}`; return; }
+  // Reflect locally
+  const existing = fofAnimGet(character, action);
+  if (existing) existing.clip_data = clip;
+  else fofAnimRows.push({ character, action, clip_data: clip, updated_at: new Date().toISOString() });
+  if (status) status.textContent = `Saved ${character.toUpperCase()} ${action}.`;
+  adminFofAnimCloseModal();
+  renderAdminFofAnimGrid();
+}
+
+async function adminFofAnimClear() {
+  if (!fofAnimEditing) return;
+  const { character, action } = fofAnimEditing;
+  const status = document.getElementById('admin-fof-anim-status');
+  if (status) status.textContent = `Clearing ${character.toUpperCase()} ${action}…`;
+  const { error } = await supabase
+    .from('fate_or_fortune_animations')
+    .delete()
+    .eq('character', character)
+    .eq('action', action);
+  if (error) { if (status) status.textContent = `Clear error: ${error.message}`; return; }
+  fofAnimRows = fofAnimRows.filter(r => !(r.character === character && r.action === action));
+  if (status) status.textContent = `Cleared ${character.toUpperCase()} ${action}.`;
+  adminFofAnimCloseModal();
+  renderAdminFofAnimGrid();
+}
+
 async function loadAdminFateOrFortuneStats() {
   const status = document.getElementById("admin-fof-status");
   if (status) status.textContent = "Loading character stats…";
