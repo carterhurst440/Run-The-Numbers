@@ -9100,6 +9100,11 @@ function updateAdminVisibility(user = currentUser) {
       drawerColorSchemeLink.setAttribute("hidden", "");
     }
   }
+  const drawerFofLink = document.getElementById("drawer-fof-link");
+  if (drawerFofLink) {
+    if (adminVisible) drawerFofLink.removeAttribute("hidden");
+    else drawerFofLink.setAttribute("hidden", "");
+  }
   // Show/hide the Admin Tools trigger button (controls now live in modal)
   if (stAdminToolsOpenBtn) {
     stAdminToolsOpenBtn.hidden = !adminVisible;
@@ -9388,6 +9393,10 @@ async function setRoute(route, { replaceHash = false } = {}) {
     initColorSchemeGame();
   } else {
     destroyColorSchemeGame();
+  }
+
+  if (resolvedRoute === "fate-or-fortune") {
+    fofRouteOpen();
   }
 
   if (PLAY_ASSISTANT_ROUTES.has(resolvedRoute)) {
@@ -18108,6 +18117,7 @@ const dashboardView = document.getElementById("dashboard-view");
 const adminView = document.getElementById("admin-view");
 const profileView = document.getElementById("profile-view");
 const colorSchemeView = document.getElementById("color-scheme-view");
+const fateOrFortuneView = document.getElementById("fate-or-fortune-view");
 const routeViews = {
   home: homeView,
   "shape-traders": shapeTradersView,
@@ -18119,13 +18129,14 @@ const routeViews = {
   dashboard: dashboardView,
   admin: adminView,
   profile: profileView,
-  "color-scheme": colorSchemeView
+  "color-scheme": colorSchemeView,
+  "fate-or-fortune": fateOrFortuneView
 };
 const headerEl = document.querySelector(".header");
 const chipBarEl = runTheNumbersView ? runTheNumbersView.querySelector(".chip-bar") : null;
 const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout") : null;
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
-const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile", "color-scheme"]);
+const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile", "color-scheme", "fate-or-fortune"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
@@ -31248,6 +31259,317 @@ function runFofSingleRound() {
   const seedInput = document.getElementById('admin-fof-log-seed');
   if (seedInput && (seedRaw == null || seedRaw === '')) seedInput.value = log.seed;
   out.textContent = JSON.stringify(log, null, 2);
+}
+
+// ── FATE OR FORTUNE — Real Game (admin-only nav for now) ───────────
+const fofGame = {
+  state: 'idle',         // 'idle' | 'selecting' | 'resolving' | 'resolved'
+  roundId: null,
+  opponent: null,
+  candidates: [],
+  pickedHero: null,
+  wager: 0,
+  resolution: null,
+};
+
+async function fofRouteOpen() {
+  fofGame.state = 'idle';
+  fofRefreshBalance();
+  fofRenderStage();
+}
+
+function fofRefreshBalance() {
+  const el = document.getElementById('fof-page-balance-val');
+  if (!el) return;
+  const credits = currentProfile?.credits;
+  el.textContent = (credits == null) ? '—' : '$' + Number(credits).toFixed(2);
+}
+
+function fofRenderStage() {
+  const stage = document.getElementById('fof-stage');
+  if (!stage) return;
+  stage.dataset.state = fofGame.state;
+  if (fofGame.state === 'idle')       stage.innerHTML = fofViewIdle();
+  else if (fofGame.state === 'selecting') stage.innerHTML = fofViewSelecting();
+  else if (fofGame.state === 'resolving') stage.innerHTML = fofViewResolving();
+  else if (fofGame.state === 'resolved')  stage.innerHTML = fofViewResolved();
+  fofAttachStageHandlers();
+}
+
+function fofViewIdle() {
+  return `
+    <div class="fof-idle">
+      <div class="fof-idle-headline">Ready to face fate?</div>
+      <p class="fof-idle-sub">A random challenger will appear, then you choose your champion and place your wager. Win-rates come from one million simulated battles.</p>
+      <button type="button" class="fof-btn fof-btn-primary" id="fof-start-btn">START NEW ROUND</button>
+    </div>
+  `;
+}
+
+function fofStatBlock(stats) {
+  const pct = (v) => `${Math.round(Number(v) * 100)}%`;
+  return `
+    <table class="fof-stat-table">
+      <tr><td>HP</td><td>${stats.hp}</td></tr>
+      <tr><td>Damage</td><td>${stats.damage}</td></tr>
+      <tr><td>Crit Mult</td><td>${Number(stats.crit_mult).toFixed(1)}x</td></tr>
+      <tr><td>Crit Chance</td><td>${pct(stats.crit_chance)}</td></tr>
+      <tr><td>Accuracy</td><td>${pct(stats.accuracy)}</td></tr>
+      <tr><td>Dodge</td><td>${pct(stats.dodge)}</td></tr>
+      <tr><td>Constitution</td><td>${pct(stats.constitution)}</td></tr>
+      <tr><td>Attack Time</td><td>${Number(stats.attack_time).toFixed(2)}s</td></tr>
+    </table>`;
+}
+
+function fofSpecialBlock(abilities) {
+  if (!Array.isArray(abilities) || abilities.length === 0) {
+    return '<div class="fof-no-special">No special ability</div>';
+  }
+  return abilities.map(ab => `
+    <div class="fof-special-block">
+      <div class="fof-special-name">${ab.name || ab.id}</div>
+      <div class="fof-special-desc">${ab.description || ''}</div>
+    </div>
+  `).join('');
+}
+
+function fofViewSelecting() {
+  const opp = fofGame.opponent;
+  const cards = fofGame.candidates.map(c => {
+    const winPct = (Number(c.win_pct) * 100);
+    const winColor = winPct >= 60 ? 'fof-good' : winPct >= 40 ? 'fof-mid' : 'fof-bad';
+    const picked = fofGame.pickedHero === c.character ? 'picked' : '';
+    return `
+      <div class="fof-hero-card ${picked}" data-hero="${c.character}">
+        <div class="fof-hero-name">${c.name.toUpperCase()}</div>
+        <div class="fof-hero-win ${winColor}">${winPct.toFixed(1)}%</div>
+        <div class="fof-hero-payout">payout ${(1/Number(c.win_pct)).toFixed(2)}x</div>
+        ${fofStatBlock(c.stats)}
+        ${fofSpecialBlock(c.special_abilities)}
+      </div>
+    `;
+  }).join('');
+
+  const heroOk = !!fofGame.pickedHero;
+  const wagerOk = Number(fofGame.wager) > 0 && Number(fofGame.wager) <= (currentProfile?.credits ?? 0);
+  const beginDisabled = !(heroOk && wagerOk) ? 'disabled' : '';
+  const pickedCandidate = fofGame.candidates.find(c => c.character === fofGame.pickedHero);
+  const pickedWinPct = pickedCandidate ? Number(pickedCandidate.win_pct) : null;
+  const potentialPayout = (pickedWinPct && fofGame.wager > 0) ? (Number(fofGame.wager) / pickedWinPct).toFixed(2) : '—';
+
+  return `
+    <div class="fof-selecting">
+      <div class="fof-opp-panel">
+        <div class="fof-opp-label">// CHALLENGER</div>
+        <div class="fof-opp-name">${opp.name.toUpperCase()}</div>
+        ${fofStatBlock(opp.stats)}
+        ${fofSpecialBlock(opp.special_abilities)}
+      </div>
+      <div class="fof-pick-panel">
+        <div class="fof-pick-label">// PICK YOUR CHAMPION</div>
+        <div class="fof-hero-grid">${cards}</div>
+      </div>
+      <div class="fof-wager-bar">
+        <label class="fof-wager-label">WAGER $
+          <input type="number" id="fof-wager-input" min="1" step="1" value="${fofGame.wager || ''}" placeholder="0">
+        </label>
+        <div class="fof-wager-meta">
+          Picked: <strong>${fofGame.pickedHero ? fofGame.pickedHero.toUpperCase() : '—'}</strong>
+          · Potential return: <strong>$${potentialPayout}</strong>
+        </div>
+        <button type="button" class="fof-btn fof-btn-primary" id="fof-begin-btn" ${beginDisabled}>BEGIN ROUND</button>
+      </div>
+    </div>
+  `;
+}
+
+function fofViewResolving() {
+  return `
+    <div class="fof-resolving">
+      <div class="fof-vs-line">
+        <span class="fof-vs-hero">${(fofGame.pickedHero||'').toUpperCase()}</span>
+        <span class="fof-vs-sep">VS</span>
+        <span class="fof-vs-opp">${(fofGame.opponent?.character||'').toUpperCase()}</span>
+      </div>
+      <div class="fof-hp-bars">
+        <div class="fof-hp-row"><span>${(fofGame.pickedHero||'').toUpperCase()}</span><div class="fof-hp-track"><div class="fof-hp-fill fof-hp-hero" id="fof-hp-hero" style="width:100%"></div></div><span id="fof-hp-hero-val">—</span></div>
+        <div class="fof-hp-row"><span>${(fofGame.opponent?.character||'').toUpperCase()}</span><div class="fof-hp-track"><div class="fof-hp-fill fof-hp-opp" id="fof-hp-opp" style="width:100%"></div></div><span id="fof-hp-opp-val">—</span></div>
+      </div>
+      <div class="fof-event-log" id="fof-event-log"></div>
+    </div>
+  `;
+}
+
+function fofViewResolved() {
+  const r = fofGame.resolution;
+  const won = r.round_winner === 'hero';
+  const drew = r.round_winner === 'draw';
+  const tone = won ? 'win' : drew ? 'draw' : 'loss';
+  const headline = won ? 'VICTORY' : drew ? 'DRAW — WAGER REFUNDED' : 'DEFEAT';
+  const profit = Number(r.net_profit).toFixed(2);
+  const profitDisplay = (Number(r.net_profit) >= 0 ? '+$' : '-$') + Math.abs(Number(r.net_profit)).toFixed(2);
+  return `
+    <div class="fof-resolved fof-resolved-${tone}">
+      <div class="fof-resolved-headline">${headline}</div>
+      <table class="fof-resolved-table">
+        <tr><td>Hero</td><td>${r.hero.toUpperCase()}</td></tr>
+        <tr><td>Opponent</td><td>${r.opponent.toUpperCase()}</td></tr>
+        <tr><td>Hero win %</td><td>${(Number(r.hero_win_pct)*100).toFixed(2)}%</td></tr>
+        <tr><td>Wagered</td><td>$${Number(r.total_wagered).toFixed(2)}</td></tr>
+        <tr><td>Returned</td><td>$${Number(r.total_returned).toFixed(2)}</td></tr>
+        <tr><td>Net</td><td><strong>${profitDisplay}</strong></td></tr>
+        <tr><td>New balance</td><td>$${Number(r.new_balance).toFixed(2)}</td></tr>
+      </table>
+      <button type="button" class="fof-btn fof-btn-primary" id="fof-again-btn">START NEW ROUND</button>
+    </div>
+  `;
+}
+
+function fofAttachStageHandlers() {
+  const startBtn = document.getElementById('fof-start-btn');
+  if (startBtn) startBtn.addEventListener('click', fofStartRound);
+
+  const beginBtn = document.getElementById('fof-begin-btn');
+  if (beginBtn) beginBtn.addEventListener('click', fofBeginRound);
+
+  const againBtn = document.getElementById('fof-again-btn');
+  if (againBtn) againBtn.addEventListener('click', () => {
+    fofGame.state = 'idle';
+    fofGame.roundId = null;
+    fofGame.opponent = null;
+    fofGame.candidates = [];
+    fofGame.pickedHero = null;
+    fofGame.wager = 0;
+    fofGame.resolution = null;
+    fofRenderStage();
+  });
+
+  document.querySelectorAll('.fof-hero-card').forEach(card => {
+    card.addEventListener('click', () => {
+      fofGame.pickedHero = card.dataset.hero;
+      fofRenderStage();
+      const inp = document.getElementById('fof-wager-input');
+      if (inp) inp.focus();
+    });
+  });
+
+  const wagerInput = document.getElementById('fof-wager-input');
+  if (wagerInput) {
+    wagerInput.addEventListener('input', () => {
+      fofGame.wager = Number(wagerInput.value) || 0;
+      const beginBtn = document.getElementById('fof-begin-btn');
+      const valid = fofGame.pickedHero && fofGame.wager > 0 && fofGame.wager <= (currentProfile?.credits ?? 0);
+      if (beginBtn) beginBtn.disabled = !valid;
+      // Update potential payout display
+      const meta = document.querySelector('.fof-wager-meta');
+      if (meta && fofGame.pickedHero) {
+        const c = fofGame.candidates.find(x => x.character === fofGame.pickedHero);
+        const payout = (c && fofGame.wager > 0) ? (Number(fofGame.wager) / Number(c.win_pct)).toFixed(2) : '—';
+        meta.innerHTML = `Picked: <strong>${fofGame.pickedHero.toUpperCase()}</strong> · Potential return: <strong>$${payout}</strong>`;
+      }
+    });
+  }
+}
+
+async function fofStartRound() {
+  const stage = document.getElementById('fof-stage');
+  if (stage) stage.innerHTML = '<div class="fof-loading">Summoning challenger…</div>';
+  try {
+    const { data, error } = await supabase.rpc('fof_start_round');
+    if (error) throw error;
+    fofGame.roundId = data.round_id;
+    fofGame.opponent = data.opponent;
+    fofGame.candidates = data.candidates;
+    fofGame.pickedHero = null;
+    fofGame.wager = 0;
+    fofGame.state = 'selecting';
+    fofRenderStage();
+  } catch (e) {
+    if (stage) stage.innerHTML = `<div class="fof-err">Failed to start round: ${e.message || e}</div>`;
+  }
+}
+
+async function fofBeginRound() {
+  if (!fofGame.pickedHero || !(fofGame.wager > 0)) return;
+  const heroChoice = fofGame.pickedHero;
+  const wager = fofGame.wager;
+  fofGame.state = 'resolving';
+  fofRenderStage();
+  try {
+    const { data, error } = await supabase.rpc('fof_lock_round', {
+      p_round_id: fofGame.roundId,
+      p_hero: heroChoice,
+      p_wager: wager,
+    });
+    if (error) throw error;
+    fofGame.resolution = data;
+    // Play the event log as a text scroll (animation placeholder).
+    await fofPlayEvents(data.round_details);
+    // Refresh local profile credits cache, then show resolution.
+    if (currentProfile) currentProfile.credits = Number(data.new_balance);
+    fofRefreshBalance();
+    fofGame.state = 'resolved';
+    fofRenderStage();
+  } catch (e) {
+    const stage = document.getElementById('fof-stage');
+    if (stage) stage.innerHTML = `<div class="fof-err">Round failed: ${e.message || e}</div>`;
+  }
+}
+
+async function fofPlayEvents(sim) {
+  const events = sim?.events || [];
+  const log = document.getElementById('fof-event-log');
+  const heroHp = document.getElementById('fof-hp-hero');
+  const oppHp = document.getElementById('fof-hp-opp');
+  const heroHpVal = document.getElementById('fof-hp-hero-val');
+  const oppHpVal = document.getElementById('fof-hp-opp-val');
+  if (!log) return;
+  const heroId = fofGame.pickedHero;
+  const oppId = fofGame.opponent?.character;
+  // Cache max HP from candidate stats (hero) and opponent stats.
+  const heroMax = Number(fofGame.candidates.find(c => c.character === heroId)?.stats?.hp) || 100;
+  const oppMax = Number(fofGame.opponent?.stats?.hp) || 100;
+  if (heroHpVal) heroHpVal.textContent = `${heroMax}/${heroMax}`;
+  if (oppHpVal) oppHpVal.textContent = `${oppMax}/${oppMax}`;
+
+  // Replay at ~3x speed so a 6-second fight plays in ~2 seconds.
+  const SPEED = 3;
+  let lastT = 0;
+  for (const ev of events) {
+    const dt = Math.max(0, (Number(ev.time) - lastT) * 1000 / SPEED);
+    if (dt > 0) await new Promise(r => setTimeout(r, dt));
+    lastT = Number(ev.time);
+    // Update HP bars if event carries an hpAfter for our fighters.
+    if (typeof ev.hpAfter === 'number') {
+      if (ev.actorId === heroId && heroHp) {
+        const pct = Math.max(0, Math.min(100, (ev.hpAfter / heroMax) * 100));
+        heroHp.style.width = pct + '%';
+        if (heroHpVal) heroHpVal.textContent = `${Math.max(0, Math.round(ev.hpAfter))}/${heroMax}`;
+      } else if (ev.actorId === oppId && oppHp) {
+        const pct = Math.max(0, Math.min(100, (ev.hpAfter / oppMax) * 100));
+        oppHp.style.width = pct + '%';
+        if (oppHpVal) oppHpVal.textContent = `${Math.max(0, Math.round(ev.hpAfter))}/${oppMax}`;
+      }
+    }
+    if (typeof ev.targetHpAfter === 'number') {
+      if (ev.targetId === heroId && heroHp) {
+        const pct = Math.max(0, Math.min(100, (ev.targetHpAfter / heroMax) * 100));
+        heroHp.style.width = pct + '%';
+        if (heroHpVal) heroHpVal.textContent = `${Math.max(0, Math.round(ev.targetHpAfter))}/${heroMax}`;
+      } else if (ev.targetId === oppId && oppHp) {
+        const pct = Math.max(0, Math.min(100, (ev.targetHpAfter / oppMax) * 100));
+        oppHp.style.width = pct + '%';
+        if (oppHpVal) oppHpVal.textContent = `${Math.max(0, Math.round(ev.targetHpAfter))}/${oppMax}`;
+      }
+    }
+    const div = document.createElement('div');
+    div.className = `fof-evt fof-evt-${ev.type.toLowerCase()}`;
+    div.textContent = `[${Number(ev.time).toFixed(2)}s] ${ev.message || ev.type}`;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+  }
+  // Pause briefly on the final frame.
+  await new Promise(r => setTimeout(r, 600));
 }
 
 // Overview chart filter buttons

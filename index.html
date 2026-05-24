@@ -388,6 +388,16 @@
                 <span class="drawer-link-label">Store</span>
               </span>
             </button>
+            <button type="button" data-route-target="fate-or-fortune" class="drawer-link" id="drawer-fof-link" hidden>
+              <span class="drawer-link-inner">
+                <span class="drawer-link-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14.5 4 9 14.5 4 12l5.5 8 10.5-16-5.5 0Z"></path>
+                  </svg>
+                </span>
+                <span class="drawer-link-label">Fate or Fortune</span>
+              </span>
+            </button>
             <button type="button" data-route-target="admin" class="drawer-link" id="admin-nav" hidden>
               <span class="drawer-link-inner">
                 <span class="drawer-link-icon" aria-hidden="true">
@@ -3322,6 +3332,17 @@
               </div>
               <ul id="profile-contest-medals" class="profile-contest-medals"></ul>
             </section>
+          </div>
+        </section>
+
+        <section id="fate-or-fortune-view" class="route-view app-page fof-view" hidden aria-labelledby="fof-view-title">
+          <h1 id="fof-view-title" class="sr-only">Fate or Fortune</h1>
+          <div class="fof-page">
+            <header class="fof-page-header">
+              <div class="fof-page-title">// FATE OR FORTUNE <span>BATTLE WAGER</span></div>
+              <div class="fof-page-balance">BALANCE <strong id="fof-page-balance-val">—</strong></div>
+            </header>
+            <div id="fof-stage" class="fof-stage" data-state="idle"></div>
           </div>
         </section>
 
