@@ -9105,6 +9105,11 @@ function updateAdminVisibility(user = currentUser) {
     if (adminVisible) drawerFofLink.removeAttribute("hidden");
     else drawerFofLink.setAttribute("hidden", "");
   }
+  const drawerBloomLink = document.getElementById("drawer-bloom-link");
+  if (drawerBloomLink) {
+    if (adminVisible) drawerBloomLink.removeAttribute("hidden");
+    else drawerBloomLink.setAttribute("hidden", "");
+  }
   // Show/hide the Admin Tools trigger button (controls now live in modal)
   if (stAdminToolsOpenBtn) {
     stAdminToolsOpenBtn.hidden = !adminVisible;
@@ -9397,6 +9402,9 @@ async function setRoute(route, { replaceHash = false } = {}) {
 
   if (resolvedRoute === "fate-or-fortune") {
     fofRouteOpen();
+  }
+  if (resolvedRoute === "bloom") {
+    bloomRouteOpen();
   }
 
   if (PLAY_ASSISTANT_ROUTES.has(resolvedRoute)) {
@@ -18118,6 +18126,7 @@ const adminView = document.getElementById("admin-view");
 const profileView = document.getElementById("profile-view");
 const colorSchemeView = document.getElementById("color-scheme-view");
 const fateOrFortuneView = document.getElementById("fate-or-fortune-view");
+const bloomView = document.getElementById("bloom-view");
 const routeViews = {
   home: homeView,
   "shape-traders": shapeTradersView,
@@ -18130,13 +18139,14 @@ const routeViews = {
   admin: adminView,
   profile: profileView,
   "color-scheme": colorSchemeView,
-  "fate-or-fortune": fateOrFortuneView
+  "fate-or-fortune": fateOrFortuneView,
+  "bloom": bloomView
 };
 const headerEl = document.querySelector(".header");
 const chipBarEl = runTheNumbersView ? runTheNumbersView.querySelector(".chip-bar") : null;
 const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout") : null;
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
-const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile", "color-scheme", "fate-or-fortune"]);
+const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile", "color-scheme", "fate-or-fortune", "bloom"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
@@ -39213,6 +39223,9 @@ function adminBloomInit() {
   if (copyBtn)  copyBtn.addEventListener("click", () => { adminBloomCopyJson(); });
   if (stressBtn) stressBtn.addEventListener("click", () => { void adminBloomRunStress(); });
 
+  const masterBtn = document.getElementById("admin-bloom-run-master");
+  if (masterBtn) masterBtn.addEventListener("click", () => { void runBloomMasterMatrix(); });
+
   document.querySelectorAll('[data-bloom-vol]').forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll('[data-bloom-vol]').forEach(b => b.classList.remove("active"));
@@ -39713,4 +39726,361 @@ async function bloomReloadEditors() {
   } catch (err) {
     bloomFlash(`Reload error: ${err.message || err}`);
   }
+}
+
+// ── BLOOM — game state machine (player flow, mirror of FOF) ─────────
+const bloomGame = {
+  state: 'idle',            // 'idle' | 'selecting' | 'resolving' | 'resolved'
+  roundId: null,
+  region: null,             // { slug, name, identity, hero_flower }
+  candidates: [],           // [{ flower, name, accent_color, bloom_target, win_pct, is_hero }]
+  pickedFlower: null,
+  wager: 0,
+  resolution: null,         // payload from bloom_lock_round
+};
+
+async function bloomRouteOpen() {
+  bloomGame.state = 'idle';
+  bloomGame.roundId = null;
+  bloomGame.region = null;
+  bloomGame.candidates = [];
+  bloomGame.pickedFlower = null;
+  bloomGame.wager = 0;
+  bloomGame.resolution = null;
+  bloomRefreshBalance();
+  bloomRenderStage();
+}
+
+function bloomRefreshBalance() {
+  const el = document.getElementById('bloom-page-balance-val');
+  if (!el) return;
+  const credits = currentProfile?.credits;
+  el.textContent = (credits == null) ? '—' : '$' + Number(credits).toFixed(2);
+}
+
+function bloomRenderStage() {
+  const stage = document.getElementById('bloom-stage');
+  if (!stage) return;
+  stage.dataset.state = bloomGame.state;
+  if (bloomGame.state === 'idle')           stage.innerHTML = bloomViewIdle();
+  else if (bloomGame.state === 'selecting') stage.innerHTML = bloomViewSelecting();
+  else if (bloomGame.state === 'resolving') stage.innerHTML = bloomViewResolving();
+  else if (bloomGame.state === 'resolved')  stage.innerHTML = bloomViewResolved();
+  bloomAttachStageHandlers();
+}
+
+function bloomViewIdle() {
+  return `
+    <div class="fof-idle">
+      <div class="fof-idle-headline">Pick the first flower to bloom.</div>
+      <p class="fof-idle-sub">A random region is dealt by the server. Five flowers compete; weather cards drive their growth. Win-rates come from one million simulated rounds per region.</p>
+      <button type="button" class="fof-btn fof-btn-primary" id="bloom-start-btn">START NEW ROUND</button>
+    </div>
+  `;
+}
+
+function bloomFlowerCard(c, picked) {
+  const winPct = Number(c.win_pct) * 100;
+  const winColor = winPct >= 30 ? 'fof-good' : winPct >= 15 ? 'fof-mid' : 'fof-bad';
+  const payout = (c.win_pct > 0) ? (1 / Number(c.win_pct)).toFixed(2) : '—';
+  const pickedCls = picked === c.flower ? 'picked' : '';
+  const heroBadge = c.is_hero ? '<div style="font-size:10px;opacity:.7;letter-spacing:1px">HERO REGION</div>' : '';
+  return `
+    <div class="fof-hero-card ${pickedCls}" data-bloom-flower="${c.flower}" style="border-top: 3px solid ${c.accent_color || '#888'}">
+      <div class="fof-hero-name">${(c.name || '').toUpperCase()}</div>
+      <div class="fof-hero-win ${winColor}">${Number.isFinite(winPct) ? winPct.toFixed(1) + '%' : '—'}</div>
+      <div class="fof-hero-payout">payout ${payout}x</div>
+      ${heroBadge}
+    </div>
+  `;
+}
+
+function bloomViewSelecting() {
+  const region = bloomGame.region || {};
+  const cards = bloomGame.candidates.map(c => bloomFlowerCard(c, bloomGame.pickedFlower)).join('');
+
+  const flowerOk = !!bloomGame.pickedFlower;
+  const wagerOk  = Number(bloomGame.wager) > 0 && Number(bloomGame.wager) <= (currentProfile?.credits ?? 0);
+  const beginDisabled = !(flowerOk && wagerOk) ? 'disabled' : '';
+  const picked = bloomGame.candidates.find(c => c.flower === bloomGame.pickedFlower);
+  const pickedWinPct = picked ? Number(picked.win_pct) : null;
+  const potentialPayout = (pickedWinPct && bloomGame.wager > 0)
+    ? (Number(bloomGame.wager) / pickedWinPct).toFixed(2) : '—';
+
+  return `
+    <div class="fof-selecting">
+      <div class="fof-opp-panel">
+        <div class="fof-opp-label">// REGION</div>
+        <div class="fof-opp-name">${(region.name || '').toUpperCase()}</div>
+        <div style="font-size:12px;opacity:.7;margin-top:6px">${region.identity || ''}</div>
+        <div style="font-size:11px;opacity:.5;margin-top:8px">Hero flower: ${region.hero_flower || '—'}</div>
+      </div>
+      <div class="fof-pick-panel">
+        <div class="fof-pick-label">// PICK YOUR FLOWER</div>
+        <div class="fof-hero-grid">${cards}</div>
+      </div>
+      <div class="fof-wager-bar">
+        <label class="fof-wager-label">WAGER $
+          <input type="number" id="bloom-wager-input" min="1" step="1" value="${bloomGame.wager || ''}" placeholder="0">
+        </label>
+        <div class="fof-wager-meta">
+          Picked: <strong>${bloomGame.pickedFlower ? bloomGame.pickedFlower.toUpperCase() : '—'}</strong>
+          · Potential return: <strong>$${potentialPayout}</strong>
+        </div>
+        <button type="button" class="fof-btn fof-btn-primary" id="bloom-begin-btn" ${beginDisabled}>BEGIN ROUND</button>
+      </div>
+    </div>
+  `;
+}
+
+function bloomViewResolving() {
+  // Score bars per flower, plus a draw log that fills as events play.
+  const bars = bloomGame.candidates.map(c => `
+    <div class="fof-hp-row" data-bloom-bar-row="${c.flower}">
+      <span>${(c.name || '').toUpperCase()}</span>
+      <div class="fof-hp-track">
+        <div class="fof-hp-fill fof-hp-hero" data-bloom-bar-fill="${c.flower}"
+             style="width:0%;background:${c.accent_color || '#888'}"></div>
+      </div>
+      <span data-bloom-bar-val="${c.flower}">0</span>
+    </div>
+  `).join('');
+  return `
+    <div class="fof-resolving">
+      <div class="fof-vs-line">
+        <span class="fof-vs-hero">${(bloomGame.pickedFlower || '').toUpperCase()}</span>
+        <span class="fof-vs-sep">IN</span>
+        <span class="fof-vs-opp">${(bloomGame.region?.name || '').toUpperCase()}</span>
+      </div>
+      <div class="fof-hp-bars">${bars}</div>
+      <div class="fof-event-log" id="bloom-event-log"></div>
+    </div>
+  `;
+}
+
+function bloomViewResolved() {
+  const r = bloomGame.resolution;
+  const won  = r.round_winner === 'hero';
+  const tone = won ? 'win' : 'loss';
+  const headline = won ? 'BLOOMED!' : 'WITHERED';
+  const profitNum = Number(r.net_profit);
+  const profitDisplay = (profitNum >= 0 ? '+$' : '-$') + Math.abs(profitNum).toFixed(2);
+  const pickedName = (bloomGame.candidates.find(c => c.flower === r.picked_flower)?.name) || r.picked_flower;
+  const winnerName = (bloomGame.candidates.find(c => c.flower === r.winner_flower)?.name) || r.winner_flower;
+  return `
+    <div class="fof-resolved fof-resolved-${tone}">
+      <div class="fof-resolved-headline">${headline}</div>
+      <table class="fof-resolved-table">
+        <tr><td>Region</td><td>${(bloomGame.region?.name || r.region || '').toUpperCase()}</td></tr>
+        <tr><td>Picked</td><td>${(pickedName || '').toUpperCase()}</td></tr>
+        <tr><td>Bloomed</td><td>${(winnerName || '').toUpperCase()}</td></tr>
+        <tr><td>Picked win %</td><td>${(Number(r.picked_win_pct) * 100).toFixed(2)}%</td></tr>
+        <tr><td>Wagered</td><td>$${Number(r.total_wagered).toFixed(2)}</td></tr>
+        <tr><td>Returned</td><td>$${Number(r.total_returned).toFixed(2)}</td></tr>
+        <tr><td>Net</td><td><strong>${profitDisplay}</strong></td></tr>
+        <tr><td>New balance</td><td>$${Number(r.new_balance).toFixed(2)}</td></tr>
+      </table>
+      <button type="button" class="fof-btn fof-btn-primary" id="bloom-again-btn">START NEW ROUND</button>
+    </div>
+  `;
+}
+
+function bloomAttachStageHandlers() {
+  const startBtn = document.getElementById('bloom-start-btn');
+  if (startBtn) startBtn.addEventListener('click', bloomStartRound);
+
+  const beginBtn = document.getElementById('bloom-begin-btn');
+  if (beginBtn) beginBtn.addEventListener('click', bloomBeginRound);
+
+  const againBtn = document.getElementById('bloom-again-btn');
+  if (againBtn) againBtn.addEventListener('click', () => { void bloomRouteOpen(); });
+
+  document.querySelectorAll('[data-bloom-flower]').forEach(card => {
+    card.addEventListener('click', () => {
+      bloomGame.pickedFlower = card.dataset.bloomFlower;
+      bloomRenderStage();
+      const inp = document.getElementById('bloom-wager-input');
+      if (inp) inp.focus();
+    });
+  });
+
+  const wagerInput = document.getElementById('bloom-wager-input');
+  if (wagerInput) {
+    wagerInput.addEventListener('input', () => {
+      bloomGame.wager = Number(wagerInput.value) || 0;
+      const beginBtn = document.getElementById('bloom-begin-btn');
+      const valid = bloomGame.pickedFlower && bloomGame.wager > 0 && bloomGame.wager <= (currentProfile?.credits ?? 0);
+      if (beginBtn) beginBtn.disabled = !valid;
+      const meta = document.querySelector('.fof-wager-meta');
+      if (meta && bloomGame.pickedFlower) {
+        const c = bloomGame.candidates.find(x => x.flower === bloomGame.pickedFlower);
+        const payout = (c && bloomGame.wager > 0) ? (Number(bloomGame.wager) / Number(c.win_pct)).toFixed(2) : '—';
+        meta.innerHTML = `Picked: <strong>${bloomGame.pickedFlower.toUpperCase()}</strong> · Potential return: <strong>$${payout}</strong>`;
+      }
+    });
+  }
+}
+
+async function bloomStartRound() {
+  const stage = document.getElementById('bloom-stage');
+  if (stage) stage.innerHTML = '<div class="fof-loading">Dealing region…</div>';
+  try {
+    const { data, error } = await supabase.rpc('bloom_start_round');
+    if (error) throw error;
+    bloomGame.roundId    = data.round_id;
+    bloomGame.region     = data.region;
+    bloomGame.candidates = data.candidates || [];
+    bloomGame.pickedFlower = null;
+    bloomGame.wager      = 0;
+    bloomGame.state      = 'selecting';
+    bloomRenderStage();
+  } catch (e) {
+    if (stage) stage.innerHTML = `<div class="fof-err">Failed to start round: ${e.message || e}</div>`;
+  }
+}
+
+async function bloomBeginRound() {
+  if (!bloomGame.pickedFlower || !(bloomGame.wager > 0)) return;
+  const flowerChoice = bloomGame.pickedFlower;
+  const wager = bloomGame.wager;
+  bloomGame.state = 'resolving';
+  bloomRenderStage();
+  try {
+    const { data, error } = await supabase.rpc('bloom_lock_round', {
+      p_round_id: bloomGame.roundId,
+      p_flower:   flowerChoice,
+      p_wager:    wager,
+    });
+    if (error) throw error;
+    bloomGame.resolution = data;
+    await bloomPlayEvents(data.round_details);
+    if (currentProfile) currentProfile.credits = Number(data.new_balance);
+    bloomRefreshBalance();
+    bloomGame.state = 'resolved';
+    bloomRenderStage();
+  } catch (e) {
+    const stage = document.getElementById('bloom-stage');
+    if (stage) stage.innerHTML = `<div class="fof-err">Lock failed: ${e.message || e}</div>`;
+  }
+}
+
+async function bloomPlayEvents(details) {
+  if (!details || !Array.isArray(details.events)) return;
+  const logEl = document.getElementById('bloom-event-log');
+  const bloomTarget = details.bloomTarget || 100;
+  const drawDelay = 250;   // ms per draw
+  const finalHold = 800;   // ms after BLOOM event before transitioning
+
+  for (const ev of details.events) {
+    if (ev.type === 'DRAW') {
+      // Update each flower bar
+      const scores = ev.scoresAfter || {};
+      for (const slug of Object.keys(scores)) {
+        const fill = document.querySelector(`[data-bloom-bar-fill="${slug}"]`);
+        const val  = document.querySelector(`[data-bloom-bar-val="${slug}"]`);
+        if (fill) fill.style.width = Math.min(100, (Number(scores[slug]) / bloomTarget) * 100) + '%';
+        if (val)  val.textContent  = String(scores[slug]);
+      }
+      if (logEl) {
+        const line = document.createElement('div');
+        line.textContent = ev.message || `Draw ${ev.drawNumber}: ${ev.cardName}`;
+        logEl.appendChild(line);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+      await new Promise(r => setTimeout(r, drawDelay));
+    } else if (ev.type === 'BLOOM' || ev.type === 'SAFETY_CAP_VICTORY') {
+      if (logEl) {
+        const line = document.createElement('div');
+        line.style.fontWeight = '700';
+        line.textContent = ev.message || '';
+        logEl.appendChild(line);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+      await new Promise(r => setTimeout(r, finalHold));
+    }
+  }
+}
+
+// ── BLOOM — Master Matrix (compute & save per-region win %) ────────
+async function runBloomMasterMatrix() {
+  const sizeInput = document.getElementById('admin-bloom-master-size');
+  const status    = document.getElementById('admin-bloom-master-status');
+  const matrixEl  = document.getElementById('admin-bloom-master-matrix');
+  const sampleSize = Math.max(1000, Math.floor(Number(sizeInput?.value) || 1000000));
+
+  if (status) status.textContent = "Loading reference data…";
+  let ref;
+  try { ref = await loadAdminBloomRefData(); }
+  catch (err) { if (status) status.textContent = "Failed to load ref data: " + (err.message || err); return; }
+
+  const regionSlugs = ref.regionOrder.map(r => r.slug);
+  const totalSims = regionSlugs.length * sampleSize;
+  const confirmMsg = `Run ${regionSlugs.length} regions × ${sampleSize.toLocaleString()} sims each (~${totalSims.toLocaleString()} total) and write pct_<region> columns to bloom_flowers?`;
+  if (!window.confirm(confirmMsg)) { if (status) status.textContent = ""; return; }
+
+  // tally[regionSlug][flowerSlug] = winCount
+  const tally = {};
+  const t0 = performance.now();
+  for (const region of regionSlugs) {
+    tally[region] = {};
+    for (const f of ref.flowers) tally[region][f.slug] = 0;
+
+    const entry = ref.regions[region];
+    const deck = bloomBuildDeck(entry.deckComp);
+    if (deck.length === 0) continue;
+
+    if (status) status.textContent =
+      `${region.toUpperCase()} — ${sampleSize.toLocaleString()} sims… elapsed ${((performance.now()-t0)/1000).toFixed(1)}s`;
+    await new Promise(r => setTimeout(r, 20));
+
+    for (let i = 0; i < sampleSize; i++) {
+      const result = bloomSimulateOne(deck, ref.flowers, ref.cardEffects);
+      tally[region][result.winner.slug] += 1;
+    }
+  }
+
+  const elapsedSec = ((performance.now() - t0) / 1000).toFixed(1);
+  if (status) status.textContent = `Sims done in ${elapsedSec}s. Writing to DB…`;
+
+  // Render the matrix preview while we write
+  const headerCols = regionSlugs.map(r => `<th>${r}</th>`).join('');
+  const rows = ref.flowers.map(f => {
+    const cells = regionSlugs.map(r => {
+      const wins = tally[r][f.slug] || 0;
+      const pct  = (wins / sampleSize) * 100;
+      return `<td>${pct.toFixed(2)}%<br><span style="opacity:.5">(${wins.toLocaleString()})</span></td>`;
+    }).join('');
+    return `<tr><td class="rowhdr">${f.name}</td>${cells}</tr>`;
+  }).join('');
+  if (matrixEl) {
+    matrixEl.innerHTML = `
+      <table class="admin-fof-matrix-table">
+        <thead><tr><th>Flower</th>${headerCols}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  // Write: one update() per flower, all five pct_* columns at once
+  const writtenAt = new Date().toISOString();
+  for (const f of ref.flowers) {
+    const updates = {
+      odds_sample_size: sampleSize,
+      odds_computed_at: writtenAt,
+    };
+    for (const region of regionSlugs) {
+      updates[`pct_${region}`] = (tally[region][f.slug] || 0) / sampleSize;
+    }
+    const { error } = await supabase
+      .from('bloom_flowers')
+      .update(updates)
+      .eq('flower', f.slug);
+    if (error) {
+      if (status) status.textContent = `DB write failed on ${f.slug}: ${error.message}`;
+      return;
+    }
+  }
+
+  if (status) status.textContent =
+    `Master Matrix saved. ${totalSims.toLocaleString()} sims in ${elapsedSec}s.`;
 }

@@ -398,6 +398,20 @@
                 <span class="drawer-link-label">Fate or Fortune</span>
               </span>
             </button>
+            <button type="button" data-route-target="bloom" class="drawer-link" id="drawer-bloom-link" hidden>
+              <span class="drawer-link-inner">
+                <span class="drawer-link-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="2.4"></circle>
+                    <path d="M12 9.6c0-3.4 2.6-5.6 5.4-5.6 0 3.4-2.4 5.6-5.4 5.6Z"></path>
+                    <path d="M12 14.4c0 3.4 2.6 5.6 5.4 5.6 0-3.4-2.4-5.6-5.4-5.6Z"></path>
+                    <path d="M9.6 12c-3.4 0-5.6-2.6-5.6-5.4 3.4 0 5.6 2.4 5.6 5.4Z"></path>
+                    <path d="M14.4 12c3.4 0 5.6 2.6 5.6 5.4-3.4 0-5.6-2.4-5.6-5.4Z"></path>
+                  </svg>
+                </span>
+                <span class="drawer-link-label">Bloom</span>
+              </span>
+            </button>
             <button type="button" data-route-target="admin" class="drawer-link" id="admin-nav" hidden>
               <span class="drawer-link-inner">
                 <span class="drawer-link-icon" aria-hidden="true">
@@ -3393,6 +3407,20 @@
                   </div>
                   <div id="admin-bloom-stress-results" class="admin-fof-sim-results"></div>
                 </div>
+                <div class="admin-fof-matrix-panel">
+                  <div class="admin-fof-matrix-hdr">
+                    <h3>Master Matrix — Per-Region Win %</h3>
+                    <div class="admin-fof-matrix-actions">
+                      <label class="admin-fof-sim-pick">Sims per region
+                        <input type="number" id="admin-bloom-master-size" class="admin-fof-log-seed-input" value="1000000" min="1000" step="1000">
+                      </label>
+                      <button type="button" class="admin-fof-runall-btn" id="admin-bloom-run-master">Run Master Matrix &amp; save to DB</button>
+                    </div>
+                  </div>
+                  <p class="admin-cs-hint">Runs N sims per region in-browser, tallies winners, and writes <code>pct_&lt;region&gt;</code> on each flower in <code>bloom_flowers</code>. Required before live rounds — <code>bloom_lock_round</code> reads these to compute payouts.</p>
+                  <div id="admin-bloom-master-status" class="admin-fof-status"></div>
+                  <div id="admin-bloom-master-matrix"></div>
+                </div>
               </section>
               </div>
               <div class="admin-fof-subtab-content admin-bloom-subtab-content" id="admin-bloom-cards-content" hidden>
@@ -3477,6 +3505,17 @@
               <div class="fof-page-balance">BALANCE <strong id="fof-page-balance-val">—</strong></div>
             </header>
             <div id="fof-stage" class="fof-stage" data-state="idle"></div>
+          </div>
+        </section>
+
+        <section id="bloom-view" class="route-view app-page fof-view" hidden aria-labelledby="bloom-view-title">
+          <h1 id="bloom-view-title" class="sr-only">Bloom</h1>
+          <div class="fof-page">
+            <header class="fof-page-header">
+              <div class="fof-page-title">// BLOOM <span>FIRST FLOWER WINS</span></div>
+              <div class="fof-page-balance">BALANCE <strong id="bloom-page-balance-val">—</strong></div>
+            </header>
+            <div id="bloom-stage" class="fof-stage" data-state="idle"></div>
           </div>
         </section>
 
