@@ -18372,6 +18372,7 @@ const adminDesignContent = document.getElementById("admin-design-content");
 const adminRanksContent = document.getElementById("admin-ranks-content");
 const adminCsClipsContent = document.getElementById("admin-cs-clips-content");
 const adminFateOrFortuneContent = document.getElementById("admin-fate-or-fortune-content");
+const adminBloomContent = document.getElementById("admin-bloom-content");
 const adminGameListEl = document.getElementById("admin-game-list");
 const adminGameMessage = document.getElementById("admin-game-message");
 const adminGamesMigrateButton = document.getElementById("admin-games-migrate-button");
@@ -30061,6 +30062,7 @@ adminTabButtons.forEach(button => {
       if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
       if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
+      if (adminBloomContent) adminBloomContent.hidden = true;
     } else if (targetTab === "games") {
       adminPrizesContent.hidden = true;
       if (adminGamesContent) adminGamesContent.hidden = false;
@@ -30069,6 +30071,7 @@ adminTabButtons.forEach(button => {
       if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
       if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
+      if (adminBloomContent) adminBloomContent.hidden = true;
       void loadAdminGameAssets(true);
     } else if (targetTab === "analytics") {
       adminPrizesContent.hidden = true;
@@ -30078,6 +30081,7 @@ adminTabButtons.forEach(button => {
       if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
       if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
+      if (adminBloomContent) adminBloomContent.hidden = true;
       void loadAdminActivityTimeseries();
       void loadAdminActivityPlayers().then(() => {
         populateAdminPnlPlayerSelect();
@@ -30092,6 +30096,7 @@ adminTabButtons.forEach(button => {
       if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
       if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
+      if (adminBloomContent) adminBloomContent.hidden = true;
       loadAdminContestList(true);
     } else if (targetTab === "design") {
       adminPrizesContent.hidden = true;
@@ -30101,6 +30106,7 @@ adminTabButtons.forEach(button => {
       if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = true;
       if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
+      if (adminBloomContent) adminBloomContent.hidden = true;
     } else if (targetTab === "ranks") {
       adminPrizesContent.hidden = true;
       if (adminGamesContent) adminGamesContent.hidden = true;
@@ -30109,6 +30115,7 @@ adminTabButtons.forEach(button => {
       if (adminDesignContent) adminDesignContent.hidden = true;
       if (adminRanksContent) adminRanksContent.hidden = false;
       if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
+      if (adminBloomContent) adminBloomContent.hidden = true;
       void loadAdminRanks(true);
     } else if (targetTab === "cs-clips") {
       adminPrizesContent.hidden = true;
@@ -30119,6 +30126,7 @@ adminTabButtons.forEach(button => {
       if (adminRanksContent) adminRanksContent.hidden = true;
       if (adminCsClipsContent) adminCsClipsContent.hidden = false;
       if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
+      if (adminBloomContent) adminBloomContent.hidden = true;
       adminCsClipsTabOpen();
     } else if (targetTab === "fate-or-fortune") {
       adminPrizesContent.hidden = true;
@@ -30129,8 +30137,21 @@ adminTabButtons.forEach(button => {
       if (adminRanksContent) adminRanksContent.hidden = true;
       if (adminCsClipsContent) adminCsClipsContent.hidden = true;
       if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = false;
+      if (adminBloomContent) adminBloomContent.hidden = true;
       adminCsMiniPause();
       void loadAdminFateOrFortuneStats();
+    } else if (targetTab === "bloom") {
+      adminPrizesContent.hidden = true;
+      if (adminGamesContent) adminGamesContent.hidden = true;
+      adminAnalyticsContent.hidden = true;
+      if (adminContestsContent) adminContestsContent.hidden = true;
+      if (adminDesignContent) adminDesignContent.hidden = true;
+      if (adminRanksContent) adminRanksContent.hidden = true;
+      if (adminCsClipsContent) adminCsClipsContent.hidden = true;
+      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
+      if (adminBloomContent) adminBloomContent.hidden = false;
+      adminCsMiniPause();
+      adminBloomInit();
     } else {
       // Pause the mini canvas RAF whenever we leave the CS Clips tab
       adminCsMiniPause();
@@ -39167,4 +39188,143 @@ if (typeof window !== "undefined") {
     rtnWagersToggleEl.addEventListener("click", () => { toggleRtnWagers(); });
   }
   applyRtnWagersState();
+}
+
+// ── BLOOM — admin sim (calls public.bloom_simulate_round) ────────────
+let _bloomInited = false;
+let _bloomStressVol = 100;
+let _bloomLastResult = null;
+
+function adminBloomInit() {
+  if (_bloomInited) return;
+  _bloomInited = true;
+
+  const runBtn   = document.getElementById("admin-bloom-run");
+  const copyBtn  = document.getElementById("admin-bloom-copy");
+  const stressBtn = document.getElementById("admin-bloom-stress-run");
+
+  if (runBtn)   runBtn.addEventListener("click", () => { void adminBloomRunSingle(); });
+  if (copyBtn)  copyBtn.addEventListener("click", () => { adminBloomCopyJson(); });
+  if (stressBtn) stressBtn.addEventListener("click", () => { void adminBloomRunStress(); });
+
+  document.querySelectorAll('[data-bloom-vol]').forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll('[data-bloom-vol]').forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      _bloomStressVol = parseInt(btn.dataset.bloomVol, 10) || 100;
+    });
+  });
+}
+
+async function adminBloomRunSingle() {
+  const statusEl  = document.getElementById("admin-bloom-status");
+  const summaryEl = document.getElementById("admin-bloom-summary");
+  const outEl     = document.getElementById("admin-bloom-log-output");
+  const regionSel = document.getElementById("admin-bloom-region");
+  const seedInput = document.getElementById("admin-bloom-seed");
+  if (!outEl) return;
+
+  const region = regionSel && regionSel.value ? regionSel.value : null;
+  const rawSeed = seedInput && seedInput.value !== "" ? Number(seedInput.value) : null;
+  const seed = Number.isFinite(rawSeed) ? rawSeed : null;
+
+  if (statusEl) statusEl.textContent = "Running…";
+  summaryEl && (summaryEl.innerHTML = "");
+  outEl.textContent = "";
+
+  try {
+    const { data, error } = await supabase.rpc("bloom_simulate_round", {
+      p_region: region,
+      p_seed:   seed,
+    });
+    if (error) throw error;
+    _bloomLastResult = data;
+
+    if (summaryEl) {
+      const w = data.winner || {};
+      const r = data.region || {};
+      const finals = data.finalScores || {};
+      const rows = Object.entries(finals).map(([slug, score]) => {
+        const isWinner = slug === w.slug;
+        return `<tr${isWinner ? ' style="font-weight:bold"' : ''}><td>${slug}</td><td style="text-align:right">${score}</td></tr>`;
+      }).join("");
+      summaryEl.innerHTML = `
+        <div><strong>${(r.name || '').toUpperCase()}</strong> · deck ${r.deckSize} · seed ${data.seed}</div>
+        <div>Winner: <strong>${(w.name || '').toUpperCase()}</strong> — final score ${w.finalScore} in ${data.totalDraws} draws${w.viaSafetyCap ? ' (safety cap)' : ''}</div>
+        <table style="margin-top:6px;font-size:12px"><thead><tr><th style="text-align:left">Flower</th><th style="text-align:right">Final</th></tr></thead><tbody>${rows}</tbody></table>
+      `;
+    }
+    outEl.textContent = JSON.stringify(data, null, 2);
+    if (statusEl) statusEl.textContent = "";
+  } catch (err) {
+    if (statusEl) statusEl.textContent = "Error: " + (err.message || err);
+    console.error("[bloom] sim failed", err);
+  }
+}
+
+function adminBloomCopyJson() {
+  if (!_bloomLastResult) return;
+  navigator.clipboard.writeText(JSON.stringify(_bloomLastResult, null, 2)).catch(() => {});
+}
+
+async function adminBloomRunStress() {
+  const statusEl  = document.getElementById("admin-bloom-status");
+  const resultsEl = document.getElementById("admin-bloom-stress-results");
+  const regionSel = document.getElementById("admin-bloom-stress-region");
+  if (!resultsEl) return;
+
+  const regions = (regionSel && regionSel.value && regionSel.value !== "all")
+    ? [regionSel.value]
+    : ["desert", "rainforest", "temperate_forest", "tundra", "tropical_island"];
+  const runs = _bloomStressVol;
+  const totalCalls = regions.length * runs;
+
+  if (statusEl) statusEl.textContent = `Running ${totalCalls.toLocaleString()} sims…`;
+  resultsEl.innerHTML = "";
+
+  const t0 = performance.now();
+  const tally = {}; // region -> { flower -> count, _totalDraws, _runs }
+  try {
+    for (const region of regions) {
+      tally[region] = { _runs: 0, _totalDraws: 0 };
+      for (let i = 0; i < runs; i++) {
+        const { data, error } = await supabase.rpc("bloom_simulate_round", {
+          p_region: region,
+          p_seed:   null,
+        });
+        if (error) throw error;
+        const w = (data && data.winner && data.winner.slug) || "?";
+        tally[region][w] = (tally[region][w] || 0) + 1;
+        tally[region]._runs += 1;
+        tally[region]._totalDraws += data.totalDraws || 0;
+      }
+      if (statusEl) statusEl.textContent = `Running… finished ${region}`;
+    }
+    const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
+
+    const flowerOrder = ["cactus_bloom", "hibiscus", "hydrangea", "frost_lily", "plumeria"];
+    const headerCols = flowerOrder.map(f => `<th style="text-align:right">${f}</th>`).join("");
+    const rows = regions.map(region => {
+      const t = tally[region];
+      const cells = flowerOrder.map(f => {
+        const n = t[f] || 0;
+        const pct = t._runs ? ((n / t._runs) * 100).toFixed(1) : "0.0";
+        return `<td style="text-align:right">${pct}%<br><span style="opacity:.6">(${n})</span></td>`;
+      }).join("");
+      const avgDraws = t._runs ? (t._totalDraws / t._runs).toFixed(1) : "—";
+      return `<tr><td><strong>${region}</strong></td>${cells}<td style="text-align:right">${avgDraws}</td></tr>`;
+    }).join("");
+
+    resultsEl.innerHTML = `
+      <div>Completed ${totalCalls.toLocaleString()} sims in ${elapsed}s</div>
+      <table style="margin-top:8px;font-size:12px;border-collapse:collapse">
+        <thead><tr><th style="text-align:left">Region</th>${headerCols}<th style="text-align:right">Avg draws</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+    if (statusEl) statusEl.textContent = "";
+  } catch (err) {
+    if (statusEl) statusEl.textContent = "Error: " + (err.message || err);
+    console.error("[bloom] stress failed", err);
+  }
 }
