@@ -3334,12 +3334,18 @@
               </div>
             </section>
             <section class="admin-tab-content" id="admin-bloom-content" hidden>
+              <div class="admin-fof-subtabs">
+                <button type="button" class="admin-fof-subtab admin-bloom-subtab active" data-bloom-subtab="sim">Sim</button>
+                <button type="button" class="admin-fof-subtab admin-bloom-subtab" data-bloom-subtab="cards">Cards</button>
+                <button type="button" class="admin-fof-subtab admin-bloom-subtab" data-bloom-subtab="regions">Regions</button>
+              </div>
+              <div id="admin-bloom-status" class="admin-fof-status"></div>
+              <div class="admin-fof-subtab-content admin-bloom-subtab-content" id="admin-bloom-sim-content">
               <section class="route-section admin-list-section">
                 <div class="admin-listing-header">
-                  <h2>BLOOM</h2>
+                  <h2>BLOOM — Sim</h2>
                 </div>
                 <p class="admin-cs-hint">Five flowers race to bloom. Each draw is an independent weighted pick from the selected region's deck. First flower to 100 wins.</p>
-                <div id="admin-bloom-status" class="admin-fof-status"></div>
                 <div class="admin-fof-sim-panel">
                   <h3>Single Round — Event Log</h3>
                   <p class="admin-cs-hint">Run one deterministic race and see every draw. Leave seed blank for a random round.</p>
@@ -3388,6 +3394,25 @@
                   <div id="admin-bloom-stress-results" class="admin-fof-sim-results"></div>
                 </div>
               </section>
+              </div>
+              <div class="admin-fof-subtab-content admin-bloom-subtab-content" id="admin-bloom-cards-content" hidden>
+                <section class="route-section admin-list-section">
+                  <div class="admin-listing-header">
+                    <h2>BLOOM — Cards</h2>
+                  </div>
+                  <p class="admin-cs-hint">Adjust flower-effect values per card (-20 to +20). Save writes <code>bloom_cards.effects</code> for that one card; other columns are untouched. The in-browser sim cache picks up new values on save.</p>
+                  <div id="admin-bloom-cards-grid" class="admin-fof-chars"></div>
+                </section>
+              </div>
+              <div class="admin-fof-subtab-content admin-bloom-subtab-content" id="admin-bloom-regions-content" hidden>
+                <section class="route-section admin-list-section">
+                  <div class="admin-listing-header">
+                    <h2>BLOOM — Regions</h2>
+                  </div>
+                  <p class="admin-cs-hint">Adjust deck composition per region (0–15 of each card). Save writes <code>bloom_regions.deck_composition</code> for that one region.</p>
+                  <div id="admin-bloom-regions-grid" class="admin-fof-chars"></div>
+                </section>
+              </div>
             </section>
           </div>
         </section>

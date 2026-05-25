@@ -30174,17 +30174,17 @@ let fofAnimRows = []; // [{character, action, clip_data, updated_at}]
 let fofAnimEditing = null; // { character, action } currently in modal
 
 function adminFofSwitchSubtab(target) {
-  document.querySelectorAll('.admin-fof-subtab').forEach(b => {
+  document.querySelectorAll('#admin-fate-or-fortune-content .admin-fof-subtab').forEach(b => {
     b.classList.toggle('active', b.dataset.fofSubtab === target);
   });
-  document.querySelectorAll('.admin-fof-subtab-content').forEach(c => { c.hidden = true; });
+  document.querySelectorAll('#admin-fate-or-fortune-content .admin-fof-subtab-content').forEach(c => { c.hidden = true; });
   const el = document.getElementById(`admin-fof-${target}-content`);
   if (el) el.hidden = false;
   if (target === 'animations') void loadAdminFofAnimations();
 }
 
 (function adminFofSubtabInit() {
-  document.querySelectorAll('.admin-fof-subtab').forEach(btn => {
+  document.querySelectorAll('#admin-fate-or-fortune-content .admin-fof-subtab').forEach(btn => {
     btn.addEventListener('click', () => adminFofSwitchSubtab(btn.dataset.fofSubtab));
   });
   // Animation modal controls
@@ -39221,8 +39221,33 @@ function adminBloomInit() {
     });
   });
 
-  // Warm the ref-data cache in the background — the stress test needs it.
+  document.querySelectorAll('.admin-bloom-subtab').forEach(btn => {
+    btn.addEventListener("click", () => adminBloomSwitchSubtab(btn.dataset.bloomSubtab));
+  });
+
+  // Warm the ref-data cache in the background — sim and editors both need it.
   void loadAdminBloomRefData().catch(err => console.warn("[bloom] ref preload failed", err));
+}
+
+function adminBloomSwitchSubtab(target) {
+  document.querySelectorAll('.admin-bloom-subtab').forEach(b => {
+    b.classList.toggle('active', b.dataset.bloomSubtab === target);
+  });
+  document.querySelectorAll('.admin-bloom-subtab-content').forEach(c => { c.hidden = true; });
+  const el = document.getElementById(`admin-bloom-${target}-content`);
+  if (el) el.hidden = false;
+  if (target === 'cards' || target === 'regions') {
+    void (async () => {
+      try {
+        await loadAdminBloomRefData();
+        if (target === 'cards')   renderBloomCardsEditor();
+        if (target === 'regions') renderBloomRegionsEditor();
+      } catch (err) {
+        const status = document.getElementById('admin-bloom-status');
+        if (status) status.textContent = "Failed to load ref data: " + (err.message || err);
+      }
+    })();
+  }
 }
 
 // Mulberry32 PRNG (same algorithm as fofRng / public.bloom_rng_next).
@@ -39248,13 +39273,21 @@ function bloomBuildDeck(deckComposition) {
   return out;
 }
 
+// Inverse: tally a flat deck array back into a {card: count} composition.
+function bloomDeckArrToComp(deckArr) {
+  const out = {};
+  if (!deckArr) return out;
+  for (const c of deckArr) out[c] = (out[c] || 0) + 1;
+  return out;
+}
+
 // Pure JS port of public.bloom_simulate_round. Returns only the fields the
-// stress test needs (no per-draw event log) for speed. flowers must be the
+// stress test needs (no per-draw event log) for speed. `deck` is a flat array
+// of card slugs (built once per region by the caller). `flowers` must be the
 // ordered list from loadAdminBloomRefData (sort_order ascending).
-function bloomSimulateOne(regionEntry, flowers, cardEffects, seed) {
+function bloomSimulateOne(deck, flowers, cardEffects, seed) {
   if (seed == null || !Number.isFinite(seed)) seed = Math.floor(Math.random() * 1e9);
   const rng = bloomRng(seed);
-  const deck = regionEntry.deckArr;
   const deckSize = deck.length;
   const nF = flowers.length;
   const scores = new Int32Array(nF);
@@ -39318,8 +39351,8 @@ async function loadAdminBloomRefData() {
   _bloomRefDataLoading = (async () => {
     const [flowersRes, cardsRes, regionsRes] = await Promise.all([
       supabase.from("bloom_flowers").select("flower,display_name,bloom_target,sort_order").order("sort_order"),
-      supabase.from("bloom_cards").select("card,display_name,effects"),
-      supabase.from("bloom_regions").select("region,display_name,deck_composition"),
+      supabase.from("bloom_cards").select("card,display_name,effects,sort_order").order("sort_order"),
+      supabase.from("bloom_regions").select("region,display_name,identity,hero_flower,deck_composition,sort_order").order("sort_order"),
     ]);
     if (flowersRes.error) throw flowersRes.error;
     if (cardsRes.error)   throw cardsRes.error;
@@ -39331,17 +39364,37 @@ async function loadAdminBloomRefData() {
       bloom_target: r.bloom_target,
       sort_order: r.sort_order,
     }));
+
+    // cardOrder: sorted list of {slug, name, sort_order} — drives editor rows
+    // cardEffects: { slug: {flower: int} } — drives the sim
+    const cardOrder = (cardsRes.data || []).map(c => ({
+      slug: c.card,
+      name: c.display_name,
+      sort_order: c.sort_order,
+    }));
     const cardEffects = {};
-    for (const c of cardsRes.data || []) cardEffects[c.card] = c.effects || {};
+    for (const c of cardsRes.data || []) cardEffects[c.card] = { ...(c.effects || {}) };
+
+    // regions: { slug: { ..., deckComp } } — editor mutates deckComp directly
+    // regionOrder: sorted list of {slug, name, identity, hero_flower}
     const regions = {};
+    const regionOrder = [];
     for (const r of regionsRes.data || []) {
       regions[r.region] = {
         slug: r.region,
         name: r.display_name,
-        deckArr: bloomBuildDeck(r.deck_composition),
+        identity: r.identity,
+        hero_flower: r.hero_flower,
+        deckComp: { ...(r.deck_composition || {}) },
       };
+      regionOrder.push({
+        slug: r.region,
+        name: r.display_name,
+        identity: r.identity,
+        hero_flower: r.hero_flower,
+      });
     }
-    _bloomRefData = { flowers, cardEffects, regions };
+    _bloomRefData = { flowers, cardOrder, cardEffects, regionOrder, regions };
     return _bloomRefData;
   })();
 
@@ -39437,9 +39490,13 @@ async function adminBloomRunStress() {
     for (const region of regions) {
       const regionEntry = ref.regions[region];
       if (!regionEntry) continue;
+      // Build the deck once per region; mutations to deckComp via the
+      // Regions editor are picked up on the next stress run automatically.
+      const deck = bloomBuildDeck(regionEntry.deckComp);
+      if (deck.length === 0) continue;
       const t = { _runs: 0, _totalDraws: 0 };
       for (let i = 0; i < runs; i++) {
-        const result = bloomSimulateOne(regionEntry, ref.flowers, ref.cardEffects);
+        const result = bloomSimulateOne(deck, ref.flowers, ref.cardEffects);
         const w = result.winner.slug;
         t[w] = (t[w] || 0) + 1;
         t._runs       += 1;
@@ -39477,5 +39534,183 @@ async function adminBloomRunStress() {
   } catch (err) {
     if (statusEl) statusEl.textContent = "Error: " + (err.message || err);
     console.error("[bloom] stress failed", err);
+  }
+}
+
+// ── BLOOM — Cards editor ─────────────────────────────────────────────
+function bloomFlash(msg) {
+  const el = document.getElementById('admin-bloom-status');
+  if (!el) return;
+  el.textContent = msg;
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 1800);
+}
+
+function bloomEffectSlider(cardSlug, flowerSlug, flowerName, value) {
+  const v = Number.isFinite(value) ? value : 0;
+  return `
+    <div class="admin-fof-slider-row" data-bloom-card="${cardSlug}" data-bloom-flower="${flowerSlug}">
+      <label>${flowerName}</label>
+      <input type="range" min="-20" max="20" step="1" value="${v}">
+      <span class="admin-fof-val">${v}</span>
+    </div>
+  `;
+}
+
+function renderBloomCardsEditor() {
+  const el = document.getElementById('admin-bloom-cards-grid');
+  if (!el || !_bloomRefData) return;
+  const { cardOrder, cardEffects, flowers } = _bloomRefData;
+  el.innerHTML = cardOrder.map(card => {
+    const eff = cardEffects[card.slug] || {};
+    const sliders = flowers.map(f =>
+      bloomEffectSlider(card.slug, f.slug, f.name, eff[f.slug] ?? 0)
+    ).join('');
+    return `
+      <div class="admin-fof-char-card" data-bloom-card-card="${card.slug}">
+        <h3>${card.name.toUpperCase()}</h3>
+        ${sliders}
+        <div class="admin-fof-char-actions">
+          <button type="button" class="admin-fof-reset" data-bloom-card-reset="${card.slug}">Reset</button>
+          <button type="button" class="admin-fof-save primary" data-bloom-card-save="${card.slug}">Save</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  attachBloomCardEditorHandlers();
+}
+
+function attachBloomCardEditorHandlers() {
+  document.querySelectorAll('[data-bloom-card][data-bloom-flower] input[type=range]').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const row = e.target.closest('[data-bloom-card][data-bloom-flower]');
+      const cardSlug = row.dataset.bloomCard;
+      const flowerSlug = row.dataset.bloomFlower;
+      const val = parseInt(e.target.value, 10) || 0;
+      if (!_bloomRefData.cardEffects[cardSlug]) _bloomRefData.cardEffects[cardSlug] = {};
+      _bloomRefData.cardEffects[cardSlug][flowerSlug] = val;
+      row.querySelector('.admin-fof-val').textContent = String(val);
+      const cardEl = row.closest('.admin-fof-char-card');
+      if (cardEl) cardEl.classList.add('dirty');
+    });
+  });
+  document.querySelectorAll('[data-bloom-card-save]').forEach(btn => {
+    btn.addEventListener('click', () => { void bloomSaveCard(btn.dataset.bloomCardSave); });
+  });
+  document.querySelectorAll('[data-bloom-card-reset]').forEach(btn => {
+    btn.addEventListener('click', () => { void bloomReloadEditors(); });
+  });
+}
+
+async function bloomSaveCard(slug) {
+  if (!_bloomRefData) return;
+  const effects = _bloomRefData.cardEffects[slug];
+  if (!effects) return;
+  bloomFlash(`Saving ${slug}…`);
+  const { error } = await supabase
+    .from('bloom_cards')
+    .update({ effects, updated_at: new Date().toISOString() })
+    .eq('card', slug);
+  if (error) { bloomFlash(`Save error: ${error.message}`); console.error('[bloom] save card', error); return; }
+  const cardEl = document.querySelector(`[data-bloom-card-card="${slug}"]`);
+  if (cardEl) cardEl.classList.remove('dirty');
+  bloomFlash(`Saved ${slug}`);
+}
+
+// ── BLOOM — Regions editor ───────────────────────────────────────────
+function bloomCountSlider(regionSlug, cardSlug, cardName, value) {
+  const v = Number.isFinite(value) ? value : 0;
+  return `
+    <div class="admin-fof-slider-row" data-bloom-region="${regionSlug}" data-bloom-region-card="${cardSlug}">
+      <label>${cardName}</label>
+      <input type="range" min="0" max="15" step="1" value="${v}">
+      <span class="admin-fof-val">${v}</span>
+    </div>
+  `;
+}
+
+function bloomDeckTotal(deckComp) {
+  let n = 0;
+  for (const k in deckComp) n += deckComp[k] | 0;
+  return n;
+}
+
+function renderBloomRegionsEditor() {
+  const el = document.getElementById('admin-bloom-regions-grid');
+  if (!el || !_bloomRefData) return;
+  const { regionOrder, regions, cardOrder } = _bloomRefData;
+  el.innerHTML = regionOrder.map(region => {
+    const entry = regions[region.slug];
+    const comp = entry?.deckComp || {};
+    const total = bloomDeckTotal(comp);
+    const sliders = cardOrder.map(card =>
+      bloomCountSlider(region.slug, card.slug, card.name, comp[card.slug] ?? 0)
+    ).join('');
+    return `
+      <div class="admin-fof-char-card" data-bloom-region-card="${region.slug}">
+        <h3>${region.name.toUpperCase()}
+          <span style="float:right;font-size:11px;opacity:.7">DECK: <strong data-bloom-region-total="${region.slug}">${total}</strong></span>
+        </h3>
+        <div style="font-size:11px;opacity:.6;margin:-4px 0 8px">${region.identity || ''}${region.hero_flower ? ' · hero: ' + region.hero_flower : ''}</div>
+        ${sliders}
+        <div class="admin-fof-char-actions">
+          <button type="button" class="admin-fof-reset" data-bloom-region-reset="${region.slug}">Reset</button>
+          <button type="button" class="admin-fof-save primary" data-bloom-region-save="${region.slug}">Save</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  attachBloomRegionEditorHandlers();
+}
+
+function attachBloomRegionEditorHandlers() {
+  document.querySelectorAll('[data-bloom-region][data-bloom-region-card] input[type=range]').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const row = e.target.closest('[data-bloom-region][data-bloom-region-card]');
+      const regionSlug = row.dataset.bloomRegion;
+      const cardSlug   = row.dataset.bloomRegionCard;
+      const val = parseInt(e.target.value, 10) || 0;
+      const entry = _bloomRefData.regions[regionSlug];
+      if (!entry) return;
+      if (val > 0) entry.deckComp[cardSlug] = val;
+      else         delete entry.deckComp[cardSlug];
+      row.querySelector('.admin-fof-val').textContent = String(val);
+      const totalEl = document.querySelector(`[data-bloom-region-total="${regionSlug}"]`);
+      if (totalEl) totalEl.textContent = String(bloomDeckTotal(entry.deckComp));
+      const cardEl = row.closest('.admin-fof-char-card');
+      if (cardEl) cardEl.classList.add('dirty');
+    });
+  });
+  document.querySelectorAll('[data-bloom-region-save]').forEach(btn => {
+    btn.addEventListener('click', () => { void bloomSaveRegion(btn.dataset.bloomRegionSave); });
+  });
+  document.querySelectorAll('[data-bloom-region-reset]').forEach(btn => {
+    btn.addEventListener('click', () => { void bloomReloadEditors(); });
+  });
+}
+
+async function bloomSaveRegion(slug) {
+  if (!_bloomRefData) return;
+  const entry = _bloomRefData.regions[slug];
+  if (!entry) return;
+  bloomFlash(`Saving ${slug}…`);
+  const { error } = await supabase
+    .from('bloom_regions')
+    .update({ deck_composition: entry.deckComp, updated_at: new Date().toISOString() })
+    .eq('region', slug);
+  if (error) { bloomFlash(`Save error: ${error.message}`); console.error('[bloom] save region', error); return; }
+  const cardEl = document.querySelector(`[data-bloom-region-card="${slug}"]`);
+  if (cardEl) cardEl.classList.remove('dirty');
+  bloomFlash(`Saved ${slug}`);
+}
+
+async function bloomReloadEditors() {
+  _bloomRefData = null;
+  _bloomRefDataLoading = null;
+  try {
+    await loadAdminBloomRefData();
+    renderBloomCardsEditor();
+    renderBloomRegionsEditor();
+  } catch (err) {
+    bloomFlash(`Reload error: ${err.message || err}`);
   }
 }
