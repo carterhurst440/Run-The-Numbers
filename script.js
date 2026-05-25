@@ -39190,10 +39190,16 @@ if (typeof window !== "undefined") {
   applyRtnWagersState();
 }
 
-// ── BLOOM — admin sim (calls public.bloom_simulate_round) ────────────
+// ── BLOOM — admin sim ────────────────────────────────────────────────
+// Single-round event log calls the SQL RPC (authoritative). Stress test
+// runs the JS twin `bloomSimulateOne` in-browser to avoid HTTP per sim,
+// mirroring the FOF pattern. The two implementations must stay in sync —
+// changes to the SQL `bloom_simulate_round` should be mirrored here.
 let _bloomInited = false;
-let _bloomStressVol = 100;
+let _bloomStressVol = 1000;
 let _bloomLastResult = null;
+let _bloomRefData = null;        // { flowers, cardEffects, regions }
+let _bloomRefDataLoading = null; // in-flight promise
 
 function adminBloomInit() {
   if (_bloomInited) return;
@@ -39211,9 +39217,139 @@ function adminBloomInit() {
     btn.addEventListener("click", () => {
       document.querySelectorAll('[data-bloom-vol]').forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
-      _bloomStressVol = parseInt(btn.dataset.bloomVol, 10) || 100;
+      _bloomStressVol = parseInt(btn.dataset.bloomVol, 10) || 1000;
     });
   });
+
+  // Warm the ref-data cache in the background — the stress test needs it.
+  void loadAdminBloomRefData().catch(err => console.warn("[bloom] ref preload failed", err));
+}
+
+// Mulberry32 PRNG (same algorithm as fofRng / public.bloom_rng_next).
+function bloomRng(seed) {
+  let s = (seed | 0) || 1;
+  return function() {
+    s = (s + 0x6D2B79F5) | 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Expand a region's deck_composition {card: count} into a flat array of slugs.
+function bloomBuildDeck(deckComposition) {
+  const out = [];
+  if (!deckComposition) return out;
+  for (const [card, count] of Object.entries(deckComposition)) {
+    const n = parseInt(count, 10) || 0;
+    for (let i = 0; i < n; i++) out.push(card);
+  }
+  return out;
+}
+
+// Pure JS port of public.bloom_simulate_round. Returns only the fields the
+// stress test needs (no per-draw event log) for speed. flowers must be the
+// ordered list from loadAdminBloomRefData (sort_order ascending).
+function bloomSimulateOne(regionEntry, flowers, cardEffects, seed) {
+  if (seed == null || !Number.isFinite(seed)) seed = Math.floor(Math.random() * 1e9);
+  const rng = bloomRng(seed);
+  const deck = regionEntry.deckArr;
+  const deckSize = deck.length;
+  const nF = flowers.length;
+  const scores = new Int32Array(nF);
+  const slugs = new Array(nF);
+  const targets = new Int32Array(nF);
+  for (let i = 0; i < nF; i++) {
+    slugs[i]   = flowers[i].slug;
+    targets[i] = flowers[i].bloom_target | 0;
+  }
+  const MAX_DRAWS = 500;
+
+  let winnerIdx = -1;
+  let draw = 0;
+  while (winnerIdx < 0 && draw < MAX_DRAWS) {
+    draw++;
+    let pickIdx = (rng() * deckSize) | 0;
+    if (pickIdx >= deckSize) pickIdx = deckSize - 1;
+    const eff = cardEffects[deck[pickIdx]];
+
+    let bestScore = -1, bestIdx = -1;
+    for (let i = 0; i < nF; i++) {
+      const delta = (eff[slugs[i]] | 0);
+      let s = scores[i] + delta;
+      if (s < 0) s = 0;
+      scores[i] = s;
+      if (s >= targets[i] && s > bestScore) {
+        bestScore = s;
+        bestIdx = i;
+      }
+    }
+    if (bestIdx >= 0) winnerIdx = bestIdx;
+  }
+
+  let viaSafetyCap = false;
+  if (winnerIdx < 0) {
+    viaSafetyCap = true;
+    winnerIdx = 0;
+    for (let i = 1; i < nF; i++) if (scores[i] > scores[winnerIdx]) winnerIdx = i;
+  }
+
+  const finalScores = {};
+  for (let i = 0; i < nF; i++) finalScores[slugs[i]] = scores[i];
+  return {
+    seed,
+    winner: {
+      slug: flowers[winnerIdx].slug,
+      name: flowers[winnerIdx].name,
+      finalScore: scores[winnerIdx],
+      viaSafetyCap,
+    },
+    totalDraws: draw,
+    finalScores,
+  };
+}
+
+// Load + cache flowers / cards / regions. Single request burst, then reused.
+async function loadAdminBloomRefData() {
+  if (_bloomRefData) return _bloomRefData;
+  if (_bloomRefDataLoading) return _bloomRefDataLoading;
+
+  _bloomRefDataLoading = (async () => {
+    const [flowersRes, cardsRes, regionsRes] = await Promise.all([
+      supabase.from("bloom_flowers").select("flower,display_name,bloom_target,sort_order").order("sort_order"),
+      supabase.from("bloom_cards").select("card,display_name,effects"),
+      supabase.from("bloom_regions").select("region,display_name,deck_composition"),
+    ]);
+    if (flowersRes.error) throw flowersRes.error;
+    if (cardsRes.error)   throw cardsRes.error;
+    if (regionsRes.error) throw regionsRes.error;
+
+    const flowers = (flowersRes.data || []).map(r => ({
+      slug: r.flower,
+      name: r.display_name,
+      bloom_target: r.bloom_target,
+      sort_order: r.sort_order,
+    }));
+    const cardEffects = {};
+    for (const c of cardsRes.data || []) cardEffects[c.card] = c.effects || {};
+    const regions = {};
+    for (const r of regionsRes.data || []) {
+      regions[r.region] = {
+        slug: r.region,
+        name: r.display_name,
+        deckArr: bloomBuildDeck(r.deck_composition),
+      };
+    }
+    _bloomRefData = { flowers, cardEffects, regions };
+    return _bloomRefData;
+  })();
+
+  try {
+    return await _bloomRefDataLoading;
+  } finally {
+    _bloomRefDataLoading = null;
+  }
 }
 
 async function adminBloomRunSingle() {
@@ -39273,50 +39409,65 @@ async function adminBloomRunStress() {
   const regionSel = document.getElementById("admin-bloom-stress-region");
   if (!resultsEl) return;
 
+  if (statusEl) statusEl.textContent = "Loading reference data…";
+  resultsEl.innerHTML = "";
+  let ref;
+  try {
+    ref = await loadAdminBloomRefData();
+  } catch (err) {
+    if (statusEl) statusEl.textContent = "Failed to load ref data: " + (err.message || err);
+    console.error("[bloom] ref load failed", err);
+    return;
+  }
+
+  const allRegions = Object.keys(ref.regions);
   const regions = (regionSel && regionSel.value && regionSel.value !== "all")
     ? [regionSel.value]
-    : ["desert", "rainforest", "temperate_forest", "tundra", "tropical_island"];
+    : allRegions;
   const runs = _bloomStressVol;
-  const totalCalls = regions.length * runs;
+  const totalSims = regions.length * runs;
 
-  if (statusEl) statusEl.textContent = `Running ${totalCalls.toLocaleString()} sims…`;
-  resultsEl.innerHTML = "";
+  if (statusEl) statusEl.textContent = `Running ${totalSims.toLocaleString()} sims (in-browser)…`;
+  // Yield to the renderer so "Running…" paints before we start the tight loop.
+  await new Promise(r => setTimeout(r, 0));
 
   const t0 = performance.now();
-  const tally = {}; // region -> { flower -> count, _totalDraws, _runs }
+  const tally = {};
   try {
     for (const region of regions) {
-      tally[region] = { _runs: 0, _totalDraws: 0 };
+      const regionEntry = ref.regions[region];
+      if (!regionEntry) continue;
+      const t = { _runs: 0, _totalDraws: 0 };
       for (let i = 0; i < runs; i++) {
-        const { data, error } = await supabase.rpc("bloom_simulate_round", {
-          p_region: region,
-          p_seed:   null,
-        });
-        if (error) throw error;
-        const w = (data && data.winner && data.winner.slug) || "?";
-        tally[region][w] = (tally[region][w] || 0) + 1;
-        tally[region]._runs += 1;
-        tally[region]._totalDraws += data.totalDraws || 0;
+        const result = bloomSimulateOne(regionEntry, ref.flowers, ref.cardEffects);
+        const w = result.winner.slug;
+        t[w] = (t[w] || 0) + 1;
+        t._runs       += 1;
+        t._totalDraws += result.totalDraws;
       }
-      if (statusEl) statusEl.textContent = `Running… finished ${region}`;
+      tally[region] = t;
     }
-    const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
+    const elapsedMs = performance.now() - t0;
+    const elapsedSec = (elapsedMs / 1000).toFixed(2);
+    const simsPerSec = elapsedMs > 0 ? Math.round(totalSims / (elapsedMs / 1000)).toLocaleString() : "—";
 
-    const flowerOrder = ["cactus_bloom", "hibiscus", "hydrangea", "frost_lily", "plumeria"];
-    const headerCols = flowerOrder.map(f => `<th style="text-align:right">${f}</th>`).join("");
+    const flowerOrder = ref.flowers.map(f => f.slug);
+    const headerCols  = ref.flowers.map(f => `<th style="text-align:right">${f.name}</th>`).join("");
     const rows = regions.map(region => {
       const t = tally[region];
-      const cells = flowerOrder.map(f => {
-        const n = t[f] || 0;
+      const regionName = ref.regions[region]?.name || region;
+      if (!t) return `<tr><td>${regionName}</td><td colspan="${flowerOrder.length + 1}">(no data)</td></tr>`;
+      const cells = flowerOrder.map(slug => {
+        const n = t[slug] || 0;
         const pct = t._runs ? ((n / t._runs) * 100).toFixed(1) : "0.0";
         return `<td style="text-align:right">${pct}%<br><span style="opacity:.6">(${n})</span></td>`;
       }).join("");
       const avgDraws = t._runs ? (t._totalDraws / t._runs).toFixed(1) : "—";
-      return `<tr><td><strong>${region}</strong></td>${cells}<td style="text-align:right">${avgDraws}</td></tr>`;
+      return `<tr><td><strong>${regionName}</strong></td>${cells}<td style="text-align:right">${avgDraws}</td></tr>`;
     }).join("");
 
     resultsEl.innerHTML = `
-      <div>Completed ${totalCalls.toLocaleString()} sims in ${elapsed}s</div>
+      <div>Completed ${totalSims.toLocaleString()} sims in ${elapsedSec}s (${simsPerSec} sims/sec)</div>
       <table style="margin-top:8px;font-size:12px;border-collapse:collapse">
         <thead><tr><th style="text-align:left">Region</th>${headerCols}<th style="text-align:right">Avg draws</th></tr></thead>
         <tbody>${rows}</tbody>
