@@ -3352,6 +3352,7 @@
                 <button type="button" class="admin-fof-subtab admin-bloom-subtab active" data-bloom-subtab="sim">Sim</button>
                 <button type="button" class="admin-fof-subtab admin-bloom-subtab" data-bloom-subtab="cards">Cards</button>
                 <button type="button" class="admin-fof-subtab admin-bloom-subtab" data-bloom-subtab="regions">Regions</button>
+                <button type="button" class="admin-fof-subtab admin-bloom-subtab" data-bloom-subtab="flowers">Flowers</button>
               </div>
               <div id="admin-bloom-status" class="admin-fof-status"></div>
               <div class="admin-fof-subtab-content admin-bloom-subtab-content" id="admin-bloom-sim-content">
@@ -3427,9 +3428,19 @@
                 <section class="route-section admin-list-section">
                   <div class="admin-listing-header">
                     <h2>BLOOM — Cards</h2>
+                    <button type="button" class="primary" id="admin-bloom-card-new">+ New card</button>
                   </div>
-                  <p class="admin-cs-hint">Adjust flower-effect values per card (-20 to +20). Save writes <code>bloom_cards.effects</code> for that one card; other columns are untouched. The in-browser sim cache picks up new values on save.</p>
+                  <p class="admin-cs-hint">Edit name + flower-effect values per card. Save writes <code>display_name</code> and <code>effects</code>. <strong>Delete</strong> also strips the card from every region's deck via the <code>bloom_delete_card</code> RPC. Slugs are immutable.</p>
                   <div id="admin-bloom-cards-grid" class="admin-fof-chars"></div>
+                </section>
+              </div>
+              <div class="admin-fof-subtab-content admin-bloom-subtab-content" id="admin-bloom-flowers-content" hidden>
+                <section class="route-section admin-list-section">
+                  <div class="admin-listing-header">
+                    <h2>BLOOM — Flowers</h2>
+                  </div>
+                  <p class="admin-cs-hint">Rename flowers (display name only — slugs are FK references and stay fixed). Saving updates <code>bloom_flowers.display_name</code>.</p>
+                  <div id="admin-bloom-flowers-grid" class="admin-fof-chars"></div>
                 </section>
               </div>
               <div class="admin-fof-subtab-content admin-bloom-subtab-content" id="admin-bloom-regions-content" hidden>

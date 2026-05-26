@@ -39226,6 +39226,9 @@ function adminBloomInit() {
   const masterBtn = document.getElementById("admin-bloom-run-master");
   if (masterBtn) masterBtn.addEventListener("click", () => { void runBloomMasterMatrix(); });
 
+  const newCardBtn = document.getElementById("admin-bloom-card-new");
+  if (newCardBtn) newCardBtn.addEventListener("click", () => { void bloomCreateCardFlow(); });
+
   document.querySelectorAll('[data-bloom-vol]').forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll('[data-bloom-vol]').forEach(b => b.classList.remove("active"));
@@ -39249,12 +39252,13 @@ function adminBloomSwitchSubtab(target) {
   document.querySelectorAll('.admin-bloom-subtab-content').forEach(c => { c.hidden = true; });
   const el = document.getElementById(`admin-bloom-${target}-content`);
   if (el) el.hidden = false;
-  if (target === 'cards' || target === 'regions') {
+  if (target === 'cards' || target === 'regions' || target === 'flowers') {
     void (async () => {
       try {
         await loadAdminBloomRefData();
         if (target === 'cards')   renderBloomCardsEditor();
         if (target === 'regions') renderBloomRegionsEditor();
+        if (target === 'flowers') renderBloomFlowersEditor();
       } catch (err) {
         const status = document.getElementById('admin-bloom-status');
         if (status) status.textContent = "Failed to load ref data: " + (err.message || err);
@@ -39569,6 +39573,12 @@ function bloomEffectSlider(cardSlug, flowerSlug, flowerName, value) {
   `;
 }
 
+function bloomSlugify(name) {
+  return String(name || '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
 function renderBloomCardsEditor() {
   const el = document.getElementById('admin-bloom-cards-grid');
   if (!el || !_bloomRefData) return;
@@ -39580,11 +39590,17 @@ function renderBloomCardsEditor() {
     ).join('');
     return `
       <div class="admin-fof-char-card" data-bloom-card-card="${card.slug}">
-        <h3>${card.name.toUpperCase()}</h3>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <input type="text" data-bloom-card-name="${card.slug}" value="${card.name.replace(/"/g, '&quot;')}"
+                 style="flex:1;font-weight:700;font-size:14px;padding:4px 6px;background:transparent;border:1px solid #333;color:inherit;font-family:inherit">
+          <span style="opacity:.4;font-size:10px;font-family:'JetBrains Mono',monospace">${card.slug}</span>
+        </div>
         ${sliders}
         <div class="admin-fof-char-actions">
           <button type="button" class="admin-fof-reset" data-bloom-card-reset="${card.slug}">Reset</button>
           <button type="button" class="admin-fof-save primary" data-bloom-card-save="${card.slug}">Save</button>
+          <button type="button" class="admin-fof-reset" data-bloom-card-delete="${card.slug}"
+                  style="margin-left:auto;color:#c33;border-color:#c33">Delete</button>
         </div>
       </div>
     `;
@@ -39606,27 +39622,87 @@ function attachBloomCardEditorHandlers() {
       if (cardEl) cardEl.classList.add('dirty');
     });
   });
+  document.querySelectorAll('[data-bloom-card-name]').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const slug = e.target.dataset.bloomCardName;
+      const entry = _bloomRefData.cardOrder.find(c => c.slug === slug);
+      if (entry) entry.name = e.target.value;
+      const cardEl = e.target.closest('.admin-fof-char-card');
+      if (cardEl) cardEl.classList.add('dirty');
+    });
+  });
   document.querySelectorAll('[data-bloom-card-save]').forEach(btn => {
     btn.addEventListener('click', () => { void bloomSaveCard(btn.dataset.bloomCardSave); });
   });
   document.querySelectorAll('[data-bloom-card-reset]').forEach(btn => {
     btn.addEventListener('click', () => { void bloomReloadEditors(); });
   });
+  document.querySelectorAll('[data-bloom-card-delete]').forEach(btn => {
+    btn.addEventListener('click', () => { void bloomDeleteCardFlow(btn.dataset.bloomCardDelete); });
+  });
 }
 
 async function bloomSaveCard(slug) {
   if (!_bloomRefData) return;
   const effects = _bloomRefData.cardEffects[slug];
-  if (!effects) return;
+  const entry   = _bloomRefData.cardOrder.find(c => c.slug === slug);
+  if (!effects || !entry) return;
+  const displayName = (entry.name || '').trim();
+  if (!displayName) { bloomFlash(`Name cannot be empty`); return; }
   bloomFlash(`Saving ${slug}…`);
   const { error } = await supabase
     .from('bloom_cards')
-    .update({ effects, updated_at: new Date().toISOString() })
+    .update({ effects, display_name: displayName, updated_at: new Date().toISOString() })
     .eq('card', slug);
   if (error) { bloomFlash(`Save error: ${error.message}`); console.error('[bloom] save card', error); return; }
   const cardEl = document.querySelector(`[data-bloom-card-card="${slug}"]`);
   if (cardEl) cardEl.classList.remove('dirty');
   bloomFlash(`Saved ${slug}`);
+}
+
+async function bloomDeleteCardFlow(slug) {
+  if (!_bloomRefData) return;
+  const entry = _bloomRefData.cardOrder.find(c => c.slug === slug);
+  const name  = entry?.name || slug;
+  if (!window.confirm(`Delete card "${name}" (${slug})?\n\nThis also removes it from every region's deck composition. Cannot be undone.`)) return;
+  bloomFlash(`Deleting ${slug}…`);
+  const { error } = await supabase.rpc('bloom_delete_card', { p_card: slug });
+  if (error) { bloomFlash(`Delete error: ${error.message}`); console.error('[bloom] delete card', error); return; }
+  await bloomReloadEditors();
+  bloomFlash(`Deleted ${slug}`);
+}
+
+async function bloomCreateCardFlow() {
+  if (!_bloomRefData) {
+    try { await loadAdminBloomRefData(); }
+    catch (err) { bloomFlash(`Load error: ${err.message || err}`); return; }
+  }
+  const nameRaw = window.prompt('New card name:', '');
+  if (nameRaw == null) return;
+  const name = nameRaw.trim();
+  if (!name) { bloomFlash('Name required'); return; }
+  const slug = bloomSlugify(name);
+  if (!slug) { bloomFlash('Could not derive slug from name'); return; }
+  if (_bloomRefData.cardEffects[slug]) {
+    bloomFlash(`Slug "${slug}" already exists`); return;
+  }
+  // Default effects: 0 for every known flower.
+  const effects = {};
+  for (const f of _bloomRefData.flowers) effects[f.slug] = 0;
+  // Sort order: end of list.
+  const maxOrder = _bloomRefData.cardOrder.reduce((m, c) => Math.max(m, c.sort_order | 0), 0);
+  bloomFlash(`Creating ${slug}…`);
+  const { error } = await supabase
+    .from('bloom_cards')
+    .insert({
+      card: slug,
+      display_name: name,
+      effects,
+      sort_order: maxOrder + 1,
+    });
+  if (error) { bloomFlash(`Create error: ${error.message}`); console.error('[bloom] create card', error); return; }
+  await bloomReloadEditors();
+  bloomFlash(`Created ${slug}`);
 }
 
 // ── BLOOM — Regions editor ───────────────────────────────────────────
@@ -39723,9 +39799,67 @@ async function bloomReloadEditors() {
     await loadAdminBloomRefData();
     renderBloomCardsEditor();
     renderBloomRegionsEditor();
+    renderBloomFlowersEditor();
   } catch (err) {
     bloomFlash(`Reload error: ${err.message || err}`);
   }
+}
+
+// ── BLOOM — Flowers editor (rename only; slugs are FKs) ──────────────
+function renderBloomFlowersEditor() {
+  const el = document.getElementById('admin-bloom-flowers-grid');
+  if (!el || !_bloomRefData) return;
+  const { flowers } = _bloomRefData;
+  el.innerHTML = flowers.map(f => `
+    <div class="admin-fof-char-card" data-bloom-flower-card="${f.slug}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <input type="text" data-bloom-flower-name="${f.slug}" value="${(f.name || '').replace(/"/g, '&quot;')}"
+               style="flex:1;font-weight:700;font-size:14px;padding:4px 6px;background:transparent;border:1px solid #333;color:inherit;font-family:inherit">
+        <span style="opacity:.4;font-size:10px;font-family:'JetBrains Mono',monospace">${f.slug}</span>
+      </div>
+      <div style="font-size:11px;opacity:.6">Bloom target: ${f.bloom_target} · Sort order: ${f.sort_order}</div>
+      <div class="admin-fof-char-actions">
+        <button type="button" class="admin-fof-reset" data-bloom-flower-reset="${f.slug}">Reset</button>
+        <button type="button" class="admin-fof-save primary" data-bloom-flower-save="${f.slug}">Save</button>
+      </div>
+    </div>
+  `).join('');
+  attachBloomFlowerEditorHandlers();
+}
+
+function attachBloomFlowerEditorHandlers() {
+  document.querySelectorAll('[data-bloom-flower-name]').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const slug = e.target.dataset.bloomFlowerName;
+      const entry = _bloomRefData.flowers.find(f => f.slug === slug);
+      if (entry) entry.name = e.target.value;
+      const cardEl = e.target.closest('.admin-fof-char-card');
+      if (cardEl) cardEl.classList.add('dirty');
+    });
+  });
+  document.querySelectorAll('[data-bloom-flower-save]').forEach(btn => {
+    btn.addEventListener('click', () => { void bloomSaveFlower(btn.dataset.bloomFlowerSave); });
+  });
+  document.querySelectorAll('[data-bloom-flower-reset]').forEach(btn => {
+    btn.addEventListener('click', () => { void bloomReloadEditors(); });
+  });
+}
+
+async function bloomSaveFlower(slug) {
+  if (!_bloomRefData) return;
+  const entry = _bloomRefData.flowers.find(f => f.slug === slug);
+  if (!entry) return;
+  const displayName = (entry.name || '').trim();
+  if (!displayName) { bloomFlash(`Name cannot be empty`); return; }
+  bloomFlash(`Saving ${slug}…`);
+  const { error } = await supabase
+    .from('bloom_flowers')
+    .update({ display_name: displayName, updated_at: new Date().toISOString() })
+    .eq('flower', slug);
+  if (error) { bloomFlash(`Save error: ${error.message}`); console.error('[bloom] save flower', error); return; }
+  const cardEl = document.querySelector(`[data-bloom-flower-card="${slug}"]`);
+  if (cardEl) cardEl.classList.remove('dirty');
+  bloomFlash(`Saved ${slug}`);
 }
 
 // ── BLOOM — game state machine (player flow, mirror of FOF) ─────────
