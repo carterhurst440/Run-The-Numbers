@@ -28455,13 +28455,28 @@ body[data-ui="new"] .alr-col-date {
   letter-spacing: 1px;
 }
 
+/* Biome stage — breaks out of the page wrapper on desktop so the
+   backdrop spans the entire viewport width. Stays contained on tablet/
+   mobile so it doesn't trigger a horizontal scrollbar on narrow views. */
 .bloom-biome-stage {
   position: relative;
-  width: 100%;
-  height: 420px;
-  border-radius: 8px;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  height: 480px;
   overflow: hidden;
-  border: 1px solid #2a2a2a;
+  border-top: 1px solid #2a2a2a;
+  border-bottom: 1px solid #2a2a2a;
+}
+@media (max-width: 900px) {
+  .bloom-biome-stage {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    height: 420px;
+    border-radius: 8px;
+    border: 1px solid #2a2a2a;
+  }
 }
 
 /* ── Biome backdrop slot — BloomRegions JS mounts its own DOM here. ── */
@@ -28476,30 +28491,68 @@ body[data-ui="new"] .alr-col-date {
   height: 100%;
 }
 
-/* ── Flowers row (over the backdrop) ──────────────────────────────── */
+/* ── Weather name overlay (top-right of the biome) ─────────────────── */
+.bloom-weather-label {
+  position: absolute;
+  top: 16px;
+  right: 22px;
+  z-index: 4;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.7);
+  background: rgba(0,0,0,0.42);
+  padding: 8px 14px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 2px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  pointer-events: none;
+}
+.bloom-weather-label.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Flowers row (5 columns over the backdrop) ─────────────────────── */
 .bloom-flowers-row {
   position: absolute;
   inset: 0;
   z-index: 1;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-around;
-  padding: 16px 8px 6px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: stretch;       /* every column fills the full row height */
+  padding: 0 12px 0;
   pointer-events: none;
 }
+
+/* Each column is a fixed top-section (flower SVG) + bottom-pinned meta
+   block. Locking the meta to bottom means all 5 seeds anchor to the
+   same horizontal baseline regardless of how the species name wraps. */
 .bloom-flower-col {
-  flex: 1 1 0;
-  max-width: 20%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
+  position: relative;
+  width: 100%;
   height: 100%;
-  justify-content: flex-end;
+  padding-bottom: 88px;        /* reserves space for the meta block */
+  box-sizing: border-box;
+}
+
+.bloom-flower-svg-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-top: 12px;
 }
 .bloom-flower-svg {
   width: 100%;
-  max-width: 160px;
+  max-width: 220px;
   aspect-ratio: 220 / 340;
   display: flex;
   align-items: flex-end;
@@ -28509,31 +28562,100 @@ body[data-ui="new"] .alr-col-date {
   width: 100%;
   height: 100%;
 }
-.bloom-flower-label {
+
+/* Toast layer floats above the flower for +N / -N indicators. */
+.bloom-flower-toast {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 3;
   text-align: center;
-  font-size: 10px;
-  letter-spacing: 1px;
-  color: #fff;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
-  background: rgba(0,0,0,0.45);
-  border-radius: 4px;
-  padding: 2px 6px;
 }
-.bloom-flower-name { font-weight: 700; }
-.bloom-flower-score {
-  font-size: 12px;
+.bloom-toast-point {
+  display: block;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-weight: 800;
-  color: #fbe064;
-  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.7),
+               0 0 14px rgba(255,255,255,0.25);
+  animation: bloom-toast-rise 1.6s ease-out forwards;
+  white-space: nowrap;
+}
+.bloom-toast-point.gain { color: #84f06a; }
+.bloom-toast-point.loss { color: #ff7a52; }
+@keyframes bloom-toast-rise {
+  0%   { opacity: 0; transform: translateY(10px) scale(0.6); }
+  15%  { opacity: 1; transform: translateY(-4px) scale(1.18); }
+  35%  { opacity: 1; transform: translateY(-18px) scale(1); }
+  100% { opacity: 0; transform: translateY(-68px) scale(0.92); }
 }
 
-.bloom-flower-col.bloom-winner {
-  filter: drop-shadow(0 0 16px gold);
+/* Meta block — pinned to bottom of column. Borrowed visual treatment
+   from bloom-growth-row.css (bar + pct tabular numerals). */
+.bloom-flower-meta {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 10px;
+  text-align: center;
+  background: rgba(0,0,0,0.58);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  padding: 8px 8px 9px;
 }
-.bloom-flower-col.bloom-winner .bloom-flower-label {
+.bloom-flower-name {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  line-height: 1.2;
+  min-height: 24px;            /* fixed-height label area; wraps within */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bloom-flower-bar {
+  height: 5px;
+  background: rgba(255,255,255,0.18);
+  margin-top: 4px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 1px;
+}
+.bloom-flower-bar-fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 0%;
+  transition: width 0.55s cubic-bezier(.34,1.2,.55,1.05),
+              box-shadow 0.4s ease;
+}
+.bloom-flower-pct {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: #fbe064;
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+  font-weight: 700;
+}
+
+/* Winner highlight — gold glow on the column + gilded meta block. */
+.bloom-flower-col.bloom-winner {
+  filter: drop-shadow(0 0 18px gold);
+}
+.bloom-flower-col.bloom-winner .bloom-flower-meta {
   background: linear-gradient(90deg, #b8860b, #ffd700, #b8860b);
-  color: #000;
+  border-color: #ffd700;
+}
+.bloom-flower-col.bloom-winner .bloom-flower-name,
+.bloom-flower-col.bloom-winner .bloom-flower-pct {
+  color: #000 !important;
   text-shadow: none;
+}
+.bloom-flower-col.bloom-winner .bloom-flower-bar-fill {
+  box-shadow: 0 0 8px gold;
 }
 
 /* ── Weather overlay slot — BloomWeather mounts here ──────────────── */

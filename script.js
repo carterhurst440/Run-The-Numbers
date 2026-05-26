@@ -39970,16 +39970,25 @@ function bloomViewSelecting() {
 }
 
 function bloomViewResolving() {
-  // 5 flower SVG containers in a row over a biome backdrop, with a card
-  // overlay layer on top and an event log below. Each flower is wired to a
-  // BloomFlowers.FlowerStage instance in bloomPlayEvents.
+  // 5 flower SVG containers in a row over a biome backdrop. Each column is
+  // a 2-section layout (svg wrap + meta block) with the meta absolutely
+  // pinned to the bottom so all seeds line up on the same baseline
+  // regardless of how the species name wraps. Weather name surfaces in
+  // the biome's top-right corner; per-flower +N / -N toasts float above
+  // the seed; progress bars adopt the growth-row visual treatment.
   const region = bloomGame.region || {};
   const cols = bloomGame.candidates.map(c => `
     <div class="bloom-flower-col" data-bloom-flower-slot="${c.flower}">
-      <div class="bloom-flower-svg" data-bloom-flower-svg="${c.flower}"></div>
-      <div class="bloom-flower-label">
+      <div class="bloom-flower-svg-wrap">
+        <div class="bloom-flower-svg" data-bloom-flower-svg="${c.flower}"></div>
+        <div class="bloom-flower-toast" data-bloom-flower-toast="${c.flower}"></div>
+      </div>
+      <div class="bloom-flower-meta">
         <div class="bloom-flower-name" style="color:${c.accent_color || '#fff'}">${(c.name || '').toUpperCase()}</div>
-        <div class="bloom-flower-score" data-bloom-flower-score="${c.flower}">0</div>
+        <div class="bloom-flower-bar">
+          <div class="bloom-flower-bar-fill" data-bloom-flower-barfill="${c.flower}" style="background:${c.accent_color || '#fff'}"></div>
+        </div>
+        <div class="bloom-flower-pct" data-bloom-flower-score="${c.flower}">0%</div>
       </div>
     </div>
   `).join('');
@@ -39991,8 +40000,9 @@ function bloomViewResolving() {
       </div>
       <div class="bloom-biome-stage">
         <div class="bloom-biome-bg" id="bloom-biome-bg"></div>
-        <div class="bloom-flowers-row">${cols}</div>
         <div class="bloom-card-overlay" id="bloom-card-overlay"></div>
+        <div class="bloom-weather-label" id="bloom-weather-label"></div>
+        <div class="bloom-flowers-row">${cols}</div>
       </div>
       <div class="fof-event-log" id="bloom-event-log"></div>
     </div>
@@ -40168,6 +40178,19 @@ function bloomTeardownStages() {
   if (_bloomWeatherInst) { try { _bloomWeatherInst.destroy(); } catch (e) {} _bloomWeatherInst = null; }
 }
 
+// Render a floating "+N" or "-N" above a flower for ~1.6s. Auto-cleans
+// up. Multiple toasts can stack if delivered in rapid succession.
+function bloomShowFlowerToast(flowerSlug, delta) {
+  if (!delta) return;
+  const host = document.querySelector(`[data-bloom-flower-toast="${flowerSlug}"]`);
+  if (!host) return;
+  const t = document.createElement('div');
+  t.className = `bloom-toast-point ${delta > 0 ? 'gain' : 'loss'}`;
+  t.textContent = (delta > 0 ? '+' : '') + delta;
+  host.appendChild(t);
+  setTimeout(() => { if (t.parentNode === host) host.removeChild(t); }, 1700);
+}
+
 // Play a weather overlay (rendered by window.BloomWeather) for the duration
 // of one draw. Old BloomWeather instance is destroyed before mounting the
 // next so timers don't leak. `intensity` defaults to 1; could be derived
@@ -40246,32 +40269,56 @@ async function bloomPlayEvents(details) {
   const DRAW_TOTAL_MS   = 1700;  // total wall-clock per draw
   const FINAL_HOLD_MS   = 2200;  // hold on the final BLOOM frame
 
+  const weatherEl = document.getElementById('bloom-weather-label');
+
   for (const ev of details.events) {
     if (ev.type === 'DRAW') {
-      // 1. Weather overlay for this card kicks immediately. Auto-tears
+      // 1. Weather label in the biome's top-right corner.
+      if (weatherEl) {
+        weatherEl.textContent = (ev.cardName || ev.card || '').toUpperCase();
+        weatherEl.classList.add('visible');
+      }
+
+      // 2. Weather overlay for this card kicks immediately. Auto-tears
       //    down after DRAW_OVERLAY_MS so the next draw can replace it.
       bloomPlayWeatherForCard(ev.card, fxEl, DRAW_OVERLAY_MS);
 
-      // 2. Brief beat so the overlay reads before flowers move.
+      // 3. Brief beat so the overlay reads before flowers move.
       await new Promise(r => setTimeout(r, 250));
 
-      // 3. Per-flower update — transition if stage changed, swell otherwise.
-      const scores = ev.scoresAfter || {};
+      // 4. Per-flower update — transition if stage changed, swell otherwise.
+      //    Also fire a +N / -N toast for each flower this card touched.
+      const scores  = ev.scoresAfter || {};
+      const effects = ev.effects || {};
       for (const se of _bloomStages) {
         const newScore = Number(scores[se.slug] ?? se.prevScore);
         const newStage = bloomScoreToStage(newScore);
-        const scoreEl = document.querySelector(`[data-bloom-flower-score="${se.slug}"]`);
-        if (scoreEl) scoreEl.textContent = String(newScore);
+
+        // Progress bar + pct text
+        const pctEl = document.querySelector(`[data-bloom-flower-score="${se.slug}"]`);
+        if (pctEl) pctEl.textContent = `${newScore}%`;
+        const barEl = document.querySelector(`[data-bloom-flower-barfill="${se.slug}"]`);
+        if (barEl) barEl.style.width = Math.min(100, newScore) + '%';
+
+        // Flower stage transition / swell
         if (newStage !== se.currentStage) {
           try { se.instance.transitionTo(newStage); } catch (e) { /* noop */ }
           se.currentStage = newStage;
         } else if (newScore > se.prevScore) {
           try { se.instance.swell(); } catch (e) { /* noop */ }
         }
+
+        // +N / -N toast (use the raw card effect so reads dramatically
+        // even when the post-floor delta is smaller).
+        const rawDelta = Number(effects[se.slug] ?? 0);
+        if (rawDelta !== 0) {
+          bloomShowFlowerToast(se.slug, rawDelta);
+        }
+
         se.prevScore = newScore;
       }
 
-      // 4. Log line.
+      // 5. Log line.
       if (logEl) {
         const line = document.createElement('div');
         line.textContent = ev.message || `Draw ${ev.drawNumber}: ${ev.cardName}`;
@@ -40281,6 +40328,7 @@ async function bloomPlayEvents(details) {
 
       await new Promise(r => setTimeout(r, DRAW_TOTAL_MS - 250));
     } else if (ev.type === 'BLOOM' || ev.type === 'SAFETY_CAP_VICTORY') {
+      if (weatherEl) weatherEl.classList.remove('visible');
       // Highlight winner column.
       const slot = document.querySelector(`[data-bloom-flower-slot="${ev.winnerFlower}"]`);
       if (slot) slot.classList.add('bloom-winner');
