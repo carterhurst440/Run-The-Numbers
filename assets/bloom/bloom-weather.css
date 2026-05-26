@@ -1,0 +1,138 @@
+/* Weather overlay keyframes.
+   All wx-* keyframes live here — applied via inline animation styles in
+   weather-overlays.jsx. Designed to be subtle. */
+
+@keyframes wx-wind {
+  0%   { transform: translateX(-15%); opacity: 0; }
+  10%  { opacity: 0.75; }
+  90%  { opacity: 0.75; }
+  100% { transform: translateX(120vw); opacity: 0; }
+}
+
+@keyframes wx-freeze-pulse {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
+}
+
+@keyframes wx-rain {
+  0%   { transform: translateY(-20%); opacity: 0; }
+  15%  { opacity: 1; }
+  100% { transform: translateY(420px); opacity: 0; }
+}
+
+@keyframes wx-rain-vert {
+  0%   { transform: translateY(-20%); opacity: 0; }
+  15%  { opacity: 1; }
+  100% { transform: translateY(420px); opacity: 0; }
+}
+
+@keyframes wx-rain-sheet {
+  0%   { background-position: 0 -22px; }
+  100% { background-position: 0 22px; }
+}
+
+@keyframes wx-glow {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
+}
+
+@keyframes wx-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.6); }
+  50%      { opacity: 1; transform: scale(1); }
+}
+
+@keyframes wx-mist {
+  0%   { transform: translateX(-3%); opacity: 0.85; }
+  100% { transform: translateX(3%);  opacity: 1; }
+}
+
+@keyframes wx-shimmer {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2px); }
+}
+
+@keyframes wx-heat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+
+@keyframes wx-heat-fast {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(2px); }
+}
+
+@keyframes wx-coastal {
+  0%   { transform: translateX(-6%); opacity: 0.8; }
+  100% { transform: translateX(6%);  opacity: 1; }
+}
+
+@keyframes wx-coastal-b {
+  0%   { transform: translateX(8%);  opacity: 0.7; }
+  100% { transform: translateX(-8%); opacity: 0.9; }
+}
+
+@keyframes wx-dew {
+  0%, 100% { opacity: 0; transform: scale(0.6); }
+  50%      { opacity: 1; transform: scale(1); }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Enhanced weather animations
+   ───────────────────────────────────────────────────────────────── */
+
+/* Late freeze cracks — draw in from edge along their path. */
+@keyframes wx-freeze-crack {
+  0%   { stroke-dashoffset: 200; opacity: 0; }
+  10%  { opacity: 0.85; }
+  55%  { stroke-dashoffset: 0; opacity: 0.85; }
+  85%  { stroke-dashoffset: 0; opacity: 0.85; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+/* Dense mist — three layers drift across the frame at different
+   speeds and directions, creating parallax-style fog motion. */
+@keyframes wx-mist-drift-a {
+  0%   { transform: translateX(-14%); opacity: 0.85; }
+  100% { transform: translateX(14%);  opacity: 1; }
+}
+@keyframes wx-mist-drift-b {
+  0%   { transform: translateX(16%);  opacity: 0.9; }
+  100% { transform: translateX(-14%); opacity: 1; }
+}
+@keyframes wx-mist-drift-c {
+  0%   { transform: translateX(-18%); opacity: 0.8; }
+  100% { transform: translateX(18%);  opacity: 1; }
+}
+
+/* Drought sun — arcs across the sky: low-left → high-center → low-right. */
+@keyframes wx-drought-sun {
+  0%   { transform: translate(-130px, 80px) scale(0.7); opacity: 0.3; }
+  20%  { opacity: 0.85; }
+  50%  { transform: translate(0, -18px) scale(1.08); opacity: 1; }
+  80%  { opacity: 0.85; }
+  100% { transform: translate(130px, 80px) scale(0.7); opacity: 0.3; }
+}
+
+/* Drought ambient light brightens at peak, dims at horizon. */
+@keyframes wx-drought-light {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 1; }
+}
+
+/* Perfect conditions — wavy breeze line drifts left → right. */
+@keyframes wx-breeze-drift {
+  0%   { transform: translateX(0);    opacity: 0; }
+  10%  { opacity: 0.6; }
+  85%  { opacity: 0.6; }
+  100% { transform: translateX(220%); opacity: 0; }
+}
+
+/* Morning dew — punchier sparkle + a 4-point star variant. */
+@keyframes wx-dew-sparkle {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  50%      { opacity: 1; transform: scale(1.25); }
+}
+@keyframes wx-dew-star {
+  0%, 100% { opacity: 0; transform: scale(0.4) rotate(0deg); }
+  50%      { opacity: 1; transform: scale(1)   rotate(45deg); }
+}

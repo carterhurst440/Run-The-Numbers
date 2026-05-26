@@ -28464,40 +28464,16 @@ body[data-ui="new"] .alr-col-date {
   border: 1px solid #2a2a2a;
 }
 
-/* ── Biome backdrops (per-region) ─────────────────────────────────── */
+/* ── Biome backdrop slot — BloomRegions JS mounts its own DOM here. ── */
 .bloom-biome-bg {
   position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
 }
-.bloom-biome-bg::after {
-  /* soil strip at the bottom — flowers anchor here */
-  content: '';
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 22%;
-  background: linear-gradient(to top, #2c1a0a 0%, #4a2e14 60%, transparent 100%);
-}
-.bloom-resolving[data-bloom-biome="desert"] .bloom-biome-bg {
-  background:
-    radial-gradient(ellipse at 50% 30%, #ffd17a 0%, #f0a040 35%, #c46c10 70%, #6a3804 100%);
-}
-.bloom-resolving[data-bloom-biome="rainforest"] .bloom-biome-bg {
-  background:
-    radial-gradient(ellipse at 50% 35%, #2a6a3a 0%, #1a4a26 40%, #0a2818 80%, #061a10 100%);
-}
-.bloom-resolving[data-bloom-biome="temperate_forest"] .bloom-biome-bg {
-  background:
-    linear-gradient(to bottom, #6a98a8 0%, #588a76 45%, #3a6a50 80%, #243a2a 100%);
-}
-.bloom-resolving[data-bloom-biome="tundra"] .bloom-biome-bg {
-  background:
-    linear-gradient(to bottom, #d8eaf2 0%, #b0d4e0 40%, #88b8c8 75%, #5a8898 100%);
-}
-.bloom-resolving[data-bloom-biome="tropical_island"] .bloom-biome-bg {
-  background:
-    linear-gradient(to bottom, #6dd0f0 0%, #54c4e8 40%, #f4dc94 78%, #c69a4a 100%);
+.bloom-biome-bg > div { /* the BloomRegion root */
+  width: 100%;
+  height: 100%;
 }
 
 /* ── Flowers row (over the backdrop) ──────────────────────────────── */
@@ -28560,162 +28536,12 @@ body[data-ui="new"] .alr-col-date {
   text-shadow: none;
 }
 
-/* ── Card overlay layer (above flowers) ───────────────────────────── */
+/* ── Weather overlay slot — BloomWeather mounts here ──────────────── */
 .bloom-card-overlay {
   position: absolute;
   inset: 0;
   z-index: 2;
   pointer-events: none;
-}
-.bloom-cardfx {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  animation: card-overlay-life 1s ease-out forwards;
-}
-
-/* RAIN */
-.bloom-rain-drop {
-  position: absolute;
-  top: -20px;
-  width: 2px;
-  height: 14px;
-  background: linear-gradient(to bottom, transparent, #a8d4ff 30%, #5aa0e0 100%);
-  border-radius: 2px;
-  animation: card-rain 1s linear forwards;
-}
-
-/* SUN */
-.bloom-sun-disc {
-  position: absolute;
-  top: 14%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80px; height: 80px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #fff8c8 0%, #ffd060 60%, transparent 100%);
-  animation: card-sun 0.9s ease-out forwards;
-}
-.bloom-sun-ray {
-  position: absolute;
-  top: 14%; left: 50%;
-  width: 4px; height: 100px;
-  margin-left: -2px;
-  margin-top: 0;
-  background: linear-gradient(to bottom, #ffd060 0%, transparent 100%);
-  transform-origin: top center;
-  animation: card-sun-ray 0.9s ease-out forwards;
-}
-
-/* THUNDER */
-.bloom-thunder-flash {
-  position: absolute; inset: 0;
-  background: rgba(255,255,255,0.95);
-  animation: card-thunder-flash 0.9s ease-out forwards;
-}
-.bloom-thunder-bolt {
-  position: absolute;
-  top: 8%; left: 50%;
-  width: 8px; height: 75%;
-  margin-left: -4px;
-  background:
-    linear-gradient(to bottom, #fff 0%, #fbe064 50%, #fff 100%);
-  clip-path: polygon(40% 0, 100% 50%, 60% 50%, 100% 100%, 0 60%, 40% 60%);
-  transform-origin: top center;
-  filter: drop-shadow(0 0 6px #fff8c8);
-  animation: card-thunder-bolt 0.9s ease-out forwards;
-}
-
-/* FROST */
-.bloom-frost-flake {
-  position: absolute;
-  font-size: 20px;
-  color: #c8e8ff;
-  text-shadow: 0 0 6px #fff;
-  animation: card-frost 0.9s ease-in-out forwards;
-}
-
-/* WIND */
-.bloom-wind-gust {
-  position: absolute;
-  left: -10%;
-  width: 60%;
-  height: 2px;
-  background: linear-gradient(to right, transparent, rgba(255,255,255,0.7), transparent);
-  border-radius: 2px;
-  animation: card-wind 0.9s ease-out forwards;
-}
-
-/* POLLEN */
-.bloom-pollen-dot {
-  position: absolute;
-  bottom: 18%;
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #fff8c8 0%, #f4dc60 60%, transparent 100%);
-  animation: card-pollen 0.9s ease-out forwards;
-}
-
-/* NUTRIENTS */
-.bloom-nutrient-up {
-  position: absolute;
-  bottom: 22%;
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #b8f078 0%, #4aa030 60%, transparent 100%);
-  animation: card-nutrients-up 0.9s ease-out forwards;
-}
-
-/* BLOOM CATALYST */
-.bloom-burst-core {
-  position: absolute;
-  top: 40%; left: 50%;
-  width: 80px; height: 80px;
-  margin: -40px 0 0 -40px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #fff 0%, #ffd0d8 40%, transparent 80%);
-  animation: card-bloom-burst 0.9s ease-out forwards;
-}
-.bloom-burst-petal {
-  position: absolute;
-  top: 40%; left: 50%;
-  width: 14px; height: 14px;
-  margin: -7px 0 0 -7px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #f06ba0 0%, #c43a78 60%, transparent 100%);
-}
-.bloom-burst-petal-0 { animation: card-bloom-petal-0 0.9s ease-out forwards; }
-.bloom-burst-petal-1 { animation: card-bloom-petal-1 0.9s ease-out forwards; }
-.bloom-burst-petal-2 { animation: card-bloom-petal-2 0.9s ease-out forwards; }
-.bloom-burst-petal-3 { animation: card-bloom-petal-3 0.9s ease-out forwards; }
-.bloom-burst-petal-4 { animation: card-bloom-petal-4 0.9s ease-out forwards; }
-
-/* PRUNE */
-.bloom-prune-swipe {
-  position: absolute;
-  top: 35%; left: 0;
-  width: 100%; height: 4px;
-  background: linear-gradient(to right, transparent, #c0c0c0 40%, #fff 50%, #c0c0c0 60%, transparent);
-  animation: card-prune-swipe 0.9s ease-out forwards;
-}
-.bloom-prune-fall {
-  position: absolute;
-  top: 30%;
-  width: 10px; height: 14px;
-  background: linear-gradient(135deg, #4a8a3e, #2a5824);
-  border-radius: 50% 10% 50% 10%;
-  animation: card-prune-fall 0.9s ease-in forwards;
-}
-
-/* WILDCARD */
-.bloom-wild-burst {
-  position: absolute;
-  top: 40%; left: 50%;
-  width: 120px; height: 120px;
-  margin: -60px 0 0 -60px;
-  border-radius: 50%;
-  background: conic-gradient(#f06ba0, #fbe064, #6dd0f0, #b8f078, #d870e0, #f06ba0);
-  animation: card-wild 0.9s ease-out forwards;
 }
 
 /* Event log under stage (reuse fof styling) */

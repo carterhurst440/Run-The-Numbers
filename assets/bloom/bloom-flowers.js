@@ -294,7 +294,7 @@
   }
 
   function arcticPoppyContent(stage, instanceId) {
-    var stalkH = [0, 6, 0, 88, 100, 108, 112][stage];
+    var stalkH = [0, 12, 0, 150, 205, 235, 250][stage];
     var tipY = SOIL_Y - stalkH;
     var budTilt = stage === 3 ? 40 : stage === 4 ? 18 : 0;
     var out = '';
@@ -426,10 +426,10 @@
 
     // Stage 6 — extra stalks + bloom celebration
     if (stage === 6) {
-      out += bloomFx('#fbe064', ANCHOR_X, SOIL_Y - 80, 75, instanceId);
+      out += bloomFx('#fbe064', ANCHOR_X, SOIL_Y - 180, 75, instanceId);
 
-      out += bristlyStalk(ANCHOR_X + 22, SOIL_Y - 78, '#7aac5e', 2, 14);
-      out += '<g transform="translate(' + (ANCHOR_X + 22) + ' ' + (SOIL_Y - 78) + ')">';
+      out += bristlyStalk(ANCHOR_X + 22, SOIL_Y - 180, '#7aac5e', 2, 14);
+      out += '<g transform="translate(' + (ANCHOR_X + 22) + ' ' + (SOIL_Y - 180) + ')">';
       [0, 90, 180, 270].forEach(function (rot) {
         out +=
           '<g transform="rotate(' + rot + ') scale(0.6)">' +
@@ -449,8 +449,8 @@
       }
       out += '<circle r="1.2" fill="#fbe064" /></g>';
 
-      out += bristlyStalk(ANCHOR_X - 28, SOIL_Y - 62, '#7aac5e', 1.8, 12);
-      out += '<g transform="translate(' + (ANCHOR_X - 28) + ' ' + (SOIL_Y - 62) + ') rotate(20)">' +
+      out += bristlyStalk(ANCHOR_X - 28, SOIL_Y - 140, '#7aac5e', 1.8, 12);
+      out += '<g transform="translate(' + (ANCHOR_X - 28) + ' ' + (SOIL_Y - 140) + ') rotate(20)">' +
              poppyBud(1.0, 0.4, true) +
              '</g>';
     }
@@ -547,7 +547,7 @@
   }
 
   function hydrangeaContent(stage, instanceId) {
-    var stemH = [0, 10, 56, 102, 132, 142, 150][stage];
+    var stemH = [0, 18, 100, 160, 205, 235, 244][stage];
     var tipY = SOIL_Y - stemH;
     var pairs = stage >= 5 ? 4 : stage >= 4 ? 3 : stage >= 3 ? 3 : stage >= 2 ? 2 : 0;
     var out = '';
@@ -799,7 +799,7 @@
   }
 
   function hibiscusContent(stage, instanceId) {
-    var stemH = [0, 12, 70, 118, 134, 142, 148][stage];
+    var stemH = [0, 22, 110, 165, 210, 235, 246][stage];
     var tipY = SOIL_Y - stemH;
     var leafCount = stage >= 4 ? 6 : stage >= 3 ? 4 : stage >= 2 ? 3 : 0;
     var out = '';
@@ -1052,8 +1052,8 @@
   }
 
   function cactusBlossomContent(stage, instanceId) {
-    var cactusH = [0, 8, 70, 92, 100, 105, 108][stage];
-    var cactusW = stage >= 2 ? 42 : stage >= 1 ? 12 : 0;
+    var cactusH = [0, 14, 110, 155, 195, 220, 230][stage];
+    var cactusW = stage >= 2 ? 50 : stage >= 1 ? 14 : 0;
     var top = SOIL_Y - cactusH;
     var showPup = stage >= 4;
     var out = '';
@@ -1353,7 +1353,7 @@
 
   function orchidContent(stage, instanceId) {
     var spikeBaseY = SOIL_Y - 18;
-    var spikeH = [0, 0, 0, 86, 130, 150, 160][stage];
+    var spikeH = [0, 0, 0, 110, 175, 225, 252][stage];
     var tipY = spikeBaseY - spikeH;
     var showLeaves = stage >= 2;
     var showSpike  = stage >= 3;
@@ -1468,21 +1468,21 @@
 
       var sec2 =
         'M ' + (ANCHOR_X + 6) + ' ' + spikeBaseY +
-        ' Q ' + (ANCHOR_X + 24) + ' ' + (spikeBaseY - 40) +
-        ' ' + (ANCHOR_X + 30) + ' ' + (spikeBaseY - 70);
+        ' Q ' + (ANCHOR_X + 24) + ' ' + (spikeBaseY - 75) +
+        ' ' + (ANCHOR_X + 30) + ' ' + (spikeBaseY - 130);
       out +=
         '<path d="' + sec2 + '" fill="none" stroke="#6a4838" stroke-width="2" stroke-linecap="round" />' +
         '<path d="' + sec2 + '" fill="none" stroke="#9a7858" stroke-width="0.6" stroke-linecap="round" ' +
                     'transform="translate(-0.5 0)" />' +
-        '<g transform="translate(' + (ANCHOR_X + 20) + ' ' + (spikeBaseY - 28) + ')">' +
+        '<g transform="translate(' + (ANCHOR_X + 20) + ' ' + (spikeBaseY - 50) + ')">' +
           '<line x1="0" y1="0" x2="-8" y2="4" stroke="#6a4838" stroke-width="0.8" />' +
           orchidFlower(1, 2, 0.85) +
         '</g>' +
-        '<g transform="translate(' + (ANCHOR_X + 36) + ' ' + (spikeBaseY - 62) + ')">' +
+        '<g transform="translate(' + (ANCHOR_X + 36) + ' ' + (spikeBaseY - 115) + ')">' +
           '<line x1="0" y1="0" x2="-6" y2="4" stroke="#6a4838" stroke-width="0.8" />' +
           orchidFlower(1, 1, 0.75) +
         '</g>' +
-        '<g transform="translate(' + (ANCHOR_X + 30) + ' ' + (spikeBaseY - 74) + ')">' +
+        '<g transform="translate(' + (ANCHOR_X + 30) + ' ' + (spikeBaseY - 138) + ')">' +
           '<ellipse cx="0" cy="0" rx="2" ry="3" fill="#7eaf6c" />' +
           '<ellipse cx="0" cy="-0.5" rx="1.2" ry="2" fill="#e0a8d8" opacity="0.6" />' +
         '</g>';

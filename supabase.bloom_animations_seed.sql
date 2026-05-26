@@ -45,7 +45,11 @@ CROSS JOIN (VALUES
 ) AS v(variant)
 ON CONFLICT (kind, subject, variant) DO NOTHING;
 
--- ── CARD OVERLAYS (one per live card; slug-heuristic mapping) ───────
+-- ── CARD OVERLAYS (one per live card; slug→BloomWeather event id) ──
+-- The bundled BloomWeather supports 10 events: arctic_wind, late_freeze,
+-- monsoon, perfect_conditions, torrential_downpour, dense_mist, drought,
+-- dry_heat, coastal_fog, morning_dew. The mapping below is a heuristic
+-- starting point — admin can override per-card via the Anims editor.
 INSERT INTO public.bloom_animations (kind, subject, variant, clip_data)
 SELECT
   'card_overlay',
@@ -54,20 +58,49 @@ SELECT
   jsonb_build_object(
     'builtin_id',
       CASE
-        WHEN c.card IN ('sunny_day','dry_heat','heat_wave','drought')   THEN 'card-sun'
-        WHEN c.card IN ('gentle_rain','flooding')                       THEN 'card-rain'
-        WHEN c.card = 'thunderstorm'                                    THEN 'card-thunder'
-        WHEN c.card IN ('late_freeze','hailstorm')                      THEN 'card-frost'
-        WHEN c.card IN ('windstorm','cool_breeze')                      THEN 'card-wind'
-        WHEN c.card IN ('morning_dew','tropical_humidity')              THEN 'card-pollen'
-        WHEN c.card = 'overcast'                                        THEN 'card-nutrients'
-        WHEN c.card = 'perfect_conditions'                              THEN 'card-bloom-burst'
-        ELSE 'card-wild'
+        WHEN c.card IN ('sunny_day','drought')              THEN 'drought'
+        WHEN c.card IN ('dry_heat','heat_wave')             THEN 'dry_heat'
+        WHEN c.card = 'gentle_rain'                         THEN 'torrential_downpour'
+        WHEN c.card IN ('flooding','thunderstorm')          THEN 'monsoon'
+        WHEN c.card IN ('late_freeze','hailstorm')          THEN 'late_freeze'
+        WHEN c.card IN ('windstorm','cool_breeze')          THEN 'arctic_wind'
+        WHEN c.card = 'morning_dew'                         THEN 'morning_dew'
+        WHEN c.card = 'tropical_humidity'                   THEN 'coastal_fog'
+        WHEN c.card = 'overcast'                            THEN 'dense_mist'
+        WHEN c.card = 'perfect_conditions'                  THEN 'perfect_conditions'
+        ELSE 'perfect_conditions'
       END,
-    'loop', false
+    'loop', true
   )
 FROM public.bloom_cards c
 ON CONFLICT (kind, subject, variant) DO NOTHING;
+
+-- ── Force-migrate any pre-existing card_overlay rows that still carry
+-- the obsolete card-* keyframe IDs from the old CSS-only system. Those
+-- IDs no longer resolve to anything, so we rewrite them to BloomWeather
+-- event IDs. Any rows already carrying a valid weather id are left alone.
+UPDATE public.bloom_animations a
+SET clip_data = jsonb_set(
+  COALESCE(a.clip_data, '{}'::jsonb),
+  '{builtin_id}',
+  to_jsonb(
+    CASE
+      WHEN a.subject IN ('sunny_day','drought')              THEN 'drought'
+      WHEN a.subject IN ('dry_heat','heat_wave')             THEN 'dry_heat'
+      WHEN a.subject = 'gentle_rain'                         THEN 'torrential_downpour'
+      WHEN a.subject IN ('flooding','thunderstorm')          THEN 'monsoon'
+      WHEN a.subject IN ('late_freeze','hailstorm')          THEN 'late_freeze'
+      WHEN a.subject IN ('windstorm','cool_breeze')          THEN 'arctic_wind'
+      WHEN a.subject = 'morning_dew'                         THEN 'morning_dew'
+      WHEN a.subject = 'tropical_humidity'                   THEN 'coastal_fog'
+      WHEN a.subject = 'overcast'                            THEN 'dense_mist'
+      WHEN a.subject = 'perfect_conditions'                  THEN 'perfect_conditions'
+      ELSE 'perfect_conditions'
+    END
+  )
+)
+WHERE a.kind = 'card_overlay'
+  AND (a.clip_data->>'builtin_id') LIKE 'card-%';
 
 -- ── REGION BACKGROUNDS ──────────────────────────────────────────────
 INSERT INTO public.bloom_animations (kind, subject, variant, clip_data)

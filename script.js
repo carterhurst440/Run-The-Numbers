@@ -39990,7 +39990,7 @@ function bloomViewResolving() {
         <span class="bloom-resolving-picked">YOUR PICK: <strong>${(bloomGame.pickedFlower || '').toUpperCase()}</strong></span>
       </div>
       <div class="bloom-biome-stage">
-        <div class="bloom-biome-bg"></div>
+        <div class="bloom-biome-bg" id="bloom-biome-bg"></div>
         <div class="bloom-flowers-row">${cols}</div>
         <div class="bloom-card-overlay" id="bloom-card-overlay"></div>
       </div>
@@ -40131,130 +40131,72 @@ function bloomBundleSpeciesId(flowerSlug) {
   return BLOOM_SPECIES_MAP[flowerSlug] || flowerSlug;
 }
 
-// Card slug → CSS-keyframe variant for the draw overlay. Same heuristic
-// as the bloom_animations seed file; admin can override per-card later.
-const BLOOM_CARD_OVERLAY_MAP = {
-  sunny_day: 'card-sun', dry_heat: 'card-sun', heat_wave: 'card-sun', drought: 'card-sun',
-  gentle_rain: 'card-rain', flooding: 'card-rain',
-  thunderstorm: 'card-thunder',
-  late_freeze: 'card-frost', hailstorm: 'card-frost',
-  windstorm: 'card-wind', cool_breeze: 'card-wind',
-  morning_dew: 'card-pollen', tropical_humidity: 'card-pollen',
-  overcast: 'card-nutrients',
-  perfect_conditions: 'card-bloom-burst',
+// Card slug → BloomWeather event ID. The bundle's 10 weather events:
+//   arctic_wind, late_freeze, monsoon, perfect_conditions,
+//   torrential_downpour, dense_mist, drought, dry_heat, coastal_fog,
+//   morning_dew. Same heuristic as the bloom_animations seed file;
+//   admin can override per-card later via the Anims editor.
+const BLOOM_CARD_TO_WEATHER = {
+  sunny_day:          'drought',
+  dry_heat:           'dry_heat',
+  heat_wave:          'dry_heat',
+  drought:            'drought',
+  gentle_rain:        'torrential_downpour',
+  flooding:           'monsoon',
+  thunderstorm:       'monsoon',
+  late_freeze:        'late_freeze',
+  hailstorm:          'late_freeze',
+  windstorm:          'arctic_wind',
+  cool_breeze:        'arctic_wind',
+  morning_dew:        'morning_dew',
+  tropical_humidity:  'coastal_fog',
+  overcast:           'dense_mist',
+  perfect_conditions: 'perfect_conditions',
 };
 
 // Active FlowerStage instances, one per flower in the current round.
 let _bloomStages = [];  // [{ slug, instance, currentStage, prevScore }]
+let _bloomRegionInst = null;
+let _bloomWeatherInst = null;
 
 function bloomTeardownStages() {
   for (const s of _bloomStages) {
     try { s.instance.destroy(); } catch (e) { /* noop */ }
   }
   _bloomStages = [];
+  if (_bloomRegionInst)  { try { _bloomRegionInst.destroy(); } catch (e) {} _bloomRegionInst  = null; }
+  if (_bloomWeatherInst) { try { _bloomWeatherInst.destroy(); } catch (e) {} _bloomWeatherInst = null; }
 }
 
-// Build a card-overlay DOM fragment for the given card slug, append to
-// `container`, and remove it after `durationMs`. Each variant uses a
-// small choreographed set of child elements driven by CSS keyframes from
-// assets/bloom/bloom-flowers.css.
-function bloomPlayCardOverlay(cardSlug, container, durationMs) {
-  if (!container) return;
-  const variant = BLOOM_CARD_OVERLAY_MAP[cardSlug] || 'card-wild';
-  const wrap = document.createElement('div');
-  wrap.className = `bloom-cardfx bloom-cardfx-${variant}`;
-
-  if (variant === 'card-rain') {
-    for (let i = 0; i < 14; i++) {
-      const d = document.createElement('div');
-      d.className = 'bloom-rain-drop';
-      d.style.left = (4 + i * 7) + '%';
-      d.style.animationDelay = (i * 0.045) + 's';
-      wrap.appendChild(d);
-    }
-  } else if (variant === 'card-sun') {
-    const disc = document.createElement('div');
-    disc.className = 'bloom-sun-disc';
-    wrap.appendChild(disc);
-    for (let i = 0; i < 8; i++) {
-      const ray = document.createElement('div');
-      ray.className = 'bloom-sun-ray';
-      ray.style.setProperty('--rot', (i * 45) + 'deg');
-      ray.style.animationDelay = (i * 0.04) + 's';
-      wrap.appendChild(ray);
-    }
-  } else if (variant === 'card-thunder') {
-    const flash = document.createElement('div');
-    flash.className = 'bloom-thunder-flash';
-    wrap.appendChild(flash);
-    const bolt = document.createElement('div');
-    bolt.className = 'bloom-thunder-bolt';
-    wrap.appendChild(bolt);
-  } else if (variant === 'card-frost') {
-    for (let i = 0; i < 8; i++) {
-      const f = document.createElement('div');
-      f.className = 'bloom-frost-flake';
-      f.textContent = '❄';
-      f.style.left = (8 + (i * 11)) + '%';
-      f.style.top  = (10 + ((i * 13) % 60)) + '%';
-      f.style.animationDelay = (i * 0.08) + 's';
-      wrap.appendChild(f);
-    }
-  } else if (variant === 'card-wind') {
-    for (let i = 0; i < 6; i++) {
-      const g = document.createElement('div');
-      g.className = 'bloom-wind-gust';
-      g.style.top = (15 + i * 13) + '%';
-      g.style.animationDelay = (i * 0.07) + 's';
-      wrap.appendChild(g);
-    }
-  } else if (variant === 'card-pollen') {
-    for (let i = 0; i < 16; i++) {
-      const p = document.createElement('div');
-      p.className = 'bloom-pollen-dot';
-      p.style.left = (3 + i * 6) + '%';
-      p.style.setProperty('--dx', (((i % 5) - 2) * 18) + 'px');
-      p.style.animationDelay = (i * 0.05) + 's';
-      wrap.appendChild(p);
-    }
-  } else if (variant === 'card-nutrients') {
-    for (let i = 0; i < 10; i++) {
-      const n = document.createElement('div');
-      n.className = 'bloom-nutrient-up';
-      n.style.left = (8 + i * 9) + '%';
-      n.style.animationDelay = (i * 0.06) + 's';
-      wrap.appendChild(n);
-    }
-  } else if (variant === 'card-bloom-burst') {
-    const burst = document.createElement('div');
-    burst.className = 'bloom-burst-core';
-    wrap.appendChild(burst);
-    for (let i = 0; i < 5; i++) {
-      const p = document.createElement('div');
-      p.className = `bloom-burst-petal bloom-burst-petal-${i}`;
-      wrap.appendChild(p);
-    }
-  } else if (variant === 'card-prune') {
-    const swipe = document.createElement('div');
-    swipe.className = 'bloom-prune-swipe';
-    wrap.appendChild(swipe);
-    for (let i = 0; i < 6; i++) {
-      const leaf = document.createElement('div');
-      leaf.className = 'bloom-prune-fall';
-      leaf.style.left = (15 + i * 12) + '%';
-      leaf.style.animationDelay = (0.2 + i * 0.08) + 's';
-      wrap.appendChild(leaf);
-    }
-  } else {
-    // card-wild + fallback
-    const w = document.createElement('div');
-    w.className = 'bloom-wild-burst';
-    wrap.appendChild(w);
+// Play a weather overlay (rendered by window.BloomWeather) for the duration
+// of one draw. Old BloomWeather instance is destroyed before mounting the
+// next so timers don't leak. `intensity` defaults to 1; could be derived
+// from card effect magnitude later for variable drama.
+function bloomPlayWeatherForCard(cardSlug, container, durationMs, intensity) {
+  if (!container || !window.BloomWeather) return;
+  const eventId = BLOOM_CARD_TO_WEATHER[cardSlug] || 'perfect_conditions';
+  // Destroy the prior instance so its animation timers go away.
+  if (_bloomWeatherInst) {
+    try { _bloomWeatherInst.destroy(); } catch (e) { /* noop */ }
+    _bloomWeatherInst = null;
   }
+  try {
+    _bloomWeatherInst = new window.BloomWeather.BloomWeather({
+      container,
+      event:     eventId,
+      intensity: intensity == null ? 1 : intensity,
+    });
+  } catch (e) { console.warn('[bloom] weather mount failed', eventId, e); return; }
 
-  container.appendChild(wrap);
+  // Auto-tear down after the draw beat so the next overlay can take over
+  // (BloomWeather is built around continuously looping animations, so we
+  // have to time-bound it ourselves).
+  const inst = _bloomWeatherInst;
   setTimeout(() => {
-    if (wrap.parentNode === container) container.removeChild(wrap);
+    if (inst === _bloomWeatherInst) {
+      try { inst.destroy(); } catch (e) { /* noop */ }
+      _bloomWeatherInst = null;
+    }
   }, durationMs);
 }
 
@@ -40262,9 +40204,26 @@ async function bloomPlayEvents(details) {
   if (!details || !Array.isArray(details.events)) return;
   const logEl  = document.getElementById('bloom-event-log');
   const fxEl   = document.getElementById('bloom-card-overlay');
+  const biomeEl = document.getElementById('bloom-biome-bg');
 
-  // Mount one FlowerStage per candidate flower. Cleared on round restart.
+  // Clear any prior stage + region + weather (route may have been
+  // re-entered before bloomRouteOpen ran).
   bloomTeardownStages();
+
+  // Mount the biome backdrop. BloomRegions handles the rainforest→jungle
+  // alias internally so we can pass the DB slug directly.
+  if (biomeEl && window.BloomRegions && bloomGame.region) {
+    try {
+      _bloomRegionInst = new window.BloomRegions.BloomRegion({
+        container: biomeEl,
+        id:        bloomGame.region.slug,
+        height:    '100%',
+        vignette:  true,
+      });
+    } catch (e) { console.warn('[bloom] region mount failed', e); }
+  }
+
+  // Mount one FlowerStage per candidate flower.
   if (window.BloomFlowers && window.BloomFlowers.FlowerStage) {
     for (const c of bloomGame.candidates) {
       const host = document.querySelector(`[data-bloom-flower-svg="${c.flower}"]`);
@@ -40283,14 +40242,15 @@ async function bloomPlayEvents(details) {
   // Brief settle before the first draw.
   await new Promise(r => setTimeout(r, 250));
 
-  const DRAW_OVERLAY_MS = 900;   // how long the card overlay lives
-  const DRAW_TOTAL_MS   = 1500;  // total wall-clock per draw
-  const FINAL_HOLD_MS   = 1800;  // hold on the final BLOOM frame
+  const DRAW_OVERLAY_MS = 1500;  // weather overlay duration per draw
+  const DRAW_TOTAL_MS   = 1700;  // total wall-clock per draw
+  const FINAL_HOLD_MS   = 2200;  // hold on the final BLOOM frame
 
   for (const ev of details.events) {
     if (ev.type === 'DRAW') {
-      // 1. Card overlay starts immediately, runs in background.
-      bloomPlayCardOverlay(ev.card, fxEl, DRAW_OVERLAY_MS);
+      // 1. Weather overlay for this card kicks immediately. Auto-tears
+      //    down after DRAW_OVERLAY_MS so the next draw can replace it.
+      bloomPlayWeatherForCard(ev.card, fxEl, DRAW_OVERLAY_MS);
 
       // 2. Brief beat so the overlay reads before flowers move.
       await new Promise(r => setTimeout(r, 250));
