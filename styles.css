@@ -28518,7 +28518,7 @@ body[data-ui="new"] .alr-col-date {
   transform: translateY(0);
 }
 
-/* ── Flowers row (5 columns over the backdrop) ─────────────────────── */
+/* ── Flowers row (5 columns OVER the backdrop) ─────────────────────── */
 .bloom-flowers-row {
   position: absolute;
   inset: 0;
@@ -28526,29 +28526,30 @@ body[data-ui="new"] .alr-col-date {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   align-items: stretch;       /* every column fills the full row height */
-  padding: 0 12px 0;
+  padding: 0;
   pointer-events: none;
 }
 
-/* Each column is a fixed top-section (flower SVG) + bottom-pinned meta
-   block. Locking the meta to bottom means all 5 seeds anchor to the
-   same horizontal baseline regardless of how the species name wraps. */
+/* Each column now holds ONLY the SVG (the meta block moved below the
+   biome). Wrap's bottom sits 4% above biome bottom so the seed lands
+   in the upper portion of the dirt band (which is the BloomRegions
+   soilFraction = 16% from the bottom). Result: seeds visibly planted
+   in dirt at every viewport. */
 .bloom-flower-col {
   position: relative;
   width: 100%;
   height: 100%;
-  padding-bottom: 88px;        /* reserves space for the meta block */
-  box-sizing: border-box;
 }
 
 .bloom-flower-svg-wrap {
-  position: relative;
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  top: 16px;                  /* breathing room under the header */
+  left: 0;
+  right: 0;
+  bottom: 4%;                 /* puts seed at the top of the dirt band */
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding-top: 12px;
 }
 .bloom-flower-svg {
   width: 100%;
@@ -28593,19 +28594,33 @@ body[data-ui="new"] .alr-col-date {
   100% { opacity: 0; transform: translateY(-68px) scale(0.92); }
 }
 
-/* Meta block — pinned to bottom of column. Borrowed visual treatment
+/* Meta row — lives BELOW the biome stage, full-width so the 5 cells
+   line up with the biome's flower columns. Borrowed visual treatment
    from bloom-growth-row.css (bar + pct tabular numerals). */
-.bloom-flower-meta {
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  bottom: 10px;
-  text-align: center;
-  background: rgba(0,0,0,0.58);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 4px;
-  padding: 8px 8px 9px;
+.bloom-meta-row {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
+  background: rgba(0,0,0,0.55);
+  border-bottom: 1px solid #2a2a2a;
 }
+@media (max-width: 900px) {
+  .bloom-meta-row {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    border-radius: 0 0 8px 8px;
+  }
+}
+.bloom-flower-meta {
+  text-align: center;
+  padding: 10px 10px 12px;
+  border-right: 1px solid rgba(255,255,255,0.08);
+}
+.bloom-flower-meta:last-child { border-right: 0; }
 .bloom-flower-name {
   font-size: 10px;
   font-weight: 800;
@@ -28641,20 +28656,22 @@ body[data-ui="new"] .alr-col-date {
   font-weight: 700;
 }
 
-/* Winner highlight — gold glow on the column + gilded meta block. */
+/* Winner highlight — gold glow on the flower column (in the biome) and
+   a gilded meta cell (in the row below). JS tags both elements with
+   .bloom-winner. */
 .bloom-flower-col.bloom-winner {
   filter: drop-shadow(0 0 18px gold);
 }
-.bloom-flower-col.bloom-winner .bloom-flower-meta {
+.bloom-flower-meta.bloom-winner {
   background: linear-gradient(90deg, #b8860b, #ffd700, #b8860b);
-  border-color: #ffd700;
+  border-right-color: #ffd700;
 }
-.bloom-flower-col.bloom-winner .bloom-flower-name,
-.bloom-flower-col.bloom-winner .bloom-flower-pct {
+.bloom-flower-meta.bloom-winner .bloom-flower-name,
+.bloom-flower-meta.bloom-winner .bloom-flower-pct {
   color: #000 !important;
   text-shadow: none;
 }
-.bloom-flower-col.bloom-winner .bloom-flower-bar-fill {
+.bloom-flower-meta.bloom-winner .bloom-flower-bar-fill {
   box-shadow: 0 0 8px gold;
 }
 

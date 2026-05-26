@@ -39977,19 +39977,27 @@ function bloomViewResolving() {
   // the biome's top-right corner; per-flower +N / -N toasts float above
   // the seed; progress bars adopt the growth-row visual treatment.
   const region = bloomGame.region || {};
-  const cols = bloomGame.candidates.map(c => `
+  // Each flower has TWO DOM presences:
+  //   1. A column inside the biome (holds only the SVG + toast layer so
+  //      the seed can land on the actual dirt of the backdrop).
+  //   2. A meta cell BELOW the biome (name, progress bar, pct) — kept
+  //      out of the biome so the dirt stays clean and the seeds aren't
+  //      pushed up off the soil line by label height variation.
+  const flowerCols = bloomGame.candidates.map(c => `
     <div class="bloom-flower-col" data-bloom-flower-slot="${c.flower}">
       <div class="bloom-flower-svg-wrap">
         <div class="bloom-flower-svg" data-bloom-flower-svg="${c.flower}"></div>
         <div class="bloom-flower-toast" data-bloom-flower-toast="${c.flower}"></div>
       </div>
-      <div class="bloom-flower-meta">
-        <div class="bloom-flower-name" style="color:${c.accent_color || '#fff'}">${(c.name || '').toUpperCase()}</div>
-        <div class="bloom-flower-bar">
-          <div class="bloom-flower-bar-fill" data-bloom-flower-barfill="${c.flower}" style="background:${c.accent_color || '#fff'}"></div>
-        </div>
-        <div class="bloom-flower-pct" data-bloom-flower-score="${c.flower}">0%</div>
+    </div>
+  `).join('');
+  const metaCols = bloomGame.candidates.map(c => `
+    <div class="bloom-flower-meta" data-bloom-flower-meta="${c.flower}">
+      <div class="bloom-flower-name" style="color:${c.accent_color || '#fff'}">${(c.name || '').toUpperCase()}</div>
+      <div class="bloom-flower-bar">
+        <div class="bloom-flower-bar-fill" data-bloom-flower-barfill="${c.flower}" style="background:${c.accent_color || '#fff'}"></div>
       </div>
+      <div class="bloom-flower-pct" data-bloom-flower-score="${c.flower}">0%</div>
     </div>
   `).join('');
   return `
@@ -40002,8 +40010,9 @@ function bloomViewResolving() {
         <div class="bloom-biome-bg" id="bloom-biome-bg"></div>
         <div class="bloom-card-overlay" id="bloom-card-overlay"></div>
         <div class="bloom-weather-label" id="bloom-weather-label"></div>
-        <div class="bloom-flowers-row">${cols}</div>
+        <div class="bloom-flowers-row">${flowerCols}</div>
       </div>
+      <div class="bloom-meta-row">${metaCols}</div>
       <div class="fof-event-log" id="bloom-event-log"></div>
     </div>
   `;
@@ -40329,9 +40338,12 @@ async function bloomPlayEvents(details) {
       await new Promise(r => setTimeout(r, DRAW_TOTAL_MS - 250));
     } else if (ev.type === 'BLOOM' || ev.type === 'SAFETY_CAP_VICTORY') {
       if (weatherEl) weatherEl.classList.remove('visible');
-      // Highlight winner column.
+      // Highlight winner — both the flower column (gold glow on the
+      // plant) and the corresponding meta cell (gilded panel below).
       const slot = document.querySelector(`[data-bloom-flower-slot="${ev.winnerFlower}"]`);
       if (slot) slot.classList.add('bloom-winner');
+      const metaSlot = document.querySelector(`[data-bloom-flower-meta="${ev.winnerFlower}"]`);
+      if (metaSlot) metaSlot.classList.add('bloom-winner');
       if (logEl) {
         const line = document.createElement('div');
         line.style.fontWeight = '700';
