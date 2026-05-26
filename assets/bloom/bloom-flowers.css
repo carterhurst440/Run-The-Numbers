@@ -1,0 +1,198 @@
+/* Flower / biome / card animation keyframes.
+   Imported by Flower Growth.html. */
+
+/* ── Flower swell (subtle pulse when growth ticks up within a stage) ── */
+@keyframes flower-swell {
+  0%, 100% { transform: scale(1); }
+  40%      { transform: scale(1.06); }
+}
+
+/* ── Bloom celebration effects (stage 6 overlays) ─────────────────── */
+@keyframes bloomfx-halo {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.06); }
+}
+@keyframes bloomfx-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes bloomfx-sparkle {
+  0%, 100% { opacity: 0;   transform: scale(0.4); }
+  40%      { opacity: 1;   transform: scale(1.2); }
+  60%      { opacity: 1;   transform: scale(1); }
+}
+@keyframes bloomfx-petal-sway {
+  0%, 100% { transform: translate(0,0) rotate(var(--rot, 0deg)); }
+  50%      { transform: translate(-1px, -1px) rotate(calc(var(--rot, 0deg) + 5deg)); }
+}
+
+/* ── Biome ambient ──────────────────────────────────────────────── */
+@keyframes biome-aurora {
+  0%   { transform: translateX(-8px); opacity: 0.7; }
+  100% { transform: translateX(8px);  opacity: 1; }
+}
+@keyframes biome-snow {
+  0%   { transform: translateY(0)    rotate(0deg);   opacity: 0; }
+  10%  { opacity: 0.7; }
+  100% { transform: translateY(420px) rotate(180deg); opacity: 0; }
+}
+@keyframes biome-pollen {
+  0%   { transform: translate(0, 0) scale(1);    opacity: 0; }
+  20%  { opacity: 0.9; }
+  100% { transform: translate(28px, -40px) scale(1.4); opacity: 0; }
+}
+@keyframes biome-shimmer {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+@keyframes biome-sun-pulse {
+  0%, 100% { filter: drop-shadow(0 0 12px #fff8c8); transform: translateX(-50%) scale(1); }
+  50%      { filter: drop-shadow(0 0 22px #fff8c8); transform: translateX(-50%) scale(1.06); }
+}
+@keyframes biome-shafts {
+  0%   { transform: translateX(-20px); opacity: 0.5; }
+  100% { transform: translateX(20px);  opacity: 1; }
+}
+@keyframes biome-leaf-fall {
+  0%   { transform: translate(0, 0)   rotate(0deg);   opacity: 0; }
+  10%  { opacity: 0.7; }
+  100% { transform: translate(-40px, 380px) rotate(540deg); opacity: 0; }
+}
+
+/* ── Card overlay base ──────────────────────────────────────────── */
+@keyframes card-overlay-life {
+  0%   { opacity: 0; }
+  10%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes card-flash {
+  0%   { opacity: 0; }
+  20%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* 01 RAIN */
+@keyframes card-rain {
+  0%   { transform: translateY(0);    opacity: 0; }
+  20%  { opacity: 0.9; }
+  100% { transform: translateY(340px); opacity: 0; }
+}
+
+/* 02 SUN */
+@keyframes card-sun {
+  0%   { transform: scale(0.4); opacity: 0; }
+  30%  { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1);   opacity: 0; }
+}
+@keyframes card-sun-ray {
+  0%   { transform: rotate(var(--rot, 0deg)) scaleY(0); opacity: 0; }
+  30%  { transform: rotate(var(--rot, 0deg)) scaleY(1.2); opacity: 1; }
+  100% { transform: rotate(var(--rot, 0deg)) scaleY(0.8); opacity: 0; }
+}
+
+/* 03 POLLEN */
+@keyframes card-pollen {
+  0%   { transform: translate(0, 0) scale(0); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translate(calc(var(--dx, 0px)), -240px) scale(1.4); opacity: 0; }
+}
+
+/* 04 FROST */
+@keyframes card-frost {
+  0%   { transform: scale(0) rotate(0deg);   opacity: 0; }
+  40%  { opacity: 1; }
+  100% { transform: scale(1) rotate(45deg);  opacity: 0; }
+}
+
+/* 05 THUNDER */
+@keyframes card-thunder-flash {
+  0%   { opacity: 0; }
+  10%  { opacity: 0.9; }
+  20%  { opacity: 0; }
+  30%  { opacity: 0.5; }
+  40%  { opacity: 0; }
+  100% { opacity: 0; }
+}
+@keyframes card-thunder-bolt {
+  0%   { transform: translateX(-50%) scaleY(0);   opacity: 0; }
+  20%  { transform: translateX(-50%) scaleY(1.1); opacity: 1; }
+  100% { transform: translateX(-50%) scaleY(1);   opacity: 0; }
+}
+
+/* 06 NUTRIENTS */
+@keyframes card-nutrients {
+  0%   { opacity: 0; transform: translateY(20px); }
+  30%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; }
+}
+@keyframes card-nutrients-up {
+  0%   { transform: translateY(0);    opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translateY(-260px); opacity: 0; }
+}
+
+/* 07 WIND */
+@keyframes card-wind {
+  0%   { transform: translateX(0);    opacity: 0; }
+  30%  { opacity: 1; }
+  100% { transform: translateX(160%);  opacity: 0; }
+}
+
+/* 08 BLOOM CATALYST */
+@keyframes card-bloom-burst {
+  0%   { transform: scale(0); opacity: 0; }
+  50%  { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+@keyframes card-bloom-petal-0 {
+  0% { transform: translate(0, 0) scale(0); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translate(-60px, -80px) scale(1.2); opacity: 0; }
+}
+@keyframes card-bloom-petal-1 {
+  0% { transform: translate(0, 0) scale(0); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translate(60px, -90px) scale(1.2); opacity: 0; }
+}
+@keyframes card-bloom-petal-2 {
+  0% { transform: translate(0, 0) scale(0); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translate(-80px, 20px) scale(1.4); opacity: 0; }
+}
+@keyframes card-bloom-petal-3 {
+  0% { transform: translate(0, 0) scale(0); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translate(80px, 10px) scale(1.4); opacity: 0; }
+}
+@keyframes card-bloom-petal-4 {
+  0% { transform: translate(0, 0) scale(0); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translate(0, -110px) scale(1.6); opacity: 0; }
+}
+
+/* 09 PRUNE */
+@keyframes card-prune-swipe {
+  0%   { transform: translateX(-100%); opacity: 0; }
+  30%  { opacity: 1; }
+  60%  { opacity: 1; transform: translateX(100%); }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+@keyframes card-prune-fall {
+  0%   { transform: translate(0, 0)    rotate(0deg);   opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translate(-20px, 220px) rotate(720deg); opacity: 0; }
+}
+
+/* 10 WILDCARD */
+@keyframes card-wild {
+  0%   { transform: scale(0)   rotate(0deg);   opacity: 0; }
+  40%  { transform: scale(1.4) rotate(180deg); opacity: 1; }
+  100% { transform: scale(0.6) rotate(360deg); opacity: 0; }
+}
+
+/* Bloom winner banner */
+@keyframes bloom-banner-in {
+  0%   { transform: translateX(-50%) translateY(-30px) scale(0.6); opacity: 0; }
+  60%  { transform: translateX(-50%) translateY(4px)   scale(1.05); opacity: 1; }
+  100% { transform: translateX(-50%) translateY(0)     scale(1);   opacity: 1; }
+}

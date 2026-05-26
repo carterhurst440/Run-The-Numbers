@@ -39875,6 +39875,7 @@ const bloomGame = {
 };
 
 async function bloomRouteOpen() {
+  try { bloomTeardownStages(); } catch (e) { /* noop on first open */ }
   bloomGame.state = 'idle';
   bloomGame.roundId = null;
   bloomGame.region = null;
@@ -39969,25 +39970,30 @@ function bloomViewSelecting() {
 }
 
 function bloomViewResolving() {
-  // Score bars per flower, plus a draw log that fills as events play.
-  const bars = bloomGame.candidates.map(c => `
-    <div class="fof-hp-row" data-bloom-bar-row="${c.flower}">
-      <span>${(c.name || '').toUpperCase()}</span>
-      <div class="fof-hp-track">
-        <div class="fof-hp-fill fof-hp-hero" data-bloom-bar-fill="${c.flower}"
-             style="width:0%;background:${c.accent_color || '#888'}"></div>
+  // 5 flower SVG containers in a row over a biome backdrop, with a card
+  // overlay layer on top and an event log below. Each flower is wired to a
+  // BloomFlowers.FlowerStage instance in bloomPlayEvents.
+  const region = bloomGame.region || {};
+  const cols = bloomGame.candidates.map(c => `
+    <div class="bloom-flower-col" data-bloom-flower-slot="${c.flower}">
+      <div class="bloom-flower-svg" data-bloom-flower-svg="${c.flower}"></div>
+      <div class="bloom-flower-label">
+        <div class="bloom-flower-name" style="color:${c.accent_color || '#fff'}">${(c.name || '').toUpperCase()}</div>
+        <div class="bloom-flower-score" data-bloom-flower-score="${c.flower}">0</div>
       </div>
-      <span data-bloom-bar-val="${c.flower}">0</span>
     </div>
   `).join('');
   return `
-    <div class="fof-resolving">
-      <div class="fof-vs-line">
-        <span class="fof-vs-hero">${(bloomGame.pickedFlower || '').toUpperCase()}</span>
-        <span class="fof-vs-sep">IN</span>
-        <span class="fof-vs-opp">${(bloomGame.region?.name || '').toUpperCase()}</span>
+    <div class="bloom-resolving" data-bloom-biome="${region.slug || ''}">
+      <div class="bloom-resolving-header">
+        <span class="bloom-resolving-region">${(region.name || '').toUpperCase()}</span>
+        <span class="bloom-resolving-picked">YOUR PICK: <strong>${(bloomGame.pickedFlower || '').toUpperCase()}</strong></span>
       </div>
-      <div class="fof-hp-bars">${bars}</div>
+      <div class="bloom-biome-stage">
+        <div class="bloom-biome-bg"></div>
+        <div class="bloom-flowers-row">${cols}</div>
+        <div class="bloom-card-overlay" id="bloom-card-overlay"></div>
+      </div>
       <div class="fof-event-log" id="bloom-event-log"></div>
     </div>
   `;
@@ -40099,31 +40105,225 @@ async function bloomBeginRound() {
   }
 }
 
+// ── BLOOM — playback helpers ────────────────────────────────────────
+// Score (0..bloom_target) → bundle stage (0..6). Matches the spec:
+//   0-19 SEED, 20-39 SPROUT, 40-59 FOLIAGE, 60-79 BUD INIT,
+//   80-89 BUD SWELL, 90-99 CRACKING, 100+ BLOOM.
+function bloomScoreToStage(score) {
+  const s = Number(score) || 0;
+  if (s < 20)  return 0;
+  if (s < 40)  return 1;
+  if (s < 60)  return 2;
+  if (s < 80)  return 3;
+  if (s < 90)  return 4;
+  if (s < 100) return 5;
+  return 6;
+}
+
+// Map DB flower slug → bundle species id (only differs when the DB slug
+// doesn't match what `assets/bloom/bloom-flowers.js` knows).
+const BLOOM_SPECIES_MAP = {
+  cactus_bloom: 'cactus_blossom',
+  frost_lily:   'arctic_poppy',
+  plumeria:     'orchid',
+};
+function bloomBundleSpeciesId(flowerSlug) {
+  return BLOOM_SPECIES_MAP[flowerSlug] || flowerSlug;
+}
+
+// Card slug → CSS-keyframe variant for the draw overlay. Same heuristic
+// as the bloom_animations seed file; admin can override per-card later.
+const BLOOM_CARD_OVERLAY_MAP = {
+  sunny_day: 'card-sun', dry_heat: 'card-sun', heat_wave: 'card-sun', drought: 'card-sun',
+  gentle_rain: 'card-rain', flooding: 'card-rain',
+  thunderstorm: 'card-thunder',
+  late_freeze: 'card-frost', hailstorm: 'card-frost',
+  windstorm: 'card-wind', cool_breeze: 'card-wind',
+  morning_dew: 'card-pollen', tropical_humidity: 'card-pollen',
+  overcast: 'card-nutrients',
+  perfect_conditions: 'card-bloom-burst',
+};
+
+// Active FlowerStage instances, one per flower in the current round.
+let _bloomStages = [];  // [{ slug, instance, currentStage, prevScore }]
+
+function bloomTeardownStages() {
+  for (const s of _bloomStages) {
+    try { s.instance.destroy(); } catch (e) { /* noop */ }
+  }
+  _bloomStages = [];
+}
+
+// Build a card-overlay DOM fragment for the given card slug, append to
+// `container`, and remove it after `durationMs`. Each variant uses a
+// small choreographed set of child elements driven by CSS keyframes from
+// assets/bloom/bloom-flowers.css.
+function bloomPlayCardOverlay(cardSlug, container, durationMs) {
+  if (!container) return;
+  const variant = BLOOM_CARD_OVERLAY_MAP[cardSlug] || 'card-wild';
+  const wrap = document.createElement('div');
+  wrap.className = `bloom-cardfx bloom-cardfx-${variant}`;
+
+  if (variant === 'card-rain') {
+    for (let i = 0; i < 14; i++) {
+      const d = document.createElement('div');
+      d.className = 'bloom-rain-drop';
+      d.style.left = (4 + i * 7) + '%';
+      d.style.animationDelay = (i * 0.045) + 's';
+      wrap.appendChild(d);
+    }
+  } else if (variant === 'card-sun') {
+    const disc = document.createElement('div');
+    disc.className = 'bloom-sun-disc';
+    wrap.appendChild(disc);
+    for (let i = 0; i < 8; i++) {
+      const ray = document.createElement('div');
+      ray.className = 'bloom-sun-ray';
+      ray.style.setProperty('--rot', (i * 45) + 'deg');
+      ray.style.animationDelay = (i * 0.04) + 's';
+      wrap.appendChild(ray);
+    }
+  } else if (variant === 'card-thunder') {
+    const flash = document.createElement('div');
+    flash.className = 'bloom-thunder-flash';
+    wrap.appendChild(flash);
+    const bolt = document.createElement('div');
+    bolt.className = 'bloom-thunder-bolt';
+    wrap.appendChild(bolt);
+  } else if (variant === 'card-frost') {
+    for (let i = 0; i < 8; i++) {
+      const f = document.createElement('div');
+      f.className = 'bloom-frost-flake';
+      f.textContent = '❄';
+      f.style.left = (8 + (i * 11)) + '%';
+      f.style.top  = (10 + ((i * 13) % 60)) + '%';
+      f.style.animationDelay = (i * 0.08) + 's';
+      wrap.appendChild(f);
+    }
+  } else if (variant === 'card-wind') {
+    for (let i = 0; i < 6; i++) {
+      const g = document.createElement('div');
+      g.className = 'bloom-wind-gust';
+      g.style.top = (15 + i * 13) + '%';
+      g.style.animationDelay = (i * 0.07) + 's';
+      wrap.appendChild(g);
+    }
+  } else if (variant === 'card-pollen') {
+    for (let i = 0; i < 16; i++) {
+      const p = document.createElement('div');
+      p.className = 'bloom-pollen-dot';
+      p.style.left = (3 + i * 6) + '%';
+      p.style.setProperty('--dx', (((i % 5) - 2) * 18) + 'px');
+      p.style.animationDelay = (i * 0.05) + 's';
+      wrap.appendChild(p);
+    }
+  } else if (variant === 'card-nutrients') {
+    for (let i = 0; i < 10; i++) {
+      const n = document.createElement('div');
+      n.className = 'bloom-nutrient-up';
+      n.style.left = (8 + i * 9) + '%';
+      n.style.animationDelay = (i * 0.06) + 's';
+      wrap.appendChild(n);
+    }
+  } else if (variant === 'card-bloom-burst') {
+    const burst = document.createElement('div');
+    burst.className = 'bloom-burst-core';
+    wrap.appendChild(burst);
+    for (let i = 0; i < 5; i++) {
+      const p = document.createElement('div');
+      p.className = `bloom-burst-petal bloom-burst-petal-${i}`;
+      wrap.appendChild(p);
+    }
+  } else if (variant === 'card-prune') {
+    const swipe = document.createElement('div');
+    swipe.className = 'bloom-prune-swipe';
+    wrap.appendChild(swipe);
+    for (let i = 0; i < 6; i++) {
+      const leaf = document.createElement('div');
+      leaf.className = 'bloom-prune-fall';
+      leaf.style.left = (15 + i * 12) + '%';
+      leaf.style.animationDelay = (0.2 + i * 0.08) + 's';
+      wrap.appendChild(leaf);
+    }
+  } else {
+    // card-wild + fallback
+    const w = document.createElement('div');
+    w.className = 'bloom-wild-burst';
+    wrap.appendChild(w);
+  }
+
+  container.appendChild(wrap);
+  setTimeout(() => {
+    if (wrap.parentNode === container) container.removeChild(wrap);
+  }, durationMs);
+}
+
 async function bloomPlayEvents(details) {
   if (!details || !Array.isArray(details.events)) return;
-  const logEl = document.getElementById('bloom-event-log');
-  const bloomTarget = details.bloomTarget || 100;
-  const drawDelay = 250;   // ms per draw
-  const finalHold = 800;   // ms after BLOOM event before transitioning
+  const logEl  = document.getElementById('bloom-event-log');
+  const fxEl   = document.getElementById('bloom-card-overlay');
+
+  // Mount one FlowerStage per candidate flower. Cleared on round restart.
+  bloomTeardownStages();
+  if (window.BloomFlowers && window.BloomFlowers.FlowerStage) {
+    for (const c of bloomGame.candidates) {
+      const host = document.querySelector(`[data-bloom-flower-svg="${c.flower}"]`);
+      if (!host) continue;
+      try {
+        const inst = new window.BloomFlowers.FlowerStage({
+          container: host,
+          species:   bloomBundleSpeciesId(c.flower),
+          stage:     0,
+        });
+        _bloomStages.push({ slug: c.flower, instance: inst, currentStage: 0, prevScore: 0 });
+      } catch (e) { console.warn('[bloom] FlowerStage mount failed', c.flower, e); }
+    }
+  }
+
+  // Brief settle before the first draw.
+  await new Promise(r => setTimeout(r, 250));
+
+  const DRAW_OVERLAY_MS = 900;   // how long the card overlay lives
+  const DRAW_TOTAL_MS   = 1500;  // total wall-clock per draw
+  const FINAL_HOLD_MS   = 1800;  // hold on the final BLOOM frame
 
   for (const ev of details.events) {
     if (ev.type === 'DRAW') {
-      // Update each flower bar
+      // 1. Card overlay starts immediately, runs in background.
+      bloomPlayCardOverlay(ev.card, fxEl, DRAW_OVERLAY_MS);
+
+      // 2. Brief beat so the overlay reads before flowers move.
+      await new Promise(r => setTimeout(r, 250));
+
+      // 3. Per-flower update — transition if stage changed, swell otherwise.
       const scores = ev.scoresAfter || {};
-      for (const slug of Object.keys(scores)) {
-        const fill = document.querySelector(`[data-bloom-bar-fill="${slug}"]`);
-        const val  = document.querySelector(`[data-bloom-bar-val="${slug}"]`);
-        if (fill) fill.style.width = Math.min(100, (Number(scores[slug]) / bloomTarget) * 100) + '%';
-        if (val)  val.textContent  = String(scores[slug]);
+      for (const se of _bloomStages) {
+        const newScore = Number(scores[se.slug] ?? se.prevScore);
+        const newStage = bloomScoreToStage(newScore);
+        const scoreEl = document.querySelector(`[data-bloom-flower-score="${se.slug}"]`);
+        if (scoreEl) scoreEl.textContent = String(newScore);
+        if (newStage !== se.currentStage) {
+          try { se.instance.transitionTo(newStage); } catch (e) { /* noop */ }
+          se.currentStage = newStage;
+        } else if (newScore > se.prevScore) {
+          try { se.instance.swell(); } catch (e) { /* noop */ }
+        }
+        se.prevScore = newScore;
       }
+
+      // 4. Log line.
       if (logEl) {
         const line = document.createElement('div');
         line.textContent = ev.message || `Draw ${ev.drawNumber}: ${ev.cardName}`;
         logEl.appendChild(line);
         logEl.scrollTop = logEl.scrollHeight;
       }
-      await new Promise(r => setTimeout(r, drawDelay));
+
+      await new Promise(r => setTimeout(r, DRAW_TOTAL_MS - 250));
     } else if (ev.type === 'BLOOM' || ev.type === 'SAFETY_CAP_VICTORY') {
+      // Highlight winner column.
+      const slot = document.querySelector(`[data-bloom-flower-slot="${ev.winnerFlower}"]`);
+      if (slot) slot.classList.add('bloom-winner');
       if (logEl) {
         const line = document.createElement('div');
         line.style.fontWeight = '700';
@@ -40131,7 +40331,7 @@ async function bloomPlayEvents(details) {
         logEl.appendChild(line);
         logEl.scrollTop = logEl.scrollHeight;
       }
-      await new Promise(r => setTimeout(r, finalHold));
+      await new Promise(r => setTimeout(r, FINAL_HOLD_MS));
     }
   }
 }
