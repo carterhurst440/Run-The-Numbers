@@ -39252,13 +39252,14 @@ function adminBloomSwitchSubtab(target) {
   document.querySelectorAll('.admin-bloom-subtab-content').forEach(c => { c.hidden = true; });
   const el = document.getElementById(`admin-bloom-${target}-content`);
   if (el) el.hidden = false;
-  if (target === 'cards' || target === 'regions' || target === 'flowers') {
+  if (target === 'cards' || target === 'regions' || target === 'flowers' || target === 'anims') {
     void (async () => {
       try {
         await loadAdminBloomRefData();
         if (target === 'cards')   renderBloomCardsEditor();
         if (target === 'regions') renderBloomRegionsEditor();
         if (target === 'flowers') renderBloomFlowersEditor();
+        if (target === 'anims')   await loadAndRenderBloomAnims();
       } catch (err) {
         const status = document.getElementById('admin-bloom-status');
         if (status) status.textContent = "Failed to load ref data: " + (err.message || err);
@@ -40217,4 +40218,237 @@ async function runBloomMasterMatrix() {
 
   if (status) status.textContent =
     `Master Matrix saved. ${totalSims.toLocaleString()} sims in ${elapsedSec}s.`;
+}
+
+// ── BLOOM — Animations editor ────────────────────────────────────────
+// Slot list is derived live from _bloomRefData (regions / cards / flowers).
+// Schema: bloom_animations (kind, subject, variant, clip_data JSONB).
+//   kind = 'region_bg'    → variant = 'default'
+//   kind = 'card_overlay' → variant = 'default'
+//   kind = 'flower'       → variant = one of BLOOM_FLOWER_VARIANTS
+const BLOOM_FLOWER_VARIANTS = [
+  { v: 'stage_1',            label: 'Stage 1 (0-20) swell',   loop: true  },
+  { v: 'transition_1_2',     label: 'Transition 1 → 2',        loop: false },
+  { v: 'stage_2',            label: 'Stage 2 (20-40) swell',  loop: true  },
+  { v: 'transition_2_3',     label: 'Transition 2 → 3',        loop: false },
+  { v: 'stage_3',            label: 'Stage 3 (40-60) swell',  loop: true  },
+  { v: 'transition_3_4',     label: 'Transition 3 → 4',        loop: false },
+  { v: 'stage_4',            label: 'Stage 4 (60-80) swell',  loop: true  },
+  { v: 'transition_4_5',     label: 'Transition 4 → 5',        loop: false },
+  { v: 'stage_5',            label: 'Stage 5 (80-90) swell',  loop: true  },
+  { v: 'transition_5_6',     label: 'Transition 5 → 6',        loop: false },
+  { v: 'stage_6',            label: 'Stage 6 (90-100) swell', loop: true  },
+  { v: 'transition_6_bloom', label: 'Bloom!',                  loop: false },
+];
+
+let _bloomAnimRows = [];           // [{ kind, subject, variant, clip_data }]
+let _bloomAnimEditing = null;      // { kind, subject, variant }
+let _bloomAnimsInited = false;
+
+function bloomAnimGet(kind, subject, variant) {
+  return _bloomAnimRows.find(r =>
+    r.kind === kind && r.subject === subject && r.variant === variant
+  ) || null;
+}
+
+async function loadAndRenderBloomAnims() {
+  if (!_bloomAnimsInited) {
+    _bloomAnimsInited = true;
+    document.querySelectorAll('[data-bloom-anim-close]').forEach(el => {
+      el.addEventListener('click', () => adminBloomAnimCloseModal());
+    });
+    const saveBtn  = document.getElementById('admin-bloom-anim-save-btn');
+    const clearBtn = document.getElementById('admin-bloom-anim-clear-btn');
+    const urlInput = document.getElementById('admin-bloom-anim-url');
+    if (saveBtn)  saveBtn.addEventListener('click', () => void adminBloomAnimSave());
+    if (clearBtn) clearBtn.addEventListener('click', () => void adminBloomAnimClear());
+    if (urlInput) urlInput.addEventListener('input',  () => adminBloomAnimUpdatePreview(urlInput.value));
+  }
+  const status = document.getElementById('admin-bloom-anim-status');
+  if (status) status.textContent = 'Loading clips…';
+  const { data, error } = await supabase
+    .from('bloom_animations')
+    .select('kind, subject, variant, clip_data, updated_at');
+  if (error) {
+    if (status) status.textContent = `Error: ${error.message}`;
+    return;
+  }
+  _bloomAnimRows = Array.isArray(data) ? data : [];
+  if (status) status.textContent = '';
+  renderBloomAnimsGrid();
+}
+
+function bloomAnimCellHtml(kind, subject, variant) {
+  const row = bloomAnimGet(kind, subject, variant);
+  const set = !!(row?.clip_data?.url);
+  const cls = set ? 'admin-fof-anim-cell admin-fof-anim-cell-set'
+                  : 'admin-fof-anim-cell admin-fof-anim-cell-empty';
+  const label = set ? '●' : '○';
+  const title = set ? row.clip_data.url : 'No clip — click to set';
+  return `<button type="button" class="${cls}"
+    data-bloom-anim-kind="${kind}"
+    data-bloom-anim-subject="${subject}"
+    data-bloom-anim-variant="${variant}"
+    title="${title.replace(/"/g, '&quot;')}">${label}</button>`;
+}
+
+function renderBloomAnimsGrid() {
+  const wrap = document.getElementById('admin-bloom-anims-grid');
+  if (!wrap || !_bloomRefData) return;
+  const { regionOrder, cardOrder, flowers } = _bloomRefData;
+
+  // ── Region backgrounds (one per region) ──────────────────
+  const regionRows = regionOrder.map(r =>
+    `<tr><td class="admin-fof-anim-rowhdr">${r.name.toUpperCase()}</td><td>${bloomAnimCellHtml('region_bg', r.slug, 'default')}</td></tr>`
+  ).join('');
+
+  // ── Card overlays (one per card) ─────────────────────────
+  const cardRows = cardOrder.map(c =>
+    `<tr><td class="admin-fof-anim-rowhdr">${c.name.toUpperCase()}</td><td>${bloomAnimCellHtml('card_overlay', c.slug, 'default')}</td></tr>`
+  ).join('');
+
+  // ── Flower stages + transitions (12 variants × N flowers) ─
+  const flowerHeader = '<th>Variant</th>' +
+    flowers.map(f => `<th>${f.name.toUpperCase()}</th>`).join('');
+  const flowerRows = BLOOM_FLOWER_VARIANTS.map(({ v, label }) => {
+    const cells = flowers.map(f =>
+      `<td>${bloomAnimCellHtml('flower', f.slug, v)}</td>`
+    ).join('');
+    return `<tr><td class="admin-fof-anim-rowhdr">${label}</td>${cells}</tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <h3 style="margin-top:0">Region backgrounds</h3>
+    <table class="admin-fof-anim-table">
+      <thead><tr><th>Region</th><th>Clip</th></tr></thead>
+      <tbody>${regionRows}</tbody>
+    </table>
+
+    <h3 style="margin-top:24px">Card overlays (~1s, no loop)</h3>
+    <table class="admin-fof-anim-table">
+      <thead><tr><th>Card</th><th>Clip</th></tr></thead>
+      <tbody>${cardRows}</tbody>
+    </table>
+
+    <h3 style="margin-top:24px">Flower stages &amp; transitions</h3>
+    <p class="admin-cs-hint" style="margin-top:0">Stage cells should <strong>loop</strong> (swell idle). Transition cells should <strong>play once</strong> (one-shot when score crosses the next threshold).</p>
+    <table class="admin-fof-anim-table">
+      <thead><tr>${flowerHeader}</tr></thead>
+      <tbody>${flowerRows}</tbody>
+    </table>
+
+    <div class="admin-fof-anim-legend" style="margin-top:16px">
+      <span><span class="admin-fof-anim-cell admin-fof-anim-cell-set">●</span> = clip set</span>
+      <span><span class="admin-fof-anim-cell admin-fof-anim-cell-empty">○</span> = empty — click to add</span>
+    </div>
+  `;
+  wrap.querySelectorAll('.admin-fof-anim-cell').forEach(btn => {
+    btn.addEventListener('click', () => {
+      adminBloomAnimOpenModal(
+        btn.dataset.bloomAnimKind,
+        btn.dataset.bloomAnimSubject,
+        btn.dataset.bloomAnimVariant
+      );
+    });
+  });
+}
+
+function adminBloomAnimOpenModal(kind, subject, variant) {
+  _bloomAnimEditing = { kind, subject, variant };
+  const row = bloomAnimGet(kind, subject, variant);
+  const d = row?.clip_data || {};
+  const titleEl = document.getElementById('admin-bloom-anim-modal-title');
+  if (titleEl) {
+    const variantLabel = (kind === 'flower')
+      ? (BLOOM_FLOWER_VARIANTS.find(x => x.v === variant)?.label || variant)
+      : kind.replace('_', ' ');
+    titleEl.textContent = `${subject.toUpperCase()} — ${variantLabel}`;
+  }
+  const url   = document.getElementById('admin-bloom-anim-url');
+  const dur   = document.getElementById('admin-bloom-anim-duration');
+  const loop  = document.getElementById('admin-bloom-anim-loop');
+  const notes = document.getElementById('admin-bloom-anim-notes');
+  if (url)   url.value   = d.url || '';
+  if (dur)   dur.value   = (d.duration != null) ? d.duration : '';
+  if (loop) {
+    // Default loop value based on variant kind: stage = true, transition/overlay = false
+    const defaultLoop = (kind === 'flower' && variant.startsWith('stage_'));
+    const v = (d.loop != null) ? !!d.loop : defaultLoop;
+    loop.value = v ? 'true' : 'false';
+  }
+  if (notes) notes.value = d.notes || '';
+  adminBloomAnimUpdatePreview(d.url || '');
+  const modal = document.getElementById('admin-bloom-anim-modal');
+  if (modal) modal.hidden = false;
+}
+
+function adminBloomAnimCloseModal() {
+  _bloomAnimEditing = null;
+  const modal = document.getElementById('admin-bloom-anim-modal');
+  if (modal) modal.hidden = true;
+}
+
+function adminBloomAnimUpdatePreview(url) {
+  const prev = document.getElementById('admin-bloom-anim-preview');
+  if (!prev) return;
+  if (!url || !url.trim()) { prev.innerHTML = '<div class="admin-fof-anim-no-preview">No URL yet</div>'; return; }
+  const u = url.trim();
+  const lower = u.toLowerCase();
+  if (lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.mov')) {
+    prev.innerHTML = `<video src="${u}" autoplay loop muted playsinline></video>`;
+  } else if (lower.endsWith('.json')) {
+    prev.innerHTML = `<div class="admin-fof-anim-preview-text">Lottie / JSON asset — preview not rendered here.</div>`;
+  } else {
+    prev.innerHTML = `<img src="${u}" alt="preview" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'admin-fof-anim-no-preview',textContent:'Failed to load preview'}))">`;
+  }
+}
+
+async function adminBloomAnimSave() {
+  if (!_bloomAnimEditing) return;
+  const { kind, subject, variant } = _bloomAnimEditing;
+  const url     = document.getElementById('admin-bloom-anim-url')?.value.trim() || '';
+  const durRaw  = document.getElementById('admin-bloom-anim-duration')?.value;
+  const loopRaw = document.getElementById('admin-bloom-anim-loop')?.value;
+  const notes   = document.getElementById('admin-bloom-anim-notes')?.value.trim() || '';
+  const clip = { url };
+  if (durRaw !== '' && durRaw != null && !Number.isNaN(Number(durRaw))) clip.duration = Number(durRaw);
+  clip.loop = loopRaw === 'true';
+  if (notes) clip.notes = notes;
+
+  const status = document.getElementById('admin-bloom-anim-status');
+  if (status) status.textContent = `Saving ${kind}/${subject}/${variant}…`;
+  const { error } = await supabase
+    .from('bloom_animations')
+    .upsert(
+      { kind, subject, variant, clip_data: clip, updated_at: new Date().toISOString() },
+      { onConflict: 'kind,subject,variant' }
+    );
+  if (error) { if (status) status.textContent = `Save error: ${error.message}`; return; }
+  // Reflect locally
+  const existing = bloomAnimGet(kind, subject, variant);
+  if (existing) existing.clip_data = clip;
+  else _bloomAnimRows.push({ kind, subject, variant, clip_data: clip, updated_at: new Date().toISOString() });
+  if (status) status.textContent = `Saved.`;
+  adminBloomAnimCloseModal();
+  renderBloomAnimsGrid();
+}
+
+async function adminBloomAnimClear() {
+  if (!_bloomAnimEditing) return;
+  const { kind, subject, variant } = _bloomAnimEditing;
+  const status = document.getElementById('admin-bloom-anim-status');
+  if (status) status.textContent = `Clearing…`;
+  const { error } = await supabase
+    .from('bloom_animations')
+    .delete()
+    .eq('kind', kind)
+    .eq('subject', subject)
+    .eq('variant', variant);
+  if (error) { if (status) status.textContent = `Clear error: ${error.message}`; return; }
+  _bloomAnimRows = _bloomAnimRows.filter(r =>
+    !(r.kind === kind && r.subject === subject && r.variant === variant)
+  );
+  if (status) status.textContent = `Cleared.`;
+  adminBloomAnimCloseModal();
+  renderBloomAnimsGrid();
 }

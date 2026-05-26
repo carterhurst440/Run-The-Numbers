@@ -3353,6 +3353,7 @@
                 <button type="button" class="admin-fof-subtab admin-bloom-subtab" data-bloom-subtab="cards">Cards</button>
                 <button type="button" class="admin-fof-subtab admin-bloom-subtab" data-bloom-subtab="regions">Regions</button>
                 <button type="button" class="admin-fof-subtab admin-bloom-subtab" data-bloom-subtab="flowers">Flowers</button>
+                <button type="button" class="admin-fof-subtab admin-bloom-subtab" data-bloom-subtab="anims">Anims</button>
               </div>
               <div id="admin-bloom-status" class="admin-fof-status"></div>
               <div class="admin-fof-subtab-content admin-bloom-subtab-content" id="admin-bloom-sim-content">
@@ -3442,6 +3443,52 @@
                   <p class="admin-cs-hint">Rename flowers (display name only — slugs are FK references and stay fixed). Saving updates <code>bloom_flowers.display_name</code>.</p>
                   <div id="admin-bloom-flowers-grid" class="admin-fof-chars"></div>
                 </section>
+              </div>
+              <div class="admin-fof-subtab-content admin-bloom-subtab-content" id="admin-bloom-anims-content" hidden>
+                <section class="route-section admin-list-section">
+                  <div class="admin-listing-header">
+                    <h2>BLOOM — Animations</h2>
+                  </div>
+                  <p class="admin-cs-hint">Asset slots are derived live from the seeded regions / cards / flowers. Paste a URL (mp4, webm, gif, lottie JSON) — <code>clip_data</code> is JSONB so additional fields can be added later. Phase 2 will wire these into the resolving stage so each card overlay plays in sequence and each flower advances through its 6 stages with transitions between.</p>
+                  <div id="admin-bloom-anim-status" class="admin-fof-status"></div>
+                  <div id="admin-bloom-anims-grid" class="admin-fof-anim-grid-wrap"></div>
+                </section>
+                <div class="modal" id="admin-bloom-anim-modal" role="dialog" aria-modal="true" hidden>
+                  <div class="modal-backdrop" data-bloom-anim-close></div>
+                  <div class="modal-content admin-fof-anim-modal-content">
+                    <div class="modal-header">
+                      <h3 id="admin-bloom-anim-modal-title">Edit clip</h3>
+                      <button type="button" class="modal-close" data-bloom-anim-close aria-label="Close">×</button>
+                    </div>
+                    <div class="modal-body">
+                      <label class="admin-fof-anim-field">
+                        <span>Asset URL</span>
+                        <input type="url" id="admin-bloom-anim-url" placeholder="https://…" autocomplete="off">
+                      </label>
+                      <label class="admin-fof-anim-field">
+                        <span>Duration (seconds, optional)</span>
+                        <input type="number" id="admin-bloom-anim-duration" min="0" step="0.05" placeholder="auto">
+                      </label>
+                      <label class="admin-fof-anim-field">
+                        <span>Loop</span>
+                        <select id="admin-bloom-anim-loop">
+                          <option value="false">No (play once)</option>
+                          <option value="true">Yes (loop continuously)</option>
+                        </select>
+                      </label>
+                      <label class="admin-fof-anim-field">
+                        <span>Notes (optional)</span>
+                        <input type="text" id="admin-bloom-anim-notes" placeholder="format, frame counts, anchor offsets, etc.">
+                      </label>
+                      <div class="admin-fof-anim-preview" id="admin-bloom-anim-preview"></div>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="secondary" id="admin-bloom-anim-clear-btn">Clear</button>
+                      <button type="button" class="secondary" data-bloom-anim-close>Cancel</button>
+                      <button type="button" class="primary" id="admin-bloom-anim-save-btn">Save</button>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div class="admin-fof-subtab-content admin-bloom-subtab-content" id="admin-bloom-regions-content" hidden>
                 <section class="route-section admin-list-section">
