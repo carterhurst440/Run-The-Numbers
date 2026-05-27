@@ -39882,7 +39882,6 @@ function bloomTotalWager() {
 
 async function bloomRouteOpen() {
   try { bloomTeardownStages(); } catch (e) { /* noop on first open */ }
-  try { bloomTeardownSelectMorphs(); } catch (e) { /* noop on first open */ }
   bloomGame.state = 'idle';
   bloomGame.roundId = null;
   bloomGame.region = null;
@@ -39905,9 +39904,12 @@ function bloomRenderStage() {
   if (!stage) return;
   stage.dataset.state = bloomGame.state;
   if (bloomGame.state === 'idle')           stage.innerHTML = bloomViewIdle();
+  // Selecting, resolving and resolved all share the same shell —
+  // the race plays out in-place on the selection screen. Tiles
+  // hide/show their wager-spot vs. score-readout via the state attr.
   else if (bloomGame.state === 'selecting') stage.innerHTML = bloomViewSelecting();
-  else if (bloomGame.state === 'resolving') stage.innerHTML = bloomViewResolving();
-  else if (bloomGame.state === 'resolved')  stage.innerHTML = bloomViewResolved();
+  else if (bloomGame.state === 'resolving') stage.innerHTML = bloomViewSelecting();
+  else if (bloomGame.state === 'resolved')  stage.innerHTML = bloomViewSelecting();
   bloomAttachStageHandlers();
 }
 
@@ -39930,15 +39932,15 @@ function bloomFlowerCard(c) {
   const wagerAmt   = Number((bloomGame.wagers || {})[c.flower] || 0);
   const wagerCls   = wagerAmt > 0 ? 'has-wager' : '';
   const potential  = (winPct > 0 && wagerAmt > 0) ? (wagerAmt / Number(c.win_pct)).toFixed(0) : null;
-  // Bare flower tile — no card frame, no biome, no header / footer.
-  // Below the SVG: name + win % + payout, then a wager spot that
-  // accumulates chips when the user clicks on it (uses the currently
-  // selected chip denomination from the sticky chip rack). Click handler
-  // is on the wager spot itself, not the tile — the flower SVG above
-  // stays a non-interactive preview.
+  // Bare flower tile — no card frame, no biome. Below the SVG: name +
+  // win % + payout, then a state-aware row that swaps between a
+  // wager-spot (selecting) and a live score readout (resolving / resolved).
+  // CSS hides the wrong one based on the .fof-selecting[data-bloom-state]
+  // ancestor.
   return `
     <div class="bloom-pick-tile ${heroCls}" data-bloom-flower="${c.flower}" style="--bloom-accent:${accent}">
       <div class="bloom-pick-flower" data-bloom-select-host="${c.flower}"></div>
+      <div class="bloom-flower-toast" data-bloom-flower-toast="${c.flower}"></div>
       <div class="bloom-pick-meta">
         <div class="bloom-pick-name" style="color:${accent}">${name}</div>
         <div class="bloom-pick-odds">
@@ -39950,6 +39952,10 @@ function bloomFlowerCard(c) {
         <span class="bloom-wager-spot-amount">${wagerAmt > 0 ? '$' + wagerAmt : 'TAP TO BET'}</span>
         ${potential ? `<span class="bloom-wager-spot-potential">→ $${potential}</span>` : ''}
       </button>
+      <div class="bloom-race-score" data-bloom-flower-score="${c.flower}">
+        <span class="bloom-race-score-pct">0%</span>
+        ${wagerAmt > 0 ? `<span class="bloom-race-score-stake">$${wagerAmt} STAKED</span>` : ''}
+      </div>
     </div>
   `;
 }
@@ -39957,21 +39963,46 @@ function bloomFlowerCard(c) {
 function bloomViewSelecting() {
   const region = bloomGame.region || {};
   const cards = bloomGame.candidates.map(c => bloomFlowerCard(c)).join('');
-  // Chip rack now lives outside #bloom-stage (persistent inside
-  // #bloom-view) so we don't render it here — bloomAttachStageHandlers
-  // toggles its visibility and populates the chip selector each render.
+  const state = bloomGame.state;
+  // Region panel sub-label changes by state — selecting shows hero,
+  // resolving/resolved show a live weather banner (updated by bloomPlayEvents).
+  const subTitle = (state === 'selecting')
+    ? '// STACK CHIPS ON ANY FLOWER · BET MULTIPLE TO HEDGE'
+    : '// RACE IN PROGRESS';
+  const resolved = state === 'resolved' ? bloomViewResolvedBanner() : '';
   return `
-    <div class="fof-selecting bloom-selecting">
+    <div class="fof-selecting bloom-selecting" data-bloom-state="${state}">
       <div class="fof-opp-panel">
         <div class="fof-opp-label">// REGION</div>
         <div class="fof-opp-name">${(region.name || '').toUpperCase()}</div>
         <div style="font-size:12px;opacity:.7;margin-top:6px">${region.identity || ''}</div>
         <div style="font-size:11px;opacity:.5;margin-top:8px">Hero flower: ${region.hero_flower || '—'}</div>
+        <div class="bloom-weather-banner" id="bloom-weather-banner"></div>
+        ${resolved}
       </div>
       <div class="fof-pick-panel bloom-pick-panel">
-        <div class="fof-pick-label">// STACK CHIPS ON ANY FLOWER · BET MULTIPLE TO HEDGE</div>
+        <div class="fof-pick-label">${subTitle}</div>
         <div class="bloom-pick-row">${cards}</div>
       </div>
+    </div>
+  `;
+}
+
+function bloomViewResolvedBanner() {
+  const r = bloomGame.resolution || {};
+  const won = r.round_winner === 'hero';
+  const headline = won ? '★ BLOOMED' : 'WITHERED';
+  const profit = Number(r.net_profit) || 0;
+  const profitDisplay = (profit >= 0 ? '+$' : '-$') + Math.abs(profit).toFixed(2);
+  const winnerName = (bloomGame.candidates.find(c => c.flower === r.winner_flower)?.name) || r.winner_flower || '—';
+  return `
+    <div class="bloom-resolved-banner ${won ? 'won' : 'lost'}">
+      <div class="bloom-resolved-headline">${headline}</div>
+      <div class="bloom-resolved-row"><span>Winner</span><strong>${(winnerName || '').toUpperCase()}</strong></div>
+      <div class="bloom-resolved-row"><span>Wagered</span><strong>$${Number(r.total_wagered).toFixed(2)}</strong></div>
+      <div class="bloom-resolved-row"><span>Returned</span><strong>$${Number(r.total_returned).toFixed(2)}</strong></div>
+      <div class="bloom-resolved-row"><span>Net</span><strong>${profitDisplay}</strong></div>
+      <button type="button" class="fof-btn fof-btn-primary" id="bloom-again-btn">⬡ START NEW ROUND</button>
     </div>
   `;
 }
@@ -40073,22 +40104,42 @@ function bloomAttachStageHandlers() {
     });
   });
 
-  // Mount the bloomed-preview FlowerMorphs into each selection tile.
-  // Re-render rebuilds the HTML so we tear down + remount each time.
-  bloomTeardownSelectMorphs();
-  if (bloomGame.state === 'selecting' && window.FlowerMorphs && window.FlowerMorphs.Mount) {
+  // Mount FlowerMorphs into each tile's [data-bloom-select-host] slot.
+  // Initial stage depends on state: selecting → 10 (bloomed preview),
+  // resolving → 0 (seed, animates up via bloomPlayEvents), resolved →
+  // bloomScoreToStage of the final score (held).
+  // Re-render rebuilds the HTML so we tear down + remount each time;
+  // bloomPlayEvents then reads from _bloomMorphs to drive the race.
+  bloomTeardownMorphs();
+  if (window.FlowerMorphs && window.FlowerMorphs.Mount &&
+      (bloomGame.state === 'selecting' || bloomGame.state === 'resolving' || bloomGame.state === 'resolved')) {
+    const finalScores = (bloomGame.resolution && bloomGame.resolution.round_details && bloomGame.resolution.round_details.finalScores) || {};
     for (const c of bloomGame.candidates) {
       const host = document.querySelector(`[data-bloom-select-host="${c.flower}"]`);
       if (!host) continue;
+      let initialStage = 10;            // selecting: bloomed preview
+      let initialScore = 0;
+      if (bloomGame.state === 'resolving') {
+        initialStage = 0;                // seed; race grows from here
+        initialScore = 0;
+      } else if (bloomGame.state === 'resolved') {
+        initialScore = Number(finalScores[c.flower] ?? 0);
+        initialStage = bloomScoreToStage(initialScore);
+      }
       try {
         const m = window.FlowerMorphs.Mount({
           container: host,
           species:   bloomBundleSpeciesId(c.flower),
-          stage:     10,            // full BLOOM preview
+          stage:     initialStage,
           baseline:  false,
         });
-        _bloomSelectMorphs.push(m);
-      } catch (e) { console.warn('[bloom] select-card mount failed', c.flower, e); }
+        _bloomMorphs.push({
+          slug:         c.flower,
+          morph:        m,
+          currentStage: initialStage,
+          prevScore:    initialScore,
+        });
+      } catch (e) { console.warn('[bloom] morph mount failed', c.flower, e); }
     }
   }
 
@@ -40264,15 +40315,17 @@ function bloomSpeciesBiomeId(speciesId) {
   return BLOOM_SPECIES_TO_BIOME[speciesId] || 'forest';
 }
 
-// FlowerMorphs handles for the selection preview cards. Mounted at
-// stage 10 (BLOOM) in bloomAttachStageHandlers and torn down on every
-// re-render so we don't leak preact roots.
-let _bloomSelectMorphs = [];
-function bloomTeardownSelectMorphs() {
-  for (const m of _bloomSelectMorphs) {
-    try { m && m.destroy(); } catch (e) { /* noop */ }
+// Unified FlowerMorphs handles — same DOM hosts across selecting /
+// resolving / resolved so the race plays out in-place. Each entry:
+//   { slug, morph, currentStage, prevScore }
+// Populated by bloomAttachStageHandlers after each render; consumed by
+// bloomPlayEvents to drive transitions during the race.
+let _bloomMorphs = [];
+function bloomTeardownMorphs() {
+  for (const m of _bloomMorphs) {
+    try { m.morph && m.morph.destroy(); } catch (e) { /* noop */ }
   }
-  _bloomSelectMorphs = [];
+  _bloomMorphs = [];
 }
 
 // Card slug → BloomWeather event ID. The bundle's 10 weather events:
@@ -40298,16 +40351,17 @@ const BLOOM_CARD_TO_WEATHER = {
   perfect_conditions: 'perfect_conditions',
 };
 
-// Active FlowerStage instances, one per flower in the current round.
-let _bloomStages = [];  // [{ slug, instance, currentStage, prevScore }]
+// Shared region + weather instance handles (still used by bloomPlayEvents
+// for the optional weather overlay). The flower morphs are tracked in
+// the unified _bloomMorphs list declared above.
 let _bloomRegionInst = null;
 let _bloomWeatherInst = null;
 
+// Backwards-compat shim — old code paths called bloomTeardownStages.
+// Now dispatches to the unified bloomTeardownMorphs and clears region /
+// weather handles.
 function bloomTeardownStages() {
-  for (const s of _bloomStages) {
-    try { s.morph && s.morph.destroy(); } catch (e) { /* noop */ }
-  }
-  _bloomStages = [];
+  bloomTeardownMorphs();
   if (_bloomRegionInst)  { try { _bloomRegionInst.destroy(); } catch (e) {} _bloomRegionInst  = null; }
   if (_bloomWeatherInst) { try { _bloomWeatherInst.destroy(); } catch (e) {} _bloomWeatherInst = null; }
 }
@@ -40359,130 +40413,34 @@ function bloomPlayWeatherForCard(cardSlug, container, durationMs, intensity) {
 
 async function bloomPlayEvents(details) {
   if (!details || !Array.isArray(details.events)) return;
-  const logEl  = document.getElementById('bloom-event-log');
-  const fxEl   = document.getElementById('bloom-card-overlay');
-  const rowEl  = document.getElementById('bloom-growth-row');
+  // The flower morphs are already mounted by bloomAttachStageHandlers
+  // (state === 'resolving' → mounted at stage 0). We just drive them
+  // here in place inside the existing tile DOM. No DOM teardown / build.
+  if (_bloomMorphs.length === 0) return;
 
-  // Clear any prior cards + weather (route may have been re-entered
-  // before bloomRouteOpen ran).
-  bloomTeardownStages();
-  if (rowEl) rowEl.innerHTML = '';
-
-  // Apply the biome-backgrounds.css preset for this region. Class swap
-  // gives the full sky gradient + soil band + stripe in one shot, no
-  // inline styles, no JS-side color math.
-  const stageEl = document.getElementById('bloom-grow-stage');
-  if (stageEl) {
-    // Strip any previous biome-* class, then add the current one. Also
-    // ensure the base .biome class is present so the ::before / ::after
-    // soil pseudo-elements light up.
-    stageEl.style.background = '';
-    Array.from(stageEl.classList).forEach(c => {
-      if (/^biome-[a-z]+$/.test(c)) stageEl.classList.remove(c);
-    });
-    stageEl.classList.add('biome');
-    stageEl.classList.add('biome-' + bloomRegionBiomeId(bloomGame.region && bloomGame.region.slug));
-  }
-
-  // Build one flat cell per candidate flower (no card frame, no header,
-  // no footer — just stacked pct / flower SVG / name). The 11-stage
-  // FlowerMorphs is mounted directly into the cell's flower host.
-  if (rowEl) {
-    for (const c of bloomGame.candidates) {
-      const bundleId = bloomBundleSpeciesId(c.flower);
-      const accent   = c.accent_color || '#ffffff';
-      const name     = (c.name || '').toUpperCase();
-
-      const cell = document.createElement('div');
-      cell.className = 'bloom-grow-cell';
-      cell.dataset.bloomFlowerSlot = c.flower;
-
-      const pctEl = document.createElement('div');
-      pctEl.className = 'bloom-grow-pct';
-      pctEl.dataset.bloomFlowerScore = c.flower;
-      pctEl.textContent = '0%';
-
-      const flowerHost = document.createElement('div');
-      flowerHost.className = 'bloom-grow-flower';
-
-      const toastHost = document.createElement('div');
-      toastHost.className = 'bloom-flower-toast';
-      toastHost.dataset.bloomFlowerToast = c.flower;
-
-      const nameEl = document.createElement('div');
-      nameEl.className = 'bloom-grow-name';
-      nameEl.style.color = accent;
-      nameEl.textContent = name;
-
-      cell.appendChild(pctEl);
-      cell.appendChild(flowerHost);
-      cell.appendChild(toastHost);
-      cell.appendChild(nameEl);
-      rowEl.appendChild(cell);
-
-      // Mount the 11-stage Morph into the flower host. Falls back to
-      // no flower if FlowerMorphs isn't loaded (cells still render).
-      let morphHandle = null;
-      if (window.FlowerMorphs && window.FlowerMorphs.Mount) {
-        try {
-          morphHandle = window.FlowerMorphs.Mount({
-            container: flowerHost,
-            species:   bundleId,
-            stage:     0,
-            baseline:  false,
-          });
-        } catch (e) { console.warn('[bloom] FlowerMorphs mount failed', c.flower, e); }
-      }
-
-      _bloomStages.push({
-        slug:         c.flower,
-        morph:        morphHandle,
-        cell:         cell,
-        pctEl:        pctEl,
-        nameEl:       nameEl,
-        currentStage: 0,
-        prevScore:    0,
-        accent:       accent,
-      });
-    }
-  }
-
-  // Brief settle before the first draw.
-  await new Promise(r => setTimeout(r, 250));
-
-  const DRAW_OVERLAY_MS = 480;   // weather overlay duration per draw
   const DRAW_TOTAL_MS   = 500;   // 0.5s per card — fast-paced rounds
   const FINAL_HOLD_MS   = 1800;  // hold on the final BLOOM frame
-
-  const weatherEl = document.getElementById('bloom-weather-label');
+  const weatherEl = document.getElementById('bloom-weather-banner');
 
   for (const ev of details.events) {
     if (ev.type === 'DRAW') {
-      // 1. Weather label in the biome's top-right corner.
+      // Update the weather banner inside the region panel.
       if (weatherEl) {
         weatherEl.textContent = (ev.cardName || ev.card || '').toUpperCase();
         weatherEl.classList.add('visible');
       }
 
-      // 2. Weather overlay for this card kicks immediately. Auto-tears
-      //    down after DRAW_OVERLAY_MS so the next draw can replace it.
-      bloomPlayWeatherForCard(ev.card, fxEl, DRAW_OVERLAY_MS);
-
-      // 3. Tiny beat so the overlay registers before flowers move.
-      await new Promise(r => setTimeout(r, 40));
-
-      // 4. Per-flower update on the flat cells. Drive the FlowerMorphs
-      //    handle (transition / swell) and update the big pct readout.
-      //    Toast the raw card effect for each flower the card touched.
+      // Per-flower update: drive the morph (transition / swell) and
+      // refresh the score readout below each tile. Toast the raw card
+      // effect for each flower the card touched.
       const scores  = ev.scoresAfter || {};
       const effects = ev.effects || {};
-      for (const se of _bloomStages) {
+      for (const se of _bloomMorphs) {
         const newScore = Number(scores[se.slug] ?? se.prevScore);
         const newStage = bloomScoreToStage(newScore);
-        const bloomed = newStage >= 10;     // 11-stage system; 10 = BLOOM
 
-        if (se.pctEl) se.pctEl.textContent = `${newScore}%`;
-        if (se.cell)  se.cell.classList.toggle('bloomed', bloomed);
+        const scoreEl = document.querySelector(`[data-bloom-flower-score="${se.slug}"]`);
+        if (scoreEl) scoreEl.textContent = `${newScore}%`;
 
         if (se.morph) {
           if (newStage !== se.currentStage) {
@@ -40494,35 +40452,16 @@ async function bloomPlayEvents(details) {
         }
 
         const rawDelta = Number(effects[se.slug] ?? 0);
-        if (rawDelta !== 0) {
-          bloomShowFlowerToast(se.slug, rawDelta);
-        }
+        if (rawDelta !== 0) bloomShowFlowerToast(se.slug, rawDelta);
 
         se.prevScore = newScore;
       }
 
-      // 5. Log line.
-      if (logEl) {
-        const line = document.createElement('div');
-        line.textContent = ev.message || `Draw ${ev.drawNumber}: ${ev.cardName}`;
-        logEl.appendChild(line);
-        logEl.scrollTop = logEl.scrollHeight;
-      }
-
-      await new Promise(r => setTimeout(r, DRAW_TOTAL_MS - 40));
+      await new Promise(r => setTimeout(r, DRAW_TOTAL_MS));
     } else if (ev.type === 'BLOOM' || ev.type === 'SAFETY_CAP_VICTORY') {
       if (weatherEl) weatherEl.classList.remove('visible');
-      // Highlight winner card with an extra gold glow on top of the
-      // .bg-bloomed treatment the bg-col already has.
-      const slot = document.querySelector(`[data-bloom-flower-slot="${ev.winnerFlower}"]`);
+      const slot = document.querySelector(`[data-bloom-flower="${ev.winnerFlower}"]`);
       if (slot) slot.classList.add('bloom-winner');
-      if (logEl) {
-        const line = document.createElement('div');
-        line.style.fontWeight = '700';
-        line.textContent = ev.message || '';
-        logEl.appendChild(line);
-        logEl.scrollTop = logEl.scrollHeight;
-      }
       await new Promise(r => setTimeout(r, FINAL_HOLD_MS));
     }
   }

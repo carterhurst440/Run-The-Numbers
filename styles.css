@@ -28769,6 +28769,96 @@ body[data-ui="new"] .alr-col-date {
   text-transform: uppercase;
 }
 
+/* ── State-aware tile content ─ wager-spot vs. live score readout ── */
+.bloom-pick-tile .bloom-race-score { display: none; }
+.bloom-selecting[data-bloom-state="resolving"] .bloom-wager-spot,
+.bloom-selecting[data-bloom-state="resolved"]  .bloom-wager-spot { display: none; }
+.bloom-selecting[data-bloom-state="resolving"] .bloom-race-score,
+.bloom-selecting[data-bloom-state="resolved"]  .bloom-race-score { display: flex; }
+
+.bloom-race-score {
+  margin-top: 12px;
+  min-width: 120px;
+  padding: 8px 14px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 800;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: var(--bloom-accent, #fbe064);
+  text-align: center;
+}
+.bloom-race-score-pct {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+.bloom-race-score-stake {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: #909070;
+  text-transform: uppercase;
+}
+.bloom-pick-tile.bloom-winner {
+  filter: drop-shadow(0 0 22px rgba(255,215,0,0.6));
+}
+.bloom-pick-tile.bloom-winner .bloom-race-score {
+  color: gold;
+}
+
+/* Live weather banner inside the region panel — only visible while the
+   race is running (bloomPlayEvents toggles .visible). */
+.bloom-weather-banner {
+  margin-top: 16px;
+  padding: 8px 12px;
+  background: rgba(232,160,32,0.08);
+  border: 1px solid rgba(232,160,32,0.35);
+  border-radius: 3px;
+  color: #e8a020;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.bloom-weather-banner.visible { opacity: 1; }
+
+/* Resolved banner inside the region panel — replaces the chip rack
+   prompt when the round is done. */
+.bloom-resolved-banner {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 4px;
+  background: #15151c;
+  border: 1px solid #2a2a30;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.bloom-resolved-banner.won {
+  border-color: rgba(255,215,0,0.5);
+  background: rgba(255,215,0,0.06);
+}
+.bloom-resolved-banner.lost { border-color: rgba(255,100,80,0.4); }
+.bloom-resolved-headline {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-align: center;
+  margin-bottom: 10px;
+  color: #fbe064;
+}
+.bloom-resolved-banner.lost .bloom-resolved-headline { color: #ff7a52; }
+.bloom-resolved-row {
+  display: flex; justify-content: space-between;
+  font-size: 11px; letter-spacing: 0.12em; padding: 3px 0;
+  color: #ddd;
+}
+.bloom-resolved-row span { color: #909070; text-transform: uppercase; }
+.bloom-resolved-row strong { color: #fff; font-variant-numeric: tabular-nums; }
+.bloom-resolved-banner #bloom-again-btn { margin-top: 12px; width: 100%; }
+
 /* ── Per-tile wager spot (chip stack lives below each flower) ─────── */
 .bloom-wager-spot {
   margin-top: 12px;
