@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="assets/bloom/bloom-flowers.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-weather.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-growth.css" />
+    <link rel="stylesheet" href="assets/bloom/morphs/flower-morphs.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -4826,6 +4827,11 @@
     <script src="assets/bloom/bloom-regions.js"></script>
     <script src="assets/bloom/bloom-weather.js"></script>
     <script src="assets/bloom/bloom-growth.js"></script>
+    <!-- 11-stage Morph flower system: preact runtime + bootstrap + compiled JSX + wrapper -->
+    <script src="assets/bloom/morphs/preact.umd.js"></script>
+    <script>window.__h = preact.h; window.__Fragment = preact.Fragment;</script>
+    <script src="assets/bloom/morphs/flowers-compiled.js"></script>
+    <script src="assets/bloom/morphs/flower-morphs.js"></script>
     <script type="module" src="script.js?v=20260510-analytics-v57"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>

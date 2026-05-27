@@ -40104,19 +40104,17 @@ async function bloomBeginRound() {
 }
 
 // ── BLOOM — playback helpers ────────────────────────────────────────
-// Score (0..bloom_target) → bundle stage (0..6). Even ~17% bands across
-// 0-99, with stage 6 (BLOOM) reserved for the exact winning moment at
-// 100 so the climax lands at the right beat. Matches PCTS in
-// bloom-growth.js (every ~17 pts).
+// Score (0..bloom_target) → FlowerMorphs stage (0..10). Clean 10-points-
+// per-stage progression, with stage 10 (BLOOM) reserved for the exact
+// winning moment at 100 so the climax lands at the right beat.
+//   0-9 SEED · 10-19 SEED CRACK · 20-29 SPROUT · 30-39 FIRST LEAVES ·
+//   40-49 FOLIAGE · 50-59 BUD INIT · 60-69 BUD GROWS · 70-79 BUD SWELLS ·
+//   80-89 COLOR PEEK · 90-99 CRACKING · 100 BLOOM
 function bloomScoreToStage(score) {
   const s = Number(score) || 0;
-  if (s < 17)  return 0;   // SEED
-  if (s < 33)  return 1;   // SPROUT
-  if (s < 50)  return 2;   // FOLIAGE
-  if (s < 67)  return 3;   // BUD INIT
-  if (s < 83)  return 4;   // BUD SWELLS
-  if (s < 100) return 5;   // CRACKING
-  return 6;                // BLOOM
+  if (s >= 100) return 10;
+  if (s <= 0)   return 0;
+  return Math.min(9, Math.floor(s / 10));
 }
 
 // Map DB flower slug → bundle species id (only differs when the DB slug
@@ -40160,6 +40158,7 @@ let _bloomWeatherInst = null;
 
 function bloomTeardownStages() {
   for (const s of _bloomStages) {
+    try { s.morph && s.morph.destroy(); } catch (e) { /* noop */ }
     try { s.refs && s.refs.inst && s.refs.inst.destroy(); } catch (e) { /* noop */ }
   }
   _bloomStages = [];
@@ -40228,6 +40227,10 @@ async function bloomPlayEvents(details) {
   // need a shared BloomRegions backdrop. Override the bundled species
   // name + accent with the DB-side values so admin-renamed flowers
   // display their custom labels.
+  //
+  // We pass mountFlower:false so buildBiomeCard skips its built-in
+  // FlowerStage (7-stage system) and we mount the 11-stage FlowerMorphs
+  // into the same `refs.host` slot ourselves.
   if (rowEl && window.BloomGrowth && window.BloomGrowth.buildBiomeCard) {
     const biomes = window.BloomGrowth.SPECIES_BIOMES || [];
     for (const c of bloomGame.candidates) {
@@ -40243,7 +40246,10 @@ async function bloomPlayEvents(details) {
         accent: c.accent_color || baseBiome.accent,
       });
       try {
-        const { col, refs } = window.BloomGrowth.buildBiomeCard(species, { stage: 0 });
+        const { col, refs } = window.BloomGrowth.buildBiomeCard(species, {
+          stage: 0,
+          mountFlower: false,
+        });
         col.dataset.bloomFlowerSlot = c.flower;
 
         // Attach a per-card toast layer so +N / -N can float above the
@@ -40254,9 +40260,26 @@ async function bloomPlayEvents(details) {
         col.appendChild(toastHost);
 
         rowEl.appendChild(col);
+
+        // Mount the 11-stage Morph into the card's flower-host slot.
+        // Falls back to no flower if FlowerMorphs isn't loaded (cards
+        // still render with the biome backdrop).
+        let morphHandle = null;
+        if (window.FlowerMorphs && window.FlowerMorphs.Mount) {
+          try {
+            morphHandle = window.FlowerMorphs.Mount({
+              container: refs.host,
+              species:   bundleId,
+              stage:     0,
+              baseline:  false,    // bg-col already has a soil stripe
+            });
+          } catch (e) { console.warn('[bloom] FlowerMorphs mount failed', c.flower, e); }
+        }
+
         _bloomStages.push({
           slug:         c.flower,
           refs:         refs,
+          morph:        morphHandle,
           currentStage: 0,
           prevScore:    0,
           accent:       species.accent,
@@ -40292,15 +40315,16 @@ async function bloomPlayEvents(details) {
       await new Promise(r => setTimeout(r, 250));
 
       // 4. Per-flower update via the bg-col refs from buildBiomeCard.
-      //    Transition if stage changed, swell otherwise. Toast the raw
-      //    card effect for each flower the card touched.
+      //    Transition the FlowerMorphs handle if stage changed, swell
+      //    otherwise. Toast the raw card effect for each flower the card
+      //    touched.
       const scores  = ev.scoresAfter || {};
       const effects = ev.effects || {};
-      const STAGE_LABELS = (window.BloomGrowth && window.BloomGrowth.STAGE_LABELS) || [];
+      const MORPH_LABELS = (window.FlowerMorphs && window.FlowerMorphs.STAGE_LABELS) || [];
       for (const se of _bloomStages) {
         const newScore = Number(scores[se.slug] ?? se.prevScore);
         const newStage = bloomScoreToStage(newScore);
-        const bloomed = newStage >= 6;
+        const bloomed = newStage >= 10;     // 11-stage system; 10 = BLOOM
         const pct = Math.min(100, newScore);
 
         // Header pct + vertical bar + footer label/score.
@@ -40313,7 +40337,7 @@ async function bloomPlayEvents(details) {
         if (se.refs.stageLabel) {
           se.refs.stageLabel.textContent = bloomed
             ? '★ BLOOMED'
-            : (STAGE_LABELS[newStage] || '');
+            : (MORPH_LABELS[newStage] || '');
         }
         if (se.refs.score) {
           se.refs.score.textContent = bloomed
@@ -40321,13 +40345,13 @@ async function bloomPlayEvents(details) {
             : `growing · ${newScore} PTS`;
         }
 
-        // Flower SVG transition / swell.
-        if (se.refs.inst) {
+        // Flower SVG transition / swell — drives the FlowerMorphs handle.
+        if (se.morph) {
           if (newStage !== se.currentStage) {
-            try { se.refs.inst.transitionTo(newStage); } catch (e) { /* noop */ }
+            try { se.morph.transitionTo(newStage); } catch (e) { /* noop */ }
             se.currentStage = newStage;
           } else if (newScore > se.prevScore) {
-            try { se.refs.inst.swell(); } catch (e) { /* noop */ }
+            try { se.morph.swell(); } catch (e) { /* noop */ }
           }
         }
 
