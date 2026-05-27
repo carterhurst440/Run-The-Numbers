@@ -28546,31 +28546,36 @@ body[data-ui="new"] .alr-col-date {
     .bloom-weather-label IDs still exist inside that card so the JS
     driver doesn't need to know it moved.) */
 
-/* ── Grow stage ─ single region-colored backdrop, no card frames ─── */
+/* ── Grow stage ─ biome backdrop (preset class), no card frames ──── */
 .bloom-grow-stage {
   width: 100vw;
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
-  padding: 36px 24px 44px;
-  transition: background 0.6s ease;
+  height: 540px;                 /* explicit so biome ::before's 12% works */
+  padding: 36px 24px 0;
+  overflow: hidden;              /* matches .biome base style */
 }
 @media (max-width: 900px) {
   .bloom-grow-stage {
     width: 100%;
     margin-left: 0;
     margin-right: 0;
-    padding: 24px 12px 32px;
+    height: 460px;
+    padding: 24px 12px 0;
     border-radius: 8px;
   }
 }
 
 .bloom-grow-row {
+  position: relative;          /* base for absolute name labels */
+  z-index: 2;                  /* above biome ::before/::after */
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 12px;
   max-width: 1500px;
   margin: 0 auto;
-  align-items: end;
+  height: 100%;
+  align-items: stretch;        /* cells fill the row vertically */
 }
 
 .bloom-grow-cell {
@@ -28579,18 +28584,20 @@ body[data-ui="new"] .alr-col-date {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  min-height: 400px;
+  height: 100%;
+  padding-bottom: 0;
 }
 
 .bloom-grow-pct {
+  flex: 0 0 auto;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 56px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1;
   letter-spacing: 0;
-  color: #fff;
-  text-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  color: #1f1f18;
+  text-shadow: 0 1px 2px rgba(255,255,255,0.7);
   margin-bottom: 4px;
 }
 @media (max-width: 1200px) {
@@ -28604,7 +28611,6 @@ body[data-ui="new"] .alr-col-date {
   flex: 1 1 auto;
   width: 100%;
   max-width: 240px;
-  min-height: 280px;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -28616,15 +28622,26 @@ body[data-ui="new"] .alr-col-date {
   max-height: 100%;
 }
 
+/* Name label — absolutely placed near the soil so the flower above
+   can extend all the way down (and seed plants into the dirt). */
 .bloom-grow-name {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 10px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 3px;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   line-height: 1.2;
-  margin-top: 10px;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  white-space: nowrap;
+  z-index: 3;
+  pointer-events: none;
 }
 
 /* +N / -N toast — positioned inside each flat cell (which is relative). */
@@ -28648,8 +28665,8 @@ body[data-ui="new"] .alr-col-date {
   animation: bloom-toast-rise 1.6s ease-out forwards;
   white-space: nowrap;
 }
-.bloom-toast-point.gain { color: #b8f078; }
-.bloom-toast-point.loss { color: #ff7a52; }
+.bloom-toast-point.gain { color: #2f8a30; }
+.bloom-toast-point.loss { color: #c43030; }
 @keyframes bloom-toast-rise {
   0%   { opacity: 0; transform: translateY(10px) scale(0.6); }
   15%  { opacity: 1; transform: translateY(-4px) scale(1.18); }
@@ -28657,17 +28674,19 @@ body[data-ui="new"] .alr-col-date {
   100% { opacity: 0; transform: translateY(-68px) scale(0.92); }
 }
 
-/* Winner highlight — gold glow on the bloomed flower's pct + name. */
+/* Winner highlight — gold pct + gilded name plaque + glow on the column. */
 .bloom-grow-cell.bloom-winner .bloom-grow-pct {
-  color: gold;
+  color: #b8860b;
   text-shadow: 0 0 14px rgba(255,215,0,0.85),
-               0 2px 6px rgba(0,0,0,0.35);
+               0 1px 2px rgba(255,255,255,0.5);
 }
 .bloom-grow-cell.bloom-winner .bloom-grow-name {
-  color: gold !important;
+  background: linear-gradient(90deg, #b8860b, #ffd700, #b8860b);
+  color: #2a1f00 !important;
+  border-color: #b8860b;
 }
 .bloom-grow-cell.bloom-winner {
-  filter: drop-shadow(0 0 22px rgba(255,215,0,0.6));
+  filter: drop-shadow(0 0 22px rgba(255,215,0,0.55));
 }
 
 /* Event log under stage (reuse fof styling) */

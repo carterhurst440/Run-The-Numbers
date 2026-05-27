@@ -40139,19 +40139,18 @@ function bloomBundleSpeciesId(flowerSlug) {
   return BLOOM_SPECIES_MAP[flowerSlug] || flowerSlug;
 }
 
-// Solid backdrop color per region — sampled from the mid-tone of each
-// region's sky gradient (BloomRegions.REGION_DEFS). Dark enough that
-// white text contrasts cleanly, saturated enough to feel "biome-y".
-const REGION_BG_COLORS = {
-  desert:           '#d96a2a',
-  tundra:           '#7a78b0',
-  tropical_island:  '#4ea99a',
-  jungle:           '#2f6e3a',  // bundle's slug for the rainforest scene
-  rainforest:       '#2f6e3a',  // DB-side alias — both keys map to green
-  temperate_forest: '#1d4030',
+// DB region slug → biome-backgrounds.css biome id. The bundle ships 5
+// preset .biome-{id} classes (sky gradient + soil band + thin stripe);
+// applying one to the stage gives the full backdrop in one class swap.
+const BLOOM_REGION_TO_BIOME = {
+  desert:           'desert',
+  tundra:           'tundra',
+  tropical_island:  'tropical',
+  rainforest:       'rainforest',
+  temperate_forest: 'forest',
 };
-function bloomRegionBgColor(slug) {
-  return REGION_BG_COLORS[slug] || '#3a3a30';
+function bloomRegionBiomeId(slug) {
+  return BLOOM_REGION_TO_BIOME[slug] || 'forest';
 }
 
 // Card slug → BloomWeather event ID. The bundle's 10 weather events:
@@ -40247,12 +40246,20 @@ async function bloomPlayEvents(details) {
   bloomTeardownStages();
   if (rowEl) rowEl.innerHTML = '';
 
-  // Single solid backdrop color for the round, sampled from REGION_BG_COLORS
-  // (mid-tone of each region's sky gradient). Apply directly to the stage
-  // container; every flower sits on this same color — no per-flower cards.
+  // Apply the biome-backgrounds.css preset for this region. Class swap
+  // gives the full sky gradient + soil band + stripe in one shot, no
+  // inline styles, no JS-side color math.
   const stageEl = document.getElementById('bloom-grow-stage');
   if (stageEl) {
-    stageEl.style.background = bloomRegionBgColor(bloomGame.region && bloomGame.region.slug);
+    // Strip any previous biome-* class, then add the current one. Also
+    // ensure the base .biome class is present so the ::before / ::after
+    // soil pseudo-elements light up.
+    stageEl.style.background = '';
+    Array.from(stageEl.classList).forEach(c => {
+      if (/^biome-[a-z]+$/.test(c)) stageEl.classList.remove(c);
+    });
+    stageEl.classList.add('biome');
+    stageEl.classList.add('biome-' + bloomRegionBiomeId(bloomGame.region && bloomGame.region.slug));
   }
 
   // Build one flat cell per candidate flower (no card frame, no header,

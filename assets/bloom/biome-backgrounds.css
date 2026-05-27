@@ -1,0 +1,91 @@
+/* biome-backgrounds.css
+ *
+ * Five card-friendly biome backgrounds extracted from the Flower Growth
+ * side-by-side panel. Each is a sky gradient plus a soil band with a
+ * thin top stripe. No weather decor (no clouds / fog / dew / sun-rays).
+ *
+ * USAGE
+ *   <div class="biome biome-tundra" style="height: 360px;"></div>
+ *
+ * Five available biomes (one per Carter's Casino species):
+ *   .biome-tundra        — arctic poppy (soft lavender / cool gray soil)
+ *   .biome-forest        — hydrangea (muted sage / mossy soil)
+ *   .biome-tropical      — red hibiscus (mint→teal sky / sandy soil)
+ *   .biome-desert        — cactus blossom (cream→amber sky / warm tan soil)
+ *   .biome-rainforest    — orchid (lime sky / rich brown soil)
+ *
+ * The host container needs an explicit height and `overflow: hidden`
+ * (already applied by the base `.biome` class).
+ */
+
+.biome {
+  position: relative;
+  overflow: hidden;
+}
+
+.biome::before,
+.biome::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* soil base — bottom 12% of the card */
+.biome::before {
+  bottom: 0;
+  height: 12%;
+}
+
+/* soil stripe — thin band that sits on TOP of the soil base */
+.biome::after {
+  bottom: 12%;
+  transform: translateY(1px); /* overlap the seam */
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * 01 · TUNDRA  (arctic poppy)
+ * ────────────────────────────────────────────────────────────────── */
+.biome-tundra {
+  background: linear-gradient(180deg, #e4dcf2 0%, #c8bce0 100%);
+}
+.biome-tundra::before { background: #bcb0c0; }
+.biome-tundra::after  { background: #ccc0cc; height: 12px; }
+
+/* ──────────────────────────────────────────────────────────────────
+ * 02 · TEMPERATE FOREST  (hydrangea)
+ * ────────────────────────────────────────────────────────────────── */
+.biome-forest {
+  background: linear-gradient(180deg, #d4e4d0 0%, #a8c4a2 100%);
+}
+.biome-forest::before { background: #8a8870; }
+.biome-forest::after  { background: #9aa088; height: 12px; }
+
+/* ──────────────────────────────────────────────────────────────────
+ * 03 · TROPICAL  (red hibiscus)
+ * ────────────────────────────────────────────────────────────────── */
+.biome-tropical {
+  background: linear-gradient(180deg, #e0f0ec 0%, #a8d0d5 60%, #82c0c8 100%);
+}
+.biome-tropical::before { background: #dccdab; }
+.biome-tropical::after  { background: #e6d8b8; height: 12px; }
+
+/* ──────────────────────────────────────────────────────────────────
+ * 04 · DESERT  (cactus blossom)
+ * ────────────────────────────────────────────────────────────────── */
+.biome-desert {
+  background: linear-gradient(180deg, #fbf3e4 0%, #f3e0c4 100%);
+}
+.biome-desert::before { background: #d8b888; }
+.biome-desert::after  { background: #e6cca0; height: 14px; }
+
+/* ──────────────────────────────────────────────────────────────────
+ * 05 · RAINFOREST  (orchid)
+ * ────────────────────────────────────────────────────────────────── */
+.biome-rainforest {
+  background: linear-gradient(180deg, #e8f0c8 0%, #c8dc7c 100%);
+}
+.biome-rainforest::before { background: #7a5832; }
+.biome-rainforest::after  { background: #9c7642; height: 14px; }
