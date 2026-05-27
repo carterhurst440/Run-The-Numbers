@@ -39937,9 +39937,9 @@ function bloomFlowerCard(c) {
   // wager-spot (selecting) and a live score readout (resolving / resolved).
   // CSS hides the wrong one based on the .fof-selecting[data-bloom-state]
   // ancestor.
+  const hasWagerCls = wagerAmt > 0 ? 'has-wager' : '';
   return `
-    <div class="bloom-pick-tile ${heroCls}" data-bloom-flower="${c.flower}" style="--bloom-accent:${accent}">
-      <div class="bloom-flower-toast" data-bloom-flower-toast="${c.flower}"></div>
+    <div class="bloom-pick-tile ${heroCls} ${hasWagerCls}" data-bloom-flower="${c.flower}" style="--bloom-accent:${accent}">
       <div class="bloom-pick-stage">
         <div class="bloom-pick-vbar">
           <div class="bloom-pick-vbar-fill" data-bloom-flower-bar="${c.flower}" style="background:${accent}"></div>
@@ -39959,7 +39959,7 @@ function bloomFlowerCard(c) {
       </button>
       <div class="bloom-race-score" data-bloom-flower-score="${c.flower}">
         <span class="bloom-race-score-pct">0%</span>
-        ${wagerAmt > 0 ? `<span class="bloom-race-score-stake">$${wagerAmt} STAKED</span>` : ''}
+        <span class="bloom-flower-toast" data-bloom-flower-toast="${c.flower}"></span>
       </div>
     </div>
   `;
@@ -40389,17 +40389,18 @@ function bloomTeardownStages() {
   if (_bloomWeatherInst) { try { _bloomWeatherInst.destroy(); } catch (e) {} _bloomWeatherInst = null; }
 }
 
-// Render a floating "+N" or "-N" above a flower for ~1.6s. Auto-cleans
-// up. Multiple toasts can stack if delivered in rapid succession.
+// Render a small "+N" or "-N" pop inline next to the live score % for
+// ~1.1s. Auto-cleans up. Multiple pops stack if delivered in rapid
+// succession (each fades out independently).
 function bloomShowFlowerToast(flowerSlug, delta) {
   if (!delta) return;
   const host = document.querySelector(`[data-bloom-flower-toast="${flowerSlug}"]`);
   if (!host) return;
-  const t = document.createElement('div');
-  t.className = `bloom-toast-point ${delta > 0 ? 'gain' : 'loss'}`;
+  const t = document.createElement('span');
+  t.className = `bloom-delta-pop ${delta > 0 ? 'gain' : 'loss'}`;
   t.textContent = (delta > 0 ? '+' : '') + delta;
   host.appendChild(t);
-  setTimeout(() => { if (t.parentNode === host) host.removeChild(t); }, 1700);
+  setTimeout(() => { if (t.parentNode === host) host.removeChild(t); }, 1100);
 }
 
 // Play a weather overlay (rendered by window.BloomWeather) for the duration

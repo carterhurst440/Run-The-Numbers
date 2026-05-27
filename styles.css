@@ -28644,36 +28644,34 @@ body[data-ui="new"] .alr-col-date {
   pointer-events: none;
 }
 
-/* +N / -N toast — pinned to the top of the tile, compact pill style. */
+/* +N / -N pop — tiny inline element next to the live score %.
+   bloomShowFlowerToast appends a .bloom-delta-pop span into
+   .bloom-flower-toast (which sits next to .bloom-race-score-pct in the
+   tile's score readout). No absolute positioning, no pill background. */
 .bloom-flower-toast {
-  position: absolute;
-  top: 6px;
-  left: 50%;
-  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
   pointer-events: none;
-  z-index: 5;
-  text-align: center;
 }
-.bloom-toast-point {
+.bloom-delta-pop {
   display: inline-block;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(0,0,0,0.55);
-  border: 1px solid currentColor;
-  animation: bloom-toast-rise 1.2s ease-out forwards;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  animation: bloom-delta-pop 1.1s ease-out forwards;
   white-space: nowrap;
 }
-.bloom-toast-point.gain { color: #84e85a; }
-.bloom-toast-point.loss { color: #ff7a5a; }
-@keyframes bloom-toast-rise {
-  0%   { opacity: 0; transform: translateY(6px)  scale(0.85); }
-  18%  { opacity: 1; transform: translateY(0)    scale(1.05); }
-  35%  { opacity: 1; transform: translateY(-2px) scale(1); }
-  100% { opacity: 0; transform: translateY(-22px) scale(0.92); }
+.bloom-delta-pop.gain { color: #84e85a; }
+.bloom-delta-pop.loss { color: #ff7a5a; }
+@keyframes bloom-delta-pop {
+  0%   { opacity: 0; transform: translateY(3px) scale(0.85); }
+  18%  { opacity: 1; transform: translateY(0)   scale(1.1); }
+  40%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.95); }
 }
 
 /* Per-tile vertical accent bar — sits to the LEFT of the flower SVG,
@@ -28807,22 +28805,50 @@ body[data-ui="new"] .alr-col-date {
   text-transform: uppercase;
 }
 
-/* ── State-aware tile content ─ wager-spot vs. live score readout ── */
+/* ── State-aware tile content ──────────────────────────────────────
+   - Wager spots stay visible during the race so you can see where
+     your money is. Empty (no-wager) spots are hidden once the race
+     starts so we're not advertising "TAP TO BET" while it's running.
+   - Live score readout appears below the wager spot during
+     resolving/resolved.
+   - Tiles with wagers get an accent-color ring so they stand out. */
 .bloom-pick-tile .bloom-race-score { display: none; }
-.bloom-selecting[data-bloom-state="resolving"] .bloom-wager-spot,
-.bloom-selecting[data-bloom-state="resolved"]  .bloom-wager-spot { display: none; }
 .bloom-selecting[data-bloom-state="resolving"] .bloom-race-score,
-.bloom-selecting[data-bloom-state="resolved"]  .bloom-race-score { display: flex; }
+.bloom-selecting[data-bloom-state="resolved"]  .bloom-race-score {
+  display: inline-flex;
+}
+.bloom-selecting[data-bloom-state="resolving"] .bloom-wager-spot:not(.has-wager),
+.bloom-selecting[data-bloom-state="resolved"]  .bloom-wager-spot:not(.has-wager) {
+  display: none;
+}
+/* Read-only state for the wager spot during the race. */
+.bloom-selecting[data-bloom-state="resolving"] .bloom-wager-spot,
+.bloom-selecting[data-bloom-state="resolved"]  .bloom-wager-spot {
+  cursor: default;
+  pointer-events: none;
+}
+.bloom-selecting[data-bloom-state="resolving"] .bloom-wager-spot:hover,
+.bloom-selecting[data-bloom-state="resolved"]  .bloom-wager-spot:hover {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(232,160,32,0.35);
+  color: #909070;
+}
+
+/* Wagered-tile highlight — accent-color outline + drop-shadow so the
+   flowers you bet on stand out across the row. */
+.bloom-pick-tile.has-wager {
+  outline: 2px solid var(--bloom-accent, #e8a020);
+  outline-offset: 6px;
+  border-radius: 4px;
+}
 
 .bloom-race-score {
-  margin-top: 12px;
-  min-width: 120px;
-  padding: 8px 14px;
+  margin-top: 10px;
+  padding: 6px 12px;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-weight: 800;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
   color: var(--bloom-accent, #fbe064);
   text-align: center;
 }
@@ -28830,12 +28856,6 @@ body[data-ui="new"] .alr-col-date {
   font-size: 22px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
-}
-.bloom-race-score-stake {
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  color: #909070;
-  text-transform: uppercase;
 }
 .bloom-pick-tile.bloom-winner {
   filter: drop-shadow(0 0 22px rgba(255,215,0,0.6));
