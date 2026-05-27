@@ -2334,9 +2334,11 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .shape-traders-header-balance {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: end;
+  gap: 0.55rem 0.8rem;
   width: 100%;
   min-width: 0;
   padding: 0.7rem 0.9rem;
@@ -2349,11 +2351,22 @@ body[data-app-state="loading"] #app-shell {
 }
 
 .shape-traders-header-balance-head {
-  flex: 0 0 auto;
+  grid-column: 1 / -1;
+  grid-row: 1;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   width: 100%;
+  gap: 0.8rem;
+}
+.shape-traders-header-balance .shape-traders-balance-list {
+  grid-column: 1 / 2;
+  grid-row: 2;
+}
+.shape-traders-header-balance-actions {
+  grid-column: 2 / 3;
+  grid-row: 2;
+  align-self: end;
 }
 
 .shape-traders-header-balance-head h2 {
