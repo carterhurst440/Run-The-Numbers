@@ -40233,15 +40233,24 @@ async function bloomPlayEvents(details) {
   bloomTeardownStages();
   if (rowEl) rowEl.innerHTML = '';
 
-  // Build one bg-col card per candidate flower. Each card brings its own
-  // mini biome (sky + soil + per-species ambient decor) so we no longer
-  // need a shared BloomRegions backdrop. Override the bundled species
-  // name + accent with the DB-side values so admin-renamed flowers
-  // display their custom labels.
+  // Build one bg-col card per candidate flower. Every card in a round
+  // shares the SAME biome backdrop, determined by the round's region —
+  // pulled from window.BloomRegions.REGION_DEFS. Per-species ambient
+  // decor is dropped; the region's scene function (jungle fronds /
+  // tropical waves / temperate fog / etc.) is injected into each card
+  // after build so all 5 cards look identical underneath their flowers.
   //
   // We pass mountFlower:false so buildBiomeCard skips its built-in
-  // FlowerStage (7-stage system) and we mount the 11-stage FlowerMorphs
-  // into the same `refs.host` slot ourselves.
+  // 7-stage FlowerStage; we then mount the 11-stage FlowerMorphs into
+  // the same refs.host slot ourselves.
+  const regionSlug = bloomGame.region && bloomGame.region.slug;
+  // BloomRegions aliases rainforest → jungle internally; do the same
+  // for REGION_DEFS lookups so the scene props line up.
+  const regionKey = regionSlug === 'rainforest' ? 'jungle' : regionSlug;
+  const regionDef = (window.BloomRegions
+                     && window.BloomRegions.REGION_DEFS
+                     && window.BloomRegions.REGION_DEFS[regionKey]) || null;
+
   if (rowEl && window.BloomGrowth && window.BloomGrowth.buildBiomeCard) {
     const biomes = window.BloomGrowth.SPECIES_BIOMES || [];
     for (const c of bloomGame.candidates) {
@@ -40255,12 +40264,14 @@ async function bloomPlayEvents(details) {
         id:     bundleId,
         name:   (c.name || baseBiome.name || '').toUpperCase(),
         accent: c.accent_color || baseBiome.accent,
-        // Plain white card — drop the sky gradient, soil stripe and
-        // per-species ambient decor so every flower sits on the same
-        // neutral background. Accent stripe / name color / bar color
-        // / pct color all still come from species.accent.
-        sky:   '#ffffff',
-        soil:  { base: '#ffffff', stripe: '#ffffff', stripeHeight: 0 },
+        // Region-driven backdrop — every card in the round shares
+        // these. Fallback to white if BloomRegions isn't loaded or the
+        // round's region slug isn't in REGION_DEFS.
+        sky:   regionDef ? regionDef.sky  : '#ffffff',
+        soil:  regionDef ? regionDef.soil : { base: '#ffffff', stripe: '#ffffff', stripeHeight: 0 },
+        // bloom-growth's own decor kinds don't match BloomRegions
+        // scenes 1:1, so skip the built-in decor and inject the
+        // BloomRegions scene by hand below.
         decor: 'none',
       });
       try {
@@ -40269,6 +40280,36 @@ async function bloomPlayEvents(details) {
           mountFlower: false,
         });
         col.dataset.bloomFlowerSlot = c.flower;
+
+        // Inject the region's scene (jungle fronds, tropical waves,
+        // temperate fog, etc.) into the card's bg-col-bg, BEFORE the
+        // soil layer so the dirt renders on top — matches how
+        // BloomRegions.renderRegion stacks its own scene.
+        if (regionDef && typeof regionDef.scene === 'function') {
+          const bgEl = refs.host && refs.host.closest('.bg-col-bg');
+          const sceneNode = regionDef.scene();
+          if (bgEl && sceneNode) {
+            const soilBase = bgEl.querySelector('.bg-soil-base');
+            if (soilBase) bgEl.insertBefore(sceneNode, soilBase);
+            else          bgEl.appendChild(sceneNode);
+          }
+        }
+
+        // Reshuffle the card chrome:
+        //  • Header drops the species name and just shows the big
+        //    centered percentage (CSS rules in styles.css).
+        //  • Footer gets the species name prepended so it sits below
+        //    the flower, above the stage label / score line.
+        const headTextEl = col.querySelector('.bg-col-head .bg-text');
+        if (headTextEl) headTextEl.style.display = 'none';
+        const footEl = col.querySelector('.bg-col-foot');
+        if (footEl) {
+          const nameEl = document.createElement('div');
+          nameEl.className = 'bloom-flower-card-name';
+          nameEl.style.color = species.accent;
+          nameEl.textContent = species.name;
+          footEl.insertBefore(nameEl, footEl.firstChild);
+        }
 
         // Attach a per-card toast layer so +N / -N can float above the
         // flower without affecting the card layout.
