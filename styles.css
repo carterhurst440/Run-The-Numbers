@@ -28964,7 +28964,13 @@ body[data-ui="new"] .alr-col-date {
   font-size: 9px;
   color: #909070;
   letter-spacing: 0.12em;
+  /* Always rendered (with nbsp when empty) so the wager spot keeps the
+     same height whether or not a wager is on it — prevents the tile
+     from growing taller and shoving the flower upward when chips land. */
+  min-height: 1em;
+  line-height: 1;
 }
+.bloom-wager-spot-potential.is-empty { visibility: hidden; }
 .bloom-wager-spot.has-wager .bloom-wager-spot-potential {
   color: #fbe064;
 }

@@ -39965,7 +39965,7 @@ function bloomFlowerCard(c) {
       </div>
       <button type="button" class="bloom-wager-spot ${wagerCls}" data-bloom-wager-spot="${c.flower}" aria-label="Stack a chip on ${name}">
         <span class="bloom-wager-spot-amount">${wagerText}</span>
-        ${potential ? `<span class="bloom-wager-spot-potential">→ $${potential}</span>` : ''}
+        <span class="bloom-wager-spot-potential${potential ? '' : ' is-empty'}">${potential ? '→ $' + potential : '&nbsp;'}</span>
       </button>
     </div>
   `;
