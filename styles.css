@@ -28674,6 +28674,75 @@ body[data-ui="new"] .alr-col-date {
   100% { opacity: 0; transform: translateY(-68px) scale(0.92); }
 }
 
+/* ── Bloomed-preview cards on the flower-selection screen ────────── */
+.bloom-select-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  margin: 16px 0 8px;
+}
+.bloom-select-card {
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, outline-offset 0.2s ease;
+  outline: 2px solid transparent;
+  outline-offset: 0;
+}
+.bloom-select-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 22px rgba(0,0,0,0.18);
+}
+.bloom-select-card.picked {
+  outline-color: var(--bg-accent);
+  outline-offset: 3px;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 26px rgba(0,0,0,0.22);
+}
+/* The biome backdrop sits inside .bg-col-bg as an absolute overlay so
+   its ::before / ::after soil pseudo-elements paint over the card
+   gradient while the FlowerMorphs SVG remains in a sibling .bg-col-svg. */
+.bloom-select-biome {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.bloom-select-card .bg-col-svg {
+  z-index: 1;
+}
+/* Small odds chip in the top-right corner of each card. */
+.bloom-select-odds {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255,255,255,0.94);
+  border: 1px solid #cdc4af;
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #2a2a24;
+  z-index: 5;
+  pointer-events: none;
+}
+/* Hero-flower-of-the-region badge. */
+.bloom-select-hero {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: linear-gradient(90deg, #b8860b, #ffd700, #b8860b);
+  color: #2a1f00;
+  padding: 3px 8px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  border-radius: 3px;
+  z-index: 5;
+  pointer-events: none;
+}
+
 /* Winner highlight — gold pct + gilded name plaque + glow on the column. */
 .bloom-grow-cell.bloom-winner .bloom-grow-pct {
   color: #b8860b;

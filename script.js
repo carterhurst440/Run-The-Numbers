@@ -39876,6 +39876,7 @@ const bloomGame = {
 
 async function bloomRouteOpen() {
   try { bloomTeardownStages(); } catch (e) { /* noop on first open */ }
+  try { bloomTeardownSelectMorphs(); } catch (e) { /* noop on first open */ }
   bloomGame.state = 'idle';
   bloomGame.roundId = null;
   bloomGame.region = null;
@@ -39916,16 +39917,50 @@ function bloomViewIdle() {
 }
 
 function bloomFlowerCard(c, picked) {
-  const winPct = Number(c.win_pct) * 100;
-  const winColor = winPct >= 30 ? 'fof-good' : winPct >= 15 ? 'fof-mid' : 'fof-bad';
-  const payout = (c.win_pct > 0) ? (1 / Number(c.win_pct)).toFixed(2) : '—';
+  const bundleId = bloomBundleSpeciesId(c.flower);
+  const biomeId  = bloomSpeciesBiomeId(bundleId);
+  const biomes   = (window.BloomGrowth && window.BloomGrowth.SPECIES_BIOMES) || [];
+  const baseBiome = biomes.find(s => s.id === bundleId) || {};
+  const sci      = baseBiome.sci || '';
+  const accent   = c.accent_color || baseBiome.accent || '#888';
+  const name     = (c.name || '').toUpperCase();
+  const winPct   = Number(c.win_pct) * 100;
+  const payout   = (c.win_pct > 0) ? (1 / Number(c.win_pct)).toFixed(2) : '—';
   const pickedCls = picked === c.flower ? 'picked' : '';
-  const heroBadge = c.is_hero ? '<div style="font-size:10px;opacity:.7;letter-spacing:1px">HERO REGION</div>' : '';
+  const heroBadge = c.is_hero ? '<div class="bloom-select-hero">HERO REGION</div>' : '';
+  const oddsLabel = Number.isFinite(winPct) && winPct > 0
+    ? `<div class="bloom-select-odds">${winPct.toFixed(1)}% · ${payout}x</div>`
+    : '';
+  // bg-col layout (from bloom-growth.css) at full bloom: head holds the
+  // species name + scientific name (left) and "100%" (right). Stage area
+  // is a per-species biome backdrop with the bloomed FlowerMorphs SVG
+  // mounted into the .bg-flower-host slot. Footer shows "★ BLOOMED" +
+  // "+100 PTS" so the card reads as a preview of the winning state.
   return `
-    <div class="fof-hero-card ${pickedCls}" data-bloom-flower="${c.flower}" style="border-top: 3px solid ${c.accent_color || '#888'}">
-      <div class="fof-hero-name">${(c.name || '').toUpperCase()}</div>
-      <div class="fof-hero-win ${winColor}">${Number.isFinite(winPct) ? winPct.toFixed(1) + '%' : '—'}</div>
-      <div class="fof-hero-payout">payout ${payout}x</div>
+    <div class="bg-col bg-bloomed bloom-select-card ${pickedCls}" data-bloom-flower="${c.flower}" style="--bg-accent:${accent}">
+      <div class="bg-col-head" style="border-top:3px solid ${accent}">
+        <div class="bg-text">
+          <div class="bg-name" style="color:${accent}">${name}</div>
+          <div class="bg-sci">${sci}</div>
+        </div>
+        <div class="bg-pct" style="color:${accent}">100%</div>
+      </div>
+      <div class="bg-col-stage">
+        <div class="bg-col-bg">
+          <div class="bloom-select-biome biome biome-${biomeId}"></div>
+          <div class="bg-col-svg">
+            <div class="bg-flower-host" data-bloom-select-host="${c.flower}"></div>
+          </div>
+        </div>
+        <div class="bg-vbar-wrap">
+          <div class="bg-vbar-fill bg-bloomed" style="height:100%;background:${accent}"></div>
+        </div>
+      </div>
+      <div class="bg-col-foot">
+        <div class="bg-stage-label" style="color:${accent}">★ BLOOMED</div>
+        <div class="bg-score">+100 PTS</div>
+      </div>
+      ${oddsLabel}
       ${heroBadge}
     </div>
   `;
@@ -39953,7 +39988,7 @@ function bloomViewSelecting() {
       </div>
       <div class="fof-pick-panel">
         <div class="fof-pick-label">// PICK YOUR FLOWER</div>
-        <div class="fof-hero-grid">${cards}</div>
+        <div class="bg-row bloom-select-row">${cards}</div>
       </div>
       <div class="fof-wager-bar">
         <label class="fof-wager-label">WAGER $
@@ -40053,6 +40088,25 @@ function bloomAttachStageHandlers() {
       if (inp) inp.focus();
     });
   });
+
+  // Mount the bloomed-preview FlowerMorphs into each selection card.
+  // Re-render rebuilds the HTML so we tear down + remount each time.
+  bloomTeardownSelectMorphs();
+  if (bloomGame.state === 'selecting' && window.FlowerMorphs && window.FlowerMorphs.Mount) {
+    for (const c of bloomGame.candidates) {
+      const host = document.querySelector(`[data-bloom-select-host="${c.flower}"]`);
+      if (!host) continue;
+      try {
+        const m = window.FlowerMorphs.Mount({
+          container: host,
+          species:   bloomBundleSpeciesId(c.flower),
+          stage:     10,            // full BLOOM preview
+          baseline:  false,
+        });
+        _bloomSelectMorphs.push(m);
+      } catch (e) { console.warn('[bloom] select-card mount failed', c.flower, e); }
+    }
+  }
 
   const wagerInput = document.getElementById('bloom-wager-input');
   if (wagerInput) {
