@@ -28710,6 +28710,15 @@ body[data-ui="new"] .alr-col-date {
   margin-bottom: 0;
 }
 
+/* Kill the bouncy stage-transition that the FlowerMorphs bundle sets
+   inline on its Plant group (cubic-bezier(.34,1.2,.55,1.05) — y1=1.2
+   y2=1.05, so the SVG attributes overshoot on every stage change,
+   producing a visible pulse). Override with a flat ease-out so the
+   morph just shifts cleanly between stages. */
+.bloom-pick-flower svg > g {
+  transition: all 0.32s ease-out !important;
+}
+
 /* ── Flower-selection tiles ─ bare bloomed SVG + win % + chip rack ─ */
 .bloom-pick-row {
   display: grid;
@@ -28738,23 +28747,8 @@ body[data-ui="new"] .alr-col-date {
   outline-offset: 4px;
   transform: translateY(-4px);
 }
-.bloom-pick-tile.is-hero::before {
-  content: 'HERO REGION';
-  position: absolute;
-  top: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(90deg, #b8860b, #ffd700, #b8860b);
-  color: #2a1f00;
-  padding: 2px 8px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  border-radius: 3px;
-  white-space: nowrap;
-  z-index: 4;
-}
+/* HERO REGION badge removed — the favored flower is already visible in
+   the win % column, so the extra label was redundant. */
 .bloom-pick-flower {
   width: 100%;
   max-width: 280px;
