@@ -28806,32 +28806,42 @@ body[data-ui="new"] .alr-col-date {
 }
 
 /* ── State-aware tile content ──────────────────────────────────────
-   - Wager spots stay visible during the race so you can see where
-     your money is. Empty (no-wager) spots are hidden once the race
-     starts so we're not advertising "TAP TO BET" while it's running.
-   - Live score readout appears below the wager spot during
-     resolving/resolved.
-   - Tiles with wagers get an accent-color ring so they stand out. */
-.bloom-pick-tile .bloom-race-score { display: none; }
+   Tile sections are always present in the DOM so all five flowers
+   keep identical heights and the horizontal alignment never shifts.
+   The score readout uses visibility (not display) so its slot is
+   reserved during selecting but invisible until the race starts.
+   The wager region is the bottom-most slot in every state. */
+.bloom-pick-tile .bloom-race-score {
+  display: inline-flex;
+  visibility: hidden;            /* reserves space during selecting */
+}
 .bloom-selecting[data-bloom-state="resolving"] .bloom-race-score,
 .bloom-selecting[data-bloom-state="resolved"]  .bloom-race-score {
-  display: inline-flex;
+  visibility: visible;
 }
-.bloom-selecting[data-bloom-state="resolving"] .bloom-wager-spot:not(.has-wager),
-.bloom-selecting[data-bloom-state="resolved"]  .bloom-wager-spot:not(.has-wager) {
-  display: none;
-}
-/* Read-only state for the wager spot during the race. */
+
+/* Wager spots stay visible across every state. During the race they
+   become read-only — empty spots show a muted "$0" so the layout
+   doesn't shift and we're not advertising "TAP TO BET" while it's
+   running. */
 .bloom-selecting[data-bloom-state="resolving"] .bloom-wager-spot,
 .bloom-selecting[data-bloom-state="resolved"]  .bloom-wager-spot {
   cursor: default;
   pointer-events: none;
 }
+.bloom-selecting[data-bloom-state="resolving"] .bloom-wager-spot:not(.has-wager),
+.bloom-selecting[data-bloom-state="resolved"]  .bloom-wager-spot:not(.has-wager) {
+  background: rgba(255,255,255,0.02);
+  border-color: rgba(255,255,255,0.08);
+  border-style: solid;
+  color: #555;
+}
 .bloom-selecting[data-bloom-state="resolving"] .bloom-wager-spot:hover,
 .bloom-selecting[data-bloom-state="resolved"]  .bloom-wager-spot:hover {
-  background: rgba(255,255,255,0.04);
-  border-color: rgba(232,160,32,0.35);
-  color: #909070;
+  /* suppress hover styles during read-only race state */
+  background: inherit;
+  border-color: inherit;
+  color: inherit;
 }
 
 /* Wagered-tile highlight — accent-color outline + drop-shadow so the

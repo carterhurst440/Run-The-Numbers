@@ -39938,6 +39938,12 @@ function bloomFlowerCard(c) {
   // CSS hides the wrong one based on the .fof-selecting[data-bloom-state]
   // ancestor.
   const hasWagerCls = wagerAmt > 0 ? 'has-wager' : '';
+  const inRace = bloomGame.state === 'resolving' || bloomGame.state === 'resolved';
+  // Empty wager spot text changes by state: prompt during selecting,
+  // muted "$0" during race so the slot keeps its footprint without
+  // telling the user to do something they can't.
+  const emptyWagerText = inRace ? '$0' : 'TAP TO BET';
+  const wagerText = wagerAmt > 0 ? '$' + wagerAmt : emptyWagerText;
   return `
     <div class="bloom-pick-tile ${heroCls} ${hasWagerCls}" data-bloom-flower="${c.flower}" style="--bloom-accent:${accent}">
       <div class="bloom-pick-stage">
@@ -39953,14 +39959,14 @@ function bloomFlowerCard(c) {
           <span class="bloom-pick-payout">${payout}x payout</span>
         </div>
       </div>
-      <button type="button" class="bloom-wager-spot ${wagerCls}" data-bloom-wager-spot="${c.flower}" aria-label="Stack a chip on ${name}">
-        <span class="bloom-wager-spot-amount">${wagerAmt > 0 ? '$' + wagerAmt : 'TAP TO BET'}</span>
-        ${potential ? `<span class="bloom-wager-spot-potential">→ $${potential}</span>` : ''}
-      </button>
       <div class="bloom-race-score" data-bloom-flower-score="${c.flower}">
         <span class="bloom-race-score-pct">0%</span>
         <span class="bloom-flower-toast" data-bloom-flower-toast="${c.flower}"></span>
       </div>
+      <button type="button" class="bloom-wager-spot ${wagerCls}" data-bloom-wager-spot="${c.flower}" aria-label="Stack a chip on ${name}">
+        <span class="bloom-wager-spot-amount">${wagerText}</span>
+        ${potential ? `<span class="bloom-wager-spot-potential">→ $${potential}</span>` : ''}
+      </button>
     </div>
   `;
 }
@@ -40468,13 +40474,12 @@ async function bloomPlayEvents(details) {
         const barEl = document.querySelector(`[data-bloom-flower-bar="${se.slug}"]`);
         if (barEl) barEl.style.height = Math.min(100, newScore) + '%';
 
-        if (se.morph) {
-          if (newStage !== se.currentStage) {
-            try { se.morph.transitionTo(newStage); } catch (e) { /* noop */ }
-            se.currentStage = newStage;
-          } else if (newScore > se.prevScore) {
-            try { se.morph.swell(); } catch (e) { /* noop */ }
-          }
+        if (se.morph && newStage !== se.currentStage) {
+          // setStage avoids the swell pulse that transitionTo fires, so
+          // the flowers don't bounce on each draw — they just morph to
+          // the new stage cleanly.
+          try { se.morph.setStage(newStage); } catch (e) { /* noop */ }
+          se.currentStage = newStage;
         }
 
         const rawDelta = Number(effects[se.slug] ?? 0);
