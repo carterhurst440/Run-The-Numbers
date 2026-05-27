@@ -39939,8 +39939,13 @@ function bloomFlowerCard(c) {
   // ancestor.
   return `
     <div class="bloom-pick-tile ${heroCls}" data-bloom-flower="${c.flower}" style="--bloom-accent:${accent}">
-      <div class="bloom-pick-flower" data-bloom-select-host="${c.flower}"></div>
       <div class="bloom-flower-toast" data-bloom-flower-toast="${c.flower}"></div>
+      <div class="bloom-pick-stage">
+        <div class="bloom-pick-vbar">
+          <div class="bloom-pick-vbar-fill" data-bloom-flower-bar="${c.flower}" style="background:${accent}"></div>
+        </div>
+        <div class="bloom-pick-flower" data-bloom-select-host="${c.flower}"></div>
+      </div>
       <div class="bloom-pick-meta">
         <div class="bloom-pick-name" style="color:${accent}">${name}</div>
         <div class="bloom-pick-odds">
@@ -40140,6 +40145,24 @@ function bloomAttachStageHandlers() {
           prevScore:    initialScore,
         });
       } catch (e) { console.warn('[bloom] morph mount failed', c.flower, e); }
+    }
+
+    // Resolved state re-render: backfill the vbar height + score text
+    // from the final scores so the post-race state sticks.
+    if (bloomGame.state === 'resolved') {
+      for (const slug of Object.keys(finalScores)) {
+        const s = Math.min(100, Number(finalScores[slug]) || 0);
+        const bar = document.querySelector(`[data-bloom-flower-bar="${slug}"]`);
+        if (bar) bar.style.height = s + '%';
+        const pct = document.querySelector(`[data-bloom-flower-score="${slug}"] .bloom-race-score-pct`);
+        if (pct) pct.textContent = s + '%';
+      }
+      // Persist the winner gold glow across the resolved re-render.
+      const winnerSlug = bloomGame.resolution && bloomGame.resolution.winner_flower;
+      if (winnerSlug) {
+        const tile = document.querySelector(`[data-bloom-flower="${winnerSlug}"]`);
+        if (tile) tile.classList.add('bloom-winner');
+      }
     }
   }
 
@@ -40439,8 +40462,10 @@ async function bloomPlayEvents(details) {
         const newScore = Number(scores[se.slug] ?? se.prevScore);
         const newStage = bloomScoreToStage(newScore);
 
-        const scoreEl = document.querySelector(`[data-bloom-flower-score="${se.slug}"]`);
+        const scoreEl = document.querySelector(`[data-bloom-flower-score="${se.slug}"] .bloom-race-score-pct`);
         if (scoreEl) scoreEl.textContent = `${newScore}%`;
+        const barEl = document.querySelector(`[data-bloom-flower-bar="${se.slug}"]`);
+        if (barEl) barEl.style.height = Math.min(100, newScore) + '%';
 
         if (se.morph) {
           if (newStage !== se.currentStage) {

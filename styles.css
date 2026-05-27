@@ -28644,10 +28644,10 @@ body[data-ui="new"] .alr-col-date {
   pointer-events: none;
 }
 
-/* +N / -N toast — positioned inside each flat cell (which is relative). */
+/* +N / -N toast — pinned to the top of the tile, compact pill style. */
 .bloom-flower-toast {
   position: absolute;
-  top: 30%;
+  top: 6px;
   left: 50%;
   transform: translateX(-50%);
   pointer-events: none;
@@ -28655,23 +28655,61 @@ body[data-ui="new"] .alr-col-date {
   text-align: center;
 }
 .bloom-toast-point {
-  display: block;
+  display: inline-block;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-weight: 800;
-  font-size: 22px;
-  letter-spacing: 0.5px;
-  text-shadow: 0 2px 6px rgba(0,0,0,0.55),
-               0 0 14px rgba(255,255,255,0.4);
-  animation: bloom-toast-rise 1.6s ease-out forwards;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid currentColor;
+  animation: bloom-toast-rise 1.2s ease-out forwards;
   white-space: nowrap;
 }
-.bloom-toast-point.gain { color: #2f8a30; }
-.bloom-toast-point.loss { color: #c43030; }
+.bloom-toast-point.gain { color: #84e85a; }
+.bloom-toast-point.loss { color: #ff7a5a; }
 @keyframes bloom-toast-rise {
-  0%   { opacity: 0; transform: translateY(10px) scale(0.6); }
-  15%  { opacity: 1; transform: translateY(-4px) scale(1.18); }
-  35%  { opacity: 1; transform: translateY(-18px) scale(1); }
-  100% { opacity: 0; transform: translateY(-68px) scale(0.92); }
+  0%   { opacity: 0; transform: translateY(6px)  scale(0.85); }
+  18%  { opacity: 1; transform: translateY(0)    scale(1.05); }
+  35%  { opacity: 1; transform: translateY(-2px) scale(1); }
+  100% { opacity: 0; transform: translateY(-22px) scale(0.92); }
+}
+
+/* Per-tile vertical accent bar — sits to the LEFT of the flower SVG,
+   fills bottom-up with the current score (driven by bloomPlayEvents).
+   Always present in the DOM so the layout doesn't shift between
+   selecting/resolving; height starts at 0%. */
+.bloom-pick-stage {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  max-width: 280px;
+}
+.bloom-pick-vbar {
+  width: 6px;
+  flex: 0 0 6px;
+  align-self: stretch;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column-reverse;
+}
+.bloom-pick-vbar-fill {
+  width: 100%;
+  height: 0%;
+  border-radius: 3px;
+  transition: height 0.45s cubic-bezier(.34,1,.36,1),
+              box-shadow 0.4s ease;
+}
+.bloom-pick-tile.bloom-winner .bloom-pick-vbar-fill {
+  box-shadow: 0 0 10px var(--bloom-accent, gold);
+}
+.bloom-pick-stage .bloom-pick-flower {
+  flex: 1 1 auto;
+  margin-bottom: 0;
 }
 
 /* ── Flower-selection tiles ─ bare bloomed SVG + win % + chip rack ─ */
