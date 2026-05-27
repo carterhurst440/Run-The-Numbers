@@ -3580,6 +3580,21 @@
             </header>
             <div id="bloom-stage" class="fof-stage" data-state="idle"></div>
           </div>
+          <!-- Sticky chip rack — only visible while bloomGame.state === 'selecting'.
+               Matches RTN's pattern: lives inside the route-view as the last child,
+               position:sticky bottom:0 inside the view's scroll context. -->
+          <div class="chip-bar chip-rack bloom-chip-bar" id="bloom-chipBar" aria-label="BLOOM bet controls" hidden>
+            <div class="chip-selector-row chip-rack__row">
+              <button type="button" class="chip-rack-edit chip-rack__edit" id="bloom-chipRackEdit">Edit</button>
+              <div class="chip-selector chip-rack__selector bloom-chip-selector"
+                   id="bloom-chipSelector"
+                   role="radiogroup" aria-label="Choose chip denomination"></div>
+            </div>
+            <div class="chip-actions chip-rack__actions">
+              <button type="button" class="primary chip-rack__button" id="bloom-clearBetsBtn">Clear</button>
+              <button type="button" class="deal chip-rack__button chip-rack__button--primary" id="bloom-begin-btn" disabled>⬡ BEGIN ROUND</button>
+            </div>
+          </div>
         </section>
 
         <section id="color-scheme-view" class="route-view app-page cs-view" hidden aria-labelledby="cs-view-title">
