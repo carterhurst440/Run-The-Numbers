@@ -39869,10 +39869,16 @@ const bloomGame = {
   roundId: null,
   region: null,             // { slug, name, identity, hero_flower }
   candidates: [],           // [{ flower, name, accent_color, bloom_target, win_pct, is_hero }]
-  pickedFlower: null,
-  wager: 0,
+  wagers: {},               // { flower_slug: amount, ... } — multi-flower wagers
   resolution: null,         // payload from bloom_lock_round
 };
+
+// Sum of all chip stacks across every flower's wager spot.
+function bloomTotalWager() {
+  let t = 0;
+  for (const k in bloomGame.wagers) t += Number(bloomGame.wagers[k]) || 0;
+  return t;
+}
 
 async function bloomRouteOpen() {
   try { bloomTeardownStages(); } catch (e) { /* noop on first open */ }
@@ -39881,8 +39887,7 @@ async function bloomRouteOpen() {
   bloomGame.roundId = null;
   bloomGame.region = null;
   bloomGame.candidates = [];
-  bloomGame.pickedFlower = null;
-  bloomGame.wager = 0;
+  bloomGame.wagers = {};
   bloomGame.resolution = null;
   bloomRefreshBalance();
   bloomRenderStage();
@@ -39916,19 +39921,23 @@ function bloomViewIdle() {
   `;
 }
 
-function bloomFlowerCard(c, picked) {
-  const accent    = c.accent_color || '#888';
-  const name      = (c.name || '').toUpperCase();
-  const winPct    = Number(c.win_pct) * 100;
-  const payout    = (c.win_pct > 0) ? (1 / Number(c.win_pct)).toFixed(2) : '—';
-  const pickedCls = picked === c.flower ? 'picked' : '';
-  const heroCls   = c.is_hero ? 'is-hero' : '';
-  // Bare flower tile — no card frame, no biome, no header / footer. Just
-  // the bloomed FlowerMorphs SVG (mounted in bloomAttachStageHandlers
-  // into [data-bloom-select-host]) with the species name + win % + payout
-  // shown below. Accent color drives the selected-state outline.
+function bloomFlowerCard(c) {
+  const accent     = c.accent_color || '#888';
+  const name       = (c.name || '').toUpperCase();
+  const winPct     = Number(c.win_pct) * 100;
+  const payout     = (c.win_pct > 0) ? (1 / Number(c.win_pct)).toFixed(2) : '—';
+  const heroCls    = c.is_hero ? 'is-hero' : '';
+  const wagerAmt   = Number((bloomGame.wagers || {})[c.flower] || 0);
+  const wagerCls   = wagerAmt > 0 ? 'has-wager' : '';
+  const potential  = (winPct > 0 && wagerAmt > 0) ? (wagerAmt / Number(c.win_pct)).toFixed(0) : null;
+  // Bare flower tile — no card frame, no biome, no header / footer.
+  // Below the SVG: name + win % + payout, then a wager spot that
+  // accumulates chips when the user clicks on it (uses the currently
+  // selected chip denomination from the sticky chip rack). Click handler
+  // is on the wager spot itself, not the tile — the flower SVG above
+  // stays a non-interactive preview.
   return `
-    <div class="bloom-pick-tile ${pickedCls} ${heroCls}" data-bloom-flower="${c.flower}" style="--bloom-accent:${accent}">
+    <div class="bloom-pick-tile ${heroCls}" data-bloom-flower="${c.flower}" style="--bloom-accent:${accent}">
       <div class="bloom-pick-flower" data-bloom-select-host="${c.flower}"></div>
       <div class="bloom-pick-meta">
         <div class="bloom-pick-name" style="color:${accent}">${name}</div>
@@ -39937,24 +39946,22 @@ function bloomFlowerCard(c, picked) {
           <span class="bloom-pick-payout">${payout}x payout</span>
         </div>
       </div>
+      <button type="button" class="bloom-wager-spot ${wagerCls}" data-bloom-wager-spot="${c.flower}" aria-label="Stack a chip on ${name}">
+        <span class="bloom-wager-spot-amount">${wagerAmt > 0 ? '$' + wagerAmt : 'TAP TO BET'}</span>
+        ${potential ? `<span class="bloom-wager-spot-potential">→ $${potential}</span>` : ''}
+      </button>
     </div>
   `;
 }
 
 function bloomViewSelecting() {
   const region = bloomGame.region || {};
-  const cards = bloomGame.candidates.map(c => bloomFlowerCard(c, bloomGame.pickedFlower)).join('');
-
-  const flowerOk = !!bloomGame.pickedFlower;
-  const wagerOk  = Number(bloomGame.wager) > 0 && Number(bloomGame.wager) <= (currentProfile?.credits ?? 0);
-  const beginDisabled = !(flowerOk && wagerOk) ? 'disabled' : '';
-  const picked = bloomGame.candidates.find(c => c.flower === bloomGame.pickedFlower);
-  const pickedWinPct = picked ? Number(picked.win_pct) : null;
-  const potentialPayout = (pickedWinPct && bloomGame.wager > 0)
-    ? (Number(bloomGame.wager) / pickedWinPct).toFixed(2) : '—';
-
+  const cards = bloomGame.candidates.map(c => bloomFlowerCard(c)).join('');
+  // Chip rack now lives outside #bloom-stage (persistent inside
+  // #bloom-view) so we don't render it here — bloomAttachStageHandlers
+  // toggles its visibility and populates the chip selector each render.
   return `
-    <div class="fof-selecting">
+    <div class="fof-selecting bloom-selecting">
       <div class="fof-opp-panel">
         <div class="fof-opp-label">// REGION</div>
         <div class="fof-opp-name">${(region.name || '').toUpperCase()}</div>
@@ -39962,35 +39969,8 @@ function bloomViewSelecting() {
         <div style="font-size:11px;opacity:.5;margin-top:8px">Hero flower: ${region.hero_flower || '—'}</div>
       </div>
       <div class="fof-pick-panel bloom-pick-panel">
-        <div class="fof-pick-label">// PICK YOUR FLOWER</div>
+        <div class="fof-pick-label">// STACK CHIPS ON ANY FLOWER · BET MULTIPLE TO HEDGE</div>
         <div class="bloom-pick-row">${cards}</div>
-      </div>
-      <div class="bloom-wager-bar">
-        <div class="bloom-wager-readout">
-          <div class="bloom-wager-readout-row">
-            <span class="bloom-wager-kicker">Picked</span>
-            <strong>${bloomGame.pickedFlower ? bloomGame.pickedFlower.toUpperCase() : '—'}</strong>
-          </div>
-          <div class="bloom-wager-readout-row">
-            <span class="bloom-wager-kicker">Wager</span>
-            <strong class="bloom-wager-amount">$${Number(bloomGame.wager) || 0}</strong>
-          </div>
-          <div class="bloom-wager-readout-row">
-            <span class="bloom-wager-kicker">Potential</span>
-            <strong>$${potentialPayout}</strong>
-          </div>
-        </div>
-        <div class="chip-bar chip-rack bloom-chip-bar" id="bloom-chipBar" aria-label="BLOOM chip rack">
-          <div class="chip-selector-row chip-rack__row">
-            <button type="button" class="chip-rack-edit chip-rack__edit" id="bloom-chipRackEdit">Edit</button>
-            <div class="chip-selector chip-rack__selector bloom-chip-selector" id="bloom-chipSelector"
-                 role="radiogroup" aria-label="Choose chip denomination"></div>
-          </div>
-          <div class="chip-actions chip-rack__actions">
-            <button type="button" class="primary chip-rack__button" id="bloom-clearBetsBtn">Clear</button>
-            <button type="button" class="deal chip-rack__button chip-rack__button--primary" id="bloom-begin-btn" ${beginDisabled}>⬡ BEGIN ROUND</button>
-          </div>
-        </div>
       </div>
     </div>
   `;
@@ -40024,7 +40004,7 @@ function bloomViewResolving() {
         </div>
         <div class="bloom-header-slot bloom-header-slot-right">
           <div class="bloom-header-kicker">YOUR PICK</div>
-          <div class="bloom-resolving-picked"><strong>${(bloomGame.pickedFlower || '').toUpperCase()}</strong></div>
+          <div class="bloom-resolving-picked"><strong>$${bloomTotalWager()} STACKED</strong></div>
         </div>
       </div>
       <div class="bloom-grow-stage" id="bloom-grow-stage">
@@ -40036,27 +40016,34 @@ function bloomViewResolving() {
 }
 
 function bloomViewResolved() {
-  const r = bloomGame.resolution;
+  const r = bloomGame.resolution || {};
   const won  = r.round_winner === 'hero';
   const tone = won ? 'win' : 'loss';
   const headline = won ? 'BLOOMED!' : 'WITHERED';
-  const profitNum = Number(r.net_profit);
+  const profitNum = Number(r.net_profit) || 0;
   const profitDisplay = (profitNum >= 0 ? '+$' : '-$') + Math.abs(profitNum).toFixed(2);
-  const pickedName = (bloomGame.candidates.find(c => c.flower === r.picked_flower)?.name) || r.picked_flower;
   const winnerName = (bloomGame.candidates.find(c => c.flower === r.winner_flower)?.name) || r.winner_flower;
+  // Per-stack breakdown: { flower → wager } from the resolution payload.
+  const stacks = r.wagers || {};
+  const stackRows = Object.keys(stacks).map(slug => {
+    const cand = bloomGame.candidates.find(c => c.flower === slug);
+    const name = (cand?.name || slug).toUpperCase();
+    const amt = Number(stacks[slug]).toFixed(2);
+    const isWinner = slug === r.winner_flower;
+    return `<tr${isWinner ? ' class="bloom-stack-won"' : ''}><td>${name}${isWinner ? ' ★' : ''}</td><td>$${amt}</td></tr>`;
+  }).join('');
   return `
     <div class="fof-resolved fof-resolved-${tone}">
       <div class="fof-resolved-headline">${headline}</div>
       <table class="fof-resolved-table">
         <tr><td>Region</td><td>${(bloomGame.region?.name || r.region || '').toUpperCase()}</td></tr>
-        <tr><td>Picked</td><td>${(pickedName || '').toUpperCase()}</td></tr>
         <tr><td>Bloomed</td><td>${(winnerName || '').toUpperCase()}</td></tr>
-        <tr><td>Picked win %</td><td>${(Number(r.picked_win_pct) * 100).toFixed(2)}%</td></tr>
-        <tr><td>Wagered</td><td>$${Number(r.total_wagered).toFixed(2)}</td></tr>
+        <tr><td>Total wagered</td><td>$${Number(r.total_wagered).toFixed(2)}</td></tr>
         <tr><td>Returned</td><td>$${Number(r.total_returned).toFixed(2)}</td></tr>
         <tr><td>Net</td><td><strong>${profitDisplay}</strong></td></tr>
         <tr><td>New balance</td><td>$${Number(r.new_balance).toFixed(2)}</td></tr>
       </table>
+      ${stackRows ? `<table class="fof-resolved-table" style="margin-top:8px"><thead><tr><th colspan="2">Your stacks</th></tr></thead><tbody>${stackRows}</tbody></table>` : ''}
       <button type="button" class="fof-btn fof-btn-primary" id="bloom-again-btn">START NEW ROUND</button>
     </div>
   `;
@@ -40066,15 +40053,22 @@ function bloomAttachStageHandlers() {
   const startBtn = document.getElementById('bloom-start-btn');
   if (startBtn) startBtn.addEventListener('click', bloomStartRound);
 
-  const beginBtn = document.getElementById('bloom-begin-btn');
-  if (beginBtn) beginBtn.addEventListener('click', bloomBeginRound);
-
   const againBtn = document.getElementById('bloom-again-btn');
   if (againBtn) againBtn.addEventListener('click', () => { void bloomRouteOpen(); });
 
-  document.querySelectorAll('[data-bloom-flower]').forEach(card => {
-    card.addEventListener('click', () => {
-      bloomGame.pickedFlower = card.dataset.bloomFlower;
+  // Per-tile wager spots — click adds one chip of the currently selected
+  // denomination (from the global chip rack) to wagers[flower]. Cap the
+  // total across all stacks at currentProfile.credits.
+  document.querySelectorAll('[data-bloom-wager-spot]').forEach(spot => {
+    spot.addEventListener('click', () => {
+      const slug = spot.dataset.bloomWagerSpot;
+      const denom = Number(selectedChip) || 0;
+      if (!slug || denom <= 0) return;
+      const cap = Number(currentProfile?.credits ?? Infinity);
+      const remaining = Math.max(0, cap - bloomTotalWager());
+      if (remaining <= 0) return;
+      const add = Math.min(denom, remaining);
+      bloomGame.wagers[slug] = Number(bloomGame.wagers[slug] || 0) + add;
       bloomRenderStage();
     });
   });
@@ -40098,49 +40092,75 @@ function bloomAttachStageHandlers() {
     }
   }
 
-  // Chip rack — only on the selection screen. Each chip click ADDS its
-  // value to the running wager (no "selected chip" state needed since
-  // BLOOM bets a single total on one flower). Clear resets to 0. Edit
-  // opens the shared chip-editor modal.
+  // Sync the persistent (sticky) chip rack with the current state.
+  const chipBar = document.getElementById('bloom-chipBar');
+  if (chipBar) chipBar.hidden = bloomGame.state !== 'selecting';
   if (bloomGame.state === 'selecting') {
-    bloomRenderChipRack();
-    const clearBtn = document.getElementById('bloom-clearBetsBtn');
-    if (clearBtn) clearBtn.addEventListener('click', () => {
-      bloomGame.wager = 0;
-      bloomRenderStage();
-    });
-    const editBtn = document.getElementById('bloom-chipRackEdit');
-    if (editBtn) editBtn.addEventListener('click', () => {
-      if (typeof openChipEditorModal === 'function') openChipEditorModal();
-    });
+    bloomEnsureChipRack();
+    bloomUpdateBeginBtn();
   }
-
 }
 
-// Render the chip rack inside #bloom-chipSelector. Click on a chip ADDS
-// its value to bloomGame.wager (no "selected chip" semantics — BLOOM
-// bets a single total on a single picked flower). Re-renders the whole
-// selection stage so the wager readout + begin-disabled flip update.
-function bloomRenderChipRack() {
+// One-time wiring for the persistent chip rack at the bottom of
+// #bloom-view. Populates the chip selector, attaches handlers to the
+// Edit / Clear / Begin buttons, and registers chip-click handlers that
+// set the GLOBAL `selectedChip` (RTN semantics — chip click chooses
+// denomination, tile click stacks one of that denomination).
+let _bloomChipRackWired = false;
+function bloomEnsureChipRack() {
+  bloomRenderChipRackButtons();
+  if (_bloomChipRackWired) return;
+  _bloomChipRackWired = true;
+
+  const editBtn = document.getElementById('bloom-chipRackEdit');
+  if (editBtn) editBtn.addEventListener('click', () => {
+    if (typeof openChipEditorModal === 'function') openChipEditorModal();
+  });
+
+  const clearBtn = document.getElementById('bloom-clearBetsBtn');
+  if (clearBtn) clearBtn.addEventListener('click', () => {
+    bloomGame.wagers = {};
+    bloomRenderStage();
+  });
+
+  const beginBtn = document.getElementById('bloom-begin-btn');
+  if (beginBtn) beginBtn.addEventListener('click', bloomBeginRound);
+}
+
+function bloomRenderChipRackButtons() {
   const el = document.getElementById('bloom-chipSelector');
   if (!el || !Array.isArray(chipDenominations)) return;
   el.innerHTML = chipDenominations.map(value => `
-    <button type="button" class="chip-choice"
+    <button type="button" class="chip-choice${value === selectedChip ? ' active' : ''}"
       data-value="${value}"
       data-tone="${typeof getRunTheNumbersChipRackToneIndex === 'function' ? getRunTheNumbersChipRackToneIndex(value) : 0}"
       role="radio"
-      aria-checked="false">${value}</button>
+      aria-checked="${value === selectedChip ? 'true' : 'false'}">${value}</button>
   `).join('');
   el.querySelectorAll('.chip-choice').forEach(btn => {
     btn.addEventListener('click', () => {
       const val = Number(btn.dataset.value);
       if (!Number.isFinite(val) || val <= 0) return;
-      // Cap at the user's credits so they can't over-bet via chip stacking.
-      const cap = Number(currentProfile?.credits ?? Infinity);
-      bloomGame.wager = Math.min(cap, Number(bloomGame.wager || 0) + val);
-      bloomRenderStage();
+      if (typeof setSelectedChip === 'function') setSelectedChip(val);
+      bloomUpdateChipRackActiveClass();
     });
   });
+}
+
+function bloomUpdateChipRackActiveClass() {
+  document.querySelectorAll('#bloom-chipSelector .chip-choice').forEach(btn => {
+    const isSel = Number(btn.dataset.value) === selectedChip;
+    btn.classList.toggle('active', isSel);
+    btn.setAttribute('aria-checked', isSel ? 'true' : 'false');
+  });
+}
+
+function bloomUpdateBeginBtn() {
+  const beginBtn = document.getElementById('bloom-begin-btn');
+  if (!beginBtn) return;
+  const total = bloomTotalWager();
+  const ok = total > 0 && total <= (Number(currentProfile?.credits ?? 0));
+  beginBtn.disabled = !ok;
 }
 
 async function bloomStartRound() {
@@ -40152,8 +40172,7 @@ async function bloomStartRound() {
     bloomGame.roundId    = data.round_id;
     bloomGame.region     = data.region;
     bloomGame.candidates = data.candidates || [];
-    bloomGame.pickedFlower = null;
-    bloomGame.wager      = 0;
+    bloomGame.wagers     = {};
     bloomGame.state      = 'selecting';
     bloomRenderStage();
   } catch (e) {
@@ -40162,16 +40181,21 @@ async function bloomStartRound() {
 }
 
 async function bloomBeginRound() {
-  if (!bloomGame.pickedFlower || !(bloomGame.wager > 0)) return;
-  const flowerChoice = bloomGame.pickedFlower;
-  const wager = bloomGame.wager;
+  // Build the wager map: drop zero/empty stacks, coerce to numbers.
+  const wagers = {};
+  for (const k in bloomGame.wagers) {
+    const v = Number(bloomGame.wagers[k]);
+    if (Number.isFinite(v) && v > 0) wagers[k] = v;
+  }
+  const totalWager = Object.values(wagers).reduce((s, v) => s + v, 0);
+  if (!totalWager) return;
+
   bloomGame.state = 'resolving';
   bloomRenderStage();
   try {
     const { data, error } = await supabase.rpc('bloom_lock_round', {
       p_round_id: bloomGame.roundId,
-      p_flower:   flowerChoice,
-      p_wager:    wager,
+      p_wagers:   wagers,
     });
     if (error) throw error;
     bloomGame.resolution = data;

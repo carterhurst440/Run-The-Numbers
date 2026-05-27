@@ -28769,50 +28769,78 @@ body[data-ui="new"] .alr-col-date {
   text-transform: uppercase;
 }
 
-/* ── Wager bar with readout + chip rack (selection screen) ─────────── */
-.bloom-wager-bar {
+/* ── Per-tile wager spot (chip stack lives below each flower) ─────── */
+.bloom-wager-spot {
+  margin-top: 12px;
+  min-width: 120px;
+  padding: 8px 14px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  background: rgba(255,255,255,0.04);
+  border: 1px dashed rgba(232,160,32,0.35);
+  border-radius: 3px;
+  color: #909070;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.bloom-wager-spot:hover {
+  border-color: rgba(232,160,32,0.7);
+  background: rgba(232,160,32,0.08);
+  color: #e8a020;
+}
+.bloom-wager-spot:active { transform: scale(0.97); }
+.bloom-wager-spot.has-wager {
+  border-style: solid;
+  border-color: var(--bloom-accent, #e8a020);
+  background: rgba(255,255,255,0.06);
+  color: var(--bloom-accent, #e8a020);
+  box-shadow: 0 0 12px rgba(232,160,32,0.18);
+}
+.bloom-wager-spot-amount {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+.bloom-wager-spot-potential {
+  font-size: 9px;
+  color: #909070;
+  letter-spacing: 0.12em;
+}
+.bloom-wager-spot.has-wager .bloom-wager-spot-potential {
+  color: #fbe064;
+}
+
+/* ── Sticky chip rack pinned to the bottom of #bloom-view (RTN-style) */
+#bloom-view {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+#bloom-view > .fof-page { flex: 1; }
+body[data-ui="new"] #bloom-view #bloom-chipBar {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 14px 18px;
-  background: #15151c;
-  border: 1px solid #2a2a30;
-  border-radius: 4px;
-  margin-top: 16px;
-  flex-wrap: wrap;
-}
-.bloom-wager-readout {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  color: #ddd;
-}
-.bloom-wager-readout-row {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 13px;
-}
-.bloom-wager-kicker {
-  font-size: 9px;
-  letter-spacing: 0.18em;
-  color: #909070;
-  text-transform: uppercase;
-}
-.bloom-wager-amount {
-  color: #fbe064;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── BLOOM chip rack (canonical pattern, amber accent) ─────────────── */
-body[data-ui="new"] #bloom-chipBar {
-  display: flex;
-  align-items: center;
   gap: 14px;
+  padding: 0.55rem 0.9rem 0.7rem;
+  background: #0d0d0b;
+  border-top: 1px solid #2a2a24;
+  box-shadow: 0 -10px 22px rgba(0,0,0,0.45);
   flex-wrap: wrap;
 }
+body[data-ui="new"] #bloom-view #bloom-chipBar[hidden] { display: none; }
 body[data-ui="new"] #bloom-chipBar .chip-rack__row {
   display: flex;
   align-items: center;
