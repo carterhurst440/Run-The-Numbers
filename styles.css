@@ -28674,73 +28674,254 @@ body[data-ui="new"] .alr-col-date {
   100% { opacity: 0; transform: translateY(-68px) scale(0.92); }
 }
 
-/* ── Bloomed-preview cards on the flower-selection screen ────────── */
-.bloom-select-row {
+/* ── Flower-selection tiles ─ bare bloomed SVG + win % + chip rack ─ */
+.bloom-pick-row {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 16px;
-  margin: 16px 0 8px;
+  gap: 18px;
+  margin: 18px 0 24px;
+  align-items: end;
 }
-.bloom-select-card {
+.bloom-pick-tile {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, outline-offset 0.2s ease;
-  outline: 2px solid transparent;
-  outline-offset: 0;
+  padding: 8px 4px 12px;
+  border-radius: 4px;
+  transition: transform 0.2s ease, background 0.2s ease;
 }
-.bloom-select-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 22px rgba(0,0,0,0.18);
+.bloom-pick-tile:hover {
+  transform: translateY(-4px);
+  background: rgba(255,255,255,0.04);
 }
-.bloom-select-card.picked {
-  outline-color: var(--bg-accent);
-  outline-offset: 3px;
-  transform: translateY(-3px);
-  box-shadow: 0 8px 26px rgba(0,0,0,0.22);
+.bloom-pick-tile.picked {
+  background: rgba(255,255,255,0.08);
+  outline: 2px solid var(--bloom-accent);
+  outline-offset: 4px;
+  transform: translateY(-4px);
 }
-/* The biome backdrop sits inside .bg-col-bg as an absolute overlay so
-   its ::before / ::after soil pseudo-elements paint over the card
-   gradient while the FlowerMorphs SVG remains in a sibling .bg-col-svg. */
-.bloom-select-biome {
+.bloom-pick-tile.is-hero::before {
+  content: 'HERO REGION';
   position: absolute;
-  inset: 0;
-  z-index: 0;
-}
-.bloom-select-card .bg-col-svg {
-  z-index: 1;
-}
-/* Small odds chip in the top-right corner of each card. */
-.bloom-select-odds {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: rgba(255,255,255,0.94);
-  border: 1px solid #cdc4af;
-  border-radius: 3px;
-  padding: 3px 8px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: #2a2a24;
-  z-index: 5;
-  pointer-events: none;
-}
-/* Hero-flower-of-the-region badge. */
-.bloom-select-hero {
-  position: absolute;
-  top: 8px;
-  left: 8px;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
   background: linear-gradient(90deg, #b8860b, #ffd700, #b8860b);
   color: #2a1f00;
-  padding: 3px 8px;
+  padding: 2px 8px;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   border-radius: 3px;
-  z-index: 5;
+  white-space: nowrap;
+  z-index: 4;
+}
+.bloom-pick-flower {
+  width: 100%;
+  max-width: 280px;
+  aspect-ratio: 220 / 340;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.bloom-pick-flower svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+.bloom-pick-meta {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bloom-pick-name {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+.bloom-pick-odds {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bloom-pick-pct {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #fbe064;
+  letter-spacing: 0;
+}
+.bloom-pick-payout {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #909070;
+  text-transform: uppercase;
+}
+
+/* ── Wager bar with readout + chip rack (selection screen) ─────────── */
+.bloom-wager-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 18px;
+  background: #15151c;
+  border: 1px solid #2a2a30;
+  border-radius: 4px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.bloom-wager-readout {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: #ddd;
+}
+.bloom-wager-readout-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+.bloom-wager-kicker {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: #909070;
+  text-transform: uppercase;
+}
+.bloom-wager-amount {
+  color: #fbe064;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── BLOOM chip rack (canonical pattern, amber accent) ─────────────── */
+body[data-ui="new"] #bloom-chipBar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+body[data-ui="new"] #bloom-chipBar .chip-rack__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+body[data-ui="new"] #bloom-chipBar .bloom-chip-selector {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+body[data-ui="new"] #bloom-chipBar .chip-rack__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+body[data-ui="new"] #bloom-chipBar .chip-choice {
+  position: relative;
+  width: clamp(2.4rem, 5vw, 3rem);
+  height: clamp(2.4rem, 5vw, 3rem);
+  min-width: clamp(2.4rem, 5vw, 3rem);
+  min-height: clamp(2.4rem, 5vw, 3rem);
+  border-radius: 50%;
+  border: 2px solid #4a4a40;
+  background: radial-gradient(circle at 38% 32%, #222220, #111110);
+  color: #909070;
+  font-family: inherit;
+  font-size: clamp(9px, 1.8vw, 12px);
+  font-weight: 700;
+  letter-spacing: 0;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 3px 8px rgba(0,0,0,0.4);
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s, transform 0.1s;
+}
+body[data-ui="new"] #bloom-chipBar .chip-choice::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  border: 1px dashed rgba(232,160,32,0.15);
   pointer-events: none;
+}
+body[data-ui="new"] #bloom-chipBar .chip-choice::after { display: none; }
+body[data-ui="new"] #bloom-chipBar .chip-choice:hover {
+  border-color: rgba(232,160,32,0.5);
+  color: #e8a020;
+  background: radial-gradient(circle at 38% 32%, #2a2a20, #161610);
+}
+body[data-ui="new"] #bloom-chipBar .chip-choice:active {
+  transform: scale(0.94);
+}
+
+body[data-ui="new"] #bloom-chipBar .chip-rack__button {
+  border-radius: 2px;
+  font-family: inherit;
+  font-size: clamp(9px, 1.8vw, 11px);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+  border: 1px solid #3a3a32;
+  background: #151514;
+  color: #909070;
+  box-shadow: none;
+  min-inline-size: clamp(4.5rem, 10vw, 8rem);
+  padding: 8px clamp(0.5rem, 2vw, 1rem);
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+body[data-ui="new"] #bloom-chipBar .chip-rack__button:hover:not(:disabled) {
+  border-color: rgba(232,160,32,0.35);
+  color: #e8a020;
+  background: rgba(232,160,32,0.04);
+}
+body[data-ui="new"] #bloom-chipBar .chip-rack__button--primary {
+  border-color: #e8a020;
+  background: #e8a020;
+  color: #0a0a08;
+  font-weight: 800;
+  box-shadow: 0 0 16px rgba(232,160,32,0.25);
+}
+body[data-ui="new"] #bloom-chipBar .chip-rack__button--primary:hover:not(:disabled) {
+  background: #f0b030;
+  border-color: #f0b030;
+  color: #0a0a08;
+  box-shadow: 0 0 24px rgba(232,160,32,0.4);
+}
+body[data-ui="new"] #bloom-chipBar .chip-rack__button:disabled {
+  opacity: 0.3;
+  border-color: #1e1e18;
+  background: transparent;
+  color: #363628;
+  cursor: not-allowed;
+}
+
+body[data-ui="new"] #bloom-chipBar .chip-rack-edit {
+  background: transparent;
+  border: 1px solid #3a3a32;
+  color: #909070;
+  font-family: inherit;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+body[data-ui="new"] #bloom-chipBar .chip-rack-edit:hover {
+  border-color: rgba(232,160,32,0.35);
+  color: #e8a020;
 }
 
 /* Winner highlight — gold pct + gilded name plaque + glow on the column. */

@@ -39917,51 +39917,26 @@ function bloomViewIdle() {
 }
 
 function bloomFlowerCard(c, picked) {
-  const bundleId = bloomBundleSpeciesId(c.flower);
-  const biomeId  = bloomSpeciesBiomeId(bundleId);
-  const biomes   = (window.BloomGrowth && window.BloomGrowth.SPECIES_BIOMES) || [];
-  const baseBiome = biomes.find(s => s.id === bundleId) || {};
-  const sci      = baseBiome.sci || '';
-  const accent   = c.accent_color || baseBiome.accent || '#888';
-  const name     = (c.name || '').toUpperCase();
-  const winPct   = Number(c.win_pct) * 100;
-  const payout   = (c.win_pct > 0) ? (1 / Number(c.win_pct)).toFixed(2) : '—';
+  const accent    = c.accent_color || '#888';
+  const name      = (c.name || '').toUpperCase();
+  const winPct    = Number(c.win_pct) * 100;
+  const payout    = (c.win_pct > 0) ? (1 / Number(c.win_pct)).toFixed(2) : '—';
   const pickedCls = picked === c.flower ? 'picked' : '';
-  const heroBadge = c.is_hero ? '<div class="bloom-select-hero">HERO REGION</div>' : '';
-  const oddsLabel = Number.isFinite(winPct) && winPct > 0
-    ? `<div class="bloom-select-odds">${winPct.toFixed(1)}% · ${payout}x</div>`
-    : '';
-  // bg-col layout (from bloom-growth.css) at full bloom: head holds the
-  // species name + scientific name (left) and "100%" (right). Stage area
-  // is a per-species biome backdrop with the bloomed FlowerMorphs SVG
-  // mounted into the .bg-flower-host slot. Footer shows "★ BLOOMED" +
-  // "+100 PTS" so the card reads as a preview of the winning state.
+  const heroCls   = c.is_hero ? 'is-hero' : '';
+  // Bare flower tile — no card frame, no biome, no header / footer. Just
+  // the bloomed FlowerMorphs SVG (mounted in bloomAttachStageHandlers
+  // into [data-bloom-select-host]) with the species name + win % + payout
+  // shown below. Accent color drives the selected-state outline.
   return `
-    <div class="bg-col bg-bloomed bloom-select-card ${pickedCls}" data-bloom-flower="${c.flower}" style="--bg-accent:${accent}">
-      <div class="bg-col-head" style="border-top:3px solid ${accent}">
-        <div class="bg-text">
-          <div class="bg-name" style="color:${accent}">${name}</div>
-          <div class="bg-sci">${sci}</div>
-        </div>
-        <div class="bg-pct" style="color:${accent}">100%</div>
-      </div>
-      <div class="bg-col-stage">
-        <div class="bg-col-bg">
-          <div class="bloom-select-biome biome biome-${biomeId}"></div>
-          <div class="bg-col-svg">
-            <div class="bg-flower-host" data-bloom-select-host="${c.flower}"></div>
-          </div>
-        </div>
-        <div class="bg-vbar-wrap">
-          <div class="bg-vbar-fill bg-bloomed" style="height:100%;background:${accent}"></div>
+    <div class="bloom-pick-tile ${pickedCls} ${heroCls}" data-bloom-flower="${c.flower}" style="--bloom-accent:${accent}">
+      <div class="bloom-pick-flower" data-bloom-select-host="${c.flower}"></div>
+      <div class="bloom-pick-meta">
+        <div class="bloom-pick-name" style="color:${accent}">${name}</div>
+        <div class="bloom-pick-odds">
+          <span class="bloom-pick-pct">${Number.isFinite(winPct) ? winPct.toFixed(1) + '%' : '—'}</span>
+          <span class="bloom-pick-payout">${payout}x payout</span>
         </div>
       </div>
-      <div class="bg-col-foot">
-        <div class="bg-stage-label" style="color:${accent}">★ BLOOMED</div>
-        <div class="bg-score">+100 PTS</div>
-      </div>
-      ${oddsLabel}
-      ${heroBadge}
     </div>
   `;
 }
@@ -39986,19 +39961,36 @@ function bloomViewSelecting() {
         <div style="font-size:12px;opacity:.7;margin-top:6px">${region.identity || ''}</div>
         <div style="font-size:11px;opacity:.5;margin-top:8px">Hero flower: ${region.hero_flower || '—'}</div>
       </div>
-      <div class="fof-pick-panel">
+      <div class="fof-pick-panel bloom-pick-panel">
         <div class="fof-pick-label">// PICK YOUR FLOWER</div>
-        <div class="bg-row bloom-select-row">${cards}</div>
+        <div class="bloom-pick-row">${cards}</div>
       </div>
-      <div class="fof-wager-bar">
-        <label class="fof-wager-label">WAGER $
-          <input type="number" id="bloom-wager-input" min="1" step="1" value="${bloomGame.wager || ''}" placeholder="0">
-        </label>
-        <div class="fof-wager-meta">
-          Picked: <strong>${bloomGame.pickedFlower ? bloomGame.pickedFlower.toUpperCase() : '—'}</strong>
-          · Potential return: <strong>$${potentialPayout}</strong>
+      <div class="bloom-wager-bar">
+        <div class="bloom-wager-readout">
+          <div class="bloom-wager-readout-row">
+            <span class="bloom-wager-kicker">Picked</span>
+            <strong>${bloomGame.pickedFlower ? bloomGame.pickedFlower.toUpperCase() : '—'}</strong>
+          </div>
+          <div class="bloom-wager-readout-row">
+            <span class="bloom-wager-kicker">Wager</span>
+            <strong class="bloom-wager-amount">$${Number(bloomGame.wager) || 0}</strong>
+          </div>
+          <div class="bloom-wager-readout-row">
+            <span class="bloom-wager-kicker">Potential</span>
+            <strong>$${potentialPayout}</strong>
+          </div>
         </div>
-        <button type="button" class="fof-btn fof-btn-primary" id="bloom-begin-btn" ${beginDisabled}>BEGIN ROUND</button>
+        <div class="chip-bar chip-rack bloom-chip-bar" id="bloom-chipBar" aria-label="BLOOM chip rack">
+          <div class="chip-selector-row chip-rack__row">
+            <button type="button" class="chip-rack-edit chip-rack__edit" id="bloom-chipRackEdit">Edit</button>
+            <div class="chip-selector chip-rack__selector bloom-chip-selector" id="bloom-chipSelector"
+                 role="radiogroup" aria-label="Choose chip denomination"></div>
+          </div>
+          <div class="chip-actions chip-rack__actions">
+            <button type="button" class="primary chip-rack__button" id="bloom-clearBetsBtn">Clear</button>
+            <button type="button" class="deal chip-rack__button chip-rack__button--primary" id="bloom-begin-btn" ${beginDisabled}>⬡ BEGIN ROUND</button>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -40084,12 +40076,10 @@ function bloomAttachStageHandlers() {
     card.addEventListener('click', () => {
       bloomGame.pickedFlower = card.dataset.bloomFlower;
       bloomRenderStage();
-      const inp = document.getElementById('bloom-wager-input');
-      if (inp) inp.focus();
     });
   });
 
-  // Mount the bloomed-preview FlowerMorphs into each selection card.
+  // Mount the bloomed-preview FlowerMorphs into each selection tile.
   // Re-render rebuilds the HTML so we tear down + remount each time.
   bloomTeardownSelectMorphs();
   if (bloomGame.state === 'selecting' && window.FlowerMorphs && window.FlowerMorphs.Mount) {
@@ -40108,21 +40098,49 @@ function bloomAttachStageHandlers() {
     }
   }
 
-  const wagerInput = document.getElementById('bloom-wager-input');
-  if (wagerInput) {
-    wagerInput.addEventListener('input', () => {
-      bloomGame.wager = Number(wagerInput.value) || 0;
-      const beginBtn = document.getElementById('bloom-begin-btn');
-      const valid = bloomGame.pickedFlower && bloomGame.wager > 0 && bloomGame.wager <= (currentProfile?.credits ?? 0);
-      if (beginBtn) beginBtn.disabled = !valid;
-      const meta = document.querySelector('.fof-wager-meta');
-      if (meta && bloomGame.pickedFlower) {
-        const c = bloomGame.candidates.find(x => x.flower === bloomGame.pickedFlower);
-        const payout = (c && bloomGame.wager > 0) ? (Number(bloomGame.wager) / Number(c.win_pct)).toFixed(2) : '—';
-        meta.innerHTML = `Picked: <strong>${bloomGame.pickedFlower.toUpperCase()}</strong> · Potential return: <strong>$${payout}</strong>`;
-      }
+  // Chip rack — only on the selection screen. Each chip click ADDS its
+  // value to the running wager (no "selected chip" state needed since
+  // BLOOM bets a single total on one flower). Clear resets to 0. Edit
+  // opens the shared chip-editor modal.
+  if (bloomGame.state === 'selecting') {
+    bloomRenderChipRack();
+    const clearBtn = document.getElementById('bloom-clearBetsBtn');
+    if (clearBtn) clearBtn.addEventListener('click', () => {
+      bloomGame.wager = 0;
+      bloomRenderStage();
+    });
+    const editBtn = document.getElementById('bloom-chipRackEdit');
+    if (editBtn) editBtn.addEventListener('click', () => {
+      if (typeof openChipEditorModal === 'function') openChipEditorModal();
     });
   }
+
+}
+
+// Render the chip rack inside #bloom-chipSelector. Click on a chip ADDS
+// its value to bloomGame.wager (no "selected chip" semantics — BLOOM
+// bets a single total on a single picked flower). Re-renders the whole
+// selection stage so the wager readout + begin-disabled flip update.
+function bloomRenderChipRack() {
+  const el = document.getElementById('bloom-chipSelector');
+  if (!el || !Array.isArray(chipDenominations)) return;
+  el.innerHTML = chipDenominations.map(value => `
+    <button type="button" class="chip-choice"
+      data-value="${value}"
+      data-tone="${typeof getRunTheNumbersChipRackToneIndex === 'function' ? getRunTheNumbersChipRackToneIndex(value) : 0}"
+      role="radio"
+      aria-checked="false">${value}</button>
+  `).join('');
+  el.querySelectorAll('.chip-choice').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = Number(btn.dataset.value);
+      if (!Number.isFinite(val) || val <= 0) return;
+      // Cap at the user's credits so they can't over-bet via chip stacking.
+      const cap = Number(currentProfile?.credits ?? Infinity);
+      bloomGame.wager = Math.min(cap, Number(bloomGame.wager || 0) + val);
+      bloomRenderStage();
+    });
+  });
 }
 
 async function bloomStartRound() {
