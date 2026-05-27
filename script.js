@@ -39984,12 +39984,23 @@ function bloomViewResolving() {
   return `
     <div class="bloom-resolving">
       <div class="bloom-resolving-header">
-        <span class="bloom-resolving-region">${(region.name || '').toUpperCase()}</span>
-        <span class="bloom-resolving-picked">YOUR PICK: <strong>${(bloomGame.pickedFlower || '').toUpperCase()}</strong></span>
+        <div class="bloom-header-slot bloom-header-slot-left">
+          <div class="bloom-header-kicker">REGION</div>
+          <div class="bloom-resolving-region">${(region.name || '').toUpperCase()}</div>
+        </div>
+        <div class="bloom-header-slot bloom-header-slot-weather">
+          <div class="bloom-header-kicker">WEATHER</div>
+          <div class="bloom-weather-card">
+            <div class="bloom-weather-card-fx" id="bloom-card-overlay"></div>
+            <div class="bloom-weather-card-name" id="bloom-weather-label">—</div>
+          </div>
+        </div>
+        <div class="bloom-header-slot bloom-header-slot-right">
+          <div class="bloom-header-kicker">YOUR PICK</div>
+          <div class="bloom-resolving-picked"><strong>${(bloomGame.pickedFlower || '').toUpperCase()}</strong></div>
+        </div>
       </div>
       <div class="bloom-growth-wrap">
-        <div class="bloom-weather-label" id="bloom-weather-label"></div>
-        <div class="bloom-card-overlay" id="bloom-card-overlay"></div>
         <div class="bg-row" id="bloom-growth-row"></div>
       </div>
       <div class="fof-event-log" id="bloom-event-log"></div>
@@ -40244,6 +40255,13 @@ async function bloomPlayEvents(details) {
         id:     bundleId,
         name:   (c.name || baseBiome.name || '').toUpperCase(),
         accent: c.accent_color || baseBiome.accent,
+        // Plain white card — drop the sky gradient, soil stripe and
+        // per-species ambient decor so every flower sits on the same
+        // neutral background. Accent stripe / name color / bar color
+        // / pct color all still come from species.accent.
+        sky:   '#ffffff',
+        soil:  { base: '#ffffff', stripe: '#ffffff', stripeHeight: 0 },
+        decor: 'none',
       });
       try {
         const { col, refs } = window.BloomGrowth.buildBiomeCard(species, {
