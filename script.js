@@ -40153,6 +40153,32 @@ function bloomRegionBiomeId(slug) {
   return BLOOM_REGION_TO_BIOME[slug] || 'forest';
 }
 
+// Each bundle species has its NATIVE biome (used in the flower-selection
+// preview cards so each candidate is shown in the habitat that matches
+// it — arctic poppy in tundra, hibiscus in tropical, etc.). For the
+// actual round, the round's REGION biome still applies to every flower.
+const BLOOM_SPECIES_TO_BIOME = {
+  arctic_poppy:   'tundra',
+  hydrangea:      'forest',
+  hibiscus:       'tropical',
+  cactus_blossom: 'desert',
+  orchid:         'rainforest',
+};
+function bloomSpeciesBiomeId(speciesId) {
+  return BLOOM_SPECIES_TO_BIOME[speciesId] || 'forest';
+}
+
+// FlowerMorphs handles for the selection preview cards. Mounted at
+// stage 10 (BLOOM) in bloomAttachStageHandlers and torn down on every
+// re-render so we don't leak preact roots.
+let _bloomSelectMorphs = [];
+function bloomTeardownSelectMorphs() {
+  for (const m of _bloomSelectMorphs) {
+    try { m && m.destroy(); } catch (e) { /* noop */ }
+  }
+  _bloomSelectMorphs = [];
+}
+
 // Card slug → BloomWeather event ID. The bundle's 10 weather events:
 //   arctic_wind, late_freeze, monsoon, perfect_conditions,
 //   torrential_downpour, dense_mist, drought, dry_heat, coastal_fog,
