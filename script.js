@@ -40000,8 +40000,8 @@ function bloomViewResolving() {
           <div class="bloom-resolving-picked"><strong>${(bloomGame.pickedFlower || '').toUpperCase()}</strong></div>
         </div>
       </div>
-      <div class="bloom-growth-wrap">
-        <div class="bg-row" id="bloom-growth-row"></div>
+      <div class="bloom-grow-stage" id="bloom-grow-stage">
+        <div class="bloom-grow-row" id="bloom-growth-row"></div>
       </div>
       <div class="fof-event-log" id="bloom-event-log"></div>
     </div>
@@ -40139,6 +40139,21 @@ function bloomBundleSpeciesId(flowerSlug) {
   return BLOOM_SPECIES_MAP[flowerSlug] || flowerSlug;
 }
 
+// Solid backdrop color per region — sampled from the mid-tone of each
+// region's sky gradient (BloomRegions.REGION_DEFS). Dark enough that
+// white text contrasts cleanly, saturated enough to feel "biome-y".
+const REGION_BG_COLORS = {
+  desert:           '#d96a2a',
+  tundra:           '#7a78b0',
+  tropical_island:  '#4ea99a',
+  jungle:           '#2f6e3a',  // bundle's slug for the rainforest scene
+  rainforest:       '#2f6e3a',  // DB-side alias — both keys map to green
+  temperate_forest: '#1d4030',
+};
+function bloomRegionBgColor(slug) {
+  return REGION_BG_COLORS[slug] || '#3a3a30';
+}
+
 // Card slug → BloomWeather event ID. The bundle's 10 weather events:
 //   arctic_wind, late_freeze, monsoon, perfect_conditions,
 //   torrential_downpour, dense_mist, drought, dry_heat, coastal_fog,
@@ -40170,7 +40185,6 @@ let _bloomWeatherInst = null;
 function bloomTeardownStages() {
   for (const s of _bloomStages) {
     try { s.morph && s.morph.destroy(); } catch (e) { /* noop */ }
-    try { s.refs && s.refs.inst && s.refs.inst.destroy(); } catch (e) { /* noop */ }
   }
   _bloomStages = [];
   if (_bloomRegionInst)  { try { _bloomRegionInst.destroy(); } catch (e) {} _bloomRegionInst  = null; }
@@ -40233,128 +40247,83 @@ async function bloomPlayEvents(details) {
   bloomTeardownStages();
   if (rowEl) rowEl.innerHTML = '';
 
-  // Build one bg-col card per candidate flower. Every card in a round
-  // shares the SAME biome backdrop, determined by the round's region —
-  // pulled from window.BloomRegions.REGION_DEFS. Per-species ambient
-  // decor is dropped; the region's scene function (jungle fronds /
-  // tropical waves / temperate fog / etc.) is injected into each card
-  // after build so all 5 cards look identical underneath their flowers.
-  //
-  // We pass mountFlower:false so buildBiomeCard skips its built-in
-  // 7-stage FlowerStage; we then mount the 11-stage FlowerMorphs into
-  // the same refs.host slot ourselves.
-  const regionSlug = bloomGame.region && bloomGame.region.slug;
-  // BloomRegions aliases rainforest → jungle internally; do the same
-  // for REGION_DEFS lookups so the scene props line up.
-  const regionKey = regionSlug === 'rainforest' ? 'jungle' : regionSlug;
-  const regionDef = (window.BloomRegions
-                     && window.BloomRegions.REGION_DEFS
-                     && window.BloomRegions.REGION_DEFS[regionKey]) || null;
+  // Single solid backdrop color for the round, sampled from REGION_BG_COLORS
+  // (mid-tone of each region's sky gradient). Apply directly to the stage
+  // container; every flower sits on this same color — no per-flower cards.
+  const stageEl = document.getElementById('bloom-grow-stage');
+  if (stageEl) {
+    stageEl.style.background = bloomRegionBgColor(bloomGame.region && bloomGame.region.slug);
+  }
 
-  if (rowEl && window.BloomGrowth && window.BloomGrowth.buildBiomeCard) {
-    const biomes = window.BloomGrowth.SPECIES_BIOMES || [];
+  // Build one flat cell per candidate flower (no card frame, no header,
+  // no footer — just stacked pct / flower SVG / name). The 11-stage
+  // FlowerMorphs is mounted directly into the cell's flower host.
+  if (rowEl) {
     for (const c of bloomGame.candidates) {
-      const bundleId  = bloomBundleSpeciesId(c.flower);
-      const baseBiome = biomes.find(s => s.id === bundleId);
-      if (!baseBiome) {
-        console.warn('[bloom] no biome for species', bundleId);
-        continue;
+      const bundleId = bloomBundleSpeciesId(c.flower);
+      const accent   = c.accent_color || '#ffffff';
+      const name     = (c.name || '').toUpperCase();
+
+      const cell = document.createElement('div');
+      cell.className = 'bloom-grow-cell';
+      cell.dataset.bloomFlowerSlot = c.flower;
+
+      const pctEl = document.createElement('div');
+      pctEl.className = 'bloom-grow-pct';
+      pctEl.dataset.bloomFlowerScore = c.flower;
+      pctEl.textContent = '0%';
+
+      const flowerHost = document.createElement('div');
+      flowerHost.className = 'bloom-grow-flower';
+
+      const toastHost = document.createElement('div');
+      toastHost.className = 'bloom-flower-toast';
+      toastHost.dataset.bloomFlowerToast = c.flower;
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'bloom-grow-name';
+      nameEl.style.color = accent;
+      nameEl.textContent = name;
+
+      cell.appendChild(pctEl);
+      cell.appendChild(flowerHost);
+      cell.appendChild(toastHost);
+      cell.appendChild(nameEl);
+      rowEl.appendChild(cell);
+
+      // Mount the 11-stage Morph into the flower host. Falls back to
+      // no flower if FlowerMorphs isn't loaded (cells still render).
+      let morphHandle = null;
+      if (window.FlowerMorphs && window.FlowerMorphs.Mount) {
+        try {
+          morphHandle = window.FlowerMorphs.Mount({
+            container: flowerHost,
+            species:   bundleId,
+            stage:     0,
+            baseline:  false,
+          });
+        } catch (e) { console.warn('[bloom] FlowerMorphs mount failed', c.flower, e); }
       }
-      const species = Object.assign({}, baseBiome, {
-        id:     bundleId,
-        name:   (c.name || baseBiome.name || '').toUpperCase(),
-        accent: c.accent_color || baseBiome.accent,
-        // Region-driven backdrop — every card in the round shares
-        // these. Fallback to white if BloomRegions isn't loaded or the
-        // round's region slug isn't in REGION_DEFS.
-        sky:   regionDef ? regionDef.sky  : '#ffffff',
-        soil:  regionDef ? regionDef.soil : { base: '#ffffff', stripe: '#ffffff', stripeHeight: 0 },
-        // bloom-growth's own decor kinds don't match BloomRegions
-        // scenes 1:1, so skip the built-in decor and inject the
-        // BloomRegions scene by hand below.
-        decor: 'none',
+
+      _bloomStages.push({
+        slug:         c.flower,
+        morph:        morphHandle,
+        cell:         cell,
+        pctEl:        pctEl,
+        nameEl:       nameEl,
+        currentStage: 0,
+        prevScore:    0,
+        accent:       accent,
       });
-      try {
-        const { col, refs } = window.BloomGrowth.buildBiomeCard(species, {
-          stage: 0,
-          mountFlower: false,
-        });
-        col.dataset.bloomFlowerSlot = c.flower;
-
-        // Inject the region's scene (jungle fronds, tropical waves,
-        // temperate fog, etc.) into the card's bg-col-bg, BEFORE the
-        // soil layer so the dirt renders on top — matches how
-        // BloomRegions.renderRegion stacks its own scene.
-        if (regionDef && typeof regionDef.scene === 'function') {
-          const bgEl = refs.host && refs.host.closest('.bg-col-bg');
-          const sceneNode = regionDef.scene();
-          if (bgEl && sceneNode) {
-            const soilBase = bgEl.querySelector('.bg-soil-base');
-            if (soilBase) bgEl.insertBefore(sceneNode, soilBase);
-            else          bgEl.appendChild(sceneNode);
-          }
-        }
-
-        // Reshuffle the card chrome:
-        //  • Header drops the species name and just shows the big
-        //    centered percentage (CSS rules in styles.css).
-        //  • Footer gets the species name prepended so it sits below
-        //    the flower, above the stage label / score line.
-        const headTextEl = col.querySelector('.bg-col-head .bg-text');
-        if (headTextEl) headTextEl.style.display = 'none';
-        const footEl = col.querySelector('.bg-col-foot');
-        if (footEl) {
-          const nameEl = document.createElement('div');
-          nameEl.className = 'bloom-flower-card-name';
-          nameEl.style.color = species.accent;
-          nameEl.textContent = species.name;
-          footEl.insertBefore(nameEl, footEl.firstChild);
-        }
-
-        // Attach a per-card toast layer so +N / -N can float above the
-        // flower without affecting the card layout.
-        const toastHost = document.createElement('div');
-        toastHost.className = 'bloom-flower-toast';
-        toastHost.dataset.bloomFlowerToast = c.flower;
-        col.appendChild(toastHost);
-
-        rowEl.appendChild(col);
-
-        // Mount the 11-stage Morph into the card's flower-host slot.
-        // Falls back to no flower if FlowerMorphs isn't loaded (cards
-        // still render with the biome backdrop).
-        let morphHandle = null;
-        if (window.FlowerMorphs && window.FlowerMorphs.Mount) {
-          try {
-            morphHandle = window.FlowerMorphs.Mount({
-              container: refs.host,
-              species:   bundleId,
-              stage:     0,
-              baseline:  false,    // bg-col already has a soil stripe
-            });
-          } catch (e) { console.warn('[bloom] FlowerMorphs mount failed', c.flower, e); }
-        }
-
-        _bloomStages.push({
-          slug:         c.flower,
-          refs:         refs,
-          morph:        morphHandle,
-          currentStage: 0,
-          prevScore:    0,
-          accent:       species.accent,
-        });
-      } catch (e) {
-        console.warn('[bloom] buildBiomeCard failed', c.flower, e);
-      }
     }
   }
 
   // Brief settle before the first draw.
   await new Promise(r => setTimeout(r, 250));
 
-  const DRAW_OVERLAY_MS = 1500;  // weather overlay duration per draw
-  const DRAW_TOTAL_MS   = 1700;  // total wall-clock per draw
-  const FINAL_HOLD_MS   = 2200;  // hold on the final BLOOM frame
+  const DRAW_OVERLAY_MS = 480;   // weather overlay duration per draw
+  const DRAW_TOTAL_MS   = 500;   // 0.5s per card — fast-paced rounds
+  const FINAL_HOLD_MS   = 1800;  // hold on the final BLOOM frame
 
   const weatherEl = document.getElementById('bloom-weather-label');
 
@@ -40370,41 +40339,22 @@ async function bloomPlayEvents(details) {
       //    down after DRAW_OVERLAY_MS so the next draw can replace it.
       bloomPlayWeatherForCard(ev.card, fxEl, DRAW_OVERLAY_MS);
 
-      // 3. Brief beat so the overlay reads before flowers move.
-      await new Promise(r => setTimeout(r, 250));
+      // 3. Tiny beat so the overlay registers before flowers move.
+      await new Promise(r => setTimeout(r, 40));
 
-      // 4. Per-flower update via the bg-col refs from buildBiomeCard.
-      //    Transition the FlowerMorphs handle if stage changed, swell
-      //    otherwise. Toast the raw card effect for each flower the card
-      //    touched.
+      // 4. Per-flower update on the flat cells. Drive the FlowerMorphs
+      //    handle (transition / swell) and update the big pct readout.
+      //    Toast the raw card effect for each flower the card touched.
       const scores  = ev.scoresAfter || {};
       const effects = ev.effects || {};
-      const MORPH_LABELS = (window.FlowerMorphs && window.FlowerMorphs.STAGE_LABELS) || [];
       for (const se of _bloomStages) {
         const newScore = Number(scores[se.slug] ?? se.prevScore);
         const newStage = bloomScoreToStage(newScore);
         const bloomed = newStage >= 10;     // 11-stage system; 10 = BLOOM
-        const pct = Math.min(100, newScore);
 
-        // Header pct + vertical bar + footer label/score.
-        if (se.refs.pctEl) se.refs.pctEl.textContent = `${newScore}%`;
-        if (se.refs.vbar) {
-          se.refs.vbar.style.height = pct + '%';
-          se.refs.vbar.classList.toggle('bg-bloomed', bloomed);
-        }
-        if (se.refs.col) se.refs.col.classList.toggle('bg-bloomed', bloomed);
-        if (se.refs.stageLabel) {
-          se.refs.stageLabel.textContent = bloomed
-            ? '★ BLOOMED'
-            : (MORPH_LABELS[newStage] || '');
-        }
-        if (se.refs.score) {
-          se.refs.score.textContent = bloomed
-            ? `+${newScore} PTS`
-            : `growing · ${newScore} PTS`;
-        }
+        if (se.pctEl) se.pctEl.textContent = `${newScore}%`;
+        if (se.cell)  se.cell.classList.toggle('bloomed', bloomed);
 
-        // Flower SVG transition / swell — drives the FlowerMorphs handle.
         if (se.morph) {
           if (newStage !== se.currentStage) {
             try { se.morph.transitionTo(newStage); } catch (e) { /* noop */ }
@@ -40414,8 +40364,6 @@ async function bloomPlayEvents(details) {
           }
         }
 
-        // +N / -N toast (raw card effect for visual drama even when the
-        // post-floor delta is smaller).
         const rawDelta = Number(effects[se.slug] ?? 0);
         if (rawDelta !== 0) {
           bloomShowFlowerToast(se.slug, rawDelta);
@@ -40432,7 +40380,7 @@ async function bloomPlayEvents(details) {
         logEl.scrollTop = logEl.scrollHeight;
       }
 
-      await new Promise(r => setTimeout(r, DRAW_TOTAL_MS - 250));
+      await new Promise(r => setTimeout(r, DRAW_TOTAL_MS - 40));
     } else if (ev.type === 'BLOOM' || ev.type === 'SAFETY_CAP_VICTORY') {
       if (weatherEl) weatherEl.classList.remove('visible');
       // Highlight winner card with an extra gold glow on top of the

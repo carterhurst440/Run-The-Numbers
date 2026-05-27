@@ -28546,10 +28546,91 @@ body[data-ui="new"] .alr-col-date {
     .bloom-weather-label IDs still exist inside that card so the JS
     driver doesn't need to know it moved.) */
 
-/* +N / -N toast layer per bg-col. */
+/* ── Grow stage ─ single region-colored backdrop, no card frames ─── */
+.bloom-grow-stage {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  padding: 36px 24px 44px;
+  transition: background 0.6s ease;
+}
+@media (max-width: 900px) {
+  .bloom-grow-stage {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    padding: 24px 12px 32px;
+    border-radius: 8px;
+  }
+}
+
+.bloom-grow-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  max-width: 1500px;
+  margin: 0 auto;
+  align-items: end;
+}
+
+.bloom-grow-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-height: 400px;
+}
+
+.bloom-grow-pct {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 56px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: 0;
+  color: #fff;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  margin-bottom: 4px;
+}
+@media (max-width: 1200px) {
+  .bloom-grow-pct { font-size: 44px; }
+}
+@media (max-width: 760px) {
+  .bloom-grow-pct { font-size: 32px; }
+}
+
+.bloom-grow-flower {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 240px;
+  min-height: 280px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: visible;
+}
+.bloom-grow-flower svg {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+}
+
+.bloom-grow-name {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  margin-top: 10px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+
+/* +N / -N toast — positioned inside each flat cell (which is relative). */
 .bloom-flower-toast {
   position: absolute;
-  top: 36%;
+  top: 30%;
   left: 50%;
   transform: translateX(-50%);
   pointer-events: none;
@@ -28567,8 +28648,8 @@ body[data-ui="new"] .alr-col-date {
   animation: bloom-toast-rise 1.6s ease-out forwards;
   white-space: nowrap;
 }
-.bloom-toast-point.gain { color: #2f9e30; }
-.bloom-toast-point.loss { color: #c4302b; }
+.bloom-toast-point.gain { color: #b8f078; }
+.bloom-toast-point.loss { color: #ff7a52; }
 @keyframes bloom-toast-rise {
   0%   { opacity: 0; transform: translateY(10px) scale(0.6); }
   15%  { opacity: 1; transform: translateY(-4px) scale(1.18); }
@@ -28576,46 +28657,17 @@ body[data-ui="new"] .alr-col-date {
   100% { opacity: 0; transform: translateY(-68px) scale(0.92); }
 }
 
-/* Winner highlight — extra gold glow on top of .bg-bloomed treatment. */
-.bg-col.bloom-winner {
-  box-shadow:
-    0 0 0 2px gold,
-    0 0 28px rgba(255,215,0,0.55);
+/* Winner highlight — gold glow on the bloomed flower's pct + name. */
+.bloom-grow-cell.bloom-winner .bloom-grow-pct {
+  color: gold;
+  text-shadow: 0 0 14px rgba(255,215,0,0.85),
+               0 2px 6px rgba(0,0,0,0.35);
 }
-
-/* Card head now holds JUST the percentage, big and centered. The species
-   name is moved into the footer below the flower (see .bloom-flower-card
-   -name). The .bg-text node inside .bg-col-head is hidden by JS. */
-.bg-col .bg-col-head {
-  justify-content: center;
-  align-items: center;
-  padding: 16px 14px;
-  text-align: center;
+.bloom-grow-cell.bloom-winner .bloom-grow-name {
+  color: gold !important;
 }
-.bg-col .bg-col-head .bg-pct {
-  font-size: 48px;
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: 0;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  width: 100%;
-}
-@media (max-width: 1100px) {
-  .bg-col .bg-col-head .bg-pct { font-size: 38px; }
-}
-@media (max-width: 760px) {
-  .bg-col .bg-col-head .bg-pct { font-size: 30px; }
-}
-
-/* Species name in the footer (injected by bloomPlayEvents after build). */
-.bloom-flower-card-name {
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-  line-height: 1.2;
+.bloom-grow-cell.bloom-winner {
+  filter: drop-shadow(0 0 22px rgba(255,215,0,0.6));
 }
 
 /* Event log under stage (reuse fof styling) */
