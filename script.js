@@ -39977,42 +39977,21 @@ function bloomViewResolving() {
   // the biome's top-right corner; per-flower +N / -N toasts float above
   // the seed; progress bars adopt the growth-row visual treatment.
   const region = bloomGame.region || {};
-  // Each flower has TWO DOM presences:
-  //   1. A column inside the biome (holds only the SVG + toast layer so
-  //      the seed can land on the actual dirt of the backdrop).
-  //   2. A meta cell BELOW the biome (name, progress bar, pct) — kept
-  //      out of the biome so the dirt stays clean and the seeds aren't
-  //      pushed up off the soil line by label height variation.
-  const flowerCols = bloomGame.candidates.map(c => `
-    <div class="bloom-flower-col" data-bloom-flower-slot="${c.flower}">
-      <div class="bloom-flower-svg-wrap">
-        <div class="bloom-flower-svg" data-bloom-flower-svg="${c.flower}"></div>
-        <div class="bloom-flower-toast" data-bloom-flower-toast="${c.flower}"></div>
-      </div>
-    </div>
-  `).join('');
-  const metaCols = bloomGame.candidates.map(c => `
-    <div class="bloom-flower-meta" data-bloom-flower-meta="${c.flower}">
-      <div class="bloom-flower-name" style="color:${c.accent_color || '#fff'}">${(c.name || '').toUpperCase()}</div>
-      <div class="bloom-flower-bar">
-        <div class="bloom-flower-bar-fill" data-bloom-flower-barfill="${c.flower}" style="background:${c.accent_color || '#fff'}"></div>
-      </div>
-      <div class="bloom-flower-pct" data-bloom-flower-score="${c.flower}">0%</div>
-    </div>
-  `).join('');
+  // Each flower lives in its own bg-col card (built dynamically by
+  // bloom-growth.js / buildBiomeCard during bloomPlayEvents). The shell
+  // here just provides the row container + a weather overlay layer that
+  // floats above the cards.
   return `
-    <div class="bloom-resolving" data-bloom-biome="${region.slug || ''}">
+    <div class="bloom-resolving">
       <div class="bloom-resolving-header">
         <span class="bloom-resolving-region">${(region.name || '').toUpperCase()}</span>
         <span class="bloom-resolving-picked">YOUR PICK: <strong>${(bloomGame.pickedFlower || '').toUpperCase()}</strong></span>
       </div>
-      <div class="bloom-biome-stage">
-        <div class="bloom-biome-bg" id="bloom-biome-bg"></div>
-        <div class="bloom-card-overlay" id="bloom-card-overlay"></div>
+      <div class="bloom-growth-wrap">
         <div class="bloom-weather-label" id="bloom-weather-label"></div>
-        <div class="bloom-flowers-row">${flowerCols}</div>
+        <div class="bloom-card-overlay" id="bloom-card-overlay"></div>
+        <div class="bg-row" id="bloom-growth-row"></div>
       </div>
-      <div class="bloom-meta-row">${metaCols}</div>
       <div class="fof-event-log" id="bloom-event-log"></div>
     </div>
   `;
@@ -40125,18 +40104,19 @@ async function bloomBeginRound() {
 }
 
 // ── BLOOM — playback helpers ────────────────────────────────────────
-// Score (0..bloom_target) → bundle stage (0..6). Matches the spec:
-//   0-19 SEED, 20-39 SPROUT, 40-59 FOLIAGE, 60-79 BUD INIT,
-//   80-89 BUD SWELL, 90-99 CRACKING, 100+ BLOOM.
+// Score (0..bloom_target) → bundle stage (0..6). Even ~17% bands across
+// 0-99, with stage 6 (BLOOM) reserved for the exact winning moment at
+// 100 so the climax lands at the right beat. Matches PCTS in
+// bloom-growth.js (every ~17 pts).
 function bloomScoreToStage(score) {
   const s = Number(score) || 0;
-  if (s < 20)  return 0;
-  if (s < 40)  return 1;
-  if (s < 60)  return 2;
-  if (s < 80)  return 3;
-  if (s < 90)  return 4;
-  if (s < 100) return 5;
-  return 6;
+  if (s < 17)  return 0;   // SEED
+  if (s < 33)  return 1;   // SPROUT
+  if (s < 50)  return 2;   // FOLIAGE
+  if (s < 67)  return 3;   // BUD INIT
+  if (s < 83)  return 4;   // BUD SWELLS
+  if (s < 100) return 5;   // CRACKING
+  return 6;                // BLOOM
 }
 
 // Map DB flower slug → bundle species id (only differs when the DB slug
@@ -40180,7 +40160,7 @@ let _bloomWeatherInst = null;
 
 function bloomTeardownStages() {
   for (const s of _bloomStages) {
-    try { s.instance.destroy(); } catch (e) { /* noop */ }
+    try { s.refs && s.refs.inst && s.refs.inst.destroy(); } catch (e) { /* noop */ }
   }
   _bloomStages = [];
   if (_bloomRegionInst)  { try { _bloomRegionInst.destroy(); } catch (e) {} _bloomRegionInst  = null; }
@@ -40236,38 +40216,54 @@ async function bloomPlayEvents(details) {
   if (!details || !Array.isArray(details.events)) return;
   const logEl  = document.getElementById('bloom-event-log');
   const fxEl   = document.getElementById('bloom-card-overlay');
-  const biomeEl = document.getElementById('bloom-biome-bg');
+  const rowEl  = document.getElementById('bloom-growth-row');
 
-  // Clear any prior stage + region + weather (route may have been
-  // re-entered before bloomRouteOpen ran).
+  // Clear any prior cards + weather (route may have been re-entered
+  // before bloomRouteOpen ran).
   bloomTeardownStages();
+  if (rowEl) rowEl.innerHTML = '';
 
-  // Mount the biome backdrop. BloomRegions handles the rainforest→jungle
-  // alias internally so we can pass the DB slug directly.
-  if (biomeEl && window.BloomRegions && bloomGame.region) {
-    try {
-      _bloomRegionInst = new window.BloomRegions.BloomRegion({
-        container: biomeEl,
-        id:        bloomGame.region.slug,
-        height:    '100%',
-        vignette:  true,
-      });
-    } catch (e) { console.warn('[bloom] region mount failed', e); }
-  }
-
-  // Mount one FlowerStage per candidate flower.
-  if (window.BloomFlowers && window.BloomFlowers.FlowerStage) {
+  // Build one bg-col card per candidate flower. Each card brings its own
+  // mini biome (sky + soil + per-species ambient decor) so we no longer
+  // need a shared BloomRegions backdrop. Override the bundled species
+  // name + accent with the DB-side values so admin-renamed flowers
+  // display their custom labels.
+  if (rowEl && window.BloomGrowth && window.BloomGrowth.buildBiomeCard) {
+    const biomes = window.BloomGrowth.SPECIES_BIOMES || [];
     for (const c of bloomGame.candidates) {
-      const host = document.querySelector(`[data-bloom-flower-svg="${c.flower}"]`);
-      if (!host) continue;
+      const bundleId  = bloomBundleSpeciesId(c.flower);
+      const baseBiome = biomes.find(s => s.id === bundleId);
+      if (!baseBiome) {
+        console.warn('[bloom] no biome for species', bundleId);
+        continue;
+      }
+      const species = Object.assign({}, baseBiome, {
+        id:     bundleId,
+        name:   (c.name || baseBiome.name || '').toUpperCase(),
+        accent: c.accent_color || baseBiome.accent,
+      });
       try {
-        const inst = new window.BloomFlowers.FlowerStage({
-          container: host,
-          species:   bloomBundleSpeciesId(c.flower),
-          stage:     0,
+        const { col, refs } = window.BloomGrowth.buildBiomeCard(species, { stage: 0 });
+        col.dataset.bloomFlowerSlot = c.flower;
+
+        // Attach a per-card toast layer so +N / -N can float above the
+        // flower without affecting the card layout.
+        const toastHost = document.createElement('div');
+        toastHost.className = 'bloom-flower-toast';
+        toastHost.dataset.bloomFlowerToast = c.flower;
+        col.appendChild(toastHost);
+
+        rowEl.appendChild(col);
+        _bloomStages.push({
+          slug:         c.flower,
+          refs:         refs,
+          currentStage: 0,
+          prevScore:    0,
+          accent:       species.accent,
         });
-        _bloomStages.push({ slug: c.flower, instance: inst, currentStage: 0, prevScore: 0 });
-      } catch (e) { console.warn('[bloom] FlowerStage mount failed', c.flower, e); }
+      } catch (e) {
+        console.warn('[bloom] buildBiomeCard failed', c.flower, e);
+      }
     }
   }
 
@@ -40295,30 +40291,48 @@ async function bloomPlayEvents(details) {
       // 3. Brief beat so the overlay reads before flowers move.
       await new Promise(r => setTimeout(r, 250));
 
-      // 4. Per-flower update — transition if stage changed, swell otherwise.
-      //    Also fire a +N / -N toast for each flower this card touched.
+      // 4. Per-flower update via the bg-col refs from buildBiomeCard.
+      //    Transition if stage changed, swell otherwise. Toast the raw
+      //    card effect for each flower the card touched.
       const scores  = ev.scoresAfter || {};
       const effects = ev.effects || {};
+      const STAGE_LABELS = (window.BloomGrowth && window.BloomGrowth.STAGE_LABELS) || [];
       for (const se of _bloomStages) {
         const newScore = Number(scores[se.slug] ?? se.prevScore);
         const newStage = bloomScoreToStage(newScore);
+        const bloomed = newStage >= 6;
+        const pct = Math.min(100, newScore);
 
-        // Progress bar + pct text
-        const pctEl = document.querySelector(`[data-bloom-flower-score="${se.slug}"]`);
-        if (pctEl) pctEl.textContent = `${newScore}%`;
-        const barEl = document.querySelector(`[data-bloom-flower-barfill="${se.slug}"]`);
-        if (barEl) barEl.style.width = Math.min(100, newScore) + '%';
-
-        // Flower stage transition / swell
-        if (newStage !== se.currentStage) {
-          try { se.instance.transitionTo(newStage); } catch (e) { /* noop */ }
-          se.currentStage = newStage;
-        } else if (newScore > se.prevScore) {
-          try { se.instance.swell(); } catch (e) { /* noop */ }
+        // Header pct + vertical bar + footer label/score.
+        if (se.refs.pctEl) se.refs.pctEl.textContent = `${newScore}%`;
+        if (se.refs.vbar) {
+          se.refs.vbar.style.height = pct + '%';
+          se.refs.vbar.classList.toggle('bg-bloomed', bloomed);
+        }
+        if (se.refs.col) se.refs.col.classList.toggle('bg-bloomed', bloomed);
+        if (se.refs.stageLabel) {
+          se.refs.stageLabel.textContent = bloomed
+            ? '★ BLOOMED'
+            : (STAGE_LABELS[newStage] || '');
+        }
+        if (se.refs.score) {
+          se.refs.score.textContent = bloomed
+            ? `+${newScore} PTS`
+            : `growing · ${newScore} PTS`;
         }
 
-        // +N / -N toast (use the raw card effect so reads dramatically
-        // even when the post-floor delta is smaller).
+        // Flower SVG transition / swell.
+        if (se.refs.inst) {
+          if (newStage !== se.currentStage) {
+            try { se.refs.inst.transitionTo(newStage); } catch (e) { /* noop */ }
+            se.currentStage = newStage;
+          } else if (newScore > se.prevScore) {
+            try { se.refs.inst.swell(); } catch (e) { /* noop */ }
+          }
+        }
+
+        // +N / -N toast (raw card effect for visual drama even when the
+        // post-floor delta is smaller).
         const rawDelta = Number(effects[se.slug] ?? 0);
         if (rawDelta !== 0) {
           bloomShowFlowerToast(se.slug, rawDelta);
@@ -40338,12 +40352,10 @@ async function bloomPlayEvents(details) {
       await new Promise(r => setTimeout(r, DRAW_TOTAL_MS - 250));
     } else if (ev.type === 'BLOOM' || ev.type === 'SAFETY_CAP_VICTORY') {
       if (weatherEl) weatherEl.classList.remove('visible');
-      // Highlight winner — both the flower column (gold glow on the
-      // plant) and the corresponding meta cell (gilded panel below).
+      // Highlight winner card with an extra gold glow on top of the
+      // .bg-bloomed treatment the bg-col already has.
       const slot = document.querySelector(`[data-bloom-flower-slot="${ev.winnerFlower}"]`);
       if (slot) slot.classList.add('bloom-winner');
-      const metaSlot = document.querySelector(`[data-bloom-flower-meta="${ev.winnerFlower}"]`);
-      if (metaSlot) metaSlot.classList.add('bloom-winner');
       if (logEl) {
         const line = document.createElement('div');
         line.style.fontWeight = '700';

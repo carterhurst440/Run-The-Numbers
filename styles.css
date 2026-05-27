@@ -28468,58 +28468,49 @@ body[data-ui="new"] .alr-col-date {
   letter-spacing: 1px;
 }
 
-/* Biome stage — breaks out of the page wrapper on desktop so the
-   backdrop spans the entire viewport width. Stays contained on tablet/
-   mobile so it doesn't trigger a horizontal scrollbar on narrow views. */
-.bloom-biome-stage {
+/* ── Growth wrap (full-width container for the 5 bg-col cards) ─────── */
+.bloom-growth-wrap {
   position: relative;
   width: 100vw;
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
-  height: 480px;
-  overflow: hidden;
-  border-top: 1px solid #2a2a2a;
-  border-bottom: 1px solid #2a2a2a;
+  padding: 12px 16px 4px;
 }
 @media (max-width: 900px) {
-  .bloom-biome-stage {
+  .bloom-growth-wrap {
     width: 100%;
     margin-left: 0;
     margin-right: 0;
-    height: 420px;
-    border-radius: 8px;
-    border: 1px solid #2a2a2a;
+    padding: 12px 0 4px;
   }
 }
 
-/* ── Biome backdrop slot — BloomRegions JS mounts its own DOM here. ── */
-.bloom-biome-bg {
+/* The bg-row class (from bloom-growth.css) supplies the 5-col grid +
+   16px gap. Nothing to override here — cards mount directly. */
+
+/* Weather overlay slot floats above all cards. */
+.bloom-card-overlay {
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: 6;
   pointer-events: none;
 }
-.bloom-biome-bg > div { /* the BloomRegion root */
-  width: 100%;
-  height: 100%;
-}
 
-/* ── Weather name overlay (top-right of the biome) ─────────────────── */
+/* Weather name (top-right of the growth wrap). */
 .bloom-weather-label {
   position: absolute;
-  top: 16px;
-  right: 22px;
-  z-index: 4;
+  top: 18px;
+  right: 28px;
+  z-index: 7;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 11px;
   letter-spacing: 2px;
   font-weight: 800;
   text-transform: uppercase;
-  color: #fff;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.7);
-  background: rgba(0,0,0,0.42);
+  color: #2a2a24;
+  background: rgba(255,255,255,0.92);
   padding: 8px 14px;
-  border: 1px solid rgba(255,255,255,0.18);
+  border: 1px solid #cdc4af;
   border-radius: 2px;
   opacity: 0;
   transform: translateY(-4px);
@@ -28531,60 +28522,14 @@ body[data-ui="new"] .alr-col-date {
   transform: translateY(0);
 }
 
-/* ── Flowers row (5 columns OVER the backdrop) ─────────────────────── */
-.bloom-flowers-row {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  align-items: stretch;       /* every column fills the full row height */
-  padding: 0;
-  pointer-events: none;
-}
-
-/* Each column now holds ONLY the SVG (the meta block moved below the
-   biome). Wrap's bottom sits 4% above biome bottom so the seed lands
-   in the upper portion of the dirt band (which is the BloomRegions
-   soilFraction = 16% from the bottom). Result: seeds visibly planted
-   in dirt at every viewport. */
-.bloom-flower-col {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.bloom-flower-svg-wrap {
-  position: absolute;
-  top: 16px;                  /* breathing room under the header */
-  left: 0;
-  right: 0;
-  bottom: 4%;                 /* puts seed at the top of the dirt band */
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-.bloom-flower-svg {
-  width: 100%;
-  max-width: 220px;
-  aspect-ratio: 220 / 340;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-.bloom-flower-svg svg {
-  width: 100%;
-  height: 100%;
-}
-
-/* Toast layer floats above the flower for +N / -N indicators. */
+/* +N / -N toast layer per bg-col. */
 .bloom-flower-toast {
   position: absolute;
-  top: 30%;
+  top: 36%;
   left: 50%;
   transform: translateX(-50%);
   pointer-events: none;
-  z-index: 3;
+  z-index: 5;
   text-align: center;
 }
 .bloom-toast-point {
@@ -28593,13 +28538,13 @@ body[data-ui="new"] .alr-col-date {
   font-weight: 800;
   font-size: 22px;
   letter-spacing: 0.5px;
-  text-shadow: 0 2px 6px rgba(0,0,0,0.7),
-               0 0 14px rgba(255,255,255,0.25);
+  text-shadow: 0 2px 6px rgba(0,0,0,0.55),
+               0 0 14px rgba(255,255,255,0.4);
   animation: bloom-toast-rise 1.6s ease-out forwards;
   white-space: nowrap;
 }
-.bloom-toast-point.gain { color: #84f06a; }
-.bloom-toast-point.loss { color: #ff7a52; }
+.bloom-toast-point.gain { color: #2f9e30; }
+.bloom-toast-point.loss { color: #c4302b; }
 @keyframes bloom-toast-rise {
   0%   { opacity: 0; transform: translateY(10px) scale(0.6); }
   15%  { opacity: 1; transform: translateY(-4px) scale(1.18); }
@@ -28607,93 +28552,11 @@ body[data-ui="new"] .alr-col-date {
   100% { opacity: 0; transform: translateY(-68px) scale(0.92); }
 }
 
-/* Meta row — lives BELOW the biome stage, full-width so the 5 cells
-   line up with the biome's flower columns. Borrowed visual treatment
-   from bloom-growth-row.css (bar + pct tabular numerals). */
-.bloom-meta-row {
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
-  margin-right: calc(50% - 50vw);
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 0;
-  background: rgba(0,0,0,0.55);
-  border-bottom: 1px solid #2a2a2a;
-}
-@media (max-width: 900px) {
-  .bloom-meta-row {
-    width: 100%;
-    margin-left: 0;
-    margin-right: 0;
-    border-radius: 0 0 8px 8px;
-  }
-}
-.bloom-flower-meta {
-  text-align: center;
-  padding: 10px 10px 12px;
-  border-right: 1px solid rgba(255,255,255,0.08);
-}
-.bloom-flower-meta:last-child { border-right: 0; }
-.bloom-flower-name {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 1.4px;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
-  line-height: 1.2;
-  min-height: 24px;            /* fixed-height label area; wraps within */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.bloom-flower-bar {
-  height: 5px;
-  background: rgba(255,255,255,0.18);
-  margin-top: 4px;
-  position: relative;
-  overflow: hidden;
-  border-radius: 1px;
-}
-.bloom-flower-bar-fill {
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 0%;
-  transition: width 0.55s cubic-bezier(.34,1.2,.55,1.05),
-              box-shadow 0.4s ease;
-}
-.bloom-flower-pct {
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  color: #fbe064;
-  font-variant-numeric: tabular-nums;
-  margin-top: 4px;
-  font-weight: 700;
-}
-
-/* Winner highlight — gold glow on the flower column (in the biome) and
-   a gilded meta cell (in the row below). JS tags both elements with
-   .bloom-winner. */
-.bloom-flower-col.bloom-winner {
-  filter: drop-shadow(0 0 18px gold);
-}
-.bloom-flower-meta.bloom-winner {
-  background: linear-gradient(90deg, #b8860b, #ffd700, #b8860b);
-  border-right-color: #ffd700;
-}
-.bloom-flower-meta.bloom-winner .bloom-flower-name,
-.bloom-flower-meta.bloom-winner .bloom-flower-pct {
-  color: #000 !important;
-  text-shadow: none;
-}
-.bloom-flower-meta.bloom-winner .bloom-flower-bar-fill {
-  box-shadow: 0 0 8px gold;
-}
-
-/* ── Weather overlay slot — BloomWeather mounts here ──────────────── */
-.bloom-card-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
+/* Winner highlight — extra gold glow on top of .bg-bloomed treatment. */
+.bg-col.bloom-winner {
+  box-shadow:
+    0 0 0 2px gold,
+    0 0 28px rgba(255,215,0,0.55);
 }
 
 /* Event log under stage (reuse fof styling) */

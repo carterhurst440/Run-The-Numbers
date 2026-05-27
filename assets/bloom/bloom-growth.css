@@ -1,0 +1,212 @@
+/* bloom-growth · side-by-side growth panel
+ *
+ * Loaded alongside bloom-flowers.css.
+ * Provides layout for the 5-column biome card row, the +/– stat row,
+ * the global controls bar, and the subtle per-card weather animations.
+ *
+ * Class names are all `bg-*` to avoid collisions with the host app.
+ */
+
+/* ── Global controls ─────────────────────────────────────────────── */
+.bg-controls {
+  display: flex; align-items: center; gap: 12px;
+  background: #fff; border: 1px solid #e4e0d4; border-radius: 4px;
+  padding: 12px 18px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.bg-controls .bg-title {
+  font-size: 12px; font-weight: 800; letter-spacing: 0.14em;
+  font-variant-numeric: tabular-nums;
+}
+.bg-controls .bg-stage-label {
+  font-size: 10px; letter-spacing: 0.16em; color: #a8a890;
+  font-variant-numeric: tabular-nums;
+  margin-left: 6px;
+}
+.bg-controls .bg-spacer { flex: 1; }
+.bg-btn {
+  background: #2a2a24; color: #fff; border: 0;
+  font-family: inherit; padding: 6px 14px;
+  font-size: 10px; letter-spacing: 0.18em; cursor: pointer; border-radius: 2px;
+}
+.bg-btn.bg-ghost { background: transparent; color: #2a2a24; border: 1px solid #cdc4af; }
+.bg-btn:hover { filter: brightness(1.08); }
+.bg-speed {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 9px; letter-spacing: 0.18em; color: #686850;
+  margin-left: auto;
+}
+.bg-speed input { width: 130px; }
+.bg-speed .bg-readout { font-variant-numeric: tabular-nums; min-width: 44px; }
+
+/* ── Card row ────────────────────────────────────────────────────── */
+.bg-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.bg-col {
+  background: #fff;
+  border: 1px solid #e4e0d4;
+  border-radius: 4px;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.bg-col-head {
+  padding: 10px 14px;
+  background: #fafaf3;
+  border-bottom: 1px solid #efe9dc;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+.bg-col-head .bg-text { min-width: 0; flex: 1; }
+.bg-col-head .bg-name { font-size: 11px; font-weight: 800; letter-spacing: 0.16em; }
+.bg-col-head .bg-sci  { font-size: 9px; letter-spacing: 0.14em; color: #a8a890; font-style: italic; margin-top: 2px; }
+.bg-col-head .bg-pct {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.bg-col.bg-bloomed .bg-col-head .bg-pct {
+  text-shadow: 0 0 14px var(--bg-accent);
+}
+
+/* ── Stage area: sky + soil + flower + vertical bar ─────────────── */
+.bg-col-stage {
+  display: flex;
+  flex: 1;
+  min-height: 360px;
+  position: relative;
+  z-index: 2;
+}
+.bg-col-bg {
+  flex: 1;
+  position: relative;
+  overflow: visible;
+}
+.bg-sky         { position: absolute; inset: 0; }
+.bg-soil-base   { position: absolute; left: 0; right: 0; bottom: 0; height: 12%; }
+.bg-soil-stripe { position: absolute; left: 0; right: 0; bottom: 12%; transform: translateY(1px); }
+.bg-col-svg {
+  position: absolute; inset: 0;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 8px 0;
+  overflow: visible;
+}
+/* Force the 220×340 FlowerStage svg to bottom-anchor at the card's soil line
+   instead of stretching to fill, which is what bloom-flowers.js sets inline. */
+.bg-flower-host {
+  display: flex; align-items: flex-end; justify-content: center;
+  height: 100%;
+}
+.bg-flower-host svg {
+  width: auto !important;
+  height: 100% !important;
+  max-height: 360px;
+  display: block;
+  overflow: visible;
+}
+
+/* Vertical progress bar */
+.bg-vbar-wrap {
+  width: 14px;
+  background: #f3eedb;
+  border-left: 1px solid #efe9dc;
+  position: relative;
+  display: flex; flex-direction: column-reverse;
+}
+.bg-vbar-fill {
+  width: 100%;
+  height: 0;
+  transition: height 0.85s cubic-bezier(.22,1,.36,1),
+              box-shadow 0.5s ease;
+}
+.bg-vbar-fill.bg-bloomed {
+  box-shadow: 0 0 14px 2px var(--bg-accent);
+}
+
+/* Footer */
+.bg-col-foot {
+  padding: 8px 12px 10px;
+  border-top: 1px solid #efe9dc;
+  background: #fafaf3;
+  text-align: center;
+}
+.bg-col-foot .bg-stage-label {
+  font-size: 9px; letter-spacing: 0.16em; color: #686850; font-weight: 700;
+}
+.bg-col.bg-bloomed .bg-col-foot .bg-stage-label { color: var(--bg-accent); }
+.bg-col-foot .bg-score {
+  font-size: 9px; color: #b0a890; margin-top: 3px;
+  font-variant-numeric: tabular-nums; letter-spacing: 0.12em;
+}
+.bg-col.bg-bloomed .bg-col-foot .bg-score { color: #9a7818; font-weight: 700; }
+
+/* ── Stat row (+/-) ──────────────────────────────────────────────── */
+.bg-stat-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  margin-top: 18px;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.bg-stat-card {
+  background: #fff;
+  border: 1px solid #e4e0d4;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bg-stat-card-head {
+  padding: 8px 12px;
+  background: #fafaf3;
+  border-bottom: 1px solid #efe9dc;
+}
+.bg-stat-card-name { font-size: 11px; font-weight: 800; letter-spacing: 0.16em; }
+.bg-stat-card-tag  { font-size: 9px;  letter-spacing: 0.14em; color: #a8a890; margin-top: 2px; font-style: italic; }
+.bg-stat-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  background: #efe9dc;
+}
+.bg-stat-col { padding: 10px 12px 12px; background: #fff; }
+.bg-stat-col .bg-stat-label {
+  font-size: 9px; letter-spacing: 0.20em; font-weight: 700;
+  padding-bottom: 4px; margin-bottom: 6px;
+  border-bottom: 1px solid #efe9dc;
+}
+.bg-stat-col.bg-plus  .bg-stat-label { color: #4a8a3e; }
+.bg-stat-col.bg-minus .bg-stat-label { color: #c43a4a; }
+.bg-stat-item {
+  font-size: 9px; letter-spacing: 0.10em; margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.bg-stat-col.bg-plus  .bg-stat-item { color: #356a2c; }
+.bg-stat-col.bg-minus .bg-stat-item { color: #9c2a3a; }
+
+/* ── Per-card weather animations ─────────────────────────────────── */
+@keyframes bg-wx-drift-slow {
+  0%, 100% { transform: translateX(-2%); }
+  50%      { transform: translateX(2%); }
+}
+@keyframes bg-wx-fog-drift {
+  0%, 100% { transform: translateX(-4%); opacity: 0.7; }
+  50%      { transform: translateX(4%);  opacity: 1; }
+}
+@keyframes bg-wx-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+@keyframes bg-wx-dew-twinkle {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
+}
