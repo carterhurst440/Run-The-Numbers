@@ -40109,22 +40109,14 @@ function bloomAttachStageHandlers() {
   const againBtn = document.getElementById('bloom-again-btn');
   if (againBtn) againBtn.addEventListener('click', () => { void bloomRouteOpen(); });
 
-  // Drop a static biome card into the region image slot. The biome card
-  // is keyed by the region's hero flower (mapped to the bundle species
-  // id); mountFlower:false skips the FlowerStage so we just get the
-  // sky+soil+decor scene.
+  // Render the field-guide region card into the region image slot,
+  // keyed by the bloom DB region slug (BloomRegionCards maps it to
+  // its own region id internally).
   const regionImage = document.getElementById('bloom-region-image');
-  if (regionImage && window.BloomGrowth && window.BloomGrowth.buildBiomeCard) {
-    regionImage.innerHTML = '';
-    const heroSlug = regionImage.dataset.bloomRegionSpecies || '';
-    const speciesId = bloomBundleSpeciesId(heroSlug);
-    const species = (window.BloomGrowth.SPECIES_BIOMES || []).find(s => s.id === speciesId);
-    if (species) {
-      try {
-        const built = window.BloomGrowth.buildBiomeCard(species, { mountFlower: false });
-        regionImage.appendChild(built.col);
-      } catch (e) { /* noop */ }
-    }
+  if (regionImage && window.BloomRegionCards && window.BloomRegionCards.renderCard) {
+    const dbSlug = (bloomGame.region && bloomGame.region.region) || '';
+    try { window.BloomRegionCards.renderCard(dbSlug, regionImage); }
+    catch (e) { /* noop */ }
   }
 
   // Per-tile wager spots — click adds one chip of the currently selected
