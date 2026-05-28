@@ -40139,8 +40139,11 @@ function bloomAttachStageHandlers() {
     const ref  = _bloomRefData;
     if (historyEl && ref && ref.regions && ref.regions[slug]) {
       const deck = ref.regions[slug].deckComp || {};
+      // cardOrder exposes the display name as `name` (not `display_name`),
+      // so the old lookup always fell back to the slug — that's why the
+      // deck preview was showing "late_freeze" instead of "Late Freeze".
       const nameBySlug = {};
-      (ref.cardOrder || []).forEach(c => { nameBySlug[c.slug] = c.display_name || c.slug; });
+      (ref.cardOrder || []).forEach(c => { nameBySlug[c.slug] = c.name || c.slug; });
       historyEl.innerHTML = Object.keys(deck)
         .filter(k => Number(deck[k]) > 0)
         .sort((a, b) => (nameBySlug[a] || a).localeCompare(nameBySlug[b] || b))
@@ -40338,10 +40341,14 @@ function bloomUpdateBeginBtn() {
     if (clearBtn) { clearBtn.hidden = false; clearBtn.disabled = false; }
     if (editBtn)  { editBtn.hidden  = false; editBtn.disabled  = false; }
   } else if (state === 'resolving') {
+    // Deck is reshuffled before every draw server-side, so there's no
+    // "cards remaining" — only a finite event queue for THIS resolved
+    // round. Showing a count would imply the deck depletes, which it
+    // doesn't. Just say DRAW CARD.
     const queue = bloomGame.eventQueue || [];
     const remaining = queue.length - (bloomGame.eventIndex || 0);
     beginBtn.disabled = remaining <= 0;
-    beginBtn.textContent = remaining > 0 ? `\u25B6 DRAW CARD (${remaining})` : 'WAIT\u2026';
+    beginBtn.textContent = remaining > 0 ? '\u25B6 DRAW CARD' : 'WAIT\u2026';
     if (clearBtn) clearBtn.hidden = true;
     if (editBtn)  editBtn.hidden  = true;
   } else if (state === 'resolved') {
