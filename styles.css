@@ -28706,15 +28706,17 @@ body[data-ui="new"] .alr-col-date {
   background: #0d0d0d;
   padding: 14px 16px;
   min-width: 0;
-  /* Hard guarantee: panel width is computed from its parent (the 1fr
-     grid track), never from descendant content. Stops a wide chip row
-     or a wide flower tile from nudging the panel wider in steps. */
-  contain: inline-size;
+  width: 100%;
+}
+/* Clip the history + flower panels to their grid track width so a
+   wide chip row or wide tile content can't grow the panel. clip is
+   like hidden but doesn't force overflow-y: auto, so vertical
+   visuals (hover lift, outlines extending below) stay visible. */
+.bloom-history-panel,
+.bloom-flower-panel {
+  overflow-x: clip;
 }
 .bloom-right-col {
-  /* Grid with one 0-min track forces children to fit the right column
-     regardless of intrinsic width. Combined with contain:inline-size
-     on each panel, the right column can never grow with content. */
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-auto-rows: min-content;

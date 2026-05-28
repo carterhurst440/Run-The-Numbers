@@ -40114,7 +40114,7 @@ function bloomAttachStageHandlers() {
   // its own region id internally).
   const regionImage = document.getElementById('bloom-region-image');
   if (regionImage && window.BloomRegionCards && window.BloomRegionCards.renderCard) {
-    const dbSlug = (bloomGame.region && bloomGame.region.region) || '';
+    const dbSlug = (bloomGame.region && bloomGame.region.slug) || '';
     try { window.BloomRegionCards.renderCard(dbSlug, regionImage); }
     catch (e) { /* noop */ }
   }
