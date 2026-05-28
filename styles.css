@@ -28763,8 +28763,27 @@ body[data-ui="new"] .alr-col-date {
 
 /* ── Card draw history row ─ scrolls inside its own panel ──────────
    Each card is a 140×196 (5:7) field-guide card from
-   BloomWeatherCards. Row scrolls horizontally inside the panel. */
+   BloomWeatherCards.
+
+   NUCLEAR FIX for the width-creep bug: the card row is absolutely
+   positioned inside the history panel. An absolutely-positioned
+   element is taken out of normal flow and its intrinsic size cannot
+   influence the size of any ancestor — period. The panel's width is
+   set by the grid track (minmax(0, 1fr)); the row inside fills the
+   panel via left:0 / right:0; cards inside scroll horizontally inside
+   that strictly-sized box. No matter how many cards land, the panel
+   width stays pinned to the grid track. */
+.bloom-history-panel {
+  position: relative;
+  /* Reserve vertical space for the absolute child + label + padding.
+     14px top padding + 16px label margin + 212 card row + 14px bot. */
+  min-height: 256px;
+}
 .bloom-card-history {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 14px;
   display: flex;
   flex-wrap: nowrap;
   gap: 12px;
@@ -28772,15 +28791,9 @@ body[data-ui="new"] .alr-col-date {
   overflow-x: auto;
   scrollbar-width: thin;
   min-height: 212px;
-  min-width: 0;
-  max-width: 100%;
-  width: 100%;
+  max-height: 220px;
   align-items: flex-start;
-  /* Hard layout fence: the flex row's intrinsic min-content (sum of
-     card widths) can't bubble up past this element into the panel /
-     grid / body. Combined with overflow-x: auto, cards scroll inside
-     this box without ever influencing outer layout. */
-  contain: layout;
+  contain: layout size;
   box-sizing: border-box;
 }
 .bloom-card-history::-webkit-scrollbar { height: 4px; }
