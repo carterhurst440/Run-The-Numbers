@@ -39712,7 +39712,7 @@ function bloomCountSlider(regionSlug, cardSlug, cardName, value) {
   return `
     <div class="admin-fof-slider-row" data-bloom-region="${regionSlug}" data-bloom-region-card="${cardSlug}">
       <label>${cardName}</label>
-      <input type="range" min="0" max="15" step="1" value="${v}">
+      <input type="range" min="0" max="50" step="1" value="${v}">
       <span class="admin-fof-val">${v}</span>
     </div>
   `;
