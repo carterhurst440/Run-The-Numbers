@@ -40326,6 +40326,41 @@ function bloomEnsureChipRack() {
     if (bloomGame.state === 'resolving') return bloomDrawNext();
     if (bloomGame.state === 'resolved')  return void bloomStartRound();
   });
+
+  const autoBtn = document.getElementById('bloom-autoDrawBtn');
+  if (autoBtn) autoBtn.addEventListener('click', () => bloomToggleAutoDraw());
+}
+
+// ── Auto-draw — fires one bloomDrawNext every BLOOM_AUTO_DRAW_MS while
+// bloomGame.autoDraw is true and the round is resolving. Self-stops when
+// the queue empties or the state transitions out of 'resolving'.
+const BLOOM_AUTO_DRAW_MS = 500;
+let _bloomAutoDrawTimer = null;
+function bloomStopAutoDraw() {
+  if (_bloomAutoDrawTimer) {
+    clearInterval(_bloomAutoDrawTimer);
+    _bloomAutoDrawTimer = null;
+  }
+}
+function bloomToggleAutoDraw() {
+  bloomGame.autoDraw = !bloomGame.autoDraw;
+  if (bloomGame.autoDraw && bloomGame.state === 'resolving') {
+    bloomStopAutoDraw();
+    // Fire one immediately for snappy feedback, then continue on cadence.
+    bloomDrawNext();
+    if (bloomGame.state === 'resolving') {
+      _bloomAutoDrawTimer = setInterval(() => {
+        if (bloomGame.state !== 'resolving' || !bloomGame.autoDraw) {
+          bloomStopAutoDraw();
+          return;
+        }
+        bloomDrawNext();
+      }, BLOOM_AUTO_DRAW_MS);
+    }
+  } else {
+    bloomStopAutoDraw();
+  }
+  bloomUpdateBeginBtn();
 }
 
 function bloomRenderChipRackButtons() {
@@ -40361,6 +40396,7 @@ function bloomUpdateBeginBtn() {
   if (!beginBtn) return;
   const clearBtn = document.getElementById('bloom-clearBetsBtn');
   const editBtn  = document.getElementById('bloom-chipRackEdit');
+  const autoBtn  = document.getElementById('bloom-autoDrawBtn');
   const state    = bloomGame.state;
   if (state === 'selecting') {
     const total = bloomTotalWager();
@@ -40369,6 +40405,7 @@ function bloomUpdateBeginBtn() {
     beginBtn.textContent = '\u2B22 BEGIN ROUND';
     if (clearBtn) { clearBtn.hidden = false; clearBtn.disabled = false; }
     if (editBtn)  { editBtn.hidden  = false; editBtn.disabled  = false; }
+    if (autoBtn)  { autoBtn.hidden  = true; }
   } else if (state === 'resolving') {
     // Deck is reshuffled before every draw server-side, so there's no
     // "cards remaining" — only a finite event queue for THIS resolved
@@ -40380,17 +40417,28 @@ function bloomUpdateBeginBtn() {
     beginBtn.textContent = remaining > 0 ? '\u25B6 DRAW CARD' : 'WAIT\u2026';
     if (clearBtn) clearBtn.hidden = true;
     if (editBtn)  editBtn.hidden  = true;
+    if (autoBtn) {
+      autoBtn.hidden = false;
+      const on = !!bloomGame.autoDraw;
+      autoBtn.textContent = on ? '\u23F8 AUTO' : '\u23F5 AUTO';
+      autoBtn.classList.toggle('is-active', on);
+      autoBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      autoBtn.disabled = remaining <= 0;
+    }
   } else if (state === 'resolved') {
     beginBtn.disabled = false;
     beginBtn.textContent = '\u21BB NEW ROUND';
     if (clearBtn) clearBtn.hidden = true;
     if (editBtn)  editBtn.hidden  = true;
+    if (autoBtn)  autoBtn.hidden  = true;
   }
 }
 
 async function bloomStartRound() {
   // Reset any leftover state from a prior round so a "New Round" click
   // from the resolved screen lands cleanly without an idle-page bounce.
+  bloomStopAutoDraw();
+  bloomGame.autoDraw = false;
   bloomGame.resolution = null;
   bloomGame.eventQueue = [];
   bloomGame.eventIndex = 0;
@@ -40449,8 +40497,11 @@ function bloomDrawNext() {
   bloomApplyEvent(ev);
   const done = bloomGame.eventIndex >= queue.length;
   if (done) {
-    // Race over — credit the player + flip to resolved (re-renders the
-    // stage so the recap banner + winner glow + final scores show).
+    // Race over — kill any auto-draw timer, credit the player + flip to
+    // resolved (re-renders the stage so the recap banner + winner glow
+    // + final scores show).
+    bloomStopAutoDraw();
+    bloomGame.autoDraw = false;
     if (currentProfile && bloomGame.resolution) {
       currentProfile.credits = Number(bloomGame.resolution.new_balance);
     }

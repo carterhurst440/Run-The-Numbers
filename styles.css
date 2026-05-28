@@ -29338,6 +29338,13 @@ body[data-ui="new"] #bloom-chipBar .chip-rack__button:disabled {
   color: #363628;
   cursor: not-allowed;
 }
+/* Auto-draw toggle: when active, accent-colored to signal it's running. */
+body[data-ui="new"] #bloom-chipBar #bloom-autoDrawBtn.is-active {
+  background: #e8a020;
+  border-color: #e8a020;
+  color: #0a0a08;
+  box-shadow: 0 0 12px rgba(232,160,32,0.4);
+}
 
 body[data-ui="new"] #bloom-chipBar .chip-rack-edit {
   background: transparent;
