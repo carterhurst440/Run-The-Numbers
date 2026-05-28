@@ -40327,8 +40327,21 @@ function bloomEnsureChipRack() {
     if (bloomGame.state === 'resolved')  return void bloomStartRound();
   });
 
-  const autoBtn = document.getElementById('bloom-autoDrawBtn');
-  if (autoBtn) autoBtn.addEventListener('click', () => bloomToggleAutoDraw());
+  const autoToggle = document.getElementById('bloom-autoDrawToggle');
+  if (autoToggle) {
+    autoToggle.checked = !!bloomGame.autoDraw;
+    autoToggle.addEventListener('change', () => {
+      bloomGame.autoDraw = !!autoToggle.checked;
+      // If the user flips auto on mid-race, kick off the timer right
+      // away. If they flip it off, kill the timer. Selecting state just
+      // arms the flag for the next round.
+      if (bloomGame.state === 'resolving') {
+        if (bloomGame.autoDraw) bloomStartAutoDraw();
+        else bloomStopAutoDraw();
+      }
+      bloomUpdateBeginBtn();
+    });
+  }
 }
 
 // ── Auto-draw — fires one bloomDrawNext every BLOOM_AUTO_DRAW_MS while
@@ -40342,25 +40355,20 @@ function bloomStopAutoDraw() {
     _bloomAutoDrawTimer = null;
   }
 }
-function bloomToggleAutoDraw() {
-  bloomGame.autoDraw = !bloomGame.autoDraw;
-  if (bloomGame.autoDraw && bloomGame.state === 'resolving') {
-    bloomStopAutoDraw();
-    // Fire one immediately for snappy feedback, then continue on cadence.
-    bloomDrawNext();
-    if (bloomGame.state === 'resolving') {
-      _bloomAutoDrawTimer = setInterval(() => {
-        if (bloomGame.state !== 'resolving' || !bloomGame.autoDraw) {
-          bloomStopAutoDraw();
-          return;
-        }
-        bloomDrawNext();
-      }, BLOOM_AUTO_DRAW_MS);
-    }
-  } else {
-    bloomStopAutoDraw();
+function bloomStartAutoDraw() {
+  if (bloomGame.state !== 'resolving') return;
+  bloomStopAutoDraw();
+  // Fire one immediately for snappy feedback, then continue on cadence.
+  bloomDrawNext();
+  if (bloomGame.state === 'resolving') {
+    _bloomAutoDrawTimer = setInterval(() => {
+      if (bloomGame.state !== 'resolving' || !bloomGame.autoDraw) {
+        bloomStopAutoDraw();
+        return;
+      }
+      bloomDrawNext();
+    }, BLOOM_AUTO_DRAW_MS);
   }
-  bloomUpdateBeginBtn();
 }
 
 function bloomRenderChipRackButtons() {
@@ -40392,12 +40400,15 @@ function bloomUpdateChipRackActiveClass() {
 }
 
 function bloomUpdateBeginBtn() {
-  const beginBtn = document.getElementById('bloom-begin-btn');
+  const beginBtn   = document.getElementById('bloom-begin-btn');
   if (!beginBtn) return;
-  const clearBtn = document.getElementById('bloom-clearBetsBtn');
-  const editBtn  = document.getElementById('bloom-chipRackEdit');
-  const autoBtn  = document.getElementById('bloom-autoDrawBtn');
-  const state    = bloomGame.state;
+  const clearBtn   = document.getElementById('bloom-clearBetsBtn');
+  const editBtn    = document.getElementById('bloom-chipRackEdit');
+  const autoWrap   = document.getElementById('bloom-autoDrawWrap');
+  const autoToggle = document.getElementById('bloom-autoDrawToggle');
+  const state      = bloomGame.state;
+  // Keep the AUTO toggle in sync with the game's autoDraw flag.
+  if (autoToggle) autoToggle.checked = !!bloomGame.autoDraw;
   if (state === 'selecting') {
     const total = bloomTotalWager();
     const ok = total > 0 && total <= (Number(currentProfile?.credits ?? 0));
@@ -40405,7 +40416,7 @@ function bloomUpdateBeginBtn() {
     beginBtn.textContent = '\u2B22 BEGIN ROUND';
     if (clearBtn) { clearBtn.hidden = false; clearBtn.disabled = false; }
     if (editBtn)  { editBtn.hidden  = false; editBtn.disabled  = false; }
-    if (autoBtn)  { autoBtn.hidden  = true; }
+    if (autoWrap) autoWrap.hidden = false;
   } else if (state === 'resolving') {
     // Deck is reshuffled before every draw server-side, so there's no
     // "cards remaining" — only a finite event queue for THIS resolved
@@ -40417,28 +40428,24 @@ function bloomUpdateBeginBtn() {
     beginBtn.textContent = remaining > 0 ? '\u25B6 DRAW CARD' : 'WAIT\u2026';
     if (clearBtn) clearBtn.hidden = true;
     if (editBtn)  editBtn.hidden  = true;
-    if (autoBtn) {
-      autoBtn.hidden = false;
-      const on = !!bloomGame.autoDraw;
-      autoBtn.textContent = on ? '\u23F8 AUTO' : '\u23F5 AUTO';
-      autoBtn.classList.toggle('is-active', on);
-      autoBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      autoBtn.disabled = remaining <= 0;
-    }
+    // Toggle stays visible mid-race so the user can flip off / on the
+    // auto-draw without waiting for the round to finish.
+    if (autoWrap) autoWrap.hidden = false;
   } else if (state === 'resolved') {
     beginBtn.disabled = false;
     beginBtn.textContent = '\u21BB NEW ROUND';
     if (clearBtn) clearBtn.hidden = true;
     if (editBtn)  editBtn.hidden  = true;
-    if (autoBtn)  autoBtn.hidden  = true;
+    if (autoWrap) autoWrap.hidden = true;
   }
 }
 
 async function bloomStartRound() {
   // Reset any leftover state from a prior round so a "New Round" click
   // from the resolved screen lands cleanly without an idle-page bounce.
+  // bloomGame.autoDraw is the user's persistent preference — DON'T
+  // reset it. If they had AUTO armed last round, it stays armed.
   bloomStopAutoDraw();
-  bloomGame.autoDraw = false;
   bloomGame.resolution = null;
   bloomGame.eventQueue = [];
   bloomGame.eventIndex = 0;
@@ -40477,10 +40484,13 @@ async function bloomBeginRound() {
     });
     if (error) throw error;
     bloomGame.resolution = data;
-    // Queue the events; the user advances them with the DRAW button.
+    // Queue the events; the user advances them with the DRAW button —
+    // unless the AUTO toggle was armed, in which case start the timer
+    // right away.
     bloomGame.eventQueue = (data.round_details && data.round_details.events) || [];
     bloomGame.eventIndex = 0;
     bloomUpdateBeginBtn();
+    if (bloomGame.autoDraw) bloomStartAutoDraw();
   } catch (e) {
     const stage = document.getElementById('bloom-stage');
     if (stage) stage.innerHTML = `<div class="fof-err">Lock failed: ${e.message || e}</div>`;
@@ -40497,11 +40507,12 @@ function bloomDrawNext() {
   bloomApplyEvent(ev);
   const done = bloomGame.eventIndex >= queue.length;
   if (done) {
-    // Race over — kill any auto-draw timer, credit the player + flip to
+    // Race over — kill the auto-draw timer (the user's autoDraw flag
+    // PERSISTS across rounds, so the next BEGIN ROUND will auto-draw
+    // again if they had AUTO armed). Credit the player + flip to
     // resolved (re-renders the stage so the recap banner + winner glow
     // + final scores show).
     bloomStopAutoDraw();
-    bloomGame.autoDraw = false;
     if (currentProfile && bloomGame.resolution) {
       currentProfile.credits = Number(bloomGame.resolution.new_balance);
     }

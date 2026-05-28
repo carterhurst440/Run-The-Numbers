@@ -29338,13 +29338,69 @@ body[data-ui="new"] #bloom-chipBar .chip-rack__button:disabled {
   color: #363628;
   cursor: not-allowed;
 }
-/* Auto-draw toggle: when active, accent-colored to signal it's running. */
-body[data-ui="new"] #bloom-chipBar #bloom-autoDrawBtn.is-active {
+/* Auto-draw toggle — pill switch shown in the chip rack actions row.
+   ON = accent yellow with the pill slid right; OFF = muted grey.
+   Once the user flips it ON in selecting, BEGIN ROUND auto-engages
+   the draw timer immediately. The toggle stays visible during
+   resolving so they can flip it off mid-race. */
+.bloom-auto-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid #3a3a32;
+  border-radius: 999px;
+  background: transparent;
+  color: #909070;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.bloom-auto-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0; height: 0;
+}
+.bloom-auto-toggle-pill {
+  position: relative;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 12px;
+  border-radius: 999px;
+  background: #2a2a24;
+  border: 1px solid #3a3a32;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.bloom-auto-toggle-pill::after {
+  content: '';
+  position: absolute;
+  top: 1px; left: 1px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #707060;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+.bloom-auto-toggle input:checked ~ .bloom-auto-toggle-pill {
   background: #e8a020;
   border-color: #e8a020;
-  color: #0a0a08;
-  box-shadow: 0 0 12px rgba(232,160,32,0.4);
 }
+.bloom-auto-toggle input:checked ~ .bloom-auto-toggle-pill::after {
+  transform: translateX(12px);
+  background: #0a0a08;
+}
+.bloom-auto-toggle input:checked ~ .bloom-auto-toggle-text {
+  color: #e8a020;
+}
+.bloom-auto-toggle input:focus-visible ~ .bloom-auto-toggle-pill {
+  box-shadow: 0 0 0 2px rgba(232,160,32,0.45);
+}
+.bloom-auto-toggle[hidden] { display: none; }
 
 body[data-ui="new"] #bloom-chipBar .chip-rack-edit {
   background: transparent;
