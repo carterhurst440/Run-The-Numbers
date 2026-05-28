@@ -28729,10 +28729,10 @@ body[data-ui="new"] .alr-col-date {
   letter-spacing: 0.06em;
   font-weight: 600;
   white-space: nowrap;
-  animation: bloom-history-chip-in 0.25s ease-out;
+  animation: bloom-history-chip-in 0.2s ease-out;
 }
 @keyframes bloom-history-chip-in {
-  0%   { opacity: 0; transform: translateX(6px); }
+  0%   { opacity: 0; transform: translateX(-6px); }
   100% { opacity: 1; transform: translateX(0); }
 }
 

@@ -40179,14 +40179,15 @@ function bloomAttachStageHandlers() {
       const events = (bloomGame.resolution?.round_details?.events) || [];
       if (historyEl && events.length) {
         historyEl.innerHTML = '';
-        for (const ev of events) {
+        for (let i = events.length - 1; i >= 0; i--) {
+          const ev = events[i];
           if (ev.type !== 'DRAW') continue;
           const chip = document.createElement('span');
           chip.className = 'bloom-card-history-chip';
           chip.textContent = (ev.cardName || ev.card || '').toUpperCase();
           historyEl.appendChild(chip);
         }
-        historyEl.scrollLeft = historyEl.scrollWidth;
+        historyEl.scrollLeft = 0;
       }
     }
   }
@@ -40466,14 +40467,14 @@ async function bloomPlayEvents(details) {
         weatherEl.classList.add('visible');
       }
 
-      // Append a chip to the card history row so the player can see
-      // every card drawn so far this round. Newest sits on the right.
+      // Prepend a chip so the NEWEST card sits on the far left;
+      // older draws shift right and eventually scroll off-frame.
       if (historyEl) {
         const chip = document.createElement('span');
         chip.className = 'bloom-card-history-chip';
         chip.textContent = (ev.cardName || ev.card || '').toUpperCase();
-        historyEl.appendChild(chip);
-        historyEl.scrollLeft = historyEl.scrollWidth;
+        historyEl.insertBefore(chip, historyEl.firstChild);
+        historyEl.scrollLeft = 0;
       }
 
       // Per-flower update: drive the morph and refresh the live score
