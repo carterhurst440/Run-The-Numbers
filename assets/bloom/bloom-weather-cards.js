@@ -224,30 +224,30 @@
   // ── Card variants: DB card slug → scene + palette + accent + tag ──
   // Every card uses one of the 5 scenes; palettes pulled from the
   // source mockups (with a couple of small variations).
+  // The 5 source mockup cards — exact palettes / accents from the
+  // source HTML so cold_wind / humid_breeze / morning_dew / heavy_rain
+  // / heat_wave render identically to the reference mockups.
   var CARD_VARIANT = {
-    // Heat-family
+    cold_wind:          { scene: 'cold_wind',    palette: ['#7a92b8','#a8b8d0','#d0d8e2','#f0eadf'], accent: '#3d4d6a', tag: 'sharp · arctic · dry' },
+    humid_breeze:       { scene: 'humid_breeze', palette: ['#7ac8c0','#a8e0d0','#e6d9a8','#f4e6c2'], accent: '#1d5e6e', tag: 'warm · saline · soft' },
+    morning_dew:        { scene: 'morning_dew',  palette: ['#c8d8a8','#dde6c0','#f0e0c0','#f6ecd6'], accent: '#5e7038', tag: 'soft · golden · still' },
+    heavy_rain:         { scene: 'heavy_rain',   palette: ['#3a4e68','#566e88','#7e95ab','#c8d4dc'], accent: '#1a2840', tag: 'cold · grey · drenched' },
+    heat_wave:          { scene: 'heat_wave',    palette: ['#e85d2b','#f08240','#fbb16c','#f6d6a8'], accent: '#7d2410', tag: 'searing · ember · dry' },
+
+    // Legacy seed slugs that pre-date the rename. Each routes to the
+    // closest of the 5 archetypes with its own per-family palette.
     sunny_day:          { scene: 'heat_wave',    palette: ['#f0a040','#f6c270','#fbd998','#f6e2c2'], accent: '#9c4810', tag: 'bright · clear · warm' },
     dry_heat:           { scene: 'heat_wave',    palette: ['#e85d2b','#f08240','#fbb16c','#f6d6a8'], accent: '#7d2410', tag: 'arid · ember · still' },
     drought:            { scene: 'heat_wave',    palette: ['#d4a020','#e2b950','#eecf80','#f6e0a8'], accent: '#7a4810', tag: 'cracked · dry · long' },
-    heat_wave:          { scene: 'heat_wave',    palette: ['#e85d2b','#f08240','#fbb16c','#f6d6a8'], accent: '#7d2410', tag: 'searing · ember · dry' },
-
-    // Rain-family
     gentle_rain:        { scene: 'heavy_rain',   palette: ['#7a96b4','#a8c0d4','#cad8e2','#e6edf0'], accent: '#3a5a7a', tag: 'soft · grey · cool' },
     thunderstorm:       { scene: 'heavy_rain',   palette: ['#3a4e68','#566e88','#7e95ab','#c8d4dc'], accent: '#1a2840', tag: 'crackling · dark · loud' },
     flooding:           { scene: 'heavy_rain',   palette: ['#4a6a8a','#6e8aa6','#a0b8cc','#d0d8e0'], accent: '#1a3854', tag: 'submerged · cold · heavy' },
     hailstorm:          { scene: 'heavy_rain',   palette: ['#5e6e88','#8090a8','#b4becc','#d4dae2'], accent: '#2a3a54', tag: 'ice · drumming · sharp' },
-
-    // Cold-family
     late_freeze:        { scene: 'cold_wind',    palette: ['#7a92b8','#a8b8d0','#d0d8e2','#f0eadf'], accent: '#3d4d6a', tag: 'frost · still · pale' },
     cool_breeze:        { scene: 'cold_wind',    palette: ['#88a0b8','#b0c0d0','#d4dde6','#eef2e8'], accent: '#3a4d68', tag: 'crisp · clean · light' },
     windstorm:          { scene: 'cold_wind',    palette: ['#6a7c98','#8e9eb4','#b4becc','#d6dae2'], accent: '#2a3a54', tag: 'gusting · whipped · loud' },
-
-    // Humid-family
     tropical_humidity:  { scene: 'humid_breeze', palette: ['#7ac8c0','#a8e0d0','#e6d9a8','#f4e6c2'], accent: '#1d5e6e', tag: 'thick · warm · saline' },
     overcast:           { scene: 'humid_breeze', palette: ['#8aa0a8','#aebcc0','#c8d0d2','#e6e8e6'], accent: '#3a5560', tag: 'flat · grey · still' },
-
-    // Dew-family
-    morning_dew:        { scene: 'morning_dew',  palette: ['#c8d8a8','#dde6c0','#f0e0c0','#f6ecd6'], accent: '#5e7038', tag: 'soft · golden · still' },
     perfect_conditions: { scene: 'morning_dew',  palette: ['#d4e6a0','#e8eebc','#f4ecc8','#f8f0d8'], accent: '#3e5e2a', tag: 'ideal · balanced · clear' },
   };
 
