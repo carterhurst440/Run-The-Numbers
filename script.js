@@ -40005,14 +40005,14 @@ function bloomViewSelecting() {
           ${resolved}
         </div>
         <div class="bloom-right-col">
+          <div class="bloom-flower-panel">
+            <div class="bloom-flower-label">${subTitle}</div>
+            <div class="bloom-pick-row">${cards}</div>
+          </div>
           <div class="bloom-history-panel">
             <div class="bloom-history-label">${state === 'selecting' ? '// DECK' : '// CARDS DRAWN'}</div>
             <div class="bloom-card-history" id="bloom-card-history"
                  aria-label="${state === 'selecting' ? 'Cards in the deck' : 'Cards drawn this round'}"></div>
-          </div>
-          <div class="bloom-flower-panel">
-            <div class="bloom-flower-label">${subTitle}</div>
-            <div class="bloom-pick-row">${cards}</div>
           </div>
         </div>
       </div>
@@ -40486,67 +40486,21 @@ function bloomScoreToStage(score) {
   return Math.min(9, Math.floor(s / 10));
 }
 
-// Card art: icon + tint color per card slug. Used by bloomBuildCardChip
-// to render each card chip as a tiny playing-card with header band,
-// big icon, and per-flower effect badges.
-const BLOOM_CARD_ART = {
-  sunny_day:          { icon: '\u2600',  color: '#f0a020' },
-  gentle_rain:        { icon: '\u2602',  color: '#5a9cd4' },
-  thunderstorm:       { icon: '\u26C8',  color: '#5a6fa8' },
-  dry_heat:           { icon: '\u{1F525}', color: '#e85d2b' },
-  flooding:           { icon: '\u{1F30A}', color: '#2a7cbc' },
-  late_freeze:        { icon: '\u2744',  color: '#a8c4e4' },
-  morning_dew:        { icon: '\u{1F4A7}', color: '#88c0d4' },
-  overcast:           { icon: '\u2601',  color: '#8a8a8a' },
-  tropical_humidity:  { icon: '\u{1F334}', color: '#3d7d56' },
-  windstorm:          { icon: '\u{1F4A8}', color: '#7a8a9a' },
-  perfect_conditions: { icon: '\u2728',  color: '#d4b020' },
-  drought:            { icon: '\u2600',  color: '#c98a18' },
-  hailstorm:          { icon: '\u{1F328}', color: '#a8b4c4' },
-  cool_breeze:        { icon: '\u{1F32C}', color: '#88a0b8' },
-  heat_wave:          { icon: '\u{1F525}', color: '#d4502a' },
-};
-function bloomCardArt(slug) {
-  return BLOOM_CARD_ART[slug] || { icon: '\u25C6', color: '#888' };
-}
-
-// Build a small playing-card HTML string for one card. `mode` controls
-// the variant:
-//   'deck'   → faded muted look, ×N count badge
-//   'draw'   → bright accent border (used during the live race)
-//   'history'→ static history of a card already drawn (same as 'draw'
-//              but no slide-in animation)
-// effects is { flower_slug: delta }; bloomGame.candidates carries
-// accent colors for each.
+// Build a full 5:7 weather-card HTML string for one card. Delegates to
+// the BloomWeatherCards bundle so the visual is shared across deck
+// preview / live draws / resolved history. Falls back to a minimal
+// inline chip if the bundle isn't loaded yet.
 function bloomBuildCardChip(card, displayName, effects, opts) {
   opts = opts || {};
-  const mode = opts.mode || 'draw';
-  const art  = bloomCardArt(card);
-  const candByFlower = {};
-  (bloomGame.candidates || []).forEach(c => { candByFlower[c.flower] = c; });
-  const effectRows = Object.keys(effects || {})
-    .filter(slug => Number(effects[slug]) !== 0 && candByFlower[slug])
-    .sort((a, b) => Number(effects[b]) - Number(effects[a]))
-    .map(slug => {
-      const delta = Number(effects[slug]);
-      const sign  = delta > 0 ? '+' : '';
-      const cls   = delta > 0 ? 'gain' : 'loss';
-      const ac    = candByFlower[slug]?.accent_color || '#888';
-      return `<span class="bloom-card-fx ${cls}">
-        <span class="bloom-card-fx-dot" style="background:${ac}"></span>
-        ${sign}${delta}
-      </span>`;
-    }).join('');
-  const countBadge = (mode === 'deck' && Number(opts.count) > 1)
-    ? `<span class="bloom-card-count">×${Number(opts.count)}</span>` : '';
-  return `<div class="bloom-card-chip is-${mode}" style="--card-tint:${art.color}">
-    <div class="bloom-card-chip-head">
-      <span class="bloom-card-chip-name">${(displayName || card || '').toUpperCase()}</span>
-      ${countBadge}
-    </div>
-    <div class="bloom-card-chip-icon">${art.icon}</div>
-    <div class="bloom-card-chip-fx">${effectRows || '<span class="bloom-card-fx-none">—</span>'}</div>
-  </div>`;
+  if (window.BloomWeatherCards && window.BloomWeatherCards.buildCardHTML) {
+    return window.BloomWeatherCards.buildCardHTML(card, displayName, effects, {
+      mode:       opts.mode || 'draw',
+      count:      opts.count,
+      candidates: bloomGame.candidates || [],
+    });
+  }
+  return '<div class="bwc-card is-' + (opts.mode || 'draw') + '">' +
+    (displayName || card || '').toUpperCase() + '</div>';
 }
 
 // Map DB flower slug → bundle species id (only differs when the DB slug

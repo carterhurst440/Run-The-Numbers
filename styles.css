@@ -28756,15 +28756,17 @@ body[data-ui="new"] .alr-col-date {
   }
 }
 
-/* ── Card draw history row ─ scrolls inside its own panel ────────── */
+/* ── Card draw history row ─ scrolls inside its own panel ──────────
+   Each card is a 140×196 (5:7) field-guide card from
+   BloomWeatherCards. Row scrolls horizontally inside the panel. */
 .bloom-card-history {
   display: flex;
   flex-wrap: nowrap;
-  gap: 10px;
-  padding: 6px 2px;
+  gap: 12px;
+  padding: 8px 2px;
   overflow-x: auto;
   scrollbar-width: thin;
-  min-height: 156px;
+  min-height: 212px;
   min-width: 0;
   width: 100%;
   align-items: flex-start;
