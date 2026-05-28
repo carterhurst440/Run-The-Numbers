@@ -31,6 +31,14 @@ DECLARE
   v_top_slug       TEXT;
   v_top_wager      NUMERIC := -1;
   v_top_pct        NUMERIC;
+  v_pre_probs      JSONB := '{}'::jsonb;
+  v_final_scores   JSONB;
+  v_raw            JSONB;
+  v_slug           TEXT;
+  v_amount         NUMERIC;
+  v_bet_pct        NUMERIC;
+  v_bet_returned   NUMERIC;
+  v_bet_outcome    TEXT;
 BEGIN
   v_user_id := auth.uid();
   IF v_user_id IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
@@ -121,6 +129,58 @@ BEGIN
       pre_hand_account_value = v_pre_balance,
       new_account_value      = v_new_balance
   WHERE id = p_round_id;
+
+  -- Build the per-round snapshot once, then duplicate it onto every bet.
+  -- pre_hand_win_probs covers all 5 candidates for the region (every row
+  -- in bloom_flowers with a non-null pct_<region>).
+  FOR v_flower_row IN
+    SELECT * FROM public.bloom_flowers ORDER BY sort_order, flower
+  LOOP
+    v_bet_pct := CASE v_round.region
+      WHEN 'desert'           THEN v_flower_row.pct_desert
+      WHEN 'rainforest'       THEN v_flower_row.pct_rainforest
+      WHEN 'temperate_forest' THEN v_flower_row.pct_temperate_forest
+      WHEN 'tundra'           THEN v_flower_row.pct_tundra
+      WHEN 'tropical_island'  THEN v_flower_row.pct_tropical_island
+    END;
+    IF v_bet_pct IS NOT NULL THEN
+      v_pre_probs := v_pre_probs || jsonb_build_object(v_flower_row.flower, v_bet_pct);
+    END IF;
+  END LOOP;
+  v_final_scores := COALESCE(v_sim_result -> 'finalScores', '{}'::jsonb);
+  v_raw := jsonb_build_object(
+    'region',             v_round.region,
+    'pre_hand_win_probs', v_pre_probs,
+    'final_scores',       v_final_scores,
+    'winner_flower',      v_winner_slug
+  );
+
+  -- Per-bet rows: one for each entry in p_wagers. Win-side gets the
+  -- proportional payout for its own stack; everything else is forfeit.
+  FOR v_kv IN SELECT key AS slug, (value::TEXT)::NUMERIC AS amount FROM jsonb_each_text(p_wagers) AS j(key, value) LOOP
+    v_slug   := v_kv.slug;
+    v_amount := v_kv.amount;
+    v_bet_pct := (v_pre_probs ->> v_slug)::NUMERIC;
+    IF v_slug = v_winner_slug AND v_winner_pct IS NOT NULL AND v_winner_pct > 0 THEN
+      v_bet_returned := v_amount / v_winner_pct;
+      v_bet_outcome  := 'win';
+    ELSE
+      v_bet_returned := 0;
+      v_bet_outcome  := 'loss';
+    END IF;
+
+    INSERT INTO public.bloom_bets (
+      round_id, user_id, contest_id,
+      bet_key, flower, region,
+      win_probability, wager, outcome, returned,
+      raw, placed_at
+    ) VALUES (
+      p_round_id, v_user_id, v_round.contest_id,
+      v_slug || '_' || v_round.region, v_slug, v_round.region,
+      COALESCE(v_bet_pct, 0), v_amount, v_bet_outcome, v_bet_returned,
+      v_raw, NOW()
+    );
+  END LOOP;
 
   RETURN jsonb_build_object(
     'round_id',       p_round_id,
