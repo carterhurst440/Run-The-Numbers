@@ -28690,6 +28690,11 @@ body[data-ui="new"] .alr-col-date {
 }
 
 /* ── Card draw history row ─ horizontal scroll, hidden until race ─ */
+/* Pin .bloom-pick-panel to its 1fr grid track so the chip row's
+   intrinsic width can't push the flower grid offscreen. */
+.bloom-pick-panel {
+  min-width: 0;
+}
 .bloom-card-history {
   display: flex;
   flex-wrap: nowrap;
@@ -28701,6 +28706,8 @@ body[data-ui="new"] .alr-col-date {
   border-top: 1px solid rgba(255,255,255,0.06);
   border-bottom: 1px solid rgba(255,255,255,0.06);
   min-height: 28px;
+  min-width: 0;
+  max-width: 100%;
 }
 .bloom-card-history::-webkit-scrollbar { height: 4px; }
 .bloom-card-history::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 2px; }
