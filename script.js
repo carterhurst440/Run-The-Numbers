@@ -40117,7 +40117,7 @@ function bloomAttachStageHandlers() {
   if (startBtn) startBtn.addEventListener('click', bloomStartRound);
 
   const againBtn = document.getElementById('bloom-again-btn');
-  if (againBtn) againBtn.addEventListener('click', () => { void bloomRouteOpen(); });
+  if (againBtn) againBtn.addEventListener('click', () => { void bloomStartRound(); });
 
   // Render the field-guide region card into the region image slot,
   // keyed by the bloom DB region slug (BloomRegionCards maps it to
@@ -40295,7 +40295,7 @@ function bloomEnsureChipRack() {
     // bloomGame.state. bloomUpdateBeginBtn keeps the label in sync.
     if (bloomGame.state === 'selecting') return void bloomBeginRound();
     if (bloomGame.state === 'resolving') return bloomDrawNext();
-    if (bloomGame.state === 'resolved')  return void bloomRouteOpen();
+    if (bloomGame.state === 'resolved')  return void bloomStartRound();
   });
 }
 
@@ -40360,6 +40360,11 @@ function bloomUpdateBeginBtn() {
 }
 
 async function bloomStartRound() {
+  // Reset any leftover state from a prior round so a "New Round" click
+  // from the resolved screen lands cleanly without an idle-page bounce.
+  bloomGame.resolution = null;
+  bloomGame.eventQueue = [];
+  bloomGame.eventIndex = 0;
   const stage = document.getElementById('bloom-stage');
   if (stage) stage.innerHTML = '<div class="fof-loading">Dealing region…</div>';
   try {
