@@ -29022,7 +29022,9 @@ body[data-ui="new"] .alr-col-date {
   font-size: 22px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: #fbe064;
+  /* Matches each flower's accent (set inline as --bloom-accent on
+     the parent .bloom-pick-tile); falls back to the previous yellow. */
+  color: var(--bloom-accent, #fbe064);
   letter-spacing: 0;
 }
 .bloom-pick-payout {
