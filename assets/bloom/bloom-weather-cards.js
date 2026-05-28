@@ -360,7 +360,9 @@
       '<feComposite in2="SourceGraphic" operator="in"/></filter></defs>';
 
     var mode = opts.mode || 'draw';
-    var countBadge = (mode === 'deck' && Number(opts.count) > 1)
+    // Always show the count badge in deck mode (even ×1) so every card
+    // in the deck preview reads with the same chrome.
+    var countBadge = (mode === 'deck' && Number(opts.count) > 0)
       ? '<div class="bwc-count">\u00D7' + Number(opts.count) + '</div>' : '';
 
     return '<div class="bwc-card is-' + mode + '" style="--bwc-accent:' + r.accent + '">' +

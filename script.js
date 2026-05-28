@@ -40150,13 +40150,14 @@ function bloomAttachStageHandlers() {
         .forEach(card => {
           const effects = (ref.cardEffects && ref.cardEffects[card]) || {};
           // Find the candidate flower with the highest delta — that's
-          // the card's "primary beneficiary". Ties break on sort order
-          // (which is the candidate iteration order).
+          // the card's "primary beneficiary". Ties break to the LAST
+          // tied candidate (>=) so cards distribute across columns
+          // rather than piling up on the first-listed flower.
           let bestFlower = candidates[0]?.flower;
           let bestDelta  = -Infinity;
           candidates.forEach(c => {
             const d = Number(effects[c.flower] || 0);
-            if (d > bestDelta) {
+            if (d >= bestDelta) {
               bestDelta  = d;
               bestFlower = c.flower;
             }
