@@ -28644,38 +28644,6 @@ body[data-ui="new"] .alr-col-date {
   pointer-events: none;
 }
 
-/* +N / -N pop — tiny inline element next to the live score %.
-   bloomShowFlowerToast appends a .bloom-delta-pop span into
-   .bloom-flower-toast (which sits next to .bloom-race-score-pct in the
-   tile's score readout). No absolute positioning, no pill background. */
-.bloom-flower-toast {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  pointer-events: none;
-}
-.bloom-delta-pop {
-  display: inline-block;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-weight: 800;
-  font-size: 11px;
-  letter-spacing: 0;
-  font-variant-numeric: tabular-nums;
-  animation: bloom-delta-pop 1s ease-out forwards;
-  white-space: nowrap;
-}
-.bloom-delta-pop.gain { color: #84e85a; }
-.bloom-delta-pop.loss { color: #ff7a5a; }
-/* Pure fade in/out — no scale or translate so the pop doesn't read as
-   the flower pulsing. */
-@keyframes bloom-delta-pop {
-  0%   { opacity: 0; }
-  15%  { opacity: 1; }
-  70%  { opacity: 1; }
-  100% { opacity: 0; }
-}
-
 /* Per-tile vertical accent bar — sits to the LEFT of the flower SVG,
    fills bottom-up with the current score (driven by bloomPlayEvents).
    Always present in the DOM so the layout doesn't shift between
@@ -28844,16 +28812,13 @@ body[data-ui="new"] .alr-col-date {
 /* ── State-aware tile content ──────────────────────────────────────
    Tile sections are always present in the DOM so all five flowers
    keep identical heights and the horizontal alignment never shifts.
-   The score readout uses visibility (not display) so its slot is
-   reserved during selecting but invisible until the race starts.
+   The pct slot is dual-purpose: win % pre-hand, live race % during.
    The wager region is the bottom-most slot in every state. */
-.bloom-pick-tile .bloom-race-score {
-  display: inline-flex;
-  visibility: hidden;            /* reserves space during selecting */
-}
-.bloom-selecting[data-bloom-state="resolving"] .bloom-race-score,
-.bloom-selecting[data-bloom-state="resolved"]  .bloom-race-score {
-  visibility: visible;
+/* During the race the payout multiplier collapses out so the pct slot
+   reads cleanly as the live progress %. */
+.bloom-selecting[data-bloom-state="resolving"] .bloom-pick-payout,
+.bloom-selecting[data-bloom-state="resolved"]  .bloom-pick-payout {
+  visibility: hidden;
 }
 
 /* Wager spots stay visible across every state. During the race they
@@ -28888,25 +28853,10 @@ body[data-ui="new"] .alr-col-date {
   border-radius: 4px;
 }
 
-.bloom-race-score {
-  margin-top: 10px;
-  padding: 6px 12px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-weight: 800;
-  align-items: center;
-  gap: 8px;
-  color: var(--bloom-accent, #fbe064);
-  text-align: center;
-}
-.bloom-race-score-pct {
-  font-size: 22px;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-}
 .bloom-pick-tile.bloom-winner {
   filter: drop-shadow(0 0 22px rgba(255,215,0,0.6));
 }
-.bloom-pick-tile.bloom-winner .bloom-race-score {
+.bloom-pick-tile.bloom-winner .bloom-pick-pct {
   color: gold;
 }
 

@@ -39932,18 +39932,25 @@ function bloomFlowerCard(c) {
   const wagerAmt   = Number((bloomGame.wagers || {})[c.flower] || 0);
   const wagerCls   = wagerAmt > 0 ? 'has-wager' : '';
   const potential  = (winPct > 0 && wagerAmt > 0) ? (wagerAmt / Number(c.win_pct)).toFixed(0) : null;
-  // Bare flower tile — no card frame, no biome. Below the SVG: name +
-  // win % + payout, then a state-aware row that swaps between a
-  // wager-spot (selecting) and a live score readout (resolving / resolved).
-  // CSS hides the wrong one based on the .fof-selecting[data-bloom-state]
-  // ancestor.
   const hasWagerCls = wagerAmt > 0 ? 'has-wager' : '';
   const inRace = bloomGame.state === 'resolving' || bloomGame.state === 'resolved';
-  // Empty wager spot text changes by state: prompt during selecting,
-  // muted "$0" during race so the slot keeps its footprint without
-  // telling the user to do something they can't.
   const emptyWagerText = inRace ? '$0' : 'TAP TO BET';
   const wagerText = wagerAmt > 0 ? '$' + wagerAmt : emptyWagerText;
+  // Pct slot is dual-purpose:
+  //   selecting → win probability
+  //   resolving → live race score (driven by bloomPlayEvents)
+  //   resolved  → final score from the resolution payload
+  let pctValue;
+  if (bloomGame.state === 'selecting') {
+    pctValue = Number.isFinite(winPct) ? winPct.toFixed(1) : null;
+  } else if (bloomGame.state === 'resolving') {
+    pctValue = '0';
+  } else {
+    const finalScores = (bloomGame.resolution?.round_details?.finalScores) || {};
+    const s = Math.min(100, Number(finalScores[c.flower]) || 0);
+    pctValue = String(s);
+  }
+  const pctText = pctValue == null ? '—' : pctValue + '%';
   return `
     <div class="bloom-pick-tile ${heroCls} ${hasWagerCls}" data-bloom-flower="${c.flower}" style="--bloom-accent:${accent}">
       <div class="bloom-pick-stage">
@@ -39955,13 +39962,9 @@ function bloomFlowerCard(c) {
       <div class="bloom-pick-meta">
         <div class="bloom-pick-name" style="color:${accent}">${name}</div>
         <div class="bloom-pick-odds">
-          <span class="bloom-pick-pct">${Number.isFinite(winPct) ? winPct.toFixed(1) + '%' : '—'}</span>
+          <span class="bloom-pick-pct" data-bloom-flower-pct="${c.flower}">${pctText}</span>
           <span class="bloom-pick-payout">${payout}x payout</span>
         </div>
-      </div>
-      <div class="bloom-race-score" data-bloom-flower-score="${c.flower}">
-        <span class="bloom-race-score-pct">0%</span>
-        <span class="bloom-flower-toast" data-bloom-flower-toast="${c.flower}"></span>
       </div>
       <button type="button" class="bloom-wager-spot ${wagerCls}" data-bloom-wager-spot="${c.flower}" aria-label="Stack a chip on ${name}">
         <span class="bloom-wager-spot-amount">${wagerText}</span>
@@ -40161,7 +40164,7 @@ function bloomAttachStageHandlers() {
         const s = Math.min(100, Number(finalScores[slug]) || 0);
         const bar = document.querySelector(`[data-bloom-flower-bar="${slug}"]`);
         if (bar) bar.style.height = s + '%';
-        const pct = document.querySelector(`[data-bloom-flower-score="${slug}"] .bloom-race-score-pct`);
+        const pct = document.querySelector(`[data-bloom-flower-pct="${slug}"]`);
         if (pct) pct.textContent = s + '%';
       }
       // Persist the winner gold glow across the resolved re-render.
@@ -40411,20 +40414,6 @@ function bloomTeardownStages() {
   if (_bloomWeatherInst) { try { _bloomWeatherInst.destroy(); } catch (e) {} _bloomWeatherInst = null; }
 }
 
-// Render a small "+N" or "-N" pop inline next to the live score % for
-// ~1.1s. Auto-cleans up. Multiple pops stack if delivered in rapid
-// succession (each fades out independently).
-function bloomShowFlowerToast(flowerSlug, delta) {
-  if (!delta) return;
-  const host = document.querySelector(`[data-bloom-flower-toast="${flowerSlug}"]`);
-  if (!host) return;
-  const t = document.createElement('span');
-  t.className = `bloom-delta-pop ${delta > 0 ? 'gain' : 'loss'}`;
-  t.textContent = (delta > 0 ? '+' : '') + delta;
-  host.appendChild(t);
-  setTimeout(() => { if (t.parentNode === host) host.removeChild(t); }, 1100);
-}
-
 // Play a weather overlay (rendered by window.BloomWeather) for the duration
 // of one draw. Old BloomWeather instance is destroyed before mounting the
 // next so timers don't leak. `intensity` defaults to 1; could be derived
@@ -40487,30 +40476,22 @@ async function bloomPlayEvents(details) {
         historyEl.scrollLeft = historyEl.scrollWidth;
       }
 
-      // Per-flower update: drive the morph (transition / swell) and
-      // refresh the score readout below each tile. Toast the raw card
-      // effect for each flower the card touched.
-      const scores  = ev.scoresAfter || {};
-      const effects = ev.effects || {};
+      // Per-flower update: drive the morph and refresh the live score
+      // shown in the pct slot (same slot that held win % pre-hand).
+      const scores = ev.scoresAfter || {};
       for (const se of _bloomMorphs) {
         const newScore = Number(scores[se.slug] ?? se.prevScore);
         const newStage = bloomScoreToStage(newScore);
 
-        const scoreEl = document.querySelector(`[data-bloom-flower-score="${se.slug}"] .bloom-race-score-pct`);
-        if (scoreEl) scoreEl.textContent = `${newScore}%`;
+        const pctEl = document.querySelector(`[data-bloom-flower-pct="${se.slug}"]`);
+        if (pctEl) pctEl.textContent = `${newScore}%`;
         const barEl = document.querySelector(`[data-bloom-flower-bar="${se.slug}"]`);
         if (barEl) barEl.style.height = Math.min(100, newScore) + '%';
 
         if (se.morph && newStage !== se.currentStage) {
-          // setStage avoids the swell pulse that transitionTo fires, so
-          // the flowers don't bounce on each draw — they just morph to
-          // the new stage cleanly.
           try { se.morph.setStage(newStage); } catch (e) { /* noop */ }
           se.currentStage = newStage;
         }
-
-        const rawDelta = Number(effects[se.slug] ?? 0);
-        if (rawDelta !== 0) bloomShowFlowerToast(se.slug, rawDelta);
 
         se.prevScore = newScore;
       }
