@@ -28662,16 +28662,18 @@ body[data-ui="new"] .alr-col-date {
   font-size: 11px;
   letter-spacing: 0;
   font-variant-numeric: tabular-nums;
-  animation: bloom-delta-pop 1.1s ease-out forwards;
+  animation: bloom-delta-pop 1s ease-out forwards;
   white-space: nowrap;
 }
 .bloom-delta-pop.gain { color: #84e85a; }
 .bloom-delta-pop.loss { color: #ff7a5a; }
+/* Pure fade in/out — no scale or translate so the pop doesn't read as
+   the flower pulsing. */
 @keyframes bloom-delta-pop {
-  0%   { opacity: 0; transform: translateY(3px) scale(0.85); }
-  18%  { opacity: 1; transform: translateY(0)   scale(1.1); }
-  40%  { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(0.95); }
+  0%   { opacity: 0; }
+  15%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* Per-tile vertical accent bar — sits to the LEFT of the flower SVG,
