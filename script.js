@@ -39993,6 +39993,7 @@ function bloomViewSelecting() {
       </div>
       <div class="fof-pick-panel bloom-pick-panel">
         <div class="fof-pick-label">${subTitle}</div>
+        <div class="bloom-card-history" id="bloom-card-history" aria-label="Cards drawn this round"></div>
         <div class="bloom-pick-row">${cards}</div>
       </div>
     </div>
@@ -40168,6 +40169,21 @@ function bloomAttachStageHandlers() {
       if (winnerSlug) {
         const tile = document.querySelector(`[data-bloom-flower="${winnerSlug}"]`);
         if (tile) tile.classList.add('bloom-winner');
+      }
+      // Backfill the card-draw history from the saved events so the
+      // chip row survives the resolving → resolved re-render.
+      const historyEl = document.getElementById('bloom-card-history');
+      const events = (bloomGame.resolution?.round_details?.events) || [];
+      if (historyEl && events.length) {
+        historyEl.innerHTML = '';
+        for (const ev of events) {
+          if (ev.type !== 'DRAW') continue;
+          const chip = document.createElement('span');
+          chip.className = 'bloom-card-history-chip';
+          chip.textContent = (ev.cardName || ev.card || '').toUpperCase();
+          historyEl.appendChild(chip);
+        }
+        historyEl.scrollLeft = historyEl.scrollWidth;
       }
     }
   }
@@ -40452,12 +40468,23 @@ async function bloomPlayEvents(details) {
   const FINAL_HOLD_MS   = 1800;  // hold on the final BLOOM frame
   const weatherEl = document.getElementById('bloom-weather-banner');
 
+  const historyEl = document.getElementById('bloom-card-history');
   for (const ev of details.events) {
     if (ev.type === 'DRAW') {
       // Update the weather banner inside the region panel.
       if (weatherEl) {
         weatherEl.textContent = (ev.cardName || ev.card || '').toUpperCase();
         weatherEl.classList.add('visible');
+      }
+
+      // Append a chip to the card history row so the player can see
+      // every card drawn so far this round. Newest sits on the right.
+      if (historyEl) {
+        const chip = document.createElement('span');
+        chip.className = 'bloom-card-history-chip';
+        chip.textContent = (ev.cardName || ev.card || '').toUpperCase();
+        historyEl.appendChild(chip);
+        historyEl.scrollLeft = historyEl.scrollWidth;
       }
 
       // Per-flower update: drive the morph (transition / swell) and
