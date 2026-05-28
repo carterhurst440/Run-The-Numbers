@@ -39568,7 +39568,7 @@ function bloomEffectSlider(cardSlug, flowerSlug, flowerName, value) {
   return `
     <div class="admin-fof-slider-row" data-bloom-card="${cardSlug}" data-bloom-flower="${flowerSlug}">
       <label>${flowerName}</label>
-      <input type="range" min="-20" max="20" step="1" value="${v}">
+      <input type="range" min="-50" max="50" step="1" value="${v}">
       <span class="admin-fof-val">${v}</span>
     </div>
   `;
