@@ -28689,30 +28689,97 @@ body[data-ui="new"] .alr-col-date {
   transition: all 0.32s ease-out !important;
 }
 
-/* ── Card draw history row ─ horizontal scroll, hidden until race ─ */
-/* Pin .bloom-pick-panel to its 1fr grid track so the chip row's
-   intrinsic width can't push the flower grid offscreen. */
-.bloom-pick-panel {
+/* ── Bloom layout — separated panels ────────────────────────────────
+   Region (left)  |  Cards-drawn panel (top right)
+                  |  Flower panel (bottom right)
+   minmax(0, ...) on every right-column track keeps the card-history's
+   intrinsic width from ever pushing the flower grid offscreen. */
+.bloom-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 16px;
+}
+.bloom-region-panel,
+.bloom-history-panel,
+.bloom-flower-panel {
+  border: 1px solid #2a2a2a;
+  background: #0d0d0d;
+  padding: 14px 16px;
   min-width: 0;
 }
+.bloom-right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.bloom-region-label,
+.bloom-history-label,
+.bloom-flower-label {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: #888;
+  margin-bottom: 8px;
+}
+.bloom-region-name {
+  font-size: 20px;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+  color: #c64;
+}
+.bloom-region-image {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: #050505;
+  border: 1px solid #1f1f1f;
+  margin-bottom: 12px;
+  overflow: hidden;
+  position: relative;
+}
+.bloom-region-image .bg-col {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+.bloom-region-image .bg-col-head,
+.bloom-region-image .bg-col-foot,
+.bloom-region-image .bg-vbar-wrap,
+.bloom-region-image .bg-pct {
+  display: none;
+}
+.bloom-region-image .bg-col-stage {
+  height: 100%;
+}
+.bloom-region-identity {
+  font-size: 12px; opacity: 0.7; margin-top: 4px;
+}
+.bloom-region-hero {
+  font-size: 11px; opacity: 0.5; margin-top: 6px;
+}
+
+/* Mobile: stack region on top of right column. */
+@media (max-width: 720px) {
+  .bloom-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── Card draw history row ─ scrolls inside its own panel ────────── */
 .bloom-card-history {
   display: flex;
   flex-wrap: nowrap;
   gap: 6px;
-  margin: 8px 0 4px;
-  padding: 6px 4px;
+  padding: 4px 2px;
   overflow-x: auto;
   scrollbar-width: thin;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
   min-height: 28px;
   min-width: 0;
-  max-width: 100%;
+  width: 100%;
 }
 .bloom-card-history::-webkit-scrollbar { height: 4px; }
 .bloom-card-history::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 2px; }
-/* Selecting state — no draws yet, so collapse the row entirely. */
-.fof-selecting[data-bloom-state="selecting"] .bloom-card-history {
+/* Selecting state — no draws yet, so collapse the history panel. */
+.bloom-selecting[data-bloom-state="selecting"] .bloom-history-panel {
   display: none;
 }
 .bloom-card-history-chip {

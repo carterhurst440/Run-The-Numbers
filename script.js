@@ -39978,26 +39978,33 @@ function bloomViewSelecting() {
   const region = bloomGame.region || {};
   const cards = bloomGame.candidates.map(c => bloomFlowerCard(c)).join('');
   const state = bloomGame.state;
-  // Region panel sub-label changes by state — selecting shows hero,
-  // resolving/resolved show a live weather banner (updated by bloomPlayEvents).
   const subTitle = (state === 'selecting')
     ? '// STACK CHIPS ON ANY FLOWER · BET MULTIPLE TO HEDGE'
     : '// RACE IN PROGRESS';
   const resolved = state === 'resolved' ? bloomViewResolvedBanner() : '';
   return `
-    <div class="fof-selecting bloom-selecting" data-bloom-state="${state}">
-      <div class="fof-opp-panel">
-        <div class="fof-opp-label">// REGION</div>
-        <div class="fof-opp-name">${(region.name || '').toUpperCase()}</div>
-        <div style="font-size:12px;opacity:.7;margin-top:6px">${region.identity || ''}</div>
-        <div style="font-size:11px;opacity:.5;margin-top:8px">Hero flower: ${region.hero_flower || '—'}</div>
-        <div class="bloom-weather-banner" id="bloom-weather-banner"></div>
-        ${resolved}
-      </div>
-      <div class="fof-pick-panel bloom-pick-panel">
-        <div class="fof-pick-label">${subTitle}</div>
-        <div class="bloom-card-history" id="bloom-card-history" aria-label="Cards drawn this round"></div>
-        <div class="bloom-pick-row">${cards}</div>
+    <div class="bloom-selecting" data-bloom-state="${state}">
+      <div class="bloom-layout">
+        <div class="bloom-region-panel">
+          <div class="bloom-region-label">// REGION</div>
+          <div class="bloom-region-name">${(region.name || '').toUpperCase()}</div>
+          <div class="bloom-region-image" id="bloom-region-image"
+               data-bloom-region-species="${region.hero_flower || ''}"></div>
+          <div class="bloom-region-identity">${region.identity || ''}</div>
+          <div class="bloom-region-hero">Hero flower: ${region.hero_flower || '—'}</div>
+          <div class="bloom-weather-banner" id="bloom-weather-banner"></div>
+          ${resolved}
+        </div>
+        <div class="bloom-right-col">
+          <div class="bloom-history-panel">
+            <div class="bloom-history-label">// CARDS DRAWN</div>
+            <div class="bloom-card-history" id="bloom-card-history" aria-label="Cards drawn this round"></div>
+          </div>
+          <div class="bloom-flower-panel">
+            <div class="bloom-flower-label">${subTitle}</div>
+            <div class="bloom-pick-row">${cards}</div>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -40101,6 +40108,24 @@ function bloomAttachStageHandlers() {
 
   const againBtn = document.getElementById('bloom-again-btn');
   if (againBtn) againBtn.addEventListener('click', () => { void bloomRouteOpen(); });
+
+  // Drop a static biome card into the region image slot. The biome card
+  // is keyed by the region's hero flower (mapped to the bundle species
+  // id); mountFlower:false skips the FlowerStage so we just get the
+  // sky+soil+decor scene.
+  const regionImage = document.getElementById('bloom-region-image');
+  if (regionImage && window.BloomGrowth && window.BloomGrowth.buildBiomeCard) {
+    regionImage.innerHTML = '';
+    const heroSlug = regionImage.dataset.bloomRegionSpecies || '';
+    const speciesId = bloomBundleSpeciesId(heroSlug);
+    const species = (window.BloomGrowth.SPECIES_BIOMES || []).find(s => s.id === speciesId);
+    if (species) {
+      try {
+        const built = window.BloomGrowth.buildBiomeCard(species, { mountFlower: false });
+        regionImage.appendChild(built.col);
+      } catch (e) { /* noop */ }
+    }
+  }
 
   // Per-tile wager spots — click adds one chip of the currently selected
   // denomination (from the global chip rack) to wagers[flower]. Cap the
