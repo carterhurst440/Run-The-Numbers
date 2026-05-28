@@ -39953,7 +39953,10 @@ function bloomFlowerCard(c) {
     pctValue = '0';
   } else {
     const finalScores = (bloomGame.resolution?.round_details?.finalScores) || {};
-    const s = Math.min(100, Number(finalScores[c.flower]) || 0);
+    // Show the true final score — don't clamp. Winners that hit
+    // their target on a high-effect draw can finish well over 100%
+    // and the recap should reflect that, not flatten everyone to 100.
+    const s = Number(finalScores[c.flower]) || 0;
     pctValue = String(s);
   }
   const pctText = pctValue == null ? '—' : pctValue + '%';
@@ -40209,9 +40212,11 @@ function bloomAttachStageHandlers() {
     // from the final scores so the post-race state sticks.
     if (bloomGame.state === 'resolved') {
       for (const slug of Object.keys(finalScores)) {
-        const s = Math.min(100, Number(finalScores[slug]) || 0);
+        const s = Number(finalScores[slug]) || 0;
         const bar = document.querySelector(`[data-bloom-flower-bar="${slug}"]`);
-        if (bar) bar.style.height = s + '%';
+        // vbar stays capped at 100% visually so it doesn't overflow
+        // the tile; text shows the true % so a 113% winner reads honestly.
+        if (bar) bar.style.height = Math.min(100, s) + '%';
         const pct = document.querySelector(`[data-bloom-flower-pct="${slug}"]`);
         if (pct) pct.textContent = s + '%';
       }
