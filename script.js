@@ -40129,32 +40129,61 @@ function bloomAttachStageHandlers() {
     catch (e) { /* noop */ }
   }
 
-  // Deck preview during 'selecting': fill the history container with
-  // one card per card type, showing its count + effects. Pulls
-  // deck_composition + per-card effects from the cached _bloomRefData
-  // (preloaded by bloomRouteOpen).
+  // Deck preview during 'selecting': lay cards out in 5 columns matching
+  // the flower row. Each card is parked under the flower it helps most
+  // (highest effect delta), so the player can scan each column to see
+  // exactly which cards favor that flower.
   if (bloomGame.state === 'selecting') {
     const historyEl = document.getElementById('bloom-card-history');
     const slug = (bloomGame.region && bloomGame.region.slug) || '';
     const ref  = _bloomRefData;
     if (historyEl && ref && ref.regions && ref.regions[slug]) {
       const deck = ref.regions[slug].deckComp || {};
-      // cardOrder exposes the display name as `name` (not `display_name`),
-      // so the old lookup always fell back to the slug — that's why the
-      // deck preview was showing "late_freeze" instead of "Late Freeze".
       const nameBySlug = {};
       (ref.cardOrder || []).forEach(c => { nameBySlug[c.slug] = c.name || c.slug; });
-      historyEl.innerHTML = Object.keys(deck)
+      const candidates = bloomGame.candidates || [];
+      const cardsByFlower = {};
+      candidates.forEach(c => { cardsByFlower[c.flower] = []; });
+
+      Object.keys(deck)
         .filter(k => Number(deck[k]) > 0)
-        .sort((a, b) => (nameBySlug[a] || a).localeCompare(nameBySlug[b] || b))
-        .map(card => bloomBuildCardChip(
-          card,
-          nameBySlug[card],
-          (ref.cardEffects && ref.cardEffects[card]) || {},
-          { mode: 'deck', count: Number(deck[card]) }
-        ))
-        .join('');
+        .forEach(card => {
+          const effects = (ref.cardEffects && ref.cardEffects[card]) || {};
+          // Find the candidate flower with the highest delta — that's
+          // the card's "primary beneficiary". Ties break on sort order
+          // (which is the candidate iteration order).
+          let bestFlower = candidates[0]?.flower;
+          let bestDelta  = -Infinity;
+          candidates.forEach(c => {
+            const d = Number(effects[c.flower] || 0);
+            if (d > bestDelta) {
+              bestDelta  = d;
+              bestFlower = c.flower;
+            }
+          });
+          if (bestFlower && cardsByFlower[bestFlower]) {
+            cardsByFlower[bestFlower].push({ card, count: Number(deck[card]) });
+          }
+        });
+
+      historyEl.classList.add('is-deck-grid');
+      historyEl.innerHTML = candidates.map(c => {
+        const cards = (cardsByFlower[c.flower] || [])
+          .sort((a, b) => (nameBySlug[a.card] || a.card).localeCompare(nameBySlug[b.card] || b.card))
+          .map(({ card, count }) => bloomBuildCardChip(
+            card,
+            nameBySlug[card],
+            (ref.cardEffects && ref.cardEffects[card]) || {},
+            { mode: 'deck', count }
+          )).join('');
+        return `<div class="bloom-deck-col" data-flower="${c.flower}">${cards}</div>`;
+      }).join('');
     }
+  } else {
+    // Race / resolved — make sure the deck-grid class doesn't linger
+    // when the row should be a horizontal scroll of live draws.
+    const historyEl = document.getElementById('bloom-card-history');
+    if (historyEl) historyEl.classList.remove('is-deck-grid');
   }
 
   // Per-tile wager spots — click adds one chip of the currently selected

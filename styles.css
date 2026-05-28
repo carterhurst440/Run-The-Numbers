@@ -28776,25 +28776,47 @@ body[data-ui="new"] .alr-col-date {
 .bloom-history-panel {
   position: relative;
   /* Reserve vertical space for the absolute child + label + padding.
-     14px top padding + 16px label margin + 212 card row + 14px bot. */
-  min-height: 256px;
+     During race state: single row of cards. During selecting: 5-col
+     deck grid that scrolls vertically inside the panel. */
+  min-height: 196px;
+}
+/* Deck preview state — taller to fit ~3 cards stacked per column. */
+.bloom-selecting[data-bloom-state="selecting"] .bloom-history-panel {
+  min-height: 460px;
 }
 .bloom-card-history {
   position: absolute;
   left: 16px;
   right: 16px;
   bottom: 14px;
+  top: 38px;
   display: flex;
   flex-wrap: nowrap;
-  gap: 12px;
-  padding: 8px 2px;
+  gap: 10px;
+  padding: 6px 2px;
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: thin;
-  min-height: 212px;
-  max-height: 220px;
   align-items: flex-start;
   contain: layout size;
   box-sizing: border-box;
+}
+/* Deck preview layout — 5 columns matching the flower row, each
+   stacking the cards that primarily benefit that flower. */
+.bloom-card-history.is-deck-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  align-items: stretch;
+}
+.bloom-deck-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 .bloom-card-history::-webkit-scrollbar { height: 4px; }
 .bloom-card-history::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 2px; }

@@ -8,7 +8,7 @@
 .bwc-card {
   --bwc-accent: #2a2620;
   aspect-ratio: 5 / 7;
-  width: 140px;
+  width: 96px;
   flex: 0 0 auto;
   border-radius: 8px;
   overflow: hidden;
