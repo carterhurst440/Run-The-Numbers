@@ -28760,13 +28760,14 @@ body[data-ui="new"] .alr-col-date {
 .bloom-card-history {
   display: flex;
   flex-wrap: nowrap;
-  gap: 6px;
-  padding: 4px 2px;
+  gap: 10px;
+  padding: 6px 2px;
   overflow-x: auto;
   scrollbar-width: thin;
-  min-height: 28px;
+  min-height: 156px;
   min-width: 0;
   width: 100%;
+  align-items: flex-start;
 }
 .bloom-card-history::-webkit-scrollbar { height: 4px; }
 .bloom-card-history::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 2px; }
@@ -28786,6 +28787,108 @@ body[data-ui="new"] .alr-col-date {
   color: rgba(255,255,255,0.95);
   font-variant-numeric: tabular-nums;
 }
+/* ── Playing-card chip — fixed size, header / icon / effects ──────
+   Used in three modes: deck (selecting preview), draw (live race),
+   history (post-race recap). All identical size so the row reads as
+   a uniform deck. */
+.bloom-card-chip {
+  --card-tint: #888;
+  flex: 0 0 auto;
+  width: 110px;
+  height: 144px;
+  display: flex;
+  flex-direction: column;
+  background: #0f0f0f;
+  border: 1px solid color-mix(in oklab, var(--card-tint) 50%, #2a2a2a);
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+  overflow: hidden;
+  position: relative;
+  user-select: none;
+}
+.bloom-card-chip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  background: var(--card-tint);
+  color: #0a0a0a;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 4px 6px;
+  min-height: 18px;
+}
+.bloom-card-chip-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bloom-card-count {
+  flex: 0 0 auto;
+  background: rgba(0,0,0,0.25);
+  color: #fff;
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+.bloom-card-chip-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  line-height: 1;
+  padding: 8px 0 4px;
+  color: var(--card-tint);
+}
+.bloom-card-chip-fx {
+  flex: 1 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 6px;
+  align-content: flex-start;
+  justify-content: center;
+  padding: 4px 6px 8px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+}
+.bloom-card-fx {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.bloom-card-fx-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.bloom-card-fx.gain { color: #84e85a; }
+.bloom-card-fx.loss { color: #ff7a5a; }
+.bloom-card-fx-none {
+  color: rgba(255,255,255,0.35);
+}
+/* Deck preview — slightly muted so the deck reads as inactive. */
+.bloom-card-chip.is-deck {
+  opacity: 0.85;
+}
+.bloom-card-chip.is-draw {
+  animation: bloom-card-pop-in 0.22s ease-out;
+}
+@keyframes bloom-card-pop-in {
+  0%   { opacity: 0; transform: translateX(-10px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+/* Legacy small text-only chip — kept only for any remaining callers
+   (none currently — both deck preview and draw history use the
+   playing-card chip above). */
 .bloom-card-history-chip {
   flex: 0 0 auto;
   display: inline-flex;
@@ -29070,6 +29173,14 @@ body[data-ui="new"] #bloom-view #bloom-chipBar {
   flex-wrap: wrap;
 }
 body[data-ui="new"] #bloom-view #bloom-chipBar[hidden] { display: none; }
+/* During resolving / resolved the rack is visible but the chip
+   denominations + selector row don't drive anything — fade them so
+   it's clear, and shift focus to the DRAW / NEW ROUND button. */
+body[data-ui="new"] #bloom-chipBar[data-bloom-rack-state="resolving"] .chip-selector-row,
+body[data-ui="new"] #bloom-chipBar[data-bloom-rack-state="resolved"]  .chip-selector-row {
+  opacity: 0.35;
+  pointer-events: none;
+}
 body[data-ui="new"] #bloom-chipBar .chip-rack__row {
   display: flex;
   align-items: center;

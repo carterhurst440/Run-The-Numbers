@@ -40130,8 +40130,9 @@ function bloomAttachStageHandlers() {
   }
 
   // Deck preview during 'selecting': fill the history container with
-  // one chip per card type, showing its count. Pulls deck_composition
-  // from the cached _bloomRefData (preloaded by bloomRouteOpen).
+  // one card per card type, showing its count + effects. Pulls
+  // deck_composition + per-card effects from the cached _bloomRefData
+  // (preloaded by bloomRouteOpen).
   if (bloomGame.state === 'selecting') {
     const historyEl = document.getElementById('bloom-card-history');
     const slug = (bloomGame.region && bloomGame.region.slug) || '';
@@ -40140,16 +40141,16 @@ function bloomAttachStageHandlers() {
       const deck = ref.regions[slug].deckComp || {};
       const nameBySlug = {};
       (ref.cardOrder || []).forEach(c => { nameBySlug[c.slug] = c.display_name || c.slug; });
-      historyEl.innerHTML = '';
-      Object.keys(deck)
+      historyEl.innerHTML = Object.keys(deck)
         .filter(k => Number(deck[k]) > 0)
         .sort((a, b) => (nameBySlug[a] || a).localeCompare(nameBySlug[b] || b))
-        .forEach(card => {
-          const chip = document.createElement('span');
-          chip.className = 'bloom-card-history-chip is-deck';
-          chip.innerHTML = `${(nameBySlug[card] || card).toUpperCase()}<span class="bloom-card-history-chip-count">×${Number(deck[card])}</span>`;
-          historyEl.appendChild(chip);
-        });
+        .map(card => bloomBuildCardChip(
+          card,
+          nameBySlug[card],
+          (ref.cardEffects && ref.cardEffects[card]) || {},
+          { mode: 'deck', count: Number(deck[card]) }
+        ))
+        .join('');
     }
   }
 
@@ -40231,24 +40232,33 @@ function bloomAttachStageHandlers() {
       const historyEl = document.getElementById('bloom-card-history');
       const events = (bloomGame.resolution?.round_details?.events) || [];
       if (historyEl && events.length) {
-        historyEl.innerHTML = '';
+        const ref = _bloomRefData;
+        // Iterate events in reverse so the LAST card drawn lands on
+        // the far left (matches the live insert order during draws).
+        const html = [];
         for (let i = events.length - 1; i >= 0; i--) {
           const ev = events[i];
           if (ev.type !== 'DRAW') continue;
-          const chip = document.createElement('span');
-          chip.className = 'bloom-card-history-chip';
-          chip.textContent = (ev.cardName || ev.card || '').toUpperCase();
-          historyEl.appendChild(chip);
+          const card = ev.card || '';
+          const name = ev.cardName || card;
+          const effects = (ref && ref.cardEffects && ref.cardEffects[card]) || ev.effects || {};
+          html.push(bloomBuildCardChip(card, name, effects, { mode: 'history' }));
         }
+        historyEl.innerHTML = html.join('');
         historyEl.scrollLeft = 0;
       }
     }
   }
 
-  // Sync the persistent (sticky) chip rack with the current state.
+  // Persistent chip rack — visible across selecting / resolving /
+  // resolved so the user always sees their denominations + can drive
+  // the round forward with the rack's primary button.
   const chipBar = document.getElementById('bloom-chipBar');
-  if (chipBar) chipBar.hidden = bloomGame.state !== 'selecting';
-  if (bloomGame.state === 'selecting') {
+  if (chipBar) {
+    chipBar.hidden = bloomGame.state === 'idle';
+    chipBar.dataset.bloomRackState = bloomGame.state;
+  }
+  if (bloomGame.state !== 'idle') {
     bloomEnsureChipRack();
     bloomUpdateBeginBtn();
   }
@@ -40277,7 +40287,13 @@ function bloomEnsureChipRack() {
   });
 
   const beginBtn = document.getElementById('bloom-begin-btn');
-  if (beginBtn) beginBtn.addEventListener('click', bloomBeginRound);
+  if (beginBtn) beginBtn.addEventListener('click', () => {
+    // Single button drives the round forward — its action depends on
+    // bloomGame.state. bloomUpdateBeginBtn keeps the label in sync.
+    if (bloomGame.state === 'selecting') return void bloomBeginRound();
+    if (bloomGame.state === 'resolving') return bloomDrawNext();
+    if (bloomGame.state === 'resolved')  return void bloomRouteOpen();
+  });
 }
 
 function bloomRenderChipRackButtons() {
@@ -40311,9 +40327,29 @@ function bloomUpdateChipRackActiveClass() {
 function bloomUpdateBeginBtn() {
   const beginBtn = document.getElementById('bloom-begin-btn');
   if (!beginBtn) return;
-  const total = bloomTotalWager();
-  const ok = total > 0 && total <= (Number(currentProfile?.credits ?? 0));
-  beginBtn.disabled = !ok;
+  const clearBtn = document.getElementById('bloom-clearBetsBtn');
+  const editBtn  = document.getElementById('bloom-chipRackEdit');
+  const state    = bloomGame.state;
+  if (state === 'selecting') {
+    const total = bloomTotalWager();
+    const ok = total > 0 && total <= (Number(currentProfile?.credits ?? 0));
+    beginBtn.disabled = !ok;
+    beginBtn.textContent = '\u2B22 BEGIN ROUND';
+    if (clearBtn) { clearBtn.hidden = false; clearBtn.disabled = false; }
+    if (editBtn)  { editBtn.hidden  = false; editBtn.disabled  = false; }
+  } else if (state === 'resolving') {
+    const queue = bloomGame.eventQueue || [];
+    const remaining = queue.length - (bloomGame.eventIndex || 0);
+    beginBtn.disabled = remaining <= 0;
+    beginBtn.textContent = remaining > 0 ? `\u25B6 DRAW CARD (${remaining})` : 'WAIT\u2026';
+    if (clearBtn) clearBtn.hidden = true;
+    if (editBtn)  editBtn.hidden  = true;
+  } else if (state === 'resolved') {
+    beginBtn.disabled = false;
+    beginBtn.textContent = '\u21BB NEW ROUND';
+    if (clearBtn) clearBtn.hidden = true;
+    if (editBtn)  editBtn.hidden  = true;
+  }
 }
 
 async function bloomStartRound() {
@@ -40352,14 +40388,87 @@ async function bloomBeginRound() {
     });
     if (error) throw error;
     bloomGame.resolution = data;
-    await bloomPlayEvents(data.round_details);
-    if (currentProfile) currentProfile.credits = Number(data.new_balance);
-    bloomRefreshBalance();
-    bloomGame.state = 'resolved';
-    bloomRenderStage();
+    // Queue the events; the user advances them with the DRAW button.
+    bloomGame.eventQueue = (data.round_details && data.round_details.events) || [];
+    bloomGame.eventIndex = 0;
+    bloomUpdateBeginBtn();
   } catch (e) {
     const stage = document.getElementById('bloom-stage');
     if (stage) stage.innerHTML = `<div class="fof-err">Lock failed: ${e.message || e}</div>`;
+  }
+}
+
+// Advance the race by exactly one event. Bound to the chip-rack DRAW
+// button while bloomGame.state === 'resolving'.
+function bloomDrawNext() {
+  if (bloomGame.state !== 'resolving') return;
+  const queue = bloomGame.eventQueue || [];
+  if (bloomGame.eventIndex >= queue.length) return;
+  const ev = queue[bloomGame.eventIndex++];
+  bloomApplyEvent(ev);
+  const done = bloomGame.eventIndex >= queue.length;
+  if (done) {
+    // Race over — credit the player + flip to resolved (re-renders the
+    // stage so the recap banner + winner glow + final scores show).
+    if (currentProfile && bloomGame.resolution) {
+      currentProfile.credits = Number(bloomGame.resolution.new_balance);
+    }
+    bloomRefreshBalance();
+    bloomGame.state = 'resolved';
+    bloomRenderStage();
+  } else {
+    bloomUpdateBeginBtn();
+  }
+}
+
+// Apply a single DRAW / BLOOM / SAFETY_CAP_VICTORY event in-place.
+// Mirrors what the old auto-play loop did, minus the setTimeout.
+function bloomApplyEvent(ev) {
+  if (!ev) return;
+  const weatherEl = document.getElementById('bloom-weather-banner');
+  const historyEl = document.getElementById('bloom-card-history');
+
+  if (ev.type === 'DRAW') {
+    if (weatherEl) {
+      weatherEl.textContent = (ev.cardName || ev.card || '').toUpperCase();
+      weatherEl.classList.add('visible');
+    }
+
+    // On the FIRST draw of the round, wipe the deck preview chips so
+    // the row reads as the live history going forward.
+    if (bloomGame.eventIndex === 1 && historyEl) historyEl.innerHTML = '';
+
+    if (historyEl) {
+      const card = ev.card || '';
+      const name = ev.cardName || card;
+      const ref  = _bloomRefData;
+      const effects = (ref && ref.cardEffects && ref.cardEffects[card]) || ev.effects || {};
+      const html = bloomBuildCardChip(card, name, effects, { mode: 'draw' });
+      const tpl = document.createElement('template');
+      tpl.innerHTML = html.trim();
+      const chip = tpl.content.firstElementChild;
+      historyEl.insertBefore(chip, historyEl.firstChild);
+      historyEl.scrollLeft = 0;
+    }
+
+    const scores = ev.scoresAfter || {};
+    for (const se of _bloomMorphs) {
+      const newScore = Number(scores[se.slug] ?? se.prevScore);
+      const newStage = bloomScoreToStage(newScore);
+      const pctEl = document.querySelector(`[data-bloom-flower-pct="${se.slug}"]`);
+      if (pctEl) pctEl.textContent = `${newScore}%`;
+      const barEl = document.querySelector(`[data-bloom-flower-bar="${se.slug}"]`);
+      if (barEl) barEl.style.height = Math.min(100, newScore) + '%';
+      if (se.morph && newStage !== se.currentStage) {
+        try { se.morph.setStage(newStage); } catch (e) { /* noop */ }
+        se.currentStage = newStage;
+      }
+      se.prevScore = newScore;
+    }
+  } else if (ev.type === 'BLOOM' || ev.type === 'SAFETY_CAP_VICTORY') {
+    if (weatherEl) weatherEl.classList.remove('visible');
+    const slot = document.querySelector(`[data-bloom-flower="${ev.winnerFlower}"]`);
+    if (slot) slot.classList.add('bloom-winner');
   }
 }
 
@@ -40375,6 +40484,69 @@ function bloomScoreToStage(score) {
   if (s >= 100) return 10;
   if (s <= 0)   return 0;
   return Math.min(9, Math.floor(s / 10));
+}
+
+// Card art: icon + tint color per card slug. Used by bloomBuildCardChip
+// to render each card chip as a tiny playing-card with header band,
+// big icon, and per-flower effect badges.
+const BLOOM_CARD_ART = {
+  sunny_day:          { icon: '\u2600',  color: '#f0a020' },
+  gentle_rain:        { icon: '\u2602',  color: '#5a9cd4' },
+  thunderstorm:       { icon: '\u26C8',  color: '#5a6fa8' },
+  dry_heat:           { icon: '\u{1F525}', color: '#e85d2b' },
+  flooding:           { icon: '\u{1F30A}', color: '#2a7cbc' },
+  late_freeze:        { icon: '\u2744',  color: '#a8c4e4' },
+  morning_dew:        { icon: '\u{1F4A7}', color: '#88c0d4' },
+  overcast:           { icon: '\u2601',  color: '#8a8a8a' },
+  tropical_humidity:  { icon: '\u{1F334}', color: '#3d7d56' },
+  windstorm:          { icon: '\u{1F4A8}', color: '#7a8a9a' },
+  perfect_conditions: { icon: '\u2728',  color: '#d4b020' },
+  drought:            { icon: '\u2600',  color: '#c98a18' },
+  hailstorm:          { icon: '\u{1F328}', color: '#a8b4c4' },
+  cool_breeze:        { icon: '\u{1F32C}', color: '#88a0b8' },
+  heat_wave:          { icon: '\u{1F525}', color: '#d4502a' },
+};
+function bloomCardArt(slug) {
+  return BLOOM_CARD_ART[slug] || { icon: '\u25C6', color: '#888' };
+}
+
+// Build a small playing-card HTML string for one card. `mode` controls
+// the variant:
+//   'deck'   → faded muted look, ×N count badge
+//   'draw'   → bright accent border (used during the live race)
+//   'history'→ static history of a card already drawn (same as 'draw'
+//              but no slide-in animation)
+// effects is { flower_slug: delta }; bloomGame.candidates carries
+// accent colors for each.
+function bloomBuildCardChip(card, displayName, effects, opts) {
+  opts = opts || {};
+  const mode = opts.mode || 'draw';
+  const art  = bloomCardArt(card);
+  const candByFlower = {};
+  (bloomGame.candidates || []).forEach(c => { candByFlower[c.flower] = c; });
+  const effectRows = Object.keys(effects || {})
+    .filter(slug => Number(effects[slug]) !== 0 && candByFlower[slug])
+    .sort((a, b) => Number(effects[b]) - Number(effects[a]))
+    .map(slug => {
+      const delta = Number(effects[slug]);
+      const sign  = delta > 0 ? '+' : '';
+      const cls   = delta > 0 ? 'gain' : 'loss';
+      const ac    = candByFlower[slug]?.accent_color || '#888';
+      return `<span class="bloom-card-fx ${cls}">
+        <span class="bloom-card-fx-dot" style="background:${ac}"></span>
+        ${sign}${delta}
+      </span>`;
+    }).join('');
+  const countBadge = (mode === 'deck' && Number(opts.count) > 1)
+    ? `<span class="bloom-card-count">×${Number(opts.count)}</span>` : '';
+  return `<div class="bloom-card-chip is-${mode}" style="--card-tint:${art.color}">
+    <div class="bloom-card-chip-head">
+      <span class="bloom-card-chip-name">${(displayName || card || '').toUpperCase()}</span>
+      ${countBadge}
+    </div>
+    <div class="bloom-card-chip-icon">${art.icon}</div>
+    <div class="bloom-card-chip-fx">${effectRows || '<span class="bloom-card-fx-none">—</span>'}</div>
+  </div>`;
 }
 
 // Map DB flower slug → bundle species id (only differs when the DB slug
@@ -40500,65 +40672,8 @@ function bloomPlayWeatherForCard(cardSlug, container, durationMs, intensity) {
   }, durationMs);
 }
 
-async function bloomPlayEvents(details) {
-  if (!details || !Array.isArray(details.events)) return;
-  // The flower morphs are already mounted by bloomAttachStageHandlers
-  // (state === 'resolving' → mounted at stage 0). We just drive them
-  // here in place inside the existing tile DOM. No DOM teardown / build.
-  if (_bloomMorphs.length === 0) return;
-
-  const DRAW_TOTAL_MS   = 500;   // 0.5s per card — fast-paced rounds
-  const FINAL_HOLD_MS   = 1800;  // hold on the final BLOOM frame
-  const weatherEl = document.getElementById('bloom-weather-banner');
-
-  const historyEl = document.getElementById('bloom-card-history');
-  for (const ev of details.events) {
-    if (ev.type === 'DRAW') {
-      // Update the weather banner inside the region panel.
-      if (weatherEl) {
-        weatherEl.textContent = (ev.cardName || ev.card || '').toUpperCase();
-        weatherEl.classList.add('visible');
-      }
-
-      // Prepend a chip so the NEWEST card sits on the far left;
-      // older draws shift right and eventually scroll off-frame.
-      if (historyEl) {
-        const chip = document.createElement('span');
-        chip.className = 'bloom-card-history-chip';
-        chip.textContent = (ev.cardName || ev.card || '').toUpperCase();
-        historyEl.insertBefore(chip, historyEl.firstChild);
-        historyEl.scrollLeft = 0;
-      }
-
-      // Per-flower update: drive the morph and refresh the live score
-      // shown in the pct slot (same slot that held win % pre-hand).
-      const scores = ev.scoresAfter || {};
-      for (const se of _bloomMorphs) {
-        const newScore = Number(scores[se.slug] ?? se.prevScore);
-        const newStage = bloomScoreToStage(newScore);
-
-        const pctEl = document.querySelector(`[data-bloom-flower-pct="${se.slug}"]`);
-        if (pctEl) pctEl.textContent = `${newScore}%`;
-        const barEl = document.querySelector(`[data-bloom-flower-bar="${se.slug}"]`);
-        if (barEl) barEl.style.height = Math.min(100, newScore) + '%';
-
-        if (se.morph && newStage !== se.currentStage) {
-          try { se.morph.setStage(newStage); } catch (e) { /* noop */ }
-          se.currentStage = newStage;
-        }
-
-        se.prevScore = newScore;
-      }
-
-      await new Promise(r => setTimeout(r, DRAW_TOTAL_MS));
-    } else if (ev.type === 'BLOOM' || ev.type === 'SAFETY_CAP_VICTORY') {
-      if (weatherEl) weatherEl.classList.remove('visible');
-      const slot = document.querySelector(`[data-bloom-flower="${ev.winnerFlower}"]`);
-      if (slot) slot.classList.add('bloom-winner');
-      await new Promise(r => setTimeout(r, FINAL_HOLD_MS));
-    }
-  }
-}
+// (manual draw flow lives in bloomDrawNext + bloomApplyEvent above —
+// the old auto-play bloomPlayEvents loop is gone.)
 
 // ── BLOOM — Master Matrix (compute & save per-region win %) ────────
 async function runBloomMasterMatrix() {
