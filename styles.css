@@ -28707,13 +28707,17 @@ body[data-ui="new"] .alr-col-date {
   padding: 14px 16px;
   min-width: 0;
   width: 100%;
+  box-sizing: border-box;
 }
-/* Clip the history + flower panels to their grid track width so a
-   wide chip row or wide tile content can't grow the panel. clip is
-   like hidden but doesn't force overflow-y: auto, so vertical
-   visuals (hover lift, outlines extending below) stay visible. */
+/* `contain: layout` actually fences off the panel's layout from
+   descendants — children's intrinsic min-content can't bubble up to
+   the grid track. `overflow-x: clip` only clipped paint, so the
+   flower row + history row were still pushing the panel wider as
+   their content grew. Adding overflow-x: clip on top so anything
+   that wanders outside still doesn't paint. */
 .bloom-history-panel,
 .bloom-flower-panel {
+  contain: layout;
   overflow-x: clip;
 }
 .bloom-right-col {
