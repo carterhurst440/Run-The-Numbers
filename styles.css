@@ -29031,11 +29031,9 @@ body[data-ui="new"] .alr-col-date {
 
 /* Wagered-tile highlight — accent-color outline + drop-shadow so the
    flowers you bet on stand out across the row. */
-.bloom-pick-tile.has-wager {
-  outline: 2px solid var(--bloom-accent, #e8a020);
-  outline-offset: 6px;
-  border-radius: 4px;
-}
+/* Wager indicator lives in the wager spot itself — no full-tile
+   outline here (the accent border around the whole flower read as
+   too loud once the chip stacks were visible). */
 
 .bloom-pick-tile.bloom-winner {
   filter: drop-shadow(0 0 22px rgba(255,215,0,0.6));
