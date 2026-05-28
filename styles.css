@@ -28770,9 +28770,21 @@ body[data-ui="new"] .alr-col-date {
 }
 .bloom-card-history::-webkit-scrollbar { height: 4px; }
 .bloom-card-history::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 2px; }
-/* Selecting state — no draws yet, so collapse the history panel. */
-.bloom-selecting[data-bloom-state="selecting"] .bloom-history-panel {
-  display: none;
+/* Selecting state — show the deck preview (count per card). The
+   .is-deck chips skip the slide-in animation since they're a static
+   list, not live draws. */
+.bloom-card-history-chip.is-deck {
+  animation: none;
+  border-color: rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.025);
+  color: rgba(255,255,255,0.7);
+}
+.bloom-card-history-chip-count {
+  margin-left: 6px;
+  padding-left: 6px;
+  border-left: 1px solid rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.95);
+  font-variant-numeric: tabular-nums;
 }
 .bloom-card-history-chip {
   flex: 0 0 auto;

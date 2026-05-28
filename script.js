@@ -39889,6 +39889,12 @@ async function bloomRouteOpen() {
   bloomGame.wagers = {};
   bloomGame.resolution = null;
   bloomRefreshBalance();
+  // Preload ref data so the deck preview can render as soon as a round
+  // is started — re-renders the stage once it lands so the deck chips
+  // show up even on the very first round of a session.
+  loadAdminBloomRefData()
+    .then(() => { if (bloomGame.state === 'selecting') bloomRenderStage(); })
+    .catch(err => console.warn('[bloom] ref preload failed', err));
   bloomRenderStage();
 }
 
@@ -39997,8 +40003,9 @@ function bloomViewSelecting() {
         </div>
         <div class="bloom-right-col">
           <div class="bloom-history-panel">
-            <div class="bloom-history-label">// CARDS DRAWN</div>
-            <div class="bloom-card-history" id="bloom-card-history" aria-label="Cards drawn this round"></div>
+            <div class="bloom-history-label">${state === 'selecting' ? '// DECK' : '// CARDS DRAWN'}</div>
+            <div class="bloom-card-history" id="bloom-card-history"
+                 aria-label="${state === 'selecting' ? 'Cards in the deck' : 'Cards drawn this round'}"></div>
           </div>
           <div class="bloom-flower-panel">
             <div class="bloom-flower-label">${subTitle}</div>
@@ -40117,6 +40124,30 @@ function bloomAttachStageHandlers() {
     const dbSlug = (bloomGame.region && bloomGame.region.slug) || '';
     try { window.BloomRegionCards.renderCard(dbSlug, regionImage); }
     catch (e) { /* noop */ }
+  }
+
+  // Deck preview during 'selecting': fill the history container with
+  // one chip per card type, showing its count. Pulls deck_composition
+  // from the cached _bloomRefData (preloaded by bloomRouteOpen).
+  if (bloomGame.state === 'selecting') {
+    const historyEl = document.getElementById('bloom-card-history');
+    const slug = (bloomGame.region && bloomGame.region.slug) || '';
+    const ref  = _bloomRefData;
+    if (historyEl && ref && ref.regions && ref.regions[slug]) {
+      const deck = ref.regions[slug].deckComp || {};
+      const nameBySlug = {};
+      (ref.cardOrder || []).forEach(c => { nameBySlug[c.slug] = c.display_name || c.slug; });
+      historyEl.innerHTML = '';
+      Object.keys(deck)
+        .filter(k => Number(deck[k]) > 0)
+        .sort((a, b) => (nameBySlug[a] || a).localeCompare(nameBySlug[b] || b))
+        .forEach(card => {
+          const chip = document.createElement('span');
+          chip.className = 'bloom-card-history-chip is-deck';
+          chip.innerHTML = `${(nameBySlug[card] || card).toUpperCase()}<span class="bloom-card-history-chip-count">×${Number(deck[card])}</span>`;
+          historyEl.appendChild(chip);
+        });
+    }
   }
 
   // Per-tile wager spots — click adds one chip of the currently selected
