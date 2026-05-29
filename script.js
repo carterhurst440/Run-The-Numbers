@@ -31807,23 +31807,28 @@ async function fofPlayEvents(sim) {
   fofSetClip('hero', heroId, 'IDLE');
   fofSetClip('opp',  oppId,  'IDLE');
 
-  // Replay at ~3x speed so a 6-second fight plays in ~2 seconds.
-  const SPEED = 3;
-  // Minimum visible duration per action GIF (ms). Below this they flicker
-  // by too fast to register. After the clip's been on screen this long
-  // AND the fighter has no further pending action, they snap back to IDLE.
-  const MIN_ACTION_HOLD = Math.round(450 / SPEED);
+  // Real-time playback. The simulator timestamps events in seconds; we
+  // honor them as-is so each attack has room to read.
+  const SPEED = 1;
+  // Minimum visible duration per action GIF (ms). After this long
+  // without a follow-up action on the same fighter, snap back to IDLE.
+  const MIN_ACTION_HOLD = 700;
+  // Lean / flinch postures clear shortly after the impact lands so
+  // fighters are back in their neutral stance before the next beat.
+  const POSTURE_HOLD = 500;
   let lastT = 0;
 
-  // Side helper: which UI slot does this character own?
   const sideFor = (id) => (id === heroId ? 'hero' : id === oppId ? 'opp' : null);
+  const wrapperFor = (id) => {
+    const side = sideFor(id);
+    if (!side) return null;
+    return document.querySelector(side === 'hero' ? '.fof-fighter-hero' : '.fof-fighter-opp');
+  };
 
-  // Apply an action clip to whichever side a character is on, and queue a
-  // snap-back-to-IDLE after the hold window (cancellable if a follow-up
-  // action lands on the same fighter sooner). Loop-state actions
-  // (VICTORY/DEFEAT/IDLE) skip the snap.
   const STAY = new Set(['IDLE', 'VICTORY', 'DEFEAT']);
-  const heldTimers = { hero: null, opp: null };
+  const heldTimers   = { hero: null, opp: null };
+  const postureTimers = { hero: null, opp: null };
+
   function playClip(id, action) {
     const side = sideFor(id);
     if (!side) return;
@@ -31834,6 +31839,22 @@ async function fofPlayEvents(sim) {
       fofSetClip(side, id, 'IDLE');
       heldTimers[side] = null;
     }, MIN_ACTION_HOLD);
+  }
+
+  // Attacker leans toward defender, defender flinches back. Both clear
+  // after POSTURE_HOLD so the row settles before the next event.
+  function setPosture(id, posture /* 'attacking' | 'flinching' | null */) {
+    const side = sideFor(id);
+    const wrap = wrapperFor(id);
+    if (!side || !wrap) return;
+    wrap.classList.remove('is-attacking', 'is-flinching');
+    if (postureTimers[side]) { clearTimeout(postureTimers[side]); postureTimers[side] = null; }
+    if (!posture) return;
+    wrap.classList.add(`is-${posture}`);
+    postureTimers[side] = setTimeout(() => {
+      wrap.classList.remove('is-attacking', 'is-flinching');
+      postureTimers[side] = null;
+    }, POSTURE_HOLD);
   }
 
   for (let i = 0; i < events.length; i++) {
@@ -31870,34 +31891,33 @@ async function fofPlayEvents(sim) {
     switch (ev.type) {
       case 'SPECIAL_TRIGGER':
         // Play the actor's SPECIAL (e.g. rogue's doublestrike) BEFORE
-        // the follow-up attack. The target keeps idling — we only
-        // touch the actor's side.
+        // the follow-up attack. The target keeps idling.
         playClip(ev.actorId, 'SPECIAL');
+        setPosture(ev.actorId, 'attacking');
         break;
       case 'HIT':
       case 'CRITICAL_HIT':
         playClip(ev.actorId, ev.type);
+        setPosture(ev.actorId, 'attacking');
         break;
       case 'TAKE_DAMAGE':
       case 'TAKE_CRITICAL_DAMAGE':
         playClip(ev.actorId, ev.type);
+        setPosture(ev.actorId, 'flinching');
         break;
       case 'DODGE':
+        // targetId is the one dodging — actor was the attacker who
+        // whiffed. Defender plays DODGE; attacker keeps their pose.
+        playClip(ev.targetId || ev.actorId, 'DODGE');
+        break;
       case 'MISS':
-        // DODGE: actor evaded (the targetId is the one dodging). MISS:
-        // actor whiffed (actorId is the one missing). Both play on the
-        // relevant fighter; the other stays in IDLE.
-        if (ev.type === 'DODGE') playClip(ev.targetId || ev.actorId, 'DODGE');
-        else playClip(ev.actorId, 'MISS');
+        playClip(ev.actorId, 'MISS');
         break;
       case 'HEAL':
-        // Heal as SPECIAL since most kits ship that under doublestrike /
-        // special art and there's no dedicated HEAL clip currently.
         playClip(ev.actorId, 'SPECIAL');
         break;
       case 'VICTORY':
         playClip(ev.actorId, 'VICTORY');
-        // Loser flips to DEFEAT at the same beat.
         if (ev.actorId === heroId) playClip(oppId, 'DEFEAT');
         else if (ev.actorId === oppId) playClip(heroId, 'DEFEAT');
         break;
@@ -31917,10 +31937,12 @@ async function fofPlayEvents(sim) {
   }
   // Pause briefly on the final frame.
   await new Promise(r => setTimeout(r, 600));
-  // Cleanup any pending IDLE-snap timers so they don't fire after the
-  // fight is over and clobber the VICTORY/DEFEAT poses.
-  if (heldTimers.hero) clearTimeout(heldTimers.hero);
-  if (heldTimers.opp)  clearTimeout(heldTimers.opp);
+  // Cleanup any pending IDLE-snap / posture timers so they don't fire
+  // after the fight is over and clobber the VICTORY/DEFEAT poses.
+  if (heldTimers.hero)    clearTimeout(heldTimers.hero);
+  if (heldTimers.opp)     clearTimeout(heldTimers.opp);
+  if (postureTimers.hero) clearTimeout(postureTimers.hero);
+  if (postureTimers.opp)  clearTimeout(postureTimers.opp);
 }
 
 // Overview chart filter buttons
