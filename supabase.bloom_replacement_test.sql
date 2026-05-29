@@ -7,21 +7,15 @@
 -- simulator is drawing WITHOUT replacement (the bug), every card's
 -- max-in-one-round will be <= its deck count.
 
+-- ────────── 1. Main test (paste + run as one query) ───────────────
 WITH sims AS (
   SELECT
     i AS sim_id,
     public.bloom_simulate_round('desert', NULL) AS result
   FROM generate_series(1, 50) AS i
 ),
-sim_versions AS (
-  SELECT DISTINCT result->>'simVersion' AS ver,
-         (result->>'maxDraws')::INT     AS max_draws
-  FROM sims
-),
 draws AS (
-  SELECT
-    sim_id,
-    ev->>'card' AS card
+  SELECT sim_id, ev->>'card' AS card
   FROM sims, jsonb_array_elements(result->'events') AS ev
   WHERE ev->>'type' = 'DRAW'
 ),
@@ -31,9 +25,7 @@ per_sim_counts AS (
   GROUP BY sim_id, card
 ),
 deck AS (
-  SELECT
-    key            AS card,
-    value::INT     AS deck_count
+  SELECT key AS card, value::INT AS deck_count
   FROM public.bloom_regions r, jsonb_each_text(r.deck_composition)
   WHERE r.region = 'desert'
 )
@@ -53,5 +45,11 @@ LEFT JOIN per_sim_counts p USING (card)
 GROUP BY d.card, d.deck_count
 ORDER BY max_in_one_round DESC;
 
--- Bonus: confirm which simulator version answered.
-SELECT * FROM sim_versions;
+-- ────────── 2. Version check (run as a SEPARATE query) ───────────
+-- This must be its own statement — CTEs from query #1 above are
+-- scoped to that query and not reachable here.
+--   SELECT
+--     result->>'simVersion'      AS sim_version,
+--     (result->>'maxDraws')::INT AS max_draws,
+--     result->'winner'           AS winner
+--   FROM public.bloom_simulate_round('desert', NULL) AS result;
