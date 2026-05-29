@@ -30314,9 +30314,24 @@ function adminSkRender() {
       if (_skRolls[r]) { _skRolls[r].number = Number(btn.dataset.num); adminSkRender(); }
     });
   });
-  const skClear = document.getElementById('admin-sk-clear');
-  if (skClear) skClear.addEventListener('click', () => adminSkClear());
+  document.querySelectorAll('#admin-sk-clear, #admin-sk-clear-fs').forEach(btn => {
+    btn.addEventListener('click', () => adminSkClear());
+  });
+  const skFs = document.getElementById('admin-sk-fullscreen');
+  if (skFs) skFs.addEventListener('click', () => adminSkSetFullscreen(true));
+  const skExitFs = document.getElementById('admin-sk-exit-fs');
+  if (skExitFs) skExitFs.addEventListener('click', () => adminSkSetFullscreen(false));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') adminSkSetFullscreen(false);
+  });
 })();
+
+function adminSkSetFullscreen(on) {
+  const stage = document.getElementById('admin-sk-stage');
+  if (!stage) return;
+  stage.classList.toggle('is-fullscreen', on);
+  document.body.classList.toggle('admin-sk-fs-lock', on);
+}
 
 async function loadAdminFofAnimations() {
   const status = document.getElementById('admin-fof-anim-status');

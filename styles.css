@@ -24511,20 +24511,27 @@ body[data-ui="new"] #admin-view .admin-tab.active {
   box-shadow: none;
 }
 
-/* Sub-tabs (FOF / BLOOM / COLOR SCHEME) — base active color is near-black,
-   which vanishes on the dark admin background; use the lime accent instead. */
+/* Sub-tabs (FOF / BLOOM / COLOR SCHEME) — boxed pill style matching the
+   Contests list tabs, with the lime accent on the dark admin background. */
+body[data-ui="new"] #admin-view .admin-fof-subtabs,
+body[data-ui="new"] #admin-view .admin-cs-subtabs {
+  background: #111110;
+  border-color: #2a2a22;
+}
 body[data-ui="new"] #admin-view .admin-fof-subtab,
 body[data-ui="new"] #admin-view .admin-cs-subtab {
-  color: #686850;
+  color: #505040;
 }
 body[data-ui="new"] #admin-view .admin-fof-subtab:hover,
 body[data-ui="new"] #admin-view .admin-cs-subtab:hover {
-  color: #c8ff00;
+  color: #a8a870;
+  border-color: transparent;
 }
 body[data-ui="new"] #admin-view .admin-fof-subtab.active,
 body[data-ui="new"] #admin-view .admin-cs-subtab.active {
   color: #c8ff00;
-  border-bottom-color: #c8ff00;
+  border-color: rgba(200, 255, 0, 0.25);
+  background: rgba(200, 255, 0, 0.08);
 }
 
 body[data-ui="new"] #admin-view .admin-form input,
@@ -27617,36 +27624,60 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   }
 }
 
-/* ── Admin FOF sub-tabs ───────────────────────────────────────── */
-.admin-fof-subtabs {
-  display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid #2a2a2a;
-}
-.admin-fof-subtab {
-  padding: 8px 18px; background: transparent; border: none;
-  border-bottom: 2px solid transparent; cursor: pointer;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: 1px;
-}
-.admin-fof-subtab:hover { color: #111; }
-.admin-fof-subtab.active { color: #111; border-bottom-color: #111; font-weight: 700; }
-
-/* ── COLOR SCHEME admin sub-tabs ─────────────────────────────── */
+/* ── Admin sub-tabs (FOF / BLOOM / COLOR SCHEME) ──────────────── */
+/* Boxed pill style, matching the Contests list tabs. */
+.admin-fof-subtabs,
 .admin-cs-subtabs {
-  display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid #2a2a2a;
+  display: inline-flex; gap: 2px; margin-bottom: 16px;
+  padding: 3px; border: 1px solid #2a2a22; border-radius: 2px; background: #111110;
 }
+.admin-fof-subtab,
 .admin-cs-subtab {
-  padding: 8px 18px; background: transparent; border: none;
-  border-bottom: 2px solid transparent; cursor: pointer;
+  padding: 8px 16px; background: transparent;
+  border: 1px solid transparent; border-radius: 2px; cursor: pointer;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: 1px;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
 }
+.admin-fof-subtab:hover,
 .admin-cs-subtab:hover { color: #111; }
-.admin-cs-subtab.active { color: #111; border-bottom-color: #111; font-weight: 700; }
+.admin-fof-subtab.active,
+.admin-cs-subtab.active {
+  color: #111; border-color: #111; background: rgba(0,0,0,0.04); font-weight: 700;
+}
 
 /* ── Score Keeper ────────────────────────────────────────────── */
+.admin-sk-header-actions { display: flex; gap: 8px; }
 .admin-sk-wrap {
   display: flex; gap: 32px; flex-wrap: wrap; align-items: flex-start; margin-top: 14px;
 }
+
+/* Full-screen stage: normal flow until .is-fullscreen overlays the viewport */
+body.admin-sk-fs-lock { overflow: hidden; }
+.admin-sk-fs-bar { display: none; }
+.admin-sk-stage.is-fullscreen {
+  position: fixed; inset: 0; z-index: 9999;
+  background: #0a0a08; padding: 22px 32px 40px; overflow: auto;
+}
+.admin-sk-stage.is-fullscreen .admin-sk-fs-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 28px; padding-bottom: 16px; border-bottom: 1px solid #2a2a22;
+}
+.admin-sk-fs-title {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 13px; letter-spacing: 0.18em; color: #909070; text-transform: uppercase;
+}
+.admin-sk-fs-actions { display: flex; gap: 10px; }
+.admin-sk-stage.is-fullscreen .admin-sk-wrap {
+  justify-content: center; gap: 56px; margin-top: 0;
+  max-width: 1100px; margin-left: auto; margin-right: auto;
+}
+.admin-sk-stage.is-fullscreen .admin-sk-inputs { min-width: 340px; }
+.admin-sk-stage.is-fullscreen .admin-sk-card { width: 540px; }
+.admin-sk-stage.is-fullscreen .admin-sk-card .cs-oc-gt-value { font-size: 168px; }
+.admin-sk-stage.is-fullscreen .admin-sk-card .cs-oc-sub-value { font-size: 44px; }
+.admin-sk-stage.is-fullscreen .admin-sk-card .cs-oc-rank-val { font-size: 34px; min-width: 50px; }
+.admin-sk-stage.is-fullscreen .admin-sk-card .cs-oc-rank-name { font-size: 15px; }
 .admin-sk-inputs { display: flex; flex-direction: column; gap: 14px; min-width: 300px; }
 .admin-sk-roll {
   background: #0e0e0c; border: 1px solid #2e2e26; border-radius: 6px; padding: 14px 16px;

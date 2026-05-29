@@ -3255,9 +3255,20 @@
                 <section class="route-section admin-list-section">
                   <div class="admin-listing-header">
                     <h2>Score Keeper</h2>
-                    <button type="button" class="secondary" id="admin-sk-clear">Clear rolls</button>
+                    <div class="admin-sk-header-actions">
+                      <button type="button" class="secondary" id="admin-sk-clear">Clear rolls</button>
+                      <button type="button" class="secondary" id="admin-sk-fullscreen">Full screen</button>
+                    </div>
                   </div>
                   <p class="admin-cs-hint">Set the rolls one at a time — ROLL 1, then ROLL 2, then ROLL 3 — to build a score from the ground up. Clear rolls resets everything.</p>
+                  <div class="admin-sk-stage" id="admin-sk-stage">
+                  <div class="admin-sk-fs-bar">
+                    <span class="admin-sk-fs-title">// SCORE KEEPER</span>
+                    <div class="admin-sk-fs-actions">
+                      <button type="button" class="secondary" id="admin-sk-clear-fs">Clear rolls</button>
+                      <button type="button" class="secondary" id="admin-sk-exit-fs">Exit full screen</button>
+                    </div>
+                  </div>
                   <div class="admin-sk-wrap">
                     <div class="admin-sk-inputs">
                       <div class="admin-sk-roll">
@@ -3338,6 +3349,7 @@
                         </div>
                       </div>
                     </div>
+                  </div>
                   </div>
                 </section>
               </div>
