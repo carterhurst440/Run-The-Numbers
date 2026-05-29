@@ -109,12 +109,14 @@ DECLARE
   final_scores_jb JSONB;
   events          JSONB := '[]'::jsonb;
 
-  -- The deck never depletes (every draw is an independent uniform pick
-  -- from the region's deck_composition) and the race should run until a
-  -- flower hits 100%. MAX_DRAWS is now a true infinite-loop fuse only —
-  -- 50000 is high enough that any realistic deck reaches a winner long
-  -- before tripping it. If you hit this, your deck has a math problem
-  -- (net-negative effects making the target unreachable).
+  -- ──────────────────────────────────────────────────────────────────
+  -- CRITICAL: MAX_DRAWS is a CONSTANT FUSE that has NO RELATION to the
+  -- deck size. The deck NEVER runs out — every draw is an independent
+  -- uniform pick from the expanded deck array (with replacement). If
+  -- the deck has 13 cards, draw 14, 15, 16, ... still keep picking
+  -- from those same 13 cards. The loop only exits when a flower hits
+  -- its bloom_target OR the MAX_DRAWS fuse trips.
+  -- ──────────────────────────────────────────────────────────────────
   MAX_DRAWS CONSTANT INT := 50000;
 BEGIN
   -- Resolve region (random if NULL)
@@ -179,17 +181,30 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- Main draw loop — fresh independent pick per draw, until someone blooms.
+  -- Main draw loop. Each iteration is a FRESH independent pick from
+  -- the deck array (with replacement). The deck array is NEVER mutated
+  -- inside this loop — only read by index. The only loop exits are:
+  --   (a) a flower reached bloom_target, or
+  --   (b) the MAX_DRAWS fuse fired.
   LOOP
     EXIT WHEN winner_idx IS NOT NULL;
     EXIT WHEN draw_no >= MAX_DRAWS;
 
     draw_no := draw_no + 1;
 
-    -- Independent uniform pick from the deck.
+    -- DEFENSIVE: deck must never change size between draws. If this
+    -- ever raises, some code path is mutating the deck array.
+    IF array_length(deck, 1) <> deck_size THEN
+      RAISE EXCEPTION 'Deck size changed mid-race: was %, now % (draw %)',
+        deck_size, array_length(deck, 1), draw_no;
+    END IF;
+
+    -- Independent uniform pick from the deck — with replacement, so
+    -- the same card can be drawn back-to-back.
     SELECT * INTO rng_state, rng_val FROM public.bloom_rng_next(rng_state);
     pick_idx  := 1 + floor(rng_val * deck_size)::INT;     -- 1..deck_size
     IF pick_idx > deck_size THEN pick_idx := deck_size; END IF;  -- guard rng_val == 1.0
+    IF pick_idx < 1          THEN pick_idx := 1;          END IF;  -- guard against any weirdness
     card_slug := deck[pick_idx];
 
     card_name   := card_names   ->> card_slug;
