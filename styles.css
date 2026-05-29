@@ -28039,6 +28039,40 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
 .fof-vs-hero { color: #5b9; }
 .fof-vs-opp { color: #c64; }
 .fof-vs-sep { color: #888; font-size: 14px; }
+
+/* Fight stage — two fighters side by side, GIFs swap mid-event to
+   match SPECIAL_TRIGGER / HIT / TAKE_DAMAGE / DODGE / VICTORY etc. */
+.fof-fight-stage {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: end;
+  min-height: 280px;
+  margin: 0 auto 20px;
+  max-width: 760px;
+  padding: 12px;
+  background: radial-gradient(ellipse at center bottom, #1a1a14 0%, #0a0a08 70%);
+  border: 1px solid #2a2a22;
+  border-radius: 4px;
+}
+.fof-fighter {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 100%;
+  position: relative;
+}
+.fof-fighter-img {
+  max-width: 100%;
+  max-height: 260px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+}
+/* Mirror the opponent so they face the hero. The GIFs are drawn
+   facing right by default. */
+.fof-fighter-opp .fof-fighter-img {
+  transform: scaleX(-1);
+}
 .fof-hp-bars { margin-bottom: 16px; }
 .fof-hp-row {
   display: grid; grid-template-columns: 110px 1fr 80px; gap: 10px;

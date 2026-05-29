@@ -7,8 +7,17 @@
 -- All odds come from `vs_*` columns on the opponent's stat row, so the
 -- player cannot manipulate them.
 
+-- p_opponent (NEW): force a specific opponent slug for animation testing
+-- or admin sanity checks. Leave NULL to keep the previous uniform-random
+-- behavior.
+
+-- Drop prior overloads so re-running this file replaces every variant.
+DROP FUNCTION IF EXISTS public.fof_start_round(UUID);
+DROP FUNCTION IF EXISTS public.fof_start_round(UUID, TEXT);
+
 CREATE OR REPLACE FUNCTION public.fof_start_round(
-  p_contest_id UUID DEFAULT NULL
+  p_contest_id UUID DEFAULT NULL,
+  p_opponent   TEXT DEFAULT NULL
 ) RETURNS JSONB
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path = public
@@ -27,11 +36,20 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  -- Pick opponent uniformly at random
-  SELECT character INTO v_opp
-  FROM public.fate_or_fortune_character_stats
-  ORDER BY random()
-  LIMIT 1;
+  -- Player-chosen opponent (admin / animation testing), OR uniform random.
+  IF p_opponent IS NOT NULL AND length(trim(p_opponent)) > 0 THEN
+    SELECT character INTO v_opp
+    FROM public.fate_or_fortune_character_stats
+    WHERE character = p_opponent;
+    IF v_opp IS NULL THEN
+      RAISE EXCEPTION 'Opponent not found: %', p_opponent;
+    END IF;
+  ELSE
+    SELECT character INTO v_opp
+    FROM public.fate_or_fortune_character_stats
+    ORDER BY random()
+    LIMIT 1;
+  END IF;
 
   -- Load opponent's row (carries all 7 vs_* odds)
   SELECT * INTO v_opp_row
@@ -100,4 +118,4 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.fof_start_round(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fof_start_round(UUID, TEXT) TO authenticated;

@@ -31480,10 +31480,22 @@ const fofGame = {
   resolution: null,
 };
 
+// ── FOF — animation testing override ────────────────────────────────
+// Set to a character slug ('warlock', 'rogue', …) to force every round's
+// opponent. Set to null for normal random opponent selection. Used right
+// now to test the rogue/warlock animation pipeline since those are the
+// only two characters with bloodbond v2 GIFs imported.
+const FOF_FORCE_OPPONENT = 'warlock';
+
 async function fofRouteOpen() {
   fofGame.state = 'idle';
   fofRefreshBalance();
   fofRenderStage();
+  // Preload animation clips so the sprite layer has everything it needs
+  // by the time the user enters a fight. Loads silently in the background.
+  if (typeof loadAdminFofAnimations === 'function' && (!fofAnimRows || fofAnimRows.length === 0)) {
+    void loadAdminFofAnimations();
+  }
 }
 
 function fofRefreshBalance() {
@@ -31592,20 +31604,67 @@ function fofViewSelecting() {
 }
 
 function fofViewResolving() {
+  const heroId = fofGame.pickedHero || '';
+  const oppId  = fofGame.opponent?.character || '';
+  const heroIdle = fofClipUrl(heroId, 'IDLE');
+  const oppIdle  = fofClipUrl(oppId,  'IDLE');
   return `
     <div class="fof-resolving">
       <div class="fof-vs-line">
-        <span class="fof-vs-hero">${(fofGame.pickedHero||'').toUpperCase()}</span>
+        <span class="fof-vs-hero">${heroId.toUpperCase()}</span>
         <span class="fof-vs-sep">VS</span>
-        <span class="fof-vs-opp">${(fofGame.opponent?.character||'').toUpperCase()}</span>
+        <span class="fof-vs-opp">${oppId.toUpperCase()}</span>
+      </div>
+      <div class="fof-fight-stage">
+        <div class="fof-fighter fof-fighter-hero" data-fof-char="${heroId}">
+          <img id="fof-hero-img" class="fof-fighter-img" alt="${heroId}"
+               src="${heroIdle || ''}" data-fof-action="IDLE">
+        </div>
+        <div class="fof-fighter fof-fighter-opp" data-fof-char="${oppId}">
+          <img id="fof-opp-img" class="fof-fighter-img" alt="${oppId}"
+               src="${oppIdle || ''}" data-fof-action="IDLE">
+        </div>
       </div>
       <div class="fof-hp-bars">
-        <div class="fof-hp-row"><span>${(fofGame.pickedHero||'').toUpperCase()}</span><div class="fof-hp-track"><div class="fof-hp-fill fof-hp-hero" id="fof-hp-hero" style="width:100%"></div></div><span id="fof-hp-hero-val">—</span></div>
-        <div class="fof-hp-row"><span>${(fofGame.opponent?.character||'').toUpperCase()}</span><div class="fof-hp-track"><div class="fof-hp-fill fof-hp-opp" id="fof-hp-opp" style="width:100%"></div></div><span id="fof-hp-opp-val">—</span></div>
+        <div class="fof-hp-row"><span>${heroId.toUpperCase()}</span><div class="fof-hp-track"><div class="fof-hp-fill fof-hp-hero" id="fof-hp-hero" style="width:100%"></div></div><span id="fof-hp-hero-val">—</span></div>
+        <div class="fof-hp-row"><span>${oppId.toUpperCase()}</span><div class="fof-hp-track"><div class="fof-hp-fill fof-hp-opp" id="fof-hp-opp" style="width:100%"></div></div><span id="fof-hp-opp-val">—</span></div>
       </div>
       <div class="fof-event-log" id="fof-event-log"></div>
     </div>
   `;
+}
+
+// ── FOF — animation clip helpers ────────────────────────────────────
+// Look up the clip URL for (character, action) from the loaded
+// fate_or_fortune_animations rows. Returns '' if no clip exists yet
+// (caller decides whether to fall back to IDLE or skip the swap).
+function fofClipUrl(character, action) {
+  if (!character || !action) return '';
+  const row = fofAnimRows.find(r => r.character === character && r.action === action);
+  return row?.clip_data?.url || '';
+}
+
+// Swap a fighter's <img> to a given action. Falls back to IDLE if the
+// requested clip doesn't exist (keeps the fighter visible).
+function fofSetClip(side, character, action) {
+  const img = document.getElementById(side === 'hero' ? 'fof-hero-img' : 'fof-opp-img');
+  if (!img) return;
+  let url = fofClipUrl(character, action);
+  let finalAction = action;
+  if (!url) {
+    url = fofClipUrl(character, 'IDLE');
+    finalAction = 'IDLE';
+  }
+  if (!url) return;
+  // Force a fresh GIF play by tacking a cache buster on for one-shot
+  // clips. For IDLE we keep the same URL so it stays looping smoothly.
+  if (finalAction !== 'IDLE') {
+    url = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+  }
+  if (img.src !== url || img.dataset.fofAction !== finalAction) {
+    img.src = url;
+    img.dataset.fofAction = finalAction;
+  }
 }
 
 function fofViewResolved() {
@@ -31683,7 +31742,11 @@ async function fofStartRound() {
   const stage = document.getElementById('fof-stage');
   if (stage) stage.innerHTML = '<div class="fof-loading">Summoning challenger…</div>';
   try {
-    const { data, error } = await supabase.rpc('fof_start_round');
+    const rpcArgs = {};
+    if (FOF_FORCE_OPPONENT && typeof FOF_FORCE_OPPONENT === 'string') {
+      rpcArgs.p_opponent = FOF_FORCE_OPPONENT;
+    }
+    const { data, error } = await supabase.rpc('fof_start_round', rpcArgs);
     if (error) throw error;
     fofGame.roundId = data.round_id;
     fofGame.opponent = data.opponent;
@@ -31740,14 +31803,46 @@ async function fofPlayEvents(sim) {
   if (heroHpVal) heroHpVal.textContent = `${heroMax}/${heroMax}`;
   if (oppHpVal) oppHpVal.textContent = `${oppMax}/${oppMax}`;
 
+  // Make sure both fighters start in IDLE.
+  fofSetClip('hero', heroId, 'IDLE');
+  fofSetClip('opp',  oppId,  'IDLE');
+
   // Replay at ~3x speed so a 6-second fight plays in ~2 seconds.
   const SPEED = 3;
+  // Minimum visible duration per action GIF (ms). Below this they flicker
+  // by too fast to register. After the clip's been on screen this long
+  // AND the fighter has no further pending action, they snap back to IDLE.
+  const MIN_ACTION_HOLD = Math.round(450 / SPEED);
   let lastT = 0;
-  for (const ev of events) {
+
+  // Side helper: which UI slot does this character own?
+  const sideFor = (id) => (id === heroId ? 'hero' : id === oppId ? 'opp' : null);
+
+  // Apply an action clip to whichever side a character is on, and queue a
+  // snap-back-to-IDLE after the hold window (cancellable if a follow-up
+  // action lands on the same fighter sooner). Loop-state actions
+  // (VICTORY/DEFEAT/IDLE) skip the snap.
+  const STAY = new Set(['IDLE', 'VICTORY', 'DEFEAT']);
+  const heldTimers = { hero: null, opp: null };
+  function playClip(id, action) {
+    const side = sideFor(id);
+    if (!side) return;
+    fofSetClip(side, id, action);
+    if (heldTimers[side]) { clearTimeout(heldTimers[side]); heldTimers[side] = null; }
+    if (STAY.has(action)) return;
+    heldTimers[side] = setTimeout(() => {
+      fofSetClip(side, id, 'IDLE');
+      heldTimers[side] = null;
+    }, MIN_ACTION_HOLD);
+  }
+
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i];
     const dt = Math.max(0, (Number(ev.time) - lastT) * 1000 / SPEED);
     if (dt > 0) await new Promise(r => setTimeout(r, dt));
     lastT = Number(ev.time);
-    // Update HP bars if event carries an hpAfter for our fighters.
+
+    // HP bars first so the bar drops in sync with the GIF.
     if (typeof ev.hpAfter === 'number') {
       if (ev.actorId === heroId && heroHp) {
         const pct = Math.max(0, Math.min(100, (ev.hpAfter / heroMax) * 100));
@@ -31770,6 +31865,50 @@ async function fofPlayEvents(sim) {
         if (oppHpVal) oppHpVal.textContent = `${Math.max(0, Math.round(ev.targetHpAfter))}/${oppMax}`;
       }
     }
+
+    // ── Sprite playback ──
+    switch (ev.type) {
+      case 'SPECIAL_TRIGGER':
+        // Play the actor's SPECIAL (e.g. rogue's doublestrike) BEFORE
+        // the follow-up attack. The target keeps idling — we only
+        // touch the actor's side.
+        playClip(ev.actorId, 'SPECIAL');
+        break;
+      case 'HIT':
+      case 'CRITICAL_HIT':
+        playClip(ev.actorId, ev.type);
+        break;
+      case 'TAKE_DAMAGE':
+      case 'TAKE_CRITICAL_DAMAGE':
+        playClip(ev.actorId, ev.type);
+        break;
+      case 'DODGE':
+      case 'MISS':
+        // DODGE: actor evaded (the targetId is the one dodging). MISS:
+        // actor whiffed (actorId is the one missing). Both play on the
+        // relevant fighter; the other stays in IDLE.
+        if (ev.type === 'DODGE') playClip(ev.targetId || ev.actorId, 'DODGE');
+        else playClip(ev.actorId, 'MISS');
+        break;
+      case 'HEAL':
+        // Heal as SPECIAL since most kits ship that under doublestrike /
+        // special art and there's no dedicated HEAL clip currently.
+        playClip(ev.actorId, 'SPECIAL');
+        break;
+      case 'VICTORY':
+        playClip(ev.actorId, 'VICTORY');
+        // Loser flips to DEFEAT at the same beat.
+        if (ev.actorId === heroId) playClip(oppId, 'DEFEAT');
+        else if (ev.actorId === oppId) playClip(heroId, 'DEFEAT');
+        break;
+      case 'DEFEAT':
+        playClip(ev.actorId, 'DEFEAT');
+        break;
+      default:
+        break;
+    }
+
+    // Append text log entry.
     const div = document.createElement('div');
     div.className = `fof-evt fof-evt-${ev.type.toLowerCase()}`;
     div.textContent = `[${Number(ev.time).toFixed(2)}s] ${ev.message || ev.type}`;
@@ -31778,6 +31917,10 @@ async function fofPlayEvents(sim) {
   }
   // Pause briefly on the final frame.
   await new Promise(r => setTimeout(r, 600));
+  // Cleanup any pending IDLE-snap timers so they don't fire after the
+  // fight is over and clobber the VICTORY/DEFEAT poses.
+  if (heldTimers.hero) clearTimeout(heldTimers.hero);
+  if (heldTimers.opp)  clearTimeout(heldTimers.opp);
 }
 
 // Overview chart filter buttons
