@@ -2693,7 +2693,7 @@
               <button type="button" class="admin-tab" data-admin-tab="analytics">Analytics</button>
               <button type="button" class="admin-tab" data-admin-tab="contests">Contests</button>
               <button type="button" class="admin-tab" data-admin-tab="ranks">Ranks</button>
-              <button type="button" class="admin-tab" data-admin-tab="cs-clips">CS Clips</button>
+              <button type="button" class="admin-tab" data-admin-tab="cs-clips">COLOR SCHEME</button>
               <button type="button" class="admin-tab" data-admin-tab="fate-or-fortune">FATE OR FORTUNE</button>
               <button type="button" class="admin-tab" data-admin-tab="bloom">BLOOM</button>
             </div>
@@ -3205,6 +3205,11 @@
               </section>
             </section>
             <section class="admin-tab-content" id="admin-cs-clips-content" hidden>
+              <div class="admin-cs-subtabs">
+                <button type="button" class="admin-cs-subtab active" data-cs-subtab="clips">Clips</button>
+                <button type="button" class="admin-cs-subtab" data-cs-subtab="scorekeeper">Score Keeper</button>
+              </div>
+              <div class="admin-cs-subtab-content" id="admin-cs-clips-subtab">
               <section class="route-section admin-list-section">
                 <div class="admin-listing-header">
                   <h2>Color Scheme Clips</h2>
@@ -3245,6 +3250,96 @@
                   </div>
                 </div>
               </section>
+              </div>
+              <div class="admin-cs-subtab-content" id="admin-cs-scorekeeper-subtab" hidden>
+                <section class="route-section admin-list-section">
+                  <div class="admin-listing-header">
+                    <h2>Score Keeper</h2>
+                  </div>
+                  <p class="admin-cs-hint">Manually set the three rolls (color + number) to see the scored outcome.</p>
+                  <div class="admin-sk-wrap">
+                    <div class="admin-sk-inputs">
+                      <div class="admin-sk-roll">
+                        <div class="admin-sk-roll-hdr">ROLL 1</div>
+                        <div class="admin-sk-btn-row admin-sk-color-row">
+                          <button type="button" class="admin-sk-color-btn" data-roll="1" data-color="RED" style="--sk-c:#ff4444">RED</button>
+                          <button type="button" class="admin-sk-color-btn" data-roll="1" data-color="BLUE" style="--sk-c:#4488ff">BLUE</button>
+                          <button type="button" class="admin-sk-color-btn" data-roll="1" data-color="YELLOW" style="--sk-c:#ffdd00">YELLOW</button>
+                        </div>
+                        <div class="admin-sk-btn-row admin-sk-num-row">
+                          <button type="button" class="admin-sk-num-btn" data-roll="1" data-num="1">1</button>
+                          <button type="button" class="admin-sk-num-btn" data-roll="1" data-num="2">2</button>
+                          <button type="button" class="admin-sk-num-btn" data-roll="1" data-num="3">3</button>
+                          <button type="button" class="admin-sk-num-btn" data-roll="1" data-num="4">4</button>
+                          <button type="button" class="admin-sk-num-btn" data-roll="1" data-num="5">5</button>
+                          <button type="button" class="admin-sk-num-btn" data-roll="1" data-num="6">6</button>
+                        </div>
+                      </div>
+                      <div class="admin-sk-roll">
+                        <div class="admin-sk-roll-hdr">ROLL 2</div>
+                        <div class="admin-sk-btn-row admin-sk-color-row">
+                          <button type="button" class="admin-sk-color-btn" data-roll="2" data-color="RED" style="--sk-c:#ff4444">RED</button>
+                          <button type="button" class="admin-sk-color-btn" data-roll="2" data-color="BLUE" style="--sk-c:#4488ff">BLUE</button>
+                          <button type="button" class="admin-sk-color-btn" data-roll="2" data-color="YELLOW" style="--sk-c:#ffdd00">YELLOW</button>
+                        </div>
+                        <div class="admin-sk-btn-row admin-sk-num-row">
+                          <button type="button" class="admin-sk-num-btn" data-roll="2" data-num="1">1</button>
+                          <button type="button" class="admin-sk-num-btn" data-roll="2" data-num="2">2</button>
+                          <button type="button" class="admin-sk-num-btn" data-roll="2" data-num="3">3</button>
+                          <button type="button" class="admin-sk-num-btn" data-roll="2" data-num="4">4</button>
+                          <button type="button" class="admin-sk-num-btn" data-roll="2" data-num="5">5</button>
+                          <button type="button" class="admin-sk-num-btn" data-roll="2" data-num="6">6</button>
+                        </div>
+                      </div>
+                      <div class="admin-sk-roll">
+                        <div class="admin-sk-roll-hdr">ROLL 3</div>
+                        <div class="admin-sk-btn-row admin-sk-color-row">
+                          <button type="button" class="admin-sk-color-btn" data-roll="3" data-color="RED" style="--sk-c:#ff4444">RED</button>
+                          <button type="button" class="admin-sk-color-btn" data-roll="3" data-color="BLUE" style="--sk-c:#4488ff">BLUE</button>
+                          <button type="button" class="admin-sk-color-btn" data-roll="3" data-color="YELLOW" style="--sk-c:#ffdd00">YELLOW</button>
+                        </div>
+                        <div class="admin-sk-btn-row admin-sk-num-row">
+                          <button type="button" class="admin-sk-num-btn" data-roll="3" data-num="1">1</button>
+                          <button type="button" class="admin-sk-num-btn" data-roll="3" data-num="2">2</button>
+                          <button type="button" class="admin-sk-num-btn" data-roll="3" data-num="3">3</button>
+                          <button type="button" class="admin-sk-num-btn" data-roll="3" data-num="4">4</button>
+                          <button type="button" class="admin-sk-num-btn" data-roll="3" data-num="5">5</button>
+                          <button type="button" class="admin-sk-num-btn" data-roll="3" data-num="6">6</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="admin-sk-output">
+                      <div class="cs-col-outcome admin-sk-card">
+                        <div class="cs-col-hdr">
+                          <span>// HAND OUTCOME</span>
+                          <span class="cs-bet-state-badge cs-locked">3 ROLLS</span>
+                        </div>
+                        <div class="cs-oc-grand-total">
+                          <div class="cs-oc-gt-label">ROUND TOTAL</div>
+                          <div class="cs-oc-gt-value" id="sk-vTotal">—</div>
+                        </div>
+                        <div class="cs-oc-subtotals">
+                          <div class="cs-oc-sub-block" id="sk-subBlockPrimary">
+                            <div class="cs-oc-sub-label">PRIMARY <span class="cs-oc-sub-arrow" id="sk-subArrowP">▲</span></div>
+                            <div class="cs-oc-sub-value" id="sk-vPrimarySub">—</div>
+                          </div>
+                          <div class="cs-oc-sub-block" id="sk-subBlockSecondary">
+                            <div class="cs-oc-sub-label">SECONDARY <span class="cs-oc-sub-arrow" id="sk-subArrowS">▲</span></div>
+                            <div class="cs-oc-sub-value" id="sk-vSecondarySub">—</div>
+                          </div>
+                        </div>
+                        <div class="cs-oc-ranked-hdr">
+                          <span>COLORS · RANKED</span>
+                          <span id="sk-ocScoringCount"></span>
+                        </div>
+                        <div class="cs-oc-ranked-list" id="sk-ocRankedList">
+                          <div class="cs-oc-waiting">SET ROLLS TO SEE TOTALS</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
             </section>
             <section class="admin-tab-content" id="admin-fate-or-fortune-content" hidden>
               <div class="admin-fof-subtabs">

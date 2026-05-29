@@ -30209,6 +30209,108 @@ function adminFofSwitchSubtab(target) {
   if (urlInput) urlInput.addEventListener('input', () => adminFofAnimUpdatePreview(urlInput.value));
 })();
 
+// ── COLOR SCHEME admin sub-tabs (Clips / Score Keeper) ─────────
+function adminCsSwitchSubtab(target) {
+  document.querySelectorAll('.admin-cs-subtab').forEach(b => {
+    b.classList.toggle('active', b.dataset.csSubtab === target);
+  });
+  const clips = document.getElementById('admin-cs-clips-subtab');
+  const sk = document.getElementById('admin-cs-scorekeeper-subtab');
+  if (clips) clips.hidden = (target !== 'clips');
+  if (sk) sk.hidden = (target !== 'scorekeeper');
+  if (target === 'clips') {
+    void adminCsClipsTabOpen();
+  } else {
+    adminCsMiniPause();
+    adminSkRender();
+  }
+}
+
+// Three manually-set rolls; defaults give a non-empty card on first open.
+const _skRolls = [
+  { color: 'RED', number: 3 },
+  { color: 'BLUE', number: 4 },
+  { color: 'YELLOW', number: 5 },
+];
+
+function adminSkSyncButtons() {
+  document.querySelectorAll('.admin-sk-color-btn').forEach(b => {
+    const r = Number(b.dataset.roll) - 1;
+    b.classList.toggle('active', _skRolls[r] && _skRolls[r].color === b.dataset.color);
+  });
+  document.querySelectorAll('.admin-sk-num-btn').forEach(b => {
+    const r = Number(b.dataset.roll) - 1;
+    b.classList.toggle('active', _skRolls[r] && _skRolls[r].number === Number(b.dataset.num));
+  });
+}
+
+function adminSkRender() {
+  adminSkSyncButtons();
+  const rolls = _skRolls.filter(r => r.color && r.number);
+  const { totals, formulas } = csCalcOutcome(rolls);
+  const primarySub = totals.RED + totals.BLUE + totals.YELLOW;
+  const secondarySub = totals.PURPLE + totals.GREEN + totals.ORANGE;
+  const grandTotal = primarySub + secondarySub;
+
+  const setT = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  setT('sk-vTotal', grandTotal || '—');
+  setT('sk-vPrimarySub', primarySub || '0');
+  setT('sk-vSecondarySub', secondarySub || '0');
+
+  const sbP = document.getElementById('sk-subBlockPrimary');
+  const sbS = document.getElementById('sk-subBlockSecondary');
+  if (sbP) sbP.classList.toggle('cs-winner', primarySub > secondarySub);
+  if (sbS) sbS.classList.toggle('cs-winner', secondarySub > primarySub);
+  const arP = document.getElementById('sk-subArrowP');
+  const arS = document.getElementById('sk-subArrowS');
+  if (arP) arP.style.display = primarySub > secondarySub ? '' : 'none';
+  if (arS) arS.style.display = secondarySub > primarySub ? '' : 'none';
+
+  const list = document.getElementById('sk-ocRankedList');
+  if (list) {
+    const COLOR_HEX = { RED:'#ff4444', BLUE:'#4488ff', YELLOW:'#ffdd00', PURPLE:'#cc44ff', GREEN:'#33ee66', ORANGE:'#ff8833' };
+    const isPrimary = { RED:true, BLUE:true, YELLOW:true, PURPLE:false, GREEN:false, ORANGE:false };
+    const entries = Object.entries(totals).filter(([,v]) => v > 0).sort(([,a],[,b]) => b - a);
+    const maxVal = entries.length ? entries[0][1] : 0;
+    list.innerHTML = '';
+    entries.forEach(([col, val]) => {
+      const formula = csRenderFormula(formulas[col]);
+      const row = document.createElement('div');
+      row.className = 'cs-oc-rank-row' + (val === maxVal ? ' cs-color-winner' : '');
+      if (val === maxVal) row.style.borderLeftColor = COLOR_HEX[col];
+      row.innerHTML = `
+        <span class="cs-oc-rank-val" style="color:${COLOR_HEX[col]}">${val}</span>
+        <div class="cs-oc-rank-dot" style="background:${COLOR_HEX[col]};box-shadow:0 0 5px ${COLOR_HEX[col]}"></div>
+        <span class="cs-oc-rank-name" style="color:${COLOR_HEX[col]}">${col}</span>
+        <span class="cs-oc-rank-tag">${isPrimary[col] ? 'PRIMARY' : 'SECONDARY'}</span>
+        <span class="cs-oc-rank-formula">${formula && formula !== '—' ? formula : ''}</span>
+      `;
+      list.appendChild(row);
+    });
+    const sc = document.getElementById('sk-ocScoringCount');
+    if (sc) sc.textContent = entries.length + ' SCORING';
+    if (!entries.length) list.innerHTML = '<div class="cs-oc-waiting">SET ROLLS TO SEE TOTALS</div>';
+  }
+}
+
+(function adminCsSubtabInit() {
+  document.querySelectorAll('.admin-cs-subtab').forEach(btn => {
+    btn.addEventListener('click', () => adminCsSwitchSubtab(btn.dataset.csSubtab));
+  });
+  document.querySelectorAll('.admin-sk-color-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const r = Number(btn.dataset.roll) - 1;
+      if (_skRolls[r]) { _skRolls[r].color = btn.dataset.color; adminSkRender(); }
+    });
+  });
+  document.querySelectorAll('.admin-sk-num-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const r = Number(btn.dataset.roll) - 1;
+      if (_skRolls[r]) { _skRolls[r].number = Number(btn.dataset.num); adminSkRender(); }
+    });
+  });
+})();
+
 async function loadAdminFofAnimations() {
   const status = document.getElementById('admin-fof-anim-status');
   if (status) status.textContent = 'Loading clips…';
