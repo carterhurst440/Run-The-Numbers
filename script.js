@@ -32025,6 +32025,10 @@ async function fofPlayEvents(sim) {
   // Floor on the gap between consecutive events so every beat gets at
   // least ~1s to read, even when the simulator timestamps them tightly.
   const MIN_EVENT_GAP = 1000;
+  // Where in the action clip the hit "connects" — the HP bar drops at this
+  // fraction of the clip so the number falls on the strike's climax rather
+  // than the instant the clip starts. 1.0 = drop at the very end.
+  const IMPACT_FRACTION = 0.6;
   let lastT = 0;
 
   const sideFor = (id) => (id === heroId ? 'hero' : id === oppId ? 'opp' : null);
@@ -32037,6 +32041,12 @@ async function fofPlayEvents(sim) {
   const STAY = new Set(['IDLE', 'VICTORY', 'DEFEAT']);
   const heldTimers   = { hero: null, opp: null };
   const postureTimers = { hero: null, opp: null };
+  // Pending HP-bar drops, delayed to each clip's impact moment.
+  const hpTimers = [];
+  const scheduleHp = (fn, delay) => {
+    if (delay <= 0) { fn(); return; }
+    hpTimers.push(setTimeout(fn, delay));
+  };
 
   function playClip(id, action) {
     const side = sideFor(id);
@@ -32072,29 +32082,34 @@ async function fofPlayEvents(sim) {
   // Apply a single event's HP changes, sprite swap, and log line. Pulled
   // out so a whole timestamp group can be fired in one synchronous pass.
   const applyEvent = (ev) => {
-    // HP bars first so the bar drops in sync with the GIF.
-    if (typeof ev.hpAfter === 'number') {
-      if (ev.actorId === heroId && heroHp) {
-        const pct = Math.max(0, Math.min(100, (ev.hpAfter / heroMax) * 100));
-        heroHp.style.width = pct + '%';
-        if (heroHpVal) heroHpVal.textContent = `${Math.max(0, Math.round(ev.hpAfter))}/${heroMax}`;
-      } else if (ev.actorId === oppId && oppHp) {
-        const pct = Math.max(0, Math.min(100, (ev.hpAfter / oppMax) * 100));
-        oppHp.style.width = pct + '%';
-        if (oppHpVal) oppHpVal.textContent = `${Math.max(0, Math.round(ev.hpAfter))}/${oppMax}`;
+    // Drop the HP bars at the strike's climax (a fraction into the clip),
+    // not the instant the clip starts, so the number falls when the hit
+    // visibly connects.
+    const setHp = () => {
+      if (typeof ev.hpAfter === 'number') {
+        if (ev.actorId === heroId && heroHp) {
+          const pct = Math.max(0, Math.min(100, (ev.hpAfter / heroMax) * 100));
+          heroHp.style.width = pct + '%';
+          if (heroHpVal) heroHpVal.textContent = `${Math.max(0, Math.round(ev.hpAfter))}/${heroMax}`;
+        } else if (ev.actorId === oppId && oppHp) {
+          const pct = Math.max(0, Math.min(100, (ev.hpAfter / oppMax) * 100));
+          oppHp.style.width = pct + '%';
+          if (oppHpVal) oppHpVal.textContent = `${Math.max(0, Math.round(ev.hpAfter))}/${oppMax}`;
+        }
       }
-    }
-    if (typeof ev.targetHpAfter === 'number') {
-      if (ev.targetId === heroId && heroHp) {
-        const pct = Math.max(0, Math.min(100, (ev.targetHpAfter / heroMax) * 100));
-        heroHp.style.width = pct + '%';
-        if (heroHpVal) heroHpVal.textContent = `${Math.max(0, Math.round(ev.targetHpAfter))}/${heroMax}`;
-      } else if (ev.targetId === oppId && oppHp) {
-        const pct = Math.max(0, Math.min(100, (ev.targetHpAfter / oppMax) * 100));
-        oppHp.style.width = pct + '%';
-        if (oppHpVal) oppHpVal.textContent = `${Math.max(0, Math.round(ev.targetHpAfter))}/${oppMax}`;
+      if (typeof ev.targetHpAfter === 'number') {
+        if (ev.targetId === heroId && heroHp) {
+          const pct = Math.max(0, Math.min(100, (ev.targetHpAfter / heroMax) * 100));
+          heroHp.style.width = pct + '%';
+          if (heroHpVal) heroHpVal.textContent = `${Math.max(0, Math.round(ev.targetHpAfter))}/${heroMax}`;
+        } else if (ev.targetId === oppId && oppHp) {
+          const pct = Math.max(0, Math.min(100, (ev.targetHpAfter / oppMax) * 100));
+          oppHp.style.width = pct + '%';
+          if (oppHpVal) oppHpVal.textContent = `${Math.max(0, Math.round(ev.targetHpAfter))}/${oppMax}`;
+        }
       }
-    }
+    };
+    scheduleHp(setHp, eventClipDuration(ev) * IMPACT_FRACTION);
 
     // ── Sprite playback ──
     switch (ev.type) {
