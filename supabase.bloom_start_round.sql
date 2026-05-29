@@ -1,12 +1,16 @@
 -- BLOOM — start a new round.
--- Server picks the region (uniform random), creates a pending bloom_rounds
--- row, and returns the region info + all 5 flowers with their per-region
--- win % snapshotted from bloom_flowers.pct_<region>. All trust-sensitive
--- values come from the DB — the client never tells the server which region
--- it should be.
+-- Server picks a region (uniform random if p_region is NULL/empty, or
+-- the explicit slug if provided), creates a pending bloom_rounds row,
+-- and returns the region info + all 5 flowers with their per-region
+-- win % snapshotted from bloom_flowers.pct_<region>.
+
+-- Drop prior overloads so re-running this file replaces every variant.
+DROP FUNCTION IF EXISTS public.bloom_start_round(UUID);
+DROP FUNCTION IF EXISTS public.bloom_start_round(UUID, TEXT);
 
 CREATE OR REPLACE FUNCTION public.bloom_start_round(
-  p_contest_id UUID DEFAULT NULL
+  p_contest_id UUID DEFAULT NULL,
+  p_region     TEXT DEFAULT NULL
 ) RETURNS JSONB
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path = public
@@ -24,13 +28,22 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  -- Pick region uniformly at random
-  SELECT * INTO v_region
-  FROM public.bloom_regions
-  ORDER BY random()
-  LIMIT 1;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'No regions seeded';
+  -- Player-chosen region, OR uniform-random if none specified.
+  IF p_region IS NOT NULL AND length(trim(p_region)) > 0 THEN
+    SELECT * INTO v_region
+    FROM public.bloom_regions
+    WHERE region = p_region;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Region not found: %', p_region;
+    END IF;
+  ELSE
+    SELECT * INTO v_region
+    FROM public.bloom_regions
+    ORDER BY random()
+    LIMIT 1;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'No regions seeded';
+    END IF;
   END IF;
 
   -- Build candidates list (one entry per flower)
@@ -77,4 +90,4 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.bloom_start_round(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.bloom_start_round(UUID, TEXT) TO authenticated;

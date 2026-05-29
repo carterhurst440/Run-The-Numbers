@@ -39890,10 +39890,14 @@ async function bloomRouteOpen() {
   bloomGame.resolution = null;
   bloomRefreshBalance();
   // Preload ref data so the deck preview can render as soon as a round
-  // is started — re-renders the stage once it lands so the deck chips
-  // show up even on the very first round of a session.
+  // is started AND the idle view's region-pick tiles can populate. Re-
+  // renders the stage once the ref lands so both views catch up.
   loadAdminBloomRefData()
-    .then(() => { if (bloomGame.state === 'selecting') bloomRenderStage(); })
+    .then(() => {
+      if (bloomGame.state === 'idle' || bloomGame.state === 'selecting') {
+        bloomRenderStage();
+      }
+    })
     .catch(err => console.warn('[bloom] ref preload failed', err));
   bloomRenderStage();
 }
@@ -39920,11 +39924,28 @@ function bloomRenderStage() {
 }
 
 function bloomViewIdle() {
+  // Region tiles + a Random option. Click one to deal that region.
+  // Slugs come from _bloomRefData (preloaded in bloomRouteOpen). If the
+  // ref hasn't loaded yet we just show the random button; the ref
+  // preload re-renders this view once it lands.
+  const ref = _bloomRefData;
+  const tiles = (ref && ref.regionOrder ? ref.regionOrder : []).map(r => `
+    <button type="button" class="bloom-region-pick" data-bloom-region="${r.slug}">
+      <span class="bloom-region-pick-name">${(r.name || r.slug).toUpperCase()}</span>
+      <span class="bloom-region-pick-sub">${r.identity || ''}</span>
+    </button>
+  `).join('');
   return `
     <div class="fof-idle">
-      <div class="fof-idle-headline">Pick the first flower to bloom.</div>
-      <p class="fof-idle-sub">A random region is dealt by the server. Five flowers compete; weather cards drive their growth. Win-rates come from one million simulated rounds per region.</p>
-      <button type="button" class="fof-btn fof-btn-primary" id="bloom-start-btn">START NEW ROUND</button>
+      <div class="fof-idle-headline">Pick your region.</div>
+      <p class="fof-idle-sub">Five flowers, one bloom target. Weather cards drive the race. Pick a specific region or roll random.</p>
+      <div class="bloom-region-pick-grid">
+        ${tiles}
+        <button type="button" class="bloom-region-pick is-random" data-bloom-region="">
+          <span class="bloom-region-pick-name">⚄ RANDOM</span>
+          <span class="bloom-region-pick-sub">server picks for you</span>
+        </button>
+      </div>
     </div>
   `;
 }
@@ -40114,7 +40135,17 @@ function bloomViewResolved() {
 
 function bloomAttachStageHandlers() {
   const startBtn = document.getElementById('bloom-start-btn');
-  if (startBtn) startBtn.addEventListener('click', bloomStartRound);
+  if (startBtn) startBtn.addEventListener('click', () => { void bloomStartRound(); });
+
+  // Region-pick tiles on the idle view. Empty data-bloom-region ('')
+  // means "random" — bloomStartRound omits p_region and the server
+  // picks for you.
+  document.querySelectorAll('[data-bloom-region]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const slug = btn.dataset.bloomRegion || null;
+      void bloomStartRound(slug);
+    });
+  });
 
   const againBtn = document.getElementById('bloom-again-btn');
   if (againBtn) againBtn.addEventListener('click', () => { void bloomStartRound(); });
@@ -40441,7 +40472,7 @@ function bloomUpdateBeginBtn() {
   }
 }
 
-async function bloomStartRound() {
+async function bloomStartRound(regionSlug) {
   // Reset any leftover state from a prior round so a "New Round" click
   // from the resolved screen lands cleanly without an idle-page bounce.
   // bloomGame.autoDraw is the user's persistent preference — DON'T
@@ -40453,7 +40484,10 @@ async function bloomStartRound() {
   const stage = document.getElementById('bloom-stage');
   if (stage) stage.innerHTML = '<div class="fof-loading">Dealing region…</div>';
   try {
-    const { data, error } = await supabase.rpc('bloom_start_round');
+    // p_region empty/null → server picks uniform-random
+    const rpcArgs = {};
+    if (regionSlug && typeof regionSlug === 'string') rpcArgs.p_region = regionSlug;
+    const { data, error } = await supabase.rpc('bloom_start_round', rpcArgs);
     if (error) throw error;
     bloomGame.roundId    = data.round_id;
     bloomGame.region     = data.region;

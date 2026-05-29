@@ -27920,6 +27920,55 @@ body[data-ui="new"] #shape-traders-chart-modal .shape-traders-chart-zoom-button:
   max-width: 520px; margin: 0 auto 32px; color: #888; font-size: 12px; line-height: 1.6;
 }
 
+/* Region picker on the idle view — one button per region + a Random
+   tile that omits p_region so the server rolls one for you. */
+.bloom-region-pick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  max-width: 920px;
+  margin: 0 auto;
+}
+.bloom-region-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px 16px;
+  background: #0d0d0d;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #e8e8d2;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+}
+.bloom-region-pick:hover {
+  background: #1a1a1a;
+  border-color: #d4a017;
+  transform: translateY(-2px);
+}
+.bloom-region-pick-name {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: #d4a017;
+}
+.bloom-region-pick-sub {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: #888;
+  text-align: center;
+}
+.bloom-region-pick.is-random {
+  background: linear-gradient(180deg, #181810 0%, #0d0d08 100%);
+  border-color: #3a3a24;
+}
+.bloom-region-pick.is-random .bloom-region-pick-name {
+  color: #f0c040;
+}
+
 /* SELECTING */
 .fof-selecting {
   display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 20px;
