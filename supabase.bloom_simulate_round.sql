@@ -109,7 +109,13 @@ DECLARE
   final_scores_jb JSONB;
   events          JSONB := '[]'::jsonb;
 
-  MAX_DRAWS CONSTANT INT := 500;
+  -- The deck never depletes (every draw is an independent uniform pick
+  -- from the region's deck_composition) and the race should run until a
+  -- flower hits 100%. MAX_DRAWS is now a true infinite-loop fuse only —
+  -- 50000 is high enough that any realistic deck reaches a winner long
+  -- before tripping it. If you hit this, your deck has a math problem
+  -- (net-negative effects making the target unreachable).
+  MAX_DRAWS CONSTANT INT := 50000;
 BEGIN
   -- Resolve region (random if NULL)
   IF p_region IS NULL THEN
