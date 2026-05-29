@@ -30226,12 +30226,17 @@ function adminCsSwitchSubtab(target) {
   }
 }
 
-// Three manually-set rolls; defaults give a non-empty card on first open.
+// Three manually-set rolls; start empty so a score is built up roll by roll.
 const _skRolls = [
-  { color: 'RED', number: 3 },
-  { color: 'BLUE', number: 4 },
-  { color: 'YELLOW', number: 5 },
+  { color: null, number: null },
+  { color: null, number: null },
+  { color: null, number: null },
 ];
+
+function adminSkClear() {
+  _skRolls.forEach(r => { r.color = null; r.number = null; });
+  adminSkRender();
+}
 
 function adminSkSyncButtons() {
   document.querySelectorAll('.admin-sk-color-btn').forEach(b => {
@@ -30309,6 +30314,8 @@ function adminSkRender() {
       if (_skRolls[r]) { _skRolls[r].number = Number(btn.dataset.num); adminSkRender(); }
     });
   });
+  const skClear = document.getElementById('admin-sk-clear');
+  if (skClear) skClear.addEventListener('click', () => adminSkClear());
 })();
 
 async function loadAdminFofAnimations() {
