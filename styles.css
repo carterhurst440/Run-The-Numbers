@@ -28192,20 +28192,19 @@ body.admin-sk-fs-lock { overflow: hidden; }
 .fof-fighter-opp  { z-index: 1; }
 .fof-fighter-img {
   /* Fixed box so every frame/GIF occupies the same footprint — the
-     character no longer shifts left/right when the action swaps. The GIF
-     is centered, so the 50% clip below splits it exactly in half. */
+     character no longer shifts left/right when the action swaps. Both
+     fighters render their FULL transparent frame and stack on top of each
+     other, so an attacker's lunge can cross the centerline and overlay
+     the opponent instead of being clipped at the middle. */
   width: 100%;
   height: 280px;
   object-fit: contain;
   object-position: center bottom;
   image-rendering: pixelated;
   filter: drop-shadow(0 4px 12px rgba(0,0,0,0.6));
-  /* Keep the LEFT half of the source GIF (the character); hide the right
-     half (the practice dummy) so the stacked opponent shows through. */
-  clip-path: inset(0 50% 0 0);
 }
-/* Flip the opponent so its (left-half) character is mirrored onto the
-   RIGHT half of the shared box — the dummy slot of the hero's frame. */
+/* Flip the opponent so it faces the hero — its character is mirrored onto
+   the RIGHT half of the shared box (where the hero's frame attacks). */
 .fof-fighter-opp .fof-fighter-img {
   transform: scaleX(-1);
 }

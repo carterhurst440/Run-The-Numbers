@@ -32003,15 +32003,9 @@ async function fofPlayEvents(sim) {
     }, POSTURE_HOLD);
   }
 
-  for (let i = 0; i < events.length; i++) {
-    const ev = events[i];
-    const natural = Math.max(0, (Number(ev.time) - lastT) * 1000 / SPEED);
-    // First event fires immediately; every later beat waits at least
-    // MIN_EVENT_GAP so the animation has time to land.
-    const dt = i === 0 ? natural : Math.max(natural, MIN_EVENT_GAP);
-    if (dt > 0) await new Promise(r => setTimeout(r, dt));
-    lastT = Number(ev.time);
-
+  // Apply a single event's HP changes, sprite swap, and log line. Pulled
+  // out so a whole timestamp group can be fired in one synchronous pass.
+  const applyEvent = (ev) => {
     // HP bars first so the bar drops in sync with the GIF.
     if (typeof ev.hpAfter === 'number') {
       if (ev.actorId === heroId && heroHp) {
@@ -32083,6 +32077,26 @@ async function fofPlayEvents(sim) {
     div.textContent = `[${Number(ev.time).toFixed(2)}s] ${ev.message || ev.type}`;
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
+  };
+
+  // Walk the events grouped by timestamp. The simulator emits an
+  // attacker's HIT and the target's TAKE_DAMAGE at the SAME time, so we
+  // fire every event in a timestamp group simultaneously — the impact and
+  // the flinch land on the same frame. The MIN_EVENT_GAP floor applies
+  // only between distinct timestamps, never inside a group.
+  let i = 0;
+  let firstGroup = true;
+  while (i < events.length) {
+    const t = Number(events[i].time);
+    const natural = Math.max(0, (t - lastT) * 1000 / SPEED);
+    const dt = firstGroup ? natural : Math.max(natural, MIN_EVENT_GAP);
+    if (dt > 0) await new Promise(r => setTimeout(r, dt));
+    lastT = t;
+    firstGroup = false;
+    while (i < events.length && Number(events[i].time) === t) {
+      applyEvent(events[i]);
+      i++;
+    }
   }
   // Pause briefly on the final frame.
   await new Promise(r => setTimeout(r, 600));
