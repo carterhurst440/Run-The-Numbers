@@ -30324,30 +30324,31 @@ function adminSkRender() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') adminSkSetFullscreen(false);
   });
+  // Native fullscreen can be exited by the browser (Esc, gesture); keep our
+  // class/lock in sync when that happens so styling resets correctly.
+  document.addEventListener('fullscreenchange', () => {
+    const stage = document.getElementById('admin-sk-stage');
+    if (!stage) return;
+    if (!document.fullscreenElement) {
+      stage.classList.remove('is-fullscreen');
+      document.body.classList.remove('admin-sk-fs-lock');
+    }
+  });
 })();
-
-// Remember where the stage lives so we can restore it after full screen.
-let _skStageHome = null;
 
 function adminSkSetFullscreen(on) {
   const stage = document.getElementById('admin-sk-stage');
   if (!stage) return;
   if (on) {
-    if (!stage.classList.contains('is-fullscreen')) {
-      // Re-parent to <body> so position:fixed escapes any transformed
-      // ancestor that would otherwise act as the containing block.
-      _skStageHome = { parent: stage.parentNode, next: stage.nextSibling };
-      document.body.appendChild(stage);
-    }
     stage.classList.add('is-fullscreen');
     document.body.classList.add('admin-sk-fs-lock');
+    // Native Fullscreen API renders the element in the browser's top layer,
+    // above every stacking context / sticky header — no z-index fight.
+    if (stage.requestFullscreen) stage.requestFullscreen().catch(() => {});
   } else {
     stage.classList.remove('is-fullscreen');
     document.body.classList.remove('admin-sk-fs-lock');
-    if (_skStageHome && _skStageHome.parent) {
-      _skStageHome.parent.insertBefore(stage, _skStageHome.next);
-      _skStageHome = null;
-    }
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   }
 }
 
