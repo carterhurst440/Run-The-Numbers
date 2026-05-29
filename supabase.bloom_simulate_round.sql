@@ -61,6 +61,15 @@ END;
 $$;
 
 -- ── main simulator ──────────────────────────────────────────────────
+-- Explicit DROPs wipe any stale overload that may have leaked into the
+-- DB during dev. CREATE OR REPLACE only replaces a function with an
+-- EXACTLY-MATCHING signature, so an older draw-without-replacement
+-- bloom_simulate_round(TEXT) — with just one arg — would stay live.
+DROP FUNCTION IF EXISTS public.bloom_simulate_round();
+DROP FUNCTION IF EXISTS public.bloom_simulate_round(TEXT);
+DROP FUNCTION IF EXISTS public.bloom_simulate_round(BIGINT);
+DROP FUNCTION IF EXISTS public.bloom_simulate_round(TEXT, BIGINT);
+
 CREATE OR REPLACE FUNCTION public.bloom_simulate_round(
   p_region TEXT   DEFAULT NULL,
   p_seed   BIGINT DEFAULT NULL
@@ -290,6 +299,10 @@ BEGIN
   );
 
   RETURN jsonb_build_object(
+    -- Bumped on every deploy that changes simulator semantics. Read
+    -- this back from the client to confirm which version is live.
+    'simVersion', 'v3-with-replacement-2026-05-28',
+    'maxDraws',   MAX_DRAWS,
     'roundId', 'bloom_' || lpad(p_seed::TEXT, 6, '0'),
     'seed',    p_seed,
     'region',  jsonb_build_object(
