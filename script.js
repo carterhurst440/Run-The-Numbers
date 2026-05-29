@@ -30326,11 +30326,29 @@ function adminSkRender() {
   });
 })();
 
+// Remember where the stage lives so we can restore it after full screen.
+let _skStageHome = null;
+
 function adminSkSetFullscreen(on) {
   const stage = document.getElementById('admin-sk-stage');
   if (!stage) return;
-  stage.classList.toggle('is-fullscreen', on);
-  document.body.classList.toggle('admin-sk-fs-lock', on);
+  if (on) {
+    if (!stage.classList.contains('is-fullscreen')) {
+      // Re-parent to <body> so position:fixed escapes any transformed
+      // ancestor that would otherwise act as the containing block.
+      _skStageHome = { parent: stage.parentNode, next: stage.nextSibling };
+      document.body.appendChild(stage);
+    }
+    stage.classList.add('is-fullscreen');
+    document.body.classList.add('admin-sk-fs-lock');
+  } else {
+    stage.classList.remove('is-fullscreen');
+    document.body.classList.remove('admin-sk-fs-lock');
+    if (_skStageHome && _skStageHome.parent) {
+      _skStageHome.parent.insertBefore(stage, _skStageHome.next);
+      _skStageHome = null;
+    }
+  }
 }
 
 async function loadAdminFofAnimations() {
