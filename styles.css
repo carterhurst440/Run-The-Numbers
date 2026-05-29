@@ -29670,3 +29670,140 @@ body[data-ui="new"] #bloom-chipBar .chip-rack-edit:hover {
   overflow-y: auto;
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   BLOOM — PAPER / SCRAPBOOK RESKIN
+   Light, airy, nature-coded theme scoped to #bloom-view only. The
+   global top nav and the sticky chip rack stay dark; everything the
+   page renders (panels, flower board, deck, header) sits on warm
+   cream paper like a pressed-flower field journal. Overrides win by
+   #bloom-view id specificity + source order, so the dark FOF theme
+   (which shares .fof-page) is untouched.
+   ═══════════════════════════════════════════════════════════════ */
+#bloom-view {
+  --paper-page:   #ece1cb;
+  --paper-card:   #f7f1e2;
+  --paper-card-2: #fbf6ea;
+  --ink:          #3b3327;
+  --ink-soft:     #6d6149;
+  --ink-muted:    #93856a;
+  --paper-line:   #d8c9a8;
+  --paper-shadow: rgba(74, 58, 33, 0.18);
+  --tape:         rgba(196, 152, 92, 0.32);
+
+  /* Warm cream page with faint paper fibres + a soft sunlit vignette. */
+  background-color: var(--paper-page);
+  background-image:
+    radial-gradient(120% 90% at 50% -10%, rgba(255, 250, 235, 0.7), transparent 60%),
+    repeating-linear-gradient(90deg, transparent 0 3px, rgba(120, 100, 60, 0.018) 3px 4px),
+    repeating-linear-gradient(0deg, transparent 0 24px, rgba(120, 100, 60, 0.022) 24px 25px);
+}
+#bloom-view .fof-page { color: var(--ink); }
+
+/* ── Page header — botanical journal masthead ─────────────────────── */
+#bloom-view .fof-page-header {
+  border-bottom: 1px dashed var(--paper-line);
+}
+#bloom-view .fof-page-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--ink);
+}
+#bloom-view .fof-page-title span { color: var(--ink-muted); }
+#bloom-view .fof-page-balance { color: var(--ink-soft); }
+#bloom-view .fof-page-balance strong { color: var(--ink); }
+
+/* ── Panels — paper cards pasted onto the page ────────────────────── */
+#bloom-view .bloom-region-panel,
+#bloom-view .bloom-history-panel,
+#bloom-view .bloom-flower-panel {
+  position: relative;
+  background: var(--paper-card);
+  border: 1px solid var(--paper-line);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px var(--paper-shadow),
+              0 1px 0 rgba(255, 255, 255, 0.6) inset;
+}
+/* Gentle scrapbook tilt — paint-only (transform), so layout/width
+   containment from the bloom panels is unaffected. */
+#bloom-view .bloom-region-panel  { transform: rotate(-0.5deg); }
+#bloom-view .bloom-flower-panel  { transform: rotate(0.3deg); }
+#bloom-view .bloom-history-panel { transform: rotate(-0.25deg); }
+
+/* Washi-tape strips at the top of the region + flower cards. */
+#bloom-view .bloom-region-panel::before,
+#bloom-view .bloom-flower-panel::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 84px;
+  height: 22px;
+  transform: translateX(-50%) rotate(-2.5deg);
+  background: var(--tape);
+  border-left: 1px dashed rgba(255, 255, 255, 0.4);
+  border-right: 1px dashed rgba(255, 255, 255, 0.4);
+  box-shadow: 0 1px 3px rgba(74, 58, 33, 0.12);
+  pointer-events: none;
+}
+#bloom-view .bloom-flower-panel::before {
+  transform: translateX(-50%) rotate(2deg);
+  background: rgba(150, 180, 120, 0.3);
+}
+
+/* ── Labels / kickers ─────────────────────────────────────────────── */
+#bloom-view .bloom-region-label,
+#bloom-view .bloom-history-label,
+#bloom-view .bloom-flower-label,
+#bloom-view .bloom-header-kicker {
+  color: var(--ink-muted);
+}
+#bloom-view .bloom-region-name {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 700;
+}
+
+/* ── Flower betting board ──────────────────────────────────────────── */
+#bloom-view .bloom-pick-name { color: var(--ink); }
+#bloom-view .bloom-pick-payout { color: var(--ink-muted); }
+#bloom-view .bloom-pick-tile:hover { background: rgba(74, 58, 33, 0.05); }
+#bloom-view .bloom-pick-tile.picked { background: rgba(74, 58, 33, 0.08); }
+/* Progress track needs dark-on-light contrast now. */
+#bloom-view .bloom-pick-vbar { background: rgba(74, 58, 33, 0.12); }
+
+/* ── Wager spots — paper chip slots ───────────────────────────────── */
+#bloom-view .bloom-wager-spot {
+  background: rgba(74, 58, 33, 0.035);
+  border: 1px dashed rgba(120, 100, 60, 0.45);
+  color: var(--ink-soft);
+}
+#bloom-view .bloom-wager-spot:hover {
+  border-color: var(--bloom-accent, #b87333);
+  background: rgba(74, 58, 33, 0.06);
+  color: var(--ink);
+}
+#bloom-view .bloom-wager-spot.has-wager {
+  background: var(--paper-card-2);
+  box-shadow: 0 0 0 1px rgba(74, 58, 33, 0.06),
+              0 2px 6px var(--paper-shadow);
+}
+#bloom-view .bloom-wager-spot-potential { color: var(--ink-muted); }
+#bloom-view .bloom-wager-spot.has-wager .bloom-wager-spot-potential {
+  color: var(--bloom-accent, var(--ink));
+}
+
+/* ── Resolved banner — paper note ─────────────────────────────────── */
+#bloom-view .bloom-resolved-banner {
+  background: var(--paper-card-2);
+  border: 1px solid var(--paper-line);
+  color: var(--ink);
+}
+
+/* Mobile: drop the tilts so stacked cards read square. */
+@media (max-width: 720px) {
+  #bloom-view .bloom-region-panel,
+  #bloom-view .bloom-flower-panel,
+  #bloom-view .bloom-history-panel { transform: none; }
+}
+
