@@ -31894,6 +31894,37 @@ function fofViewResolved() {
   `;
 }
 
+// Reset the game back to a fresh round and re-render from scratch.
+function fofResetToIdle() {
+  fofGame.state = 'idle';
+  fofGame.roundId = null;
+  fofGame.opponent = null;
+  fofGame.candidates = [];
+  fofGame.pickedHero = null;
+  fofGame.wager = 0;
+  fofGame.resolution = null;
+  fofRenderStage();
+}
+
+// After the fight, keep the frozen VICTORY / DEFEAT scene and the event log
+// on screen and slide the wager results in below them, so the player can
+// review before clicking START NEW ROUND to leave the page.
+function fofShowResults() {
+  const container = document.querySelector('.fof-resolving');
+  if (!container) { fofRenderStage(); return; }   // scene gone — fall back
+  if (container.querySelector('.fof-result-slide')) return;
+  const panel = document.createElement('div');
+  panel.className = 'fof-result-slide';
+  panel.innerHTML = fofViewResolved();
+  container.appendChild(panel);
+  requestAnimationFrame(() => {
+    panel.classList.add('is-in');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  const againBtn = panel.querySelector('#fof-again-btn');
+  if (againBtn) againBtn.addEventListener('click', fofResetToIdle);
+}
+
 function fofAttachStageHandlers() {
   const startBtn = document.getElementById('fof-start-btn');
   if (startBtn) startBtn.addEventListener('click', fofStartRound);
@@ -31902,16 +31933,7 @@ function fofAttachStageHandlers() {
   if (beginBtn) beginBtn.addEventListener('click', fofBeginRound);
 
   const againBtn = document.getElementById('fof-again-btn');
-  if (againBtn) againBtn.addEventListener('click', () => {
-    fofGame.state = 'idle';
-    fofGame.roundId = null;
-    fofGame.opponent = null;
-    fofGame.candidates = [];
-    fofGame.pickedHero = null;
-    fofGame.wager = 0;
-    fofGame.resolution = null;
-    fofRenderStage();
-  });
+  if (againBtn) againBtn.addEventListener('click', fofResetToIdle);
 
   document.querySelectorAll('.fof-hero-card').forEach(card => {
     card.addEventListener('click', () => {
@@ -31982,7 +32004,7 @@ async function fofBeginRound() {
     if (currentProfile) currentProfile.credits = Number(data.new_balance);
     fofRefreshBalance();
     fofGame.state = 'resolved';
-    fofRenderStage();
+    fofShowResults();
   } catch (e) {
     const stage = document.getElementById('fof-stage');
     if (stage) stage.innerHTML = `<div class="fof-err">Round failed: ${e.message || e}</div>`;
@@ -32151,6 +32173,10 @@ async function fofPlayEvents(sim) {
       case 'DEFEAT':
         playClip(ev.actorId, 'DEFEAT');
         break;
+      case 'DRAW':
+        if (heroId) playClip(heroId, 'DEFEAT');
+        if (oppId)  playClip(oppId,  'DEFEAT');
+        break;
       default:
         break;
     }
@@ -32192,6 +32218,13 @@ async function fofPlayEvents(sim) {
   // the flinch land on the same frame. The gap before the next group is
   // stretched so the just-played clips run their full length (with a
   // MIN_EVENT_GAP floor); it never splits events within a group.
+  // VICTORY / DEFEAT / DRAW share the killing blow's timestamp, so firing
+  // them in the same group would clobber the final strike's clip before it
+  // played. Hold them back: run all combat beats first, let the fatal
+  // strike's clip finish, THEN play the finale poses once the round is
+  // technically over.
+  const TERMINAL = new Set(['VICTORY', 'DEFEAT', 'DRAW']);
+  const terminalEvents = [];
   let i = 0;
   let firstGroup = true;
   let prevGroupHold = 0;
@@ -32205,20 +32238,39 @@ async function fofPlayEvents(sim) {
     let groupHold = 0;
     while (i < events.length && Number(events[i].time) === t) {
       const ev = events[i];
+      if (TERMINAL.has(ev.type)) { terminalEvents.push(ev); i++; continue; }
       applyEvent(ev);
       groupHold = Math.max(groupHold, eventClipDuration(ev));
       i++;
     }
     prevGroupHold = groupHold;
   }
-  // Pause briefly on the final frame.
-  await new Promise(r => setTimeout(r, 600));
-  // Cleanup any pending IDLE-snap / posture timers so they don't fire
-  // after the fight is over and clobber the VICTORY/DEFEAT poses.
+
+  // Let the killing blow's HIT / TAKE_DAMAGE clip run its full length so the
+  // fatal strike is seen, not skipped.
+  if (prevGroupHold > 0) {
+    await new Promise(r => setTimeout(r, Math.max(prevGroupHold, MIN_ACTION_HOLD)));
+  }
+
+  // Clear pending IDLE-snaps / lean-flinch postures so they don't fire on
+  // top of the VICTORY / DEFEAT poses, and reset the fighters to neutral.
   if (heldTimers.hero)    clearTimeout(heldTimers.hero);
   if (heldTimers.opp)     clearTimeout(heldTimers.opp);
   if (postureTimers.hero) clearTimeout(postureTimers.hero);
   if (postureTimers.opp)  clearTimeout(postureTimers.opp);
+  document.querySelectorAll('.fof-fighter-hero, .fof-fighter-opp')
+    .forEach(el => el.classList.remove('is-attacking', 'is-flinching'));
+
+  // Finale — a short beat after the round ends, the winner celebrates and
+  // the loser falls. These are looping STAY poses, so the fighters hold on
+  // the final frame until the player starts a new round.
+  if (terminalEvents.length) {
+    await new Promise(r => setTimeout(r, 450));
+    for (const ev of terminalEvents) applyEvent(ev);
+  }
+
+  // Hold on the final frame.
+  await new Promise(r => setTimeout(r, 800));
 }
 
 // Overview chart filter buttons
@@ -40370,21 +40422,26 @@ function bloomViewIdle() {
   // ref hasn't loaded yet we just show the random button; the ref
   // preload re-renders this view once it lands.
   const ref = _bloomRefData;
+  // Each region is its own field-guide profile card (rendered into the
+  // slot by BloomRegionCards in bloomAttachStageHandlers). The card already
+  // carries the region name, palette and specimen, so no separate label.
   const tiles = (ref && ref.regionOrder ? ref.regionOrder : []).map(r => `
-    <button type="button" class="bloom-region-pick" data-bloom-region="${r.slug}">
-      <span class="bloom-region-pick-name">${(r.name || r.slug).toUpperCase()}</span>
-      <span class="bloom-region-pick-sub">${r.identity || ''}</span>
+    <button type="button" class="bloom-region-pick" data-bloom-region="${r.slug}" aria-label="${r.name || r.slug}">
+      <div class="bloom-region-pick-card" data-bloom-pick-card="${r.slug}"></div>
     </button>
   `).join('');
   return `
-    <div class="fof-idle">
+    <div class="fof-idle bloom-idle">
       <div class="fof-idle-headline">Pick your region.</div>
       <p class="fof-idle-sub">Five flowers, one bloom target. Weather cards drive the race. Pick a specific region or roll random.</p>
       <div class="bloom-region-pick-grid">
         ${tiles}
-        <button type="button" class="bloom-region-pick is-random" data-bloom-region="">
-          <span class="bloom-region-pick-name">⚄ RANDOM</span>
-          <span class="bloom-region-pick-sub">server picks for you</span>
+        <button type="button" class="bloom-region-pick is-random" data-bloom-region="" aria-label="Random region">
+          <div class="bloom-region-pick-card bloom-random-card">
+            <span class="bloom-random-glyph">⚄</span>
+            <span class="bloom-random-name">RANDOM</span>
+            <span class="bloom-random-sub">server picks for you</span>
+          </div>
         </button>
       </div>
     </div>
@@ -40599,6 +40656,15 @@ function bloomAttachStageHandlers() {
     const dbSlug = (bloomGame.region && bloomGame.region.slug) || '';
     try { window.BloomRegionCards.renderCard(dbSlug, regionImage); }
     catch (e) { /* noop */ }
+  }
+
+  // Idle region picker — render each region's field-guide card into its
+  // pick slot so the player chooses from the actual profile cards.
+  if (window.BloomRegionCards && window.BloomRegionCards.renderCard) {
+    document.querySelectorAll('[data-bloom-pick-card]').forEach(el => {
+      try { window.BloomRegionCards.renderCard(el.dataset.bloomPickCard, el); }
+      catch (e) { /* noop */ }
+    });
   }
 
   // Deck preview during 'selecting': lay cards out in 5 columns matching

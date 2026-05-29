@@ -28036,51 +28036,64 @@ body.admin-sk-fs-lock { overflow: hidden; }
 
 /* Region picker on the idle view — one button per region + a Random
    tile that omits p_region so the server rolls one for you. */
+/* Region picker — each option is a field-guide profile card on paper. */
 .bloom-region-pick-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-  max-width: 920px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 20px;
+  max-width: 1080px;
   margin: 0 auto;
+  align-items: stretch;
 }
 .bloom-region-pick {
+  display: flex;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  transition: transform 0.16s ease, filter 0.16s ease;
+}
+.bloom-region-pick:hover {
+  transform: translateY(-5px) rotate(-0.5deg);
+  filter: drop-shadow(0 12px 20px rgba(74, 58, 33, 0.24));
+}
+.bloom-region-pick:active { transform: translateY(-1px) rotate(0deg); }
+.bloom-region-pick:focus-visible {
+  outline: 2px solid #b87333;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.bloom-region-pick-card { width: 100%; }
+
+/* Random = paper placeholder cut from the same field-guide stock. */
+.bloom-random-card {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 20px 16px;
-  background: #0d0d0d;
-  border: 1px solid #2a2a2a;
-  border-radius: 4px;
-  color: #e8e8d2;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+  gap: 10px;
+  height: 100%;
+  min-height: 280px;
+  background: #f6efdf;
+  border: 1px dashed #c9b88f;
+  border-radius: 2px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04),
+              0 18px 32px -22px rgba(60, 40, 15, 0.25);
 }
-.bloom-region-pick:hover {
-  background: #1a1a1a;
-  border-color: #d4a017;
-  transform: translateY(-2px);
-}
-.bloom-region-pick-name {
-  font-size: 14px;
+.bloom-random-glyph { font-size: 42px; line-height: 1; color: #b87333; }
+.bloom-random-name {
+  font-size: 15px;
   font-weight: 800;
-  letter-spacing: 0.18em;
-  color: #d4a017;
+  letter-spacing: 0.22em;
+  color: #3b3327;
 }
-.bloom-region-pick-sub {
+.bloom-random-sub {
   font-size: 10px;
   letter-spacing: 0.12em;
-  color: #888;
-  text-align: center;
-}
-.bloom-region-pick.is-random {
-  background: linear-gradient(180deg, #181810 0%, #0d0d08 100%);
-  border-color: #3a3a24;
-}
-.bloom-region-pick.is-random .bloom-region-pick-name {
-  color: #f0c040;
+  text-transform: uppercase;
+  color: #8a8472;
 }
 
 /* SELECTING */
@@ -28244,6 +28257,22 @@ body.admin-sk-fs-lock { overflow: hidden; }
 .fof-evt-defeat { color: #c33; font-weight: 700; }
 .fof-evt-victory { color: #d4a017; font-weight: 700; }
 .fof-evt-draw { color: #888; font-weight: 700; }
+
+/* Post-fight results — slides in below the frozen battle scene while the
+   fighters hold their VICTORY/DEFEAT pose and the event log stays put. */
+.fof-result-slide {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: max-height 0.5s ease, opacity 0.45s ease, transform 0.45s ease;
+}
+.fof-result-slide.is-in {
+  max-height: 640px;
+  opacity: 1;
+  transform: translateY(0);
+}
+.fof-result-slide .fof-resolved { padding: 24px 20px 8px; }
 
 /* RESOLVED */
 .fof-resolved {
