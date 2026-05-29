@@ -31955,10 +31955,13 @@ async function fofPlayEvents(sim) {
   const SPEED = 1;
   // Minimum visible duration per action GIF (ms). After this long
   // without a follow-up action on the same fighter, snap back to IDLE.
-  const MIN_ACTION_HOLD = 700;
+  const MIN_ACTION_HOLD = 900;
   // Lean / flinch postures clear shortly after the impact lands so
   // fighters are back in their neutral stance before the next beat.
-  const POSTURE_HOLD = 500;
+  const POSTURE_HOLD = 750;
+  // Floor on the gap between consecutive events so every beat gets at
+  // least ~1s to read, even when the simulator timestamps them tightly.
+  const MIN_EVENT_GAP = 1000;
   let lastT = 0;
 
   const sideFor = (id) => (id === heroId ? 'hero' : id === oppId ? 'opp' : null);
@@ -32002,7 +32005,10 @@ async function fofPlayEvents(sim) {
 
   for (let i = 0; i < events.length; i++) {
     const ev = events[i];
-    const dt = Math.max(0, (Number(ev.time) - lastT) * 1000 / SPEED);
+    const natural = Math.max(0, (Number(ev.time) - lastT) * 1000 / SPEED);
+    // First event fires immediately; every later beat waits at least
+    // MIN_EVENT_GAP so the animation has time to land.
+    const dt = i === 0 ? natural : Math.max(natural, MIN_EVENT_GAP);
     if (dt > 0) await new Promise(r => setTimeout(r, dt));
     lastT = Number(ev.time);
 

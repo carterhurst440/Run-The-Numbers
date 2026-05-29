@@ -28192,8 +28192,15 @@ body.admin-sk-fs-lock { overflow: hidden; }
   z-index: 1;
 }
 .fof-fighter-img {
-  max-width: 100%;
-  max-height: 280px;
+  /* Fixed box so every frame/GIF occupies the same footprint — the
+     character no longer shifts left/right when the action swaps. */
+  width: 100%;
+  height: 280px;
+  object-fit: contain;
+  /* Anchor the (left-half) character to the outer edge of its box so the
+     two fighters sit apart instead of crowding the center. The opponent
+     is scaleX(-1) flipped, which mirrors this to its right edge. */
+  object-position: left bottom;
   image-rendering: pixelated;
   filter: drop-shadow(0 4px 12px rgba(0,0,0,0.6));
   /* Hide the right half of the source GIF (the practice dummy). */
