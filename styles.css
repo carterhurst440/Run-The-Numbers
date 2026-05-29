@@ -24511,6 +24511,22 @@ body[data-ui="new"] #admin-view .admin-tab.active {
   box-shadow: none;
 }
 
+/* Sub-tabs (FOF / BLOOM / COLOR SCHEME) — base active color is near-black,
+   which vanishes on the dark admin background; use the lime accent instead. */
+body[data-ui="new"] #admin-view .admin-fof-subtab,
+body[data-ui="new"] #admin-view .admin-cs-subtab {
+  color: #686850;
+}
+body[data-ui="new"] #admin-view .admin-fof-subtab:hover,
+body[data-ui="new"] #admin-view .admin-cs-subtab:hover {
+  color: #c8ff00;
+}
+body[data-ui="new"] #admin-view .admin-fof-subtab.active,
+body[data-ui="new"] #admin-view .admin-cs-subtab.active {
+  color: #c8ff00;
+  border-bottom-color: #c8ff00;
+}
+
 body[data-ui="new"] #admin-view .admin-form input,
 body[data-ui="new"] #admin-view .admin-form textarea,
 body[data-ui="new"] #admin-view .admin-form select {
