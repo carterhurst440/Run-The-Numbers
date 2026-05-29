@@ -31637,7 +31637,9 @@ async function fofRouteOpen() {
   // Preload animation clips so the sprite layer has everything it needs
   // by the time the user enters a fight. Loads silently in the background.
   if (typeof loadAdminFofAnimations === 'function' && (!fofAnimRows || fofAnimRows.length === 0)) {
-    void loadAdminFofAnimations();
+    void loadAdminFofAnimations().then(() => fofPreloadClipDurations());
+  } else {
+    void fofPreloadClipDurations();
   }
 }
 
@@ -31810,6 +31812,63 @@ function fofSetClip(side, character, action) {
   }
 }
 
+// ── FOF — GIF duration measurement ──────────────────────────────────
+// GIFs don't expose their play length via the DOM, so we parse the per
+// frame delays out of the raw bytes once and cache the total per URL.
+const _fofGifDurCache = new Map();
+async function fofGifDurationMs(url) {
+  if (!url) return 0;
+  const clean = url.split('?')[0];
+  if (_fofGifDurCache.has(clean)) return _fofGifDurCache.get(clean);
+  let total = 0;
+  try {
+    const res = await fetch(clean);
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) { // "GIF"
+      let i = 13;
+      const packed = buf[10];
+      if (packed & 0x80) i += 3 * (2 << (packed & 7)); // global color table
+      while (i < buf.length) {
+        const b = buf[i];
+        if (b === 0x21) {                 // extension block
+          if (buf[i + 1] === 0xF9) {      // graphic control extension
+            const delay = buf[i + 4] | (buf[i + 5] << 8); // hundredths of a sec
+            total += (delay || 0) * 10;
+          }
+          i += 2;
+          while (i < buf.length && buf[i] !== 0) i += buf[i] + 1; // sub-blocks
+          i += 1;
+        } else if (b === 0x2C) {          // image descriptor
+          const lp = buf[i + 9];
+          i += 10;
+          if (lp & 0x80) i += 3 * (2 << (lp & 7)); // local color table
+          i += 1;                         // LZW min code size
+          while (i < buf.length && buf[i] !== 0) i += buf[i] + 1;
+          i += 1;
+        } else if (b === 0x3B) {          // trailer
+          break;
+        } else { i += 1; }
+      }
+    }
+  } catch (_) { total = 0; }
+  _fofGifDurCache.set(clean, total);
+  return total;
+}
+
+// Synchronous lookup of a (character, action) clip length in ms. Returns
+// 0 until fofPreloadClipDurations() has warmed the cache.
+function fofClipDurationMs(character, action) {
+  const url = fofClipUrl(character, action);
+  if (!url) return 0;
+  return _fofGifDurCache.get(url.split('?')[0]) || 0;
+}
+
+// Warm the duration cache for every loaded clip.
+async function fofPreloadClipDurations() {
+  const urls = [...new Set(fofAnimRows.map(r => r?.clip_data?.url).filter(Boolean))];
+  await Promise.all(urls.map(u => fofGifDurationMs(u)));
+}
+
 function fofViewResolved() {
   const r = fofGame.resolution;
   const won = r.round_winner === 'hero';
@@ -31950,6 +32009,10 @@ async function fofPlayEvents(sim) {
   fofSetClip('hero', heroId, 'IDLE');
   fofSetClip('opp',  oppId,  'IDLE');
 
+  // Ensure clip lengths are known so we can hold each action for its full
+  // run and pace the beats around longer clips. Cached, so this is cheap.
+  await fofPreloadClipDurations();
+
   // Real-time playback. The simulator timestamps events in seconds; we
   // honor them as-is so each attack has room to read.
   const SPEED = 1;
@@ -31981,10 +32044,13 @@ async function fofPlayEvents(sim) {
     fofSetClip(side, id, action);
     if (heldTimers[side]) { clearTimeout(heldTimers[side]); heldTimers[side] = null; }
     if (STAY.has(action)) return;
+    // Hold the action GIF for its full measured length (min floor) before
+    // snapping back to IDLE, so longer clips aren't cut short.
+    const hold = Math.max(MIN_ACTION_HOLD, fofClipDurationMs(id, action));
     heldTimers[side] = setTimeout(() => {
       fofSetClip(side, id, 'IDLE');
       heldTimers[side] = null;
-    }, MIN_ACTION_HOLD);
+    }, hold);
   }
 
   // Attacker leans toward defender, defender flinches back. Both clear
@@ -32054,7 +32120,10 @@ async function fofPlayEvents(sim) {
         playClip(ev.targetId || ev.actorId, 'DODGE');
         break;
       case 'MISS':
+        // The simulator only emits MISS (no separate DODGE), so fire both
+        // halves here: attacker whiffs, target dodges — same frame.
         playClip(ev.actorId, 'MISS');
+        if (ev.targetId) playClip(ev.targetId, 'DODGE');
         break;
       case 'HEAL':
         playClip(ev.actorId, 'SPECIAL');
@@ -32079,24 +32148,53 @@ async function fofPlayEvents(sim) {
     log.scrollTop = log.scrollHeight;
   };
 
+  // Longest one-shot clip an event will play — used to give each clip
+  // time to finish before the next beat. Looping poses (idle/victory/
+  // defeat) don't gate pacing, so they return 0.
+  const eventClipDuration = (ev) => {
+    switch (ev.type) {
+      case 'SPECIAL_TRIGGER':
+      case 'HEAL':
+        return fofClipDurationMs(ev.actorId, 'SPECIAL');
+      case 'HIT':
+      case 'CRITICAL_HIT':
+      case 'TAKE_DAMAGE':
+      case 'TAKE_CRITICAL_DAMAGE':
+        return fofClipDurationMs(ev.actorId, ev.type);
+      case 'MISS':
+        return Math.max(fofClipDurationMs(ev.actorId, 'MISS'),
+                        fofClipDurationMs(ev.targetId, 'DODGE'));
+      case 'DODGE':
+        return fofClipDurationMs(ev.targetId || ev.actorId, 'DODGE');
+      default:
+        return 0;
+    }
+  };
+
   // Walk the events grouped by timestamp. The simulator emits an
   // attacker's HIT and the target's TAKE_DAMAGE at the SAME time, so we
   // fire every event in a timestamp group simultaneously — the impact and
-  // the flinch land on the same frame. The MIN_EVENT_GAP floor applies
-  // only between distinct timestamps, never inside a group.
+  // the flinch land on the same frame. The gap before the next group is
+  // stretched so the just-played clips run their full length (with a
+  // MIN_EVENT_GAP floor); it never splits events within a group.
   let i = 0;
   let firstGroup = true;
+  let prevGroupHold = 0;
   while (i < events.length) {
     const t = Number(events[i].time);
     const natural = Math.max(0, (t - lastT) * 1000 / SPEED);
-    const dt = firstGroup ? natural : Math.max(natural, MIN_EVENT_GAP);
+    const dt = firstGroup ? natural : Math.max(natural, prevGroupHold, MIN_EVENT_GAP);
     if (dt > 0) await new Promise(r => setTimeout(r, dt));
     lastT = t;
     firstGroup = false;
+    let groupHold = 0;
     while (i < events.length && Number(events[i].time) === t) {
-      applyEvent(events[i]);
+      const ev = events[i];
+      applyEvent(ev);
+      groupHold = Math.max(groupHold, eventClipDuration(ev));
       i++;
     }
+    prevGroupHold = groupHold;
   }
   // Pause briefly on the final frame.
   await new Promise(r => setTimeout(r, 600));
