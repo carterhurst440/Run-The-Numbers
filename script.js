@@ -18154,7 +18154,7 @@ const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout"
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
 const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile", "color-scheme", "fate-or-fortune", "bloom"]);
 // Routes only admins may reach (hidden in drawer + blocked on direct URL/hash nav).
-const ADMIN_ONLY_ROUTES = new Set(["fate-or-fortune", "bloom"]);
+const ADMIN_ONLY_ROUTES = new Set(["fate-or-fortune", "bloom", "admin"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
