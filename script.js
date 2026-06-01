@@ -32063,6 +32063,13 @@ async function fofPlayEvents(sim) {
   const STAY = new Set(['IDLE', 'VICTORY', 'DEFEAT']);
   const heldTimers   = { hero: null, opp: null };
   const postureTimers = { hero: null, opp: null };
+  // A fighter can have several sprite-changing events in one timestamp
+  // group — e.g. paladin's HIT immediately followed by its HOLY_LIGHT
+  // lifesteal SPECIAL. The sprite layer is a single <img>, so we play
+  // those clips in sequence (swing → holy-light) via a per-side queue
+  // instead of letting the last one clobber the rest.
+  const clipQueues = { hero: [], opp: [] };
+  const curAction  = { hero: null, opp: null };
   // Pending HP-bar drops, delayed to each clip's impact moment.
   const hpTimers = [];
   const scheduleHp = (fn, delay) => {
@@ -32070,19 +32077,38 @@ async function fofPlayEvents(sim) {
     hpTimers.push(setTimeout(fn, delay));
   };
 
+  // Play one clip now and, when it finishes, advance the queue (or snap
+  // back to IDLE if nothing is waiting).
+  function startClip(side, id, action) {
+    curAction[side] = action;
+    fofSetClip(side, id, action);
+    if (heldTimers[side]) { clearTimeout(heldTimers[side]); heldTimers[side] = null; }
+    if (STAY.has(action)) { clipQueues[side].length = 0; return; }
+    // Hold the action GIF for its full measured length (min floor) before
+    // moving on, so longer clips aren't cut short.
+    const hold = Math.max(MIN_ACTION_HOLD, fofClipDurationMs(id, action));
+    heldTimers[side] = setTimeout(() => {
+      heldTimers[side] = null;
+      const q = clipQueues[side];
+      if (q.length) { const nx = q.shift(); startClip(side, nx.id, nx.action); }
+      else { curAction[side] = 'IDLE'; fofSetClip(side, id, 'IDLE'); }
+    }, hold);
+  }
+
   function playClip(id, action) {
     const side = sideFor(id);
     if (!side) return;
-    fofSetClip(side, id, action);
-    if (heldTimers[side]) { clearTimeout(heldTimers[side]); heldTimers[side] = null; }
-    if (STAY.has(action)) return;
-    // Hold the action GIF for its full measured length (min floor) before
-    // snapping back to IDLE, so longer clips aren't cut short.
-    const hold = Math.max(MIN_ACTION_HOLD, fofClipDurationMs(id, action));
-    heldTimers[side] = setTimeout(() => {
-      fofSetClip(side, id, 'IDLE');
-      heldTimers[side] = null;
-    }, hold);
+    // Finale poses (VICTORY/DEFEAT) and IDLE interrupt everything.
+    if (STAY.has(action)) { clipQueues[side].length = 0; startClip(side, id, action); return; }
+    if (heldTimers[side]) {
+      // A clip is mid-play this beat — queue this one to follow it. Skip
+      // back-to-back duplicates (SPECIAL_TRIGGER + HEAL both map to SPECIAL).
+      const q = clipQueues[side];
+      const lastAction = q.length ? q[q.length - 1].action : curAction[side];
+      if (lastAction !== action) q.push({ id, action });
+    } else {
+      startClip(side, id, action);
+    }
   }
 
   // Attacker leans toward defender, defender flinches back. Both clear
@@ -32235,15 +32261,39 @@ async function fofPlayEvents(sim) {
     if (dt > 0) await new Promise(r => setTimeout(r, dt));
     lastT = t;
     firstGroup = false;
-    let groupHold = 0;
+    // Track how long each side's sprite layer is busy this beat. A side
+    // that plays several queued clips (paladin's HIT → HOLY_LIGHT) needs
+    // the sum of their holds, so the next beat doesn't start before the
+    // sequence finishes. Mirrors the dedupe in playClip.
+    const sideHold = { hero: 0, opp: 0 };
+    const lastAct  = { hero: null, opp: null };
+    const addHold = (id, action) => {
+      const sd = sideFor(id);
+      if (!sd || STAY.has(action) || lastAct[sd] === action) return;
+      lastAct[sd] = action;
+      sideHold[sd] += Math.max(MIN_ACTION_HOLD, fofClipDurationMs(id, action));
+    };
     while (i < events.length && Number(events[i].time) === t) {
       const ev = events[i];
       if (TERMINAL.has(ev.type)) { terminalEvents.push(ev); i++; continue; }
       applyEvent(ev);
-      groupHold = Math.max(groupHold, eventClipDuration(ev));
+      switch (ev.type) {
+        case 'HIT': case 'CRITICAL_HIT':
+        case 'TAKE_DAMAGE': case 'TAKE_CRITICAL_DAMAGE':
+          addHold(ev.actorId, ev.type); break;
+        case 'SPECIAL_TRIGGER': case 'HEAL':
+          addHold(ev.actorId, 'SPECIAL'); break;
+        case 'DODGE':
+          addHold(ev.targetId || ev.actorId, 'DODGE'); break;
+        case 'MISS':
+          addHold(ev.actorId, 'MISS');
+          if (ev.targetId) addHold(ev.targetId, 'DODGE');
+          break;
+        default: break;
+      }
       i++;
     }
-    prevGroupHold = groupHold;
+    prevGroupHold = Math.max(sideHold.hero, sideHold.opp);
   }
 
   // Let the killing blow's HIT / TAKE_DAMAGE clip run its full length so the
@@ -32258,6 +32308,8 @@ async function fofPlayEvents(sim) {
   if (heldTimers.opp)     clearTimeout(heldTimers.opp);
   if (postureTimers.hero) clearTimeout(postureTimers.hero);
   if (postureTimers.opp)  clearTimeout(postureTimers.opp);
+  clipQueues.hero.length = 0;
+  clipQueues.opp.length = 0;
   document.querySelectorAll('.fof-fighter-hero, .fof-fighter-opp')
     .forEach(el => el.classList.remove('is-attacking', 'is-flinching'));
 
