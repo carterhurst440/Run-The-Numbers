@@ -9330,6 +9330,12 @@ async function setRoute(route, { replaceHash = false } = {}) {
     resolvedRoute = "home";
   }
 
+  // Admin-only games: hidden in the drawer for non-admins, and also unreachable
+  // by direct URL/hash navigation. Redirect non-admins back to home.
+  if (ADMIN_ONLY_ROUTES.has(resolvedRoute) && !isAdmin(currentUser)) {
+    resolvedRoute = "home";
+  }
+
   currentRoute = resolvedRoute;
   if (document.body) {
     document.body.dataset.route = resolvedRoute;
@@ -18147,6 +18153,8 @@ const chipBarEl = runTheNumbersView ? runTheNumbersView.querySelector(".chip-bar
 const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout") : null;
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
 const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile", "color-scheme", "fate-or-fortune", "bloom"]);
+// Routes only admins may reach (hidden in drawer + blocked on direct URL/hash nav).
+const ADMIN_ONLY_ROUTES = new Set(["fate-or-fortune", "bloom"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
