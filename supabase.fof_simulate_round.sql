@@ -540,6 +540,7 @@ BEGIN
                 events := events || jsonb_build_object(
                   'time', T, 'type', 'SPECIAL_TRIGGER', 'actorId', B_ID,
                   'specialId', COALESCE(b_refl_id, 'reflect'),
+                  'reflectCrit', did_crit,
                   'message', B_NAME || ' activates ' || UPPER(COALESCE(b_refl_id, 'reflect'))
                              || ', reflecting ' || reflect_int::TEXT || ' damage back to ' || A_NAME || '.'
                 );
@@ -616,6 +617,7 @@ BEGIN
                 events := events || jsonb_build_object(
                   'time', T, 'type', 'SPECIAL_TRIGGER', 'actorId', A_ID,
                   'specialId', COALESCE(a_refl_id, 'reflect'),
+                  'reflectCrit', did_crit,
                   'message', A_NAME || ' activates ' || UPPER(COALESCE(a_refl_id, 'reflect'))
                              || ', reflecting ' || reflect_int::TEXT || ' damage back to ' || B_NAME || '.'
                 );

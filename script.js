@@ -30186,7 +30186,8 @@ let fofMatrix = {}; // key "charA|charB" → { winPct, runs }
 // ── FOF admin sub-tabs ────────────────────────────────────────
 const FOF_ACTIONS = [
   'IDLE','HIT','CRITICAL_HIT','TAKE_DAMAGE','TAKE_CRITICAL_DAMAGE',
-  'DODGE','MISS','VICTORY','DEFEAT','SPECIAL','VICTORY_END','DEFEAT_END'
+  'DODGE','MISS','VICTORY','DEFEAT','SPECIAL','VICTORY_END','DEFEAT_END',
+  'SPECIAL_CRIT'
 ];
 let fofAnimRows = []; // [{character, action, clip_data, updated_at}]
 let fofAnimEditing = null; // { character, action } currently in modal
@@ -31130,6 +31131,7 @@ function fofSimulateOne(a, b, seed) {
               type: 'SPECIAL_TRIGGER',
               actorId: defId,
               specialId: defReflId || 'reflect',
+              reflectCrit: didCrit,
               message: `${defName} activates ${(defReflId || 'reflect').toUpperCase()}, reflecting ${reflectInt} damage back to ${atkName}.`,
             });
             events.push({
@@ -32071,6 +32073,15 @@ async function fofPlayEvents(sim) {
   const STAY = new Set(['IDLE', 'VICTORY', 'DEFEAT']);
   const heldTimers   = { hero: null, opp: null };
   const postureTimers = { hero: null, opp: null };
+  // Most SPECIAL_TRIGGERs map to the actor's single SPECIAL clip. Some
+  // characters have a variant for a specific context — e.g. the knight's
+  // reflect has one clip for reflecting a normal hit (SPECIAL) and one for
+  // reflecting a crit (SPECIAL_CRIT). Pick the variant only when the event
+  // flags it AND that character actually has the clip; otherwise fall back
+  // to SPECIAL so pacing/timing is identical for everyone else.
+  const specialActionFor = (ev) =>
+    (ev && ev.reflectCrit && fofClipUrl(ev.actorId, 'SPECIAL_CRIT'))
+      ? 'SPECIAL_CRIT' : 'SPECIAL';
   // A fighter can have several sprite-changing events in one timestamp
   // group — e.g. paladin's HIT immediately followed by its HOLY_LIGHT
   // lifesteal SPECIAL. The sprite layer is a single <img>, so we play
@@ -32170,9 +32181,10 @@ async function fofPlayEvents(sim) {
     // ── Sprite playback ──
     switch (ev.type) {
       case 'SPECIAL_TRIGGER':
-        // Play the actor's SPECIAL (e.g. rogue's doublestrike) BEFORE
+        // Play the actor's SPECIAL (e.g. rogue's doublestrike, or the
+        // knight's reflect — SPECIAL_CRIT when it bounced a crit) BEFORE
         // the follow-up attack. The target keeps idling.
-        playClip(ev.actorId, 'SPECIAL');
+        playClip(ev.actorId, specialActionFor(ev));
         setPosture(ev.actorId, 'attacking');
         break;
       case 'HIT':
@@ -32229,6 +32241,7 @@ async function fofPlayEvents(sim) {
   const eventClipDuration = (ev) => {
     switch (ev.type) {
       case 'SPECIAL_TRIGGER':
+        return fofClipDurationMs(ev.actorId, specialActionFor(ev));
       case 'HEAL':
         return fofClipDurationMs(ev.actorId, 'SPECIAL');
       case 'HIT':
@@ -32289,7 +32302,9 @@ async function fofPlayEvents(sim) {
         case 'HIT': case 'CRITICAL_HIT':
         case 'TAKE_DAMAGE': case 'TAKE_CRITICAL_DAMAGE':
           addHold(ev.actorId, ev.type); break;
-        case 'SPECIAL_TRIGGER': case 'HEAL':
+        case 'SPECIAL_TRIGGER':
+          addHold(ev.actorId, specialActionFor(ev)); break;
+        case 'HEAL':
           addHold(ev.actorId, 'SPECIAL'); break;
         case 'DODGE':
           addHold(ev.targetId || ev.actorId, 'DODGE'); break;
