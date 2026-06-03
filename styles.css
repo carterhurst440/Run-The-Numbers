@@ -28226,6 +28226,12 @@ body.admin-sk-fs-lock { overflow: hidden; }
   .fof-vs-line { font-size: 16px; }
   .fof-hp-row { grid-template-columns: 64px 1fr 58px; gap: 6px; font-size: 10px; }
   .fof-event-log { max-height: 280px; }
+  /* Smaller floating labels so they don't overrun the narrow stage. */
+  .fof-float-miss    { font-size: 16px; }
+  .fof-float-crit    { font-size: 22px; }
+  .fof-float-special { font-size: 14px; letter-spacing: 1px; }
+  .fof-float-victory { font-size: 24px; }
+  .fof-float-defeat  { font-size: 22px; }
 }
 
 /* RESOLVING */
@@ -28299,6 +28305,40 @@ body.admin-sk-fs-lock { overflow: hidden; }
 /* Defender flinches back a hair so the impact reads. */
 .fof-fighter-hero.is-flinching { transform: translateX(-12px); }
 .fof-fighter-opp.is-flinching  { transform: translateX(12px); }
+
+/* Floating combat labels — rendered as HTML over the grid (NOT baked into
+   the GIFs, which get mirrored for the opponent and would flip any text).
+   Each label rises + fades over the actor's side of the stage. */
+.fof-float-label {
+  position: absolute;
+  top: 24%;
+  z-index: 10;
+  pointer-events: none;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-50%, 0) scale(0.7);
+  text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.9);
+  transition: opacity 0.16s ease, transform 0.5s cubic-bezier(0.2, 0.85, 0.25, 1);
+}
+.fof-float-hero { left: 32%; }
+.fof-float-opp  { left: 68%; }
+.fof-float-label.is-show {
+  opacity: 1;
+  transform: translate(-50%, -30px) scale(1);
+}
+.fof-float-label.is-out {
+  opacity: 0;
+  transform: translate(-50%, -56px) scale(1);
+}
+.fof-float-miss    { color: #d2d2c4; font-size: 22px; }
+.fof-float-crit    { color: #ffd23f; font-size: 30px; }
+.fof-float-special { color: #5fd0a8; font-size: 19px; }
+.fof-float-victory { color: #ffd23f; font-size: 34px; top: 16%; letter-spacing: 3px; }
+.fof-float-defeat  { color: #ff5c5c; font-size: 30px; top: 16%; letter-spacing: 3px; }
 .fof-hp-bars { margin-bottom: 16px; }
 .fof-hp-row {
   display: grid; grid-template-columns: 110px 1fr 80px; gap: 10px;

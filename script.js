@@ -32088,6 +32088,42 @@ async function fofPlayEvents(sim) {
     return document.querySelector(side === 'hero' ? '.fof-fighter-hero' : '.fof-fighter-opp');
   };
 
+  // ── Floating combat labels ────────────────────────────────────────
+  // Words like MISS / CRITICAL / the special's name / VICTORY / DEFEAT
+  // are rendered as HTML overlays on top of the battle grid instead of
+  // being baked into the GIFs — the opponent sprite is mirrored with
+  // scaleX(-1), which would reverse any text drawn into the art. Each
+  // label floats up over the ACTOR's side and fades out.
+  const specialNames = {};
+  const collectAbilities = (arr) => {
+    (arr || []).forEach(abil => { if (abil && abil.id) specialNames[abil.id] = abil.name || abil.id; });
+  };
+  (fofGame.candidates || []).forEach(c => collectAbilities(c.special_abilities));
+  collectAbilities(fofGame.opponent?.special_abilities);
+  const specialLabelFor = (ev) => {
+    const id = ev && ev.specialId;
+    const name = (id && specialNames[id]) || (id ? String(id).replace(/[_-]+/g, ' ') : 'special');
+    return String(name).toUpperCase();
+  };
+  const labelTimers = [];
+  function showFloatLabel(id, text, kind) {
+    const side = sideFor(id);
+    const stage = document.querySelector('.fof-fight-stage');
+    if (!side || !stage || !text) return;
+    const el = document.createElement('div');
+    el.className = `fof-float-label fof-float-${kind} fof-float-${side}`;
+    el.textContent = text;
+    stage.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('is-show'));
+    const ttl = (kind === 'victory' || kind === 'defeat') ? 2600 : 1300;
+    const tm = setTimeout(() => {
+      el.classList.add('is-out');
+      const rm = setTimeout(() => el.remove(), 420);
+      labelTimers.push(rm);
+    }, ttl);
+    labelTimers.push(tm);
+  }
+
   const STAY = new Set(['IDLE', 'VICTORY', 'DEFEAT']);
   const heldTimers   = { hero: null, opp: null };
   const postureTimers = { hero: null, opp: null };
@@ -32205,11 +32241,16 @@ async function fofPlayEvents(sim) {
         // the follow-up attack. The target keeps idling.
         playClip(ev.actorId, specialActionFor(ev));
         setPosture(ev.actorId, 'attacking');
+        showFloatLabel(ev.actorId, specialLabelFor(ev), 'special');
         break;
       case 'HIT':
+        playClip(ev.actorId, ev.type);
+        setPosture(ev.actorId, 'attacking');
+        break;
       case 'CRITICAL_HIT':
         playClip(ev.actorId, ev.type);
         setPosture(ev.actorId, 'attacking');
+        showFloatLabel(ev.actorId, 'CRITICAL', 'crit');
         break;
       case 'TAKE_DAMAGE':
       case 'TAKE_CRITICAL_DAMAGE':
@@ -32226,21 +32267,24 @@ async function fofPlayEvents(sim) {
         // halves here: attacker whiffs, target dodges — same frame.
         playClip(ev.actorId, 'MISS');
         if (ev.targetId) playClip(ev.targetId, 'DODGE');
+        showFloatLabel(ev.actorId, 'MISS', 'miss');
         break;
       case 'HEAL':
         playClip(ev.actorId, 'SPECIAL');
         break;
       case 'VICTORY':
         playClip(ev.actorId, 'VICTORY');
+        showFloatLabel(ev.actorId, 'VICTORY', 'victory');
         if (ev.actorId === heroId) playClip(oppId, 'DEFEAT');
         else if (ev.actorId === oppId) playClip(heroId, 'DEFEAT');
         break;
       case 'DEFEAT':
         playClip(ev.actorId, 'DEFEAT');
+        showFloatLabel(ev.actorId, 'DEFEAT', 'defeat');
         break;
       case 'DRAW':
-        if (heroId) playClip(heroId, 'DEFEAT');
-        if (oppId)  playClip(oppId,  'DEFEAT');
+        if (heroId) { playClip(heroId, 'DEFEAT'); showFloatLabel(heroId, 'DRAW', 'defeat'); }
+        if (oppId)  { playClip(oppId,  'DEFEAT'); showFloatLabel(oppId,  'DRAW', 'defeat'); }
         break;
       default:
         break;
@@ -32352,6 +32396,9 @@ async function fofPlayEvents(sim) {
   if (postureTimers.opp)  clearTimeout(postureTimers.opp);
   clipQueues.hero.length = 0;
   clipQueues.opp.length = 0;
+  // Note: combat labels (MISS/CRITICAL/special) are left to fade on their
+  // own timers; only the finale VICTORY/DEFEAT labels are still pending and
+  // those are meant to linger over the end pose.
   document.querySelectorAll('.fof-fighter-hero, .fof-fighter-opp')
     .forEach(el => el.classList.remove('is-attacking', 'is-flinching'));
 
