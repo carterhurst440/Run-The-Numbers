@@ -79,7 +79,7 @@ VALUES
   ('warlock',   110, 20, 1.80, 0.11, 0.83, 0.09, 1.15, 0.22,
    '[{"id":"regenerate","name":"Regenerate","type":"ATTACK_REPLACED_BY_FULL_HEAL","enabled":true,"description":"Each attack has a 10% chance to become a full heal spell instead of attacking. Cannot trigger twice consecutively.","trigger":{"event":"ATTACK_TURN_START"},"constraints":{"cannotTriggerConsecutively":true},"effect":{"replaceAttackChance":0.10,"healToFullHp":true}}]'::jsonb),
   ('paladin',   165, 19, 1.65, 0.09, 0.89, 0.07, 1.22, 0.34,
-   '[{"id":"holy_light","name":"Holy Light","type":"LIFESTEAL","enabled":true,"description":"Heals for 15% of damage dealt to the opponent.","effect":{"healPercentOfDamageDealt":0.15}}]'::jsonb)
+   '[{"id":"holy_light","name":"Holy Light","type":"LIFESTEAL","enabled":true,"description":"On a critical hit, heals for 50% of the damage dealt.","effect":{"healPercentOfDamageDealt":0.5,"onlyOnCriticalHit":true}}]'::jsonb)
 ON CONFLICT (character) DO UPDATE SET
   hp                = EXCLUDED.hp,
   damage            = EXCLUDED.damage,

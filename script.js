@@ -30866,6 +30866,10 @@ function fofSimulateOne(a, b, seed) {
   const bLS = fofGetAbility(b, 'LIFESTEAL');
   const aLSPct = aLS ? Number(aLS.effect?.healPercentOfDamageDealt) || 0 : 0;
   const bLSPct = bLS ? Number(bLS.effect?.healPercentOfDamageDealt) || 0 : 0;
+  // When onlyOnCriticalHit is set, lifesteal only heals on a landed crit
+  // (paladin holy_light: heal 50% of crit damage dealt).
+  const aLSCritOnly = !!aLS?.effect?.onlyOnCriticalHit;
+  const bLSCritOnly = !!bLS?.effect?.onlyOnCriticalHit;
 
   const aBA = fofGetAbility(a, 'BONUS_ATTACK');
   const bBA = fofGetAbility(b, 'BONUS_ATTACK');
@@ -30947,6 +30951,7 @@ function fofSimulateOne(a, b, seed) {
     const cnm       = isA ? aCNM      : bCNM;
     const cnmId     = isA ? aCNMId    : bCNMId;
     const lsPct     = isA ? aLSPct    : bLSPct;
+    const lsCritOnly= isA ? aLSCritOnly : bLSCritOnly;
     const lsId      = isA ? aLSId     : bLSId;
     const baChance  = isA ? aBAChance : bBAChance;
     const baCanMiss = isA ? aBACanMiss: bBACanMiss;
@@ -31147,8 +31152,8 @@ function fofSimulateOne(a, b, seed) {
             });
           }
 
-          // Attacker LIFESTEAL
-          if (lsPct > 0) {
+          // Attacker LIFESTEAL (crit-only abilities heal only on a landed crit)
+          if (lsPct > 0 && (!lsCritOnly || didCrit)) {
             const heal = dmg * lsPct;
             const healInt = Math.round(heal);
             if (healInt > 0) {
@@ -31254,6 +31259,8 @@ function fofSimulate(a, b, runs) {
   const bLS = fofGetAbility(b, 'LIFESTEAL');
   const aLSPct = aLS ? Number(aLS.effect?.healPercentOfDamageDealt) || 0 : 0;
   const bLSPct = bLS ? Number(bLS.effect?.healPercentOfDamageDealt) || 0 : 0;
+  const aLSCritOnly = !!aLS?.effect?.onlyOnCriticalHit;
+  const bLSCritOnly = !!bLS?.effect?.onlyOnCriticalHit;
 
   // BONUS_ATTACK — after a successful attack, chance for an immediate extra attack.
   const aBA = fofGetAbility(a, 'BONUS_ATTACK');
@@ -31374,8 +31381,8 @@ function fofSimulate(a, b, runs) {
                 bReflectFired++;
                 hpA -= dmg * bReflPct;
               }
-              // Attacker LIFESTEAL on damage actually dealt.
-              if (aLSPct > 0) {
+              // Attacker LIFESTEAL on damage actually dealt (crit-only heals on crit).
+              if (aLSPct > 0 && (!aLSCritOnly || didCrit)) {
                 const heal = dmg * aLSPct;
                 hpA += heal;
                 if (hpA > aHp) hpA = aHp;
@@ -31460,7 +31467,7 @@ function fofSimulate(a, b, runs) {
                 aReflectFired++;
                 hpB -= dmg * aReflPct;
               }
-              if (bLSPct > 0) {
+              if (bLSPct > 0 && (!bLSCritOnly || didCrit)) {
                 const heal = dmg * bLSPct;
                 hpB += heal;
                 if (hpB > bHp) hpB = bHp;

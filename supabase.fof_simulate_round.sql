@@ -89,6 +89,7 @@ DECLARE
   a_rh_no_stack BOOLEAN := FALSE; b_rh_no_stack BOOLEAN := FALSE;
   a_rh_id TEXT;              b_rh_id TEXT;
   a_ls_pct NUMERIC := 0;     b_ls_pct NUMERIC := 0;
+  a_ls_crit_only BOOLEAN := FALSE; b_ls_crit_only BOOLEAN := FALSE;
   a_ls_id TEXT;              b_ls_id TEXT;
   a_ba_chance NUMERIC := 0;  b_ba_chance NUMERIC := 0;
   a_ba_can_miss BOOLEAN := TRUE; b_ba_can_miss BOOLEAN := TRUE;
@@ -189,6 +190,7 @@ BEGIN
   ab := public.fof_get_ability(ra.special_abilities, 'LIFESTEAL');
   IF ab IS NOT NULL THEN
     a_ls_pct := COALESCE((ab->'effect'->>'healPercentOfDamageDealt')::NUMERIC, 0);
+    a_ls_crit_only := COALESCE((ab->'effect'->>'onlyOnCriticalHit')::BOOLEAN, FALSE);
     a_ls_id := ab->>'id';
   END IF;
   ab := public.fof_get_ability(ra.special_abilities, 'BONUS_ATTACK');
@@ -238,6 +240,7 @@ BEGIN
   ab := public.fof_get_ability(rb.special_abilities, 'LIFESTEAL');
   IF ab IS NOT NULL THEN
     b_ls_pct := COALESCE((ab->'effect'->>'healPercentOfDamageDealt')::NUMERIC, 0);
+    b_ls_crit_only := COALESCE((ab->'effect'->>'onlyOnCriticalHit')::BOOLEAN, FALSE);
     b_ls_id := ab->>'id';
   END IF;
   ab := public.fof_get_ability(rb.special_abilities, 'BONUS_ATTACK');
@@ -556,8 +559,8 @@ BEGIN
               END IF;
             END IF;
 
-            -- Attacker LIFESTEAL
-            IF a_ls_pct > 0 THEN
+            -- Attacker LIFESTEAL (crit-only abilities heal only on a landed crit)
+            IF a_ls_pct > 0 AND (NOT a_ls_crit_only OR did_crit) THEN
               heal_amt := dmg * a_ls_pct;
               heal_int := round(heal_amt)::INT;
               IF heal_int > 0 THEN
@@ -633,7 +636,7 @@ BEGIN
               END IF;
             END IF;
 
-            IF b_ls_pct > 0 THEN
+            IF b_ls_pct > 0 AND (NOT b_ls_crit_only OR did_crit) THEN
               heal_amt := dmg * b_ls_pct;
               heal_int := round(heal_amt)::INT;
               IF heal_int > 0 THEN
