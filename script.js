@@ -32190,6 +32190,54 @@ async function fofPlayEvents(sim) {
     hpTimers.push(setTimeout(fn, delay));
   };
 
+  // Per-timestamp-group queue model. A single side can play several clips in
+  // one beat (e.g. paladin's CRITICAL_HIT → HOLY_LIGHT special + heal). The
+  // sprite layer runs them in sequence, so a clip's HP change must ride on
+  // when that clip actually STARTS — not on the group's start instant.
+  // Otherwise the heal bar jumps during the crit swing, before Holy Light
+  // even animates. These mirror playClip's per-side dedupe so the offsets
+  // match real playback. Reset at the top of each group.
+  const clipOffset     = { hero: 0, opp: 0 }; // ms until this side's NEXT new clip starts
+  const lastClipStart  = { hero: 0, opp: 0 }; // start offset of this side's most recent clip
+  const lastClipAction = { hero: null, opp: null };
+  const resetGroupClips = () => {
+    clipOffset.hero = 0; clipOffset.opp = 0;
+    lastClipStart.hero = 0; lastClipStart.opp = 0;
+    lastClipAction.hero = null; lastClipAction.opp = null;
+  };
+  // Reserve `action` on the side owning `id`; return the ms offset at which it
+  // begins. Consecutive duplicate actions are deduped (they share one clip),
+  // matching playClip — a deduped clip reuses the prior clip's start offset.
+  const reserveClip = (id, action) => {
+    const sd = sideFor(id);
+    if (!sd || STAY.has(action)) return 0;
+    if (lastClipAction[sd] === action) return lastClipStart[sd];
+    const start = clipOffset[sd];
+    lastClipStart[sd]  = start;
+    lastClipAction[sd] = action;
+    clipOffset[sd] = start + Math.max(MIN_ACTION_HOLD, fofClipDurationMs(id, action));
+    return start;
+  };
+  // Mirror the clip(s) applyEvent's switch will play, in the same order, to
+  // advance the queue model and return the start offset of the HP-bearing clip.
+  const reserveForEvent = (ev) => {
+    switch (ev.type) {
+      case 'SPECIAL_TRIGGER': return reserveClip(ev.actorId, specialActionFor(ev));
+      case 'HIT':
+      case 'CRITICAL_HIT':
+      case 'TAKE_DAMAGE':
+      case 'TAKE_CRITICAL_DAMAGE': return reserveClip(ev.actorId, ev.type);
+      case 'HEAL':            return reserveClip(ev.actorId, 'SPECIAL');
+      case 'DODGE':           return reserveClip(ev.targetId || ev.actorId, 'DODGE');
+      case 'MISS': {
+        const s = reserveClip(ev.actorId, 'MISS');
+        if (ev.targetId) reserveClip(ev.targetId, 'DODGE');
+        return s;
+      }
+      default: return 0;
+    }
+  };
+
   // Play one clip now and, when it finishes, advance the queue (or snap
   // back to IDLE if nothing is waiting).
   function startClip(side, id, action) {
@@ -32270,7 +32318,10 @@ async function fofPlayEvents(sim) {
         }
       }
     };
-    scheduleHp(setHp, eventClipDuration(ev) * IMPACT_FRACTION);
+    // Ride the HP change on the moment THIS event's clip actually connects,
+    // which is its start offset in the side's queue plus its impact fraction.
+    const hpStart = reserveForEvent(ev);
+    scheduleHp(setHp, hpStart + eventClipDuration(ev) * IMPACT_FRACTION);
 
     // ── Sprite playback ──
     switch (ev.type) {
@@ -32384,41 +32435,20 @@ async function fofPlayEvents(sim) {
     if (dt > 0) await new Promise(r => setTimeout(r, dt));
     lastT = t;
     firstGroup = false;
-    // Track how long each side's sprite layer is busy this beat. A side
-    // that plays several queued clips (paladin's HIT → HOLY_LIGHT) needs
-    // the sum of their holds, so the next beat doesn't start before the
-    // sequence finishes. Mirrors the dedupe in playClip.
-    const sideHold = { hero: 0, opp: 0 };
-    const lastAct  = { hero: null, opp: null };
-    const addHold = (id, action) => {
-      const sd = sideFor(id);
-      if (!sd || STAY.has(action) || lastAct[sd] === action) return;
-      lastAct[sd] = action;
-      sideHold[sd] += Math.max(MIN_ACTION_HOLD, fofClipDurationMs(id, action));
-    };
+    // Reset the per-side queue model for this beat. A side that plays several
+    // queued clips (paladin's CRITICAL_HIT → HOLY_LIGHT special + heal) needs
+    // the sum of their holds so the next beat doesn't start before the
+    // sequence finishes; applyEvent advances these offsets as it reserves each
+    // clip, mirroring the dedupe in playClip.
+    resetGroupClips();
     while (i < events.length && Number(events[i].time) === t) {
       const ev = events[i];
       if (TERMINAL.has(ev.type)) { terminalEvents.push(ev); i++; continue; }
       applyEvent(ev);
-      switch (ev.type) {
-        case 'HIT': case 'CRITICAL_HIT':
-        case 'TAKE_DAMAGE': case 'TAKE_CRITICAL_DAMAGE':
-          addHold(ev.actorId, ev.type); break;
-        case 'SPECIAL_TRIGGER':
-          addHold(ev.actorId, specialActionFor(ev)); break;
-        case 'HEAL':
-          addHold(ev.actorId, 'SPECIAL'); break;
-        case 'DODGE':
-          addHold(ev.targetId || ev.actorId, 'DODGE'); break;
-        case 'MISS':
-          addHold(ev.actorId, 'MISS');
-          if (ev.targetId) addHold(ev.targetId, 'DODGE');
-          break;
-        default: break;
-      }
       i++;
     }
-    prevGroupHold = Math.max(sideHold.hero, sideHold.opp);
+    // The side busy longest gates the gap before the next beat.
+    prevGroupHold = Math.max(clipOffset.hero, clipOffset.opp);
   }
 
   // Let the killing blow's HIT / TAKE_DAMAGE clip run its full length so the
