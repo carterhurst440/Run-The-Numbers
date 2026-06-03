@@ -28007,6 +28007,13 @@ body.admin-sk-fs-lock { overflow: hidden; }
 .fof-page-balance { font-size: 12px; letter-spacing: 1px; color: #888; }
 .fof-page-balance strong { color: #e8e8d2; margin-left: 6px; }
 .fof-stage { min-height: 400px; }
+/* Keep the FOF battle subtree from ever growing horizontally: let the
+   flex-column ancestors shrink (min-width:0) and clip any overflow at the
+   stage so nothing inside can spawn a horizontal scrollbar / "expand" the
+   battle window late in a fight. Scoped to #fof-stage so Bloom (which shares
+   the .fof-stage class) is untouched. */
+.fof-view .fof-page { min-width: 0; }
+#fof-stage { min-width: 0; overflow-x: clip; }
 .fof-loading, .fof-err {
   text-align: center; padding: 60px 20px; color: #888; font-size: 13px;
 }
@@ -28246,8 +28253,18 @@ body.admin-sk-fs-lock { overflow: hidden; }
    "expands" as the log fills late in the fight. */
 .fof-resolving {
   padding: 20px;
+  width: 100%;
   max-width: 800px;
   margin: 0 auto;
+  /* Pin the battle column so it can NEVER grow rightward. width+box-sizing
+     makes it fill its parent up to the 800px cap (instead of shrink-wrapping
+     to / growing with its widest child), min-width:0 lets the flex-column
+     ancestors shrink it back, and overflow-x:clip is a hard backstop so a
+     wide child — the end-of-fight recap panel or a long log line — can't
+     push the box out or spawn a horizontal scrollbar. */
+  box-sizing: border-box;
+  min-width: 0;
+  overflow-x: clip;
 }
 .fof-vs-line {
   display: flex; justify-content: space-around; align-items: center;
