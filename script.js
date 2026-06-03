@@ -32163,6 +32163,22 @@ async function fofPlayEvents(sim) {
     labelTimers.push(tm);
   }
 
+  // End-of-fight result banner: a SINGLE label centered on the stage that
+  // reflects the HERO's outcome (VICTORY if the hero won, DEFEAT if it lost,
+  // DRAW otherwise) — not a label over each fighter. It lingers over the end
+  // pose instead of fading on a timer.
+  function showCenterResult(outcome) {
+    const stage = document.querySelector('.fof-fight-stage');
+    if (!stage || !outcome) return;
+    stage.querySelectorAll('.fof-float-center').forEach(el => el.remove());
+    const kind = String(outcome).toLowerCase();
+    const el = document.createElement('div');
+    el.className = `fof-float-label fof-float-center fof-result-${kind}`;
+    el.textContent = String(outcome).toUpperCase();
+    stage.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('is-show'));
+  }
+
   const STAY = new Set(['IDLE', 'VICTORY', 'DEFEAT']);
   const heldTimers   = { hero: null, opp: null };
   const postureTimers = { hero: null, opp: null };
@@ -32363,18 +32379,18 @@ async function fofPlayEvents(sim) {
         playClip(ev.actorId, 'SPECIAL');
         break;
       case 'VICTORY':
+        // Poses only — the result word is shown once, centered, after the
+        // finale group is applied (see showCenterResult below).
         playClip(ev.actorId, 'VICTORY');
-        showFloatLabel(ev.actorId, 'VICTORY', 'victory');
         if (ev.actorId === heroId) playClip(oppId, 'DEFEAT');
         else if (ev.actorId === oppId) playClip(heroId, 'DEFEAT');
         break;
       case 'DEFEAT':
         playClip(ev.actorId, 'DEFEAT');
-        showFloatLabel(ev.actorId, 'DEFEAT', 'defeat');
         break;
       case 'DRAW':
-        if (heroId) { playClip(heroId, 'DEFEAT'); showFloatLabel(heroId, 'DRAW', 'defeat'); }
-        if (oppId)  { playClip(oppId,  'DEFEAT'); showFloatLabel(oppId,  'DRAW', 'defeat'); }
+        if (heroId) playClip(heroId, 'DEFEAT');
+        if (oppId)  playClip(oppId,  'DEFEAT');
         break;
       default:
         break;
@@ -32476,6 +32492,16 @@ async function fofPlayEvents(sim) {
   if (terminalEvents.length) {
     await new Promise(r => setTimeout(r, 450));
     for (const ev of terminalEvents) applyEvent(ev);
+
+    // Show ONE centered result banner reflecting the hero's outcome, rather
+    // than a VICTORY/DEFEAT word over each fighter.
+    let heroOutcome = null; // 'VICTORY' | 'DEFEAT' | 'DRAW'
+    for (const ev of terminalEvents) {
+      if (ev.type === 'DRAW') { heroOutcome = 'DRAW'; break; }
+      if (ev.type === 'VICTORY')      heroOutcome = (ev.actorId === heroId) ? 'VICTORY' : 'DEFEAT';
+      else if (ev.type === 'DEFEAT')  heroOutcome = (ev.actorId === heroId) ? 'DEFEAT'  : 'VICTORY';
+    }
+    if (heroOutcome) showCenterResult(heroOutcome);
 
     // Each finale clip (VICTORY / DEFEAT) plays through once, then we hold
     // on its matching still end-frame (VICTORY_END / DEFEAT_END) for any

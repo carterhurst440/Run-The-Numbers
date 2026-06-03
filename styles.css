@@ -28232,6 +28232,9 @@ body.admin-sk-fs-lock { overflow: hidden; }
   .fof-float-special { font-size: 14px; letter-spacing: 1px; }
   .fof-float-victory { font-size: 24px; }
   .fof-float-defeat  { font-size: 22px; }
+  .fof-result-victory { font-size: 38px; }
+  .fof-result-defeat  { font-size: 34px; }
+  .fof-result-draw    { font-size: 30px; }
 }
 
 /* RESOLVING */
@@ -28339,6 +28342,20 @@ body.admin-sk-fs-lock { overflow: hidden; }
 .fof-float-special { color: #5fd0a8; font-size: 19px; }
 .fof-float-victory { color: #ffd23f; font-size: 34px; top: 16%; letter-spacing: 3px; }
 .fof-float-defeat  { color: #ff5c5c; font-size: 30px; top: 16%; letter-spacing: 3px; }
+/* End-of-fight result: a single banner centered on the stage, reflecting
+   the HERO's outcome (VICTORY if the hero won, DEFEAT if it lost) rather
+   than a label over each fighter. Defined after the per-fighter rules so
+   its centered transform/position wins on equal specificity. */
+.fof-float-center {
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%) scale(0.6);
+  letter-spacing: 4px;
+}
+.fof-float-center.is-show { transform: translate(-50%, -50%) scale(1); }
+.fof-float-center.is-out  { transform: translate(-50%, -50%) scale(1.12); }
+.fof-result-victory { color: #ffd23f; font-size: 56px; }
+.fof-result-defeat  { color: #ff5c5c; font-size: 52px; }
+.fof-result-draw    { color: #d2d2c4; font-size: 46px; }
 .fof-hp-bars { margin-bottom: 16px; }
 .fof-hp-row {
   display: grid; grid-template-columns: 110px 1fr 80px; gap: 10px;
