@@ -32337,7 +32337,16 @@ async function fofPlayEvents(sim) {
     // Ride the HP change on the moment THIS event's clip actually connects,
     // which is its start offset in the side's queue plus its impact fraction.
     const hpStart = reserveForEvent(ev);
-    scheduleHp(setHp, hpStart + eventClipDuration(ev) * IMPACT_FRACTION);
+    let hpDelay = hpStart + eventClipDuration(ev) * IMPACT_FRACTION;
+    // Reflected damage (knight REFLECT) bounces off the reflecter, so the
+    // opponent's HP shouldn't drop until the reflect animation has finished
+    // playing. The reflecter's SPECIAL/SPECIAL_CRIT clip was reserved earlier
+    // this beat, so their side's clipOffset now marks the end of that clip.
+    if (ev.reflected && ev.sourceId) {
+      const refSide = sideFor(ev.sourceId);
+      if (refSide) hpDelay = clipOffset[refSide];
+    }
+    scheduleHp(setHp, hpDelay);
 
     // ── Sprite playback ──
     switch (ev.type) {
