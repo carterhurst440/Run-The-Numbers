@@ -31636,10 +31636,9 @@ const fofGame = {
 
 // ── FOF — animation testing override ────────────────────────────────
 // Set to a character slug ('warlock', 'rogue', …) to force every round's
-// opponent. Set to null for normal random opponent selection. Used right
-// now to test the rogue/warlock animation pipeline since those are the
-// only two characters with bloodbond v2 GIFs imported.
-const FOF_FORCE_OPPONENT = 'warlock';
+// opponent for animation testing. null = true uniform-random opponent
+// (the fof_start_round RPC picks via ORDER BY random() when none is passed).
+const FOF_FORCE_OPPONENT = null;
 
 async function fofRouteOpen() {
   fofGame.state = 'idle';
@@ -31709,6 +31708,16 @@ function fofSpecialBlock(abilities) {
   `).join('');
 }
 
+// Idle-clip portrait for a character card. `variant` adds a sizing class
+// ('opp' for the larger challenger portrait). Falls back to an empty framed
+// box if the IDLE clip hasn't loaded yet so the layout never collapses.
+function fofPortrait(character, variant) {
+  const url = fofClipUrl(character, 'IDLE');
+  const cls = variant === 'opp' ? 'fof-portrait fof-portrait-opp' : 'fof-portrait';
+  if (!url) return `<div class="${cls} fof-portrait-empty"></div>`;
+  return `<div class="${cls}"><img class="fof-portrait-img" src="${url}" alt="${character}" loading="lazy" decoding="async"></div>`;
+}
+
 function fofViewSelecting() {
   const opp = fofGame.opponent;
   const cards = fofGame.candidates.map(c => {
@@ -31717,6 +31726,7 @@ function fofViewSelecting() {
     const picked = fofGame.pickedHero === c.character ? 'picked' : '';
     return `
       <div class="fof-hero-card ${picked}" data-hero="${c.character}">
+        ${fofPortrait(c.character)}
         <div class="fof-hero-name">${c.name.toUpperCase()}</div>
         <div class="fof-hero-win ${winColor}">${winPct.toFixed(1)}%</div>
         <div class="fof-hero-payout">payout ${(1/Number(c.win_pct)).toFixed(2)}x</div>
@@ -31737,6 +31747,7 @@ function fofViewSelecting() {
     <div class="fof-selecting">
       <div class="fof-opp-panel">
         <div class="fof-opp-label">// CHALLENGER</div>
+        ${fofPortrait(opp.character, 'opp')}
         <div class="fof-opp-name">${opp.name.toUpperCase()}</div>
         ${fofStatBlock(opp.stats)}
         ${fofSpecialBlock(opp.special_abilities)}
@@ -31989,6 +32000,12 @@ async function fofStartRound() {
     fofGame.pickedHero = null;
     fofGame.wager = 0;
     fofGame.state = 'selecting';
+    // Make sure animation rows are loaded so every card's IDLE portrait
+    // (hero grid + challenger) renders on first paint, not just after a
+    // later re-render.
+    if (typeof loadAdminFofAnimations === 'function' && (!fofAnimRows || fofAnimRows.length === 0)) {
+      try { await loadAdminFofAnimations(); } catch (_) {}
+    }
     fofRenderStage();
   } catch (e) {
     if (stage) stage.innerHTML = `<div class="fof-err">Failed to start round: ${e.message || e}</div>`;

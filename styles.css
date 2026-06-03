@@ -28141,6 +28141,45 @@ body.admin-sk-fs-lock { overflow: hidden; }
   font-size: 10px; color: #aaa; line-height: 1.4; margin-top: 3px;
 }
 .fof-no-special { font-size: 10px; color: #555; padding: 6px 8px; }
+
+/* Idle-clip portraits on the challenger panel + each champion card. */
+.fof-portrait {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 8px;
+  background: radial-gradient(ellipse at center bottom, #16160f 0%, #09090a 72%);
+  border: 1px solid #20201a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.fof-portrait-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 3px 8px rgba(0,0,0,0.6));
+}
+.fof-portrait-empty {
+  /* keeps the card height stable until the IDLE gif loads */
+  background: #09090a;
+  border-style: dashed;
+  border-color: #242420;
+}
+/* Larger challenger portrait — flipped so it faces the champion grid. */
+.fof-portrait-opp {
+  aspect-ratio: 4 / 5;
+  margin-bottom: 12px;
+  border-color: #3a2a1a;
+  background: radial-gradient(ellipse at center bottom, #1c150d 0%, #09090a 72%);
+}
+.fof-portrait-opp .fof-portrait-img {
+  transform: scaleX(-1);
+  filter: drop-shadow(0 4px 14px rgba(0,0,0,0.7));
+}
 .fof-wager-bar {
   grid-column: 1 / -1; display: flex; gap: 16px; align-items: center;
   padding: 14px 16px; border: 1px solid #2a2a2a; background: #0d0d0d;
@@ -28156,6 +28195,34 @@ body.admin-sk-fs-lock { overflow: hidden; }
 }
 .fof-wager-meta { font-size: 11px; color: #888; flex: 1; }
 .fof-wager-meta strong { color: #e8e8d2; }
+
+/* ── FOF responsive: stack the challenger above the champion grid and
+      let the portraits/fight stage breathe on phones. ── */
+@media (max-width: 720px) {
+  .fof-selecting { grid-template-columns: 1fr; gap: 14px; }
+  /* Full-width challenger banner — wide portrait reads better stacked. */
+  .fof-portrait-opp { aspect-ratio: 16 / 10; max-height: 280px; }
+  .fof-hero-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .fof-wager-bar { gap: 12px; }
+}
+@media (max-width: 480px) {
+  .fof-hero-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .fof-hero-card { padding: 8px; }
+  .fof-hero-win { font-size: 18px; }
+  .fof-portrait-opp { aspect-ratio: 5 / 4; max-height: 240px; }
+  /* Wager bar stacks vertically so the input + button stay tappable. */
+  .fof-wager-bar { flex-direction: column; align-items: stretch; gap: 10px; }
+  .fof-wager-label { justify-content: space-between; }
+  .fof-wager-label input { width: 100%; }
+  .fof-wager-meta { flex: none; }
+  .fof-btn-primary { width: 100%; }
+  /* Fight scene shrinks to fit narrow viewports. */
+  .fof-fight-stage { min-height: 240px; }
+  .fof-fighter, .fof-fighter-img { height: 220px; }
+  .fof-vs-line { font-size: 16px; }
+  .fof-hp-row { grid-template-columns: 64px 1fr 58px; gap: 6px; font-size: 10px; }
+  .fof-event-log { max-height: 280px; }
+}
 
 /* RESOLVING */
 .fof-resolving { padding: 20px; }
