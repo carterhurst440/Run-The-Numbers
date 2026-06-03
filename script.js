@@ -31074,6 +31074,7 @@ function fofSimulateOne(a, b, seed) {
             type: 'SPECIAL_TRIGGER',
             actorId: defId,
             specialId: defAbsId || 'absorb',
+            absorbCrit: didCrit,
             message: `${defName} activates ${(defAbsId || 'absorb').toUpperCase()}, fully absorbing ${dmgInt} damage and healing for the same amount.`,
           });
           events.push({
@@ -32075,12 +32076,13 @@ async function fofPlayEvents(sim) {
   const postureTimers = { hero: null, opp: null };
   // Most SPECIAL_TRIGGERs map to the actor's single SPECIAL clip. Some
   // characters have a variant for a specific context — e.g. the knight's
-  // reflect has one clip for reflecting a normal hit (SPECIAL) and one for
-  // reflecting a crit (SPECIAL_CRIT). Pick the variant only when the event
-  // flags it AND that character actually has the clip; otherwise fall back
-  // to SPECIAL so pacing/timing is identical for everyone else.
+  // Some specials have two clips keyed on whether the *incoming* attack was a
+  // crit: knight reflect (reflectCrit) and mage absorb (absorbCrit) each have a
+  // normal variant (SPECIAL) and a crit variant (SPECIAL_CRIT). Pick the variant
+  // only when the event flags it AND that character actually has the clip;
+  // otherwise fall back to SPECIAL so pacing/timing is identical for everyone.
   const specialActionFor = (ev) =>
-    (ev && ev.reflectCrit && fofClipUrl(ev.actorId, 'SPECIAL_CRIT'))
+    (ev && (ev.reflectCrit || ev.absorbCrit) && fofClipUrl(ev.actorId, 'SPECIAL_CRIT'))
       ? 'SPECIAL_CRIT' : 'SPECIAL';
   // A fighter can have several sprite-changing events in one timestamp
   // group — e.g. paladin's HIT immediately followed by its HOLY_LIGHT

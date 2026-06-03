@@ -458,6 +458,7 @@ BEGIN
               events := events || jsonb_build_object(
                 'time', T, 'type', 'SPECIAL_TRIGGER', 'actorId', B_ID,
                 'specialId', COALESCE(b_abs_id, 'absorb'),
+                'absorbCrit', did_crit,
                 'message', B_NAME || ' activates ' || UPPER(COALESCE(b_abs_id, 'absorb'))
                            || ', fully absorbing ' || dmg_int::TEXT || ' damage and healing for the same amount.'
               );
@@ -475,6 +476,7 @@ BEGIN
               events := events || jsonb_build_object(
                 'time', T, 'type', 'SPECIAL_TRIGGER', 'actorId', A_ID,
                 'specialId', COALESCE(a_abs_id, 'absorb'),
+                'absorbCrit', did_crit,
                 'message', A_NAME || ' activates ' || UPPER(COALESCE(a_abs_id, 'absorb'))
                            || ', fully absorbing ' || dmg_int::TEXT || ' damage and healing for the same amount.'
               );
