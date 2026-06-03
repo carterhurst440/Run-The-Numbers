@@ -28194,7 +28194,9 @@ body.admin-sk-fs-lock { overflow: hidden; }
   display: flex; gap: 6px; align-items: center;
 }
 .fof-wager-label input {
-  width: 120px; padding: 6px 8px; font-family: inherit; font-size: 14px;
+  /* font-size must stay >= 16px: iOS Safari auto-zooms (and never zooms back
+     out) when a focused input is smaller, leaving the battle magnified. */
+  width: 120px; padding: 6px 8px; font-family: inherit; font-size: 16px;
   background: #000; color: #e8e8d2; border: 1px solid #2a2a2a;
 }
 .fof-wager-meta { font-size: 11px; color: #888; flex: 1; }

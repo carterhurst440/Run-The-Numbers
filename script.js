@@ -31968,8 +31968,8 @@ function fofResetToIdle() {
 }
 
 // After the fight, keep the frozen VICTORY / DEFEAT scene and the event log
-// on screen and slide the wager results in below them, so the player can
-// review before clicking START NEW ROUND to leave the page.
+// on screen and slide the wager results in ABOVE them at the top of the page,
+// so the player can immediately click START NEW ROUND without scrolling.
 function fofShowResults() {
   const container = document.querySelector('.fof-resolving');
   if (!container) { fofRenderStage(); return; }   // scene gone — fall back
@@ -31977,10 +31977,10 @@ function fofShowResults() {
   const panel = document.createElement('div');
   panel.className = 'fof-result-slide';
   panel.innerHTML = fofViewResolved();
-  container.appendChild(panel);
+  container.prepend(panel);
   requestAnimationFrame(() => {
     panel.classList.add('is-in');
-    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
   const againBtn = panel.querySelector('#fof-again-btn');
   if (againBtn) againBtn.addEventListener('click', fofResetToIdle);
