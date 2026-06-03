@@ -100,6 +100,9 @@ DECLARE
   a_refl_id TEXT;            b_refl_id TEXT;
   a_abs_chance NUMERIC := 0; b_abs_chance NUMERIC := 0;
   a_abs_id TEXT;             b_abs_id TEXT;
+  a_ser_mult NUMERIC := 1;   b_ser_mult NUMERIC := 1;
+  a_ser_id TEXT;             b_ser_id TEXT;
+  serenity_fired BOOLEAN := FALSE;
   a_guar_on_crit BOOLEAN := FALSE; b_guar_on_crit BOOLEAN := FALSE;
   a_rev_id TEXT;             b_rev_id TEXT;
 
@@ -211,6 +214,11 @@ BEGIN
     a_abs_chance := COALESCE((ab->'effect'->>'absorbChance')::NUMERIC, 0);
     a_abs_id := ab->>'id';
   END IF;
+  ab := public.fof_get_ability(ra.special_abilities, 'CRITICAL_DAMAGE_REDUCTION');
+  IF ab IS NOT NULL THEN
+    a_ser_mult := COALESCE((ab->'effect'->>'critDamageTakenMultiplier')::NUMERIC, 1);
+    a_ser_id := ab->>'id';
+  END IF;
   ab := public.fof_get_ability(ra.special_abilities, 'GUARANTEED_NEXT_CRIT');
   IF ab IS NOT NULL THEN a_guar_on_crit := TRUE; a_rev_id := ab->>'id'; END IF;
 
@@ -260,6 +268,11 @@ BEGIN
   IF ab IS NOT NULL THEN
     b_abs_chance := COALESCE((ab->'effect'->>'absorbChance')::NUMERIC, 0);
     b_abs_id := ab->>'id';
+  END IF;
+  ab := public.fof_get_ability(rb.special_abilities, 'CRITICAL_DAMAGE_REDUCTION');
+  IF ab IS NOT NULL THEN
+    b_ser_mult := COALESCE((ab->'effect'->>'critDamageTakenMultiplier')::NUMERIC, 1);
+    b_ser_id := ab->>'id';
   END IF;
   ab := public.fof_get_ability(rb.special_abilities, 'GUARANTEED_NEXT_CRIT');
   IF ab IS NOT NULL THEN b_guar_on_crit := TRUE; b_rev_id := ab->>'id'; END IF;
@@ -445,8 +458,15 @@ BEGIN
       ELSE
         -- Compute damage
         IF is_a_turn THEN dmg := ra.damage; ELSE dmg := rb.damage; END IF;
+        serenity_fired := FALSE;
         IF did_crit THEN
           IF is_a_turn THEN dmg := dmg * ra.crit_mult; ELSE dmg := dmg * rb.crit_mult; END IF;
+          -- Defender CRITICAL_DAMAGE_REDUCTION (serenity): soften incoming crits.
+          IF is_a_turn AND b_ser_mult < 1 THEN
+            dmg := dmg * b_ser_mult; serenity_fired := TRUE;
+          ELSIF NOT is_a_turn AND a_ser_mult < 1 THEN
+            dmg := dmg * a_ser_mult; serenity_fired := TRUE;
+          END IF;
         END IF;
         dmg_int := round(dmg)::INT;
 
@@ -523,6 +543,16 @@ BEGIN
               'message', B_NAME || ' takes ' || dmg_int::TEXT
                          || (CASE WHEN did_crit THEN ' critical' ELSE '' END) || ' damage.'
             );
+
+            -- Defender CRITICAL_DAMAGE_REDUCTION (serenity) softened the crit.
+            IF serenity_fired THEN
+              events := events || jsonb_build_object(
+                'time', T, 'type', 'SPECIAL_TRIGGER', 'actorId', B_ID,
+                'specialId', COALESCE(b_ser_id, 'serenity'),
+                'message', B_NAME || ' channels ' || UPPER(COALESCE(b_ser_id, 'serenity'))
+                           || ', reducing the critical hit to ' || dmg_int::TEXT || ' damage.'
+              );
+            END IF;
 
             -- Defender REVENGE arming (on landed crit)
             IF did_crit AND b_guar_on_crit THEN
@@ -602,6 +632,15 @@ BEGIN
               'message', A_NAME || ' takes ' || dmg_int::TEXT
                          || (CASE WHEN did_crit THEN ' critical' ELSE '' END) || ' damage.'
             );
+
+            IF serenity_fired THEN
+              events := events || jsonb_build_object(
+                'time', T, 'type', 'SPECIAL_TRIGGER', 'actorId', A_ID,
+                'specialId', COALESCE(a_ser_id, 'serenity'),
+                'message', A_NAME || ' channels ' || UPPER(COALESCE(a_ser_id, 'serenity'))
+                           || ', reducing the critical hit to ' || dmg_int::TEXT || ' damage.'
+              );
+            END IF;
 
             IF did_crit AND a_guar_on_crit THEN
               a_guar_crit := TRUE;

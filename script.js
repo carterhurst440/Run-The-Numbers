@@ -30892,6 +30892,13 @@ function fofSimulateOne(a, b, seed) {
   const aAbsChance = aAbs ? Number(aAbs.effect?.absorbChance) || 0 : 0;
   const bAbsChance = bAbs ? Number(bAbs.effect?.absorbChance) || 0 : 0;
 
+  // CRITICAL_DAMAGE_REDUCTION (ranger serenity): incoming crits against this
+  // fighter deal only critDamageTakenMultiplier of their damage.
+  const aSer = fofGetAbility(a, 'CRITICAL_DAMAGE_REDUCTION');
+  const bSer = fofGetAbility(b, 'CRITICAL_DAMAGE_REDUCTION');
+  const aSerMult = aSer && Number.isFinite(Number(aSer.effect?.critDamageTakenMultiplier)) ? Number(aSer.effect.critDamageTakenMultiplier) : 1;
+  const bSerMult = bSer && Number.isFinite(Number(bSer.effect?.critDamageTakenMultiplier)) ? Number(bSer.effect.critDamageTakenMultiplier) : 1;
+
   const aGuarOnCrit = !!fofGetAbility(a, 'GUARANTEED_NEXT_CRIT');
   const bGuarOnCrit = !!fofGetAbility(b, 'GUARANTEED_NEXT_CRIT');
 
@@ -30912,6 +30919,8 @@ function fofSimulateOne(a, b, seed) {
   const bReflId = idOf(b, 'DAMAGE_REFLECTION');
   const aAbsId = idOf(a, 'DAMAGE_ABSORB_HEAL');
   const bAbsId = idOf(b, 'DAMAGE_ABSORB_HEAL');
+  const aSerId = idOf(a, 'CRITICAL_DAMAGE_REDUCTION');
+  const bSerId = idOf(b, 'CRITICAL_DAMAGE_REDUCTION');
   const aRevId = idOf(a, 'GUARANTEED_NEXT_CRIT');
   const bRevId = idOf(b, 'GUARANTEED_NEXT_CRIT');
   const aCNMId = idOf(a, 'CRITICAL_HITS_CANNOT_MISS');
@@ -30963,6 +30972,8 @@ function fofSimulateOne(a, b, seed) {
     const defReflChance = isA ? bReflChance : aReflChance;
     const defReflPct    = isA ? bReflPct    : aReflPct;
     const defReflId     = isA ? bReflId     : aReflId;
+    const defCritReduce = isA ? bSerMult    : aSerMult;
+    const defSerId      = isA ? bSerId      : aSerId;
     const defGuarOnCrit = isA ? bGuarOnCrit : aGuarOnCrit;
     const defRevId      = isA ? bRevId      : aRevId;
     const atkMax        = isA ? aHp : bHp;
@@ -31065,6 +31076,9 @@ function fofSimulateOne(a, b, seed) {
       } else {
         let dmg = dmgBase;
         if (didCrit) dmg *= cm;
+        // Defender CRITICAL_DAMAGE_REDUCTION (serenity): soften incoming crits.
+        const serenityFired = didCrit && defCritReduce < 1;
+        if (serenityFired) dmg *= defCritReduce;
         const dmgInt = Math.round(dmg);
 
         // Defender ABSORB
@@ -31113,6 +31127,17 @@ function fofSimulateOne(a, b, seed) {
             hpAfter: Math.max(0, Math.round(newDef)),
             message: `${defName} takes ${dmgInt}${didCrit ? ' critical' : ''} damage.`,
           });
+
+          // Defender CRITICAL_DAMAGE_REDUCTION (serenity) — softened the crit.
+          if (serenityFired) {
+            events.push({
+              time: T,
+              type: 'SPECIAL_TRIGGER',
+              actorId: defId,
+              specialId: defSerId || 'serenity',
+              message: `${defName} channels ${(defSerId || 'serenity').toUpperCase()}, reducing the critical hit to ${dmgInt} damage.`,
+            });
+          }
 
           // Defender REVENGE arming (only on crit that actually landed)
           if (didCrit && defGuarOnCrit) {
@@ -31286,6 +31311,13 @@ function fofSimulate(a, b, runs) {
   const aAbsChance = aAbs ? Number(aAbs.effect?.absorbChance) || 0 : 0;
   const bAbsChance = bAbs ? Number(bAbs.effect?.absorbChance) || 0 : 0;
 
+  // CRITICAL_DAMAGE_REDUCTION (serenity) — incoming crits against this fighter
+  // deal only critDamageTakenMultiplier of their damage.
+  const aSer = fofGetAbility(a, 'CRITICAL_DAMAGE_REDUCTION');
+  const bSer = fofGetAbility(b, 'CRITICAL_DAMAGE_REDUCTION');
+  const aSerMult = aSer && Number.isFinite(Number(aSer.effect?.critDamageTakenMultiplier)) ? Number(aSer.effect.critDamageTakenMultiplier) : 1;
+  const bSerMult = bSer && Number.isFinite(Number(bSer.effect?.critDamageTakenMultiplier)) ? Number(bSer.effect.critDamageTakenMultiplier) : 1;
+
   // GUARANTEED_NEXT_CRIT — when struck by crit, next successful attack auto-crits.
   const aGuarOnCrit = !!fofGetAbility(a, 'GUARANTEED_NEXT_CRIT');
   const bGuarOnCrit = !!fofGetAbility(b, 'GUARANTEED_NEXT_CRIT');
@@ -31364,7 +31396,7 @@ function fofSimulate(a, b, runs) {
           if (didHit) {
             aHits++;
             let dmg = aDmg;
-            if (didCrit) { dmg *= aCm; aCrits++; }
+            if (didCrit) { dmg *= aCm; aCrits++; if (bSerMult < 1) dmg *= bSerMult; }
 
             // Defender ABSORB first — fully negates damage.
             let absorbed = false;
@@ -31452,7 +31484,7 @@ function fofSimulate(a, b, runs) {
           if (didHit) {
             bHits++;
             let dmg = bDmg;
-            if (didCrit) { dmg *= bCm; bCrits++; }
+            if (didCrit) { dmg *= bCm; bCrits++; if (aSerMult < 1) dmg *= aSerMult; }
 
             let absorbed = false;
             if (aAbsChance > 0 && Math.random() < aAbsChance) {

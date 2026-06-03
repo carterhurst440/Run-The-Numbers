@@ -75,7 +75,7 @@ VALUES
   ('assassin',   55, 11, 2.90, 0.20, 0.76, 0.40, 0.72, 0.03,
    '[{"id":"execution","name":"Execution","type":"INSTANT_KILL_CHANCE","enabled":true,"description":"Each attack has a 6% chance to instantly kill the opponent.","trigger":{"event":"ATTACK"},"effect":{"instantKillChance":0.06}}]'::jsonb),
   ('ranger',     98, 18, 2.10, 0.18, 0.86, 0.20, 0.94, 0.14,
-   '[{"id":"deadeye","name":"Deadeye","type":"CRITICAL_HITS_CANNOT_MISS","enabled":true,"description":"Critical hit attempts bypass normal hit checks and cannot miss.","effect":{"criticalHitsBypassAccuracyCheck":true}}]'::jsonb),
+   '[{"id":"serenity","name":"Serenity","type":"CRITICAL_DAMAGE_REDUCTION","enabled":true,"description":"Critical hits from opponents only deal 25% of their normal damage.","effect":{"critDamageTakenMultiplier":0.25}}]'::jsonb),
   ('warlock',   110, 20, 1.80, 0.11, 0.83, 0.09, 1.15, 0.22,
    '[{"id":"regenerate","name":"Regenerate","type":"ATTACK_REPLACED_BY_FULL_HEAL","enabled":true,"description":"Each attack has a 10% chance to become a full heal spell instead of attacking. Cannot trigger twice consecutively.","trigger":{"event":"ATTACK_TURN_START"},"constraints":{"cannotTriggerConsecutively":true},"effect":{"replaceAttackChance":0.10,"healToFullHp":true}}]'::jsonb),
   ('paladin',   165, 19, 1.65, 0.09, 0.89, 0.07, 1.22, 0.34,
