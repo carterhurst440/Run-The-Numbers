@@ -30187,7 +30187,7 @@ let fofMatrix = {}; // key "charA|charB" → { winPct, runs }
 const FOF_ACTIONS = [
   'IDLE','HIT','CRITICAL_HIT','TAKE_DAMAGE','TAKE_CRITICAL_DAMAGE',
   'DODGE','MISS','VICTORY','DEFEAT','SPECIAL',
-  'SPECIAL_CRIT'
+  'SPECIAL_CRIT','BACKGROUND'
 ];
 let fofAnimRows = []; // [{character, action, clip_data, updated_at}]
 let fofAnimEditing = null; // { character, action } currently in modal
@@ -31814,6 +31814,10 @@ function fofViewResolving() {
   const oppId  = fofGame.opponent?.character || '';
   const heroIdle = fofClipUrl(heroId, 'IDLE');
   const oppIdle  = fofClipUrl(oppId,  'IDLE');
+  // The arena background is ALWAYS the opponent's (the challenger sets the
+  // scene). Static PNG painted behind both fighters.
+  const oppBg = fofClipUrl(oppId, 'BACKGROUND');
+  const bgStyle = oppBg ? ` style="background-image:url('${oppBg}')"` : '';
   return `
     <div class="fof-resolving">
       <div class="fof-vs-line">
@@ -31822,6 +31826,7 @@ function fofViewResolving() {
         <span class="fof-vs-opp">${oppId.toUpperCase()}</span>
       </div>
       <div class="fof-fight-stage">
+        <div class="fof-stage-bg"${bgStyle}></div>
         <div class="fof-fighter fof-fighter-hero" data-fof-char="${heroId}">
           <img id="fof-hero-img" class="fof-fighter-img" alt="${heroId}"
                src="${heroIdle || ''}" data-fof-action="IDLE">

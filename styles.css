@@ -28274,6 +28274,25 @@ body.admin-sk-fs-lock { overflow: hidden; }
   border-radius: 4px;
   overflow: hidden;
 }
+/* Opponent's arena background — a static pixel-art PNG sitting behind both
+   fighters (z 0; fighters are z 1/2). A bottom-anchored dark vignette keeps
+   the sprites readable over any arena. The image URL is set inline per
+   round from the OPPONENT's BACKGROUND clip. */
+.fof-stage-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+.fof-stage-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.30) 55%, rgba(0,0,0,0.55) 100%);
+}
 /* Both fighters share ONE full-width box and stack on top of each other.
    Each source GIF has the character on the LEFT half and a practice dummy
    on the RIGHT half. The hero shows its left-half character; the opponent
