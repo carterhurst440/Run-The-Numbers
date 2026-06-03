@@ -28225,7 +28225,7 @@ body.admin-sk-fs-lock { overflow: hidden; }
   .fof-fighter, .fof-fighter-img { height: 220px; }
   .fof-vs-line { font-size: 16px; }
   .fof-hp-row { grid-template-columns: 64px 1fr 58px; gap: 6px; font-size: 10px; }
-  .fof-event-log { max-height: 280px; }
+  .fof-event-log { height: 200px; }
   /* Smaller floating labels so they don't overrun the narrow stage. */
   .fof-float-miss    { font-size: 16px; }
   .fof-float-crit    { font-size: 22px; }
@@ -28353,7 +28353,7 @@ body.admin-sk-fs-lock { overflow: hidden; }
 .fof-hp-hero { background: #5b9; }
 .fof-hp-opp  { background: #c64; }
 .fof-event-log {
-  max-height: 400px; overflow-y: auto; padding: 12px;
+  height: 240px; overflow-y: auto; padding: 12px;
   background: #000; border: 1px solid #2a2a2a;
   font-size: 11px; line-height: 1.5;
 }
