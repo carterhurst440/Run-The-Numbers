@@ -30186,7 +30186,7 @@ let fofMatrix = {}; // key "charA|charB" → { winPct, runs }
 // ── FOF admin sub-tabs ────────────────────────────────────────
 const FOF_ACTIONS = [
   'IDLE','HIT','CRITICAL_HIT','TAKE_DAMAGE','TAKE_CRITICAL_DAMAGE',
-  'DODGE','MISS','VICTORY','DEFEAT','SPECIAL','VICTORY_END','DEFEAT_END',
+  'DODGE','MISS','VICTORY','DEFEAT','SPECIAL',
   'SPECIAL_CRIT'
 ];
 let fofAnimRows = []; // [{character, action, clip_data, updated_at}]
@@ -32356,7 +32356,6 @@ async function fofPlayEvents(sim) {
         // the follow-up attack. The target keeps idling.
         playClip(ev.actorId, specialActionFor(ev));
         setPosture(ev.actorId, 'attacking');
-        showFloatLabel(ev.actorId, specialLabelFor(ev), 'special');
         break;
       case 'HIT':
         playClip(ev.actorId, ev.type);
@@ -32365,7 +32364,6 @@ async function fofPlayEvents(sim) {
       case 'CRITICAL_HIT':
         playClip(ev.actorId, ev.type);
         setPosture(ev.actorId, 'attacking');
-        showFloatLabel(ev.actorId, 'CRITICAL', 'crit');
         break;
       case 'TAKE_DAMAGE':
       case 'TAKE_CRITICAL_DAMAGE':
@@ -32382,7 +32380,6 @@ async function fofPlayEvents(sim) {
         // halves here: attacker whiffs, target dodges — same frame.
         playClip(ev.actorId, 'MISS');
         if (ev.targetId) playClip(ev.targetId, 'DODGE');
-        showFloatLabel(ev.actorId, 'MISS', 'miss');
         break;
       case 'HEAL':
         playClip(ev.actorId, 'SPECIAL');
@@ -32511,27 +32508,8 @@ async function fofPlayEvents(sim) {
       else if (ev.type === 'DEFEAT')  heroOutcome = (ev.actorId === heroId) ? 'DEFEAT'  : 'VICTORY';
     }
     if (heroOutcome) showCenterResult(heroOutcome);
-
-    // Each finale clip (VICTORY / DEFEAT) plays through once, then we hold
-    // on its matching still end-frame (VICTORY_END / DEFEAT_END) for any
-    // character that ships one. Characters without an end-frame keep their
-    // looping finale pose, so this is backward-compatible.
-    const ends = [];
-    let maxDur = 0;
-    for (const side of ['hero', 'opp']) {
-      const id  = side === 'hero' ? heroId : oppId;
-      const img = document.getElementById(side === 'hero' ? 'fof-hero-img' : 'fof-opp-img');
-      const base = img && img.dataset.fofAction;
-      if (!id || (base !== 'VICTORY' && base !== 'DEFEAT')) continue;
-      const endAction = base + '_END';
-      if (!fofClipUrl(id, endAction)) continue;
-      ends.push({ side, id, endAction });
-      maxDur = Math.max(maxDur, fofClipDurationMs(id, base) || MIN_ACTION_HOLD);
-    }
-    if (ends.length) {
-      await new Promise(r => setTimeout(r, Math.max(maxDur, MIN_ACTION_HOLD)));
-      for (const e of ends) fofSetClip(e.side, e.id, e.endAction);
-    }
+    // Every fighter simply loops its VICTORY / DEFEAT finale pose; there are
+    // no longer any still end-frame (VICTORY_END / DEFEAT_END) clips.
   }
 
   // Hold on the final frame.
