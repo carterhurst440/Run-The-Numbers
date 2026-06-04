@@ -37335,6 +37335,152 @@ function drawHomePnlChart() {
   homeGlitchSection('pnl');
 }
 
+// ── Home RECENT ACTIVITY chart ───────────────────────────────────────────
+// Stacked daily-events bar chart for the last 30 days, one segment per game
+// (RTN hands, G10 hands, ST trades, RYB rounds). Replaces the per-game spark
+// stat cards. Reuses the same per-game queries as openGameActivityChart but
+// fetches all four at once. Data is cached for the session to avoid refetching
+// on every refreshHomeDashboard() pass.
+let _homeActivityData = null;
+let _homeActivityFetching = false;
+
+async function drawHomeActivityChart(force = false) {
+  const canvas = document.getElementById("home-activity-chart");
+  if (!canvas || typeof Chart === "undefined") return;
+
+  // Signed-out / guest: nothing meaningful to plot.
+  if (!currentUser?.id || (typeof isGuestRuntimeUser === "function" && isGuestRuntimeUser())) {
+    if (window._homeActivityChart) { window._homeActivityChart.destroy(); window._homeActivityChart = null; }
+    const subEl = document.getElementById("hra-sub");
+    if (subEl) subEl.textContent = "SIGN IN TO TRACK DAILY ACTIVITY";
+    return;
+  }
+
+  if (_homeActivityData && !force) {
+    _renderHomeActivityChart(canvas, _homeActivityData);
+    return;
+  }
+  if (_homeActivityFetching) return;
+  _homeActivityFetching = true;
+
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - 29);
+    cutoffDate.setHours(0, 0, 0, 0);
+    const cutoff = cutoffDate.toISOString();
+    const uid = currentUser.id;
+
+    const [rtn, g10, st, ryb] = await Promise.all([
+      supabase.from("rtn_live_hands").select("started_at").eq("user_id", uid).neq("status", "active").gte("started_at", cutoff),
+      supabase.from("guess10_live_hands").select("started_at").eq("user_id", uid).neq("status", "active").gte("started_at", cutoff),
+      supabase.from("shape_trader_trades").select("executed_at").eq("user_id", uid).gte("executed_at", cutoff),
+      supabase.from("color_scheme_rounds").select("created_at").eq("user_id", uid).gte("created_at", cutoff),
+    ]);
+    [rtn, g10, st, ryb].forEach((r, i) => {
+      if (r?.error) console.error(`[RTN] home activity query error (${["rtn","g10","st","ryb"][i]}):`, r.error.message);
+    });
+
+    // Bucket by LOCAL date so "today" matches the player's clock.
+    const toKey = (ts) => {
+      const d = new Date(ts);
+      if (isNaN(d.getTime())) return null;
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+    const bucket = (rows, field) => {
+      const c = {};
+      for (const r of (rows || [])) { const k = toKey(r[field]); if (k) c[k] = (c[k] || 0) + 1; }
+      return c;
+    };
+
+    const rtnC = bucket(rtn?.data, "started_at");
+    const g10C = bucket(g10?.data, "started_at");
+    const stC = bucket(st?.data, "executed_at");
+    const rybC = bucket(ryb?.data, "created_at");
+
+    const labels = [];
+    const keys = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const k = toKey(d);
+      keys.push(k);
+      labels.push(k.slice(5));
+    }
+
+    _homeActivityData = {
+      labels,
+      datasets: [
+        { label: "RTN hands",  data: keys.map((k) => rtnC[k] || 0), color: "#e8a020" },
+        { label: "G10 hands",  data: keys.map((k) => g10C[k] || 0), color: "#00e5ff" },
+        { label: "ST trades",  data: keys.map((k) => stC[k]  || 0), color: "#c8ff00" },
+        { label: "RYB rounds", data: keys.map((k) => rybC[k] || 0), color: "#ff4444" },
+      ],
+    };
+    _renderHomeActivityChart(canvas, _homeActivityData);
+  } catch (err) {
+    console.error("[RTN] home activity chart error", err);
+  } finally {
+    _homeActivityFetching = false;
+  }
+}
+
+function _renderHomeActivityChart(canvas, data) {
+  if (typeof Chart === "undefined") return;
+  if (window._homeActivityChart) { window._homeActivityChart.destroy(); window._homeActivityChart = null; }
+
+  const total = data.datasets.reduce((s, ds) => s + ds.data.reduce((a, b) => a + b, 0), 0);
+  const subEl = document.getElementById("hra-sub");
+  if (subEl) subEl.textContent = total > 0
+    ? "DAILY GAME EVENTS · LAST 30 DAYS"
+    : "DAILY GAME EVENTS · LAST 30 DAYS · NO ACTIVITY YET";
+
+  const ctx = canvas.getContext("2d");
+  window._homeActivityChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: data.labels,
+      datasets: data.datasets.map((ds) => ({
+        label: ds.label,
+        data: ds.data,
+        backgroundColor: ds.color + "cc",
+        borderColor: ds.color,
+        borderWidth: 0,
+        borderRadius: 1,
+        stack: "events",
+      })),
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: { label: (c) => ` ${c.dataset.label}: ${c.parsed.y}` },
+        },
+      },
+      scales: {
+        x: {
+          stacked: true,
+          ticks: { color: "#686850", font: { size: 9, family: "inherit" }, maxTicksLimit: 10 },
+          grid: { display: false },
+          border: { color: "rgba(255,255,255,0.1)" },
+        },
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          ticks: { color: "#686850", font: { size: 9, family: "inherit" }, precision: 0 },
+          grid: { color: "rgba(255,255,255,0.05)" },
+          border: { color: "rgba(255,255,255,0.1)" },
+        },
+      },
+    },
+  });
+}
+
 // ── Home init overlay + coordinated glitch reveal ────────────────────────
 const HOME_INIT_SECTIONS = ['hero', 'stats', 'tier', 'activity', 'pnl'];
 // Stagger order: left-col top-to-bottom, then sidebar top-to-bottom
@@ -37408,6 +37554,7 @@ function refreshHomeDashboard() {
   renderHomeSidebarActivity();
   renderHomeSystemBlock();
   drawHomePnlChart();
+  drawHomeActivityChart();
 }
 
 // Hook into the existing render pipeline

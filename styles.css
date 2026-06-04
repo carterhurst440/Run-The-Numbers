@@ -21250,6 +21250,79 @@ body.state-open .auth-vault-grant .gline::after {
   text-transform: uppercase;
 }
 
+/* ---- RECENT ACTIVITY (stacked daily-events chart, replaces spark cards) ---- */
+.home-recent-activity {
+  margin: 0 12px;
+  background: #171714;
+  border: 1px solid #2e2e22;
+  padding: 14px 14px 12px;
+  position: relative;
+  overflow: hidden;
+}
+@media (min-width: 901px) {
+  .home-recent-activity { margin-left: 24px; margin-right: 24px; }
+}
+.hra-top-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.hra-label {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #c8ff00;
+  text-transform: uppercase;
+}
+.hra-sub {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  color: #686850;
+  text-transform: uppercase;
+  text-align: right;
+}
+.hra-chart-wrap {
+  position: relative;
+  width: 100%;
+  height: 168px;
+}
+.hra-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 10px;
+}
+.hra-leg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  color: #9a9276;
+  text-transform: uppercase;
+}
+.hra-leg-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.hra-leg-rtn .hra-leg-dot { background: #e8a020; }
+.hra-leg-g10 .hra-leg-dot { background: #00e5ff; }
+.hra-leg-st  .hra-leg-dot { background: #c8ff00; }
+.hra-leg-ryb .hra-leg-dot { background: #ff4444; }
+@media (max-width: 600px) {
+  .home-recent-activity { margin-left: 12px; margin-right: 12px; }
+  .hra-chart-wrap { height: 144px; }
+  .hra-legend { gap: 10px; }
+}
+
 /* ---- INNER SECTIONS PADDING ---- */
 .home-main > .home-section-hdr,
 .home-game-cards,
