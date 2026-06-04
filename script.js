@@ -32287,6 +32287,29 @@ function fofAttachStageHandlers() {
       fofUpdateWagerBar();
     });
   });
+
+  // Tap an ability chip to toggle its tooltip on touch devices (no hover).
+  // stopPropagation so tapping the chip reveals the special WITHOUT also
+  // selecting the card; tapping another chip swaps which tip is open.
+  document.querySelectorAll('.fof-ability-tag[data-tip]').forEach(tag => {
+    tag.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const wasOpen = tag.classList.contains('show-tip');
+      document.querySelectorAll('.fof-ability-tag.show-tip')
+        .forEach(t => t.classList.remove('show-tip'));
+      if (!wasOpen) tag.classList.add('show-tip');
+    });
+  });
+  // Tapping anywhere outside an open chip dismisses it (bound once).
+  if (!window.__fofTipDismissBound) {
+    window.__fofTipDismissBound = true;
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.fof-ability-tag')) {
+        document.querySelectorAll('.fof-ability-tag.show-tip')
+          .forEach(t => t.classList.remove('show-tip'));
+      }
+    });
+  }
 }
 
 async function fofStartRound() {

@@ -28246,7 +28246,13 @@ body.admin-sk-fs-lock { overflow: hidden; }
 }
 
 /* ── FATE OR FORTUNE — game page ─────────────────────────────── */
-.fof-view { padding: 24px; }
+.fof-view {
+  padding: 24px;
+  /* Clip any stray horizontal overflow inside the FOF view so a wide child
+     can't give the page a horizontal scroll — which makes the centered column
+     look shifted (more padding on one side than the other) on mobile. */
+  overflow-x: clip;
+}
 .fof-page {
   max-width: 1200px; margin: 0 auto;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
@@ -28496,7 +28502,8 @@ body.admin-sk-fs-lock { overflow: hidden; }
   padding: 2px 6px; white-space: nowrap;
 }
 .fof-ability-tag[data-tip] { cursor: help; }
-.fof-ability-tag[data-tip]:hover::after {
+.fof-ability-tag[data-tip]:hover::after,
+.fof-ability-tag[data-tip].show-tip::after {
   content: attr(data-tip);
   position: absolute; bottom: calc(100% + 8px); right: 0; z-index: 30;
   width: max-content; max-width: 220px; white-space: normal;
@@ -28613,25 +28620,29 @@ body.admin-sk-fs-lock { overflow: hidden; }
 /* ── FOF responsive: stack the challenger above the champion grid and
       let the portraits/fight stage breathe on phones. ── */
 @media (max-width: 720px) {
-  /* Banner goes full-width portrait: the opponent stands centered in their
-     arena, the name/kicker sit overlaid at the foot, and the stat line drops
-     directly below. Hide only the floating corner chips. */
+  /* Tighter, symmetric page padding so the column stays centered on phones. */
+  .fof-view { padding: 16px; }
+  /* Banner is a full-width portrait: the opponent stands in their arena up top
+     (space reserved with padding-top), then name + SPECIAL ability flow below
+     it, then the stat line. Hide only the floating corner chips + turf text. */
   .fof-banner-chip { display: none; }
-  .fof-opp-stage { min-height: 280px; }
-  .fof-opp-stage::after { background: linear-gradient(0deg, rgba(8,9,8,0.94) 0%, rgba(8,9,8,0) 58%); }
+  .fof-opp-stage { min-height: 0; position: relative; padding-top: 210px; }
+  .fof-opp-stage::after {
+    background: linear-gradient(0deg, rgba(8,9,8,0.92) 0%, rgba(8,9,8,0.42) 46%, rgba(8,9,8,0) 74%);
+  }
   .fof-banner-sprite {
-    display: block; left: 50%; right: auto; transform: translateX(-50%);
-    bottom: 58px; max-width: none;
-    width: 152px; height: 196px;
+    display: block; left: 50%; right: auto; top: 10px; bottom: auto; transform: translateX(-50%);
+    max-width: none; width: 152px; height: 196px;
     background-size: 572px 286px; background-position: -67px -54px;
   }
   .fof-banner-info {
-    position: absolute; left: 0; right: 0; bottom: 0; top: auto;
-    max-width: none; padding: 0 16px 12px; text-align: center; z-index: 2;
+    position: relative; z-index: 2; left: auto; right: auto; top: auto;
+    max-width: none; padding: 0 16px 14px; text-align: center;
   }
   .fof-banner-name { font-size: 30px; }
   .fof-banner-turf { display: none; }
-  .fof-banner-ability { display: none; }
+  /* Show the opponent's SPECIAL on mobile (no hover tooltip to fall back on). */
+  .fof-banner-ability { display: block; max-width: 520px; margin: 12px auto 0; text-align: left; }
   .fof-statbar { grid-template-columns: repeat(4, 1fr); }
   .fof-hero-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
   .fof-wager-bar { grid-template-columns: 1fr 1fr; gap: 14px; }
