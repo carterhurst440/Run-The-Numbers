@@ -69,7 +69,7 @@ VALUES
   ('rogue',      58, 10, 3.30, 0.32, 0.76, 0.56, 0.64, 0.04,
    '[{"id":"double_strike","name":"Double Strike","type":"BONUS_ATTACK","enabled":true,"description":"Each successful attack has a 10% chance to immediately trigger a second attack.","trigger":{"event":"SUCCESSFUL_ATTACK"},"effect":{"bonusAttackChance":0.10,"bonusAttackCanCrit":true,"bonusAttackCanMiss":true}}]'::jsonb),
   ('berserker', 120, 34, 3.60, 0.30, 0.61, 0.02, 1.02, 0.10,
-   '[{"id":"revenge","name":"Revenge","type":"GUARANTEED_NEXT_CRIT","enabled":true,"description":"When struck by a critical hit, Berserker''s next successful attack is guaranteed to critically hit.","trigger":{"event":"TAKE_CRITICAL_DAMAGE"},"effect":{"grantGuaranteedNextCriticalHit":true,"consumedOn":"SUCCESSFUL_ATTACK"}}]'::jsonb),
+   '[{"id":"revenge","name":"Revenge","type":"GUARANTEED_NEXT_CRIT","enabled":true,"description":"When struck by a critical hit, Berserker''s next attack is a guaranteed critical hit if it lands. It must still pass the hit check — a miss wastes the buff.","trigger":{"event":"TAKE_CRITICAL_DAMAGE"},"effect":{"grantGuaranteedNextCriticalHit":true,"consumedOn":"ATTACK_ATTEMPT"}}]'::jsonb),
   ('mage',       88, 46, 2.00, 0.17, 1.00, 0.08, 1.78, 0.18,
    '[{"id":"arcane_absorption","name":"Arcane Absorption","type":"DAMAGE_ABSORB_HEAL","enabled":true,"description":"Incoming attacks have a 10% chance to be completely absorbed, healing for the prevented damage instead.","trigger":{"event":"INCOMING_DAMAGE"},"effect":{"absorbChance":0.10,"negateDamage":true,"healEqualToPreventedDamage":true}}]'::jsonb),
   ('assassin',   55, 11, 2.90, 0.20, 0.76, 0.40, 0.72, 0.03,

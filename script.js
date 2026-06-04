@@ -31062,8 +31062,12 @@ function fofSimulateOne(a, b, seed) {
           if (canCrit && rng() < effCrit) didCrit = true;
         }
       }
-      const fromRevenge = didHit && getAtkGuar() && canCrit && !didCrit;
-      if (didHit && getAtkGuar() && canCrit) didCrit = true;
+      // REVENGE (GUARANTEED_NEXT_CRIT): the buff applies to the next attack
+      // ATTEMPT. It must still pass the hit check — a miss wastes the buff and
+      // returns to normal mechanics. Consumed on attempt (hit or miss) below.
+      const revengeArmed = getAtkGuar() && canCrit;
+      const fromRevenge = didHit && revengeArmed && !didCrit;
+      if (didHit && revengeArmed) didCrit = true;
 
       if (!didHit) {
         events.push({
@@ -31071,7 +31075,7 @@ function fofSimulateOne(a, b, seed) {
           type: 'MISS',
           actorId: atkId,
           targetId: defId,
-          message: `${atkName} attacks ${defName}${isBonus ? ' (bonus)' : ''} but misses.`,
+          message: `${atkName} attacks ${defName}${isBonus ? ' (bonus)' : ''} but misses${revengeArmed ? ' — REVENGE fizzles' : ''}.`,
         });
       } else {
         let dmg = dmgBase;
@@ -31147,7 +31151,7 @@ function fofSimulateOne(a, b, seed) {
               type: 'SPECIAL_TRIGGER',
               actorId: defId,
               specialId: defRevId || 'revenge',
-              message: `${defName} activates ${(defRevId || 'revenge').toUpperCase()}. Next successful attack is guaranteed critical.`,
+              message: `${defName} activates ${(defRevId || 'revenge').toUpperCase()}. Next attack is a guaranteed critical if it lands.`,
             });
           }
 
@@ -31197,9 +31201,10 @@ function fofSimulateOne(a, b, seed) {
           }
         }
 
-        // Consume revenge flag on any successful attack
-        if (getAtkGuar()) setAtkGuar(false);
       }
+
+      // Consume the REVENGE buff on the attack ATTEMPT (hit or miss).
+      if (revengeArmed) setAtkGuar(false);
 
       // BONUS_ATTACK chain
       isBonus = (
@@ -31390,8 +31395,11 @@ function fofSimulate(a, b, runs) {
               if (canCrit && Math.random() < aEffCrit) didCrit = true;
             }
           }
-          // GUARANTEED_NEXT_CRIT overrides — but only if the attack landed.
-          if (didHit && aGuarCrit && canCrit) didCrit = true;
+          // GUARANTEED_NEXT_CRIT (REVENGE) applies to the next attack ATTEMPT:
+          // it still must pass the hit check, and a miss wastes the buff.
+          // Consumed on the attempt (hit or miss) below.
+          const aRevengeArmed = aGuarCrit && canCrit;
+          if (didHit && aRevengeArmed) didCrit = true;
 
           if (didHit) {
             aHits++;
@@ -31423,11 +31431,11 @@ function fofSimulate(a, b, runs) {
               // Defender REVENGE — if they got crit, arm their next attack.
               if (didCrit && bGuarOnCrit) bGuarCrit = true;
             }
-
-            // Attacker's revenge flag consumed on a successful attack
-            // (regardless of crit or whether damage was absorbed).
-            if (aGuarCrit) { aGuarUsed++; aGuarCrit = false; }
           }
+
+          // Attacker's REVENGE buff consumed on the attack ATTEMPT (hit or
+          // miss). A miss wastes it and returns to normal mechanics.
+          if (aRevengeArmed) { aGuarUsed++; aGuarCrit = false; }
 
           // BONUS_ATTACK chain — only after a successful hit, only if both alive.
           isBonus = (
@@ -31479,7 +31487,10 @@ function fofSimulate(a, b, runs) {
               if (canCrit && Math.random() < bEffCrit) didCrit = true;
             }
           }
-          if (didHit && bGuarCrit && canCrit) didCrit = true;
+          // REVENGE applies to the next attack ATTEMPT; must pass the hit
+          // check, and a miss wastes the buff. Consumed on attempt below.
+          const bRevengeArmed = bGuarCrit && canCrit;
+          if (didHit && bRevengeArmed) didCrit = true;
 
           if (didHit) {
             bHits++;
@@ -31507,9 +31518,10 @@ function fofSimulate(a, b, runs) {
               }
               if (didCrit && aGuarOnCrit) aGuarCrit = true;
             }
-
-            if (bGuarCrit) { bGuarUsed++; bGuarCrit = false; }
           }
+
+          // REVENGE buff consumed on the attack ATTEMPT (hit or miss).
+          if (bRevengeArmed) { bGuarUsed++; bGuarCrit = false; }
 
           isBonus = (
             didHit && hpA > 0 && hpB > 0 &&
