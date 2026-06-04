@@ -31078,23 +31078,20 @@ function fofSimulateOne(a, b, seed) {
           message: `${atkName} triggers ${(ikId || 'instant_kill').toUpperCase()} — instantly killing ${defName}!`,
         });
         setDefHp(0);
+        // The EXECUTION special IS the killing strike. Don't queue a second
+        // generic HIT swing after it — that extra clip ran on the assassin's
+        // side right after the special, which clobbered/cut the execution clip
+        // visually. Instead let the special play alone (full length) and have
+        // the victim play the dramatic TAKE_CRITICAL_DAMAGE death reaction on
+        // the same frame, so the finisher lands as a combo.
         events.push({
           time: T,
-          type: 'HIT',
-          actorId: atkId,
-          targetId: defId,
-          damage: Math.round(defMax),
-          targetHpAfter: 0,
-          message: `${atkName} delivers a killing blow to ${defName}.`,
-        });
-        events.push({
-          time: T,
-          type: 'TAKE_DAMAGE',
+          type: 'TAKE_CRITICAL_DAMAGE',
           actorId: defId,
           sourceId: atkId,
           damage: Math.round(defMax),
           hpAfter: 0,
-          message: `${defName} takes a fatal blow.`,
+          message: `${atkName} delivers a killing blow — ${defName} falls.`,
         });
         if (getAtkGuar()) setAtkGuar(false);
         break;

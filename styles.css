@@ -28662,6 +28662,29 @@ body.admin-sk-fs-lock { overflow: hidden; }
   .fof-wager-bar { grid-template-columns: 1fr 1fr; gap: 14px; }
   /* Section header can wrap its right-aligned meta under the title. */
   .fof-sec-head { flex-wrap: wrap; }
+  /* Picked-card glow: the desktop halo spreads ~22px, wider than the 16px page
+     gutter, so on a LEFT-column picked card it bleeds to the screen edge and
+     gets hard-clipped by .fof-view's overflow-x:clip — which made that side
+     look lopsided. Tighten the outer halo on phones so it stays inside the
+     gutter and both columns read identically whichever card is picked. */
+  .fof-hero-card.picked {
+    box-shadow:
+      inset 0 0 0 1px var(--fof-accent, #cfe3ff),
+      0 0 0 2px color-mix(in oklab, var(--fof-accent, #cfe3ff) 38%, transparent),
+      0 0 13px -6px color-mix(in oklab, var(--fof-accent, #cfe3ff) 55%, transparent);
+  }
+  /* Card SPECIAL tooltip on phones: the old version opened sideways from the
+     tiny tag and a LEFT-column card pushed it off the screen edge where it got
+     clipped. Anchor it to the CARD instead (tag goes position:static so the
+     ::after resolves against .fof-hero-card) and span the full card width just
+     above the card — it can never overflow the card's horizontal bounds, so it
+     can't clip on either column. */
+  .fof-hero-card .fof-ability-tag[data-tip] { position: static; }
+  .fof-hero-card .fof-ability-tag[data-tip]:hover::after,
+  .fof-hero-card .fof-ability-tag[data-tip].show-tip::after {
+    left: 8px; right: 8px; top: auto; bottom: calc(100% + 8px);
+    width: auto; max-width: none; transform: none;
+  }
 }
 @media (max-width: 480px) {
   .fof-hero-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -28673,18 +28696,6 @@ body.admin-sk-fs-lock { overflow: hidden; }
   .fof-statbar-v { font-size: 12px; }
   .fof-opp-stage { height: 300px; }
   .fof-banner-sprite { width: 132px; height: 170px; background-size: 497px 248px; background-position: -58px -47px; bottom: 0; }
-  /* Card SPECIAL tooltip: in the 2-up grid the right-anchored tooltip on a
-     LEFT-column card opened off the left edge of the screen and got clipped.
-     Anchor left-column cards (odd) to open rightward, keep right-column (even)
-     opening leftward, and clamp width so neither can leave the viewport. */
-  .fof-ability-tag[data-tip]:hover::after,
-  .fof-ability-tag[data-tip].show-tip::after {
-    max-width: min(220px, 74vw);
-  }
-  .fof-hero-card:nth-child(odd) .fof-ability-tag[data-tip]:hover::after,
-  .fof-hero-card:nth-child(odd) .fof-ability-tag[data-tip].show-tip::after {
-    right: auto; left: 0;
-  }
   /* Cards: tighter padding + smaller stat values so 2-up fits a ~360px phone. */
   .fof-card-body { padding: 9px 8px 10px; gap: 7px; }
   .fof-card-scene { height: 104px; }
