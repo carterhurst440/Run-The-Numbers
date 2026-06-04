@@ -15,16 +15,18 @@ const GAME_KEYS = {
   RUN_THE_NUMBERS: "game_001",
   GUESS_10: "game_002",
   SHAPE_TRADERS: "game_003",
-  COLOR_SCHEME: "game_004"
+  COLOR_SCHEME: "game_004",
+  FATE_OR_FORTUNE: "game_005"
 };
 
-const CONTEST_GAME_KEYS = [GAME_KEYS.RUN_THE_NUMBERS, GAME_KEYS.GUESS_10, GAME_KEYS.SHAPE_TRADERS, GAME_KEYS.COLOR_SCHEME];
+const CONTEST_GAME_KEYS = [GAME_KEYS.RUN_THE_NUMBERS, GAME_KEYS.GUESS_10, GAME_KEYS.SHAPE_TRADERS, GAME_KEYS.COLOR_SCHEME, GAME_KEYS.FATE_OR_FORTUNE];
 
 const GAME_LABELS = {
   [GAME_KEYS.RUN_THE_NUMBERS]: "Run the Numbers",
   [GAME_KEYS.GUESS_10]: "Guess 10",
   [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders",
-  [GAME_KEYS.COLOR_SCHEME]: "Color Scheme"
+  [GAME_KEYS.COLOR_SCHEME]: "Color Scheme",
+  [GAME_KEYS.FATE_OR_FORTUNE]: "Fate or Fortune"
 };
 
 const GAME_ASSET_STORAGE_KEY = "rtn:game-assets";
@@ -162,6 +164,15 @@ function normalizeGameKey(value) {
     normalized === "colorscheme"
   ) {
     return GAME_KEYS.COLOR_SCHEME;
+  }
+  if (
+    normalized === GAME_KEYS.FATE_OR_FORTUNE ||
+    normalized === "fate-or-fortune" ||
+    normalized === "fate_or_fortune" ||
+    normalized === "fateorfortune" ||
+    normalized === "fof"
+  ) {
+    return GAME_KEYS.FATE_OR_FORTUNE;
   }
   return null;
 }
@@ -770,6 +781,7 @@ function getGameKeyForRoute(route) {
   if (route === "red-black") return GAME_KEYS.GUESS_10;
   if (route === "shape-traders") return GAME_KEYS.SHAPE_TRADERS;
   if (route === "color-scheme") return GAME_KEYS.COLOR_SCHEME;
+  if (route === "fate-or-fortune") return GAME_KEYS.FATE_OR_FORTUNE;
   return null;
 }
 
