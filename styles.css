@@ -28442,7 +28442,7 @@ body.admin-sk-fs-lock { overflow: hidden; }
 .fof-hero-card {
   position: relative;
   display: flex; flex-direction: column; text-align: left; padding: 0;
-  border: 1px solid #242424; background: #0b0c0b; color: inherit;
+  border: 1px solid #242424; border-radius: 0; background: #0b0c0b; color: inherit;
   font-family: inherit; cursor: pointer;
   transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
 }
@@ -28613,22 +28613,37 @@ body.admin-sk-fs-lock { overflow: hidden; }
 /* ── FOF responsive: stack the challenger above the champion grid and
       let the portraits/fight stage breathe on phones. ── */
 @media (max-width: 720px) {
-  /* Banner info drops below the sprite-less backdrop and the stat bar halves. */
+  /* Banner collapses: hide the sprite + the floating corner chips (they would
+     overlap the now top-anchored info text), let the info flow, halve stats. */
   .fof-banner-sprite { display: none; }
+  .fof-banner-chip { display: none; }
   .fof-opp-stage { min-height: 0; }
   .fof-opp-stage::after { background: linear-gradient(0deg, rgba(8,9,8,0.55) 0%, rgba(8,9,8,0) 60%); }
   .fof-banner-info { position: relative; z-index: 2; right: auto; top: auto; max-width: none; padding: 18px 16px 4px; }
   .fof-banner-name { font-size: 32px; }
+  .fof-banner-ability { max-width: none; }
   .fof-statbar { grid-template-columns: repeat(4, 1fr); }
   .fof-hero-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
   .fof-wager-bar { grid-template-columns: 1fr 1fr; gap: 14px; }
+  /* Section header can wrap its right-aligned meta under the title. */
+  .fof-sec-head { flex-wrap: wrap; }
 }
 @media (max-width: 480px) {
   .fof-hero-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
   .fof-hero-win { font-size: 16px; }
   .fof-statbar { grid-template-columns: repeat(2, 1fr); }
+  /* Cards: tighter padding + smaller stat values so 2-up fits a ~360px phone. */
+  .fof-card-body { padding: 9px 8px 10px; gap: 7px; }
+  .fof-card-scene { height: 104px; }
+  .fof-card-sprite { width: 72px; height: 94px; background-size: 272px 136px; background-position: -32px -25px; }
+  .fof-hero-name { font-size: 12px; letter-spacing: 0.5px; }
+  .fof-sg-k { font-size: 7px; }
+  .fof-sg-v { font-size: 10px; }
+  .fof-ability-tag { font-size: 8px; }
   /* Wager bar stacks vertically so the input + button stay tappable. */
   .fof-wager-bar { grid-template-columns: 1fr; gap: 12px; }
+  .fof-wb-stake-row { flex-wrap: wrap; }
+  .fof-wager-bar input { flex: 1 1 90px; }
   .fof-wb-go { width: 100%; }
   .fof-btn-primary { width: 100%; }
   /* Fight scene shrinks to fit narrow viewports. */
