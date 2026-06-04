@@ -28303,33 +28303,141 @@ body.admin-sk-fs-lock { overflow: hidden; }
   color: #8a8472;
 }
 
-/* SELECTING */
-.fof-selecting {
-  display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 20px;
+/* SELECTING — cinematic opponent banner + challenger grid + stake bar */
+.fof-selecting { display: block; }
+
+/* Section header (// THE OPPONENT … right-aligned meta) */
+.fof-sec { margin-bottom: 22px; }
+.fof-sec-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; margin-bottom: 10px;
 }
-.fof-opp-panel, .fof-pick-panel {
-  border: 1px solid #2a2a2a; padding: 16px; background: #0d0d0d;
+.fof-sec-title { font-size: 12px; letter-spacing: 2px; color: #b9b9a8; }
+.fof-sec-meta { font-size: 10px; letter-spacing: 1.5px; color: #6f6f6f; text-transform: uppercase; }
+
+/* Opponent banner — arena art backdrop with sprite + info + stat bar */
+.fof-opp-banner {
+  position: relative; border: 1px solid #2a2a2a; overflow: hidden;
+  background-color: #0c0d0c; background-size: cover; background-position: center;
 }
-.fof-opp-label, .fof-pick-label {
-  font-size: 11px; letter-spacing: 1.5px; color: #888; margin-bottom: 10px;
+.fof-opp-banner.fof-scene-empty {
+  background-image: radial-gradient(130% 120% at 30% 30%, #1c150d 0%, #09090a 70%);
 }
-.fof-opp-name { font-size: 20px; letter-spacing: 2px; margin-bottom: 14px; color: #c64; }
+.fof-opp-stage { position: relative; min-height: 300px; }
+.fof-opp-stage::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(8,9,8,0.10) 0%, rgba(8,9,8,0.55) 52%, rgba(8,9,8,0.90) 100%),
+    linear-gradient(0deg, rgba(8,9,8,0.70) 0%, rgba(8,9,8,0) 45%);
+}
+.fof-banner-chip {
+  position: absolute; top: 14px; z-index: 3; font-size: 10px; letter-spacing: 1px;
+  padding: 4px 9px; border: 1px solid #3a3a3a; color: #c4c4b8;
+  background: rgba(6,7,6,0.55);
+}
+.fof-banner-chip-l { left: 14px; }
+.fof-banner-chip-r { right: 14px; color: #e08a5a; border-color: #7a3f26; }
+.fof-banner-sprite {
+  position: absolute; left: 4%; bottom: 10px; z-index: 1;
+  width: 230px; height: 230px; max-width: 42%;
+  object-fit: cover; object-position: 16% center; image-rendering: pixelated;
+  filter: drop-shadow(0 10px 24px rgba(0,0,0,0.75));
+}
+.fof-banner-info {
+  position: absolute; right: 26px; top: 30px; z-index: 2;
+  max-width: 56%; text-align: left;
+}
+.fof-banner-kicker { font-size: 10px; letter-spacing: 2px; color: #d2603a; margin-bottom: 4px; }
+.fof-banner-name {
+  font-size: 44px; line-height: 1; letter-spacing: 3px; font-weight: 700;
+  color: #e0703f; text-shadow: 0 2px 18px rgba(210,96,58,0.4);
+}
+.fof-banner-turf { font-size: 10px; letter-spacing: 1.5px; color: #8a8a7c; margin-top: 10px; }
+.fof-banner-ability {
+  margin-top: 16px; max-width: 420px; padding: 10px 12px;
+  border: 1px solid #4a2c1c; background: rgba(40,18,10,0.45);
+}
+.fof-banner-ability-name { font-size: 11px; letter-spacing: 1px; color: #e0703f; font-weight: 700; }
+.fof-banner-ability-desc { font-size: 11px; line-height: 1.5; color: #b8b0a6; margin-top: 4px; }
+
+/* Inline 8-cell stat bar at the foot of the banner */
+.fof-statbar {
+  position: relative; z-index: 2; display: grid; grid-template-columns: repeat(8, 1fr);
+  background: rgba(6,7,6,0.90); border-top: 1px solid #242424;
+}
+.fof-statbar-cell {
+  padding: 9px 12px; border-left: 1px solid #1b1b1b;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.fof-statbar-cell:first-child { border-left: none; }
+.fof-statbar-k { font-size: 9px; letter-spacing: 1px; color: #777; text-transform: uppercase; }
+.fof-statbar-v { font-size: 14px; color: #e8e8d2; }
+
+/* Challenger card grid */
 .fof-hero-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 10px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px;
 }
 .fof-hero-card {
-  border: 1px solid #2a2a2a; padding: 10px; background: #0d0d0d;
-  cursor: pointer; transition: all 0.12s;
+  display: flex; flex-direction: column; text-align: left; padding: 0;
+  border: 1px solid #242424; background: #0b0c0b; color: inherit;
+  font-family: inherit; cursor: pointer; overflow: hidden;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
 }
-.fof-hero-card:hover { border-color: #d4a017; background: #1a1503; }
-.fof-hero-card.picked { border-color: #d4a017; background: #1a1503; box-shadow: 0 0 0 1px #d4a017 inset; }
-.fof-hero-name { font-size: 13px; letter-spacing: 1.5px; margin-bottom: 4px; }
-.fof-hero-win { font-size: 22px; font-weight: 700; margin: 2px 0; }
-.fof-hero-payout { font-size: 10px; color: #888; margin-bottom: 8px; }
-.fof-good { color: #5b9; }
+.fof-hero-card:hover { border-color: #d2603a; transform: translateY(-2px); }
+.fof-hero-card.picked {
+  border-color: #cfe3ff;
+  box-shadow: 0 0 0 1px #cfe3ff inset, 0 0 20px -6px rgba(207,227,255,0.8);
+}
+.fof-card-scene {
+  position: relative; height: 122px; overflow: hidden;
+  background-color: #10110f; background-size: cover; background-position: center;
+  border-bottom: 1px solid #1e1e1e;
+}
+.fof-card-scene.fof-scene-empty {
+  background-image: radial-gradient(120% 120% at 50% 20%, #1a1a12 0%, #0a0a09 72%);
+}
+.fof-card-scene::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(0deg, rgba(8,9,8,0.92) 0%, rgba(8,9,8,0.05) 62%);
+}
+.fof-card-arena {
+  position: absolute; left: 8px; top: 8px; z-index: 3; font-size: 9px; letter-spacing: 0.5px;
+  color: #d3d3c6; background: rgba(6,7,6,0.5); padding: 2px 5px;
+}
+.fof-card-weather { position: absolute; right: 8px; top: 6px; z-index: 3; font-size: 13px; color: #e6e6c8; opacity: 0.85; }
+.fof-card-picked {
+  position: absolute; right: 8px; top: 7px; z-index: 4; font-size: 9px; letter-spacing: 0.5px;
+  font-weight: 700; color: #0b0c0b; background: #cfe3ff; padding: 2px 6px;
+}
+.fof-card-sprite {
+  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); z-index: 1;
+  width: 96px; height: 120px; object-fit: cover; object-position: 16% center;
+  image-rendering: pixelated; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.6));
+}
+.fof-card-body { padding: 10px 11px 12px; display: flex; flex-direction: column; gap: 9px; }
+.fof-card-headline { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.fof-hero-name { font-size: 13px; letter-spacing: 1px; color: #e8e8d2; }
+.fof-hero-win { font-size: 17px; font-weight: 700; }
+.fof-card-sub { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fof-hero-payout { font-size: 10px; color: #888; }
+.fof-ability-tag {
+  font-size: 9px; letter-spacing: 0.5px; color: #cdb3ff;
+  border: 1px solid #4a3a6a; background: rgba(120,90,200,0.12); padding: 2px 6px;
+  white-space: nowrap;
+}
+.fof-statgrid { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid #1c1c1c; }
+.fof-sg-cell {
+  padding: 5px 6px; border-right: 1px solid #161616; border-bottom: 1px solid #161616;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.fof-sg-cell:nth-child(4n) { border-right: none; }
+.fof-sg-cell:nth-child(n+5) { border-bottom: none; }
+.fof-sg-k { font-size: 8px; letter-spacing: 0.5px; color: #6f6f6f; text-transform: uppercase; }
+.fof-sg-v { font-size: 11px; color: #d6d6c4; }
+
+.fof-good { color: #5fbf91; }
 .fof-mid  { color: #d4a017; }
-.fof-bad  { color: #c64; }
+.fof-bad  { color: #d2603a; }
 .fof-stat-table {
   width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 8px;
 }
@@ -28392,42 +28500,50 @@ body.admin-sk-fs-lock { overflow: hidden; }
   filter: drop-shadow(0 4px 14px rgba(0,0,0,0.7));
 }
 .fof-wager-bar {
-  grid-column: 1 / -1; display: flex; gap: 16px; align-items: center;
-  padding: 14px 16px; border: 1px solid #2a2a2a; background: #0d0d0d;
-  flex-wrap: wrap;
+  display: grid; grid-template-columns: 1.1fr 1.5fr 1fr auto; align-items: center;
+  gap: 18px; margin-top: 18px; padding: 14px 18px;
+  border: 1px solid #2a2a2a; background: rgba(10,11,10,0.96);
 }
-.fof-wager-label {
-  font-size: 11px; letter-spacing: 1px; color: #888;
-  display: flex; gap: 6px; align-items: center;
-}
-.fof-wager-label input {
+.fof-wb-label { font-size: 9px; letter-spacing: 1.5px; color: #777; text-transform: uppercase; margin-bottom: 5px; }
+.fof-wb-name { font-size: 16px; letter-spacing: 1px; color: #e8e8d2; }
+.fof-wb-odds { font-size: 10px; color: #5fbf91; margin-top: 3px; }
+.fof-wb-stake-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.fof-wb-dollar { color: #888; }
+.fof-wager-bar input {
   /* font-size must stay >= 16px: iOS Safari auto-zooms (and never zooms back
      out) when a focused input is smaller, leaving the battle magnified. */
-  width: 120px; padding: 6px 8px; font-family: inherit; font-size: 16px;
+  width: 86px; padding: 6px 8px; font-family: inherit; font-size: 16px;
   background: #000; color: #e8e8d2; border: 1px solid #2a2a2a;
 }
-.fof-wager-meta { font-size: 11px; color: #888; flex: 1; }
-.fof-wager-meta strong { color: #e8e8d2; }
+.fof-chip {
+  font-family: inherit; font-size: 11px; letter-spacing: 0.5px; padding: 6px 9px;
+  background: #15150f; color: #cdbf8f; border: 1px solid #2a2a1a; cursor: pointer;
+}
+.fof-chip:hover { border-color: #d4a017; color: #e8d28a; }
+.fof-wb-return-val { font-size: 18px; font-weight: 700; color: #e8e8d2; }
+.fof-wb-profit { font-size: 10px; color: #5fbf91; margin-top: 3px; }
+.fof-wb-go { padding: 14px 22px; white-space: nowrap; }
 
 /* ── FOF responsive: stack the challenger above the champion grid and
       let the portraits/fight stage breathe on phones. ── */
 @media (max-width: 720px) {
-  .fof-selecting { grid-template-columns: 1fr; gap: 14px; }
-  /* Full-width challenger banner — wide portrait reads better stacked. */
-  .fof-portrait-opp { aspect-ratio: 16 / 10; max-height: 280px; }
-  .fof-hero-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-  .fof-wager-bar { gap: 12px; }
+  /* Banner info drops below the sprite-less backdrop and the stat bar halves. */
+  .fof-banner-sprite { display: none; }
+  .fof-opp-stage { min-height: 0; }
+  .fof-opp-stage::after { background: linear-gradient(0deg, rgba(8,9,8,0.55) 0%, rgba(8,9,8,0) 60%); }
+  .fof-banner-info { position: relative; z-index: 2; right: auto; top: auto; max-width: none; padding: 18px 16px 4px; }
+  .fof-banner-name { font-size: 32px; }
+  .fof-statbar { grid-template-columns: repeat(4, 1fr); }
+  .fof-hero-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .fof-wager-bar { grid-template-columns: 1fr 1fr; gap: 14px; }
 }
 @media (max-width: 480px) {
   .fof-hero-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .fof-hero-card { padding: 8px; }
-  .fof-hero-win { font-size: 18px; }
-  .fof-portrait-opp { aspect-ratio: 5 / 4; max-height: 240px; }
+  .fof-hero-win { font-size: 16px; }
+  .fof-statbar { grid-template-columns: repeat(2, 1fr); }
   /* Wager bar stacks vertically so the input + button stay tappable. */
-  .fof-wager-bar { flex-direction: column; align-items: stretch; gap: 10px; }
-  .fof-wager-label { justify-content: space-between; }
-  .fof-wager-label input { width: 100%; }
-  .fof-wager-meta { flex: none; }
+  .fof-wager-bar { grid-template-columns: 1fr; gap: 12px; }
+  .fof-wb-go { width: 100%; }
   .fof-btn-primary { width: 100%; }
   /* Fight scene shrinks to fit narrow viewports. */
   .fof-fight-stage { min-height: 240px; }

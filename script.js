@@ -31855,53 +31855,190 @@ function fofPortrait(character, variant) {
   return `<div class="${cls}"><img class="fof-portrait-img" src="${url}" alt="${character}" loading="lazy" decoding="async"></div>`;
 }
 
+// Cosmetic arena flavor per champion — purely client-side (no DB). The name
+// matches each fighter's BACKGROUND art; the glyph is a small weather/mood mark
+// shown on the challenger cards. Falls back gracefully for unknown characters.
+const FOF_ARENAS = {
+  assassin:  { name: 'SILENT GROVE',   glyph: '\u2742' },
+  berserker: { name: 'FROSTWARD',      glyph: '\u2744' },
+  knight:    { name: 'BASTION WALL',   glyph: '\u263C' },
+  mage:      { name: 'ASTRAL SPIRE',   glyph: '\u2726' },
+  paladin:   { name: 'DAWN CATHEDRAL', glyph: '\u2600' },
+  ranger:    { name: 'SENTINEL RIDGE', glyph: '\u25D0' },
+  rogue:     { name: 'LOWTOWN ROOFS',  glyph: '\u2601' },
+  warlock:   { name: 'HOLLOW MIRE',    glyph: '\u263E' },
+};
+function fofArena(character) {
+  return FOF_ARENAS[character] || { name: 'UNKNOWN REACH', glyph: '\u25C7' };
+}
+
+// Inline 8-cell stat bar used across the bottom of the opponent banner.
+function fofStatBar(stats) {
+  const pct = (v) => `${Math.round(Number(v) * 100)}%`;
+  const items = [
+    ['HP', stats.hp],
+    ['Damage', stats.damage],
+    ['Crit Mult', `${Number(stats.crit_mult).toFixed(1)}x`],
+    ['Crit Chance', pct(stats.crit_chance)],
+    ['Accuracy', pct(stats.accuracy)],
+    ['Dodge', pct(stats.dodge)],
+    ['Constitution', pct(stats.constitution)],
+    ['Attack Time', `${Number(stats.attack_time).toFixed(2)}s`],
+  ];
+  return `<div class="fof-statbar">${items.map(([k, v]) =>
+    `<div class="fof-statbar-cell"><span class="fof-statbar-k">${k}</span><span class="fof-statbar-v">${v}</span></div>`
+  ).join('')}</div>`;
+}
+
+// Compact 2x4 stat grid for each challenger card.
+function fofStatGrid(stats) {
+  const pct = (v) => `${Math.round(Number(v) * 100)}%`;
+  const cell = (k, v) => `<div class="fof-sg-cell"><span class="fof-sg-k">${k}</span><span class="fof-sg-v">${v}</span></div>`;
+  return `<div class="fof-statgrid">${[
+    cell('HP', stats.hp),
+    cell('DMG', stats.damage),
+    cell('CR\u00D7', `${Number(stats.crit_mult).toFixed(1)}x`),
+    cell('CR%', pct(stats.crit_chance)),
+    cell('ACC', pct(stats.accuracy)),
+    cell('DDG', pct(stats.dodge)),
+    cell('CON', pct(stats.constitution)),
+    cell('SPD', `${Number(stats.attack_time).toFixed(2)}s`),
+  ].join('')}</div>`;
+}
+
+// First special ability rendered as a small tag on a challenger card.
+function fofAbilityTag(abilities) {
+  if (!Array.isArray(abilities) || abilities.length === 0) return '';
+  const ab = abilities[0];
+  return `<span class="fof-ability-tag">${ab.name || ab.id}</span>`;
+}
+
+// Live-refresh the dynamic fields in the bottom wager bar without a full
+// re-render (used by the stake input + quick-stake chip handlers).
+function fofUpdateWagerBar() {
+  const picked = fofGame.candidates.find(c => c.character === fofGame.pickedHero) || null;
+  const wager = Number(fofGame.wager) || 0;
+  const credits = fofAvailableCredits() ?? 0;
+  const payoutX = picked ? (1 / Number(picked.win_pct)) : null;
+  const ret = (picked && wager > 0) ? wager * payoutX : null;
+  const profit = (ret != null) ? ret - wager : null;
+  const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  setText('fof-wb-name', picked ? picked.name.toUpperCase() : '\u2014');
+  setText('fof-wb-odds', picked ? `${(Number(picked.win_pct) * 100).toFixed(1)}% win \u00B7 ${payoutX.toFixed(2)}x` : 'select a fighter');
+  setText('fof-wb-return', ret != null ? `$${ret.toFixed(2)}` : '\u2014');
+  setText('fof-wb-profit', profit != null ? `${profit >= 0 ? '+' : ''}$${profit.toFixed(2)} profit` : '');
+  setText('fof-wb-go-label', (picked && wager > 0) ? `WAGER $${wager.toFixed(2)} ON ${picked.name.toUpperCase()}` : 'PLACE YOUR WAGER');
+  const beginBtn = document.getElementById('fof-begin-btn');
+  if (beginBtn) beginBtn.disabled = !(picked && wager > 0 && wager <= credits);
+}
+
 function fofViewSelecting() {
   const opp = fofGame.opponent;
+  const oppArena = fofArena(opp.character);
+  const oppBg = fofClipUrl(opp.character, 'BACKGROUND');
+  const oppIdle = fofClipUrl(opp.character, 'IDLE');
+  const oppAbility = (Array.isArray(opp.special_abilities) && opp.special_abilities[0]) || null;
+
   const cards = fofGame.candidates.map(c => {
-    const winPct = (Number(c.win_pct) * 100);
+    const winPct = Number(c.win_pct) * 100;
     const winColor = winPct >= 60 ? 'fof-good' : winPct >= 40 ? 'fof-mid' : 'fof-bad';
-    const picked = fofGame.pickedHero === c.character ? 'picked' : '';
+    const isPicked = fofGame.pickedHero === c.character;
+    const arena = fofArena(c.character);
+    const cbg = fofClipUrl(c.character, 'BACKGROUND');
+    const cidle = fofClipUrl(c.character, 'IDLE');
     return `
-      <div class="fof-hero-card ${picked}" data-hero="${c.character}">
-        ${fofPortrait(c.character)}
-        <div class="fof-hero-name">${c.name.toUpperCase()}</div>
-        <div class="fof-hero-win ${winColor}">${winPct.toFixed(1)}%</div>
-        <div class="fof-hero-payout">payout ${(1/Number(c.win_pct)).toFixed(2)}x</div>
-        ${fofStatBlock(c.stats)}
-        ${fofSpecialBlock(c.special_abilities)}
-      </div>
+      <button type="button" class="fof-hero-card ${isPicked ? 'picked' : ''}" data-hero="${c.character}">
+        <div class="fof-card-scene${cbg ? '' : ' fof-scene-empty'}"${cbg ? ` style="background-image:url('${cbg}')"` : ''}>
+          <span class="fof-card-arena">// ${arena.name}</span>
+          ${isPicked
+            ? '<span class="fof-card-picked">PICKED \u2713</span>'
+            : `<span class="fof-card-weather">${arena.glyph}</span>`}
+          ${cidle ? `<img class="fof-card-sprite" src="${cidle}" alt="${c.character}" loading="lazy" decoding="async">` : ''}
+        </div>
+        <div class="fof-card-body">
+          <div class="fof-card-headline">
+            <span class="fof-hero-name">${c.name.toUpperCase()}</span>
+            <span class="fof-hero-win ${winColor}">${winPct.toFixed(1)}%</span>
+          </div>
+          <div class="fof-card-sub">
+            <span class="fof-hero-payout">payout ${(1 / Number(c.win_pct)).toFixed(2)}x</span>
+            ${fofAbilityTag(c.special_abilities)}
+          </div>
+          ${fofStatGrid(c.stats)}
+        </div>
+      </button>
     `;
   }).join('');
 
-  const heroOk = !!fofGame.pickedHero;
-  const wagerOk = Number(fofGame.wager) > 0 && Number(fofGame.wager) <= (fofAvailableCredits() ?? 0);
-  const beginDisabled = !(heroOk && wagerOk) ? 'disabled' : '';
-  const pickedCandidate = fofGame.candidates.find(c => c.character === fofGame.pickedHero);
-  const pickedWinPct = pickedCandidate ? Number(pickedCandidate.win_pct) : null;
-  const potentialPayout = (pickedWinPct && fofGame.wager > 0) ? (Number(fofGame.wager) / pickedWinPct).toFixed(2) : '—';
+  const n = fofGame.candidates.length;
+  const picked = fofGame.candidates.find(c => c.character === fofGame.pickedHero) || null;
+  const credits = fofAvailableCredits() ?? 0;
+  const wager = Number(fofGame.wager) || 0;
+  const payoutX = picked ? (1 / Number(picked.win_pct)) : null;
+  const ret = (picked && wager > 0) ? wager * payoutX : null;
+  const profit = (ret != null) ? ret - wager : null;
+  const beginDisabled = !(picked && wager > 0 && wager <= credits) ? 'disabled' : '';
 
   return `
     <div class="fof-selecting">
-      <div class="fof-opp-panel">
-        <div class="fof-opp-label">// CHALLENGER</div>
-        ${fofPortrait(opp.character, 'opp')}
-        <div class="fof-opp-name">${opp.name.toUpperCase()}</div>
-        ${fofStatBlock(opp.stats)}
-        ${fofSpecialBlock(opp.special_abilities)}
-      </div>
-      <div class="fof-pick-panel">
-        <div class="fof-pick-label">// PICK YOUR CHAMPION</div>
-        <div class="fof-hero-grid">${cards}</div>
-      </div>
-      <div class="fof-wager-bar">
-        <label class="fof-wager-label">WAGER $
-          <input type="number" id="fof-wager-input" min="1" step="1" value="${fofGame.wager || ''}" placeholder="0">
-        </label>
-        <div class="fof-wager-meta">
-          Picked: <strong>${fofGame.pickedHero ? fofGame.pickedHero.toUpperCase() : '—'}</strong>
-          · Potential return: <strong>$${potentialPayout}</strong>
+      <section class="fof-sec">
+        <div class="fof-sec-head">
+          <span class="fof-sec-title">// THE OPPONENT</span>
+          <span class="fof-sec-meta">${oppArena.name} \u00B7 HOME ARENA</span>
         </div>
-        <button type="button" class="fof-btn fof-btn-primary" id="fof-begin-btn" ${beginDisabled}>BEGIN ROUND</button>
+        <div class="fof-opp-banner${oppBg ? '' : ' fof-scene-empty'}"${oppBg ? ` style="background-image:url('${oppBg}')"` : ''}>
+          <div class="fof-opp-stage">
+            <span class="fof-banner-chip fof-banner-chip-l">// ${oppArena.name}</span>
+            <span class="fof-banner-chip fof-banner-chip-r">YOU FIGHT \u2192</span>
+            ${oppIdle ? `<img class="fof-banner-sprite" src="${oppIdle}" alt="${opp.character}">` : ''}
+            <div class="fof-banner-info">
+              <div class="fof-banner-kicker">DEFENDING CHAMPION</div>
+              <div class="fof-banner-name">${opp.name.toUpperCase()}</div>
+              <div class="fof-banner-turf">DEFENDS ${oppArena.name} \u00B7 HOME-TURF ADVANTAGE</div>
+              ${oppAbility ? `
+                <div class="fof-banner-ability">
+                  <div class="fof-banner-ability-name">${oppAbility.name || oppAbility.id}</div>
+                  <div class="fof-banner-ability-desc">${oppAbility.description || ''}</div>
+                </div>` : ''}
+            </div>
+          </div>
+          ${fofStatBar(opp.stats)}
+        </div>
+      </section>
+
+      <section class="fof-sec">
+        <div class="fof-sec-head">
+          <span class="fof-sec-title">// PICK YOUR CHALLENGER</span>
+          <span class="fof-sec-meta">${n} FIGHTERS \u00B7 WIN % VS THE OPPONENT</span>
+        </div>
+        <div class="fof-hero-grid">${cards}</div>
+      </section>
+
+      <div class="fof-wager-bar">
+        <div class="fof-wb-pick">
+          <div class="fof-wb-label">YOUR CHALLENGER</div>
+          <div class="fof-wb-name" id="fof-wb-name">${picked ? picked.name.toUpperCase() : '\u2014'}</div>
+          <div class="fof-wb-odds" id="fof-wb-odds">${picked ? `${(Number(picked.win_pct) * 100).toFixed(1)}% win \u00B7 ${payoutX.toFixed(2)}x` : 'select a fighter'}</div>
+        </div>
+        <div class="fof-wb-stake">
+          <div class="fof-wb-label">STAKE</div>
+          <div class="fof-wb-stake-row">
+            <span class="fof-wb-dollar">$</span>
+            <input type="number" id="fof-wager-input" min="1" step="1" value="${fofGame.wager || ''}" placeholder="0">
+            <button type="button" class="fof-chip" data-stake="100">100</button>
+            <button type="button" class="fof-chip" data-stake="250">250</button>
+            <button type="button" class="fof-chip" data-stake="500">500</button>
+            <button type="button" class="fof-chip" data-stake="max">MAX</button>
+          </div>
+        </div>
+        <div class="fof-wb-return">
+          <div class="fof-wb-label">POTENTIAL RETURN</div>
+          <div class="fof-wb-return-val" id="fof-wb-return">${ret != null ? `$${ret.toFixed(2)}` : '\u2014'}</div>
+          <div class="fof-wb-profit" id="fof-wb-profit">${profit != null ? `${profit >= 0 ? '+' : ''}$${profit.toFixed(2)} profit` : ''}</div>
+        </div>
+        <button type="button" class="fof-btn fof-btn-primary fof-wb-go" id="fof-begin-btn" ${beginDisabled}>
+          <span id="fof-wb-go-label">${(picked && wager > 0) ? `WAGER $${wager.toFixed(2)} ON ${picked.name.toUpperCase()}` : 'PLACE YOUR WAGER'}</span>
+        </button>
       </div>
     </div>
   `;
@@ -32112,18 +32249,22 @@ function fofAttachStageHandlers() {
   if (wagerInput) {
     wagerInput.addEventListener('input', () => {
       fofGame.wager = Number(wagerInput.value) || 0;
-      const beginBtn = document.getElementById('fof-begin-btn');
-      const valid = fofGame.pickedHero && fofGame.wager > 0 && fofGame.wager <= (fofAvailableCredits() ?? 0);
-      if (beginBtn) beginBtn.disabled = !valid;
-      // Update potential payout display
-      const meta = document.querySelector('.fof-wager-meta');
-      if (meta && fofGame.pickedHero) {
-        const c = fofGame.candidates.find(x => x.character === fofGame.pickedHero);
-        const payout = (c && fofGame.wager > 0) ? (Number(fofGame.wager) / Number(c.win_pct)).toFixed(2) : '—';
-        meta.innerHTML = `Picked: <strong>${fofGame.pickedHero.toUpperCase()}</strong> · Potential return: <strong>$${payout}</strong>`;
-      }
+      fofUpdateWagerBar();
     });
   }
+
+  // Quick-stake chips (100 / 250 / 500 / MAX) set the wager input + refresh.
+  document.querySelectorAll('.fof-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const credits = fofAvailableCredits() ?? 0;
+      const raw = chip.dataset.stake;
+      const amt = raw === 'max' ? Math.floor(credits) : Number(raw) || 0;
+      fofGame.wager = amt;
+      const inp = document.getElementById('fof-wager-input');
+      if (inp) inp.value = amt || '';
+      fofUpdateWagerBar();
+    });
+  });
 }
 
 async function fofStartRound() {
