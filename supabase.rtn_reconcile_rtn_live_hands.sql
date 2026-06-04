@@ -1,18 +1,10 @@
 -- ============================================================
--- Fix: reconcile_profile_hands_played misses server-draw hands
+-- reconcile_profile_hands_played — recount all-time hands
 --
--- Both RTN and Guess 10 have two code paths:
---   • Server-draw mode  → hands stored in rtn_live_hands / guess10_live_hands only
---   • Legacy/client mode → hands stored in game_hands (game_id = 'game_001' / 'game_002')
---
--- When server-settled, skipHandLog = true prevents any game_hands insert.
--- The previous reconcile only counted game_hands, so every login was
--- resetting hand counts to just the legacy totals, wiping all server-draw
--- hands and potentially demoting player ranks.
---
--- This migration fixes reconcile_profile_hands_played to count from
--- BOTH tables for RTN and G10 (no double-counting — each hand lands in
--- exactly one table).
+-- All RTN hands now live in rtn_live_hands and all Guess 10 hands
+-- in guess10_live_hands (legacy migrated + server-draw), so the
+-- reconcile counts directly from those tables for RTN and G10
+-- (plus color_scheme_rounds and shape_trader_trades).
 -- ============================================================
 
 drop function if exists public.reconcile_profile_hands_played(uuid);
@@ -59,37 +51,19 @@ begin
       coalesce(trades.trade_count,0)::integer as trades_made
     from public.profiles p2
 
-    -- RTN: game_hands (legacy/client-mode) UNION rtn_live_hands (server-draw)
+    -- RTN: all hands now in rtn_live_hands (legacy migrated + server-draw)
     left join (
       select user_id, count(*)::integer as hand_count
-      from (
-        select user_id
-        from public.game_hands
-        where coalesce(game_id, 'game_001') = 'game_001'
-
-        union all
-
-        select user_id
-        from public.rtn_live_hands
-        where status <> 'active'
-      ) rtn_all
+      from public.rtn_live_hands
+      where status <> 'active'
       group by user_id
     ) rtn on rtn.user_id = p2.id
 
-    -- Guess 10: game_hands (legacy/client-mode) UNION guess10_live_hands (server-draw)
+    -- Guess 10: all hands now in guess10_live_hands
     left join (
       select user_id, count(*)::integer as hand_count
-      from (
-        select user_id
-        from public.game_hands
-        where coalesce(game_id, 'game_001') = 'game_002'
-
-        union all
-
-        select user_id
-        from public.guess10_live_hands
-        where status <> 'active'
-      ) g10_all
+      from public.guess10_live_hands
+      where status <> 'active'
       group by user_id
     ) g10 on g10.user_id = p2.id
 

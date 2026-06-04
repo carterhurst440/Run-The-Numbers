@@ -2,7 +2,7 @@
 -- Fix: contest journey charts show only a straight line for
 --      players other than the viewer
 --
--- Root cause: fetchContestJourneyEventStream queries game_hands,
+-- Root cause: fetchContestJourneyEventStream queries
 -- rtn_live_hands, guess10_live_hands, shape_trader_trades, and
 -- color_scheme_rounds directly. RLS only lets each user see their
 -- own rows, so any other player returns 0 rows → only Start +

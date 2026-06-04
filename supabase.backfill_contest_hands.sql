@@ -16,7 +16,7 @@
 --     (don't tag hands played before the user entered)
 --
 -- Runs across rtn_live_hands, guess10_live_hands,
--- shape_trader_trades, and game_hands (legacy).
+-- and shape_trader_trades.
 -- Safe to run multiple times — skips already-tagged rows.
 -- ============================================================
 
@@ -80,25 +80,4 @@ WHERE st.user_id         = ce.user_id
 DO $$
 BEGIN
   RAISE NOTICE 'shape_trader_trades backfill: % rows updated', (SELECT COUNT(*) FROM public.shape_trader_trades WHERE contest_id IS NOT NULL);
-END $$;
-
-
--- ── 4. game_hands (legacy) ───────────────────────────────────
-UPDATE public.game_hands gh
-SET
-  contest_id = ce.contest_id,
-  mode_type   = 'contest'
-FROM public.contest_entries ce
-JOIN public.contests c ON c.id = ce.contest_id
-WHERE gh.user_id         = ce.user_id
-  AND gh.contest_id     IS NULL
-  AND c.starts_at       IS NOT NULL
-  AND c.ends_at         IS NOT NULL
-  AND gh.created_at     >= c.starts_at
-  AND gh.created_at     <= c.ends_at
-  AND gh.created_at     >= ce.opted_in_at;
-
-DO $$
-BEGIN
-  RAISE NOTICE 'game_hands backfill: % rows updated', (SELECT COUNT(*) FROM public.game_hands WHERE mode_type = 'contest' AND contest_id IS NOT NULL);
 END $$;

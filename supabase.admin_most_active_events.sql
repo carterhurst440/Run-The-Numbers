@@ -1,21 +1,14 @@
 -- ============================================================
--- Fix: get_admin_most_active_events misses server-draw hands
---      and Color Scheme rounds
+-- get_admin_most_active_events — player activity rankings
 --
--- The original RPC only queried:
---   • game_hands (legacy/client-mode RTN + G10 only)
+-- Counts each player's activity across:
+--   • rtn_live_hands (server-draw RTN)
+--   • guess10_live_hands (server-draw G10)
 --   • shape_trader_trades
+--   • color_scheme_rounds (RYB)
 --
--- Missing:
---   • rtn_live_hands (server-draw RTN — used in contests)
---   • guess10_live_hands (server-draw G10 — used in contests)
---   • color_scheme_rounds (RYB entirely)
---
--- Players who exclusively use server-draw (e.g. contest participants)
--- had zero entries in game_hands and never appeared in the rankings.
---
--- Also adds color_scheme_rounds to the return type so the client
--- can display the RYB breakdown alongside RTN / G10 / ST.
+-- Returns color_scheme_rounds in the output so the client can
+-- display the RYB breakdown alongside RTN / G10 / ST.
 -- ============================================================
 
 drop function if exists public.get_admin_most_active_events(timestamptz, timestamptz, uuid[], integer);
@@ -66,21 +59,6 @@ begin
       and (target_user_ids is null or glh.user_id = any(target_user_ids))
     group by glh.user_id
   ),
-  legacy_counts as (
-    -- Legacy client-mode hands from game_hands
-    -- RTN legacy entries have game_id = 'game_001' (or null).
-    -- G10 legacy entries have game_id = 'game_002'.
-    -- CS entries in game_hands are excluded (they live in color_scheme_rounds).
-    select
-      gh.user_id,
-      count(*) filter (where coalesce(gh.game_id, 'game_001') = 'game_001')::bigint as rtn_hands,
-      count(*) filter (where gh.game_id = 'game_002')::bigint                        as guess10_hands
-    from public.game_hands gh
-    where (start_at is null or gh.created_at >= start_at)
-      and (end_at   is null or gh.created_at <= end_at)
-      and (target_user_ids is null or gh.user_id = any(target_user_ids))
-    group by gh.user_id
-  ),
   trade_counts as (
     -- Shape Trader sell/buy events
     select st.user_id, count(*)::bigint as shape_traders_trades
@@ -102,16 +80,15 @@ begin
   ),
   combined as (
     select
-      coalesce(rtn.user_id, g10.user_id, lh.user_id, t.user_id, ryb.user_id) as user_id,
-      coalesce(rtn.hand_count,        0) + coalesce(lh.rtn_hands,     0) as run_the_numbers_hands,
-      coalesce(g10.hand_count,        0) + coalesce(lh.guess10_hands,  0) as guess10_hands,
-      coalesce(t.shape_traders_trades, 0)                                  as shape_traders_trades,
-      coalesce(ryb.ryb_rounds,         0)                                  as color_scheme_rounds
+      coalesce(rtn.user_id, g10.user_id, t.user_id, ryb.user_id) as user_id,
+      coalesce(rtn.hand_count,         0) as run_the_numbers_hands,
+      coalesce(g10.hand_count,         0) as guess10_hands,
+      coalesce(t.shape_traders_trades, 0) as shape_traders_trades,
+      coalesce(ryb.ryb_rounds,         0) as color_scheme_rounds
     from rtn_counts rtn
     full outer join g10_counts   g10 on g10.user_id = rtn.user_id
-    full outer join legacy_counts lh  on lh.user_id  = coalesce(rtn.user_id, g10.user_id)
-    full outer join trade_counts  t   on t.user_id   = coalesce(rtn.user_id, g10.user_id, lh.user_id)
-    full outer join ryb_counts    ryb on ryb.user_id  = coalesce(rtn.user_id, g10.user_id, lh.user_id, t.user_id)
+    full outer join trade_counts t   on t.user_id   = coalesce(rtn.user_id, g10.user_id)
+    full outer join ryb_counts   ryb on ryb.user_id  = coalesce(rtn.user_id, g10.user_id, t.user_id)
   )
   select
     c.user_id,

@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS public.fate_or_fortune_rounds (
   round_details             JSONB,  -- full event log from fofSimulateOne
   round_replay              JSONB,  -- reserved for client-stitched animation cache
 
-  -- Money (NUMERIC — same precision pattern as game_hands)
+  -- Money (NUMERIC — same precision pattern as the live hand tables)
   total_wagered             NUMERIC NOT NULL DEFAULT 0,
   total_returned            NUMERIC NOT NULL DEFAULT 0,
   net_profit                NUMERIC GENERATED ALWAYS AS (total_returned - total_wagered) STORED,

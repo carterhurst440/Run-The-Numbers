@@ -1,6 +1,6 @@
 create table if not exists public.guess10_draw_plays (
   id uuid primary key default gen_random_uuid(),
-  hand_id uuid not null references public.game_hands(id) on delete cascade,
+  hand_id uuid not null references public.guess10_live_hands(id) on delete cascade,
   user_id uuid not null,
   game_id text not null default 'game_002' references public.games(id),
   draw_index integer not null check (draw_index >= 1),

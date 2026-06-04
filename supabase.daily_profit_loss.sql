@@ -53,14 +53,14 @@ begin
       union all
 
       select
-        gh.user_id,
-        timezone('America/Denver', gh.created_at)::date as profit_date,
-        gh.game_id,
-        gh.net,
-        gh.contest_id,
-        gh.mode_type
-      from public.game_hands gh
-      where coalesce(gh.game_id, 'game_001') <> 'game_001'
+        glh.user_id,
+        timezone('America/Denver', glh.started_at)::date as profit_date,
+        'game_002' as game_id,
+        glh.net,
+        glh.contest_id,
+        glh.mode_type
+      from public.guess10_live_hands glh
+      where glh.status <> 'active'
     ) hands
     where hands.profit_date = target_date
       and coalesce(hands.contest_id::text, '') = ''

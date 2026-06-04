@@ -40,105 +40,6 @@ create index if not exists idx_rtn_live_hands_contest_started_at
 create index if not exists idx_rtn_live_hands_drawn_cards_gin
   on public.rtn_live_hands using gin (drawn_cards);
 
-insert into public.rtn_live_hands (
-  id,
-  user_id,
-  game_id,
-  mode_type,
-  contest_id,
-  status,
-  result,
-  started_at,
-  last_draw_at,
-  ended_at,
-  deck_order,
-  draw_index,
-  drawn_cards,
-  total_cards,
-  total_wager,
-  total_paid,
-  net,
-  commission_kept,
-  new_account_value,
-  carter_cash_awarded,
-  carter_cash_progress_after,
-  hand_state,
-  stopper_card,
-  ended_by,
-  created_at,
-  updated_at
-)
-select
-  gh.id,
-  gh.user_id,
-  'game_001',
-  gh.mode_type,
-  gh.contest_id,
-  case
-    when coalesce(gh.total_cards, 0) > 0 then 'complete'
-    else 'active'
-  end as status,
-  case
-    when coalesce(gh.total_cards, 0) > 0 then 'stopper'
-    else null
-  end as result,
-  gh.created_at as started_at,
-  gh.created_at as last_draw_at,
-  case when coalesce(gh.total_cards, 0) > 0 then gh.created_at else null end as ended_at,
-  '[]'::jsonb as deck_order,
-  coalesce(jsonb_array_length(coalesce(gh.drawn_cards, '[]'::jsonb)), 0) as draw_index,
-  coalesce(gh.drawn_cards, '[]'::jsonb) as drawn_cards,
-  greatest(coalesce(gh.total_cards, 0), coalesce(jsonb_array_length(coalesce(gh.drawn_cards, '[]'::jsonb)), 0)) as total_cards,
-  coalesce(gh.total_wager, 0) as total_wager,
-  coalesce(gh.total_paid, 0) as total_paid,
-  coalesce(gh.net, 0) as net,
-  coalesce(gh.commission_kept, 0) as commission_kept,
-  gh.new_account_value,
-  0 as carter_cash_awarded,
-  null::numeric as carter_cash_progress_after,
-  jsonb_build_object(
-    'paytable_id', 'legacy',
-    'migrated_from_game_hands', true
-  ) as hand_state,
-  case
-    when gh.stopper_label is null then null
-    else jsonb_build_object(
-      'label', gh.stopper_label,
-      'suitName', gh.stopper_suit
-    )
-  end as stopper_card,
-  case
-    when coalesce(gh.total_cards, 0) > 0 then 'stopper'
-    else null
-  end as ended_by,
-  gh.created_at,
-  timezone('utc', now())
-from public.game_hands gh
-where coalesce(gh.game_id, 'game_001') = 'game_001'
-on conflict (id) do update
-set
-  user_id = excluded.user_id,
-  game_id = excluded.game_id,
-  mode_type = excluded.mode_type,
-  contest_id = excluded.contest_id,
-  status = excluded.status,
-  result = excluded.result,
-  started_at = excluded.started_at,
-  last_draw_at = excluded.last_draw_at,
-  ended_at = excluded.ended_at,
-  draw_index = excluded.draw_index,
-  drawn_cards = excluded.drawn_cards,
-  total_cards = excluded.total_cards,
-  total_wager = excluded.total_wager,
-  total_paid = excluded.total_paid,
-  net = excluded.net,
-  commission_kept = excluded.commission_kept,
-  new_account_value = excluded.new_account_value,
-  hand_state = excluded.hand_state,
-  stopper_card = excluded.stopper_card,
-  ended_by = excluded.ended_by,
-  updated_at = timezone('utc', now());
-
 alter table public.bet_plays
   add column if not exists rtn_hand_id uuid,
   add column if not exists bet_type text,
@@ -174,13 +75,6 @@ begin
   end if;
 end
 $$;
-
-update public.bet_plays bp
-set rtn_hand_id = bp.hand_id
-from public.game_hands gh
-where bp.hand_id = gh.id
-  and bp.rtn_hand_id is null
-  and coalesce(gh.game_id, 'game_001') = 'game_001';
 
 create or replace function public.rtn_paytable_steps(_paytable_id text)
 returns integer[]

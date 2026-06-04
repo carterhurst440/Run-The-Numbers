@@ -99,14 +99,14 @@ begin
     from public.profiles p2
     left join (
       select user_id, count(*)::integer as hand_count
-      from public.game_hands
-      where coalesce(game_id, 'game_001') = 'game_001'
+      from public.rtn_live_hands
+      where status <> 'active'
       group by user_id
     ) rtn on rtn.user_id = p2.id
     left join (
       select user_id, count(*)::integer as hand_count
-      from public.game_hands
-      where coalesce(game_id, 'game_001') = 'game_002'
+      from public.guess10_live_hands
+      where status <> 'active'
       group by user_id
     ) g10 on g10.user_id = p2.id
     left join (
@@ -360,14 +360,14 @@ from (
   from public.profiles p2
   left join (
     select user_id, count(*)::integer as hand_count
-    from public.game_hands
-    where coalesce(game_id, 'game_001') = 'game_001'
+    from public.rtn_live_hands
+    where status <> 'active'
     group by user_id
   ) rtn on rtn.user_id = p2.id
   left join (
     select user_id, count(*)::integer as hand_count
-    from public.game_hands
-    where coalesce(game_id, 'game_001') = 'game_002'
+    from public.guess10_live_hands
+    where status <> 'active'
     group by user_id
   ) g10 on g10.user_id = p2.id
   left join (

@@ -17,33 +17,6 @@ set
   status = excluded.status,
   updated_at = timezone('utc', now());
 
-alter table public.game_hands
-  add column if not exists game_id text not null default 'game_001';
-
-update public.game_hands
-set game_id = 'game_001'
-where coalesce(game_id, '') = '';
-
-do $$
-begin
-  if not exists (
-    select 1
-    from pg_constraint
-    where conname = 'game_hands_game_id_fkey'
-  ) then
-    alter table public.game_hands
-      add constraint game_hands_game_id_fkey
-      foreign key (game_id) references public.games(id);
-  end if;
-end
-$$;
-
-create index if not exists idx_game_hands_game_id_created_at
-  on public.game_hands (game_id, created_at desc);
-
-create index if not exists idx_game_hands_user_id_game_id_created_at
-  on public.game_hands (user_id, game_id, created_at desc);
-
 alter table public.contests
   add column if not exists allowed_game_ids text[] not null default array['game_001', 'game_002']::text[];
 

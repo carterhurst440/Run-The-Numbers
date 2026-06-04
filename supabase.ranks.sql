@@ -27,8 +27,8 @@ begin
     select merged.user_id, count(*)::integer as hand_count
     from (
       select user_id
-      from public.game_hands
-      where coalesce(game_id, 'game_001') <> 'game_001'
+      from public.guess10_live_hands
+      where status <> 'active'
 
       union all
 
@@ -87,12 +87,6 @@ create index if not exists idx_bet_plays_user_id_placed_at
 create index if not exists idx_bet_plays_placed_at_user_id_hand_id
   on public.bet_plays (placed_at desc, user_id, hand_id);
 
-create index if not exists idx_game_hands_created_at
-  on public.game_hands (created_at desc);
-
-create index if not exists idx_game_hands_user_id_created_at
-  on public.game_hands (user_id, created_at desc);
-
 create or replace function public.set_updated_at_timestamp()
 returns trigger
 language plpgsql
@@ -135,10 +129,15 @@ begin
     (
       select count(distinct activity.user_id)::integer
       from (
-        select gh.user_id
-        from public.game_hands gh
-        where gh.created_at > effective_reference - interval '24 hours'
-          and gh.created_at <= effective_reference
+        select rlh.user_id
+        from public.rtn_live_hands rlh
+        where rlh.started_at > effective_reference - interval '24 hours'
+          and rlh.started_at <= effective_reference
+        union
+        select glh.user_id
+        from public.guess10_live_hands glh
+        where glh.started_at > effective_reference - interval '24 hours'
+          and glh.started_at <= effective_reference
         union
         select st.user_id
         from public.shape_trader_trades st
@@ -149,10 +148,15 @@ begin
     (
       select count(distinct activity.user_id)::integer
       from (
-        select gh.user_id
-        from public.game_hands gh
-        where gh.created_at > effective_reference - interval '7 days'
-          and gh.created_at <= effective_reference
+        select rlh.user_id
+        from public.rtn_live_hands rlh
+        where rlh.started_at > effective_reference - interval '7 days'
+          and rlh.started_at <= effective_reference
+        union
+        select glh.user_id
+        from public.guess10_live_hands glh
+        where glh.started_at > effective_reference - interval '7 days'
+          and glh.started_at <= effective_reference
         union
         select st.user_id
         from public.shape_trader_trades st
@@ -163,10 +167,15 @@ begin
     (
       select count(distinct activity.user_id)::integer
       from (
-        select gh.user_id
-        from public.game_hands gh
-        where gh.created_at > effective_reference - interval '30 days'
-          and gh.created_at <= effective_reference
+        select rlh.user_id
+        from public.rtn_live_hands rlh
+        where rlh.started_at > effective_reference - interval '30 days'
+          and rlh.started_at <= effective_reference
+        union
+        select glh.user_id
+        from public.guess10_live_hands glh
+        where glh.started_at > effective_reference - interval '30 days'
+          and glh.started_at <= effective_reference
         union
         select st.user_id
         from public.shape_trader_trades st
@@ -204,9 +213,15 @@ begin
     raise exception 'Not authorized to backfill app activity snapshots';
   end if;
 
-  select coalesce(start_snapshot_date, min((timezone('utc', gh.created_at))::date), (timezone('utc', now()))::date)
-  into derived_start_date
-  from public.game_hands gh;
+  select coalesce(
+    start_snapshot_date,
+    least(
+      (select min((timezone('utc', started_at))::date) from public.rtn_live_hands),
+      (select min((timezone('utc', started_at))::date) from public.guess10_live_hands)
+    ),
+    (timezone('utc', now()))::date
+  )
+  into derived_start_date;
 
   if derived_start_date is null or derived_start_date > end_snapshot_date then
     return 0;
@@ -344,8 +359,8 @@ begin
       select merged.user_id, count(*)::integer as hand_count
       from (
         select user_id
-        from public.game_hands
-        where coalesce(game_id, 'game_001') <> 'game_001'
+        from public.guess10_live_hands
+        where status <> 'active'
 
         union all
 
@@ -370,9 +385,9 @@ begin
     select count(*)::integer as hand_count
     from (
       select user_id
-      from public.game_hands
+      from public.guess10_live_hands
       where user_id = target_user_id
-        and coalesce(game_id, 'game_001') <> 'game_001'
+        and status <> 'active'
 
       union all
 
@@ -414,14 +429,18 @@ begin
 
   return query
   select
-    timezone(local_tz, gh.created_at)::date as day,
+    timezone(local_tz, u.ts)::date as day,
     count(*)::integer as hands_played
-  from public.game_hands gh
-  where (start_at is null or gh.created_at >= start_at)
-    and (end_at is null or gh.created_at <= end_at)
-    and (target_user_ids is null or gh.user_id = any(target_user_ids))
-  group by timezone(local_tz, gh.created_at)::date
-  order by timezone(local_tz, gh.created_at)::date asc;
+  from (
+    select started_at as ts, user_id from public.rtn_live_hands where status <> 'active'
+    union all
+    select started_at as ts, user_id from public.guess10_live_hands where status <> 'active'
+  ) u
+  where (start_at is null or u.ts >= start_at)
+    and (end_at is null or u.ts <= end_at)
+    and (target_user_ids is null or u.user_id = any(target_user_ids))
+  group by timezone(local_tz, u.ts)::date
+  order by timezone(local_tz, u.ts)::date asc;
 end;
 $$;
 
@@ -528,14 +547,16 @@ begin
     limit greatest(coalesce(limit_count, 10), 1) * 5
   ),
   hand_counts as (
-    select
-      gh.user_id,
-      count(*)::bigint as hands_played
-    from public.game_hands gh
-    join top_bettors tb on tb.user_id = gh.user_id
-    where (start_at is null or gh.created_at >= start_at)
-      and (end_at is null or gh.created_at <= end_at)
-    group by gh.user_id
+    select u.user_id, count(*)::bigint as hands_played
+    from (
+      select user_id, started_at as ts from public.rtn_live_hands   where status <> 'active'
+      union all
+      select user_id, started_at as ts from public.guess10_live_hands where status <> 'active'
+    ) u
+    join top_bettors tb on tb.user_id = u.user_id
+    where (start_at is null or u.ts >= start_at)
+      and (end_at is null or u.ts <= end_at)
+    group by u.user_id
   ),
   ranked as (
     select
@@ -585,18 +606,22 @@ begin
 
   return query
   select
-    gh.user_id,
+    u.user_id,
     count(*)::bigint as hands_played,
     p.username,
     p.first_name,
     p.last_name
-  from public.game_hands gh
-  left join public.profiles p on p.id = gh.user_id
-  where (start_at is null or gh.created_at >= start_at)
-    and (end_at is null or gh.created_at <= end_at)
-    and (target_user_ids is null or gh.user_id = any(target_user_ids))
-  group by gh.user_id, p.username, p.first_name, p.last_name
-  order by count(*) desc, gh.user_id
+  from (
+    select user_id, started_at as ts from public.rtn_live_hands   where status <> 'active'
+    union all
+    select user_id, started_at as ts from public.guess10_live_hands where status <> 'active'
+  ) u
+  left join public.profiles p on p.id = u.user_id
+  where (start_at is null or u.ts >= start_at)
+    and (end_at is null or u.ts <= end_at)
+    and (target_user_ids is null or u.user_id = any(target_user_ids))
+  group by u.user_id, p.username, p.first_name, p.last_name
+  order by count(*) desc, u.user_id
   limit nullif(greatest(coalesce(limit_count, 0), 0), 0);
 end;
 $$;
@@ -628,14 +653,22 @@ begin
   return query
   with hand_counts as (
     select
-      gh.user_id,
-      count(*) filter (where coalesce(gh.game_id, 'game_001') = 'game_001')::bigint as run_the_numbers_hands,
-      count(*) filter (where gh.game_id = 'game_002')::bigint as guess10_hands
-    from public.game_hands gh
-    where (start_at is null or gh.created_at >= start_at)
-      and (end_at is null or gh.created_at <= end_at)
-      and (target_user_ids is null or gh.user_id = any(target_user_ids))
-    group by gh.user_id
+      h.user_id,
+      count(*) filter (where h.game_key = 'game_001')::bigint as run_the_numbers_hands,
+      count(*) filter (where h.game_key = 'game_002')::bigint as guess10_hands
+    from (
+      select user_id, 'game_001' as game_key, started_at as ts
+      from public.rtn_live_hands
+      where status <> 'active'
+      union all
+      select user_id, 'game_002' as game_key, started_at as ts
+      from public.guess10_live_hands
+      where status <> 'active'
+    ) h
+    where (start_at is null or h.ts >= start_at)
+      and (end_at is null or h.ts <= end_at)
+      and (target_user_ids is null or h.user_id = any(target_user_ids))
+    group by h.user_id
   ),
   trade_counts as (
     select
@@ -670,65 +703,6 @@ begin
   where c.user_id is not null
   order by total_events desc, c.shape_traders_trades desc, c.run_the_numbers_hands desc, c.guess10_hands desc, c.user_id
   limit nullif(greatest(coalesce(limit_count, 0), 0), 0);
-end;
-$$;
-
-create or replace function public.get_admin_game_hands(
-  start_at timestamptz default null,
-  end_at timestamptz default null,
-  target_user_ids uuid[] default null
-)
-returns table(
-  user_id uuid,
-  created_at timestamptz,
-  game_id text,
-  net numeric,
-  mode_type text,
-  contest_id uuid
-)
-language plpgsql
-security definer
-as $$
-begin
-  if (auth.jwt() ->> 'email') is distinct from 'carterwarrenhurst@gmail.com' then
-    raise exception 'Not authorized to view admin game hands';
-  end if;
-
-  return query
-  select
-    merged.user_id,
-    merged.created_at,
-    merged.game_id,
-    merged.net,
-    merged.mode_type,
-    merged.contest_id
-  from (
-    select
-      rlh.user_id,
-      rlh.started_at as created_at,
-      rlh.game_id,
-      rlh.net,
-      rlh.mode_type,
-      rlh.contest_id
-    from public.rtn_live_hands rlh
-    where rlh.status <> 'active'
-
-    union all
-
-    select
-      gh.user_id,
-      gh.created_at,
-      gh.game_id,
-      gh.net,
-      gh.mode_type,
-      gh.contest_id
-    from public.game_hands gh
-    where coalesce(gh.game_id, 'game_001') <> 'game_001'
-  ) merged
-  where (start_at is null or merged.created_at >= start_at)
-    and (end_at is null or merged.created_at <= end_at)
-    and (target_user_ids is null or merged.user_id = any(target_user_ids))
-  order by merged.created_at asc;
 end;
 $$;
 
@@ -781,5 +755,4 @@ grant execute on function public.get_admin_analytics_players() to authenticated;
 grant execute on function public.get_admin_most_active_players(timestamptz, timestamptz, uuid[], integer) to authenticated;
 grant execute on function public.get_admin_most_active_hands(timestamptz, timestamptz, uuid[], integer) to authenticated;
 grant execute on function public.get_admin_most_active_events(timestamptz, timestamptz, uuid[], integer) to authenticated;
-grant execute on function public.get_admin_game_hands(timestamptz, timestamptz, uuid[]) to authenticated;
 grant execute on function public.get_admin_shape_trader_trades(timestamptz, timestamptz, uuid[]) to authenticated;

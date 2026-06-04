@@ -46,18 +46,6 @@ begin
         glh.net
       from public.guess10_live_hands glh
       where glh.status <> 'active'
-
-      union all
-
-      -- Legacy client-mode hands (game_hands), excluding RTN which now
-      -- lives in rtn_live_hands to avoid double-counting
-      select
-        gh.user_id,
-        timezone('America/Denver', gh.created_at)::date as profit_date,
-        gh.game_id,
-        gh.net
-      from public.game_hands gh
-      where coalesce(gh.game_id, 'game_001') <> 'game_001'
     ) hands
     where hands.profit_date = target_date
     group by hands.user_id, hands.profit_date

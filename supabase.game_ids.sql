@@ -9,16 +9,6 @@ set
   status = excluded.status,
   updated_at = timezone('utc', now());
 
-alter table public.game_hands
-  alter column game_id set default 'game_001';
-
-update public.game_hands
-set game_id = case
-  when game_id in ('run-the-numbers', 'run_the_numbers', 'game_001') then 'game_001'
-  when game_id in ('guess-10', 'red-black', 'red_black', 'guess10', 'game_002') then 'game_002'
-  else game_id
-end;
-
 alter table public.contests
   alter column allowed_game_ids set default array['game_001', 'game_002']::text[];
 

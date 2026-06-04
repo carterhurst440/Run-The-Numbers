@@ -1,8 +1,8 @@
 -- ============================================================
 -- Admin RPCs for server-draw hands + Color Scheme rounds
 --
--- get_admin_game_hands and get_admin_shape_trader_trades already
--- exist and cover legacy game_hands + shape_trader_trades.
+-- get_admin_shape_trader_trades already exists and covers
+-- shape_trader_trades.
 -- These two new functions fill the gap:
 --
 --   get_admin_live_hands   — rtn_live_hands + guess10_live_hands
