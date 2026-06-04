@@ -28454,6 +28454,8 @@ body.admin-sk-fs-lock { overflow: hidden; }
 }
 .fof-hero-card {
   position: relative;
+  min-width: 0; /* let the card shrink with its grid track instead of overflowing
+                   (and getting clipped on the right) when content has nowrap text */
   display: flex; flex-direction: column; text-align: left; padding: 0;
   border: 1px solid #242424; border-radius: 0; background: #0b0c0b; color: inherit;
   font-family: inherit; cursor: pointer;
@@ -28687,6 +28689,10 @@ body.admin-sk-fs-lock { overflow: hidden; }
   }
 }
 @media (max-width: 480px) {
+  /* Phones: trim the chunky 24px gutter so both columns get more width and the
+     outer margins read even — the doubled (24px view + 8px card) step is what
+     made the left look heavier. */
+  .fof-view { padding: 14px; }
   .fof-hero-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
   .fof-hero-win { font-size: 16px; }
   /* Keep the opponent stat line compact (4×2) directly under the character. */
@@ -28698,6 +28704,9 @@ body.admin-sk-fs-lock { overflow: hidden; }
   .fof-banner-sprite { width: 132px; height: 170px; background-size: 497px 248px; background-position: -58px -47px; bottom: 0; }
   /* Cards: tighter padding + smaller stat values so 2-up fits a ~360px phone. */
   .fof-card-body { padding: 9px 8px 10px; gap: 7px; }
+  /* Let the payout + ability tag drop to two lines instead of overflowing the
+     card edge (the long "ARCANE ABSORPTION" tag would push past it otherwise). */
+  .fof-card-sub { flex-wrap: wrap; row-gap: 4px; }
   .fof-card-scene { height: 104px; }
   .fof-card-sprite { width: 72px; height: 94px; background-size: 272px 136px; background-position: -32px -25px; }
   .fof-hero-name { font-size: 12px; letter-spacing: 0.5px; }
@@ -28726,6 +28735,22 @@ body.admin-sk-fs-lock { overflow: hidden; }
   .fof-result-victory { font-size: 38px; }
   .fof-result-defeat  { font-size: 34px; }
   .fof-result-draw    { font-size: 30px; }
+}
+@media (max-width: 400px) {
+  /* iPhone 17e-class (~390-400px) and down to ~380px: keep the 2-up symmetric
+     and un-clipped by scaling the gutter, card padding, fonts and stat cells
+     down one more notch so the payout + ability row never overflows the card. */
+  .fof-view { padding: 11px; }
+  .fof-hero-grid { gap: 7px; }
+  .fof-card-body { padding: 8px 7px 9px; gap: 6px; }
+  .fof-card-scene { height: 96px; }
+  .fof-hero-name { font-size: 11px; }
+  .fof-hero-win { font-size: 14px; }
+  .fof-hero-payout { font-size: 9px; }
+  .fof-ability-tag { font-size: 7px; padding: 2px 4px; letter-spacing: 0; }
+  .fof-sg-cell { padding: 4px 4px; }
+  .fof-sg-k { font-size: 6px; }
+  .fof-sg-v { font-size: 9px; }
 }
 
 /* RESOLVING */
