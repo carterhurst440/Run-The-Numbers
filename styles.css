@@ -28613,15 +28613,25 @@ body.admin-sk-fs-lock { overflow: hidden; }
 /* ── FOF responsive: stack the challenger above the champion grid and
       let the portraits/fight stage breathe on phones. ── */
 @media (max-width: 720px) {
-  /* Banner collapses: hide the sprite + the floating corner chips (they would
-     overlap the now top-anchored info text), let the info flow, halve stats. */
-  .fof-banner-sprite { display: none; }
+  /* Banner goes full-width portrait: the opponent stands centered in their
+     arena, the name/kicker sit overlaid at the foot, and the stat line drops
+     directly below. Hide only the floating corner chips. */
   .fof-banner-chip { display: none; }
-  .fof-opp-stage { min-height: 0; }
-  .fof-opp-stage::after { background: linear-gradient(0deg, rgba(8,9,8,0.55) 0%, rgba(8,9,8,0) 60%); }
-  .fof-banner-info { position: relative; z-index: 2; right: auto; top: auto; max-width: none; padding: 18px 16px 4px; }
-  .fof-banner-name { font-size: 32px; }
-  .fof-banner-ability { max-width: none; }
+  .fof-opp-stage { min-height: 280px; }
+  .fof-opp-stage::after { background: linear-gradient(0deg, rgba(8,9,8,0.94) 0%, rgba(8,9,8,0) 58%); }
+  .fof-banner-sprite {
+    display: block; left: 50%; right: auto; transform: translateX(-50%);
+    bottom: 58px; max-width: none;
+    width: 152px; height: 196px;
+    background-size: 572px 286px; background-position: -67px -54px;
+  }
+  .fof-banner-info {
+    position: absolute; left: 0; right: 0; bottom: 0; top: auto;
+    max-width: none; padding: 0 16px 12px; text-align: center; z-index: 2;
+  }
+  .fof-banner-name { font-size: 30px; }
+  .fof-banner-turf { display: none; }
+  .fof-banner-ability { display: none; }
   .fof-statbar { grid-template-columns: repeat(4, 1fr); }
   .fof-hero-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
   .fof-wager-bar { grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -28631,7 +28641,12 @@ body.admin-sk-fs-lock { overflow: hidden; }
 @media (max-width: 480px) {
   .fof-hero-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
   .fof-hero-win { font-size: 16px; }
-  .fof-statbar { grid-template-columns: repeat(2, 1fr); }
+  /* Keep the opponent stat line compact (4×2) directly under the character. */
+  .fof-statbar { grid-template-columns: repeat(4, 1fr); }
+  .fof-statbar-cell { padding: 8px 6px; }
+  .fof-statbar-k { font-size: 8px; }
+  .fof-statbar-v { font-size: 12px; }
+  .fof-banner-sprite { width: 132px; height: 170px; background-size: 497px 248px; background-position: -58px -47px; bottom: 56px; }
   /* Cards: tighter padding + smaller stat values so 2-up fits a ~360px phone. */
   .fof-card-body { padding: 9px 8px 10px; gap: 7px; }
   .fof-card-scene { height: 104px; }
@@ -28849,7 +28864,13 @@ body.admin-sk-fs-lock { overflow: hidden; }
   font-size: 11px; line-height: 1.5;
   overflow-wrap: anywhere; word-break: break-word;
 }
-.fof-evt { padding: 2px 0; }
+.fof-evt {
+  padding: 2px 0;
+  /* Force-wrap each line directly (not via inheritance) so a long event can
+     never establish a wide min-content and stretch the battle column. */
+  min-width: 0; max-width: 100%;
+  overflow-wrap: anywhere; word-break: break-word; white-space: normal;
+}
 .fof-evt-miss { color: #555; }
 .fof-evt-hit { color: #b8b899; }
 .fof-evt-critical_hit { color: #d4a017; font-weight: 600; }
