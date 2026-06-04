@@ -32091,8 +32091,8 @@ function fofViewResolving() {
         </div>
       </div>
       <div class="fof-hp-bars">
-        <div class="fof-hp-row"><span>${heroId.toUpperCase()}</span><div class="fof-hp-track"><div class="fof-hp-fill fof-hp-hero" id="fof-hp-hero" style="width:100%"></div></div><span id="fof-hp-hero-val">—</span></div>
-        <div class="fof-hp-row"><span>${oppId.toUpperCase()}</span><div class="fof-hp-track"><div class="fof-hp-fill fof-hp-opp" id="fof-hp-opp" style="width:100%"></div></div><span id="fof-hp-opp-val">—</span></div>
+        <div class="fof-hp-row"><span>${heroId.toUpperCase()}</span><div class="fof-hp-track"><div class="fof-hp-ghost" id="fof-hp-hero-ghost"></div><div class="fof-hp-fill fof-hp-hero" id="fof-hp-hero" style="width:100%"></div></div><span id="fof-hp-hero-val">—</span></div>
+        <div class="fof-hp-row"><span>${oppId.toUpperCase()}</span><div class="fof-hp-track"><div class="fof-hp-ghost" id="fof-hp-opp-ghost"></div><div class="fof-hp-fill fof-hp-opp" id="fof-hp-opp" style="width:100%"></div></div><span id="fof-hp-opp-val">—</span></div>
       </div>
       <div class="fof-event-log" id="fof-event-log"></div>
     </div>
@@ -32375,9 +32375,37 @@ async function fofPlayEvents(sim) {
   const log = document.getElementById('fof-event-log');
   const heroHp = document.getElementById('fof-hp-hero');
   const oppHp = document.getElementById('fof-hp-opp');
+  const heroGhost = document.getElementById('fof-hp-hero-ghost');
+  const oppGhost = document.getElementById('fof-hp-opp-ghost');
   const heroHpVal = document.getElementById('fof-hp-hero-val');
   const oppHpVal = document.getElementById('fof-hp-opp-val');
   if (!log) return;
+  // Set a health bar to `newPct`. On a DROP, the "ghost" layer behind the fill
+  // is parked at the OLD width (so the lost slice shows in a faded colour),
+  // flashed, then eased down to the true value a beat later — a fighting-game
+  // style damage trail. Heals just track the fill with no trail.
+  const ghostTimers = [];
+  const setBarPct = (fillEl, ghostEl, newPct) => {
+    if (!fillEl) return;
+    const clamped = Math.max(0, Math.min(100, newPct));
+    const oldPct = parseFloat(fillEl.style.width) || 0;
+    fillEl.style.width = clamped + '%';
+    if (!ghostEl) return;
+    if (clamped < oldPct - 0.01) {
+      ghostEl.style.transition = 'none';
+      ghostEl.style.width = oldPct + '%';
+      ghostEl.classList.remove('is-hit');
+      void ghostEl.offsetWidth; // restart the flash
+      ghostEl.classList.add('is-hit');
+      ghostTimers.push(setTimeout(() => {
+        ghostEl.style.transition = 'width 0.45s cubic-bezier(0.4,0,0.2,1)';
+        ghostEl.style.width = clamped + '%';
+      }, 260));
+    } else {
+      ghostEl.style.transition = 'width 0.2s ease-out';
+      ghostEl.style.width = clamped + '%';
+    }
+  };
   const heroId = fofGame.pickedHero;
   const oppId = fofGame.opponent?.character;
   // Cache max HP from candidate stats (hero) and opponent stats.
@@ -32606,22 +32634,22 @@ async function fofPlayEvents(sim) {
       if (typeof ev.hpAfter === 'number') {
         if (ev.actorId === heroId && heroHp) {
           const pct = Math.max(0, Math.min(100, (ev.hpAfter / heroMax) * 100));
-          heroHp.style.width = pct + '%';
+          setBarPct(heroHp, heroGhost, pct);
           if (heroHpVal) heroHpVal.textContent = `${Math.max(0, Math.round(ev.hpAfter))}/${heroMax}`;
         } else if (ev.actorId === oppId && oppHp) {
           const pct = Math.max(0, Math.min(100, (ev.hpAfter / oppMax) * 100));
-          oppHp.style.width = pct + '%';
+          setBarPct(oppHp, oppGhost, pct);
           if (oppHpVal) oppHpVal.textContent = `${Math.max(0, Math.round(ev.hpAfter))}/${oppMax}`;
         }
       }
       if (typeof ev.targetHpAfter === 'number') {
         if (ev.targetId === heroId && heroHp) {
           const pct = Math.max(0, Math.min(100, (ev.targetHpAfter / heroMax) * 100));
-          heroHp.style.width = pct + '%';
+          setBarPct(heroHp, heroGhost, pct);
           if (heroHpVal) heroHpVal.textContent = `${Math.max(0, Math.round(ev.targetHpAfter))}/${heroMax}`;
         } else if (ev.targetId === oppId && oppHp) {
           const pct = Math.max(0, Math.min(100, (ev.targetHpAfter / oppMax) * 100));
-          oppHp.style.width = pct + '%';
+          setBarPct(oppHp, oppGhost, pct);
           if (oppHpVal) oppHpVal.textContent = `${Math.max(0, Math.round(ev.targetHpAfter))}/${oppMax}`;
         }
       }
@@ -37773,6 +37801,15 @@ function _renderHomeActivityChart(canvas, data) {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
+      // Bars sprout upward from the zero baseline instead of sweeping in from
+      // the left: freeze the horizontal animation and start both the top (y)
+      // and bottom (base) of every (stacked) segment at the y=0 pixel.
+      animation: { duration: 760, easing: "easeOutQuart" },
+      animations: {
+        x: { duration: 0 },
+        y: { from: (ctx) => ctx.chart.scales.y.getPixelForValue(0) },
+        base: { from: (ctx) => ctx.chart.scales.y.getPixelForValue(0) },
+      },
       plugins: {
         legend: { display: false },
         tooltip: {
