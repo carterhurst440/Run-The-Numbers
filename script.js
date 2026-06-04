@@ -32008,8 +32008,8 @@ function fofViewSelecting() {
           <span class="fof-sec-title">// THE OPPONENT</span>
           <span class="fof-sec-meta">${oppArena.name} \u00B7 HOME ARENA</span>
         </div>
-        <div class="fof-opp-banner${oppBg ? '' : ' fof-scene-empty'}" style="--fof-accent:${fofColor(opp.character)}${oppBg ? `;background-image:url('${oppBg}')` : ''}">
-          <div class="fof-opp-stage">
+        <div class="fof-opp-banner" style="--fof-accent:${fofColor(opp.character)}">
+          <div class="fof-opp-stage${oppBg ? '' : ' fof-scene-empty'}"${oppBg ? ` style="background-image:url('${oppBg}')"` : ''}>
             <span class="fof-banner-chip fof-banner-chip-l">// ${oppArena.name}</span>
             <span class="fof-banner-chip fof-banner-chip-r">YOU FIGHT \u2192</span>
             ${oppIdle ? `<span class="fof-banner-sprite" style="background-image:url('${oppIdle}')" role="img" aria-label="${opp.character}"></span>` : ''}
