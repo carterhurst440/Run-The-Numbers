@@ -17146,12 +17146,8 @@ async function insertGuess10DrawPlayRecords(rows = []) {
   return true;
 }
 
-// insertGameHandRecord removed — game_hands is deprecated.
 // RTN hands are written by start_rtn_hand/draw_rtn_card RPCs → rtn_live_hands.
 // G10 hands are written by the guess10 server RPC → guess10_live_hands.
-
-// logStandaloneGameHand removed — game_hands is deprecated.
-// logRunTheNumbersHandAndBets removed — game_hands is deprecated.
 
 function isRtnActiveHandConflict(error) {
   const message = String(error?.message || error?.details || error?.hint || "").toLowerCase();
@@ -21720,8 +21716,8 @@ async function fetchGameHandsRecords({
     return g10Records;
   };
 
-  // game_hands is deprecated — RTN sourced from rtn_live_hands,
-  // G10 from guess10_live_hands, CS from color_scheme_rounds.
+  // RTN sourced from rtn_live_hands, G10 from guess10_live_hands,
+  // CS from color_scheme_rounds.
   const allRecords = [];
 
   const fetchColorSchemeRoundsRecords = async () => {
@@ -21836,7 +21832,6 @@ function isShapeTraderRealizedPnlRecord(row) {
   return Number.isFinite(Number(rawNetProfit));
 }
 
-// fetchAdminGameHandsRecords removed — game_hands is deprecated.
 // All RTN hands are in rtn_live_hands, G10 in guess10_live_hands.
 
 async function fetchAdminShapeTraderTradeRecords({
@@ -22641,8 +22636,8 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
 
     if (hasSnapshots) {
       // Fetch all sources for today's live data.
-      // NOTE: fetchGameHandsRecords now reads rtn_live_hands (game_hands was dropped),
-      // so we do NOT include it here — todayRtnLive already covers that table.
+      // NOTE: todayRtnLive already covers rtn_live_hands, so we do NOT also
+      // pull RTN hands separately here.
       const [todayRtnLive, todayG10Live, todayTrades, todayCsRounds] = await Promise.all([
         (async () => {
           const { data } = await supabase
@@ -22779,8 +22774,8 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
         : historicalRows;
     } else {
       // No snapshots — build from raw records.
-      // NOTE: fetchGameHandsRecords now reads rtn_live_hands (game_hands was dropped),
-      // so we do NOT include it — allRtnLive already covers that table.
+      // NOTE: allRtnLive already covers rtn_live_hands, so we do NOT also
+      // pull RTN hands separately here.
       const [allRtnLive, allG10Live, allTrades, allCsRounds] = await Promise.all([
         (async () => {
           const { data } = await supabase
@@ -27179,7 +27174,7 @@ async function fetchHandReviewEntry(reviewId) {
     }
   }
 
-  // CS rounds live in color_scheme_rounds, not rtn_live_hands or game_hands
+  // CS rounds live in color_scheme_rounds, not rtn_live_hands.
   if (!handRow) {
     const { data: csRound, error: csErr } = await supabase
       .from('color_scheme_rounds')
