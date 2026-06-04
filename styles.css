@@ -25940,8 +25940,25 @@ body[data-ui="new"] .home-game-card-fof {
     box-shadow 240ms ease,
     background 240ms ease;
 }
-/* No accent-wash hover overlay for the FOF tile (keep the sprites visible) */
-body[data-ui="new"] .home-game-card-fof::before { display: none; }
+/* Accent-wash hover overlay (like the other tiles), kept subtle so the
+   sprites stay readable. Content zones sit above it via z-index below. */
+body[data-ui="new"] .home-game-card-fof::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--hgc-accent);
+  opacity: 0;
+  transition: opacity 260ms ease;
+  z-index: 2;
+  pointer-events: none;
+}
+body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked)::before { opacity: 0.18; }
+body[data-ui="new"] .home-game-card-fof .fof-tile-logo,
+body[data-ui="new"] .home-game-card-fof .fof-tile-sprites,
+body[data-ui="new"] .home-game-card-fof .fof-tile-wordmark {
+  position: relative;
+  z-index: 3;
+}
 body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked) {
   transform: translateY(-3px);
   background:
@@ -25957,6 +25974,24 @@ body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked) {
     0 0 0 2px color-mix(in oklab, var(--hgc-accent) 60%, transparent),
     0 0 38px -2px color-mix(in oklab, var(--hgc-accent) 90%, transparent),
     0 26px 56px -16px color-mix(in oklab, var(--hgc-accent) 75%, transparent);
+}
+
+/* Glitch — brief horizontal jitter + RGB text-shadow split that punches in
+   for a couple of frames every cycle, then settles back to the violet glow. */
+@keyframes fof-glitch {
+  0%, 88%, 100% { transform: translate(0, 0); }
+  89% { transform: translate(-1.5px, 0.5px); }
+  90% { transform: translate(1.5px, -0.5px); }
+  92% { transform: translate(-1px, 0); }
+  94% { transform: translate(1px, 0.5px); }
+}
+@keyframes fof-glitch-shadow {
+  0%, 88%, 100% {
+    text-shadow: 0 0 9px color-mix(in oklab, #b07bff 50%, transparent), 0 0 2px #b07bff;
+  }
+  89% { text-shadow: -2px 0 #00e5ff, 2px 0 #ff00d4, 0 0 9px color-mix(in oklab, #b07bff 50%, transparent); }
+  91% { text-shadow: 2px 0 #00e5ff, -2px 0 #ff00d4, 0 0 9px color-mix(in oklab, #b07bff 50%, transparent); }
+  93% { text-shadow: -1px 0 #00e5ff, 1px 0 #ff00d4, 0 0 9px color-mix(in oklab, #b07bff 50%, transparent); }
 }
 
 /* Zone 1 — F⚔F logo */
@@ -25975,6 +26010,11 @@ body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked) {
   color: #b07bff;
   line-height: 1;
   text-shadow: 0 0 9px color-mix(in oklab, #b07bff 50%, transparent), 0 0 2px #b07bff;
+  animation: fof-glitch 5.5s steps(1, end) infinite, fof-glitch-shadow 5.5s steps(1, end) infinite;
+}
+.fof-tile-logo-letter:nth-child(3) { animation-delay: 0.4s, 0.4s; }
+body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked) .fof-tile-logo-letter {
+  animation-duration: 1.6s, 1.6s;
 }
 .fof-tile-logo-sword {
   display: block;
@@ -26014,6 +26054,20 @@ body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked) {
   text-align: center;
   padding: 6px 0 13px;
   text-shadow: 0 0 10px color-mix(in oklab, #b07bff 55%, transparent), 0 0 2px #b07bff;
+  animation: fof-glitch 5.5s steps(1, end) infinite, fof-glitch-shadow 5.5s steps(1, end) infinite;
+  animation-delay: 0.8s, 0.8s;
+}
+body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked) .fof-tile-wordmark {
+  animation-duration: 1.6s, 1.6s;
+  animation-delay: 0s, 0s;
+}
+
+/* Respect reduced-motion: no jitter, keep the steady violet glow */
+@media (prefers-reduced-motion: reduce) {
+  .fof-tile-logo-letter,
+  .fof-tile-wordmark {
+    animation: none;
+  }
 }
 
 /* Narrow phones: shrink the sprite row so all 8 champions fit on one line */
@@ -28336,34 +28390,42 @@ body.admin-sk-fs-lock { overflow: hidden; }
   background: rgba(6,7,6,0.55);
 }
 .fof-banner-chip-l { left: 14px; }
-.fof-banner-chip-r { right: 14px; color: #e08a5a; border-color: #7a3f26; }
+.fof-banner-chip-r {
+  right: 14px;
+  color: var(--fof-accent, #e08a5a);
+  border-color: color-mix(in oklab, var(--fof-accent, #e08a5a) 50%, transparent);
+}
 .fof-banner-sprite {
   position: absolute; left: 4%; bottom: 10px; z-index: 1;
-  width: 230px; height: 230px; max-width: 42%;
-  object-fit: cover; object-position: 16% center; image-rendering: pixelated;
+  width: 170px; height: 220px; max-width: 42%;
+  background-repeat: no-repeat; background-size: 640px 320px; background-position: -75px -60px;
+  image-rendering: pixelated;
   filter: drop-shadow(0 10px 24px rgba(0,0,0,0.75));
 }
 .fof-banner-info {
   position: absolute; right: 26px; top: 30px; z-index: 2;
   max-width: 56%; text-align: left;
 }
-.fof-banner-kicker { font-size: 10px; letter-spacing: 2px; color: #d2603a; margin-bottom: 4px; }
+.fof-banner-kicker { font-size: 10px; letter-spacing: 2px; color: var(--fof-accent, #d2603a); margin-bottom: 4px; }
 .fof-banner-name {
   font-size: 44px; line-height: 1; letter-spacing: 3px; font-weight: 700;
-  color: #e0703f; text-shadow: 0 2px 18px rgba(210,96,58,0.4);
+  color: var(--fof-accent, #e0703f);
+  text-shadow: 0 2px 18px color-mix(in oklab, var(--fof-accent, #e0703f) 42%, transparent);
 }
 .fof-banner-turf { font-size: 10px; letter-spacing: 1.5px; color: #8a8a7c; margin-top: 10px; }
 .fof-banner-ability {
   margin-top: 16px; max-width: 420px; padding: 10px 12px;
-  border: 1px solid #4a2c1c; background: rgba(40,18,10,0.45);
+  border: 1px solid color-mix(in oklab, var(--fof-accent, #4a2c1c) 45%, #1a1a1a);
+  background: color-mix(in oklab, var(--fof-accent, #2a1109) 14%, rgba(6,7,6,0.55));
 }
-.fof-banner-ability-name { font-size: 11px; letter-spacing: 1px; color: #e0703f; font-weight: 700; }
+.fof-banner-ability-name { font-size: 11px; letter-spacing: 1px; color: var(--fof-accent, #e0703f); font-weight: 700; }
 .fof-banner-ability-desc { font-size: 11px; line-height: 1.5; color: #b8b0a6; margin-top: 4px; }
 
 /* Inline 8-cell stat bar at the foot of the banner */
 .fof-statbar {
   position: relative; z-index: 2; display: grid; grid-template-columns: repeat(8, 1fr);
-  background: rgba(6,7,6,0.90); border-top: 1px solid #242424;
+  background: rgba(6,7,6,0.90);
+  border-top: 1px solid color-mix(in oklab, var(--fof-accent, #242424) 45%, #1a1a1a);
 }
 .fof-statbar-cell {
   padding: 9px 12px; border-left: 1px solid #1b1b1b;
@@ -28378,15 +28440,19 @@ body.admin-sk-fs-lock { overflow: hidden; }
   display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px;
 }
 .fof-hero-card {
+  position: relative;
   display: flex; flex-direction: column; text-align: left; padding: 0;
   border: 1px solid #242424; background: #0b0c0b; color: inherit;
-  font-family: inherit; cursor: pointer; overflow: hidden;
+  font-family: inherit; cursor: pointer;
   transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
 }
-.fof-hero-card:hover { border-color: #d2603a; transform: translateY(-2px); }
+.fof-hero-card:hover { border-color: var(--fof-accent, #d2603a); transform: translateY(-2px); }
 .fof-hero-card.picked {
-  border-color: #cfe3ff;
-  box-shadow: 0 0 0 1px #cfe3ff inset, 0 0 20px -6px rgba(207,227,255,0.8);
+  border-color: var(--fof-accent, #cfe3ff);
+  box-shadow:
+    inset 0 0 0 1px var(--fof-accent, #cfe3ff),
+    0 0 0 2px color-mix(in oklab, var(--fof-accent, #cfe3ff) 38%, transparent),
+    0 0 26px -4px color-mix(in oklab, var(--fof-accent, #cfe3ff) 60%, transparent);
 }
 .fof-card-scene {
   position: relative; height: 122px; overflow: hidden;
@@ -28407,11 +28473,12 @@ body.admin-sk-fs-lock { overflow: hidden; }
 .fof-card-weather { position: absolute; right: 8px; top: 6px; z-index: 3; font-size: 13px; color: #e6e6c8; opacity: 0.85; }
 .fof-card-picked {
   position: absolute; right: 8px; top: 7px; z-index: 4; font-size: 9px; letter-spacing: 0.5px;
-  font-weight: 700; color: #0b0c0b; background: #cfe3ff; padding: 2px 6px;
+  font-weight: 700; color: #0b0c0b; background: var(--fof-accent, #cfe3ff); padding: 2px 6px;
 }
 .fof-card-sprite {
   position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); z-index: 1;
-  width: 96px; height: 120px; object-fit: cover; object-position: 16% center;
+  width: 85px; height: 110px;
+  background-repeat: no-repeat; background-size: 320px 160px; background-position: -37px -30px;
   image-rendering: pixelated; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.6));
 }
 .fof-card-body { padding: 10px 11px 12px; display: flex; flex-direction: column; gap: 9px; }
@@ -28421,11 +28488,30 @@ body.admin-sk-fs-lock { overflow: hidden; }
 .fof-card-sub { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .fof-hero-payout { font-size: 10px; color: #888; }
 .fof-ability-tag {
-  font-size: 9px; letter-spacing: 0.5px; color: #cdb3ff;
-  border: 1px solid #4a3a6a; background: rgba(120,90,200,0.12); padding: 2px 6px;
-  white-space: nowrap;
+  position: relative;
+  font-size: 9px; letter-spacing: 0.5px;
+  color: var(--fof-accent, #cdb3ff);
+  border: 1px solid color-mix(in oklab, var(--fof-accent, #cdb3ff) 45%, transparent);
+  background: color-mix(in oklab, var(--fof-accent, #cdb3ff) 12%, transparent);
+  padding: 2px 6px; white-space: nowrap;
 }
-.fof-statgrid { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid #1c1c1c; }
+.fof-ability-tag[data-tip] { cursor: help; }
+.fof-ability-tag[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 8px); right: 0; z-index: 30;
+  width: max-content; max-width: 220px; white-space: normal;
+  font-size: 10px; line-height: 1.45; letter-spacing: 0.3px;
+  color: #e8e8d2; text-align: left;
+  padding: 7px 9px;
+  background: #0a0b0a;
+  border: 1px solid color-mix(in oklab, var(--fof-accent, #cdb3ff) 55%, #2a2a2a);
+  box-shadow: 0 10px 26px -8px rgba(0,0,0,0.85);
+  pointer-events: none;
+}
+.fof-statgrid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  border: 1px solid color-mix(in oklab, var(--fof-accent, #1c1c1c) 26%, #161616);
+}
 .fof-sg-cell {
   padding: 5px 6px; border-right: 1px solid #161616; border-bottom: 1px solid #161616;
   display: flex; flex-direction: column; gap: 2px;
@@ -28433,7 +28519,7 @@ body.admin-sk-fs-lock { overflow: hidden; }
 .fof-sg-cell:nth-child(4n) { border-right: none; }
 .fof-sg-cell:nth-child(n+5) { border-bottom: none; }
 .fof-sg-k { font-size: 8px; letter-spacing: 0.5px; color: #6f6f6f; text-transform: uppercase; }
-.fof-sg-v { font-size: 11px; color: #d6d6c4; }
+.fof-sg-v { font-size: 11px; color: var(--fof-accent, #d6d6c4); }
 
 .fof-good { color: #5fbf91; }
 .fof-mid  { color: #d4a017; }

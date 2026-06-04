@@ -31872,6 +31872,21 @@ function fofArena(character) {
   return FOF_ARENAS[character] || { name: 'UNKNOWN REACH', glyph: '\u25C7' };
 }
 
+// Each champion's primary accent color — drives its stat panel and the
+// selection highlight (mirrors the home-tile accent treatment). Client-side
+// only; no DB.
+const FOF_COLORS = {
+  assassin:  '#7ec850',
+  berserker: '#ff6a3d',
+  knight:    '#8fb8e0',
+  mage:      '#9b7bff',
+  paladin:   '#ffce54',
+  ranger:    '#4fc98a',
+  rogue:     '#c45cff',
+  warlock:   '#e0533f',
+};
+function fofColor(character) { return FOF_COLORS[character] || '#d4a017'; }
+
 // Inline 8-cell stat bar used across the bottom of the opponent banner.
 function fofStatBar(stats) {
   const pct = (v) => `${Math.round(Number(v) * 100)}%`;
@@ -31910,7 +31925,14 @@ function fofStatGrid(stats) {
 function fofAbilityTag(abilities) {
   if (!Array.isArray(abilities) || abilities.length === 0) return '';
   const ab = abilities[0];
-  return `<span class="fof-ability-tag">${ab.name || ab.id}</span>`;
+  const label = ab.name || ab.id || '';
+  const desc = (ab.description || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const tip = desc ? ` data-tip="${desc}"` : '';
+  return `<span class="fof-ability-tag"${tip}>${label}</span>`;
 }
 
 // Live-refresh the dynamic fields in the bottom wager bar without a full
@@ -31947,13 +31969,13 @@ function fofViewSelecting() {
     const cbg = fofClipUrl(c.character, 'BACKGROUND');
     const cidle = fofClipUrl(c.character, 'IDLE');
     return `
-      <button type="button" class="fof-hero-card ${isPicked ? 'picked' : ''}" data-hero="${c.character}">
+      <button type="button" class="fof-hero-card ${isPicked ? 'picked' : ''}" data-hero="${c.character}" style="--fof-accent:${fofColor(c.character)}">
         <div class="fof-card-scene${cbg ? '' : ' fof-scene-empty'}"${cbg ? ` style="background-image:url('${cbg}')"` : ''}>
           <span class="fof-card-arena">// ${arena.name}</span>
           ${isPicked
             ? '<span class="fof-card-picked">PICKED \u2713</span>'
             : `<span class="fof-card-weather">${arena.glyph}</span>`}
-          ${cidle ? `<img class="fof-card-sprite" src="${cidle}" alt="${c.character}" loading="lazy" decoding="async">` : ''}
+          ${cidle ? `<span class="fof-card-sprite" style="background-image:url('${cidle}')" role="img" aria-label="${c.character}"></span>` : ''}
         </div>
         <div class="fof-card-body">
           <div class="fof-card-headline">
@@ -31986,11 +32008,11 @@ function fofViewSelecting() {
           <span class="fof-sec-title">// THE OPPONENT</span>
           <span class="fof-sec-meta">${oppArena.name} \u00B7 HOME ARENA</span>
         </div>
-        <div class="fof-opp-banner${oppBg ? '' : ' fof-scene-empty'}"${oppBg ? ` style="background-image:url('${oppBg}')"` : ''}>
+        <div class="fof-opp-banner${oppBg ? '' : ' fof-scene-empty'}" style="--fof-accent:${fofColor(opp.character)}${oppBg ? `;background-image:url('${oppBg}')` : ''}">
           <div class="fof-opp-stage">
             <span class="fof-banner-chip fof-banner-chip-l">// ${oppArena.name}</span>
             <span class="fof-banner-chip fof-banner-chip-r">YOU FIGHT \u2192</span>
-            ${oppIdle ? `<img class="fof-banner-sprite" src="${oppIdle}" alt="${opp.character}">` : ''}
+            ${oppIdle ? `<span class="fof-banner-sprite" style="background-image:url('${oppIdle}')" role="img" aria-label="${opp.character}"></span>` : ''}
             <div class="fof-banner-info">
               <div class="fof-banner-kicker">DEFENDING CHAMPION</div>
               <div class="fof-banner-name">${opp.name.toUpperCase()}</div>
