@@ -32706,10 +32706,30 @@ async function fofPlayEvents(sim) {
     // without a redundant "Y took damage" echo on the next line.
     const LOG_SUPPRESS = new Set(['TAKE_DAMAGE', 'TAKE_CRITICAL_DAMAGE', 'DODGE']);
     if (!LOG_SUPPRESS.has(ev.type)) {
+      // Colour each line from the HERO's point of view:
+      //   bad (red)     — something that hurts the hero (opponent lands a hit,
+      //                   or the hero is defeated / the opponent wins)
+      //   good (green)  — something that helps the hero (hero lands a hit or
+      //                   heals, the opponent is defeated / the hero wins)
+      //   special (yellow) — any SPECIAL_TRIGGER, by whoever
+      //   neutral (grey)  — misses, draws, anything with no swing
+      const logTone = (() => {
+        if (ev.type === 'SPECIAL_TRIGGER') return 'special';
+        const byHero = ev.actorId === heroId;
+        const byOpp  = ev.actorId === oppId;
+        switch (ev.type) {
+          case 'HIT':
+          case 'CRITICAL_HIT': return byOpp ? 'bad' : (byHero ? 'good' : 'neutral');
+          case 'HEAL':         return byHero ? 'good' : 'neutral';
+          case 'VICTORY':      return byHero ? 'good' : 'bad';
+          case 'DEFEAT':       return byHero ? 'bad' : 'good';
+          default:             return 'neutral'; // MISS, DRAW, …
+        }
+      })();
       // Prepend the newest entry so the most recent (most relevant) beat stays
       // pinned at the top and visible without scrolling; older events flow down.
       const div = document.createElement('div');
-      div.className = `fof-evt fof-evt-${ev.type.toLowerCase()}`;
+      div.className = `fof-evt fof-evt-${ev.type.toLowerCase()} fof-evt-tone-${logTone}`;
       div.textContent = `[${Number(ev.time).toFixed(2)}s] ${ev.message || ev.type}`;
       log.prepend(div);
       log.scrollTop = 0;

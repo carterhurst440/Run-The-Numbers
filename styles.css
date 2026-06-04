@@ -28967,6 +28967,13 @@ body.admin-sk-fs-lock { overflow: hidden; }
 .fof-evt-defeat { color: #c33; font-weight: 700; }
 .fof-evt-victory { color: #d4a017; font-weight: 700; }
 .fof-evt-draw { color: #888; font-weight: 700; }
+/* Hero-perspective tone colours. Defined after the per-type rules so they win
+   on equal specificity (the per-type rules still supply weight emphasis):
+   red = hurts the hero, green = helps the hero, yellow = special, grey = neutral. */
+.fof-evt-tone-bad     { color: #e05a4f; }
+.fof-evt-tone-good    { color: #56c08a; }
+.fof-evt-tone-special { color: #e7c14a; }
+.fof-evt-tone-neutral { color: #8a8a78; }
 
 /* Post-fight results — slides in below the frozen battle scene while the
    fighters hold their VICTORY/DEFEAT pose and the event log stays put. */
