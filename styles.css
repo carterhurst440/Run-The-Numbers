@@ -21146,6 +21146,11 @@ body.state-open .auth-vault-grant .gline::after {
   border-color: rgba(200, 255, 0, 0.35);
 }
 
+.hph-badge-static {
+  display: inline-block;
+  cursor: default;
+}
+
 /* ---- STAT BLOCKS ---- */
 .home-stat-blocks {
   display: grid;

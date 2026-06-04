@@ -37059,6 +37059,8 @@ function renderHomePlayerHero() {
   const contestWins = Math.max(0, Math.round(Number(currentProfile.contest_wins || 0)));
   const rankTier = Math.max(1, Math.round(Number(currentProfile.current_rank_tier || currentProfile.current_rank || 1)));
   const rankName = currentRankState?.currentRank?.name || `Tier ${rankTier}`;
+  const totalPlays = Math.max(0, Math.round(Number(currentProfile.total_progress_events || 0)));
+  const fmtCount = (n) => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(n);
 
   const badgesEl = document.getElementById("hph-badges");
   if (badgesEl) {
@@ -37066,9 +37068,12 @@ function renderHomePlayerHero() {
       { text: rankName.toUpperCase(), accent: true, action: "open-rank-modal", label: "View full rank ladder" },
       { text: `TIER ${rankTier}`, action: "open-rank-modal", label: "View full rank ladder" },
       { text: `${contestWins} WIN${contestWins === 1 ? "" : "S"}`, action: "open-wins-modal", label: "View contest awards" },
+      { text: `${fmtCount(totalPlays)} PLAY${totalPlays === 1 ? "" : "S"}`, static: true, label: "Total qualifying plays across all games" },
     ];
     badgesEl.innerHTML = badges.map(b =>
-      `<button type="button" class="hph-badge${b.accent ? " hph-badge-accent" : ""} hph-badge-btn" data-action="${b.action}" aria-label="${b.label}">${escapeAssistantHtml(b.text)}</button>`
+      b.static
+        ? `<span class="hph-badge hph-badge-static" title="${b.label}" aria-label="${b.label}">${escapeAssistantHtml(b.text)}</span>`
+        : `<button type="button" class="hph-badge${b.accent ? " hph-badge-accent" : ""} hph-badge-btn" data-action="${b.action}" aria-label="${b.label}">${escapeAssistantHtml(b.text)}</button>`
     ).join("");
   }
   homeGlitchSection('hero');
