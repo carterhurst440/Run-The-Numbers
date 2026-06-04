@@ -37654,14 +37654,15 @@ async function drawHomeActivityChart(force = false) {
     const cutoff = cutoffDate.toISOString();
     const uid = currentUser.id;
 
-    const [rtn, g10, st, ryb] = await Promise.all([
+    const [rtn, g10, st, ryb, fof] = await Promise.all([
       supabase.from("rtn_live_hands").select("started_at").eq("user_id", uid).neq("status", "active").gte("started_at", cutoff),
       supabase.from("guess10_live_hands").select("started_at").eq("user_id", uid).neq("status", "active").gte("started_at", cutoff),
       supabase.from("shape_trader_trades").select("executed_at").eq("user_id", uid).gte("executed_at", cutoff),
       supabase.from("color_scheme_rounds").select("created_at").eq("user_id", uid).gte("created_at", cutoff),
+      supabase.from("fate_or_fortune_rounds").select("created_at").eq("user_id", uid).eq("status", "resolved").gte("created_at", cutoff),
     ]);
-    [rtn, g10, st, ryb].forEach((r, i) => {
-      if (r?.error) console.error(`[RTN] home activity query error (${["rtn","g10","st","ryb"][i]}):`, r.error.message);
+    [rtn, g10, st, ryb, fof].forEach((r, i) => {
+      if (r?.error) console.error(`[RTN] home activity query error (${["rtn","g10","st","ryb","fof"][i]}):`, r.error.message);
     });
 
     // Bucket by LOCAL date so "today" matches the player's clock.
@@ -37683,6 +37684,7 @@ async function drawHomeActivityChart(force = false) {
     const g10C = bucket(g10?.data, "started_at");
     const stC = bucket(st?.data, "executed_at");
     const rybC = bucket(ryb?.data, "created_at");
+    const fofC = bucket(fof?.data, "created_at");
 
     const labels = [];
     const keys = [];
@@ -37701,6 +37703,7 @@ async function drawHomeActivityChart(force = false) {
         { label: "G10 hands",  data: keys.map((k) => g10C[k] || 0), color: "#00e5ff" },
         { label: "ST trades",  data: keys.map((k) => stC[k]  || 0), color: "#c8ff00" },
         { label: "RYB rounds", data: keys.map((k) => rybC[k] || 0), color: "#ff4444" },
+        { label: "FOF rounds", data: keys.map((k) => fofC[k] || 0), color: "#b07bff" },
       ],
     };
     _renderHomeActivityChart(canvas, _homeActivityData);
