@@ -32648,6 +32648,9 @@ async function fofPlayEvents(sim) {
         // the follow-up attack. The target keeps idling.
         playClip(ev.actorId, specialActionFor(ev));
         setPosture(ev.actorId, 'attacking');
+        // Pop a "SPECIAL ACTIVATED" banner over the actor announcing the
+        // ability by name (e.g. EXECUTION / HOLY LIGHT) so the moment reads.
+        showFloatLabel(ev.actorId, `★ ${specialLabelFor(ev)} ★`, 'special-activated');
         break;
       case 'HIT':
         playClip(ev.actorId, ev.type);
@@ -32694,13 +32697,23 @@ async function fofPlayEvents(sim) {
         break;
     }
 
-    // Prepend the newest entry so the most recent (most relevant) beat stays
-    // pinned at the top and visible without scrolling; older events flow down.
-    const div = document.createElement('div');
-    div.className = `fof-evt fof-evt-${ev.type.toLowerCase()}`;
-    div.textContent = `[${Number(ev.time).toFixed(2)}s] ${ev.message || ev.type}`;
-    log.prepend(div);
-    log.scrollTop = 0;
+    // Event log: one line per action, from the ACTING side's perspective.
+    // The simulator emits an attacker beat (HIT / MISS / CRITICAL_HIT /
+    // SPECIAL_TRIGGER) alongside the target's reaction (TAKE_DAMAGE /
+    // TAKE_CRITICAL_DAMAGE / DODGE). The reaction restates damage already
+    // implied by the attacker line, so we suppress it here — the log reads
+    // "X attacked", "X missed", "X triggered special", "X was defeated"
+    // without a redundant "Y took damage" echo on the next line.
+    const LOG_SUPPRESS = new Set(['TAKE_DAMAGE', 'TAKE_CRITICAL_DAMAGE', 'DODGE']);
+    if (!LOG_SUPPRESS.has(ev.type)) {
+      // Prepend the newest entry so the most recent (most relevant) beat stays
+      // pinned at the top and visible without scrolling; older events flow down.
+      const div = document.createElement('div');
+      div.className = `fof-evt fof-evt-${ev.type.toLowerCase()}`;
+      div.textContent = `[${Number(ev.time).toFixed(2)}s] ${ev.message || ev.type}`;
+      log.prepend(div);
+      log.scrollTop = 0;
+    }
   };
 
   // Longest one-shot clip an event will play — used to give each clip

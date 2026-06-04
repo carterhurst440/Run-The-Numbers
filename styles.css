@@ -28720,6 +28720,7 @@ body.admin-sk-fs-lock { overflow: hidden; }
   .fof-float-miss    { font-size: 16px; }
   .fof-float-crit    { font-size: 22px; }
   .fof-float-special { font-size: 14px; letter-spacing: 1px; }
+  .fof-float-special-activated { font-size: 14px; letter-spacing: 1px; }
   .fof-float-victory { font-size: 24px; }
   .fof-float-defeat  { font-size: 22px; }
   .fof-result-victory { font-size: 38px; }
@@ -28870,6 +28871,17 @@ body.admin-sk-fs-lock { overflow: hidden; }
 .fof-float-miss    { color: #d2d2c4; font-size: 22px; }
 .fof-float-crit    { color: #ffd23f; font-size: 30px; }
 .fof-float-special { color: #5fd0a8; font-size: 19px; }
+.fof-float-special-activated {
+  color: #c79bff;
+  font-size: 18px;
+  letter-spacing: 2px;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 10px rgba(176,123,255,0.85), 0 0 3px rgba(0,0,0,0.9);
+  animation: fofSpecialPulse 0.9s ease-in-out infinite;
+}
+@keyframes fofSpecialPulse {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.45); }
+}
 .fof-float-victory { color: #ffd23f; font-size: 34px; top: 16%; letter-spacing: 3px; }
 .fof-float-defeat  { color: #ff5c5c; font-size: 30px; top: 16%; letter-spacing: 3px; }
 /* End-of-fight result: a single banner centered on the stage, reflecting
