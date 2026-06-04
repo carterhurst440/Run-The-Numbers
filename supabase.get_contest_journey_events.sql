@@ -61,23 +61,6 @@ as $$
 
   union all
 
-  -- Legacy / client-mode hands from game_hands
-  -- Includes G10 legacy entries; excludes RTN (has rtn_live_hands)
-  -- and CS (has color_scheme_rounds).
-  select
-    id::text               as event_id,
-    created_at,
-    new_account_value,
-    coalesce(game_id, 'game_001') as game_key,
-    'hand'                 as source_type
-  from public.game_hands
-  where user_id    = p_user_id
-    and contest_id = p_contest_id
-    and coalesce(game_id, 'game_001') not in ('game_001', 'game_004')
-    and new_account_value is not null
-
-  union all
-
   -- Shape Trader trades
   select
     id::text               as event_id,
@@ -103,6 +86,21 @@ as $$
   where user_id    = p_user_id
     and contest_id = p_contest_id
     and status     = 'completed'
+    and new_account_value is not null
+
+  union all
+
+  -- Fate or Fortune resolved rounds
+  select
+    id::text               as event_id,
+    created_at,
+    new_account_value,
+    'game_005'             as game_key,
+    'round'                as source_type
+  from public.fate_or_fortune_rounds
+  where user_id    = p_user_id
+    and contest_id = p_contest_id
+    and status     = 'resolved'
     and new_account_value is not null
 
   order by created_at asc;

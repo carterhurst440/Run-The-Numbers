@@ -5,6 +5,13 @@
 --
 -- All trust-sensitive math (win %, payout, sim outcome) is computed
 -- here — the client passes only the chosen hero and wager.
+--
+-- Contest-aware: when the round carries a contest_id (stamped by
+-- fof_start_round in contest account mode), the wager/payout settle
+-- against public.contest_entries.current_credits for that contest, and
+-- new_account_value is the post-round contest balance — so the value
+-- plots on the cross-player contest journey chart. Otherwise it settles
+-- against public.profiles.credits as before.
 
 CREATE OR REPLACE FUNCTION public.fof_lock_round(
   p_round_id UUID,
@@ -26,10 +33,17 @@ DECLARE
   v_total_returned NUMERIC;
   v_pre_balance    NUMERIC;
   v_new_balance    NUMERIC;
+  v_is_contest     BOOLEAN;
+  v_entry          public.contest_entries%ROWTYPE;
 BEGIN
   v_user_id := auth.uid();
   IF v_user_id IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
   IF p_wager IS NULL OR p_wager <= 0 THEN RAISE EXCEPTION 'Wager must be > 0'; END IF;
+
+  -- Permit the balance write below to pass the
+  -- guard_profile_sensitive_fields trigger (same pattern as cs_settle_round /
+  -- guess10_apply_balance_delta). Transaction-local (third arg true).
+  PERFORM set_config('rtn.allow_sensitive_balance_write', '1', true);
 
   -- Lock the round row for the duration of this txn
   SELECT * INTO v_round
@@ -41,6 +55,8 @@ BEGIN
   IF v_round.user_id <> v_user_id THEN RAISE EXCEPTION 'Not your round'; END IF;
   IF v_round.status <> 'pending' THEN RAISE EXCEPTION 'Round already resolved'; END IF;
   IF v_round.opponent_character = p_hero THEN RAISE EXCEPTION 'Hero cannot equal opponent'; END IF;
+
+  v_is_contest := v_round.contest_id IS NOT NULL;
 
   -- Validate hero exists
   SELECT * INTO v_hero_row
@@ -68,15 +84,29 @@ BEGIN
     RAISE EXCEPTION 'Odds not computed for % vs % — run Master Matrix first', p_hero, v_round.opponent_character;
   END IF;
 
-  -- Lock the profile row, validate balance
-  SELECT credits INTO v_pre_balance
-  FROM public.profiles
-  WHERE id = v_user_id
-  FOR UPDATE;
+  -- Lock the appropriate balance row and validate funds
+  IF v_is_contest THEN
+    SELECT * INTO v_entry
+    FROM public.contest_entries
+    WHERE contest_id = v_round.contest_id
+      AND user_id    = v_user_id
+    FOR UPDATE;
 
-  IF v_pre_balance IS NULL THEN RAISE EXCEPTION 'User profile not found'; END IF;
-  IF v_pre_balance < p_wager THEN
-    RAISE EXCEPTION 'Insufficient credits (have %, need %)', v_pre_balance, p_wager;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Contest entry not found'; END IF;
+    v_pre_balance := round(coalesce(v_entry.current_credits, 0)::numeric, 2);
+    IF v_pre_balance < p_wager THEN
+      RAISE EXCEPTION 'Insufficient contest credits (have %, need %)', v_pre_balance, p_wager;
+    END IF;
+  ELSE
+    SELECT credits INTO v_pre_balance
+    FROM public.profiles
+    WHERE id = v_user_id
+    FOR UPDATE;
+
+    IF v_pre_balance IS NULL THEN RAISE EXCEPTION 'User profile not found'; END IF;
+    IF v_pre_balance < p_wager THEN
+      RAISE EXCEPTION 'Insufficient credits (have %, need %)', v_pre_balance, p_wager;
+    END IF;
   END IF;
 
   -- Run the authoritative simulation. Hero is A so the event log
@@ -95,12 +125,20 @@ BEGIN
     v_total_returned := 0;                          -- forfeit
   END IF;
 
-  v_new_balance := v_pre_balance - p_wager + v_total_returned;
+  v_new_balance := round((v_pre_balance - p_wager + v_total_returned)::numeric, 2);
 
-  -- Settle the profile balance
-  UPDATE public.profiles
-  SET credits = v_new_balance
-  WHERE id = v_user_id;
+  -- Settle the balance against the correct ledger
+  IF v_is_contest THEN
+    UPDATE public.contest_entries
+    SET current_credits = greatest(v_new_balance, 0),
+        updated_at      = timezone('utc', now())
+    WHERE contest_id = v_round.contest_id
+      AND user_id    = v_user_id;
+  ELSE
+    UPDATE public.profiles
+    SET credits = v_new_balance
+    WHERE id = v_user_id;
+  END IF;
 
   -- Persist the resolved round
   UPDATE public.fate_or_fortune_rounds
@@ -127,6 +165,8 @@ BEGIN
     'net_profit', v_total_returned - p_wager,
     'pre_balance', v_pre_balance,
     'new_balance', v_new_balance,
+    'is_contest', v_is_contest,
+    'contest_id', v_round.contest_id,
     'round_details', v_sim_result
   );
 END;

@@ -13618,7 +13618,8 @@ async function fetchContestJourneyEventStream(contestId, userId) {
       [GAME_KEYS.RUN_THE_NUMBERS]: 0,
       [GAME_KEYS.GUESS_10]: 0,
       [GAME_KEYS.SHAPE_TRADERS]: 0,
-      [GAME_KEYS.COLOR_SCHEME]: 0
+      [GAME_KEYS.COLOR_SCHEME]: 0,
+      [GAME_KEYS.FATE_OR_FORTUNE]: 0
     };
     return eventStream.map((event, index) => {
       gameCounters[event.gameKey] = (gameCounters[event.gameKey] || 0) + 1;
@@ -13631,6 +13632,8 @@ async function fetchContestJourneyEventStream(contestId, userId) {
         label = `ST ${gameCounters[event.gameKey]}`;
       } else if (event.gameKey === GAME_KEYS.COLOR_SCHEME) {
         label = `RYB ${gameCounters[event.gameKey]}`;
+      } else if (event.gameKey === GAME_KEYS.FATE_OR_FORTUNE) {
+        label = `FOF ${gameCounters[event.gameKey]}`;
       }
       return { label, value: event.value, created_at: event.created_at };
     });
@@ -13778,6 +13781,28 @@ async function fetchContestJourneyEventStream(contestId, userId) {
     csPage += 1;
   }
 
+  const fofRoundRows = [];
+  let fofPage = 0;
+  let hasMoreFofRounds = true;
+  while (hasMoreFofRounds) {
+    const { data, error } = await supabase
+      .from("fate_or_fortune_rounds")
+      .select("id, created_at, new_account_value")
+      .eq("user_id", userId)
+      .eq("contest_id", contestId)
+      .eq("status", "resolved")
+      .order("created_at", { ascending: true })
+      .range(fofPage * pageSize, (fofPage + 1) * pageSize - 1);
+    if (error) {
+      if (isMissingRelationError(error, "fate_or_fortune_rounds")) break;
+      throw error;
+    }
+    const rows = Array.isArray(data) ? data : [];
+    fofRoundRows.push(...rows);
+    hasMoreFofRounds = rows.length === pageSize;
+    fofPage += 1;
+  }
+
   const eventStream = sortStream([
     ...rtnHandRows.map((row) => ({
       id: String(row?.id || ""),
@@ -13819,6 +13844,14 @@ async function fetchContestJourneyEventStream(contestId, userId) {
       created_at: row?.created_at || null,
       value: normalizeJourneyValue(row?.new_account_value),
       gameKey: GAME_KEYS.COLOR_SCHEME
+    })),
+    ...fofRoundRows.map((row) => ({
+      id: String(row?.id || ""),
+      sourceType: "round",
+      sortWeight: 0,
+      created_at: row?.created_at || null,
+      value: normalizeJourneyValue(row?.new_account_value),
+      gameKey: GAME_KEYS.FATE_OR_FORTUNE
     }))
   ]);
 
@@ -31716,10 +31749,42 @@ async function fofRouteOpen() {
   }
 }
 
+// Spendable balance for FOF — the contest entry's credits when a contest
+// account mode is active, otherwise the normal profile credits. Keeps the
+// wager validation, balance readout, and settlement on the same ledger.
+function fofAvailableCredits() {
+  if (typeof isContestAccountMode === 'function' && isContestAccountMode()) {
+    const entry = getModeContestEntry();
+    if (!entry) return null;
+    return Number(entry.current_credits ?? entry.starting_credits ?? 0);
+  }
+  return currentProfile?.credits;
+}
+
+// Apply the post-round balance the RPC returns to whichever ledger funded
+// the wager so the on-screen balance (and the leaderboard cache) stay in sync.
+function fofApplyNewBalance(data) {
+  const newBal = Number(data?.new_balance);
+  if (!Number.isFinite(newBal)) return;
+  if (data?.is_contest && typeof isContestAccountMode === 'function' && isContestAccountMode()) {
+    const entry = getModeContestEntry();
+    if (entry) {
+      const updated = { ...entry, current_credits: newBal };
+      contestEntryMap.set(updated.contest_id, updated);
+      userContestEntries = userContestEntries.map((e) =>
+        e.contest_id === updated.contest_id ? updated : e
+      );
+      if (currentContest?.id === updated.contest_id) currentContestEntry = updated;
+    }
+    return;
+  }
+  if (currentProfile) currentProfile.credits = newBal;
+}
+
 function fofRefreshBalance() {
   const el = document.getElementById('fof-page-balance-val');
   if (!el) return;
-  const credits = currentProfile?.credits;
+  const credits = fofAvailableCredits();
   el.textContent = (credits == null) ? '—' : '$' + Number(credits).toFixed(2);
 }
 
@@ -31800,7 +31865,7 @@ function fofViewSelecting() {
   }).join('');
 
   const heroOk = !!fofGame.pickedHero;
-  const wagerOk = Number(fofGame.wager) > 0 && Number(fofGame.wager) <= (currentProfile?.credits ?? 0);
+  const wagerOk = Number(fofGame.wager) > 0 && Number(fofGame.wager) <= (fofAvailableCredits() ?? 0);
   const beginDisabled = !(heroOk && wagerOk) ? 'disabled' : '';
   const pickedCandidate = fofGame.candidates.find(c => c.character === fofGame.pickedHero);
   const pickedWinPct = pickedCandidate ? Number(pickedCandidate.win_pct) : null;
@@ -32039,7 +32104,7 @@ function fofAttachStageHandlers() {
     wagerInput.addEventListener('input', () => {
       fofGame.wager = Number(wagerInput.value) || 0;
       const beginBtn = document.getElementById('fof-begin-btn');
-      const valid = fofGame.pickedHero && fofGame.wager > 0 && fofGame.wager <= (currentProfile?.credits ?? 0);
+      const valid = fofGame.pickedHero && fofGame.wager > 0 && fofGame.wager <= (fofAvailableCredits() ?? 0);
       if (beginBtn) beginBtn.disabled = !valid;
       // Update potential payout display
       const meta = document.querySelector('.fof-wager-meta');
@@ -32059,6 +32124,12 @@ async function fofStartRound() {
     const rpcArgs = {};
     if (FOF_FORCE_OPPONENT && typeof FOF_FORCE_OPPONENT === 'string') {
       rpcArgs.p_opponent = FOF_FORCE_OPPONENT;
+    }
+    // In contest account mode, stamp the round with the active contest so the
+    // server settles against (and journeys) the contest balance, not credits.
+    if (typeof isContestAccountMode === 'function' && isContestAccountMode()) {
+      const activeContest = getModeContest();
+      if (activeContest?.id) rpcArgs.p_contest_id = activeContest.id;
     }
     const { data, error } = await supabase.rpc('fof_start_round', rpcArgs);
     if (error) throw error;
@@ -32096,8 +32167,8 @@ async function fofBeginRound() {
     fofGame.resolution = data;
     // Play the event log as a text scroll (animation placeholder).
     await fofPlayEvents(data.round_details);
-    // Refresh local profile credits cache, then show resolution.
-    if (currentProfile) currentProfile.credits = Number(data.new_balance);
+    // Refresh local balance cache (contest entry or profile), then show resolution.
+    fofApplyNewBalance(data);
     fofRefreshBalance();
     fofGame.state = 'resolved';
     fofShowResults();
