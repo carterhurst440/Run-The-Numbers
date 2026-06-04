@@ -32674,12 +32674,13 @@ async function fofPlayEvents(sim) {
         break;
     }
 
-    // Append text log entry.
+    // Prepend the newest entry so the most recent (most relevant) beat stays
+    // pinned at the top and visible without scrolling; older events flow down.
     const div = document.createElement('div');
     div.className = `fof-evt fof-evt-${ev.type.toLowerCase()}`;
     div.textContent = `[${Number(ev.time).toFixed(2)}s] ${ev.message || ev.type}`;
-    log.appendChild(div);
-    log.scrollTop = log.scrollHeight;
+    log.prepend(div);
+    log.scrollTop = 0;
   };
 
   // Longest one-shot clip an event will play — used to give each clip
