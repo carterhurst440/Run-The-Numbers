@@ -352,6 +352,15 @@
               </span>
               <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
             </button>
+            <button type="button" data-route-target="fate-or-fortune" class="drawer-link drawer-link-game" id="drawer-fof-link" hidden>
+              <span class="drawer-link-inner">
+                <span class="drawer-link-icon drawer-link-icon-game" aria-hidden="true">
+                  <img class="drawer-link-game-logo" data-game-logo-for="game_005" src="/assets/game-logos/fate-or-fortune.svg" alt="" aria-hidden="true" />
+                </span>
+                <span class="drawer-link-label">Fate or Fortune</span>
+              </span>
+              <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
+            </button>
             <button type="button" data-route-target="contests" id="drawer-contest-link" class="drawer-link drawer-contest-link" hidden>
               <span class="drawer-link-inner">
                 <span class="drawer-link-icon" aria-hidden="true">
@@ -391,16 +400,6 @@
                   </svg>
                 </span>
                 <span class="drawer-link-label">Store</span>
-              </span>
-            </button>
-            <button type="button" data-route-target="fate-or-fortune" class="drawer-link" id="drawer-fof-link" hidden>
-              <span class="drawer-link-inner">
-                <span class="drawer-link-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14.5 4 9 14.5 4 12l5.5 8 10.5-16-5.5 0Z"></path>
-                  </svg>
-                </span>
-                <span class="drawer-link-label">Fate or Fortune</span>
               </span>
             </button>
             <button type="button" data-route-target="bloom" class="drawer-link" id="drawer-bloom-link" hidden>
@@ -750,6 +749,33 @@
                   <div class="cc-glyph" aria-hidden="true">R·Y·B</div>
                   <div class="cc-frame" data-anim="color" aria-hidden="true"></div>
                   <div class="cc-label" aria-hidden="true">COLOR SCHEME</div>
+                </button>
+                <button type="button" class="home-game-card home-game-card-fof fof-floor-tile" data-route-target="fate-or-fortune" data-game-id="game_005">
+                  <div class="hgc-lock-overlay" aria-hidden="true"><span class="hgc-lock-icon">&#x1F512;</span><span class="hgc-lock-label">LOCKED</span></div>
+                  <div class="fof-tile-logo" aria-hidden="true">
+                    <span class="fof-tile-logo-letter">F</span>
+                    <svg class="fof-tile-logo-sword" width="27" height="34" viewBox="0 0 32 40" aria-hidden="true">
+                      <g fill="#b07bff">
+                        <polygon points="16,2 18.4,9 18,24 16,26.5 14,24 13.6,9"></polygon>
+                        <rect x="9.5" y="24" width="13" height="2.6" rx="1"></rect>
+                        <rect x="14.4" y="26.6" width="3.2" height="6.2" rx="0.6"></rect>
+                        <circle cx="16" cy="34.8" r="2.1"></circle>
+                      </g>
+                      <line x1="16" y1="6" x2="16" y2="23" stroke="#0a0a09" stroke-width="0.7" opacity="0.5"></line>
+                    </svg>
+                    <span class="fof-tile-logo-letter">F</span>
+                  </div>
+                  <div class="fof-tile-sprites" aria-hidden="true">
+                    <span class="fof-tile-sprite" style="background-image:url('/assets/fof/assassin/idle.gif')"></span>
+                    <span class="fof-tile-sprite" style="background-image:url('/assets/fof/berserker/idle.gif')"></span>
+                    <span class="fof-tile-sprite" style="background-image:url('/assets/fof/knight/idle.gif')"></span>
+                    <span class="fof-tile-sprite" style="background-image:url('/assets/fof/mage/idle.gif')"></span>
+                    <span class="fof-tile-sprite" style="background-image:url('/assets/fof/paladin/idle.gif')"></span>
+                    <span class="fof-tile-sprite" style="background-image:url('/assets/fof/ranger/idle.gif')"></span>
+                    <span class="fof-tile-sprite" style="background-image:url('/assets/fof/rogue/idle.gif')"></span>
+                    <span class="fof-tile-sprite" style="background-image:url('/assets/fof/warlock/idle.gif')"></span>
+                  </div>
+                  <div class="fof-tile-wordmark" aria-hidden="true">FATE OR FORTUNE</div>
                 </button>
               </div>
 

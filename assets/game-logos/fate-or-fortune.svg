@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect x="3" y="3" width="74" height="74" rx="6" ry="6" fill="none" stroke="#b07bff" stroke-width="3"></rect>
+  <text x="16" y="51" text-anchor="middle" fill="#b07bff" font-family="'JetBrains Mono', monospace" font-weight="800" font-size="28" letter-spacing="-1">F</text>
+  <text x="64" y="51" text-anchor="middle" fill="#b07bff" font-family="'JetBrains Mono', monospace" font-weight="800" font-size="28" letter-spacing="-1">F</text>
+  <g stroke="#b07bff" stroke-width="2.6" stroke-linecap="round" fill="none">
+    <line x1="40" y1="20" x2="40" y2="50"></line>
+    <line x1="33" y1="50" x2="47" y2="50"></line>
+    <line x1="36" y1="55" x2="44" y2="55"></line>
+    <line x1="40" y1="55" x2="40" y2="60"></line>
+  </g>
+</svg>

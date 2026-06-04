@@ -98,6 +98,18 @@ const DEFAULT_GAME_ASSET_LIBRARY = {
     card_background_color: "",
     button_color: "",
     button_text_color: ""
+  },
+  [GAME_KEYS.FATE_OR_FORTUNE]: {
+    key: GAME_KEYS.FATE_OR_FORTUNE,
+    label: GAME_LABELS[GAME_KEYS.FATE_OR_FORTUNE],
+    route: "fate-or-fortune",
+    logo_url: "/assets/game-logos/fate-or-fortune.svg",
+    description: "Champion duel prediction market",
+    status: "active",
+    card_description: "Pick your champion, set the wager, and let the duel decide. Win and the prediction-market payout pays by your champion's true odds.",
+    card_background_color: "",
+    button_color: "",
+    button_text_color: ""
   }
 };
 
@@ -9114,7 +9126,9 @@ function updateAdminVisibility(user = currentUser) {
   }
   const drawerFofLink = document.getElementById("drawer-fof-link");
   if (drawerFofLink) {
-    if (adminVisible) drawerFofLink.removeAttribute("hidden");
+    // Visibility follows the game's admin-configurable status: default "active"
+    // means everyone sees it; set to "Admin Only" in the Games admin to hide.
+    if (isGameVisibleToUser(GAME_KEYS.FATE_OR_FORTUNE, user)) drawerFofLink.removeAttribute("hidden");
     else drawerFofLink.setAttribute("hidden", "");
   }
   const drawerBloomLink = document.getElementById("drawer-bloom-link");
@@ -18195,7 +18209,7 @@ const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout"
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
 const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile", "color-scheme", "fate-or-fortune", "bloom"]);
 // Routes only admins may reach (hidden in drawer + blocked on direct URL/hash nav).
-const ADMIN_ONLY_ROUTES = new Set(["fate-or-fortune", "bloom", "admin"]);
+const ADMIN_ONLY_ROUTES = new Set(["bloom", "admin"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
