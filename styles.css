@@ -21322,6 +21322,7 @@ body.state-open .auth-vault-grant .gline::after {
 .hra-leg-g10 .hra-leg-dot { background: #00e5ff; }
 .hra-leg-st  .hra-leg-dot { background: #c8ff00; }
 .hra-leg-ryb .hra-leg-dot { background: #ff4444; }
+.hra-leg-fof .hra-leg-dot { background: #b07bff; }
 @media (max-width: 600px) {
   .home-recent-activity { margin-left: 12px; margin-right: 12px; }
   .hra-chart-wrap { height: 144px; }
