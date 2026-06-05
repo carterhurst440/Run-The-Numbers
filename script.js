@@ -31316,7 +31316,7 @@ function fofSimulateOne(a, b, seed) {
               type: 'SPECIAL_TRIGGER',
               actorId: defId,
               specialId: defRevId || 'revenge',
-              message: `${defName} activates ${(defRevId || 'revenge').toUpperCase()}. Next attack is a guaranteed critical if it lands.`,
+              message: `${defName} activates ${(defRevId || 'revenge').toUpperCase()}. Next attack attempt will be a critical.`,
             });
           }
 
@@ -32205,8 +32205,8 @@ function fofViewResolving() {
         </div>
       </div>
       <div class="fof-hp-bars">
-        <div class="fof-hp-row"><span>${heroId.toUpperCase()}</span><div class="fof-hp-track"><div class="fof-hp-ghost" id="fof-hp-hero-ghost"></div><div class="fof-hp-fill fof-hp-hero" id="fof-hp-hero" style="width:100%"></div></div><span id="fof-hp-hero-val">—</span></div>
-        <div class="fof-hp-row"><span>${oppId.toUpperCase()}</span><div class="fof-hp-track"><div class="fof-hp-ghost" id="fof-hp-opp-ghost"></div><div class="fof-hp-fill fof-hp-opp" id="fof-hp-opp" style="width:100%"></div></div><span id="fof-hp-opp-val">—</span></div>
+        <div class="fof-hp-row"><span>${heroId.toUpperCase()}</span><div class="fof-hp-track"><div class="fof-hp-ghost fof-hp-ghost-hero" id="fof-hp-hero-ghost"></div><div class="fof-hp-fill fof-hp-hero" id="fof-hp-hero"></div><div class="fof-hp-ticks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="fof-hp-flash"></div></div><span id="fof-hp-hero-val">—</span></div>
+        <div class="fof-hp-row"><span>${oppId.toUpperCase()}</span><div class="fof-hp-track"><div class="fof-hp-ghost fof-hp-ghost-opp" id="fof-hp-opp-ghost"></div><div class="fof-hp-fill fof-hp-opp" id="fof-hp-opp"></div><div class="fof-hp-ticks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="fof-hp-flash"></div></div><span id="fof-hp-opp-val">—</span></div>
       </div>
       <div class="fof-event-log" id="fof-event-log"></div>
     </div>
@@ -32498,30 +32498,28 @@ async function fofPlayEvents(sim) {
   const heroHpVal = document.getElementById('fof-hp-hero-val');
   const oppHpVal = document.getElementById('fof-hp-opp-val');
   if (!log) return;
-  // Set a health bar to `newPct`. On a DROP, the "ghost" layer behind the fill
-  // is parked at the OLD width (so the lost slice shows in a faded colour),
-  // flashed, then eased down to the true value a beat later — a fighting-game
-  // style damage trail. Heals just track the fill with no trail.
-  const ghostTimers = [];
+  // Set a health bar to `newPct` using the two-layer fighting-game drain: the
+  // FILL (front) snaps to the new value fast while the GHOST (back) trails a beat
+  // behind via its slower, delayed CSS transition — so on a hit the just-lost
+  // slice flashes in the lag colour then the ghost catches up. Both layers are
+  // set to the SAME scaleX in one frame; the transition-speed gap (defined in
+  // CSS) is the whole effect. On a DROP we also fire the bar's impact flash and
+  // a short shake. Heals track the same way (both grow); no special handling.
   const setBarPct = (fillEl, ghostEl, newPct) => {
     if (!fillEl) return;
     const clamped = Math.max(0, Math.min(100, newPct));
-    const oldPct = parseFloat(fillEl.style.width) || 0;
-    fillEl.style.width = clamped + '%';
-    if (!ghostEl) return;
-    if (clamped < oldPct - 0.01) {
-      ghostEl.style.transition = 'none';
-      ghostEl.style.width = oldPct + '%';
-      ghostEl.classList.remove('is-hit');
-      void ghostEl.offsetWidth; // restart the flash
-      ghostEl.classList.add('is-hit');
-      ghostTimers.push(setTimeout(() => {
-        ghostEl.style.transition = 'width 0.45s cubic-bezier(0.4,0,0.2,1)';
-        ghostEl.style.width = clamped + '%';
-      }, 260));
-    } else {
-      ghostEl.style.transition = 'width 0.2s ease-out';
-      ghostEl.style.width = clamped + '%';
+    const f = clamped / 100;
+    const prev = parseFloat(fillEl.dataset.hpPct);
+    const isDrop = !Number.isNaN(prev) && clamped < prev - 0.01;
+    fillEl.dataset.hpPct = String(clamped);
+    fillEl.style.transform = 'scaleX(' + f + ')';
+    if (ghostEl) ghostEl.style.transform = 'scaleX(' + f + ')';
+    fillEl.classList.toggle('flatline', clamped <= 0);
+    if (isDrop) {
+      const track = fillEl.closest('.fof-hp-track');
+      const flashEl = track && track.querySelector('.fof-hp-flash');
+      if (flashEl) { flashEl.classList.remove('is-hit'); void flashEl.offsetWidth; flashEl.classList.add('is-hit'); }
+      if (track)   { track.classList.remove('is-shake'); void track.offsetWidth; track.classList.add('is-shake'); }
     }
   };
   const heroId = fofGame.pickedHero;
@@ -32531,6 +32529,10 @@ async function fofPlayEvents(sim) {
   const oppMax = Number(fofGame.opponent?.stats?.hp) || 100;
   if (heroHpVal) heroHpVal.textContent = `${heroMax}/${heroMax}`;
   if (oppHpVal) oppHpVal.textContent = `${oppMax}/${oppMax}`;
+  // Seed the drain tracker at full so the first hit registers as a drop
+  // (triggers the impact flash + shake).
+  if (heroHp) heroHp.dataset.hpPct = '100';
+  if (oppHp)  oppHp.dataset.hpPct = '100';
 
   // Make sure both fighters start in IDLE.
   fofSetClip('hero', heroId, 'IDLE');

@@ -28987,28 +28987,80 @@ body.admin-sk-fs-lock { overflow: hidden; }
 }
 .fof-hp-track {
   position: relative;
-  height: 14px; background: #1a1a1a; border: 1px solid #2a2a2a; overflow: hidden;
+  height: 20px; background: #15140f; border: 1px solid rgba(221,213,188,0.18);
+  overflow: hidden; box-shadow: inset 0 2px 6px rgba(0,0,0,0.6);
 }
-/* Damage trail: sits BEHIND the fill, parked at the pre-hit width. The slice
-   between the new fill and this ghost is the just-lost health — held in a faded
-   colour, flashed, then retracted to the true value (set in JS). */
+.fof-hp-track.is-shake { animation: fofHpShake 0.26s cubic-bezier(.36,.07,.19,.97); }
+@keyframes fofHpShake {
+  10%,90% { transform: translateX(-1px); }
+  20%,80% { transform: translateX(2px); }
+  30%,50%,70% { transform: translateX(-3px); }
+  40%,60% { transform: translateX(3px); }
+}
+
+/* Two-layer fighting-game drain. The FILL (front) snaps to the new value fast;
+   the GHOST (back) trails a beat behind via a slower, delayed transition, so on
+   a hit the just-lost slice flashes in the lag colour then the ghost catches up.
+   Both layers are scaled with transform:scaleX (GPU-cheap) from a left origin;
+   JS sets BOTH to the same fraction in one frame and the transition-speed gap
+   IS the effect. */
 .fof-hp-ghost {
-  position: absolute; top: 0; left: 0; z-index: 1;
-  height: 100%; width: 100%;
-  background: rgba(255, 255, 255, 0.42);
+  position: absolute; inset: 0; z-index: 1;
+  transform-origin: left; transform: scaleX(1);
+  transition: transform 0.6s cubic-bezier(.22,1,.36,1) 0.14s;
   pointer-events: none;
 }
-.fof-hp-ghost.is-hit { animation: fofHpGhostFlash 0.42s ease-out; }
-@keyframes fofHpGhostFlash {
-  0%   { background: rgba(255, 255, 255, 0.95); box-shadow: 0 0 8px rgba(255, 255, 255, 0.55); }
-  100% { background: rgba(255, 255, 255, 0.42); box-shadow: none; }
+/* Hero lag reads "lost health" in red against the green fill (design-exact). */
+.fof-hp-ghost-hero {
+  background: repeating-linear-gradient(135deg, #ff5b5b 0 8px, #e23b3b 8px 16px);
+}
+/* Opponent fill is red, so its lag uses a warm bone hatch to stay legible. */
+.fof-hp-ghost-opp {
+  background: repeating-linear-gradient(135deg, #f3e9c8 0 8px, #d9c89a 8px 16px);
 }
 .fof-hp-fill {
-  position: relative; z-index: 2;
-  height: 100%; transition: width 0.2s ease-out;
+  position: absolute; inset: 0; z-index: 2;
+  transform-origin: left; transform: scaleX(1);
+  transition: transform 0.16s cubic-bezier(.4,0,1,1);
+  background: linear-gradient(180deg,
+    color-mix(in oklab, var(--hp) 78%, #fff 22%),
+    var(--hp) 46%,
+    color-mix(in oklab, var(--hp) 70%, #000 30%));
+  box-shadow: 0 0 14px -2px var(--hp), inset 0 1px 0 rgba(255,255,255,0.4);
 }
-.fof-hp-hero { background: #5b9; }
-.fof-hp-opp  { background: #c64; }
+/* Bright leading edge riding the fill's right edge. */
+.fof-hp-fill::after {
+  content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 3px;
+  background: #fff; box-shadow: 0 0 10px 2px #fff; opacity: 0.9;
+}
+/* Looping sheen sweep across the fill. */
+.fof-hp-fill::before {
+  content: ""; position: absolute; inset: 0; opacity: 0.5;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.22) 50%, transparent);
+  background-size: 60% 100%; animation: fofHpSheen 2.4s linear infinite;
+}
+@keyframes fofHpSheen { 0% { background-position: -60% 0; } 100% { background-position: 160% 0; } }
+.fof-hp-fill.flatline { filter: grayscale(0.5) brightness(0.7); }
+/* Fixed per-fighter colours (NOT the design's green->amber->red shift): the hero
+   bar stays green and the opponent stays red the whole fight. */
+.fof-hp-hero { --hp: #7CFF6B; }
+.fof-hp-opp  { --hp: #ff4d4d; }
+
+/* 10 segment ticks (10% each), overlaid above both fill layers. */
+.fof-hp-ticks { position: absolute; inset: 0; display: flex; pointer-events: none; z-index: 3; }
+.fof-hp-ticks i {
+  flex: 1; border-right: 1px solid rgba(0,0,0,0.45);
+  box-shadow: 1px 0 0 rgba(255,255,255,0.04);
+}
+.fof-hp-ticks i:last-child { border-right: none; }
+
+/* White impact flash on each hit. */
+.fof-hp-flash {
+  position: absolute; inset: 0; z-index: 4; background: #fff; opacity: 0;
+  pointer-events: none; mix-blend-mode: overlay;
+}
+.fof-hp-flash.is-hit { animation: fofHpFlash 0.3s ease-out; }
+@keyframes fofHpFlash { 0% { opacity: 0.85; } 100% { opacity: 0; } }
 .fof-event-log {
   /* Fixed width that fills the column — a long log line must WRAP, never
      widen the box. width:100% + box-sizing pins it to the parent; min-width:0
