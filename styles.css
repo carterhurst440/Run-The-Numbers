@@ -28284,13 +28284,18 @@ body.admin-sk-fs-lock { overflow: hidden; }
 .fof-page-balance { font-size: 12px; letter-spacing: 1px; color: #888; }
 .fof-page-balance strong { color: #e8e8d2; margin-left: 6px; }
 .fof-stage { min-height: 400px; }
-/* Keep the FOF battle subtree from ever growing horizontally: let the
-   flex-column ancestors shrink (min-width:0) and clip any overflow at the
-   stage so nothing inside can spawn a horizontal scrollbar / "expand" the
-   battle window late in a fight. Scoped to #fof-stage so Bloom (which shares
-   the .fof-stage class) is untouched. */
-.fof-view .fof-page { min-width: 0; }
-#fof-stage { min-width: 0; overflow-x: clip; }
+/* Keep the FOF battle subtree from ever growing horizontally. The real bug:
+   .fof-page has `margin:0 auto` and lives in a flex COLUMN (.fof-view), and a
+   flex item with auto cross-axis margins is sized shrink-to-fit (max-content)
+   instead of stretched — so its width tracked the widest event-log line and
+   oscillated wildly (e.g. 444px <-> 1101px) as lines changed mid-fight, taking
+   #fof-stage and the whole battle column with it. Pinning a definite width:100%
+   makes it fill the column at a stable width (still capped at max-width:1200 and
+   centred), independent of its content, killing the feedback loop. min-width:0 +
+   overflow-x:clip on the stage stay as belt-and-suspenders. Scoped to the FOF
+   view so Bloom (which shares .fof-page / .fof-stage) is untouched. */
+.fof-view .fof-page { min-width: 0; width: 100%; box-sizing: border-box; }
+#fof-stage { min-width: 0; width: 100%; box-sizing: border-box; overflow-x: clip; }
 .fof-loading, .fof-err {
   text-align: center; padding: 60px 20px; color: #888; font-size: 13px;
 }
