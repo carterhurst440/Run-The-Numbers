@@ -19097,7 +19097,8 @@ let activityLogSelectedGames = new Set([
   GAME_KEYS.RUN_THE_NUMBERS,
   GAME_KEYS.GUESS_10,
   GAME_KEYS.SHAPE_TRADERS,
-  GAME_KEYS.COLOR_SCHEME
+  GAME_KEYS.COLOR_SCHEME,
+  GAME_KEYS.FATE_OR_FORTUNE
 ]);
 let activityLogTradeFilter = "all";
 let playerActivityLogEntries = [];
@@ -19110,7 +19111,9 @@ let activePlayerActivityLogName = "";
 let playerActivityLogSelectedGames = new Set([
   GAME_KEYS.RUN_THE_NUMBERS,
   GAME_KEYS.GUESS_10,
-  GAME_KEYS.SHAPE_TRADERS
+  GAME_KEYS.SHAPE_TRADERS,
+  GAME_KEYS.COLOR_SCHEME,
+  GAME_KEYS.FATE_OR_FORTUNE
 ]);
 let playerActivityLogTradeFilter = "all";
 let handReviewModalTrigger = null;
@@ -21781,12 +21784,61 @@ async function fetchGameHandsRecords({
     return csRecords;
   };
 
-  const [rtnRecords, g10Records, csRecords] = await Promise.all([
+  const fetchFateOrFortuneRoundsRecords = async () => {
+    if (!supabase) return [];
+    const fofRecords = [];
+    const fofPageSize = 1000;
+    let fofPage = 0;
+    let fofHasMore = true;
+    while (fofHasMore) {
+      let query = supabase
+        .from("fate_or_fortune_rounds")
+        .select("id, user_id, locked_at, contest_id, total_wagered, total_returned, net_profit, new_account_value")
+        .eq("status", "resolved")
+        .not("locked_at", "is", null)
+        .order("locked_at", { ascending: true })
+        .range(fofPage * fofPageSize, (fofPage + 1) * fofPageSize - 1);
+      if (startAt) query = query.gte("locked_at", startAt.toISOString());
+      if (endAt) query = query.lte("locked_at", endAt.toISOString());
+      if (Array.isArray(userIds) && userIds.length > 0) query = query.in("user_id", userIds);
+      const { data, error } = await query;
+      if (error) {
+        if (isMissingRelationError(error, "fate_or_fortune_rounds")) return [];
+        throw error;
+      }
+      const rows = Array.isArray(data) ? data : [];
+      rows.forEach(row => {
+        fofRecords.push({
+          id: row.id,
+          user_id: row.user_id,
+          created_at: row.locked_at,
+          game_id: GAME_KEYS.FATE_OR_FORTUNE,
+          mode_type: row.contest_id ? "contest" : "normal",
+          contest_id: row.contest_id || null,
+          total_cards: 0,
+          stopper_label: null,
+          stopper_suit: null,
+          total_wager: row.total_wagered || 0,
+          total_paid: row.total_returned || 0,
+          net: row.net_profit || 0,
+          commission_kept: 0,
+          new_account_value: row.new_account_value || 0,
+          drawn_cards: []
+        });
+      });
+      fofHasMore = rows.length === fofPageSize;
+      fofPage += 1;
+    }
+    return fofRecords;
+  };
+
+  const [rtnRecords, g10Records, csRecords, fofRecords] = await Promise.all([
     fetchRtnLiveHandRecords(),
     fetchGuess10LiveHandsRecords(),
-    fetchColorSchemeRoundsRecords()
+    fetchColorSchemeRoundsRecords(),
+    fetchFateOrFortuneRoundsRecords()
   ]);
-  return [...allRecords, ...rtnRecords, ...g10Records, ...csRecords]
+  return [...allRecords, ...rtnRecords, ...g10Records, ...csRecords, ...fofRecords]
     .sort((left, right) => new Date(left?.created_at || 0).getTime() - new Date(right?.created_at || 0).getTime());
 }
 
@@ -21982,7 +22034,7 @@ async function fetchDailyProfitLossRows(userId) {
   while (hasMore) {
     const { data, error } = await supabase
       .from("daily_profit_loss")
-      .select("profit_date, mode, pnl_total, pnl_rtn, pnl_g10, pnl_shape_traders, pnl_ryb")
+      .select("profit_date, mode, pnl_total, pnl_rtn, pnl_g10, pnl_shape_traders, pnl_ryb, pnl_fof")
       .eq("user_id", userId)
       .order("profit_date", { ascending: true })
       .range(page * pageSize, (page + 1) * pageSize - 1);
@@ -22007,9 +22059,9 @@ async function fetchDailyProfitLossRows(userId) {
     if (!agg[key]) {
       agg[key] = {
         profit_date: key,
-        pnl_total: 0, pnl_rtn: 0, pnl_g10: 0, pnl_shape_traders: 0, pnl_ryb: 0,
-        normal_pnl_total: 0, normal_pnl_rtn: 0, normal_pnl_g10: 0, normal_pnl_shape_traders: 0, normal_pnl_ryb: 0,
-        contest_pnl_total: 0, contest_pnl_rtn: 0, contest_pnl_g10: 0, contest_pnl_shape_traders: 0, contest_pnl_ryb: 0
+        pnl_total: 0, pnl_rtn: 0, pnl_g10: 0, pnl_shape_traders: 0, pnl_ryb: 0, pnl_fof: 0,
+        normal_pnl_total: 0, normal_pnl_rtn: 0, normal_pnl_g10: 0, normal_pnl_shape_traders: 0, normal_pnl_ryb: 0, normal_pnl_fof: 0,
+        contest_pnl_total: 0, contest_pnl_rtn: 0, contest_pnl_g10: 0, contest_pnl_shape_traders: 0, contest_pnl_ryb: 0, contest_pnl_fof: 0
       };
     }
     const d = agg[key];
@@ -22019,18 +22071,21 @@ async function fetchDailyProfitLossRows(userId) {
     d.pnl_g10           += Number(row.pnl_g10           || 0);
     d.pnl_shape_traders += Number(row.pnl_shape_traders || 0);
     d.pnl_ryb           += Number(row.pnl_ryb           || 0);
+    d.pnl_fof           += Number(row.pnl_fof           || 0);
     if (isContest) {
       d.contest_pnl_total         += Number(row.pnl_total         || 0);
       d.contest_pnl_rtn           += Number(row.pnl_rtn           || 0);
       d.contest_pnl_g10           += Number(row.pnl_g10           || 0);
       d.contest_pnl_shape_traders += Number(row.pnl_shape_traders || 0);
       d.contest_pnl_ryb           += Number(row.pnl_ryb           || 0);
+      d.contest_pnl_fof           += Number(row.pnl_fof           || 0);
     } else {
       d.normal_pnl_total         += Number(row.pnl_total         || 0);
       d.normal_pnl_rtn           += Number(row.pnl_rtn           || 0);
       d.normal_pnl_g10           += Number(row.pnl_g10           || 0);
       d.normal_pnl_shape_traders += Number(row.pnl_shape_traders || 0);
       d.normal_pnl_ryb           += Number(row.pnl_ryb           || 0);
+      d.normal_pnl_fof           += Number(row.pnl_fof           || 0);
     }
   });
   return Object.values(agg).sort((a, b) => a.profit_date.localeCompare(b.profit_date));
@@ -22321,6 +22376,9 @@ function getBankrollChartGameValue(point) {
   }
   if (bankrollChartGameFilter === GAME_KEYS.COLOR_SCHEME) {
     return roundCurrencyValue(Number(point[modeKey("pnlRyb")] || 0));
+  }
+  if (bankrollChartGameFilter === GAME_KEYS.FATE_OR_FORTUNE) {
+    return roundCurrencyValue(Number(point[modeKey("pnlFof")] || 0));
   }
   return roundCurrencyValue(Number(point[modeKey("pnlTotal")] || 0));
 }
@@ -22652,7 +22710,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
       // Fetch all sources for today's live data.
       // NOTE: todayRtnLive already covers rtn_live_hands, so we do NOT also
       // pull RTN hands separately here.
-      const [todayRtnLive, todayG10Live, todayTrades, todayCsRounds] = await Promise.all([
+      const [todayRtnLive, todayG10Live, todayTrades, todayCsRounds, todayFofRounds] = await Promise.all([
         (async () => {
           const { data } = await supabase
             .from("rtn_live_hands")
@@ -22688,13 +22746,24 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
             .gte("created_at", liveTodayStart.toISOString())
             .lte("created_at", liveTodayEnd.toISOString());
           return Array.isArray(data) ? data : [];
+        })(),
+        (async () => {
+          const { data } = await supabase
+            .from("fate_or_fortune_rounds")
+            .select("locked_at, net_profit, contest_id")
+            .eq("user_id", currentUser.id)
+            .eq("status", "resolved")
+            .not("locked_at", "is", null)
+            .gte("locked_at", liveTodayStart.toISOString())
+            .lte("locked_at", liveTodayEnd.toISOString());
+          return Array.isArray(data) ? data : [];
         })()
       ]);
 
       const liveToday = {
-        pnlTotal: 0, pnlRtn: 0, pnlG10: 0, pnlShapeTraders: 0, pnlRyb: 0,
-        normalPnlTotal: 0, normalPnlRtn: 0, normalPnlG10: 0, normalPnlShapeTraders: 0, normalPnlRyb: 0,
-        contestPnlTotal: 0, contestPnlRtn: 0, contestPnlG10: 0, contestPnlShapeTraders: 0, contestPnlRyb: 0
+        pnlTotal: 0, pnlRtn: 0, pnlG10: 0, pnlShapeTraders: 0, pnlRyb: 0, pnlFof: 0,
+        normalPnlTotal: 0, normalPnlRtn: 0, normalPnlG10: 0, normalPnlShapeTraders: 0, normalPnlRyb: 0, normalPnlFof: 0,
+        contestPnlTotal: 0, contestPnlRtn: 0, contestPnlG10: 0, contestPnlShapeTraders: 0, contestPnlRyb: 0, contestPnlFof: 0
       };
 
       // All hands — split by contest_id for mode tracking
@@ -22743,14 +22812,25 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
         else liveToday.normalPnlRyb = roundCurrencyValue(liveToday.normalPnlRyb + net);
       });
 
+      // Fate or Fortune rounds — realized at lock time, split by contest_id
+      todayFofRounds.forEach((row) => {
+        const dayKey = formatAnalyticsDateKey(row?.locked_at);
+        if (dayKey !== todayKey) return;
+        const net = roundCurrencyValue(Number(row?.net_profit || 0));
+        const isContest = !!row?.contest_id;
+        liveToday.pnlFof = roundCurrencyValue(liveToday.pnlFof + net);
+        if (isContest) liveToday.contestPnlFof = roundCurrencyValue(liveToday.contestPnlFof + net);
+        else liveToday.normalPnlFof = roundCurrencyValue(liveToday.normalPnlFof + net);
+      });
+
       liveToday.pnlTotal = roundCurrencyValue(
-        liveToday.pnlRtn + liveToday.pnlG10 + liveToday.pnlShapeTraders + liveToday.pnlRyb
+        liveToday.pnlRtn + liveToday.pnlG10 + liveToday.pnlShapeTraders + liveToday.pnlRyb + liveToday.pnlFof
       );
       liveToday.normalPnlTotal = roundCurrencyValue(
-        liveToday.normalPnlRtn + liveToday.normalPnlG10 + liveToday.normalPnlShapeTraders + liveToday.normalPnlRyb
+        liveToday.normalPnlRtn + liveToday.normalPnlG10 + liveToday.normalPnlShapeTraders + liveToday.normalPnlRyb + liveToday.normalPnlFof
       );
       liveToday.contestPnlTotal = roundCurrencyValue(
-        liveToday.contestPnlRtn + liveToday.contestPnlG10 + liveToday.contestPnlShapeTraders + liveToday.contestPnlRyb
+        liveToday.contestPnlRtn + liveToday.contestPnlG10 + liveToday.contestPnlShapeTraders + liveToday.contestPnlRyb + liveToday.contestPnlFof
       );
 
       const historicalRows = snapshotRows
@@ -22763,16 +22843,19 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
           pnlG10: roundCurrencyValue(Number(row?.pnl_g10 || 0)),
           pnlShapeTraders: roundCurrencyValue(Number(row?.pnl_shape_traders || 0)),
           pnlRyb: roundCurrencyValue(Number(row?.pnl_ryb || 0)),
+          pnlFof: roundCurrencyValue(Number(row?.pnl_fof || 0)),
           normalPnlTotal: roundCurrencyValue(Number(row?.normal_pnl_total || 0)),
           normalPnlRtn: roundCurrencyValue(Number(row?.normal_pnl_rtn || 0)),
           normalPnlG10: roundCurrencyValue(Number(row?.normal_pnl_g10 || 0)),
           normalPnlShapeTraders: roundCurrencyValue(Number(row?.normal_pnl_shape_traders || 0)),
           normalPnlRyb: roundCurrencyValue(Number(row?.normal_pnl_ryb || 0)),
+          normalPnlFof: roundCurrencyValue(Number(row?.normal_pnl_fof || 0)),
           contestPnlTotal: roundCurrencyValue(Number(row?.contest_pnl_total || 0)),
           contestPnlRtn: roundCurrencyValue(Number(row?.contest_pnl_rtn || 0)),
           contestPnlG10: roundCurrencyValue(Number(row?.contest_pnl_g10 || 0)),
           contestPnlShapeTraders: roundCurrencyValue(Number(row?.contest_pnl_shape_traders || 0)),
           contestPnlRyb: roundCurrencyValue(Number(row?.contest_pnl_ryb || 0)),
+          contestPnlFof: roundCurrencyValue(Number(row?.contest_pnl_fof || 0)),
           fallbackIndex: index
         }))
         .filter((row) => row.dayKey);
@@ -22790,7 +22873,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
       // No snapshots — build from raw records.
       // NOTE: allRtnLive already covers rtn_live_hands, so we do NOT also
       // pull RTN hands separately here.
-      const [allRtnLive, allG10Live, allTrades, allCsRounds] = await Promise.all([
+      const [allRtnLive, allG10Live, allTrades, allCsRounds, allFofRounds] = await Promise.all([
         (async () => {
           const { data } = await supabase
             .from("rtn_live_hands")
@@ -22821,6 +22904,16 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
             .eq("status", "completed")
             .order("created_at", { ascending: true });
           return Array.isArray(data) ? data : [];
+        })(),
+        (async () => {
+          const { data } = await supabase
+            .from("fate_or_fortune_rounds")
+            .select("locked_at, net_profit, contest_id")
+            .eq("user_id", currentUser.id)
+            .eq("status", "resolved")
+            .not("locked_at", "is", null)
+            .order("locked_at", { ascending: true });
+          return Array.isArray(data) ? data : [];
         })()
       ]);
 
@@ -22831,9 +22924,9 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
         if (!dailyTotals.has(dayKey)) {
           dailyTotals.set(dayKey, {
             dayKey, created_at: createdAt,
-            pnlTotal: 0, pnlRtn: 0, pnlG10: 0, pnlShapeTraders: 0, pnlRyb: 0,
-            normalPnlTotal: 0, normalPnlRtn: 0, normalPnlG10: 0, normalPnlShapeTraders: 0, normalPnlRyb: 0,
-            contestPnlTotal: 0, contestPnlRtn: 0, contestPnlG10: 0, contestPnlShapeTraders: 0, contestPnlRyb: 0
+            pnlTotal: 0, pnlRtn: 0, pnlG10: 0, pnlShapeTraders: 0, pnlRyb: 0, pnlFof: 0,
+            normalPnlTotal: 0, normalPnlRtn: 0, normalPnlG10: 0, normalPnlShapeTraders: 0, normalPnlRyb: 0, normalPnlFof: 0,
+            contestPnlTotal: 0, contestPnlRtn: 0, contestPnlG10: 0, contestPnlShapeTraders: 0, contestPnlRyb: 0, contestPnlFof: 0
           });
         }
         return dailyTotals.get(dayKey);
@@ -22885,12 +22978,24 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
         else bucket.normalPnlRyb = roundCurrencyValue(bucket.normalPnlRyb + net);
       });
 
+      // Fate or Fortune rounds — realized at lock time, split by contest_id
+      allFofRounds.forEach((row) => {
+        const dayKey = formatAnalyticsDateKey(row?.locked_at);
+        if (!dayKey) return;
+        const bucket = ensureDay(dayKey, row?.locked_at || `${dayKey}T12:00:00`);
+        const net = roundCurrencyValue(Number(row?.net_profit || 0));
+        const isContest = !!row?.contest_id;
+        bucket.pnlFof = roundCurrencyValue(bucket.pnlFof + net);
+        if (isContest) bucket.contestPnlFof = roundCurrencyValue(bucket.contestPnlFof + net);
+        else bucket.normalPnlFof = roundCurrencyValue(bucket.normalPnlFof + net);
+      });
+
       persistentBankrollHistory = Array.from(dailyTotals.values())
         .map((row, index) => ({
           ...row,
-          pnlTotal: roundCurrencyValue(row.pnlRtn + row.pnlG10 + row.pnlShapeTraders + row.pnlRyb),
-          normalPnlTotal: roundCurrencyValue(row.normalPnlRtn + row.normalPnlG10 + row.normalPnlShapeTraders + row.normalPnlRyb),
-          contestPnlTotal: roundCurrencyValue(row.contestPnlRtn + row.contestPnlG10 + row.contestPnlShapeTraders + row.contestPnlRyb),
+          pnlTotal: roundCurrencyValue(row.pnlRtn + row.pnlG10 + row.pnlShapeTraders + row.pnlRyb + row.pnlFof),
+          normalPnlTotal: roundCurrencyValue(row.normalPnlRtn + row.normalPnlG10 + row.normalPnlShapeTraders + row.normalPnlRyb + row.normalPnlFof),
+          contestPnlTotal: roundCurrencyValue(row.contestPnlRtn + row.contestPnlG10 + row.contestPnlShapeTraders + row.contestPnlRyb + row.contestPnlFof),
           fallbackIndex: index
         }))
         .sort((left, right) => String(left.dayKey).localeCompare(String(right.dayKey)));
@@ -26614,6 +26719,15 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
         clickAttr = ` data-hand-review-id="${escapeAssistantHtml(entry.handId)}"`;
         isClickable = true;
       }
+    } else if (entry.gameKey === GAME_KEYS.FATE_OR_FORTUNE) {
+      // Fate or Fortune (entryType:"hand"). No hand-review modal, so not clickable.
+      game = "FOF";
+      shortId = entry.handNumber || entry.handId?.slice(-4) || "—";
+      modeLabel = (entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL";
+      net = Number(entry.net ?? 0);
+      netClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
+      netText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
+      bal = entry.newAccountValue ?? null;
     } else {
       // RTN / G10 / COLOR_SCHEME (entryType:"hand")
       game = entry.gameKey === GAME_KEYS.GUESS_10 ? "G10"
@@ -32362,6 +32476,10 @@ async function fofBeginRound() {
     // Refresh local balance cache (contest entry or profile), then show resolution.
     fofApplyNewBalance(data);
     fofRefreshBalance();
+    // Count this resolved round toward all-time progression (total_progress_events).
+    if (currentUser?.id && currentUser.id === currentProfile?.id) {
+      void incrementProfileHandProgress(1, GAME_KEYS.FATE_OR_FORTUNE).then(() => refreshCurrentRankState());
+    }
     fofGame.state = 'resolved';
     fofShowResults();
   } catch (e) {
@@ -35468,7 +35586,8 @@ async function openPlayerActivityLogModal(userId, playerName) {
     GAME_KEYS.RUN_THE_NUMBERS,
     GAME_KEYS.GUESS_10,
     GAME_KEYS.SHAPE_TRADERS,
-    GAME_KEYS.COLOR_SCHEME
+    GAME_KEYS.COLOR_SCHEME,
+    GAME_KEYS.FATE_OR_FORTUNE
   ]);
   playerActivityLogTradeFilter = "all";
   playerActivityLogEntries = [];
@@ -37529,8 +37648,17 @@ function renderHomeSidebarActivity() {
     let resultClass = "is-neutral";
     let resultText = "";
     let isTrade = false;
+    let suppressReview = false;
 
-    if (entry.gameKey === GAME_KEYS.RUN_THE_NUMBERS || entry.gameKey === GAME_KEYS.GUESS_10 || entry.gameKey === GAME_KEYS.COLOR_SCHEME) {
+    if (entry.gameKey === GAME_KEYS.FATE_OR_FORTUNE) {
+      // FOF rounds have no hand-review modal, so render non-clickable.
+      suppressReview = true;
+      const handNum = entry.handNumber || entry.handId?.slice(-4) || "—";
+      label = `FOF · <b>#${escapeAssistantHtml(String(handNum))}</b>`;
+      const net = Number(entry.net ?? 0);
+      resultClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
+      resultText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
+    } else if (entry.gameKey === GAME_KEYS.RUN_THE_NUMBERS || entry.gameKey === GAME_KEYS.GUESS_10 || entry.gameKey === GAME_KEYS.COLOR_SCHEME) {
       const gameShort = entry.gameKey === GAME_KEYS.RUN_THE_NUMBERS ? "RTN" : entry.gameKey === GAME_KEYS.GUESS_10 ? "G10" : "RYB";
       const handNum = entry.handNumber || entry.handId?.slice(-4) || "—";
       label = `${escapeAssistantHtml(gameShort)} · <b>#${escapeAssistantHtml(String(handNum))}</b>`;
@@ -37550,7 +37678,7 @@ function renderHomeSidebarActivity() {
       resultClass = "is-neutral";
     }
 
-    const handId = entry.handId || null;
+    const handId = (entry.handId && !suppressReview) ? entry.handId : null;
     const ts = formatHomeSidebarTimestamp(entry.createdAt);
     const isClickable = handId || isTrade;
     const dataAttrs = handId ? ` data-hand-review-id="${escapeAssistantHtml(handId)}"` : "";

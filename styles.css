@@ -621,6 +621,22 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   overflow-anchor: none;
+  /* Reserve the viewport scrollbar gutter so the content width never changes
+     when a vertical scrollbar appears/disappears mid-animation. Without this,
+     full-bleed elements sized with `width:100vw` (e.g. Bloom's .bloom-grow-stage
+     / .bloom-growth-wrap) are measured against innerWidth INCLUDING the
+     scrollbar; the moment the resolving log grows tall enough to trigger the
+     scrollbar, 100vw exceeds the content width and the biome's edge clips while
+     the centred page shifts — read by the user as the "area expanding" in FOF
+     and Bloom. A stable gutter removes that jump. No-op on overlay-scrollbar
+     systems (gutter width 0), so trackpad/most Mac users see no change. */
+  scrollbar-gutter: stable;
+}
+
+/* Match the gutter reservation on the document element in case the engine
+   attributes the propagated viewport scrollbar to <html> rather than <body>. */
+html {
+  scrollbar-gutter: stable;
 }
 
 .loading-screen {
@@ -29435,6 +29451,12 @@ body[data-ui="new"] .alr-col-date {
   gap: 12px;
   padding: 12px;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
+  /* Parity with .fof-resolving: let this shrink in the flex chain so a long
+     event-log line can never establish a wide min-content and stretch the
+     stage. No max-width here on purpose — the biome (.bloom-grow-stage /
+     .bloom-growth-wrap) intentionally breaks out to full bleed via 100vw and
+     must keep referencing the page centre. */
+  min-width: 0;
 }
 
 .bloom-resolving-header {

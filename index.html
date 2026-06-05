@@ -836,9 +836,9 @@
                 </div><!-- /home-sb-card-body -->
               </div>
 
-              <!-- RECENT ACTIVITY -->
+              <!-- ACTIVITY LOG -->
               <div class="home-sb-block" data-home-section="activity">
-                <div class="home-sb-label">// RECENT ACTIVITY</div>
+                <div class="home-sb-label">// ACTIVITY LOG</div>
                 <div class="home-sb-card-body">
                 <ul id="home-sidebar-activity" class="home-sb-activity" aria-live="polite">
                   <li class="home-sb-activity-empty">Loading activity…</li>
@@ -863,6 +863,7 @@
                   <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlG10">G10</button>
                   <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlShapeTraders">ST</button>
                   <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlRyb">RYB</button>
+                  <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlFof">FOF</button>
                 </div>
                 <div class="home-sb-chart-game-filters">
                   <button type="button" class="home-sb-chart-game-btn is-active" data-home-pnl-mode="all">All</button>
@@ -2583,6 +2584,7 @@
                     <button type="button" class="account-chart-game-btn" data-bankroll-game="game_002">G10</button>
                     <button type="button" class="account-chart-game-btn" data-bankroll-game="shape_traders">ST</button>
                     <button type="button" class="account-chart-game-btn" data-bankroll-game="game_004">RYB</button>
+                    <button type="button" class="account-chart-game-btn" data-bankroll-game="game_005">FOF</button>
                   </div>
                   <div class="account-chart-games chart-filters bankroll-mode-filters">
                     <button type="button" class="account-chart-game-btn active" data-bankroll-mode="all">All</button>
@@ -2635,6 +2637,11 @@
                     <input type="checkbox" data-activity-log-filter="game_004" checked />
                     <span class="activity-log-checkbox-mark" aria-hidden="true"></span>
                     <span>Color Scheme</span>
+                  </label>
+                  <label class="activity-log-checkbox">
+                    <input type="checkbox" data-activity-log-filter="game_005" checked />
+                    <span class="activity-log-checkbox-mark" aria-hidden="true"></span>
+                    <span>Fate or Fortune</span>
                   </label>
                 </div>
                 <div class="activity-log-subfilters" aria-label="Filter Shape Traders trades by side">
@@ -4283,6 +4290,11 @@
                   <input type="checkbox" data-player-activity-log-filter="game_004" checked />
                   <span class="activity-log-checkbox-mark" aria-hidden="true"></span>
                   <span>Color Scheme</span>
+                </label>
+                <label class="activity-log-checkbox">
+                  <input type="checkbox" data-player-activity-log-filter="game_005" checked />
+                  <span class="activity-log-checkbox-mark" aria-hidden="true"></span>
+                  <span>Fate or Fortune</span>
                 </label>
               </div>
               <div class="activity-log-subfilters" aria-label="Filter Shape Traders trades by side">

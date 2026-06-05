@@ -361,15 +361,17 @@ BEGIN
             );
             dmg_int := round(rb.hp)::INT;
             hp_b := 0;
+            -- The EXECUTION special IS the killing strike. Do NOT emit a second
+            -- generic HIT swing after it — that extra clip ran on the attacker's
+            -- side right after the special and clobbered/cut the execution clip
+            -- short. Instead let the special play alone (full length) and have the
+            -- victim play the dramatic TAKE_CRITICAL_DAMAGE death on the same frame
+            -- (carries hpAfter:0 so the HP bar still empties), so the finisher
+            -- lands as a combo. Mirrors the JS sim in script.js.
             events := events || jsonb_build_object(
-              'time', T, 'type', 'HIT', 'actorId', A_ID, 'targetId', B_ID,
-              'damage', dmg_int, 'targetHpAfter', 0,
-              'message', A_NAME || ' delivers a killing blow to ' || B_NAME || '.'
-            );
-            events := events || jsonb_build_object(
-              'time', T, 'type', 'TAKE_DAMAGE', 'actorId', B_ID, 'sourceId', A_ID,
+              'time', T, 'type', 'TAKE_CRITICAL_DAMAGE', 'actorId', B_ID, 'sourceId', A_ID,
               'damage', dmg_int, 'hpAfter', 0,
-              'message', B_NAME || ' takes a fatal blow.'
+              'message', A_NAME || ' delivers a killing blow — ' || B_NAME || ' falls.'
             );
             IF a_guar_crit THEN a_guar_crit := FALSE; END IF;
           ELSE
@@ -380,15 +382,14 @@ BEGIN
             );
             dmg_int := round(ra.hp)::INT;
             hp_a := 0;
+            -- Mirror of the A-turn branch: the EXECUTION special is the sole
+            -- killing animation; the victim plays the dramatic TAKE_CRITICAL_DAMAGE
+            -- death on the same frame (no redundant generic HIT that cut the
+            -- execution clip short). hpAfter:0 still empties the HP bar.
             events := events || jsonb_build_object(
-              'time', T, 'type', 'HIT', 'actorId', B_ID, 'targetId', A_ID,
-              'damage', dmg_int, 'targetHpAfter', 0,
-              'message', B_NAME || ' delivers a killing blow to ' || A_NAME || '.'
-            );
-            events := events || jsonb_build_object(
-              'time', T, 'type', 'TAKE_DAMAGE', 'actorId', A_ID, 'sourceId', B_ID,
+              'time', T, 'type', 'TAKE_CRITICAL_DAMAGE', 'actorId', A_ID, 'sourceId', B_ID,
               'damage', dmg_int, 'hpAfter', 0,
-              'message', A_NAME || ' takes a fatal blow.'
+              'message', B_NAME || ' delivers a killing blow — ' || A_NAME || ' falls.'
             );
             IF b_guar_crit THEN b_guar_crit := FALSE; END IF;
           END IF;
