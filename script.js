@@ -32589,6 +32589,9 @@ async function fofPlayEvents(sim) {
     if (!side || !stage || !text) return;
     const el = document.createElement('div');
     el.className = `fof-float-label fof-float-${kind} fof-float-${side}`;
+    // Expose the actor's accent so the trigger-activated label renders in the
+    // character's color (its CSS uses var(--fof-accent)) instead of a fixed hue.
+    el.style.setProperty('--fof-accent', fofColor(id));
     el.textContent = text;
     stage.appendChild(el);
     requestAnimationFrame(() => el.classList.add('is-show'));

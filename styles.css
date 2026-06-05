@@ -28381,7 +28381,18 @@ body.admin-sk-fs-lock { overflow: hidden; }
 }
 
 /* SELECTING — cinematic opponent banner + challenger grid + stake bar */
-.fof-selecting { display: block; }
+.fof-selecting {
+  /* Hard backstop, mirroring .fof-resolving: the selection screen fills its
+     parent up to the page cap and NEVER grows past it. min-width:0 lets the
+     flex/grid ancestors shrink it; overflow-x:clip means a wide child (a long
+     wager-bar button, a fighter card) can't push the box out or spawn a
+     horizontal scrollbar mid-wager. */
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow-x: clip;
+}
 
 /* Section header (// THE OPPONENT … right-aligned meta) */
 .fof-sec { margin-bottom: 22px; }
@@ -28467,7 +28478,17 @@ body.admin-sk-fs-lock { overflow: hidden; }
 
 /* Challenger card grid */
 .fof-hero-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px;
+  display: grid;
+  /* FIXED column count (not auto-fill): the 7-fighter grid lives inside the
+     1200px-capped page, which naturally fits 5 columns. auto-fill made the
+     column count width-derived, so at widths sitting on the 4/5 boundary
+     (e.g. a narrowed window with devtools open) the tiniest width nudge —
+     such as the one when a wager is typed and the wager bar re-renders —
+     flipped 4<->5 columns, read by the user as the grid "stretching". A fixed
+     count keeps the layout stable regardless of sub-pixel width jitter;
+     minmax(0,1fr) lets the cards shrink instead of overflowing on smaller
+     desktops (the <=720px breakpoint below takes over for phones). */
+  grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px;
 }
 .fof-hero-card {
   position: relative;
@@ -28619,10 +28640,23 @@ body.admin-sk-fs-lock { overflow: hidden; }
   filter: drop-shadow(0 4px 14px rgba(0,0,0,0.7));
 }
 .fof-wager-bar {
-  display: grid; grid-template-columns: 1.1fr 1.5fr 1fr auto; align-items: center;
+  /* The last track was `auto`, which sizes to the GO button's content. When a
+     wager is typed the button label swaps to the longer "WAGER $X ON NAME"
+     (white-space:nowrap), so the auto track grew — and since grid items default
+     to min-width:auto (they refuse to shrink below their content) the whole bar
+     could exceed the page width and spawn a horizontal scrollbar, which read as
+     the screen "stretching" mid-wager. Fix: make every track fraction-based with
+     a 0 floor (minmax(0,…)) so NO column is sized by its content, and pin the
+     children to min-width:0 (below) so the fr tracks can actually shrink. The
+     bar now fills exactly its container and can never grow it. */
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1.3fr);
+  align-items: center;
   gap: 18px; margin-top: 18px; padding: 14px 18px;
   border: 1px solid #2a2a2a; background: rgba(10,11,10,0.96);
 }
+/* Let the fr tracks shrink instead of being floored at their content size. */
+.fof-wager-bar > * { min-width: 0; }
 .fof-wb-label { font-size: 9px; letter-spacing: 1.5px; color: #777; text-transform: uppercase; margin-bottom: 5px; }
 .fof-wb-name { font-size: 16px; letter-spacing: 1px; color: #e8e8d2; }
 .fof-wb-odds { font-size: 10px; color: #5fbf91; margin-top: 3px; }
@@ -28641,7 +28675,10 @@ body.admin-sk-fs-lock { overflow: hidden; }
 .fof-chip:hover { border-color: #d4a017; color: #e8d28a; }
 .fof-wb-return-val { font-size: 18px; font-weight: 700; color: #e8e8d2; }
 .fof-wb-profit { font-size: 10px; color: #5fbf91; margin-top: 3px; }
-.fof-wb-go { padding: 14px 22px; white-space: nowrap; }
+.fof-wb-go { padding: 14px 22px; white-space: nowrap; overflow: hidden; }
+/* The dynamic label ellipsizes inside the button so a long "WAGER $X ON NAME"
+   can never push the button (and therefore the wager bar) wider than its track. */
+#fof-wb-go-label { display: block; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── FOF responsive: stack the challenger above the champion grid and
       let the portraits/fight stage breathe on phones. ── */
@@ -28914,10 +28951,13 @@ body.admin-sk-fs-lock { overflow: hidden; }
 .fof-float-crit    { color: #ffd23f; font-size: 30px; }
 .fof-float-special { color: #5fd0a8; font-size: 19px; }
 .fof-float-special-activated {
-  color: #c79bff;
+  /* Always render in the triggering character's accent (set inline as
+     --fof-accent by showFloatLabel); the purple is just a fallback. The glow
+     also rides the accent so each fighter's trigger reads in its own color. */
+  color: var(--fof-accent, #c79bff);
   font-size: 18px;
   letter-spacing: 2px;
-  text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 10px rgba(176,123,255,0.85), 0 0 3px rgba(0,0,0,0.9);
+  text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 10px var(--fof-accent, rgba(176,123,255,0.85)), 0 0 3px rgba(0,0,0,0.9);
   animation: fofSpecialPulse 0.9s ease-in-out infinite;
 }
 @keyframes fofSpecialPulse {
