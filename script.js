@@ -32476,6 +32476,13 @@ async function fofBeginRound() {
     // Refresh local balance cache (contest entry or profile), then show resolution.
     fofApplyNewBalance(data);
     fofRefreshBalance();
+    // Also refresh the GLOBAL top-header bank value (#bankroll). fofApplyNewBalance
+    // updated the snapshot source (currentProfile.credits / contest entry) but the
+    // header never re-renders on its own — so without this it kept showing the
+    // pre-round balance until a navigation/profile re-sync. Calling this here (in
+    // the same synchronous block as fofShowResults below) makes the header land on
+    // the real post-round balance at the exact moment the results panel appears.
+    handleBankrollChanged();
     // Count this resolved round toward all-time progression (total_progress_events).
     if (currentUser?.id && currentUser.id === currentProfile?.id) {
       void incrementProfileHandProgress(1, GAME_KEYS.FATE_OR_FORTUNE).then(() => refreshCurrentRankState());
