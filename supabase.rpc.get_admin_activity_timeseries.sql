@@ -2,9 +2,14 @@
 -- get_admin_activity_timeseries(p_start_at, p_end_at, p_bucket)
 --
 -- Returns bucketed event counts per game per user for the
--- admin activity chart. Covers all four live game tables:
+-- admin activity chart. Covers all five live game tables:
 --   rtn_live_hands, guess10_live_hands,
---   shape_trader_trades, color_scheme_rounds
+--   shape_trader_trades, color_scheme_rounds,
+--   fate_or_fortune_rounds
+--
+-- FOF rounds are realized at lock time, so they're bucketed by
+-- locked_at and counted only when status = 'resolved' (matching
+-- get_admin_activity_log's FOF treatment).
 --
 -- Runs as SECURITY DEFINER to read across all users despite RLS.
 -- Admin-gated: only the known admin emails may call this.
@@ -90,6 +95,20 @@ begin
     where csr.created_at >= p_start_at
       and csr.created_at <= p_end_at
       and csr.status      = 'completed'
+    group by 1, 2, 3
+
+    union all
+
+    -- Fate or Fortune (FOF)
+    select
+      date_bin(p_bucket, fr.locked_at, p_start_at),
+      'fof'::text,
+      fr.user_id,
+      count(*)::bigint
+    from public.fate_or_fortune_rounds fr
+    where fr.locked_at >= p_start_at
+      and fr.locked_at <= p_end_at
+      and fr.status     = 'resolved'
     group by 1, 2, 3;
 end;
 $$;

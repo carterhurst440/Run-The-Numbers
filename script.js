@@ -18917,6 +18917,7 @@ const ADMIN_ACTIVITY_GAME_COLORS = {
   g10: "#00aaff",
   st:  "#ff6600",
   ryb: "#cc44ff",
+  fof: "#ffc400",
 };
 const ADMIN_ACTIVITY_PLAYER_PALETTE = [
   "#00ff88", "#00aaff", "#ff6600", "#cc44ff",
@@ -18924,7 +18925,7 @@ const ADMIN_ACTIVITY_PLAYER_PALETTE = [
   "#88ff00", "#ff00aa", "#00ffbb", "#aa00ff",
 ];
 let adminActivityPeriod = "1m";
-let adminActivityGameFilter = new Set(["rtn", "g10", "st", "ryb"]);
+let adminActivityGameFilter = new Set(["rtn", "g10", "st", "ryb", "fof"]);
 let adminActivityLineMode = "aggregate";
 let adminActivitySelectedPlayers = new Set();
 let adminActivityRawData = [];
@@ -31921,22 +31922,46 @@ function fofAvailableCredits() {
 
 // Apply the post-round balance the RPC returns to whichever ledger funded
 // the wager so the on-screen balance (and the leaderboard cache) stay in sync.
+// fof_lock_round is server-authoritative for both credits AND Carter Cash (the
+// wager is playthrough: 1 CC per 1000 wagered, remainder rolling forward), so
+// we mirror new_carter_cash / new_carter_cash_progress alongside new_balance and
+// run the authoritative snapshot refresh to surface earned CC in the header,
+// dashboard, and FOF balance pill immediately.
 function fofApplyNewBalance(data) {
   const newBal = Number(data?.new_balance);
   if (!Number.isFinite(newBal)) return;
+
+  const rawCc = Number(data?.new_carter_cash);
+  const hasCc = Number.isFinite(rawCc);
+  const rawCcProg = Number(data?.new_carter_cash_progress);
+  const hasCcProg = Number.isFinite(rawCcProg);
+
   if (data?.is_contest && typeof isContestAccountMode === 'function' && isContestAccountMode()) {
     const entry = getModeContestEntry();
     if (entry) {
       const updated = { ...entry, current_credits: newBal };
+      if (hasCc) updated.current_carter_cash = rawCc;
+      if (hasCcProg) updated.current_carter_cash_progress = rawCcProg;
       contestEntryMap.set(updated.contest_id, updated);
       userContestEntries = userContestEntries.map((e) =>
         e.contest_id === updated.contest_id ? updated : e
       );
       if (currentContest?.id === updated.contest_id) currentContestEntry = updated;
+      if (typeof applyAccountSnapshot === 'function' && typeof getContestAccountSnapshot === 'function') {
+        applyAccountSnapshot(getContestAccountSnapshot(updated));
+      }
     }
     return;
   }
-  if (currentProfile) currentProfile.credits = newBal;
+
+  if (currentProfile) {
+    currentProfile.credits = newBal;
+    if (hasCc) currentProfile.carter_cash = rawCc;
+    if (hasCcProg) currentProfile.carter_cash_progress = rawCcProg;
+    if (typeof applyAccountSnapshot === 'function' && typeof getCurrentAccountSnapshot === 'function') {
+      applyAccountSnapshot(getCurrentAccountSnapshot());
+    }
+  }
 }
 
 function fofRefreshBalance() {
@@ -34528,7 +34553,7 @@ function formatAdminActivityLabel(bucketIso) {
 }
 
 function buildAdminActivitySeries() {
-  const activeGames = ["rtn", "g10", "st", "ryb"].filter(g => adminActivityGameFilter.has(g));
+  const activeGames = ["rtn", "g10", "st", "ryb", "fof"].filter(g => adminActivityGameFilter.has(g));
   const activePlayers = adminActivitySelectedPlayers.size > 0
     ? adminActivityPlayers.filter(p => adminActivitySelectedPlayers.has(p.userId))
     : adminActivityPlayers;

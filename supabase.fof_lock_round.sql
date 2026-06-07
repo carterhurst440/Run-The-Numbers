@@ -35,6 +35,16 @@ DECLARE
   v_new_balance    NUMERIC;
   v_is_contest     BOOLEAN;
   v_entry          public.contest_entries%ROWTYPE;
+  -- Carter Cash playthrough accrual (mirrors save_player_balance_snapshot):
+  -- every 1000 of wager volume converts to 1 Carter Cash, with the remainder
+  -- carried in *_carter_cash_progress. The wager itself is the playthrough.
+  v_pre_cc         INTEGER;
+  v_pre_cc_prog    INTEGER;
+  v_cc_playthrough INTEGER;
+  v_cc_total_prog  INTEGER;
+  v_cc_earned      INTEGER;
+  v_new_cc         INTEGER;
+  v_new_cc_prog    INTEGER;
 BEGIN
   v_user_id := auth.uid();
   IF v_user_id IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
@@ -94,11 +104,16 @@ BEGIN
 
     IF NOT FOUND THEN RAISE EXCEPTION 'Contest entry not found'; END IF;
     v_pre_balance := round(coalesce(v_entry.current_credits, 0)::numeric, 2);
+    v_pre_cc      := greatest(coalesce(v_entry.current_carter_cash, 0), 0);
+    v_pre_cc_prog := greatest(coalesce(v_entry.current_carter_cash_progress, 0), 0);
     IF v_pre_balance < p_wager THEN
       RAISE EXCEPTION 'Insufficient contest credits (have %, need %)', v_pre_balance, p_wager;
     END IF;
   ELSE
-    SELECT credits INTO v_pre_balance
+    SELECT credits,
+           greatest(coalesce(carter_cash, 0), 0),
+           greatest(coalesce(carter_cash_progress, 0), 0)
+    INTO v_pre_balance, v_pre_cc, v_pre_cc_prog
     FROM public.profiles
     WHERE id = v_user_id
     FOR UPDATE;
@@ -127,16 +142,30 @@ BEGIN
 
   v_new_balance := round((v_pre_balance - p_wager + v_total_returned)::numeric, 2);
 
+  -- Carter Cash playthrough: the full wager counts toward CC progress, exactly
+  -- like every other game (RTN/G10/Shape Traders/Color Scheme). 1000 progress
+  -- = 1 Carter Cash; the remainder rolls forward. Credited to whichever ledger
+  -- funds the round (contest entry in contest mode, profile otherwise).
+  v_cc_playthrough := greatest(round(p_wager)::integer, 0);
+  v_cc_total_prog  := greatest(0, coalesce(v_pre_cc_prog, 0) + v_cc_playthrough);
+  v_cc_earned      := floor(v_cc_total_prog / 1000.0);
+  v_new_cc         := greatest(0, coalesce(v_pre_cc, 0) + v_cc_earned);
+  v_new_cc_prog    := v_cc_total_prog - (v_cc_earned * 1000);
+
   -- Settle the balance against the correct ledger
   IF v_is_contest THEN
     UPDATE public.contest_entries
-    SET current_credits = greatest(v_new_balance, 0),
-        updated_at      = timezone('utc', now())
+    SET current_credits              = greatest(v_new_balance, 0),
+        current_carter_cash          = v_new_cc,
+        current_carter_cash_progress = v_new_cc_prog,
+        updated_at                   = timezone('utc', now())
     WHERE contest_id = v_round.contest_id
       AND user_id    = v_user_id;
   ELSE
     UPDATE public.profiles
-    SET credits = v_new_balance
+    SET credits              = v_new_balance,
+        carter_cash          = v_new_cc,
+        carter_cash_progress = v_new_cc_prog
     WHERE id = v_user_id;
   END IF;
 
@@ -165,6 +194,8 @@ BEGIN
     'net_profit', v_total_returned - p_wager,
     'pre_balance', v_pre_balance,
     'new_balance', v_new_balance,
+    'new_carter_cash', v_new_cc,
+    'new_carter_cash_progress', v_new_cc_prog,
     'is_contest', v_is_contest,
     'contest_id', v_round.contest_id,
     'round_details', v_sim_result
