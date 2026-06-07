@@ -12651,6 +12651,14 @@ function applyAccountSnapshot(snapshot, { resetHistory = false } = {}) {
   bankrollInitialized = true;
   updateModeSpecificModalCopy();
   updatePlayAssistantContext();
+  // Keep the Fate or Fortune in-game balance readout in sync with whichever
+  // ledger now funds the account. Switching modes (or any authoritative
+  // snapshot) changes the spendable credits, and the FOF balance pill reads
+  // its own ledger via fofAvailableCredits(); without this it would keep
+  // showing the previous mode's credits. Readout-only — never resets a round.
+  if (typeof fofRefreshBalance === "function") {
+    fofRefreshBalance();
+  }
 }
 
 function renderAccountModeSelector() {
@@ -27859,6 +27867,15 @@ async function applyAccountModeSelection(nextMode, { resetHistory = true } = {})
   saveAccountModeSelection(currentAccountMode);
   syncActiveAccountMode({ forceApply: true, resetHistory });
 
+  // A Fate or Fortune round is funded by the account that was active when it
+  // started. Switching account mode mid-round would settle the wager against
+  // the wrong ledger, so drop any in-flight round back to idle and re-render
+  // the stage on the now-active account. (syncActiveAccountMode already
+  // refreshed the FOF balance readout via applyAccountSnapshot.)
+  if (typeof fofResetForAccountChange === "function") {
+    fofResetForAccountChange();
+  }
+
   shapeTradersHoldings = createEmptyShapeTraderHoldings();
   shapeTradersActivity = [];
   shapeTradersActivityLoadedCount = 0;
@@ -31855,6 +31872,27 @@ const fofGame = {
 // opponent for animation testing. null = true uniform-random opponent
 // (the fof_start_round RPC picks via ORDER BY random() when none is passed).
 const FOF_FORCE_OPPONENT = null;
+
+// Called when the active account mode changes. If a round is in flight it was
+// staked against the previous account, so reset to idle and re-render against
+// the now-active ledger. No-ops when the FOF view isn't built yet or already
+// idle, so it's safe to call from the global mode-switch path.
+function fofResetForAccountChange() {
+  if (typeof fofGame !== 'object' || !fofGame) return;
+  if (fofGame.state !== 'idle') {
+    fofGame.state = 'idle';
+    fofGame.roundId = null;
+    fofGame.opponent = null;
+    fofGame.candidates = [];
+    fofGame.pickedHero = null;
+    fofGame.wager = 0;
+    fofGame.resolution = null;
+    if (document.getElementById('fof-stage')) {
+      fofRenderStage();
+    }
+  }
+  fofRefreshBalance();
+}
 
 async function fofRouteOpen() {
   fofGame.state = 'idle';
