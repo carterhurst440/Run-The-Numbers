@@ -25622,6 +25622,21 @@ body[data-ui="new"] .contest-result-game-stats {
   min-height: auto;
 }
 
+/* Journey title is "<displayName> Journey" where displayName can be a long
+   email. The header is a flex row, and flex children default to
+   min-width:auto — which refuses to shrink below a long unbreakable token, so
+   the title stretches/warps the header instead of wrapping. min-width:0 +
+   overflow-wrap lets the title wrap to multiple lines; the close button stays
+   fixed so it never gets squeezed off-screen. Should always wrap, never stretch. */
+.contest-journey-modal .modal-header h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.contest-journey-modal .modal-header .modal-close {
+  flex-shrink: 0;
+}
+
 /* Journey chart modal */
 body[data-ui="new"] .contest-journey-chart-wrap {
   border-radius: 2px;
