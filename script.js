@@ -30386,6 +30386,7 @@ function adminFofSwitchSubtab(target) {
   const el = document.getElementById(`admin-fof-${target}-content`);
   if (el) el.hidden = false;
   if (target === 'animations') void loadAdminFofAnimations();
+  if (target === 'market') fofMarketInitPanel();
 }
 
 (function adminFofSubtabInit() {
@@ -31740,6 +31741,632 @@ function fofSimulate(a, b, runs) {
     aAbsorbFired, bAbsorbFired,
     aGuarUsed, bGuarUsed,
   };
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// FATE OR FORTUNE — MARKET MODE (v2) engine fork.
+//
+// A live prediction-market layer over the existing battle sim. The fight plays
+// out event by event; after every HP change the contract odds re-price from a
+// Monte Carlo of continuations run FROM the current mid-battle state. Players
+// buy/sell contracts at the live price and may flip sides.
+//
+// This is a deliberate FORK — the live game's fofSimulateOne / fofSimulate are
+// left untouched. These three functions must stay logically in lockstep with
+// fofSimulateOne (resolution order + RNG usage) so market odds match the real
+// engine. Keep them in sync if the live engine is retuned.
+//
+//   fofMarketResolveParams(a,b) → P   resolve matchup params ONCE (shared)
+//   fofMarketContinue(P,s,rng)  → ±1/0  run to completion from state s (hot loop)
+//   fofMarketRunCanonical(P,sd) → {events, winner, checkpoints}  the ONE true path
+//   fofMarketGenerate(a,b,opts) → priced timeline (canonical path + price ticks)
+//
+// v1 simplification: prices tick at TURN BOUNDARIES that changed HP. A turn with
+// a bonus chain / reflect (multiple HP changes at one instant) gets one tick at
+// its end. Turn-boundary state is always cleanly resumable. Sub-turn pricing can
+// be layered on later.
+// ════════════════════════════════════════════════════════════════════════
+
+function fofMarketResolveParams(a, b) {
+  const P = {};
+  P.A_ID = a.character; P.B_ID = b.character;
+  P.A_NAME = P.A_ID.toUpperCase(); P.B_NAME = P.B_ID.toUpperCase();
+  P.aProper = fofProperName(a); P.bProper = fofProperName(b);
+
+  P.aHp = a.hp; P.aDmg = a.damage; P.aCm = a.crit_mult; P.aAt = a.attack_time;
+  P.bHp = b.hp; P.bDmg = b.damage; P.bCm = b.crit_mult; P.bAt = b.attack_time;
+  P.aHitChance = a.accuracy * (1 - b.dodge);
+  P.bHitChance = b.accuracy * (1 - a.dodge);
+  P.aEffCrit = a.crit_chance * (1 - (b.constitution || 0));
+  P.bEffCrit = b.crit_chance * (1 - (a.constitution || 0));
+
+  const aIK = fofGetAbility(a, 'INSTANT_KILL_CHANCE'); const bIK = fofGetAbility(b, 'INSTANT_KILL_CHANCE');
+  P.aIKChance = aIK ? Number(aIK.effect?.instantKillChance) || 0 : 0;
+  P.bIKChance = bIK ? Number(bIK.effect?.instantKillChance) || 0 : 0;
+  P.aIKId = aIK ? aIK.id : null; P.bIKId = bIK ? bIK.id : null;
+
+  const aCNMa = fofGetAbility(a, 'CRITICAL_HITS_CANNOT_MISS'); const bCNMa = fofGetAbility(b, 'CRITICAL_HITS_CANNOT_MISS');
+  P.aCNM = !!aCNMa; P.bCNM = !!bCNMa; P.aCNMId = aCNMa ? aCNMa.id : null; P.bCNMId = bCNMa ? bCNMa.id : null;
+
+  const aRH = fofGetAbility(a, 'ATTACK_REPLACED_BY_HEAL') || fofGetAbility(a, 'ATTACK_REPLACED_BY_FULL_HEAL');
+  const bRH = fofGetAbility(b, 'ATTACK_REPLACED_BY_HEAL') || fofGetAbility(b, 'ATTACK_REPLACED_BY_FULL_HEAL');
+  P.aRHChance = aRH ? Number(aRH.effect?.replaceAttackChance) || 0 : 0;
+  P.bRHChance = bRH ? Number(bRH.effect?.replaceAttackChance) || 0 : 0;
+  P.aRHFull = !!aRH?.effect?.healToFullHp; P.bRHFull = !!bRH?.effect?.healToFullHp;
+  P.aRHHeal = P.aRHFull ? P.aHp : (aRH ? (Number(aRH.effect?.healPercentMaxHp) || 0) * P.aHp : 0);
+  P.bRHHeal = P.bRHFull ? P.bHp : (bRH ? (Number(bRH.effect?.healPercentMaxHp) || 0) * P.bHp : 0);
+  P.aRHNoStack = !!aRH?.constraints?.cannotTriggerConsecutively;
+  P.bRHNoStack = !!bRH?.constraints?.cannotTriggerConsecutively;
+  P.aRHId = aRH ? aRH.id : null; P.bRHId = bRH ? bRH.id : null;
+
+  const aLS = fofGetAbility(a, 'LIFESTEAL'); const bLS = fofGetAbility(b, 'LIFESTEAL');
+  P.aLSPct = aLS ? Number(aLS.effect?.healPercentOfDamageDealt) || 0 : 0;
+  P.bLSPct = bLS ? Number(bLS.effect?.healPercentOfDamageDealt) || 0 : 0;
+  P.aLSCritOnly = !!aLS?.effect?.onlyOnCriticalHit; P.bLSCritOnly = !!bLS?.effect?.onlyOnCriticalHit;
+  P.aLSId = aLS ? aLS.id : null; P.bLSId = bLS ? bLS.id : null;
+
+  const aBA = fofGetAbility(a, 'BONUS_ATTACK'); const bBA = fofGetAbility(b, 'BONUS_ATTACK');
+  P.aBAChance = aBA ? Number(aBA.effect?.bonusAttackChance) || 0 : 0;
+  P.bBAChance = bBA ? Number(bBA.effect?.bonusAttackChance) || 0 : 0;
+  P.aBACanMiss = aBA ? aBA.effect?.bonusAttackCanMiss !== false : true;
+  P.bBACanMiss = bBA ? bBA.effect?.bonusAttackCanMiss !== false : true;
+  P.aBACanCrit = aBA ? aBA.effect?.bonusAttackCanCrit !== false : true;
+  P.bBACanCrit = bBA ? bBA.effect?.bonusAttackCanCrit !== false : true;
+  P.aBAId = aBA ? aBA.id : null; P.bBAId = bBA ? bBA.id : null;
+
+  const aRefl = fofGetAbility(a, 'DAMAGE_REFLECTION'); const bRefl = fofGetAbility(b, 'DAMAGE_REFLECTION');
+  P.aReflChance = aRefl ? Number(aRefl.effect?.reflectChance) || 0 : 0;
+  P.bReflChance = bRefl ? Number(bRefl.effect?.reflectChance) || 0 : 0;
+  P.aReflPct = aRefl ? Number(aRefl.effect?.reflectPercent) || 0 : 0;
+  P.bReflPct = bRefl ? Number(bRefl.effect?.reflectPercent) || 0 : 0;
+  P.aReflId = aRefl ? aRefl.id : null; P.bReflId = bRefl ? bRefl.id : null;
+
+  const aAbs = fofGetAbility(a, 'DAMAGE_ABSORB_HEAL'); const bAbs = fofGetAbility(b, 'DAMAGE_ABSORB_HEAL');
+  P.aAbsChance = aAbs ? Number(aAbs.effect?.absorbChance) || 0 : 0;
+  P.bAbsChance = bAbs ? Number(bAbs.effect?.absorbChance) || 0 : 0;
+  P.aAbsId = aAbs ? aAbs.id : null; P.bAbsId = bAbs ? bAbs.id : null;
+
+  const aSer = fofGetAbility(a, 'CRITICAL_DAMAGE_REDUCTION'); const bSer = fofGetAbility(b, 'CRITICAL_DAMAGE_REDUCTION');
+  P.aSerMult = aSer && Number.isFinite(Number(aSer.effect?.critDamageTakenMultiplier)) ? Number(aSer.effect.critDamageTakenMultiplier) : 1;
+  P.bSerMult = bSer && Number.isFinite(Number(bSer.effect?.critDamageTakenMultiplier)) ? Number(bSer.effect.critDamageTakenMultiplier) : 1;
+  P.aSerId = aSer ? aSer.id : null; P.bSerId = bSer ? bSer.id : null;
+
+  const aRev = fofGetAbility(a, 'GUARANTEED_NEXT_CRIT'); const bRev = fofGetAbility(b, 'GUARANTEED_NEXT_CRIT');
+  P.aGuarOnCrit = !!aRev; P.bGuarOnCrit = !!bRev; P.aRevId = aRev ? aRev.id : null; P.bRevId = bRev ? bRev.id : null;
+  return P;
+}
+
+// Run the battle to completion from an arbitrary mid-battle state `s`, using the
+// supplied seeded rng. Returns +1 (hero/A wins), -1 (opponent/B wins), 0 (draw).
+// Pure: does NOT mutate `s` (so the same checkpoint can seed M continuations).
+// Mirrors fofSimulate's inner loop exactly (outcome-only, no event allocation).
+function fofMarketContinue(P, s, rng) {
+  let hpA = s.hpA, hpB = s.hpB, tA = s.tA, tB = s.tB;
+  let aLastHeal = s.aLastHeal, bLastHeal = s.bLastHeal;
+  let aGuarCrit = s.aGuarCrit, bGuarCrit = s.bGuarCrit;
+  let attacks = 0;
+  const MAX_ATTACKS = 10000, MAX_BONUS_CHAIN = 5;
+
+  while (hpA > 0 && hpB > 0 && attacks < MAX_ATTACKS) {
+    attacks++;
+    if (tA <= tB) {
+      tA += P.aAt;
+      if (P.aRHChance > 0 && !(P.aRHNoStack && aLastHeal) && rng() < P.aRHChance) {
+        hpA += P.aRHHeal; if (hpA > P.aHp) hpA = P.aHp; aLastHeal = true; continue;
+      }
+      aLastHeal = false;
+      let isBonus = false, chain = 0;
+      do {
+        if (hpA <= 0 || hpB <= 0) break;
+        if (P.aIKChance > 0 && rng() < P.aIKChance) { hpB = 0; if (aGuarCrit) aGuarCrit = false; break; }
+        const canMiss = isBonus ? P.aBACanMiss : true;
+        const canCrit = isBonus ? P.aBACanCrit : true;
+        let didHit = false, didCrit = false;
+        if (!canMiss) { didHit = true; if (canCrit && rng() < P.aEffCrit) didCrit = true; }
+        else if (P.aCNM && canCrit) {
+          if (rng() < P.aEffCrit) { didHit = true; didCrit = true; }
+          else if (rng() < P.aHitChance) didHit = true;
+        } else {
+          if (rng() < P.aHitChance) { didHit = true; if (canCrit && rng() < P.aEffCrit) didCrit = true; }
+        }
+        const aRevengeArmed = aGuarCrit && canCrit;
+        if (didHit && aRevengeArmed) didCrit = true;
+        if (didHit) {
+          let dmg = P.aDmg;
+          if (didCrit) { dmg *= P.aCm; if (P.bSerMult < 1) dmg *= P.bSerMult; }
+          let absorbed = false;
+          if (P.bAbsChance > 0 && rng() < P.bAbsChance) { hpB += dmg; if (hpB > P.bHp) hpB = P.bHp; absorbed = true; }
+          if (!absorbed) {
+            hpB -= dmg;
+            // Reflect gated on defender surviving the hit (matches the
+            // authoritative fofSimulateOne / SQL engine) — this is what keeps
+            // mutual-kill draws impossible.
+            if (P.bReflChance > 0 && hpB > 0 && rng() < P.bReflChance) hpA -= dmg * P.bReflPct;
+            if (P.aLSPct > 0 && (!P.aLSCritOnly || didCrit)) { hpA += dmg * P.aLSPct; if (hpA > P.aHp) hpA = P.aHp; }
+            if (didCrit && P.bGuarOnCrit) bGuarCrit = true;
+          }
+        }
+        if (aRevengeArmed) aGuarCrit = false;
+        isBonus = (didHit && hpA > 0 && hpB > 0 && P.aBAChance > 0 && chain < MAX_BONUS_CHAIN && rng() < P.aBAChance);
+        if (isBonus) chain++;
+      } while (isBonus);
+    } else {
+      tB += P.bAt;
+      if (P.bRHChance > 0 && !(P.bRHNoStack && bLastHeal) && rng() < P.bRHChance) {
+        hpB += P.bRHHeal; if (hpB > P.bHp) hpB = P.bHp; bLastHeal = true; continue;
+      }
+      bLastHeal = false;
+      let isBonus = false, chain = 0;
+      do {
+        if (hpA <= 0 || hpB <= 0) break;
+        if (P.bIKChance > 0 && rng() < P.bIKChance) { hpA = 0; if (bGuarCrit) bGuarCrit = false; break; }
+        const canMiss = isBonus ? P.bBACanMiss : true;
+        const canCrit = isBonus ? P.bBACanCrit : true;
+        let didHit = false, didCrit = false;
+        if (!canMiss) { didHit = true; if (canCrit && rng() < P.bEffCrit) didCrit = true; }
+        else if (P.bCNM && canCrit) {
+          if (rng() < P.bEffCrit) { didHit = true; didCrit = true; }
+          else if (rng() < P.bHitChance) didHit = true;
+        } else {
+          if (rng() < P.bHitChance) { didHit = true; if (canCrit && rng() < P.bEffCrit) didCrit = true; }
+        }
+        const bRevengeArmed = bGuarCrit && canCrit;
+        if (didHit && bRevengeArmed) didCrit = true;
+        if (didHit) {
+          let dmg = P.bDmg;
+          if (didCrit) { dmg *= P.bCm; if (P.aSerMult < 1) dmg *= P.aSerMult; }
+          let absorbed = false;
+          if (P.aAbsChance > 0 && rng() < P.aAbsChance) { hpA += dmg; if (hpA > P.aHp) hpA = P.aHp; absorbed = true; }
+          if (!absorbed) {
+            hpA -= dmg;
+            if (P.aReflChance > 0 && hpA > 0 && rng() < P.aReflChance) hpB -= dmg * P.aReflPct;
+            if (P.bLSPct > 0 && (!P.bLSCritOnly || didCrit)) { hpB += dmg * P.bLSPct; if (hpB > P.bHp) hpB = P.bHp; }
+            if (didCrit && P.aGuarOnCrit) aGuarCrit = true;
+          }
+        }
+        if (bRevengeArmed) bGuarCrit = false;
+        isBonus = (didHit && hpA > 0 && hpB > 0 && P.bBAChance > 0 && chain < MAX_BONUS_CHAIN && rng() < P.bBAChance);
+        if (isBonus) chain++;
+      } while (isBonus);
+    }
+  }
+  if (hpA > 0 && hpB <= 0) return 1;
+  if (hpA <= 0 && hpB > 0) return -1;
+  return 0;
+}
+
+// Run the ONE canonical (seeded) battle that decides the true outcome. Faithful
+// fork of fofSimulateOne — emits the full animation event log AND a checkpoint
+// (full resumable state) after every turn that changed HP. Those checkpoints are
+// the junctures the price curve is sampled at.
+function fofMarketRunCanonical(P, seed) {
+  const rng = fofRng(seed);
+  const events = [];
+  const checkpoints = [];
+  const A_ID = P.A_ID, B_ID = P.B_ID, A_NAME = P.A_NAME, B_NAME = P.B_NAME;
+
+  let hpA = P.aHp, hpB = P.bHp;
+  let tA = P.aAt, tB = P.bAt;
+  let time = 0, attacks = 0;
+  let aLastHeal = false, bLastHeal = false;
+  let aGuarCrit = false, bGuarCrit = false;
+  const MAX_ATTACKS = 1000, MAX_BONUS_CHAIN = 5;
+
+  function takeTurn(side) {
+    const isA = side === 'A';
+    const atkId = isA ? A_ID : B_ID, atkName = isA ? A_NAME : B_NAME;
+    const defId = isA ? B_ID : A_ID, defName = isA ? B_NAME : A_NAME;
+    const rhChance = isA ? P.aRHChance : P.bRHChance, rhHeal = isA ? P.aRHHeal : P.bRHHeal;
+    const rhFull = isA ? P.aRHFull : P.bRHFull, rhNoStack = isA ? P.aRHNoStack : P.bRHNoStack, rhId = isA ? P.aRHId : P.bRHId;
+    const ikChance = isA ? P.aIKChance : P.bIKChance, ikId = isA ? P.aIKId : P.bIKId;
+    const hitChance = isA ? P.aHitChance : P.bHitChance, effCrit = isA ? P.aEffCrit : P.bEffCrit;
+    const dmgBase = isA ? P.aDmg : P.bDmg, cm = isA ? P.aCm : P.bCm;
+    const cnm = isA ? P.aCNM : P.bCNM;
+    const lsPct = isA ? P.aLSPct : P.bLSPct, lsCritOnly = isA ? P.aLSCritOnly : P.bLSCritOnly, lsId = isA ? P.aLSId : P.bLSId;
+    const baChance = isA ? P.aBAChance : P.bBAChance, baCanMiss = isA ? P.aBACanMiss : P.bBACanMiss, baCanCrit = isA ? P.aBACanCrit : P.bBACanCrit, baId = isA ? P.aBAId : P.bBAId;
+    const defAbsChance = isA ? P.bAbsChance : P.aAbsChance, defAbsId = isA ? P.bAbsId : P.aAbsId;
+    const defReflChance = isA ? P.bReflChance : P.aReflChance, defReflPct = isA ? P.bReflPct : P.aReflPct, defReflId = isA ? P.bReflId : P.aReflId;
+    const defCritReduce = isA ? P.bSerMult : P.aSerMult, defSerId = isA ? P.bSerId : P.aSerId;
+    const defGuarOnCrit = isA ? P.bGuarOnCrit : P.aGuarOnCrit, defRevId = isA ? P.bRevId : P.aRevId;
+    const atkMax = isA ? P.aHp : P.bHp, defMax = isA ? P.bHp : P.aHp;
+
+    const getAtkHp = () => isA ? hpA : hpB, setAtkHp = (v) => { if (isA) hpA = v; else hpB = v; };
+    const getDefHp = () => isA ? hpB : hpA, setDefHp = (v) => { if (isA) hpB = v; else hpA = v; };
+    const getAtkLastHeal = () => isA ? aLastHeal : bLastHeal, setAtkLastHeal = (v) => { if (isA) aLastHeal = v; else bLastHeal = v; };
+    const getAtkGuar = () => isA ? aGuarCrit : bGuarCrit, setAtkGuar = (v) => { if (isA) aGuarCrit = v; else bGuarCrit = v; };
+    const setDefGuar = (v) => { if (isA) bGuarCrit = v; else aGuarCrit = v; };
+
+    const T = fofRound(time, 2);
+
+    if (rhChance > 0 && !(rhNoStack && getAtkLastHeal()) && rng() < rhChance) {
+      const newHp = Math.min(atkMax, getAtkHp() + rhHeal);
+      setAtkHp(newHp); setAtkLastHeal(true);
+      events.push({ time: T, type: 'SPECIAL_TRIGGER', actorId: atkId, specialId: rhId || 'heal', message: `${atkName} casts ${(rhId || 'heal').toUpperCase()}, restoring HP to ${rhFull ? 'full' : Math.round(newHp)} (${Math.round(newHp)}/${Math.round(atkMax)}).` });
+      events.push({ time: T, type: 'HEAL', actorId: atkId, hpAfter: Math.round(newHp), message: `${atkName} heals to ${Math.round(newHp)} HP.` });
+      return;
+    }
+    setAtkLastHeal(false);
+
+    let isBonus = false, chain = 0;
+    do {
+      if (hpA <= 0 || hpB <= 0) break;
+      if (ikChance > 0 && rng() < ikChance) {
+        events.push({ time: T, type: 'SPECIAL_TRIGGER', actorId: atkId, specialId: ikId || 'instant_kill', message: `${atkName} triggers ${(ikId || 'instant_kill').toUpperCase()} — instantly killing ${defName}!` });
+        setDefHp(0);
+        events.push({ time: T, type: 'TAKE_CRITICAL_DAMAGE', actorId: defId, sourceId: atkId, damage: Math.round(defMax), hpAfter: 0, message: `${atkName} delivers a killing blow — ${defName} falls.` });
+        if (getAtkGuar()) setAtkGuar(false);
+        break;
+      }
+      const canMiss = isBonus ? baCanMiss : true;
+      const canCrit = isBonus ? baCanCrit : true;
+      let didHit = false, didCrit = false, fromCNM = false;
+      if (!canMiss) { didHit = true; if (canCrit && rng() < effCrit) didCrit = true; }
+      else if (cnm && canCrit) {
+        if (rng() < effCrit) { didHit = true; didCrit = true; fromCNM = true; }
+        else if (rng() < hitChance) didHit = true;
+      } else {
+        if (rng() < hitChance) { didHit = true; if (canCrit && rng() < effCrit) didCrit = true; }
+      }
+      const revengeArmed = getAtkGuar() && canCrit;
+      const fromRevenge = didHit && revengeArmed && !didCrit;
+      if (didHit && revengeArmed) didCrit = true;
+
+      if (!didHit) {
+        events.push({ time: T, type: 'MISS', actorId: atkId, targetId: defId, message: `${atkName} attacks ${defName}${isBonus ? ' (bonus)' : ''} but misses${revengeArmed ? ' — REVENGE fizzles' : ''}.` });
+      } else {
+        let dmg = dmgBase;
+        if (didCrit) dmg *= cm;
+        const serenityFired = didCrit && defCritReduce < 1;
+        if (serenityFired) dmg *= defCritReduce;
+        const dmgInt = Math.round(dmg);
+        let absorbed = false;
+        if (defAbsChance > 0 && rng() < defAbsChance) {
+          absorbed = true;
+          const newDef = Math.min(defMax, getDefHp() + dmg);
+          setDefHp(newDef);
+          events.push({ time: T, type: 'SPECIAL_TRIGGER', actorId: defId, specialId: defAbsId || 'absorb', absorbCrit: didCrit, message: `${defName} activates ${(defAbsId || 'absorb').toUpperCase()}, fully absorbing ${dmgInt} damage and healing for the same amount.` });
+          events.push({ time: T, type: didCrit ? 'CRITICAL_HIT' : 'HIT', actorId: atkId, targetId: defId, damage: dmgInt, targetHpAfter: Math.round(newDef), absorbed: true, message: `${atkName}${fromRevenge ? "'s guaranteed REVENGE" : ''}${fromCNM ? "'s DEADEYE" : ''} ${didCrit ? 'critical' : 'normal'} hit on ${defName} is absorbed.` });
+        } else {
+          const newDef = getDefHp() - dmg;
+          setDefHp(newDef);
+          events.push({ time: T, type: didCrit ? 'CRITICAL_HIT' : 'HIT', actorId: atkId, targetId: defId, damage: dmgInt, targetHpAfter: Math.max(0, Math.round(newDef)), message: `${atkName} ${didCrit ? `lands a${fromRevenge ? ' guaranteed REVENGE' : fromCNM ? ' DEADEYE' : ''} CRITICAL HIT on` : `hits ${isBonus ? '(bonus) ' : ''}`}${defName} for ${dmgInt} damage.` });
+          events.push({ time: T, type: didCrit ? 'TAKE_CRITICAL_DAMAGE' : 'TAKE_DAMAGE', actorId: defId, sourceId: atkId, damage: dmgInt, hpAfter: Math.max(0, Math.round(newDef)), message: `${defName} takes ${dmgInt}${didCrit ? ' critical' : ''} damage.` });
+          if (serenityFired) events.push({ time: T, type: 'SPECIAL_TRIGGER', actorId: defId, specialId: defSerId || 'serenity', message: `${defName} channels ${(defSerId || 'serenity').toUpperCase()}, reducing the critical hit to ${dmgInt} damage.` });
+          if (didCrit && defGuarOnCrit) { setDefGuar(true); events.push({ time: T, type: 'SPECIAL_TRIGGER', actorId: defId, specialId: defRevId || 'revenge', message: `${defName} activates ${(defRevId || 'revenge').toUpperCase()}. Next attack attempt will be a critical.` }); }
+          if (defReflChance > 0 && getDefHp() > 0 && rng() < defReflChance) {
+            const reflectDmg = dmg * defReflPct, reflectInt = Math.round(reflectDmg);
+            setAtkHp(getAtkHp() - reflectDmg);
+            events.push({ time: T, type: 'SPECIAL_TRIGGER', actorId: defId, specialId: defReflId || 'reflect', reflectCrit: didCrit, message: `${defName} activates ${(defReflId || 'reflect').toUpperCase()}, reflecting ${reflectInt} damage back to ${atkName}.` });
+            events.push({ time: T, type: 'TAKE_DAMAGE', actorId: atkId, sourceId: defId, damage: reflectInt, hpAfter: Math.max(0, Math.round(getAtkHp())), reflected: true, message: `${atkName} takes ${reflectInt} reflected damage.` });
+          }
+          if (lsPct > 0 && (!lsCritOnly || didCrit)) {
+            const heal = dmg * lsPct, healInt = Math.round(heal);
+            if (healInt > 0) {
+              setAtkHp(Math.min(atkMax, getAtkHp() + heal));
+              events.push({ time: T, type: 'SPECIAL_TRIGGER', actorId: atkId, specialId: lsId || 'lifesteal', message: `${atkName} heals ${healInt} HP via ${(lsId || 'lifesteal').toUpperCase()}.` });
+              events.push({ time: T, type: 'HEAL', actorId: atkId, hpAfter: Math.round(getAtkHp()), message: `${atkName} heals to ${Math.round(getAtkHp())} HP.` });
+            }
+          }
+        }
+      }
+      if (revengeArmed) setAtkGuar(false);
+      isBonus = (didHit && hpA > 0 && hpB > 0 && baChance > 0 && chain < MAX_BONUS_CHAIN && rng() < baChance);
+      if (isBonus) { chain++; events.push({ time: T, type: 'SPECIAL_TRIGGER', actorId: atkId, specialId: baId || 'bonus_attack', message: `${atkName} triggers ${(baId || 'bonus_attack').toUpperCase()} — bonus attack!` }); }
+    } while (isBonus);
+  }
+
+  while (hpA > 0 && hpB > 0 && attacks < MAX_ATTACKS) {
+    attacks++;
+    const hpA0 = hpA, hpB0 = hpB;
+    if (tA <= tB) { time = tA; tA += P.aAt; takeTurn('A'); }
+    else          { time = tB; tB += P.bAt; takeTurn('B'); }
+    // Price tick after every turn that changed HP (or ended the battle).
+    if (hpA !== hpA0 || hpB !== hpB0 || hpA <= 0 || hpB <= 0) {
+      checkpoints.push({
+        eventIndex: events.length, time: fofRound(time, 2),
+        hpA, hpB, tA, tB, aLastHeal, bLastHeal, aGuarCrit, bGuarCrit,
+      });
+    }
+  }
+
+  const finalT = fofRound(time, 2);
+  let winner = null;
+  if (hpA > 0 && hpB <= 0) {
+    events.push({ time: finalT, type: 'DEFEAT', actorId: B_ID, message: `${B_NAME} is defeated.` });
+    events.push({ time: finalT, type: 'VICTORY', actorId: A_ID, message: `${A_NAME} wins the battle.` });
+    winner = { id: A_ID, name: P.aProper };
+  } else if (hpA <= 0 && hpB > 0) {
+    events.push({ time: finalT, type: 'DEFEAT', actorId: A_ID, message: `${A_NAME} is defeated.` });
+    events.push({ time: finalT, type: 'VICTORY', actorId: B_ID, message: `${B_NAME} wins the battle.` });
+    winner = { id: B_ID, name: P.bProper };
+  } else {
+    events.push({ time: finalT, type: 'DRAW', message: 'Both fighters fall — draw.' });
+  }
+  return { events, winner, durationSeconds: finalT, checkpoints };
+}
+
+// Generate a full market round: the canonical battle + a price for every
+// juncture. Each juncture's price = Monte Carlo of M continuations from that
+// state. CRN (one shared seed-set reused across junctures) makes the curve
+// smooth without brute-forcing M up.
+function fofMarketGenerate(a, b, opts = {}) {
+  const M = Math.max(1, opts.mcRuns || 5000);
+  const P = fofMarketResolveParams(a, b);
+  const canonicalSeed = (opts.seed != null && Number.isFinite(opts.seed)) ? (opts.seed | 0) : (Math.floor(Math.random() * 1e9) | 0);
+  const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+  const canon = fofMarketRunCanonical(P, canonicalSeed || 1);
+
+  // CRN seed-set, generated once, reused at every juncture.
+  const seedRng = fofRng((opts.crnSeed | 0) || (Math.floor(Math.random() * 1e9) | 0) || 1);
+  const crnSeeds = new Array(M);
+  for (let m = 0; m < M; m++) crnSeeds[m] = (Math.floor(seedRng() * 4294967296) | 0) || 1;
+
+  const priceFor = (st) => {
+    if (st.hpA <= 0 && st.hpB <= 0) return { hero: 0.5, opp: 0.5, draws: M };
+    if (st.hpB <= 0) return { hero: 1, opp: 0, draws: 0 };
+    if (st.hpA <= 0) return { hero: 0, opp: 1, draws: 0 };
+    let aw = 0, bw = 0, dr = 0;
+    for (let m = 0; m < M; m++) {
+      const r = fofMarketContinue(P, st, fofRng(crnSeeds[m]));
+      if (r > 0) aw++; else if (r < 0) bw++; else dr++;
+    }
+    return { hero: aw / M, opp: bw / M, draws: dr };
+  };
+
+  const ticks = [];
+  // Opening tick: fresh full-HP state (juncture 0, before any blow lands).
+  const opening = { hpA: P.aHp, hpB: P.bHp, tA: P.aAt, tB: P.bAt, aLastHeal: false, bLastHeal: false, aGuarCrit: false, bGuarCrit: false };
+  let pr = priceFor(opening);
+  ticks.push({ eventIndex: 0, time: 0, hpA: P.aHp, hpB: P.bHp, heroWin: pr.hero, oppWin: pr.opp, draws: pr.draws, state: opening });
+
+  for (const cp of canon.checkpoints) {
+    pr = priceFor(cp);
+    ticks.push({
+      eventIndex: cp.eventIndex, time: cp.time,
+      hpA: Math.max(0, cp.hpA), hpB: Math.max(0, cp.hpB),
+      heroWin: pr.hero, oppWin: pr.opp, draws: pr.draws, state: cp,
+    });
+  }
+
+  const elapsedMs = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0);
+  return {
+    heroId: P.A_ID, opponentId: P.B_ID,
+    heroMaxHp: P.aHp, opponentMaxHp: P.bHp,
+    canonicalSeed, mcRuns: M, elapsedMs,
+    winner: canon.winner, durationSeconds: canon.durationSeconds,
+    events: canon.events, ticks,
+  };
+}
+
+// ── Market β admin sandbox UI ──────────────────────────────────────────
+// Client-side only: generate a round, scrub the price curve, and trade against
+// it with a local book that mirrors the planned RPC rules (weighted-average
+// cost, one-side-at-a-time, settle-as-final-sell). No DB writes yet.
+let fofMktRound = null;        // last generated round
+let fofMktTickIdx = 0;         // current scrub position
+let fofMktM = 5000;            // M continuations / juncture
+let fofMktWired = false;
+const FOF_MKT_START_CASH = 1000;
+let fofMktBook = { cash: FOF_MKT_START_CASH, position: null, realized: 0, settled: false, ledger: [] };
+
+function fofMarketInitPanel() {
+  const hero = document.getElementById('admin-fof-mkt-hero');
+  const opp = document.getElementById('admin-fof-mkt-opp');
+  if (hero && opp) {
+    const opts = fofChars.map(c => `<option value="${c.character}">${c.character.toUpperCase()}</option>`).join('');
+    if (hero.options.length === 0) hero.innerHTML = opts;
+    if (opp.options.length === 0) opp.innerHTML = opts;
+    if (fofChars.length >= 2) {
+      if (!hero.value) hero.value = fofChars[0].character;
+      if (!opp.value) opp.value = fofChars[1].character;
+    }
+  }
+  if (fofMktWired) return;
+  fofMktWired = true;
+
+  document.querySelectorAll('.admin-fof-mkt-m-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.admin-fof-mkt-m-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      fofMktM = Number(btn.dataset.mktM) || 5000;
+    });
+  });
+  document.getElementById('admin-fof-mkt-gen')?.addEventListener('click', () => void fofMarketGenerateRound());
+  document.getElementById('admin-fof-mkt-scrub')?.addEventListener('input', (e) => fofMarketSetTick(Number(e.target.value) || 0));
+  document.getElementById('admin-fof-mkt-buy-hero')?.addEventListener('click', () => fofMarketBuy('hero'));
+  document.getElementById('admin-fof-mkt-buy-opp')?.addEventListener('click', () => fofMarketBuy('opponent'));
+  document.getElementById('admin-fof-mkt-sell')?.addEventListener('click', () => fofMarketSellAll());
+  document.getElementById('admin-fof-mkt-settle')?.addEventListener('click', () => fofMarketSettle());
+  document.getElementById('admin-fof-mkt-reset')?.addEventListener('click', () => { fofMarketResetBook(); fofMarketRenderBook(); });
+}
+
+async function fofMarketGenerateRound() {
+  const heroKey = document.getElementById('admin-fof-mkt-hero')?.value;
+  const oppKey = document.getElementById('admin-fof-mkt-opp')?.value;
+  const status = document.getElementById('admin-fof-mkt-status');
+  const stage = document.getElementById('admin-fof-mkt-stage');
+  if (!heroKey || !oppKey) return;
+  if (heroKey === oppKey) { if (status) status.textContent = 'Pick two different characters.'; return; }
+  const a = fofChars.find(c => c.character === heroKey);
+  const b = fofChars.find(c => c.character === oppKey);
+  if (!a || !b) return;
+  const seedRaw = document.getElementById('admin-fof-mkt-seed')?.value;
+  const seed = seedRaw !== '' && seedRaw != null ? Number(seedRaw) : null;
+
+  if (status) status.textContent = `Generating ${fofMktM.toLocaleString()} continuations per juncture…`;
+  // Yield so the status paints before the synchronous heavy compute.
+  await new Promise(r => setTimeout(r, 20));
+
+  let round;
+  try {
+    round = fofMarketGenerate(a, b, { mcRuns: fofMktM, seed });
+  } catch (err) {
+    if (status) status.textContent = `Error: ${err.message}`;
+    return;
+  }
+  fofMktRound = round;
+  fofMarketResetBook();
+
+  const winLabel = round.winner ? `${round.winner.name} wins` : 'Draw';
+  if (status) {
+    status.textContent = `${round.heroId.toUpperCase()} vs ${round.opponentId.toUpperCase()} — ${round.ticks.length} junctures · ${winLabel} · seed ${round.canonicalSeed} · ${round.mcRuns.toLocaleString()} M · ${round.elapsedMs}ms`;
+  }
+  if (stage) stage.hidden = false;
+  const scrub = document.getElementById('admin-fof-mkt-scrub');
+  if (scrub) { scrub.max = String(round.ticks.length - 1); scrub.value = '0'; }
+  fofMarketRenderCurve();
+  fofMarketSetTick(0);
+  fofMarketRenderBook();
+}
+
+function fofMarketRenderCurve() {
+  const svg = document.getElementById('admin-fof-mkt-curve');
+  if (!svg || !fofMktRound) return;
+  const ticks = fofMktRound.ticks;
+  const W = 1000, H = 240;
+  const n = ticks.length;
+  const xAt = (i) => n <= 1 ? 0 : (i / (n - 1)) * W;
+  const yAt = (p) => (1 - p) * H;
+  const pts = ticks.map((t, i) => `${xAt(i).toFixed(1)},${yAt(t.heroWin).toFixed(1)}`).join(' ');
+  const area = `0,${H} ${pts} ${W},${yAt(ticks[n - 1].heroWin).toFixed(1)} ${W},${H}`;
+  svg.innerHTML = `
+    <line x1="0" y1="${H / 2}" x2="${W}" y2="${H / 2}" class="admin-fof-mkt-mid"></line>
+    <polyline points="${area}" class="admin-fof-mkt-area"></polyline>
+    <polyline points="${pts}" class="admin-fof-mkt-line"></polyline>
+  `;
+}
+
+function fofMarketCurrentTick() {
+  if (!fofMktRound) return null;
+  return fofMktRound.ticks[Math.min(fofMktTickIdx, fofMktRound.ticks.length - 1)] || null;
+}
+
+function fofMarketSetTick(i) {
+  if (!fofMktRound) return;
+  fofMktTickIdx = Math.max(0, Math.min(i, fofMktRound.ticks.length - 1));
+  const tick = fofMarketCurrentTick();
+  const n = fofMktRound.ticks.length;
+  const cursor = document.getElementById('admin-fof-mkt-cursor');
+  if (cursor) cursor.style.left = `${n <= 1 ? 0 : (fofMktTickIdx / (n - 1)) * 100}%`;
+  const info = document.getElementById('admin-fof-mkt-tickinfo');
+  if (info && tick) {
+    info.innerHTML = `Juncture ${fofMktTickIdx}/${n - 1} · t=${tick.time}s · `
+      + `<b>${fofMktRound.heroId.toUpperCase()}</b> ${Math.round(tick.hpA)}hp / <b>${fofMktRound.opponentId.toUpperCase()}</b> ${Math.round(tick.hpB)}hp · `
+      + `price <b>${tick.heroWin.toFixed(3)}</b> / ${tick.oppWin.toFixed(3)}`;
+  }
+  const hb = document.querySelector('#admin-fof-mkt-buy-hero span');
+  const ob = document.querySelector('#admin-fof-mkt-buy-opp span');
+  if (hb && tick) hb.textContent = `$${tick.heroWin.toFixed(2)}`;
+  if (ob && tick) ob.textContent = `$${tick.oppWin.toFixed(2)}`;
+  fofMarketRenderBook();
+}
+
+function fofMarketResetBook() {
+  fofMktBook = { cash: FOF_MKT_START_CASH, position: null, realized: 0, settled: false, ledger: [] };
+}
+
+function fofMktSidePrice(tick, side) {
+  return side === 'hero' ? tick.heroWin : tick.oppWin;
+}
+
+function fofMarketBuy(side) {
+  const tick = fofMarketCurrentTick();
+  if (!tick || fofMktBook.settled) return;
+  const book = fofMktBook;
+  if (book.position && book.position.side !== side) {
+    fofMarketFlash(`Sell your ${book.position.side.toUpperCase()} position first to flip sides.`);
+    return;
+  }
+  const qty = Math.max(1, Math.floor(Number(document.getElementById('admin-fof-mkt-qty')?.value) || 0));
+  const price = fofMktSidePrice(tick, side);
+  const cost = qty * price;
+  if (cost > book.cash + 1e-9) { fofMarketFlash('Not enough cash.'); return; }
+  book.cash -= cost;
+  if (!book.position) book.position = { side, qty, avgCost: price };
+  else {
+    const newQty = book.position.qty + qty;
+    book.position.avgCost = (book.position.qty * book.position.avgCost + qty * price) / newQty;
+    book.position.qty = newQty;
+  }
+  book.ledger.push({ action: 'buy', side, eventIndex: tick.eventIndex, qty, price, costBasis: null, cashDelta: -cost, net: null, acct: book.cash });
+  fofMarketRenderBook();
+}
+
+function fofMarketSellAll() {
+  const tick = fofMarketCurrentTick();
+  if (!tick || !fofMktBook.position || fofMktBook.settled) return;
+  const pos = fofMktBook.position;
+  const price = fofMktSidePrice(tick, pos.side);
+  fofMktClosePosition(price, tick.eventIndex, 'sell');
+  fofMarketRenderBook();
+}
+
+function fofMarketSettle() {
+  if (!fofMktRound || fofMktBook.settled) return;
+  const lastTick = fofMktRound.ticks[fofMktRound.ticks.length - 1];
+  if (fofMktBook.position) {
+    const pos = fofMktBook.position;
+    const w = fofMktRound.winner;
+    let settlePrice;
+    if (!w) settlePrice = 0.5;                          // draw → $0.50
+    else settlePrice = (w.id === fofMktRound[pos.side === 'hero' ? 'heroId' : 'opponentId']) ? 1 : 0;
+    fofMktClosePosition(settlePrice, lastTick.eventIndex, 'settle');
+  }
+  fofMktBook.settled = true;
+  fofMarketRenderBook();
+}
+
+function fofMktClosePosition(price, eventIndex, action) {
+  const pos = fofMktBook.position;
+  if (!pos) return;
+  const proceeds = pos.qty * price;
+  const net = pos.qty * (price - pos.avgCost);
+  fofMktBook.cash += proceeds;
+  fofMktBook.realized += net;
+  fofMktBook.ledger.push({ action, side: pos.side, eventIndex, qty: pos.qty, price, costBasis: pos.avgCost, cashDelta: proceeds, net, acct: fofMktBook.cash });
+  fofMktBook.position = null;
+}
+
+function fofMarketFlash(msg) {
+  const info = document.getElementById('admin-fof-mkt-tickinfo');
+  if (!info) return;
+  const prev = info.innerHTML;
+  info.innerHTML = `<span class="admin-fof-mkt-flash">${msg}</span>`;
+  setTimeout(() => { if (fofMktRound) fofMarketSetTick(fofMktTickIdx); else info.innerHTML = prev; }, 1400);
+}
+
+function fofMarketRenderBook() {
+  const el = document.getElementById('admin-fof-mkt-book');
+  if (!el) return;
+  const book = fofMktBook;
+  const tick = fofMarketCurrentTick();
+  let posLine = 'Flat (no position).';
+  let equity = book.cash;
+  if (book.position) {
+    const pos = book.position;
+    const mark = tick ? fofMktSidePrice(tick, pos.side) : pos.avgCost;
+    const markValue = pos.qty * mark;
+    equity = book.cash + markValue;
+    const unreal = pos.qty * (mark - pos.avgCost);
+    posLine = `<b>${pos.qty}</b> ${pos.side.toUpperCase()} @ avg $${pos.avgCost.toFixed(3)} · mark $${mark.toFixed(3)} · value $${markValue.toFixed(2)} · unrealized ${unreal >= 0 ? '+' : ''}${unreal.toFixed(2)}`;
+  }
+  const rows = book.ledger.slice().reverse().map(l => {
+    const net = l.net == null ? '—' : `${l.net >= 0 ? '+' : ''}${l.net.toFixed(2)}`;
+    const basis = l.costBasis == null ? '' : ` (basis $${l.costBasis.toFixed(3)})`;
+    return `<tr><td>${l.action}</td><td>${l.side.toUpperCase()}</td><td>#${l.eventIndex}</td><td>${l.qty}</td><td>$${l.price.toFixed(3)}${basis}</td><td>${l.cashDelta >= 0 ? '+' : ''}${l.cashDelta.toFixed(2)}</td><td>${net}</td><td>$${l.acct.toFixed(2)}</td></tr>`;
+  }).join('');
+  el.innerHTML = `
+    <div class="admin-fof-mkt-summary">
+      <span>Cash <b>$${book.cash.toFixed(2)}</b></span>
+      <span>Equity <b>$${equity.toFixed(2)}</b></span>
+      <span>Realized P&amp;L <b>${book.realized >= 0 ? '+' : ''}${book.realized.toFixed(2)}</b></span>
+      <span>P&amp;L vs start <b>${(equity - FOF_MKT_START_CASH) >= 0 ? '+' : ''}${(equity - FOF_MKT_START_CASH).toFixed(2)}</b></span>
+      ${book.settled ? '<span class="admin-fof-mkt-settled">SETTLED</span>' : ''}
+    </div>
+    <div class="admin-fof-mkt-pos">${posLine}</div>
+    ${book.ledger.length ? `<table class="admin-fof-mkt-ledger"><thead><tr><th>act</th><th>side</th><th>junc</th><th>qty</th><th>price</th><th>cash</th><th>net</th><th>acct</th></tr></thead><tbody>${rows}</tbody></table>` : ''}
+  `;
 }
 
 async function runFofSim() {
