@@ -9136,6 +9136,11 @@ function updateAdminVisibility(user = currentUser) {
     if (adminVisible) drawerBloomLink.removeAttribute("hidden");
     else drawerBloomLink.setAttribute("hidden", "");
   }
+  const drawerFofMarketLink = document.getElementById("drawer-fof-market-link");
+  if (drawerFofMarketLink) {
+    if (adminVisible) drawerFofMarketLink.removeAttribute("hidden");
+    else drawerFofMarketLink.setAttribute("hidden", "");
+  }
   // Show/hide the Admin Tools trigger button (controls now live in modal)
   if (stAdminToolsOpenBtn) {
     stAdminToolsOpenBtn.hidden = !adminVisible;
@@ -9437,6 +9442,9 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
   if (resolvedRoute === "bloom") {
     bloomRouteOpen();
+  }
+  if (resolvedRoute === "fof-market") {
+    fofLiveRouteOpen();
   }
 
   if (PLAY_ASSISTANT_ROUTES.has(resolvedRoute)) {
@@ -18196,6 +18204,7 @@ const profileView = document.getElementById("profile-view");
 const colorSchemeView = document.getElementById("color-scheme-view");
 const fateOrFortuneView = document.getElementById("fate-or-fortune-view");
 const bloomView = document.getElementById("bloom-view");
+const fofMarketGameView = document.getElementById("fof-market-view");
 const routeViews = {
   home: homeView,
   "shape-traders": shapeTradersView,
@@ -18209,15 +18218,16 @@ const routeViews = {
   profile: profileView,
   "color-scheme": colorSchemeView,
   "fate-or-fortune": fateOrFortuneView,
-  "bloom": bloomView
+  "bloom": bloomView,
+  "fof-market": fofMarketGameView
 };
 const headerEl = document.querySelector(".header");
 const chipBarEl = runTheNumbersView ? runTheNumbersView.querySelector(".chip-bar") : null;
 const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout") : null;
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
-const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile", "color-scheme", "fate-or-fortune", "bloom"]);
+const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile", "color-scheme", "fate-or-fortune", "bloom", "fof-market"]);
 // Routes only admins may reach (hidden in drawer + blocked on direct URL/hash nav).
-const ADMIN_ONLY_ROUTES = new Set(["bloom", "admin"]);
+const ADMIN_ONLY_ROUTES = new Set(["bloom", "admin", "fof-market"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
@@ -27876,6 +27886,9 @@ async function applyAccountModeSelection(nextMode, { resetHistory = true } = {})
   if (typeof fofResetForAccountChange === "function") {
     fofResetForAccountChange();
   }
+  if (typeof fofLiveResetForAccountChange === "function") {
+    fofLiveResetForAccountChange();
+  }
 
   shapeTradersHoldings = createEmptyShapeTraderHoldings();
   shapeTradersActivity = [];
@@ -33687,6 +33700,770 @@ async function fofPlayEvents(sim) {
   }
 
   // Hold on the final frame.
+  await new Promise(r => setTimeout(r, 800));
+}
+
+// ── FOF MARKET — Live Prediction Market (admin-only branch) ─────────
+// A FORK of the Fate or Fortune game that runs the SAME battle animation but
+// lets the player PAUSE mid-fight to trade win-percentage contracts on either
+// fighter, then resume. Contract prices come from fofMarketGenerate's precomputed
+// per-juncture Monte Carlo curve; on-character tags track each side's live price
+// as the battle plays out. Round generation is CLIENT-SIDE here (temporary, admin
+// only) while the UX is polished — it must move server-side before real players,
+// since a precomputed outcome is readable in the network tab.
+const FOFL_START_CASH = 1000;
+const fofLiveGame = {
+  state: 'idle',       // 'idle' | 'resolving' | 'resolved'
+  round: null,         // fofMarketGenerate output
+  tickIdx: 0,          // current revealed juncture (never leaks the future)
+  paused: false,
+  _resumeResolvers: [],
+  book: { cash: FOFL_START_CASH, position: null, realized: 0, settled: false, ledger: [] },
+};
+
+function fofLiveResetForAccountChange() {
+  // Client-side sandbox bankroll — no real ledger is staked, so a mode switch
+  // just resets the table back to idle.
+  if (fofLiveGame.state !== 'idle') {
+    fofLiveResetGame();
+    if (document.getElementById('fofl-stage')) foflRenderStage();
+  }
+}
+
+async function fofLiveRouteOpen() {
+  fofLiveResetGame();
+  foflRefreshBalance();
+  foflRenderStage();
+  // Load character stats + animation clips so the picker and sprite layer
+  // have everything before a fight starts.
+  await foflLoadChars();
+  if (typeof loadAdminFofAnimations === 'function' && (!fofAnimRows || fofAnimRows.length === 0)) {
+    try { await loadAdminFofAnimations(); } catch (_) {}
+  }
+  void fofPreloadClipDurations();
+  // Re-render now that chars are loaded (populates the dropdowns).
+  if (fofLiveGame.state === 'idle') foflRenderStage();
+}
+
+// Self-contained character loader (mirrors loadAdminFateOrFortuneStats' mapping
+// but without touching any admin-only DOM/render paths).
+async function foflLoadChars() {
+  if (Array.isArray(fofChars) && fofChars.length) return;
+  if (!supabase) return;
+  const { data, error } = await supabase
+    .from('fate_or_fortune_character_stats')
+    .select('*')
+    .order('character', { ascending: true });
+  if (error || !Array.isArray(data)) return;
+  fofChars = data.map(r => ({
+    character: r.character,
+    hp: Number(r.hp), damage: Number(r.damage), crit_mult: Number(r.crit_mult),
+    crit_chance: Number(r.crit_chance), accuracy: Number(r.accuracy), dodge: Number(r.dodge),
+    attack_time: Number(r.attack_time), constitution: Number(r.constitution ?? 0),
+    special_abilities: Array.isArray(r.special_abilities) ? r.special_abilities : [],
+  }));
+}
+
+function fofLiveResetGame() {
+  fofLiveGame.state = 'idle';
+  fofLiveGame.round = null;
+  fofLiveGame.tickIdx = 0;
+  fofLiveGame.paused = false;
+  fofLiveGame._resumeResolvers = [];
+  foflResetBook();
+}
+
+function foflResetBook() {
+  fofLiveGame.book = { cash: FOFL_START_CASH, position: null, realized: 0, settled: false, ledger: [] };
+}
+
+function foflRefreshBalance() {
+  const el = document.getElementById('fofl-page-balance-val');
+  if (el) el.textContent = '$' + Number(fofLiveGame.book.cash).toFixed(2);
+}
+
+function foflRenderStage() {
+  const stage = document.getElementById('fofl-stage');
+  if (!stage) return;
+  stage.dataset.state = fofLiveGame.state;
+  if (fofLiveGame.state === 'idle')           stage.innerHTML = foflViewIdle();
+  else if (fofLiveGame.state === 'resolving') stage.innerHTML = foflViewResolving();
+  else if (fofLiveGame.state === 'resolved')  stage.innerHTML = foflViewResolved();
+  foflAttachHandlers();
+}
+
+function foflViewIdle() {
+  const opts = (fofChars || []).map(c => `<option value="${c.character}">${c.character.toUpperCase()}</option>`).join('');
+  const heroDefault = fofChars[0]?.character || '';
+  const oppDefault = fofChars[1]?.character || '';
+  if (!fofChars || fofChars.length < 2) {
+    return `<div class="fof-idle"><div class="fof-idle-headline">Loading fighters…</div><p class="fof-idle-sub">Character stats are loading. If this persists, seed fate_or_fortune_character_stats.</p></div>`;
+  }
+  return `
+    <div class="fof-idle fofl-idle">
+      <div class="fof-idle-headline">Live Prediction Market</div>
+      <p class="fof-idle-sub">Pick the matchup, then watch the battle play out. PAUSE any time to buy or sell win-percentage contracts on either fighter at their live price, then resume. Contracts settle at $1.00 (win), $0.00 (loss), or $0.50 (draw). You start with $${FOFL_START_CASH.toLocaleString()}.</p>
+      <div class="fofl-picker">
+        <label class="fofl-pick-field">
+          <span>YOUR LONG (HERO)</span>
+          <select id="fofl-hero-sel">${opts}</select>
+        </label>
+        <span class="fofl-pick-vs">VS</span>
+        <label class="fofl-pick-field">
+          <span>OPPONENT</span>
+          <select id="fofl-opp-sel">${opts}</select>
+        </label>
+      </div>
+      <div class="fofl-gen-status" id="fofl-gen-status"></div>
+      <button type="button" class="fof-btn fof-btn-primary" id="fofl-start-btn">GENERATE &amp; FIGHT</button>
+    </div>
+  `;
+}
+
+function foflViewResolving() {
+  const r = fofLiveGame.round;
+  const heroId = r?.heroId || '';
+  const oppId = r?.opponentId || '';
+  const heroIdle = fofClipUrl(heroId, 'IDLE');
+  const oppIdle = fofClipUrl(oppId, 'IDLE');
+  const oppBg = fofClipUrl(oppId, 'BACKGROUND');
+  const bgStyle = oppBg ? ` style="background-image:url('${oppBg}')"` : '';
+  const t0 = r ? r.ticks[0] : null;
+  const hPx = t0 ? t0.heroWin.toFixed(2) : '0.50';
+  const oPx = t0 ? t0.oppWin.toFixed(2) : '0.50';
+  return `
+    <div class="fof-resolving fofl-resolving">
+      <div class="fof-vs-line">
+        <span class="fof-vs-hero">${heroId.toUpperCase()}</span>
+        <span class="fof-vs-sep">VS</span>
+        <span class="fof-vs-opp">${oppId.toUpperCase()}</span>
+      </div>
+      <div class="fof-fight-stage fofl-fight-stage">
+        <div class="fof-stage-bg"${bgStyle}></div>
+        <div class="fof-fighter fof-fighter-hero fofl-fighter-hero" data-fof-char="${heroId}" style="--fof-accent:${fofColor(heroId)}">
+          <div class="fofl-price-tag fofl-price-tag-hero" id="fofl-price-hero">$${hPx}</div>
+          <img id="fofl-hero-img" class="fof-fighter-img" alt="${heroId}" src="${heroIdle || ''}" data-fof-action="IDLE">
+        </div>
+        <div class="fof-fighter fof-fighter-opp fofl-fighter-opp" data-fof-char="${oppId}" style="--fof-accent:${fofColor(oppId)}">
+          <div class="fofl-price-tag fofl-price-tag-opp" id="fofl-price-opp">$${oPx}</div>
+          <img id="fofl-opp-img" class="fof-fighter-img" alt="${oppId}" src="${oppIdle || ''}" data-fof-action="IDLE">
+        </div>
+      </div>
+      <div class="fof-hp-bars">
+        <div class="fof-hp-row"><span>${heroId.toUpperCase()}</span><div class="fof-hp-track"><div class="fof-hp-ghost fof-hp-ghost-hero" id="fofl-hp-hero-ghost"></div><div class="fof-hp-fill fof-hp-hero" id="fofl-hp-hero"></div><div class="fof-hp-ticks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="fof-hp-flash"></div></div><span id="fofl-hp-hero-val">—</span></div>
+        <div class="fof-hp-row"><span>${oppId.toUpperCase()}</span><div class="fof-hp-track"><div class="fof-hp-ghost fof-hp-ghost-opp" id="fofl-hp-opp-ghost"></div><div class="fof-hp-fill fof-hp-opp" id="fofl-hp-opp"></div><div class="fof-hp-ticks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="fof-hp-flash"></div></div><span id="fofl-hp-opp-val">—</span></div>
+      </div>
+      <div class="fofl-marketbar">
+        <button type="button" class="fof-btn fofl-pause-btn" id="fofl-pause-btn">⏸ PAUSE TO TRADE</button>
+        <div class="fofl-trade-row">
+          <label class="fofl-qty-field"><span>QTY</span><input type="number" id="fofl-qty" min="1" step="1" value="100"></label>
+          <button type="button" class="fofl-buy fofl-buy-hero" id="fofl-buy-hero" data-mkt-side="hero">BUY ${heroId.toUpperCase()} <span class="fofl-px">$${hPx}</span></button>
+          <button type="button" class="fofl-buy fofl-buy-opp" id="fofl-buy-opp" data-mkt-side="opponent">BUY ${oppId.toUpperCase()} <span class="fofl-px">$${oPx}</span></button>
+          <button type="button" class="fofl-sell" id="fofl-sell">SELL</button>
+        </div>
+        <div class="fofl-book" id="fofl-book"></div>
+      </div>
+      <div class="fof-event-log fofl-event-log" id="fofl-event-log"></div>
+    </div>
+  `;
+}
+
+function foflViewResolved() {
+  const r = fofLiveGame.round;
+  const book = fofLiveGame.book;
+  const winnerName = r?.winner ? r.winner.name : 'DRAW';
+  const net = book.cash - FOFL_START_CASH;
+  const tone = net > 0 ? 'win' : net < 0 ? 'loss' : 'draw';
+  const headline = net > 0 ? `+$${net.toFixed(2)}` : net < 0 ? `-$${Math.abs(net).toFixed(2)}` : 'BROKE EVEN';
+  const rows = book.ledger.slice().reverse().map(l => {
+    const netStr = l.net == null ? '—' : `${l.net >= 0 ? '+' : ''}${l.net.toFixed(2)}`;
+    return `<tr><td>${l.action}</td><td>${l.side.toUpperCase()}</td><td>#${l.eventIndex}</td><td>${l.qty}</td><td>$${l.price.toFixed(3)}</td><td>${l.cashDelta >= 0 ? '+' : ''}${l.cashDelta.toFixed(2)}</td><td>${netStr}</td></tr>`;
+  }).join('');
+  return `
+    <div class="fof-resolved fof-resolved-${tone} fofl-resolved">
+      <div class="fof-resolved-headline">${headline}</div>
+      <table class="fof-resolved-table">
+        <tr><td>Matchup</td><td>${(r?.heroId || '').toUpperCase()} vs ${(r?.opponentId || '').toUpperCase()}</td></tr>
+        <tr><td>Winner</td><td>${String(winnerName).toUpperCase()}</td></tr>
+        <tr><td>Start cash</td><td>$${FOFL_START_CASH.toFixed(2)}</td></tr>
+        <tr><td>Final cash</td><td>$${book.cash.toFixed(2)}</td></tr>
+        <tr><td>Realized P&amp;L</td><td><strong>${net >= 0 ? '+' : ''}$${net.toFixed(2)}</strong></td></tr>
+      </table>
+      ${book.ledger.length ? `<table class="fofl-resolved-ledger"><thead><tr><th>act</th><th>side</th><th>junc</th><th>qty</th><th>price</th><th>cash</th><th>net</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="fofl-noledger">No trades placed this round.</div>'}
+      <button type="button" class="fof-btn fof-btn-primary" id="fofl-again-btn">NEW MATCHUP</button>
+    </div>
+  `;
+}
+
+function foflAttachHandlers() {
+  const startBtn = document.getElementById('fofl-start-btn');
+  if (startBtn) startBtn.addEventListener('click', () => void foflStartBattle());
+  const againBtn = document.getElementById('fofl-again-btn');
+  if (againBtn) againBtn.addEventListener('click', () => { fofLiveResetGame(); foflRefreshBalance(); foflRenderStage(); });
+  const pauseBtn = document.getElementById('fofl-pause-btn');
+  if (pauseBtn) pauseBtn.addEventListener('click', foflTogglePause);
+  document.getElementById('fofl-buy-hero')?.addEventListener('click', () => foflBuy('hero'));
+  document.getElementById('fofl-buy-opp')?.addEventListener('click', () => foflBuy('opponent'));
+  document.getElementById('fofl-sell')?.addEventListener('click', () => foflSellAll());
+}
+
+async function foflStartBattle() {
+  const heroKey = document.getElementById('fofl-hero-sel')?.value;
+  const oppKey = document.getElementById('fofl-opp-sel')?.value;
+  const status = document.getElementById('fofl-gen-status');
+  if (!heroKey || !oppKey) return;
+  if (heroKey === oppKey) { if (status) status.textContent = 'Pick two different fighters.'; return; }
+  const a = fofChars.find(c => c.character === heroKey);
+  const b = fofChars.find(c => c.character === oppKey);
+  if (!a || !b) return;
+  if (status) status.textContent = 'Pricing every juncture…';
+  await new Promise(r => setTimeout(r, 20));   // let status paint before heavy sync compute
+  let round;
+  try {
+    round = fofMarketGenerate(a, b, { mcRuns: 4000 });
+  } catch (err) {
+    if (status) { status.textContent = `Error: ${err.message}`; }
+    return;
+  }
+  fofLiveGame.round = round;
+  fofLiveGame.tickIdx = 0;
+  fofLiveGame.paused = false;
+  fofLiveGame._resumeResolvers = [];
+  foflResetBook();
+  fofLiveGame.state = 'resolving';
+  foflRenderStage();
+  foflUpdatePriceUI();
+  await foflPlayEvents();
+  // Auto-settle any open position at the final outcome, then show results.
+  foflSettle();
+  fofLiveGame.state = 'resolved';
+  foflRefreshBalance();
+  foflShowResults();
+}
+
+// Slide the results panel in above the frozen end scene (mirrors fofShowResults).
+function foflShowResults() {
+  const container = document.querySelector('.fofl-resolving');
+  if (!container) { foflRenderStage(); return; }
+  if (container.querySelector('.fofl-result-slide')) return;
+  const panel = document.createElement('div');
+  panel.className = 'fofl-result-slide';
+  panel.innerHTML = foflViewResolved();
+  container.prepend(panel);
+  requestAnimationFrame(() => {
+    panel.classList.add('is-in');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  const againBtn = panel.querySelector('#fofl-again-btn');
+  if (againBtn) againBtn.addEventListener('click', () => { fofLiveResetGame(); foflRefreshBalance(); foflRenderStage(); });
+}
+
+// ── Pause gate ──────────────────────────────────────────────────────
+function foflWaitWhilePaused() {
+  if (!fofLiveGame.paused) return Promise.resolve();
+  return new Promise(res => fofLiveGame._resumeResolvers.push(res));
+}
+function foflTogglePause() {
+  if (fofLiveGame.state !== 'resolving' || fofLiveGame.book.settled) return;
+  fofLiveGame.paused = !fofLiveGame.paused;
+  const btn = document.getElementById('fofl-pause-btn');
+  const bar = document.querySelector('.fofl-marketbar');
+  if (fofLiveGame.paused) {
+    if (btn) btn.textContent = '▶ RESUME BATTLE';
+    if (bar) bar.classList.add('is-paused');
+  } else {
+    if (btn) btn.textContent = '⏸ PAUSE TO TRADE';
+    if (bar) bar.classList.remove('is-paused');
+    const rs = fofLiveGame._resumeResolvers;
+    fofLiveGame._resumeResolvers = [];
+    rs.forEach(r => r());
+  }
+}
+
+// ── Trading book (current revealed juncture drives price) ───────────
+function foflCurrentTick() {
+  const r = fofLiveGame.round;
+  if (!r) return null;
+  return r.ticks[Math.min(fofLiveGame.tickIdx, r.ticks.length - 1)] || null;
+}
+function foflSidePrice(tick, side) { return side === 'hero' ? tick.heroWin : tick.oppWin; }
+
+function foflBuy(side) {
+  const tick = foflCurrentTick();
+  const book = fofLiveGame.book;
+  if (!tick || book.settled) return;
+  if (book.position && book.position.side !== side) {
+    foflFlash(`Sell your ${book.position.side.toUpperCase()} position before flipping sides.`);
+    return;
+  }
+  const qty = Math.max(1, Math.floor(Number(document.getElementById('fofl-qty')?.value) || 0));
+  const price = foflSidePrice(tick, side);
+  const cost = qty * price;
+  if (cost > book.cash + 1e-9) { foflFlash('Not enough cash.'); return; }
+  book.cash -= cost;
+  if (!book.position) book.position = { side, qty, avgCost: price };
+  else {
+    const newQty = book.position.qty + qty;
+    book.position.avgCost = (book.position.qty * book.position.avgCost + qty * price) / newQty;
+    book.position.qty = newQty;
+  }
+  book.ledger.push({ action: 'buy', side, eventIndex: tick.eventIndex, qty, price, costBasis: null, cashDelta: -cost, net: null });
+  foflRefreshBalance();
+  foflRenderBook();
+}
+
+function foflSellAll() {
+  const tick = foflCurrentTick();
+  const book = fofLiveGame.book;
+  if (!tick || !book.position || book.settled) return;
+  foflClosePosition(foflSidePrice(tick, book.position.side), tick.eventIndex, 'sell');
+  foflRefreshBalance();
+  foflRenderBook();
+}
+
+function foflSettle() {
+  const r = fofLiveGame.round;
+  const book = fofLiveGame.book;
+  if (!r || book.settled) return;
+  if (book.position) {
+    const last = r.ticks[r.ticks.length - 1];
+    const w = r.winner;
+    let settlePrice;
+    if (!w) settlePrice = 0.5;
+    else settlePrice = (w.id === r[book.position.side === 'hero' ? 'heroId' : 'opponentId']) ? 1 : 0;
+    foflClosePosition(settlePrice, last.eventIndex, 'settle');
+  }
+  book.settled = true;
+  foflRefreshBalance();
+  foflRenderBook();
+}
+
+function foflClosePosition(price, eventIndex, action) {
+  const book = fofLiveGame.book;
+  const pos = book.position;
+  if (!pos) return;
+  const proceeds = pos.qty * price;
+  const net = pos.qty * (price - pos.avgCost);
+  book.cash += proceeds;
+  book.realized += net;
+  book.ledger.push({ action, side: pos.side, eventIndex, qty: pos.qty, price, costBasis: pos.avgCost, cashDelta: proceeds, net });
+  book.position = null;
+}
+
+function foflFlash(msg) {
+  const el = document.getElementById('fofl-book');
+  if (!el) return;
+  const flash = document.createElement('div');
+  flash.className = 'fofl-flash';
+  flash.textContent = msg;
+  el.prepend(flash);
+  setTimeout(() => flash.remove(), 1600);
+}
+
+function foflUpdatePriceUI() {
+  const tick = foflCurrentTick();
+  if (!tick) return;
+  const ph = document.getElementById('fofl-price-hero');
+  const po = document.getElementById('fofl-price-opp');
+  if (ph) ph.textContent = '$' + tick.heroWin.toFixed(2);
+  if (po) po.textContent = '$' + tick.oppWin.toFixed(2);
+  document.querySelectorAll('#fofl-buy-hero .fofl-px').forEach(e => e.textContent = '$' + tick.heroWin.toFixed(2));
+  document.querySelectorAll('#fofl-buy-opp .fofl-px').forEach(e => e.textContent = '$' + tick.oppWin.toFixed(2));
+  foflRenderBook();
+}
+
+function foflRenderBook() {
+  const el = document.getElementById('fofl-book');
+  if (!el) return;
+  const book = fofLiveGame.book;
+  const tick = foflCurrentTick();
+  let posLine = 'Flat — no position.';
+  let equity = book.cash;
+  if (book.position) {
+    const pos = book.position;
+    const mark = tick ? foflSidePrice(tick, pos.side) : pos.avgCost;
+    const markValue = pos.qty * mark;
+    equity = book.cash + markValue;
+    const unreal = pos.qty * (mark - pos.avgCost);
+    posLine = `<b>${pos.qty}</b> ${pos.side.toUpperCase()} @ avg $${pos.avgCost.toFixed(3)} · mark $${mark.toFixed(3)} · unrealized ${unreal >= 0 ? '+' : ''}${unreal.toFixed(2)}`;
+  }
+  el.innerHTML = `
+    <div class="fofl-book-summary">
+      <span>Cash <b>$${book.cash.toFixed(2)}</b></span>
+      <span>Equity <b>$${equity.toFixed(2)}</b></span>
+      <span>P&amp;L <b>${(equity - FOFL_START_CASH) >= 0 ? '+' : ''}${(equity - FOFL_START_CASH).toFixed(2)}</b></span>
+      ${book.settled ? '<span class="fofl-settled">SETTLED</span>' : ''}
+    </div>
+    <div class="fofl-book-pos">${posLine}</div>
+  `;
+}
+
+// Fork of fofPlayEvents: same sprite/HP-bar choreography, but driven by the
+// market round, with a PAUSE gate between beats and on-character price tags that
+// advance as each juncture is revealed. Uses fofl- element IDs throughout so it
+// never collides with the real FOF game's battle DOM (both views coexist hidden).
+async function foflPlayEvents() {
+  const round = fofLiveGame.round;
+  const events = round?.events || [];
+  const log = document.getElementById('fofl-event-log');
+  const heroHp = document.getElementById('fofl-hp-hero');
+  const oppHp = document.getElementById('fofl-hp-opp');
+  const heroGhost = document.getElementById('fofl-hp-hero-ghost');
+  const oppGhost = document.getElementById('fofl-hp-opp-ghost');
+  const heroHpVal = document.getElementById('fofl-hp-hero-val');
+  const oppHpVal = document.getElementById('fofl-hp-opp-val');
+  if (!log) return;
+
+  const setBarPct = (fillEl, ghostEl, newPct) => {
+    if (!fillEl) return;
+    const clamped = Math.max(0, Math.min(100, newPct));
+    const f = clamped / 100;
+    const prev = parseFloat(fillEl.dataset.hpPct);
+    const isDrop = !Number.isNaN(prev) && clamped < prev - 0.01;
+    fillEl.dataset.hpPct = String(clamped);
+    fillEl.style.transform = 'scaleX(' + f + ')';
+    if (ghostEl) ghostEl.style.transform = 'scaleX(' + f + ')';
+    fillEl.classList.toggle('flatline', clamped <= 0);
+    if (isDrop) {
+      const track = fillEl.closest('.fof-hp-track');
+      const flashEl = track && track.querySelector('.fof-hp-flash');
+      if (flashEl) { flashEl.classList.remove('is-hit'); void flashEl.offsetWidth; flashEl.classList.add('is-hit'); }
+      if (track)   { track.classList.remove('is-shake'); void track.offsetWidth; track.classList.add('is-shake'); }
+    }
+  };
+
+  const heroId = round.heroId;
+  const oppId = round.opponentId;
+  const heroMax = Number(round.heroMaxHp) || 100;
+  const oppMax = Number(round.opponentMaxHp) || 100;
+  if (heroHpVal) heroHpVal.textContent = `${heroMax}/${heroMax}`;
+  if (oppHpVal) oppHpVal.textContent = `${oppMax}/${oppMax}`;
+  if (heroHp) heroHp.dataset.hpPct = '100';
+  if (oppHp)  oppHp.dataset.hpPct = '100';
+
+  foflSetClip('hero', heroId, 'IDLE');
+  foflSetClip('opp',  oppId,  'IDLE');
+  await fofPreloadClipDurations();
+
+  const SPEED = 1, MIN_ACTION_HOLD = 900, POSTURE_HOLD = 750, MIN_EVENT_GAP = 1000, IMPACT_FRACTION = 0.6;
+  let lastT = 0;
+
+  const sideFor = (id) => (id === heroId ? 'hero' : id === oppId ? 'opp' : null);
+  const wrapperFor = (id) => {
+    const side = sideFor(id);
+    if (!side) return null;
+    return document.querySelector(side === 'hero' ? '.fofl-fighter-hero' : '.fofl-fighter-opp');
+  };
+
+  const specialNames = {};
+  const collectAbilities = (arr) => { (arr || []).forEach(abil => { if (abil && abil.id) specialNames[abil.id] = abil.name || abil.id; }); };
+  (fofChars || []).forEach(c => { if (c.character === heroId || c.character === oppId) collectAbilities(c.special_abilities); });
+  const specialLabelFor = (ev) => {
+    const id = ev && ev.specialId;
+    const name = (id && specialNames[id]) || (id ? String(id).replace(/[_-]+/g, ' ') : 'special');
+    return String(name).toUpperCase();
+  };
+  const labelTimers = [];
+  function showFloatLabel(id, text, kind) {
+    const side = sideFor(id);
+    const stage = document.querySelector('.fofl-fight-stage');
+    if (!side || !stage || !text) return;
+    const el = document.createElement('div');
+    el.className = `fof-float-label fof-float-${kind} fof-float-${side}`;
+    el.style.setProperty('--fof-accent', fofColor(id));
+    el.textContent = text;
+    stage.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('is-show'));
+    const ttl = (kind === 'victory' || kind === 'defeat') ? 2600 : 1300;
+    const tm = setTimeout(() => {
+      el.classList.add('is-out');
+      const rm = setTimeout(() => el.remove(), 420);
+      labelTimers.push(rm);
+    }, ttl);
+    labelTimers.push(tm);
+  }
+  function showCenterResult(outcome) {
+    const stage = document.querySelector('.fofl-fight-stage');
+    if (!stage || !outcome) return;
+    stage.querySelectorAll('.fof-float-center').forEach(el => el.remove());
+    const kind = String(outcome).toLowerCase();
+    const el = document.createElement('div');
+    el.className = `fof-float-label fof-float-center fof-result-${kind}`;
+    el.textContent = String(outcome).toUpperCase();
+    stage.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('is-show'));
+  }
+
+  const STAY = new Set(['IDLE', 'VICTORY', 'DEFEAT']);
+  const heldTimers   = { hero: null, opp: null };
+  const postureTimers = { hero: null, opp: null };
+  const specialActionFor = (ev) =>
+    (ev && (ev.reflectCrit || ev.absorbCrit) && fofClipUrl(ev.actorId, 'SPECIAL_CRIT')) ? 'SPECIAL_CRIT' : 'SPECIAL';
+  const clipQueues = { hero: [], opp: [] };
+  const curAction  = { hero: null, opp: null };
+  const hpTimers = [];
+  const scheduleHp = (fn, delay) => { if (delay <= 0) { fn(); return; } hpTimers.push(setTimeout(fn, delay)); };
+
+  const clipOffset     = { hero: 0, opp: 0 };
+  const lastClipStart  = { hero: 0, opp: 0 };
+  const lastClipAction = { hero: null, opp: null };
+  const resetGroupClips = () => {
+    clipOffset.hero = 0; clipOffset.opp = 0;
+    lastClipStart.hero = 0; lastClipStart.opp = 0;
+    lastClipAction.hero = null; lastClipAction.opp = null;
+  };
+  const reserveClip = (id, action) => {
+    const sd = sideFor(id);
+    if (!sd || STAY.has(action)) return 0;
+    if (lastClipAction[sd] === action) return lastClipStart[sd];
+    const start = clipOffset[sd];
+    lastClipStart[sd]  = start;
+    lastClipAction[sd] = action;
+    clipOffset[sd] = start + Math.max(MIN_ACTION_HOLD, fofClipDurationMs(id, action));
+    return start;
+  };
+  const reserveForEvent = (ev) => {
+    switch (ev.type) {
+      case 'SPECIAL_TRIGGER': return reserveClip(ev.actorId, specialActionFor(ev));
+      case 'HIT':
+      case 'CRITICAL_HIT':
+      case 'TAKE_DAMAGE':
+      case 'TAKE_CRITICAL_DAMAGE': return reserveClip(ev.actorId, ev.type);
+      case 'HEAL':            return reserveClip(ev.actorId, 'SPECIAL');
+      case 'DODGE':           return reserveClip(ev.targetId || ev.actorId, 'DODGE');
+      case 'MISS': {
+        const s = reserveClip(ev.actorId, 'MISS');
+        if (ev.targetId) reserveClip(ev.targetId, 'DODGE');
+        return s;
+      }
+      default: return 0;
+    }
+  };
+
+  function foflSetClip(side, character, action) {
+    const img = document.getElementById(side === 'hero' ? 'fofl-hero-img' : 'fofl-opp-img');
+    if (!img) return;
+    let url = fofClipUrl(character, action);
+    let finalAction = action;
+    if (!url) { url = fofClipUrl(character, 'IDLE'); finalAction = 'IDLE'; }
+    if (!url) return;
+    if (finalAction !== 'IDLE') url = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+    if (img.src !== url || img.dataset.fofAction !== finalAction) { img.src = url; img.dataset.fofAction = finalAction; }
+  }
+
+  function startClip(side, id, action) {
+    curAction[side] = action;
+    foflSetClip(side, id, action);
+    if (heldTimers[side]) { clearTimeout(heldTimers[side]); heldTimers[side] = null; }
+    if (STAY.has(action)) { clipQueues[side].length = 0; return; }
+    const hold = Math.max(MIN_ACTION_HOLD, fofClipDurationMs(id, action));
+    heldTimers[side] = setTimeout(() => {
+      heldTimers[side] = null;
+      const q = clipQueues[side];
+      if (q.length) { const nx = q.shift(); startClip(side, nx.id, nx.action); }
+      else { curAction[side] = 'IDLE'; foflSetClip(side, id, 'IDLE'); }
+    }, hold);
+  }
+  function playClip(id, action) {
+    const side = sideFor(id);
+    if (!side) return;
+    if (STAY.has(action)) { clipQueues[side].length = 0; startClip(side, id, action); return; }
+    if (heldTimers[side]) {
+      const q = clipQueues[side];
+      const lastAction = q.length ? q[q.length - 1].action : curAction[side];
+      if (lastAction !== action) q.push({ id, action });
+    } else {
+      startClip(side, id, action);
+    }
+  }
+  function setPosture(id, posture) {
+    const side = sideFor(id);
+    const wrap = wrapperFor(id);
+    if (!side || !wrap) return;
+    wrap.classList.remove('is-attacking', 'is-flinching');
+    if (postureTimers[side]) { clearTimeout(postureTimers[side]); postureTimers[side] = null; }
+    if (!posture) return;
+    wrap.classList.add(`is-${posture}`);
+    postureTimers[side] = setTimeout(() => {
+      wrap.classList.remove('is-attacking', 'is-flinching');
+      postureTimers[side] = null;
+    }, POSTURE_HOLD);
+  }
+
+  const applyEvent = (ev) => {
+    const setHp = () => {
+      if (typeof ev.hpAfter === 'number') {
+        if (ev.actorId === heroId && heroHp) {
+          setBarPct(heroHp, heroGhost, Math.max(0, Math.min(100, (ev.hpAfter / heroMax) * 100)));
+          if (heroHpVal) heroHpVal.textContent = `${Math.max(0, Math.round(ev.hpAfter))}/${heroMax}`;
+        } else if (ev.actorId === oppId && oppHp) {
+          setBarPct(oppHp, oppGhost, Math.max(0, Math.min(100, (ev.hpAfter / oppMax) * 100)));
+          if (oppHpVal) oppHpVal.textContent = `${Math.max(0, Math.round(ev.hpAfter))}/${oppMax}`;
+        }
+      }
+      if (typeof ev.targetHpAfter === 'number') {
+        if (ev.targetId === heroId && heroHp) {
+          setBarPct(heroHp, heroGhost, Math.max(0, Math.min(100, (ev.targetHpAfter / heroMax) * 100)));
+          if (heroHpVal) heroHpVal.textContent = `${Math.max(0, Math.round(ev.targetHpAfter))}/${heroMax}`;
+        } else if (ev.targetId === oppId && oppHp) {
+          setBarPct(oppHp, oppGhost, Math.max(0, Math.min(100, (ev.targetHpAfter / oppMax) * 100)));
+          if (oppHpVal) oppHpVal.textContent = `${Math.max(0, Math.round(ev.targetHpAfter))}/${oppMax}`;
+        }
+      }
+    };
+    const hpStart = reserveForEvent(ev);
+    let hpDelay = hpStart + eventClipDuration(ev) * IMPACT_FRACTION;
+    if (ev.reflected && ev.sourceId) {
+      const refSide = sideFor(ev.sourceId);
+      if (refSide) hpDelay = clipOffset[refSide];
+    }
+    scheduleHp(setHp, hpDelay);
+
+    switch (ev.type) {
+      case 'SPECIAL_TRIGGER':
+        playClip(ev.actorId, specialActionFor(ev));
+        setPosture(ev.actorId, 'attacking');
+        showFloatLabel(ev.actorId, `★ ${specialLabelFor(ev)} ★`, 'special-activated');
+        break;
+      case 'HIT':
+        playClip(ev.actorId, ev.type);
+        setPosture(ev.actorId, 'attacking');
+        break;
+      case 'CRITICAL_HIT':
+        playClip(ev.actorId, ev.type);
+        setPosture(ev.actorId, 'attacking');
+        break;
+      case 'TAKE_DAMAGE':
+      case 'TAKE_CRITICAL_DAMAGE':
+        playClip(ev.actorId, ev.type);
+        setPosture(ev.actorId, 'flinching');
+        break;
+      case 'DODGE':
+        playClip(ev.targetId || ev.actorId, 'DODGE');
+        break;
+      case 'MISS':
+        playClip(ev.actorId, 'MISS');
+        if (ev.targetId) playClip(ev.targetId, 'DODGE');
+        break;
+      case 'HEAL':
+        playClip(ev.actorId, 'SPECIAL');
+        break;
+      case 'VICTORY':
+        playClip(ev.actorId, 'VICTORY');
+        if (ev.actorId === heroId) playClip(oppId, 'DEFEAT');
+        else if (ev.actorId === oppId) playClip(heroId, 'DEFEAT');
+        break;
+      case 'DEFEAT':
+        playClip(ev.actorId, 'DEFEAT');
+        break;
+      case 'DRAW':
+        if (heroId) playClip(heroId, 'DEFEAT');
+        if (oppId)  playClip(oppId,  'DEFEAT');
+        break;
+      default:
+        break;
+    }
+
+    const LOG_SUPPRESS = new Set(['TAKE_DAMAGE', 'TAKE_CRITICAL_DAMAGE', 'DODGE']);
+    if (!LOG_SUPPRESS.has(ev.type)) {
+      const logTone = (() => {
+        if (ev.type === 'SPECIAL_TRIGGER') return 'special';
+        const byHero = ev.actorId === heroId;
+        const byOpp  = ev.actorId === oppId;
+        switch (ev.type) {
+          case 'HIT':
+          case 'CRITICAL_HIT': return byOpp ? 'bad' : (byHero ? 'good' : 'neutral');
+          case 'HEAL':         return byHero ? 'good' : 'neutral';
+          case 'VICTORY':      return byHero ? 'good' : 'bad';
+          case 'DEFEAT':       return byHero ? 'bad' : 'good';
+          default:             return 'neutral';
+        }
+      })();
+      const div = document.createElement('div');
+      div.className = `fof-evt fof-evt-${ev.type.toLowerCase()} fof-evt-tone-${logTone}`;
+      div.textContent = `[${Number(ev.time).toFixed(2)}s] ${ev.message || ev.type}`;
+      log.prepend(div);
+      log.scrollTop = 0;
+    }
+  };
+
+  const eventClipDuration = (ev) => {
+    switch (ev.type) {
+      case 'SPECIAL_TRIGGER': return fofClipDurationMs(ev.actorId, specialActionFor(ev));
+      case 'HEAL':            return fofClipDurationMs(ev.actorId, 'SPECIAL');
+      case 'HIT':
+      case 'CRITICAL_HIT':
+      case 'TAKE_DAMAGE':
+      case 'TAKE_CRITICAL_DAMAGE': return fofClipDurationMs(ev.actorId, ev.type);
+      case 'MISS': return Math.max(fofClipDurationMs(ev.actorId, 'MISS'), fofClipDurationMs(ev.targetId, 'DODGE'));
+      case 'DODGE': return fofClipDurationMs(ev.targetId || ev.actorId, 'DODGE');
+      default: return 0;
+    }
+  };
+
+  // Advance the revealed juncture as events are consumed, then refresh the
+  // on-character price tags + book mark. Never reveals future ticks.
+  const ticks = round.ticks;
+  const advanceTickTo = (appliedCount) => {
+    let moved = false;
+    while (fofLiveGame.tickIdx + 1 < ticks.length && ticks[fofLiveGame.tickIdx + 1].eventIndex <= appliedCount) {
+      fofLiveGame.tickIdx++; moved = true;
+    }
+    if (moved) foflUpdatePriceUI();
+  };
+
+  const TERMINAL = new Set(['VICTORY', 'DEFEAT', 'DRAW']);
+  const terminalEvents = [];
+  let i = 0;
+  let firstGroup = true;
+  let prevGroupHold = 0;
+  while (i < events.length) {
+    // PAUSE gate — halt cleanly between beats so trades happen on a frozen frame.
+    await foflWaitWhilePaused();
+    const t = Number(events[i].time);
+    const natural = Math.max(0, (t - lastT) * 1000 / SPEED);
+    const dt = firstGroup ? natural : Math.max(natural, prevGroupHold, MIN_EVENT_GAP);
+    if (dt > 0) await new Promise(r => setTimeout(r, dt));
+    lastT = t;
+    firstGroup = false;
+    resetGroupClips();
+    while (i < events.length && Number(events[i].time) === t) {
+      const ev = events[i];
+      if (TERMINAL.has(ev.type)) { terminalEvents.push(ev); i++; continue; }
+      applyEvent(ev);
+      i++;
+    }
+    prevGroupHold = Math.max(clipOffset.hero, clipOffset.opp);
+    advanceTickTo(i);
+  }
+
+  if (prevGroupHold > 0) await new Promise(r => setTimeout(r, Math.max(prevGroupHold, MIN_ACTION_HOLD)));
+
+  if (heldTimers.hero)    clearTimeout(heldTimers.hero);
+  if (heldTimers.opp)     clearTimeout(heldTimers.opp);
+  if (postureTimers.hero) clearTimeout(postureTimers.hero);
+  if (postureTimers.opp)  clearTimeout(postureTimers.opp);
+  clipQueues.hero.length = 0;
+  clipQueues.opp.length = 0;
+  document.querySelectorAll('.fofl-fighter-hero, .fofl-fighter-opp')
+    .forEach(el => el.classList.remove('is-attacking', 'is-flinching'));
+
+  // Final juncture: reveal the settlement price (1/0/0.5) before results.
+  fofLiveGame.tickIdx = ticks.length - 1;
+  foflUpdatePriceUI();
+
+  if (terminalEvents.length) {
+    await new Promise(r => setTimeout(r, 450));
+    for (const ev of terminalEvents) applyEvent(ev);
+    let heroOutcome = null;
+    for (const ev of terminalEvents) {
+      if (ev.type === 'DRAW') { heroOutcome = 'DRAW'; break; }
+      if (ev.type === 'VICTORY')      heroOutcome = (ev.actorId === heroId) ? 'VICTORY' : 'DEFEAT';
+      else if (ev.type === 'DEFEAT')  heroOutcome = (ev.actorId === heroId) ? 'DEFEAT'  : 'VICTORY';
+    }
+    if (heroOutcome) showCenterResult(heroOutcome);
+  }
+
   await new Promise(r => setTimeout(r, 800));
 }
 

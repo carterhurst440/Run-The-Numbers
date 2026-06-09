@@ -29257,6 +29257,128 @@ body.admin-sk-fs-lock { overflow: hidden; }
 .fof-resolved-table td { padding: 6px 16px; border: 1px solid #2a2a2a; }
 .fof-resolved-table td:first-child { color: #888; text-align: left; }
 .fof-resolved-table td:last-child { text-align: right; }
+
+/* ── FOF MARKET — live prediction market (admin-only fork) ─────── */
+/* Reuses the .fof-* battle look; these add the picker, on-character
+   price tags, pause control, and the trading book bar. */
+.fofl-idle { max-width: 640px; }
+.fofl-picker {
+  display: flex; align-items: flex-end; justify-content: center; gap: 16px;
+  margin: 20px 0 14px;
+  flex-wrap: wrap;
+}
+.fofl-pick-field { display: flex; flex-direction: column; gap: 6px; text-align: left; }
+.fofl-pick-field > span {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px; letter-spacing: 1px; color: #888;
+}
+.fofl-pick-field select {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 14px; padding: 8px 12px;
+  background: #111; color: #eee; border: 1px solid #333; border-radius: 4px;
+  min-width: 180px;
+}
+.fofl-pick-vs {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px; color: #d4a017; padding-bottom: 10px;
+}
+.fofl-gen-status {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px; color: #aaa; min-height: 16px; margin-bottom: 10px;
+}
+
+/* On-character price tags — float over each fighter, track live contract price. */
+.fofl-fighter-hero, .fofl-fighter-opp { position: relative; }
+.fofl-price-tag {
+  position: absolute; top: 4px; left: 50%; transform: translateX(-50%);
+  z-index: 6; pointer-events: none;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 15px; font-weight: 700; letter-spacing: 0.5px;
+  padding: 3px 10px; border-radius: 999px;
+  background: rgba(8, 8, 10, 0.82);
+  border: 1px solid var(--fof-accent, #d4a017);
+  color: var(--fof-accent, #d4a017);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  transition: color 0.25s ease, border-color 0.25s ease;
+  white-space: nowrap;
+}
+
+/* Trading bar below the HP rows. */
+.fofl-marketbar {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid #2a2a2a; border-radius: 6px;
+  background: #0c0c0e;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.fofl-marketbar.is-paused {
+  border-color: #d4a017;
+  box-shadow: 0 0 0 1px rgba(212, 160, 23, 0.35) inset;
+}
+.fofl-pause-btn {
+  align-self: flex-start;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px; letter-spacing: 1px;
+  padding: 8px 16px;
+  background: #1a1a1d; color: #eee; border: 1px solid #3a3a3a; border-radius: 4px;
+  cursor: pointer;
+}
+.fofl-marketbar.is-paused .fofl-pause-btn {
+  background: #d4a017; color: #111; border-color: #d4a017;
+}
+.fofl-trade-row {
+  display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
+}
+.fofl-qty-field { display: flex; flex-direction: column; gap: 4px; }
+.fofl-qty-field > span {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9px; letter-spacing: 1px; color: #888;
+}
+.fofl-qty-field input {
+  width: 84px; padding: 7px 9px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px;
+  background: #111; color: #eee; border: 1px solid #333; border-radius: 4px;
+}
+.fofl-buy, .fofl-sell {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px; letter-spacing: 0.5px;
+  padding: 9px 14px; border-radius: 4px; cursor: pointer;
+  border: 1px solid #3a3a3a; background: #16161a; color: #eee;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.fofl-buy .fofl-px {
+  font-weight: 700; color: #d4a017;
+  padding: 1px 6px; border-radius: 3px; background: rgba(212, 160, 23, 0.12);
+}
+.fofl-buy-hero:hover { border-color: #4fc98a; }
+.fofl-buy-opp:hover { border-color: #e0533f; }
+.fofl-sell { background: #241416; border-color: #5a2a2a; }
+.fofl-book {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px; color: #ccc;
+}
+.fofl-book-summary { display: flex; gap: 16px; flex-wrap: wrap; }
+.fofl-book-summary b { color: #fff; }
+.fofl-book-pos { margin-top: 6px; color: #aaa; }
+.fofl-settled { color: #d4a017; font-weight: 700; }
+.fofl-flash {
+  color: #e0533f; font-weight: 700; margin-bottom: 6px;
+}
+.fofl-resolved-ledger {
+  width: 100%; border-collapse: collapse; margin: 12px 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px;
+}
+.fofl-resolved-ledger th, .fofl-resolved-ledger td {
+  padding: 4px 8px; border: 1px solid #2a2a2a; text-align: right;
+}
+.fofl-resolved-ledger th { color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+.fofl-noledger { color: #888; font-size: 12px; margin: 12px 0; }
+.fofl-result-slide {
+  opacity: 0; transform: translateY(-12px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.fofl-result-slide.is-in { opacity: 1; transform: translateY(0); }
+
 .admin-fof-matrix-panel {
   margin-top: 24px;
   padding: 16px;

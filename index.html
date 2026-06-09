@@ -416,6 +416,19 @@
                 <span class="drawer-link-label">Bloom</span>
               </span>
             </button>
+            <button type="button" data-route-target="fof-market" class="drawer-link" id="drawer-fof-market-link" hidden>
+              <span class="drawer-link-inner">
+                <span class="drawer-link-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 19h16"></path>
+                    <path d="m4 15 4-5 4 3 4-7"></path>
+                    <path d="M16 6h2v2"></path>
+                  </svg>
+                </span>
+                <span class="drawer-link-label">FOF Market</span>
+              </span>
+              <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
+            </button>
             <button type="button" data-route-target="admin" class="drawer-link" id="admin-nav" hidden>
               <span class="drawer-link-inner">
                 <span class="drawer-link-icon" aria-hidden="true">
@@ -3729,6 +3742,17 @@
               <div class="fof-page-balance">BALANCE <strong id="fof-page-balance-val">—</strong></div>
             </header>
             <div id="fof-stage" class="fof-stage" data-state="idle"></div>
+          </div>
+        </section>
+
+        <section id="fof-market-view" class="route-view app-page fof-view" hidden aria-labelledby="fof-market-view-title">
+          <h1 id="fof-market-view-title" class="sr-only">FOF Market</h1>
+          <div class="fof-page">
+            <header class="fof-page-header">
+              <div class="fof-page-title">// FOF MARKET <span>LIVE PREDICTION</span></div>
+              <div class="fof-page-balance">CASH <strong id="fofl-page-balance-val">—</strong></div>
+            </header>
+            <div id="fofl-stage" class="fof-stage" data-state="idle"></div>
           </div>
         </section>
 
