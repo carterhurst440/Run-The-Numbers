@@ -30247,6 +30247,40 @@ body[data-ui="new"] .alr-col-date {
 }
 .bloom-card-history::-webkit-scrollbar { height: 4px; }
 .bloom-card-history::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 2px; }
+/* Race / resolved — card draws render as a FOF-style text event log
+   inside the history panel (one line per draw) instead of a chip row.
+   Pinned absolute like the old chip row so a long line can't widen the
+   grid track; top/bottom bound the scroll box. */
+.bloom-history-panel .fof-event-log {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 38px;
+  bottom: 14px;
+  height: auto;
+}
+.bloom-evt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+.bloom-evt-turn {
+  color: rgba(255,255,255,0.35);
+  font-variant-numeric: tabular-nums;
+}
+.bloom-evt-card {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.bloom-evt-fx {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-weight: 600;
+}
+.bloom-evt-up   { color: #56c08a; }
+.bloom-evt-down { color: #e05a4f; }
 /* Selecting state — show the deck preview (count per card). The
    .is-deck chips skip the slide-in animation since they're a static
    list, not live draws. */

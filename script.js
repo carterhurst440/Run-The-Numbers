@@ -42870,9 +42870,10 @@ function bloomViewSelecting() {
             <div class="bloom-pick-row">${cards}</div>
           </div>
           <div class="bloom-history-panel">
-            <div class="bloom-history-label">${state === 'selecting' ? '// DECK' : '// CARDS DRAWN'}</div>
-            <div class="bloom-card-history" id="bloom-card-history"
-                 aria-label="${state === 'selecting' ? 'Cards in the deck' : 'Cards drawn this round'}"></div>
+            <div class="bloom-history-label">${state === 'selecting' ? '// DECK' : '// EVENT LOG'}</div>
+            ${state === 'selecting'
+              ? `<div class="bloom-card-history" id="bloom-card-history" aria-label="Cards in the deck"></div>`
+              : `<div class="fof-event-log" id="bloom-event-log" aria-label="Cards drawn this round"></div>`}
           </div>
         </div>
       </div>
@@ -43139,25 +43140,22 @@ function bloomAttachStageHandlers() {
         const tile = document.querySelector(`[data-bloom-flower="${winnerSlug}"]`);
         if (tile) tile.classList.add('bloom-winner');
       }
-      // Backfill the card-draw history from the saved events so the
-      // chip row survives the resolving → resolved re-render.
-      const historyEl = document.getElementById('bloom-card-history');
+      // Backfill the draw event log from the saved events so the
+      // log survives the resolving → resolved re-render. Number draws
+      // forward (1..N), then emit newest-first so the last card sits
+      // on top — matching the live prepend order.
+      const logEl = document.getElementById('bloom-event-log');
       const events = (bloomGame.resolution?.round_details?.events) || [];
-      if (historyEl && events.length) {
-        const ref = _bloomRefData;
-        // Iterate events in reverse so the LAST card drawn lands on
-        // the far left (matches the live insert order during draws).
-        const html = [];
-        for (let i = events.length - 1; i >= 0; i--) {
-          const ev = events[i];
+      if (logEl && events.length) {
+        const lines = [];
+        let turnNum = 0;
+        for (const ev of events) {
           if (ev.type !== 'DRAW') continue;
-          const card = ev.card || '';
-          const name = ev.cardName || card;
-          const effects = (ref && ref.cardEffects && ref.cardEffects[card]) || ev.effects || {};
-          html.push(bloomBuildCardChip(card, name, effects, { mode: 'history' }));
+          turnNum += 1;
+          lines.push(bloomDrawLineHTML(ev, turnNum));
         }
-        historyEl.innerHTML = html.join('');
-        historyEl.scrollLeft = 0;
+        logEl.innerHTML = lines.reverse().join('');
+        logEl.scrollTop = 0;
       }
     }
   }
@@ -43407,12 +43405,44 @@ function bloomDrawNext() {
   }
 }
 
+// Build one FOF-style event-log line for a BLOOM card draw: turn marker,
+// weather card name, and its per-candidate-flower deltas. Tone reflects
+// whether the card net-helped the flowers the player stacked chips on.
+function bloomDrawLineHTML(ev, turnNum) {
+  const card = ev.card || '';
+  const name = (ev.cardName || card || '').toUpperCase();
+  const ref  = _bloomRefData;
+  const effects = (ref && ref.cardEffects && ref.cardEffects[card]) || ev.effects || {};
+  const cands = bloomGame.candidates || [];
+
+  const fx = cands.map(c => {
+    const d = Number(effects[c.flower]) || 0;
+    if (!d) return '';
+    const cls = d > 0 ? 'bloom-evt-up' : 'bloom-evt-down';
+    const label = (c.name || c.flower || '').toUpperCase();
+    return `<span class="${cls}">${label} ${d > 0 ? '+' : ''}${d}</span>`;
+  }).filter(Boolean).join('');
+
+  const wagers = bloomGame.wagers || {};
+  let net = 0;
+  for (const slug of Object.keys(wagers)) {
+    if (Number(wagers[slug]) > 0) net += Number(effects[slug]) || 0;
+  }
+  const tone = net > 0 ? 'good' : (net < 0 ? 'bad' : 'neutral');
+
+  return `<div class="fof-evt fof-evt-draw fof-evt-tone-${tone} bloom-evt">`
+    + `<span class="bloom-evt-turn">[${turnNum}]</span>`
+    + `<span class="bloom-evt-card">${name}</span>`
+    + (fx ? `<span class="bloom-evt-fx">${fx}</span>` : '')
+    + `</div>`;
+}
+
 // Apply a single DRAW / BLOOM / SAFETY_CAP_VICTORY event in-place.
 // Mirrors what the old auto-play loop did, minus the setTimeout.
 function bloomApplyEvent(ev) {
   if (!ev) return;
   const weatherEl = document.getElementById('bloom-weather-banner');
-  const historyEl = document.getElementById('bloom-card-history');
+  const logEl = document.getElementById('bloom-event-log');
 
   if (ev.type === 'DRAW') {
     if (weatherEl) {
@@ -43420,21 +43450,15 @@ function bloomApplyEvent(ev) {
       weatherEl.classList.add('visible');
     }
 
-    // On the FIRST draw of the round, wipe the deck preview chips so
-    // the row reads as the live history going forward.
-    if (bloomGame.eventIndex === 1 && historyEl) historyEl.innerHTML = '';
-
-    if (historyEl) {
-      const card = ev.card || '';
-      const name = ev.cardName || card;
-      const ref  = _bloomRefData;
-      const effects = (ref && ref.cardEffects && ref.cardEffects[card]) || ev.effects || {};
-      const html = bloomBuildCardChip(card, name, effects, { mode: 'draw' });
+    if (logEl) {
+      const turnNum = logEl.childElementCount + 1;
       const tpl = document.createElement('template');
-      tpl.innerHTML = html.trim();
-      const chip = tpl.content.firstElementChild;
-      historyEl.insertBefore(chip, historyEl.firstChild);
-      historyEl.scrollLeft = 0;
+      tpl.innerHTML = bloomDrawLineHTML(ev, turnNum).trim();
+      const line = tpl.content.firstElementChild;
+      if (line) {
+        logEl.prepend(line);
+        logEl.scrollTop = 0;
+      }
     }
 
     const scores = ev.scoresAfter || {};
