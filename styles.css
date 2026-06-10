@@ -19085,6 +19085,12 @@ body.state-open .auth-vault-grant .gline::after {
   transition: color 0.15s ease;
 }
 
+/* The `hidden` attribute must win over the flex display above, otherwise
+   admin-gated links (Bloom, Admin, etc.) stay visible to everyone. */
+.drawer-link[hidden] {
+  display: none;
+}
+
 .drawer-link:last-child {
   border-bottom: none;
 }
