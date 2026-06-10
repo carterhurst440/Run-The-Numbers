@@ -33713,8 +33713,11 @@ async function fofPlayEvents(sim) {
 // since a precomputed outcome is readable in the network tab.
 const FOFL_START_CASH = 1000;
 const fofLiveGame = {
-  state: 'idle',       // 'idle' | 'resolving' | 'resolved'
-  round: null,         // fofMarketGenerate output
+  state: 'idle',       // 'idle' | 'selecting' | 'staging' | 'resolving' | 'resolved'
+  opponent: null,      // randomly drawn challenger (char object)
+  candidates: [],      // [{ char, price }] — each hero's opening contract value vs the opponent
+  pickedHero: null,    // selected hero slug
+  round: null,         // fofMarketGenerate output (built once a hero is locked in)
   tickIdx: 0,          // current revealed juncture (never leaks the future)
   paused: false,
   _resumeResolvers: [],
@@ -33741,7 +33744,7 @@ async function fofLiveRouteOpen() {
     try { await loadAdminFofAnimations(); } catch (_) {}
   }
   void fofPreloadClipDurations();
-  // Re-render now that chars are loaded (populates the dropdowns).
+  // Re-render now that chars are loaded (enables the START button).
   if (fofLiveGame.state === 'idle') foflRenderStage();
 }
 
@@ -33761,11 +33764,34 @@ async function foflLoadChars() {
     crit_chance: Number(r.crit_chance), accuracy: Number(r.accuracy), dodge: Number(r.dodge),
     attack_time: Number(r.attack_time), constitution: Number(r.constitution ?? 0),
     special_abilities: Array.isArray(r.special_abilities) ? r.special_abilities : [],
+    vs_knight:    r.vs_knight    != null ? Number(r.vs_knight)    : null,
+    vs_rogue:     r.vs_rogue     != null ? Number(r.vs_rogue)     : null,
+    vs_berserker: r.vs_berserker != null ? Number(r.vs_berserker) : null,
+    vs_mage:      r.vs_mage      != null ? Number(r.vs_mage)      : null,
+    vs_assassin:  r.vs_assassin  != null ? Number(r.vs_assassin)  : null,
+    vs_ranger:    r.vs_ranger     != null ? Number(r.vs_ranger)    : null,
+    vs_warlock:   r.vs_warlock   != null ? Number(r.vs_warlock)   : null,
+    vs_paladin:   r.vs_paladin   != null ? Number(r.vs_paladin)   : null,
   }));
+}
+
+// A candidate's opening contract value = its win probability vs the opponent.
+// Prefer the precomputed master-run odds stored on the row (vs_<opponent>),
+// falling back to a quick live Monte Carlo when that cell is empty.
+function foflPairPrice(candidate, oppChar) {
+  const dec = candidate['vs_' + oppChar];
+  if (Number.isFinite(dec)) return dec;
+  const opp = fofChars.find(c => c.character === oppChar);
+  if (!opp) return 0.5;
+  const r = fofSimulate(candidate, opp, 6000);
+  return r.runs ? r.aWins / r.runs : 0.5;
 }
 
 function fofLiveResetGame() {
   fofLiveGame.state = 'idle';
+  fofLiveGame.opponent = null;
+  fofLiveGame.candidates = [];
+  fofLiveGame.pickedHero = null;
   fofLiveGame.round = null;
   fofLiveGame.tickIdx = 0;
   fofLiveGame.paused = false;
@@ -33787,35 +33813,182 @@ function foflRenderStage() {
   if (!stage) return;
   stage.dataset.state = fofLiveGame.state;
   if (fofLiveGame.state === 'idle')           stage.innerHTML = foflViewIdle();
+  else if (fofLiveGame.state === 'selecting') stage.innerHTML = foflViewSelecting();
+  else if (fofLiveGame.state === 'staging')   stage.innerHTML = foflViewStaging();
   else if (fofLiveGame.state === 'resolving') stage.innerHTML = foflViewResolving();
   else if (fofLiveGame.state === 'resolved')  stage.innerHTML = foflViewResolved();
   foflAttachHandlers();
 }
 
 function foflViewIdle() {
-  const opts = (fofChars || []).map(c => `<option value="${c.character}">${c.character.toUpperCase()}</option>`).join('');
-  const heroDefault = fofChars[0]?.character || '';
-  const oppDefault = fofChars[1]?.character || '';
   if (!fofChars || fofChars.length < 2) {
     return `<div class="fof-idle"><div class="fof-idle-headline">Loading fighters…</div><p class="fof-idle-sub">Character stats are loading. If this persists, seed fate_or_fortune_character_stats.</p></div>`;
   }
   return `
     <div class="fof-idle fofl-idle">
       <div class="fof-idle-headline">Live Prediction Market</div>
-      <p class="fof-idle-sub">Pick the matchup, then watch the battle play out. PAUSE any time to buy or sell win-percentage contracts on either fighter at their live price, then resume. Contracts settle at $1.00 (win), $0.00 (loss), or $0.50 (draw). You start with $${FOFL_START_CASH.toLocaleString()}.</p>
-      <div class="fofl-picker">
-        <label class="fofl-pick-field">
-          <span>YOUR LONG (HERO)</span>
-          <select id="fofl-hero-sel">${opts}</select>
-        </label>
-        <span class="fofl-pick-vs">VS</span>
-        <label class="fofl-pick-field">
-          <span>OPPONENT</span>
-          <select id="fofl-opp-sel">${opts}</select>
-        </label>
-      </div>
+      <p class="fof-idle-sub">A random challenger appears. Pick your champion, buy contracts on the matchup up front, then watch the battle. PAUSE any time to trade at the live price — sell part or all of your position. Contracts settle at $1.00 (win), $0.00 (loss), or $0.50 (draw). You start with $${FOFL_START_CASH.toLocaleString()}.</p>
       <div class="fofl-gen-status" id="fofl-gen-status"></div>
-      <button type="button" class="fof-btn fof-btn-primary" id="fofl-start-btn">GENERATE &amp; FIGHT</button>
+      <button type="button" class="fof-btn fof-btn-primary" id="fofl-start-btn">START NEW ROUND</button>
+    </div>
+  `;
+}
+
+// Draw a random opponent and price every other hero's opening contract vs it,
+// then move to the selection board (mirrors the real game's start flow, but the
+// candidate odds are computed client-side from the stored master-run matrix).
+function foflStartRound() {
+  if (!fofChars || fofChars.length < 2) return;
+  const oppIdx = Math.floor(Math.random() * fofChars.length);
+  const opponent = fofChars[oppIdx];
+  const candidates = fofChars
+    .filter(c => c.character !== opponent.character)
+    .map(c => ({ char: c, price: foflPairPrice(c, opponent.character) }));
+  fofLiveGame.opponent = opponent;
+  fofLiveGame.candidates = candidates;
+  fofLiveGame.pickedHero = null;
+  fofLiveGame.round = null;
+  foflResetBook();
+  fofLiveGame.state = 'selecting';
+  foflRefreshBalance();
+  foflRenderStage();
+}
+
+function foflViewSelecting() {
+  const opp = fofLiveGame.opponent;
+  if (!opp) return foflViewIdle();
+  const oppArena = fofArena(opp.character);
+  const oppBg = fofClipUrl(opp.character, 'BACKGROUND');
+  const oppIdle = fofClipUrl(opp.character, 'IDLE');
+  const oppAbility = (Array.isArray(opp.special_abilities) && opp.special_abilities[0]) || null;
+
+  const cards = fofLiveGame.candidates.map(({ char, price }) => {
+    const pct = price * 100;
+    const winColor = pct >= 60 ? 'fof-good' : pct >= 40 ? 'fof-mid' : 'fof-bad';
+    const cbg = fofClipUrl(char.character, 'BACKGROUND');
+    const cidle = fofClipUrl(char.character, 'IDLE');
+    const arena = fofArena(char.character);
+    return `
+      <button type="button" class="fof-hero-card fofl-hero-card" data-hero="${char.character}" style="--fof-accent:${fofColor(char.character)}">
+        <div class="fof-card-scene${cbg ? '' : ' fof-scene-empty'}"${cbg ? ` style="background-image:url('${cbg}')"` : ''}>
+          <span class="fof-card-arena">// ${arena.name}</span>
+          <span class="fof-card-weather">${arena.glyph}</span>
+          ${cidle ? `<span class="fof-card-sprite" style="background-image:url('${cidle}')" role="img" aria-label="${char.character}"></span>` : ''}
+        </div>
+        <div class="fof-card-body">
+          <div class="fof-card-headline">
+            <span class="fof-hero-name">${char.character.toUpperCase()}</span>
+            <span class="fof-hero-win ${winColor}">${pct.toFixed(1)}%</span>
+          </div>
+          <div class="fofl-card-contract">
+            <span class="fofl-card-px">$${price.toFixed(2)}</span>
+            <span class="fofl-card-px-label">contract · settles $1.00 on a win</span>
+          </div>
+          ${fofAbilityTag(char.special_abilities)}
+        </div>
+      </button>
+    `;
+  }).join('');
+
+  return `
+    <div class="fof-selecting fofl-selecting">
+      <section class="fof-sec">
+        <div class="fof-sec-head">
+          <span class="fof-sec-title">// THE OPPONENT</span>
+          <span class="fof-sec-meta">${oppArena.name} · HOME ARENA</span>
+        </div>
+        <div class="fofl-opp-head" style="--fof-accent:${fofColor(opp.character)}">
+          <div class="fofl-opp-portrait${oppBg ? '' : ' fof-scene-empty'}"${oppBg ? ` style="background-image:url('${oppBg}')"` : ''}>
+            ${oppIdle ? `<span class="fofl-opp-sprite" style="background-image:url('${oppIdle}')" role="img" aria-label="${opp.character}"></span>` : ''}
+          </div>
+          <div class="fofl-opp-info">
+            <div class="fofl-opp-kicker">DEFENDING CHAMPION</div>
+            <div class="fofl-opp-name">${opp.character.toUpperCase()}</div>
+            ${oppAbility ? `<div class="fofl-opp-ability"><b>${oppAbility.name || oppAbility.id}</b> — ${oppAbility.description || ''}</div>` : ''}
+          </div>
+        </div>
+      </section>
+      <section class="fof-sec">
+        <div class="fof-sec-head">
+          <span class="fof-sec-title">// PICK YOUR CHAMPION</span>
+          <span class="fof-sec-meta">CONTRACT PRICE = WIN PROBABILITY</span>
+        </div>
+        <div class="fofl-gen-status" id="fofl-gen-status"></div>
+        <div class="fof-hero-grid">${cards}</div>
+      </section>
+    </div>
+  `;
+}
+
+// A hero card was clicked — generate the authoritative market round for that
+// matchup (its opening tick price is what the up-front buy executes against),
+// then move to the staging panel where the player sets a position before the
+// battle starts.
+async function foflPickHero(heroChar) {
+  const opp = fofLiveGame.opponent;
+  if (!opp || heroChar === opp.character) return;
+  const a = fofChars.find(c => c.character === heroChar);
+  if (!a) return;
+  const status = document.getElementById('fofl-gen-status');
+  if (status) status.textContent = `Pricing ${heroChar.toUpperCase()} vs ${opp.character.toUpperCase()}…`;
+  await new Promise(r => setTimeout(r, 20));
+  let round;
+  try {
+    round = fofMarketGenerate(a, opp, { mcRuns: 4000 });
+  } catch (err) {
+    if (status) status.textContent = `Error: ${err.message}`;
+    return;
+  }
+  fofLiveGame.pickedHero = heroChar;
+  fofLiveGame.round = round;
+  fofLiveGame.tickIdx = 0;
+  foflResetBook();
+  fofLiveGame.state = 'staging';
+  foflRenderStage();
+}
+
+function foflViewStaging() {
+  const r = fofLiveGame.round;
+  if (!r) return foflViewSelecting();
+  const heroId = r.heroId, oppId = r.opponentId;
+  const t0 = r.ticks[0];
+  const hPx = t0.heroWin.toFixed(2);
+  const oPx = t0.oppWin.toFixed(2);
+  const heroIdle = fofClipUrl(heroId, 'IDLE');
+  const oppIdle = fofClipUrl(oppId, 'IDLE');
+  return `
+    <div class="fofl-staging">
+      <div class="fof-sec-head">
+        <span class="fof-sec-title">// SET YOUR POSITION</span>
+        <span class="fof-sec-meta">BUY CONTRACTS BEFORE THE BATTLE</span>
+      </div>
+      <div class="fofl-stage-matchup">
+        <div class="fofl-stage-fighter" style="--fof-accent:${fofColor(heroId)}">
+          ${heroIdle ? `<span class="fofl-stage-sprite" style="background-image:url('${heroIdle}')"></span>` : ''}
+          <div class="fofl-stage-name">${heroId.toUpperCase()}</div>
+          <div class="fofl-stage-px">$${hPx}</div>
+        </div>
+        <span class="fofl-stage-vs">VS</span>
+        <div class="fofl-stage-fighter fofl-stage-fighter-opp" style="--fof-accent:${fofColor(oppId)}">
+          ${oppIdle ? `<span class="fofl-stage-sprite" style="background-image:url('${oppIdle}')"></span>` : ''}
+          <div class="fofl-stage-name">${oppId.toUpperCase()}</div>
+          <div class="fofl-stage-px">$${oPx}</div>
+        </div>
+      </div>
+      <div class="fofl-marketbar">
+        <div class="fofl-trade-row">
+          <label class="fofl-qty-field"><span>QTY</span><input type="number" id="fofl-qty" min="1" step="1" value="100"></label>
+          <button type="button" class="fofl-buy fofl-buy-hero" id="fofl-buy-hero" data-mkt-side="hero">BUY ${heroId.toUpperCase()} <span class="fofl-px">$${hPx}</span></button>
+          <button type="button" class="fofl-buy fofl-buy-opp" id="fofl-buy-opp" data-mkt-side="opponent">BUY ${oppId.toUpperCase()} <span class="fofl-px">$${oPx}</span></button>
+          <button type="button" class="fofl-sell" id="fofl-sell">SELL</button>
+          <button type="button" class="fofl-sell fofl-sell-all" id="fofl-sell-all">SELL ALL</button>
+        </div>
+        <div class="fofl-book" id="fofl-book"></div>
+      </div>
+      <div class="fofl-stage-actions">
+        <button type="button" class="fof-btn fofl-back-btn" id="fofl-back-btn">← BACK TO PICK</button>
+        <button type="button" class="fof-btn fof-btn-primary" id="fofl-fight-btn">START BATTLE</button>
+      </div>
     </div>
   `;
 }
@@ -33862,6 +34035,7 @@ function foflViewResolving() {
           <button type="button" class="fofl-buy fofl-buy-hero" id="fofl-buy-hero" data-mkt-side="hero">BUY ${heroId.toUpperCase()} <span class="fofl-px">$${hPx}</span></button>
           <button type="button" class="fofl-buy fofl-buy-opp" id="fofl-buy-opp" data-mkt-side="opponent">BUY ${oppId.toUpperCase()} <span class="fofl-px">$${oPx}</span></button>
           <button type="button" class="fofl-sell" id="fofl-sell">SELL</button>
+          <button type="button" class="fofl-sell fofl-sell-all" id="fofl-sell-all">SELL ALL</button>
         </div>
         <div class="fofl-book" id="fofl-book"></div>
       </div>
@@ -33898,40 +34072,43 @@ function foflViewResolved() {
 }
 
 function foflAttachHandlers() {
+  // idle → draw a random opponent and show the selection board
   const startBtn = document.getElementById('fofl-start-btn');
-  if (startBtn) startBtn.addEventListener('click', () => void foflStartBattle());
+  if (startBtn) startBtn.addEventListener('click', () => foflStartRound());
+  // selecting → pick a champion (generates the round, moves to staging)
+  document.querySelectorAll('.fofl-hero-card').forEach(card => {
+    card.addEventListener('click', () => void foflPickHero(card.dataset.hero));
+  });
+  // staging → back to the board, or launch the battle
+  const backBtn = document.getElementById('fofl-back-btn');
+  if (backBtn) backBtn.addEventListener('click', () => { fofLiveGame.state = 'selecting'; foflRenderStage(); });
+  const fightBtn = document.getElementById('fofl-fight-btn');
+  if (fightBtn) fightBtn.addEventListener('click', () => void foflStartBattle());
+  // resolved → new matchup
   const againBtn = document.getElementById('fofl-again-btn');
   if (againBtn) againBtn.addEventListener('click', () => { fofLiveResetGame(); foflRefreshBalance(); foflRenderStage(); });
+  // pause-to-trade (resolving only)
   const pauseBtn = document.getElementById('fofl-pause-btn');
   if (pauseBtn) pauseBtn.addEventListener('click', foflTogglePause);
+  // trade buttons (shared by staging + resolving)
   document.getElementById('fofl-buy-hero')?.addEventListener('click', () => foflBuy('hero'));
   document.getElementById('fofl-buy-opp')?.addEventListener('click', () => foflBuy('opponent'));
-  document.getElementById('fofl-sell')?.addEventListener('click', () => foflSellAll());
+  document.getElementById('fofl-sell')?.addEventListener('click', () => foflSell(foflQtyInput()));
+  document.getElementById('fofl-sell-all')?.addEventListener('click', () => foflSellAll());
+  foflRenderBook();
 }
 
+function foflQtyInput() {
+  return Math.max(1, Math.floor(Number(document.getElementById('fofl-qty')?.value) || 0));
+}
+
+// Staging → resolving. The round was already generated by foflPickHero (and any
+// up-front position is already in the book), so we just play it out.
 async function foflStartBattle() {
-  const heroKey = document.getElementById('fofl-hero-sel')?.value;
-  const oppKey = document.getElementById('fofl-opp-sel')?.value;
-  const status = document.getElementById('fofl-gen-status');
-  if (!heroKey || !oppKey) return;
-  if (heroKey === oppKey) { if (status) status.textContent = 'Pick two different fighters.'; return; }
-  const a = fofChars.find(c => c.character === heroKey);
-  const b = fofChars.find(c => c.character === oppKey);
-  if (!a || !b) return;
-  if (status) status.textContent = 'Pricing every juncture…';
-  await new Promise(r => setTimeout(r, 20));   // let status paint before heavy sync compute
-  let round;
-  try {
-    round = fofMarketGenerate(a, b, { mcRuns: 4000 });
-  } catch (err) {
-    if (status) { status.textContent = `Error: ${err.message}`; }
-    return;
-  }
-  fofLiveGame.round = round;
+  if (!fofLiveGame.round || fofLiveGame.state !== 'staging') return;
   fofLiveGame.tickIdx = 0;
   fofLiveGame.paused = false;
   fofLiveGame._resumeResolvers = [];
-  foflResetBook();
   fofLiveGame.state = 'resolving';
   foflRenderStage();
   foflUpdatePriceUI();
@@ -34014,13 +34191,35 @@ function foflBuy(side) {
   foflRenderBook();
 }
 
-function foflSellAll() {
+// Sell up to `qty` contracts of the open position at the current side price,
+// realizing proportional P&L. Selling the whole position closes it; a partial
+// sell shrinks it (avg cost unchanged). Empty/oversized qty is clamped.
+function foflSell(qty) {
   const tick = foflCurrentTick();
   const book = fofLiveGame.book;
   if (!tick || !book.position || book.settled) return;
-  foflClosePosition(foflSidePrice(tick, book.position.side), tick.eventIndex, 'sell');
+  const pos = book.position;
+  const sellQty = Math.min(Math.max(1, Math.floor(qty || 0)), pos.qty);
+  if (!(sellQty > 0)) return;
+  const price = foflSidePrice(tick, pos.side);
+  if (sellQty >= pos.qty) {
+    foflClosePosition(price, tick.eventIndex, 'sell');
+  } else {
+    const proceeds = sellQty * price;
+    const net = sellQty * (price - pos.avgCost);
+    book.cash += proceeds;
+    book.realized += net;
+    book.ledger.push({ action: 'sell-part', side: pos.side, eventIndex: tick.eventIndex, qty: sellQty, price, costBasis: pos.avgCost, cashDelta: proceeds, net });
+    pos.qty -= sellQty;
+  }
   foflRefreshBalance();
   foflRenderBook();
+}
+
+function foflSellAll() {
+  const book = fofLiveGame.book;
+  if (!book.position) return;
+  foflSell(book.position.qty);
 }
 
 function foflSettle() {
