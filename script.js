@@ -33838,14 +33838,16 @@ function foflViewResolving() {
         <span class="fof-vs-sep">VS</span>
         <span class="fof-vs-opp">${oppId.toUpperCase()}</span>
       </div>
+      <div class="fofl-price-row">
+        <span class="fofl-price-tag fofl-price-tag-hero" id="fofl-price-hero" style="--fof-accent:${fofColor(heroId)}">$${hPx}</span>
+        <span class="fofl-price-tag fofl-price-tag-opp" id="fofl-price-opp" style="--fof-accent:${fofColor(oppId)}">$${oPx}</span>
+      </div>
       <div class="fof-fight-stage fofl-fight-stage">
         <div class="fof-stage-bg"${bgStyle}></div>
         <div class="fof-fighter fof-fighter-hero fofl-fighter-hero" data-fof-char="${heroId}" style="--fof-accent:${fofColor(heroId)}">
-          <div class="fofl-price-tag fofl-price-tag-hero" id="fofl-price-hero">$${hPx}</div>
           <img id="fofl-hero-img" class="fof-fighter-img" alt="${heroId}" src="${heroIdle || ''}" data-fof-action="IDLE">
         </div>
         <div class="fof-fighter fof-fighter-opp fofl-fighter-opp" data-fof-char="${oppId}" style="--fof-accent:${fofColor(oppId)}">
-          <div class="fofl-price-tag fofl-price-tag-opp" id="fofl-price-opp">$${oPx}</div>
           <img id="fofl-opp-img" class="fof-fighter-img" alt="${oppId}" src="${oppIdle || ''}" data-fof-action="IDLE">
         </div>
       </div>

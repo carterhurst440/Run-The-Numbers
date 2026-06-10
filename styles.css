@@ -29287,14 +29287,17 @@ body.admin-sk-fs-lock { overflow: hidden; }
   font-size: 11px; color: #aaa; min-height: 16px; margin-bottom: 10px;
 }
 
-/* On-character price tags — float over each fighter, track live contract price. */
-.fofl-fighter-hero, .fofl-fighter-opp { position: relative; }
+/* Contract-price row — fixed under the character names, one tag per side
+   aligned over each fighter's column, so the sprites stay in line. */
+.fofl-price-row {
+  display: flex; justify-content: space-around; align-items: center;
+  gap: 12px; margin: 6px auto 2px; max-width: 520px;
+}
 .fofl-price-tag {
-  position: absolute; top: 4px; left: 50%; transform: translateX(-50%);
-  z-index: 6; pointer-events: none;
+  flex: 1; text-align: center;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 15px; font-weight: 700; letter-spacing: 0.5px;
-  padding: 3px 10px; border-radius: 999px;
+  font-size: 16px; font-weight: 700; letter-spacing: 0.5px;
+  padding: 4px 10px; border-radius: 999px;
   background: rgba(8, 8, 10, 0.82);
   border: 1px solid var(--fof-accent, #d4a017);
   color: var(--fof-accent, #d4a017);
