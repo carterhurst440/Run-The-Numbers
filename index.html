@@ -416,19 +416,6 @@
                 <span class="drawer-link-label">Bloom</span>
               </span>
             </button>
-            <button type="button" data-route-target="fof-market" class="drawer-link" id="drawer-fof-market-link" hidden>
-              <span class="drawer-link-inner">
-                <span class="drawer-link-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M4 19h16"></path>
-                    <path d="m4 15 4-5 4 3 4-7"></path>
-                    <path d="M16 6h2v2"></path>
-                  </svg>
-                </span>
-                <span class="drawer-link-label">FOF Market</span>
-              </span>
-              <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
-            </button>
             <button type="button" data-route-target="admin" class="drawer-link" id="admin-nav" hidden>
               <span class="drawer-link-inner">
                 <span class="drawer-link-icon" aria-hidden="true">
@@ -3484,44 +3471,15 @@
               <div class="admin-fof-subtab-content" id="admin-fof-market-content" hidden>
                 <section class="route-section admin-list-section">
                   <div class="admin-listing-header">
-                    <h2>Fate or Fortune — Market β</h2>
+                    <h2>Fate or Fortune — Live Market</h2>
                   </div>
-                  <p class="admin-cs-hint">Prediction-market sandbox. Generate a round: the canonical battle runs once, and every HP change re-prices the contracts from a Monte Carlo of continuations (CRN-smoothed). Scrub the timeline and trade against the live price. Client-side only — no DB writes yet.</p>
-                  <div class="admin-fof-mkt-controls">
-                    <label class="admin-fof-sim-pick">Hero <select id="admin-fof-mkt-hero"></select></label>
-                    <span class="admin-fof-vs">VS</span>
-                    <label class="admin-fof-sim-pick">Opponent <select id="admin-fof-mkt-opp"></select></label>
-                    <label class="admin-fof-sim-pick">Seed <input type="number" id="admin-fof-mkt-seed" class="admin-fof-log-seed-input" placeholder="random" min="0" max="999999999"></label>
-                    <div class="admin-fof-vol-row">
-                      <span class="admin-fof-vol-label">M / juncture:</span>
-                      <button type="button" class="admin-fof-mkt-m-btn active" data-mkt-m="5000">5K</button>
-                      <button type="button" class="admin-fof-mkt-m-btn" data-mkt-m="10000">10K</button>
-                      <button type="button" class="admin-fof-mkt-m-btn" data-mkt-m="50000">50K</button>
-                      <button type="button" class="admin-fof-mkt-m-btn" data-mkt-m="100000">100K</button>
-                    </div>
-                    <button type="button" class="primary" id="admin-fof-mkt-gen">Generate round</button>
-                  </div>
-                  <div id="admin-fof-mkt-status" class="admin-fof-status"></div>
-                  <div id="admin-fof-mkt-stage" class="admin-fof-mkt-stage" hidden>
-                    <div class="admin-fof-mkt-curve-wrap">
-                      <svg id="admin-fof-mkt-curve" class="admin-fof-mkt-curve" viewBox="0 0 1000 240" preserveAspectRatio="none"></svg>
-                      <div id="admin-fof-mkt-cursor" class="admin-fof-mkt-cursor"></div>
-                    </div>
-                    <input type="range" id="admin-fof-mkt-scrub" class="admin-fof-mkt-scrub" min="0" max="0" value="0" step="1">
-                    <div class="admin-fof-mkt-tickinfo" id="admin-fof-mkt-tickinfo"></div>
-                    <div class="admin-fof-mkt-trade">
-                      <div class="admin-fof-mkt-prices">
-                        <button type="button" class="admin-fof-mkt-buy" data-mkt-side="hero" id="admin-fof-mkt-buy-hero">Buy HERO @ <span>—</span></button>
-                        <button type="button" class="admin-fof-mkt-buy" data-mkt-side="opponent" id="admin-fof-mkt-buy-opp">Buy OPP @ <span>—</span></button>
-                      </div>
-                      <div class="admin-fof-mkt-traderow">
-                        <label class="admin-fof-sim-pick">Qty <input type="number" id="admin-fof-mkt-qty" class="admin-fof-log-seed-input" value="100" min="1" step="1"></label>
-                        <button type="button" class="admin-fof-runall-btn" id="admin-fof-mkt-sell">Sell all</button>
-                        <button type="button" class="admin-fof-runall-btn" id="admin-fof-mkt-settle">Settle round</button>
-                        <button type="button" class="admin-fof-runall-btn" id="admin-fof-mkt-reset">Reset book</button>
-                      </div>
-                      <div class="admin-fof-mkt-book" id="admin-fof-mkt-book"></div>
-                    </div>
+                  <p class="admin-cs-hint">Live prediction-market sim. A random challenger appears; pick a champion, buy contracts up front at the master-grid price, then watch the battle and PAUSE to trade. Contracts settle $1.00 (win) / $0.00 (loss) / $0.50 (draw). Client-side only — no DB writes yet.</p>
+                  <div class="fof-page">
+                    <header class="fof-page-header">
+                      <div class="fof-page-title">// FOF MARKET <span>LIVE PREDICTION</span></div>
+                      <div class="fof-page-balance">CASH <strong id="fofl-page-balance-val">—</strong></div>
+                    </header>
+                    <div id="fofl-stage" class="fof-stage" data-state="idle"></div>
                   </div>
                 </section>
               </div>
@@ -3742,17 +3700,6 @@
               <div class="fof-page-balance">BALANCE <strong id="fof-page-balance-val">—</strong></div>
             </header>
             <div id="fof-stage" class="fof-stage" data-state="idle"></div>
-          </div>
-        </section>
-
-        <section id="fof-market-view" class="route-view app-page fof-view" hidden aria-labelledby="fof-market-view-title">
-          <h1 id="fof-market-view-title" class="sr-only">FOF Market</h1>
-          <div class="fof-page">
-            <header class="fof-page-header">
-              <div class="fof-page-title">// FOF MARKET <span>LIVE PREDICTION</span></div>
-              <div class="fof-page-balance">CASH <strong id="fofl-page-balance-val">—</strong></div>
-            </header>
-            <div id="fofl-stage" class="fof-stage" data-state="idle"></div>
           </div>
         </section>
 

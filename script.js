@@ -9136,11 +9136,6 @@ function updateAdminVisibility(user = currentUser) {
     if (adminVisible) drawerBloomLink.removeAttribute("hidden");
     else drawerBloomLink.setAttribute("hidden", "");
   }
-  const drawerFofMarketLink = document.getElementById("drawer-fof-market-link");
-  if (drawerFofMarketLink) {
-    if (adminVisible) drawerFofMarketLink.removeAttribute("hidden");
-    else drawerFofMarketLink.setAttribute("hidden", "");
-  }
   // Show/hide the Admin Tools trigger button (controls now live in modal)
   if (stAdminToolsOpenBtn) {
     stAdminToolsOpenBtn.hidden = !adminVisible;
@@ -9442,9 +9437,6 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
   if (resolvedRoute === "bloom") {
     bloomRouteOpen();
-  }
-  if (resolvedRoute === "fof-market") {
-    fofLiveRouteOpen();
   }
 
   if (PLAY_ASSISTANT_ROUTES.has(resolvedRoute)) {
@@ -18204,7 +18196,6 @@ const profileView = document.getElementById("profile-view");
 const colorSchemeView = document.getElementById("color-scheme-view");
 const fateOrFortuneView = document.getElementById("fate-or-fortune-view");
 const bloomView = document.getElementById("bloom-view");
-const fofMarketGameView = document.getElementById("fof-market-view");
 const routeViews = {
   home: homeView,
   "shape-traders": shapeTradersView,
@@ -18218,16 +18209,15 @@ const routeViews = {
   profile: profileView,
   "color-scheme": colorSchemeView,
   "fate-or-fortune": fateOrFortuneView,
-  "bloom": bloomView,
-  "fof-market": fofMarketGameView
+  "bloom": bloomView
 };
 const headerEl = document.querySelector(".header");
 const chipBarEl = runTheNumbersView ? runTheNumbersView.querySelector(".chip-bar") : null;
 const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout") : null;
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
-const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile", "color-scheme", "fate-or-fortune", "bloom", "fof-market"]);
+const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile", "color-scheme", "fate-or-fortune", "bloom"]);
 // Routes only admins may reach (hidden in drawer + blocked on direct URL/hash nav).
-const ADMIN_ONLY_ROUTES = new Set(["bloom", "admin", "fof-market"]);
+const ADMIN_ONLY_ROUTES = new Set(["bloom", "admin"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
@@ -30399,7 +30389,7 @@ function adminFofSwitchSubtab(target) {
   const el = document.getElementById(`admin-fof-${target}-content`);
   if (el) el.hidden = false;
   if (target === 'animations') void loadAdminFofAnimations();
-  if (target === 'market') fofMarketInitPanel();
+  if (target === 'market') void fofLiveRouteOpen();
 }
 
 (function adminFofSubtabInit() {
@@ -32150,236 +32140,6 @@ function fofMarketGenerate(a, b, opts = {}) {
     winner: canon.winner, durationSeconds: canon.durationSeconds,
     events: canon.events, ticks,
   };
-}
-
-// ── Market β admin sandbox UI ──────────────────────────────────────────
-// Client-side only: generate a round, scrub the price curve, and trade against
-// it with a local book that mirrors the planned RPC rules (weighted-average
-// cost, one-side-at-a-time, settle-as-final-sell). No DB writes yet.
-let fofMktRound = null;        // last generated round
-let fofMktTickIdx = 0;         // current scrub position
-let fofMktM = 5000;            // M continuations / juncture
-let fofMktWired = false;
-const FOF_MKT_START_CASH = 1000;
-let fofMktBook = { cash: FOF_MKT_START_CASH, position: null, realized: 0, settled: false, ledger: [] };
-
-function fofMarketInitPanel() {
-  const hero = document.getElementById('admin-fof-mkt-hero');
-  const opp = document.getElementById('admin-fof-mkt-opp');
-  if (hero && opp) {
-    const opts = fofChars.map(c => `<option value="${c.character}">${c.character.toUpperCase()}</option>`).join('');
-    if (hero.options.length === 0) hero.innerHTML = opts;
-    if (opp.options.length === 0) opp.innerHTML = opts;
-    if (fofChars.length >= 2) {
-      if (!hero.value) hero.value = fofChars[0].character;
-      if (!opp.value) opp.value = fofChars[1].character;
-    }
-  }
-  if (fofMktWired) return;
-  fofMktWired = true;
-
-  document.querySelectorAll('.admin-fof-mkt-m-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.admin-fof-mkt-m-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      fofMktM = Number(btn.dataset.mktM) || 5000;
-    });
-  });
-  document.getElementById('admin-fof-mkt-gen')?.addEventListener('click', () => void fofMarketGenerateRound());
-  document.getElementById('admin-fof-mkt-scrub')?.addEventListener('input', (e) => fofMarketSetTick(Number(e.target.value) || 0));
-  document.getElementById('admin-fof-mkt-buy-hero')?.addEventListener('click', () => fofMarketBuy('hero'));
-  document.getElementById('admin-fof-mkt-buy-opp')?.addEventListener('click', () => fofMarketBuy('opponent'));
-  document.getElementById('admin-fof-mkt-sell')?.addEventListener('click', () => fofMarketSellAll());
-  document.getElementById('admin-fof-mkt-settle')?.addEventListener('click', () => fofMarketSettle());
-  document.getElementById('admin-fof-mkt-reset')?.addEventListener('click', () => { fofMarketResetBook(); fofMarketRenderBook(); });
-}
-
-async function fofMarketGenerateRound() {
-  const heroKey = document.getElementById('admin-fof-mkt-hero')?.value;
-  const oppKey = document.getElementById('admin-fof-mkt-opp')?.value;
-  const status = document.getElementById('admin-fof-mkt-status');
-  const stage = document.getElementById('admin-fof-mkt-stage');
-  if (!heroKey || !oppKey) return;
-  if (heroKey === oppKey) { if (status) status.textContent = 'Pick two different characters.'; return; }
-  const a = fofChars.find(c => c.character === heroKey);
-  const b = fofChars.find(c => c.character === oppKey);
-  if (!a || !b) return;
-  const seedRaw = document.getElementById('admin-fof-mkt-seed')?.value;
-  const seed = seedRaw !== '' && seedRaw != null ? Number(seedRaw) : null;
-
-  if (status) status.textContent = `Generating ${fofMktM.toLocaleString()} continuations per juncture…`;
-  // Yield so the status paints before the synchronous heavy compute.
-  await new Promise(r => setTimeout(r, 20));
-
-  let round;
-  try {
-    round = fofMarketGenerate(a, b, { mcRuns: fofMktM, seed });
-  } catch (err) {
-    if (status) status.textContent = `Error: ${err.message}`;
-    return;
-  }
-  fofMktRound = round;
-  fofMarketResetBook();
-
-  const winLabel = round.winner ? `${round.winner.name} wins` : 'Draw';
-  if (status) {
-    status.textContent = `${round.heroId.toUpperCase()} vs ${round.opponentId.toUpperCase()} — ${round.ticks.length} junctures · ${winLabel} · seed ${round.canonicalSeed} · ${round.mcRuns.toLocaleString()} M · ${round.elapsedMs}ms`;
-  }
-  if (stage) stage.hidden = false;
-  const scrub = document.getElementById('admin-fof-mkt-scrub');
-  if (scrub) { scrub.max = String(round.ticks.length - 1); scrub.value = '0'; }
-  fofMarketRenderCurve();
-  fofMarketSetTick(0);
-  fofMarketRenderBook();
-}
-
-function fofMarketRenderCurve() {
-  const svg = document.getElementById('admin-fof-mkt-curve');
-  if (!svg || !fofMktRound) return;
-  const ticks = fofMktRound.ticks;
-  const W = 1000, H = 240;
-  const n = ticks.length;
-  const xAt = (i) => n <= 1 ? 0 : (i / (n - 1)) * W;
-  const yAt = (p) => (1 - p) * H;
-  const pts = ticks.map((t, i) => `${xAt(i).toFixed(1)},${yAt(t.heroWin).toFixed(1)}`).join(' ');
-  const area = `0,${H} ${pts} ${W},${yAt(ticks[n - 1].heroWin).toFixed(1)} ${W},${H}`;
-  svg.innerHTML = `
-    <line x1="0" y1="${H / 2}" x2="${W}" y2="${H / 2}" class="admin-fof-mkt-mid"></line>
-    <polyline points="${area}" class="admin-fof-mkt-area"></polyline>
-    <polyline points="${pts}" class="admin-fof-mkt-line"></polyline>
-  `;
-}
-
-function fofMarketCurrentTick() {
-  if (!fofMktRound) return null;
-  return fofMktRound.ticks[Math.min(fofMktTickIdx, fofMktRound.ticks.length - 1)] || null;
-}
-
-function fofMarketSetTick(i) {
-  if (!fofMktRound) return;
-  fofMktTickIdx = Math.max(0, Math.min(i, fofMktRound.ticks.length - 1));
-  const tick = fofMarketCurrentTick();
-  const n = fofMktRound.ticks.length;
-  const cursor = document.getElementById('admin-fof-mkt-cursor');
-  if (cursor) cursor.style.left = `${n <= 1 ? 0 : (fofMktTickIdx / (n - 1)) * 100}%`;
-  const info = document.getElementById('admin-fof-mkt-tickinfo');
-  if (info && tick) {
-    info.innerHTML = `Juncture ${fofMktTickIdx}/${n - 1} · t=${tick.time}s · `
-      + `<b>${fofMktRound.heroId.toUpperCase()}</b> ${Math.round(tick.hpA)}hp / <b>${fofMktRound.opponentId.toUpperCase()}</b> ${Math.round(tick.hpB)}hp · `
-      + `price <b>${tick.heroWin.toFixed(3)}</b> / ${tick.oppWin.toFixed(3)}`;
-  }
-  const hb = document.querySelector('#admin-fof-mkt-buy-hero span');
-  const ob = document.querySelector('#admin-fof-mkt-buy-opp span');
-  if (hb && tick) hb.textContent = `$${tick.heroWin.toFixed(2)}`;
-  if (ob && tick) ob.textContent = `$${tick.oppWin.toFixed(2)}`;
-  fofMarketRenderBook();
-}
-
-function fofMarketResetBook() {
-  fofMktBook = { cash: FOF_MKT_START_CASH, position: null, realized: 0, settled: false, ledger: [] };
-}
-
-function fofMktSidePrice(tick, side) {
-  return side === 'hero' ? tick.heroWin : tick.oppWin;
-}
-
-function fofMarketBuy(side) {
-  const tick = fofMarketCurrentTick();
-  if (!tick || fofMktBook.settled) return;
-  const book = fofMktBook;
-  if (book.position && book.position.side !== side) {
-    fofMarketFlash(`Sell your ${book.position.side.toUpperCase()} position first to flip sides.`);
-    return;
-  }
-  const qty = Math.max(1, Math.floor(Number(document.getElementById('admin-fof-mkt-qty')?.value) || 0));
-  const price = fofMktSidePrice(tick, side);
-  const cost = qty * price;
-  if (cost > book.cash + 1e-9) { fofMarketFlash('Not enough cash.'); return; }
-  book.cash -= cost;
-  if (!book.position) book.position = { side, qty, avgCost: price };
-  else {
-    const newQty = book.position.qty + qty;
-    book.position.avgCost = (book.position.qty * book.position.avgCost + qty * price) / newQty;
-    book.position.qty = newQty;
-  }
-  book.ledger.push({ action: 'buy', side, eventIndex: tick.eventIndex, qty, price, costBasis: null, cashDelta: -cost, net: null, acct: book.cash });
-  fofMarketRenderBook();
-}
-
-function fofMarketSellAll() {
-  const tick = fofMarketCurrentTick();
-  if (!tick || !fofMktBook.position || fofMktBook.settled) return;
-  const pos = fofMktBook.position;
-  const price = fofMktSidePrice(tick, pos.side);
-  fofMktClosePosition(price, tick.eventIndex, 'sell');
-  fofMarketRenderBook();
-}
-
-function fofMarketSettle() {
-  if (!fofMktRound || fofMktBook.settled) return;
-  const lastTick = fofMktRound.ticks[fofMktRound.ticks.length - 1];
-  if (fofMktBook.position) {
-    const pos = fofMktBook.position;
-    const w = fofMktRound.winner;
-    let settlePrice;
-    if (!w) settlePrice = 0.5;                          // draw → $0.50
-    else settlePrice = (w.id === fofMktRound[pos.side === 'hero' ? 'heroId' : 'opponentId']) ? 1 : 0;
-    fofMktClosePosition(settlePrice, lastTick.eventIndex, 'settle');
-  }
-  fofMktBook.settled = true;
-  fofMarketRenderBook();
-}
-
-function fofMktClosePosition(price, eventIndex, action) {
-  const pos = fofMktBook.position;
-  if (!pos) return;
-  const proceeds = pos.qty * price;
-  const net = pos.qty * (price - pos.avgCost);
-  fofMktBook.cash += proceeds;
-  fofMktBook.realized += net;
-  fofMktBook.ledger.push({ action, side: pos.side, eventIndex, qty: pos.qty, price, costBasis: pos.avgCost, cashDelta: proceeds, net, acct: fofMktBook.cash });
-  fofMktBook.position = null;
-}
-
-function fofMarketFlash(msg) {
-  const info = document.getElementById('admin-fof-mkt-tickinfo');
-  if (!info) return;
-  const prev = info.innerHTML;
-  info.innerHTML = `<span class="admin-fof-mkt-flash">${msg}</span>`;
-  setTimeout(() => { if (fofMktRound) fofMarketSetTick(fofMktTickIdx); else info.innerHTML = prev; }, 1400);
-}
-
-function fofMarketRenderBook() {
-  const el = document.getElementById('admin-fof-mkt-book');
-  if (!el) return;
-  const book = fofMktBook;
-  const tick = fofMarketCurrentTick();
-  let posLine = 'Flat (no position).';
-  let equity = book.cash;
-  if (book.position) {
-    const pos = book.position;
-    const mark = tick ? fofMktSidePrice(tick, pos.side) : pos.avgCost;
-    const markValue = pos.qty * mark;
-    equity = book.cash + markValue;
-    const unreal = pos.qty * (mark - pos.avgCost);
-    posLine = `<b>${pos.qty}</b> ${pos.side.toUpperCase()} @ avg $${pos.avgCost.toFixed(3)} · mark $${mark.toFixed(3)} · value $${markValue.toFixed(2)} · unrealized ${unreal >= 0 ? '+' : ''}${unreal.toFixed(2)}`;
-  }
-  const rows = book.ledger.slice().reverse().map(l => {
-    const net = l.net == null ? '—' : `${l.net >= 0 ? '+' : ''}${l.net.toFixed(2)}`;
-    const basis = l.costBasis == null ? '' : ` (basis $${l.costBasis.toFixed(3)})`;
-    return `<tr><td>${l.action}</td><td>${l.side.toUpperCase()}</td><td>#${l.eventIndex}</td><td>${l.qty}</td><td>$${l.price.toFixed(3)}${basis}</td><td>${l.cashDelta >= 0 ? '+' : ''}${l.cashDelta.toFixed(2)}</td><td>${net}</td><td>$${l.acct.toFixed(2)}</td></tr>`;
-  }).join('');
-  el.innerHTML = `
-    <div class="admin-fof-mkt-summary">
-      <span>Cash <b>$${book.cash.toFixed(2)}</b></span>
-      <span>Equity <b>$${equity.toFixed(2)}</b></span>
-      <span>Realized P&amp;L <b>${book.realized >= 0 ? '+' : ''}${book.realized.toFixed(2)}</b></span>
-      <span>P&amp;L vs start <b>${(equity - FOF_MKT_START_CASH) >= 0 ? '+' : ''}${(equity - FOF_MKT_START_CASH).toFixed(2)}</b></span>
-      ${book.settled ? '<span class="admin-fof-mkt-settled">SETTLED</span>' : ''}
-    </div>
-    <div class="admin-fof-mkt-pos">${posLine}</div>
-    ${book.ledger.length ? `<table class="admin-fof-mkt-ledger"><thead><tr><th>act</th><th>side</th><th>junc</th><th>qty</th><th>price</th><th>cash</th><th>net</th><th>acct</th></tr></thead><tbody>${rows}</tbody></table>` : ''}
-  `;
 }
 
 async function runFofSim() {
