@@ -33776,12 +33776,14 @@ async function foflLoadChars() {
 }
 
 // A candidate's opening contract value = its win probability vs the opponent.
-// Prefer the precomputed master-run odds stored on the row (vs_<opponent>),
-// falling back to a quick live Monte Carlo when that cell is empty.
+// Matrix orientation (matches the admin grid): opponent['vs_<challenger>']
+// stores the CHALLENGER's win probability, so the candidate's odds live on the
+// OPPONENT's row, not the candidate's. Fall back to a quick live Monte Carlo
+// when that cell is empty.
 function foflPairPrice(candidate, oppChar) {
-  const dec = candidate['vs_' + oppChar];
-  if (Number.isFinite(dec)) return dec;
   const opp = fofChars.find(c => c.character === oppChar);
+  const dec = opp ? opp['vs_' + candidate.character] : undefined;
+  if (Number.isFinite(dec)) return dec;
   if (!opp) return 0.5;
   const r = fofSimulate(candidate, opp, 6000);
   return r.runs ? r.aWins / r.runs : 0.5;
@@ -33938,6 +33940,15 @@ async function foflPickHero(heroChar) {
   } catch (err) {
     if (status) status.textContent = `Error: ${err.message}`;
     return;
+  }
+  // The INITIAL price is always the master grid, not this round's small MC pass.
+  // Pin the opening tick to the precomputed master-run odds so the staging /
+  // up-front buy price matches the selection card exactly; the per-round MC only
+  // drives how the price drifts once the battle is underway.
+  const t0 = round.ticks && round.ticks[0];
+  if (t0) {
+    t0.heroWin = foflPairPrice(a, opp.character);   // hero win prob vs opp
+    t0.oppWin  = foflPairPrice(opp, a.character);   // opp win prob vs hero
   }
   fofLiveGame.pickedHero = heroChar;
   fofLiveGame.round = round;
