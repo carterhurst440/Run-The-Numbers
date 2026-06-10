@@ -34347,6 +34347,7 @@ async function foflPlayEvents() {
   await fofPreloadClipDurations();
 
   const SPEED = 1, MIN_ACTION_HOLD = 900, POSTURE_HOLD = 750, MIN_EVENT_GAP = 1000, IMPACT_FRACTION = 0.6;
+  const EVENT_IDLE_PRE = 500;   // idle beat before each new event group (slower, readable pacing)
   let lastT = 0;
 
   const sideFor = (id) => (id === heroId ? 'hero' : id === oppId ? 'opp' : null);
@@ -34623,7 +34624,7 @@ async function foflPlayEvents() {
     await foflWaitWhilePaused();
     const t = Number(events[i].time);
     const natural = Math.max(0, (t - lastT) * 1000 / SPEED);
-    const dt = firstGroup ? natural : Math.max(natural, prevGroupHold, MIN_EVENT_GAP);
+    const dt = firstGroup ? natural : Math.max(natural, prevGroupHold, MIN_EVENT_GAP) + EVENT_IDLE_PRE;
     if (dt > 0) await new Promise(r => setTimeout(r, dt));
     lastT = t;
     firstGroup = false;
