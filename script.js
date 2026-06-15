@@ -14947,6 +14947,9 @@ async function openContestResultNotification(contestId) {
   openContestResultsModal(contest, leaderboard);
   await markContestResultsSeen(contest.id);
   refreshContestNotifications(contestCache);
+  // Re-render the home hero so a freshly-awarded win count shows up
+  // immediately behind the modal instead of waiting for a page reload.
+  refreshHomeDashboard();
 }
 
 async function openContestStartNotification(contestId) {
@@ -15016,7 +15019,22 @@ async function ensureContestMedalsAwarded(contest) {
           ...refreshedProfile
         };
         await refreshCurrentRankState({ force: true });
+      } else if (currentProfile) {
+        // Full profile re-fetch timed out — the win IS in the DB, so fall
+        // back to a lightweight read of just the count so the in-memory
+        // copy (and therefore the badge) still catches up this session.
+        const { data: winRow } = await supabase
+          .from("profiles")
+          .select("contest_wins")
+          .eq("id", currentUser.id)
+          .maybeSingle();
+        if (winRow && Number.isFinite(Number(winRow.contest_wins))) {
+          currentProfile.contest_wins = Number(winRow.contest_wins);
+        }
       }
+      // Invalidate the medals cache so the wins modal re-fetches and lists
+      // the newly-awarded medal the next time it opens.
+      currentMedals = [];
     }
   } catch (error) {
     console.error("[RTN] ensureContestMedalsAwarded error", error);
