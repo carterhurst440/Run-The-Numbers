@@ -21798,6 +21798,81 @@ body.state-open .auth-vault-grant .gline::after {
   margin-bottom: 0;
 }
 
+/* ---- SIDEBAR INVITE / REFERRAL ---- */
+.home-invite-copy {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #b8b8a0;
+  margin: 0 0 12px;
+}
+
+.home-invite-copy strong {
+  color: #c8ff00;
+  font-weight: 600;
+}
+
+.home-invite-link-row {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.home-invite-link-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: #0b0b08;
+  border: 1px solid #2a2a20;
+  border-radius: 4px;
+  color: #d8d8c0;
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 8px 10px;
+}
+
+.home-invite-link-input:focus {
+  outline: none;
+  border-color: #c8ff00;
+}
+
+.home-invite-copy-btn {
+  flex: 0 0 auto;
+  background: #c8ff00;
+  border: 1px solid #c8ff00;
+  border-radius: 4px;
+  color: #0b0b08;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  padding: 0 12px;
+  text-transform: uppercase;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.home-invite-copy-btn:hover {
+  background: #d8ff40;
+}
+
+.home-invite-copy-btn.is-copied {
+  background: transparent;
+  color: #c8ff00;
+}
+
+.home-invite-copy-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.home-invite-count {
+  font-size: 10px;
+  color: #909070;
+  letter-spacing: 0.04em;
+  margin: 10px 0 0;
+  min-height: 12px;
+}
+
 /* ---- SIDEBAR TIER LADDER ---- */
 #home-view .home-rank-ladder {
   background: transparent;

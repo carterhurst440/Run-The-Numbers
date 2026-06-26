@@ -881,6 +881,19 @@
                 </div><!-- /home-sb-card-body -->
               </div>
 
+              <!-- INVITE -->
+              <div class="home-sb-block" data-home-section="invite">
+                <div class="home-sb-label">// INVITE</div>
+                <div class="home-sb-card-body">
+                <p class="home-invite-copy">Credits are earned, not refilled. Share your link — earn <strong>1,000 credits</strong> every time someone signs up through it.</p>
+                <div class="home-invite-link-row">
+                  <input type="text" id="home-referral-link" class="home-invite-link-input" readonly value="" aria-label="Your referral link" />
+                  <button type="button" id="home-referral-copy" class="home-invite-copy-btn">COPY</button>
+                </div>
+                <p id="home-referral-count" class="home-invite-count" aria-live="polite"></p>
+                </div><!-- /home-sb-card-body -->
+              </div>
+
               <!-- SYSTEM -->
               <div class="home-sb-block">
                 <div class="home-sb-label">// SYSTEM</div>
@@ -4903,6 +4916,10 @@
             <span>Color Scheme Rounds Requirement (RYB)</span>
             <input type="number" name="requiredColorSchemeRounds" min="0" step="1" value="0" />
           </label>
+          <label class="admin-field">
+            <span>Rank Award (credits granted on advancement)</span>
+            <input type="number" name="advancementBonusCredits" min="0" step="1" value="0" />
+          </label>
           <input type="hidden" name="themeKey" id="admin-rank-theme-select" value="main-app-comfort" />
           <label class="admin-field">
             <span>Rank Icon URL</span>
@@ -4998,7 +5015,7 @@
     <script>window.__h = preact.h; window.__Fragment = preact.Fragment;</script>
     <script src="assets/bloom/morphs/flowers-compiled.js"></script>
     <script src="assets/bloom/morphs/flower-morphs.js"></script>
-    <script type="module" src="script.js?v=20260510-analytics-v57"></script>
+    <script type="module" src="script.js?v=20260625-referrals-v58"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

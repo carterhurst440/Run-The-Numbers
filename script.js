@@ -866,6 +866,88 @@ function isRecoveryRedirectUrl() {
   return hash.includes("type=recovery") || search.includes("type=recovery");
 }
 
+const REFERRAL_STORAGE_KEY = "rtn-referral-code";
+
+function sanitizeReferralCode(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 16);
+}
+
+// Pull ?ref=CODE off the landing URL and stash it so it survives the signup
+// flow. The durable carrier is the auth user_metadata (set at signUp), but we
+// also keep it here in case the same browser provisions the profile.
+function captureReferralCodeFromUrl() {
+  if (typeof window === "undefined") return;
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    const code = sanitizeReferralCode(params.get("ref"));
+    if (code) {
+      window.localStorage.setItem(REFERRAL_STORAGE_KEY, code);
+    }
+  } catch (err) {
+    console.warn("[RTN] captureReferralCodeFromUrl failed", err);
+  }
+}
+
+function getStoredReferralCode() {
+  try {
+    return window.localStorage.getItem(REFERRAL_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function clearStoredReferralCode() {
+  try {
+    window.localStorage.removeItem(REFERRAL_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+captureReferralCodeFromUrl();
+
+function buildReferralLink(code) {
+  const cleaned = sanitizeReferralCode(code);
+  if (!cleaned) return "";
+  try {
+    const url = new URL(window.location.origin + window.location.pathname);
+    url.search = `?ref=${cleaned}`;
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return `${window.location.origin}/?ref=${cleaned}`;
+  }
+}
+
+// Called right after a brand-new profile is provisioned. Credits the referrer
+// who owns the code the user signed up under. Safe to call with no code.
+async function maybeRecordAffiliateSignup(user) {
+  if (!supabase) return;
+  try {
+    const metaCode = user?.user_metadata?.referred_by;
+    const code = sanitizeReferralCode(
+      typeof metaCode === "string" && metaCode.trim() ? metaCode : getStoredReferralCode()
+    );
+    if (!code) return;
+    const { data, error } = await supabase.rpc("record_affiliate_signup", {
+      _referral_code: code
+    });
+    if (error) {
+      console.warn("[RTN] record_affiliate_signup error", error);
+      return;
+    }
+    console.info("[RTN] record_affiliate_signup result", data);
+  } catch (err) {
+    console.warn("[RTN] maybeRecordAffiliateSignup failed", err);
+  } finally {
+    clearStoredReferralCode();
+  }
+}
+
 function markAppReady() {
   if (typeof document === "undefined") {
     return;
@@ -2473,6 +2555,7 @@ function normalizeRankRecord(rank = {}) {
     required_contest_wins: Math.max(0, Math.round(Number(rank.required_contest_wins || 0))),
     required_trades_made: Math.max(0, Math.round(Number(rank.required_trades_made || 0))),
     required_color_scheme_rounds: Math.max(0, Math.round(Number(rank.required_color_scheme_rounds || 0))),
+    advancement_bonus_credits: Math.max(0, Math.round(Number(rank.advancement_bonus_credits || 0))),
     icon_url: typeof rank.icon_url === "string" ? rank.icon_url.trim() : "",
     theme_key: themeKey
   };
@@ -2836,6 +2919,7 @@ async function refreshCurrentRankState({ force = false } = {}) {
     typeHomeAboutIntro(homeAboutIntroEl?.dataset.fullCopy || homeAboutIntroEl?.textContent || "");
     renderHomeRankPanel();
     renderHomeRankLadder();
+    renderReferralPanel();
     return null;
   }
 
@@ -2872,6 +2956,7 @@ async function refreshCurrentRankState({ force = false } = {}) {
   typeHomeAboutIntro(homeAboutIntroEl?.dataset.fullCopy || homeAboutIntroEl?.textContent || "");
   renderHomeRankPanel();
   renderHomeRankLadder();
+  renderReferralPanel();
   refreshHomeDashboard();
   void refreshRankPlayerCounts();
   void renderRankLadderModal();
@@ -2890,7 +2975,14 @@ async function refreshCurrentRankState({ force = false } = {}) {
 
   if (nextTier > highWaterMark) {
     // Genuine advancement past everything we know about — show once and record.
-    openRankUpModal(currentRankState.currentRank);
+    // The rank-up credit bonus is awarded server-side (award_rank_up_bonus
+    // trigger); pull the fresh balance so the readout reflects it immediately.
+    let bonusCredits = sumRankAwards(highWaterMark, nextTier, ladder);
+    if (bonusCredits <= 0) {
+      bonusCredits = Math.max(0, Math.round(Number(currentRankState.currentRank?.advancement_bonus_credits || 0)));
+    }
+    void refreshNormalModeCreditsFromDb();
+    openRankUpModal(currentRankState.currentRank, { bonusCredits });
     setStoredAnnouncedRankTier(nextTier, currentUser.id);
   } else if (announcedTier == null || nextTier > announcedTier) {
     // Silently sync localStorage to catch up (e.g. new device, cleared cache).
@@ -2927,6 +3019,82 @@ function renderHomeRankPanel() {
       homeRankIconFallbackEl.hidden = false;
       homeRankIconFallbackEl.textContent = String(currentRank.tier);
     }
+  }
+}
+
+let referralCountFetchedForUserId = null;
+let referralCopyBtnWired = false;
+
+function wireReferralCopyButton() {
+  if (referralCopyBtnWired || !homeReferralCopyBtn) return;
+  referralCopyBtnWired = true;
+  homeReferralCopyBtn.addEventListener("click", async () => {
+    const link = homeReferralLinkInput?.value || "";
+    if (!link) return;
+    const original = homeReferralCopyBtn.textContent;
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch {
+      homeReferralLinkInput?.select?.();
+      try {
+        document.execCommand("copy");
+      } catch {
+        /* ignore */
+      }
+    }
+    homeReferralCopyBtn.textContent = "COPIED";
+    homeReferralCopyBtn.classList.add("is-copied");
+    window.setTimeout(() => {
+      homeReferralCopyBtn.textContent = original || "COPY";
+      homeReferralCopyBtn.classList.remove("is-copied");
+    }, 1600);
+  });
+}
+
+function renderReferralPanel() {
+  if (!homeReferralLinkInput) return;
+  wireReferralCopyButton();
+
+  const signedIn = currentUser?.id && currentUser.id !== GUEST_USER.id;
+  const code = signedIn ? sanitizeReferralCode(currentProfile?.referral_code) : "";
+  const link = buildReferralLink(code);
+
+  homeReferralLinkInput.value = link;
+  homeReferralLinkInput.placeholder = signedIn ? "Generating your link…" : "Sign in to get your link";
+  if (homeReferralCopyBtn) {
+    homeReferralCopyBtn.disabled = !link;
+  }
+
+  if (!signedIn) {
+    referralCountFetchedForUserId = null;
+    if (homeReferralCountEl) homeReferralCountEl.textContent = "";
+    return;
+  }
+
+  if (referralCountFetchedForUserId !== currentUser.id) {
+    referralCountFetchedForUserId = currentUser.id;
+    void refreshReferralSignupCount(currentUser.id);
+  }
+}
+
+async function refreshReferralSignupCount(userId) {
+  if (!supabase || !homeReferralCountEl) return;
+  try {
+    const { count, error } = await supabase
+      .from("affiliate_signups")
+      .select("id", { count: "exact", head: true })
+      .eq("affiliate_user_id", userId);
+    if (error) {
+      console.warn("[RTN] refreshReferralSignupCount error", error);
+      return;
+    }
+    if (currentUser?.id !== userId) return;
+    const n = Math.max(0, Number(count || 0));
+    homeReferralCountEl.textContent = n === 1
+      ? "1 sign-up so far — 1,000 credits earned."
+      : `${n.toLocaleString()} sign-ups so far — ${(n * 1000).toLocaleString()} credits earned.`;
+  } catch (err) {
+    console.warn("[RTN] refreshReferralSignupCount failed", err);
   }
 }
 
@@ -3055,6 +3223,44 @@ function buildRankRequirementsCopy(rank) {
 function getRankByTier(tier, ladder = getRankLadder()) {
   const targetTier = Math.max(1, Math.round(Number(tier || 1)));
   return ladder.find((rank) => rank.tier === targetTier) || null;
+}
+
+// Sum the advancement bonuses for every tier crossed in (fromTier, toTier].
+// Mirrors the server-side award_rank_up_bonus trigger for display purposes.
+function sumRankAwards(fromTier, toTier, ladder = getRankLadder()) {
+  const from = Math.max(0, Math.round(Number(fromTier || 0)));
+  const to = Math.max(0, Math.round(Number(toTier || 0)));
+  if (to <= from) return 0;
+  return ladder.reduce((total, rank) => {
+    const tier = Math.max(0, Math.round(Number(rank.tier || 0)));
+    if (tier > from && tier <= to) {
+      return total + Math.max(0, Math.round(Number(rank.advancement_bonus_credits || 0)));
+    }
+    return total;
+  }, 0);
+}
+
+// Pull the authoritative normal-mode balance from the DB and refresh the
+// readout. Used after a server-side credit award (rank bonus) lands so the
+// player sees it without waiting for the next periodic sync. No-op in contest
+// mode, where profiles.credits is not the active ledger.
+async function refreshNormalModeCreditsFromDb() {
+  if (!supabase || !currentUser?.id || currentUser.id === GUEST_USER.id) return;
+  if (typeof isContestAccountMode === "function" && isContestAccountMode()) return;
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("credits, carter_cash, carter_cash_progress")
+      .eq("id", currentUser.id)
+      .maybeSingle();
+    if (error || !data) return;
+    if (currentProfile) {
+      currentProfile.credits = data.credits;
+    }
+    applyAccountSnapshot(data, { resetHistory: false });
+  } catch (err) {
+    console.warn("[RTN] refreshNormalModeCreditsFromDb failed", err);
+  }
 }
 
 function getRankThemeLabel(themeKey) {
@@ -4013,13 +4219,17 @@ function setStoredAnnouncedRankTier(tier, userId = currentUser?.id) {
   }
 }
 
-function openRankUpModal(rank) {
+function openRankUpModal(rank, { bonusCredits = 0 } = {}) {
   if (!rankUpModal || !rank) return;
   if (rankUpTitleEl) {
     rankUpTitleEl.textContent = "CONGRADULATIONS";
   }
   if (rankUpCopyEl) {
-    rankUpCopyEl.textContent = `You have advanced to become ${rank.name}. Continue to Run the Numbers and advance up the rank ladder!`;
+    const award = Math.max(0, Math.round(Number(bonusCredits || 0)));
+    const awardSentence = award > 0
+      ? ` You earned a ${formatRankRequirementValue(award)} credit rank bonus!`
+      : "";
+    rankUpCopyEl.textContent = `You have advanced to become ${rank.name}.${awardSentence} Continue to Run the Numbers and advance up the rank ladder!`;
   }
   if (rankUpIconEl && rankUpIconFallbackEl) {
     if (rank.icon_url) {
@@ -4228,6 +4438,7 @@ function openAdminRankModal(rank = null) {
   setValue("requiredContestWins", String(rank?.required_contest_wins || 0));
   setValue("requiredTradesMade", String(rank?.required_trades_made || 0));
   setValue("requiredColorSchemeRounds", String(rank?.required_color_scheme_rounds || 0));
+  setValue("advancementBonusCredits", String(rank?.advancement_bonus_credits || 0));
   setValue("themeKey", rank?.theme_key || MAIN_APP_THEME_KEY);
   setValue("iconUrl", rank?.icon_url || "");
 
@@ -4283,6 +4494,7 @@ function renderAdminRankRow(rank, players = []) {
     </div>
     <p class="admin-rank-welcome">${interpolateRankWelcome(rank, currentProfile)}</p>
     <p class="admin-rank-requirements">${buildRankRequirementsCopy(rank)}</p>
+    <p class="admin-rank-award">Rank award: ${formatRankRequirementValue(Math.max(0, Math.round(Number(rank.advancement_bonus_credits || 0))))} credits</p>
     <div class="admin-rank-player-block">
       <p class="admin-rank-player-heading">Players in this rank</p>
       <ul class="admin-rank-player-list">${playersMarkup}</ul>
@@ -8972,6 +9184,7 @@ async function handleAdminRankSubmit(event) {
     required_contest_wins: Math.max(0, Math.round(Number(formData.get("requiredContestWins") || 0))),
     required_trades_made: Math.max(0, Math.round(Number(formData.get("requiredTradesMade") || 0))),
     required_color_scheme_rounds: Math.max(0, Math.round(Number(formData.get("requiredColorSchemeRounds") || 0))),
+    advancement_bonus_credits: Math.max(0, Math.round(Number(formData.get("advancementBonusCredits") || 0))),
     theme_key: slugifyThemeKey(String(formData.get("themeKey") || MAIN_APP_THEME_KEY).trim()) || MAIN_APP_THEME_KEY,
     icon_url: String(formData.get("iconUrl") || "").trim()
   };
@@ -9639,7 +9852,7 @@ async function fetchProfileWithRetries(
     try {
       const fetchPromise = supabase
         .from("profiles")
-        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
+        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, referral_code, updated_at")
         .eq("id", userId)
         .maybeSingle();
 
@@ -9775,7 +9988,7 @@ async function provisionProfileForUser(user) {
       .from("profiles")
       .insert([profileInsert])
       .select(
-        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at"
+        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, referral_code, updated_at"
       )
       .maybeSingle();
 
@@ -9797,6 +10010,7 @@ async function provisionProfileForUser(user) {
     }
 
     provisionStopwatch("(inserted)");
+    await maybeRecordAffiliateSignup(user);
     return data ?? null;
   } catch (error) {
     provisionStopwatch("(exception)");
@@ -10056,6 +10270,7 @@ async function handleSignUpFormSubmit(event) {
   }
 
   try {
+    const referralCode = sanitizeReferralCode(getStoredReferralCode());
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -10063,7 +10278,8 @@ async function handleSignUpFormSubmit(event) {
         data: {
           first_name: firstName,
           last_name: lastName,
-          full_name: `${firstName} ${lastName}`
+          full_name: `${firstName} ${lastName}`,
+          ...(referralCode ? { referred_by: referralCode } : {})
         }
       }
     });
@@ -15193,7 +15409,7 @@ async function optIntoContest(contest = currentContest) {
         }
 
         const { data: deductedProfile, error: deductError } = await deductQuery
-          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
+          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, referral_code, updated_at")
           .maybeSingle();
 
         if (deductError) throw deductError;
@@ -15245,7 +15461,7 @@ async function optIntoContest(contest = currentContest) {
             .update({ carter_cash: refundedAmount })
             .eq("id", currentUser.id)
             .eq("updated_at", chargedProfile.updated_at ?? null)
-            .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, updated_at")
+            .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, referral_code, updated_at")
             .maybeSingle();
           if (refundedProfile) {
             currentProfile = {
@@ -18101,6 +18317,9 @@ const homePnlTooltip = document.getElementById("home-pnl-tooltip");
 const homePnlTooltipDateEl = document.getElementById("home-pnl-tooltip-date");
 const homePnlTooltipValueEl = document.getElementById("home-pnl-tooltip-value");
 const homePnlChartWrapEl = document.getElementById("home-pnl-chart-wrap");
+const homeReferralLinkInput = document.getElementById("home-referral-link");
+const homeReferralCopyBtn = document.getElementById("home-referral-copy");
+const homeReferralCountEl = document.getElementById("home-referral-count");
 const activityFilterButtons = Array.from(document.querySelectorAll("[data-activity-period]"));
 const pnlRankFilterButtons = Array.from(document.querySelectorAll("[data-pnl-rank-period]"));
 const overviewChartSubheadEl = document.getElementById("overview-chart-subhead");
