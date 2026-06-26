@@ -38995,7 +38995,13 @@ async function initializeApp() {
   // refreshes can rehydrate the session automatically.
   setupAuthListener();
 
-  const initialRoute = getRouteFromHash();
+  let initialRoute = getRouteFromHash();
+  // A visitor arriving via an affiliate link (?ref=CODE) should drop straight
+  // into the Create Account flow, not the login screen. Only override the
+  // neutral default route so we never hijack password-reset/confirm links.
+  if ((initialRoute === "home" || initialRoute === "auth" || initialRoute === "login" || !initialRoute) && sanitizeReferralCode(getStoredReferralCode())) {
+    initialRoute = "signup";
+  }
   console.info(`[RTN] initializeApp initial route resolved to "${initialRoute}"`);
 
   let sessionApplied = false;
