@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260625-affiliate-banner-v1" />
     <link rel="stylesheet" href="assets/bloom/bloom-flowers.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-weather.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-growth.css" />
@@ -696,6 +696,29 @@
             <!-- MAIN COLUMN -->
             <div class="home-main">
 
+              <!-- AFFILIATE BANNER -->
+              <div class="home-affiliate-banner" data-home-section="affiliate">
+                <div class="hab-glow" aria-hidden="true"></div>
+                <div class="hab-grid" aria-hidden="true"></div>
+                <div class="hab-inner">
+                  <div class="hab-eyebrow"><span class="hab-pulse"></span>SYSTEM UPDATE</div>
+                  <h2 class="hab-title" data-text="THE GAME HAS CHANGED">THE GAME HAS CHANGED</h2>
+                  <p class="hab-copy">
+                    No more credit refreshes. Now you <strong>earn</strong> credits for every player you bring in.
+                    Share your personal affiliate link and bank <strong>1,000 credits</strong> for each player who joins —
+                    plus <strong>big credit bonuses</strong> every time you rank up.
+                  </p>
+                  <div class="hab-link-block">
+                    <span class="hab-link-label">// YOUR AFFILIATE LINK</span>
+                    <div class="home-invite-link-row hab-link-row">
+                      <input type="text" id="home-referral-link" class="home-invite-link-input hab-link-input" readonly value="" aria-label="Your referral link" />
+                      <button type="button" id="home-referral-copy" class="home-invite-copy-btn hab-copy-btn">COPY LINK</button>
+                    </div>
+                    <p id="home-referral-count" class="home-invite-count hab-count" aria-live="polite"></p>
+                  </div>
+                </div>
+              </div>
+
               <!-- PLAYER HERO -->
               <div class="home-player-hero" data-home-section="hero">
                 <div class="hph-meta">AUTHENTICATED PLAYER</div>
@@ -878,19 +901,6 @@
                     <p class="account-chart-tooltip-value" id="home-pnl-tooltip-value">+$0.00</p>
                   </div>
                 </div>
-                </div><!-- /home-sb-card-body -->
-              </div>
-
-              <!-- INVITE -->
-              <div class="home-sb-block" data-home-section="invite">
-                <div class="home-sb-label">// INVITE</div>
-                <div class="home-sb-card-body">
-                <p class="home-invite-copy">Credits are earned, not refilled. Share your link — earn <strong>1,000 credits</strong> every time someone signs up through it.</p>
-                <div class="home-invite-link-row">
-                  <input type="text" id="home-referral-link" class="home-invite-link-input" readonly value="" aria-label="Your referral link" />
-                  <button type="button" id="home-referral-copy" class="home-invite-copy-btn">COPY</button>
-                </div>
-                <p id="home-referral-count" class="home-invite-count" aria-live="polite"></p>
                 </div><!-- /home-sb-card-body -->
               </div>
 
