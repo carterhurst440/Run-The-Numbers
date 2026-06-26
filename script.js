@@ -948,6 +948,56 @@ async function maybeRecordAffiliateSignup(user) {
   }
 }
 
+// Shows "Invited by <username>" on the Create Account screen when the visitor
+// arrived via an affiliate link. Resolves the code through a public RPC since
+// the signup page is unauthenticated and cannot read profiles directly.
+async function renderSignupAffiliateBanner() {
+  const banner = document.getElementById("signup-affiliate-banner");
+  const nameEl = document.getElementById("signup-affiliate-name");
+  if (!banner || !nameEl) return;
+
+  const code = sanitizeReferralCode(getStoredReferralCode());
+  if (!code) {
+    banner.hidden = true;
+    return;
+  }
+
+  // `supabase` is always a Proxy that forwards to an offline stub until the
+  // live CDN client finishes loading; the stub's rpc() returns null. Wait for
+  // the live client so we hit the real resolve_referral_affiliate RPC.
+  if (!window.__RTN_SUPABASE_LIVE_READY) {
+    await new Promise((resolve) => {
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+      window.addEventListener("supabase:ready", done, { once: true });
+      setTimeout(done, 5000);
+    });
+  }
+  if (!window.__RTN_SUPABASE_LIVE_READY || !supabase) {
+    banner.hidden = true;
+    return;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc("resolve_referral_affiliate", {
+      _referral_code: code
+    });
+    if (error || !data?.found || !data?.affiliate_name) {
+      banner.hidden = true;
+      return;
+    }
+    nameEl.textContent = data.affiliate_name;
+    banner.hidden = false;
+  } catch (err) {
+    console.warn("[RTN] renderSignupAffiliateBanner failed", err);
+    banner.hidden = true;
+  }
+}
+
 function markAppReady() {
   if (typeof document === "undefined") {
     return;
@@ -9423,6 +9473,7 @@ function showAuthView(mode = "login") {
     if (signupSubmitButton) {
       signupSubmitButton.disabled = false;
     }
+    void renderSignupAffiliateBanner();
   } else if (mode === "forgot-password") {
     const forgotErrorEl = document.getElementById("forgot-error");
     const forgotSuccessEl = document.getElementById("forgot-success");
@@ -18408,6 +18459,8 @@ const signupForm = document.getElementById("signup-form");
 const signupErrorEl = document.getElementById("signup-error");
 const signupSubmitButton = document.getElementById("signup-submit");
 const signupFirstInput = document.getElementById("signup-first");
+const signupAffiliateBanner = document.getElementById("signup-affiliate-banner");
+const signupAffiliateNameEl = document.getElementById("signup-affiliate-name");
 const showSignUpButton = document.getElementById("show-signup");
 const showLoginButton = document.getElementById("show-login");
 const showForgotPasswordButton = document.getElementById("show-forgot-password");
