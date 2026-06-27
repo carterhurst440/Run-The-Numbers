@@ -3102,6 +3102,8 @@ function wireReferralCopyButton() {
 }
 
 function renderReferralPanel() {
+  wireReferralHistoryButton();
+  void renderHomeLeaderboard();
   if (!homeReferralLinkInput) return;
   wireReferralCopyButton();
 
@@ -3146,6 +3148,109 @@ async function refreshReferralSignupCount(userId) {
   } catch (err) {
     console.warn("[RTN] refreshReferralSignupCount failed", err);
   }
+}
+
+function formatLeaderboardCredits(value) {
+  const n = Math.round(Number(value || 0));
+  return Number.isFinite(n) ? n.toLocaleString() : "0";
+}
+
+async function renderHomeLeaderboard() {
+  if (!homeLeaderboardListEl) return;
+  const signedIn = currentUser?.id && currentUser.id !== GUEST_USER.id;
+  if (!signedIn || !supabase) {
+    homeLeaderboardListEl.innerHTML = `<li class="hlb-empty">Sign in to see the leaderboard.</li>`;
+    return;
+  }
+  homeLeaderboardListEl.innerHTML = `<li class="hlb-empty">Loading…</li>`;
+
+  const { data, error } = await supabase.rpc("get_credits_leaderboard");
+  if (error || !Array.isArray(data) || !data.length) {
+    homeLeaderboardListEl.innerHTML = `<li class="hlb-empty">No players yet.</li>`;
+    return;
+  }
+
+  const ladder = getRankLadder();
+  const myId = currentUser?.id;
+
+  homeLeaderboardListEl.innerHTML = data.map((p, i) => {
+    const rank = i + 1;
+    const isMe = p.id === myId;
+    const tierName = ladder.find((r) => r.id === p.current_rank_id || r.tier === p.current_rank_tier)?.name || `Tier ${p.current_rank_tier ?? "—"}`;
+    const medal = rank === 1 ? " hlb-gold" : rank === 2 ? " hlb-silver" : rank === 3 ? " hlb-bronze" : "";
+    return `<li class="hlb-row${isMe ? " is-me" : ""}${medal}">
+      <span class="hlb-num">${rank}</span>
+      <span class="hlb-name">${escapeAssistantHtml(p.username || "—")}</span>
+      <span class="hlb-tier">${escapeAssistantHtml(tierName)}</span>
+      <span class="hlb-credits">${formatLeaderboardCredits(p.credits)}</span>
+    </li>`;
+  }).join("");
+}
+
+function wireReferralHistoryButton() {
+  if (homeReferralHistoryBtn && !homeReferralHistoryBtn.dataset.wired) {
+    homeReferralHistoryBtn.dataset.wired = "1";
+    homeReferralHistoryBtn.addEventListener("click", () => { void openReferralHistoryModal(); });
+  }
+  if (referralHistoryClose && !referralHistoryClose.dataset.wired) {
+    referralHistoryClose.dataset.wired = "1";
+    referralHistoryClose.addEventListener("click", closeReferralHistoryModal);
+  }
+  if (referralHistoryOk && !referralHistoryOk.dataset.wired) {
+    referralHistoryOk.dataset.wired = "1";
+    referralHistoryOk.addEventListener("click", closeReferralHistoryModal);
+  }
+  if (referralHistoryModal && !referralHistoryModal.dataset.wired) {
+    referralHistoryModal.dataset.wired = "1";
+    referralHistoryModal.addEventListener("click", (e) => {
+      if (e.target === referralHistoryModal) closeReferralHistoryModal();
+    });
+  }
+}
+
+async function openReferralHistoryModal() {
+  if (!referralHistoryModal) return;
+  referralHistoryModal.hidden = false;
+  document.body.classList.add("modal-open");
+  await renderReferralHistory();
+}
+
+function closeReferralHistoryModal() {
+  if (!referralHistoryModal) return;
+  referralHistoryModal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+async function renderReferralHistory() {
+  if (!referralHistoryListEl) return;
+  referralHistoryListEl.innerHTML = `<li class="rhist-empty">Loading…</li>`;
+  if (!supabase || !currentUser?.id) {
+    referralHistoryListEl.innerHTML = `<li class="rhist-empty">Sign in to view your history.</li>`;
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("affiliate_signups")
+    .select("referred_username, amount_credited, created_at")
+    .eq("affiliate_user_id", currentUser.id)
+    .order("created_at", { ascending: false });
+
+  if (error || !Array.isArray(data) || !data.length) {
+    referralHistoryListEl.innerHTML = `<li class="rhist-empty">Your code has not been used yet — share your link to start earning.</li>`;
+    return;
+  }
+
+  referralHistoryListEl.innerHTML = data.map((row) => {
+    const name = row.referred_username && row.referred_username.trim() ? row.referred_username : "A new player";
+    const amount = formatLeaderboardCredits(row.amount_credited);
+    return `<li class="rhist-row">
+      <div class="rhist-info">
+        <span class="rhist-name">${escapeAssistantHtml(name)}</span>
+        <span class="rhist-date">${formatMedalAwardDate(row.created_at)}</span>
+      </div>
+      <span class="rhist-amount">+${amount}</span>
+    </li>`;
+  }).join("");
 }
 
 function buildHomeRankLadderProgressMarkup(rank, classBase = "home-rank-ladder") {
@@ -18371,6 +18476,12 @@ const homePnlChartWrapEl = document.getElementById("home-pnl-chart-wrap");
 const homeReferralLinkInput = document.getElementById("home-referral-link");
 const homeReferralCopyBtn = document.getElementById("home-referral-copy");
 const homeReferralCountEl = document.getElementById("home-referral-count");
+const homeReferralHistoryBtn = document.getElementById("home-referral-history");
+const homeLeaderboardListEl = document.getElementById("home-leaderboard-list");
+const referralHistoryModal = document.getElementById("referral-history-modal");
+const referralHistoryListEl = document.getElementById("referral-history-list");
+const referralHistoryClose = document.getElementById("referral-history-close");
+const referralHistoryOk = document.getElementById("referral-history-ok");
 const activityFilterButtons = Array.from(document.querySelectorAll("[data-activity-period]"));
 const pnlRankFilterButtons = Array.from(document.querySelectorAll("[data-pnl-rank-period]"));
 const overviewChartSubheadEl = document.getElementById("overview-chart-subhead");
