@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260627-leaderboard-v1" />
+    <link rel="stylesheet" href="styles.css?v=20260627-leaderboard-v2" />
     <link rel="stylesheet" href="assets/bloom/bloom-flowers.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-weather.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-growth.css" />
@@ -726,17 +726,6 @@
                 </div>
               </div>
 
-              <!-- CREDITS LEADERBOARD -->
-              <div class="home-leaderboard" data-home-section="leaderboard">
-                <div class="hlb-hdr">
-                  <div class="hlb-label">// CREDITS LEADERBOARD</div>
-                  <div class="hlb-sub">TOP PLAYERS BY CREDIT BALANCE</div>
-                </div>
-                <ol id="home-leaderboard-list" class="hlb-list">
-                  <li class="hlb-empty">Loading…</li>
-                </ol>
-              </div>
-
               <!-- PLAYER HERO -->
               <div class="home-player-hero" data-home-section="hero">
                 <div class="hph-meta">AUTHENTICATED PLAYER</div>
@@ -846,6 +835,17 @@
 
             <!-- SIDEBAR -->
             <aside class="home-sidebar">
+
+              <!-- LEADERBOARD -->
+              <div class="home-sb-block" data-home-section="leaderboard">
+                <div class="home-sb-label">// LEADERBOARD</div>
+                <div class="home-sb-card-body">
+                  <ol id="home-leaderboard-list" class="hlb-list hlb-list--mini">
+                    <li class="hlb-empty">Loading…</li>
+                  </ol>
+                  <button type="button" id="home-leaderboard-view-full" class="home-section-link">VIEW FULL</button>
+                </div>
+              </div>
 
               <!-- TIER LADDER -->
               <div class="home-sb-block" data-home-section="tier">
@@ -4904,6 +4904,30 @@
 
     <div
       class="modal"
+      id="credits-leaderboard-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="credits-leaderboard-title"
+      hidden
+    >
+      <div class="modal-content credits-leaderboard-modal">
+        <div class="modal-header">
+          <h2 id="credits-leaderboard-title">Credits Leaderboard</h2>
+          <button type="button" class="modal-close" id="credits-leaderboard-close" aria-label="Close credits leaderboard">×</button>
+        </div>
+        <div class="modal-body credits-leaderboard-body">
+          <ol id="credits-leaderboard-list" class="hlb-list hlb-list--full">
+            <li class="hlb-empty">Loading…</li>
+          </ol>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="credits-leaderboard-ok" class="primary">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal"
       id="contest-wins-modal"
       role="dialog"
       aria-modal="true"
@@ -5067,7 +5091,7 @@
     <script>window.__h = preact.h; window.__Fragment = preact.Fragment;</script>
     <script src="assets/bloom/morphs/flowers-compiled.js"></script>
     <script src="assets/bloom/morphs/flower-morphs.js"></script>
-    <script type="module" src="script.js?v=20260627-leaderboard-v1"></script>
+    <script type="module" src="script.js?v=20260627-leaderboard-v2"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

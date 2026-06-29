@@ -3103,6 +3103,7 @@ function wireReferralCopyButton() {
 
 function renderReferralPanel() {
   wireReferralHistoryButton();
+  wireCreditsLeaderboardModal();
   void renderHomeLeaderboard();
   if (!homeReferralLinkInput) return;
   wireReferralCopyButton();
@@ -3155,11 +3156,29 @@ function formatLeaderboardCredits(value) {
   return Number.isFinite(n) ? n.toLocaleString() : "0";
 }
 
+const HOME_LEADERBOARD_MINI_COUNT = 5;
+let creditsLeaderboardCache = null;
+
+function buildLeaderboardRow(p, rank, myId, { mini } = {}) {
+  const isMe = p.id === myId;
+  const medal = rank === 1 ? " hlb-gold" : rank === 2 ? " hlb-silver" : rank === 3 ? " hlb-bronze" : "";
+  const ladder = getRankLadder();
+  const tierName = ladder.find((r) => r.id === p.current_rank_id || r.tier === p.current_rank_tier)?.name || `Tier ${p.current_rank_tier ?? "—"}`;
+  const tierCell = mini ? "" : `<span class="hlb-tier">${escapeAssistantHtml(tierName)}</span>`;
+  return `<li class="hlb-row${isMe ? " is-me" : ""}${medal}">
+      <span class="hlb-num">${rank}</span>
+      <span class="hlb-name">${escapeAssistantHtml(p.username || "—")}</span>
+      ${tierCell}
+      <span class="hlb-credits">${formatLeaderboardCredits(p.credits)}</span>
+    </li>`;
+}
+
 async function renderHomeLeaderboard() {
   if (!homeLeaderboardListEl) return;
   const signedIn = currentUser?.id && currentUser.id !== GUEST_USER.id;
   if (!signedIn || !supabase) {
     homeLeaderboardListEl.innerHTML = `<li class="hlb-empty">Sign in to see the leaderboard.</li>`;
+    if (homeLeaderboardViewFullBtn) homeLeaderboardViewFullBtn.hidden = true;
     return;
   }
   homeLeaderboardListEl.innerHTML = `<li class="hlb-empty">Loading…</li>`;
@@ -3167,24 +3186,80 @@ async function renderHomeLeaderboard() {
   const { data, error } = await supabase.rpc("get_credits_leaderboard");
   if (error || !Array.isArray(data) || !data.length) {
     homeLeaderboardListEl.innerHTML = `<li class="hlb-empty">No players yet.</li>`;
+    if (homeLeaderboardViewFullBtn) homeLeaderboardViewFullBtn.hidden = true;
     return;
   }
 
-  const ladder = getRankLadder();
+  creditsLeaderboardCache = data;
   const myId = currentUser?.id;
 
-  homeLeaderboardListEl.innerHTML = data.map((p, i) => {
-    const rank = i + 1;
-    const isMe = p.id === myId;
-    const tierName = ladder.find((r) => r.id === p.current_rank_id || r.tier === p.current_rank_tier)?.name || `Tier ${p.current_rank_tier ?? "—"}`;
-    const medal = rank === 1 ? " hlb-gold" : rank === 2 ? " hlb-silver" : rank === 3 ? " hlb-bronze" : "";
-    return `<li class="hlb-row${isMe ? " is-me" : ""}${medal}">
-      <span class="hlb-num">${rank}</span>
-      <span class="hlb-name">${escapeAssistantHtml(p.username || "—")}</span>
-      <span class="hlb-tier">${escapeAssistantHtml(tierName)}</span>
-      <span class="hlb-credits">${formatLeaderboardCredits(p.credits)}</span>
-    </li>`;
-  }).join("");
+  homeLeaderboardListEl.innerHTML = data
+    .slice(0, HOME_LEADERBOARD_MINI_COUNT)
+    .map((p, i) => buildLeaderboardRow(p, i + 1, myId, { mini: true }))
+    .join("");
+
+  if (homeLeaderboardViewFullBtn) {
+    homeLeaderboardViewFullBtn.hidden = data.length <= HOME_LEADERBOARD_MINI_COUNT;
+  }
+
+  // If the full modal is open, keep it in sync.
+  if (creditsLeaderboardModal && !creditsLeaderboardModal.hidden) {
+    renderCreditsLeaderboardFull();
+  }
+}
+
+function renderCreditsLeaderboardFull() {
+  if (!creditsLeaderboardListEl) return;
+  const data = creditsLeaderboardCache;
+  if (!Array.isArray(data) || !data.length) {
+    creditsLeaderboardListEl.innerHTML = `<li class="hlb-empty">No players yet.</li>`;
+    return;
+  }
+  const myId = currentUser?.id;
+  creditsLeaderboardListEl.innerHTML = data
+    .map((p, i) => buildLeaderboardRow(p, i + 1, myId, { mini: false }))
+    .join("");
+}
+
+async function openCreditsLeaderboardModal() {
+  if (!creditsLeaderboardModal) return;
+  creditsLeaderboardModal.hidden = false;
+  document.body.classList.add("modal-open");
+  if (!Array.isArray(creditsLeaderboardCache) || !creditsLeaderboardCache.length) {
+    creditsLeaderboardListEl.innerHTML = `<li class="hlb-empty">Loading…</li>`;
+    if (supabase) {
+      const { data } = await supabase.rpc("get_credits_leaderboard");
+      if (Array.isArray(data)) creditsLeaderboardCache = data;
+    }
+  }
+  renderCreditsLeaderboardFull();
+}
+
+function closeCreditsLeaderboardModal() {
+  if (!creditsLeaderboardModal) return;
+  creditsLeaderboardModal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+function wireCreditsLeaderboardModal() {
+  if (homeLeaderboardViewFullBtn && !homeLeaderboardViewFullBtn.dataset.wired) {
+    homeLeaderboardViewFullBtn.dataset.wired = "1";
+    homeLeaderboardViewFullBtn.addEventListener("click", () => { void openCreditsLeaderboardModal(); });
+  }
+  if (creditsLeaderboardClose && !creditsLeaderboardClose.dataset.wired) {
+    creditsLeaderboardClose.dataset.wired = "1";
+    creditsLeaderboardClose.addEventListener("click", closeCreditsLeaderboardModal);
+  }
+  if (creditsLeaderboardOk && !creditsLeaderboardOk.dataset.wired) {
+    creditsLeaderboardOk.dataset.wired = "1";
+    creditsLeaderboardOk.addEventListener("click", closeCreditsLeaderboardModal);
+  }
+  if (creditsLeaderboardModal && !creditsLeaderboardModal.dataset.wired) {
+    creditsLeaderboardModal.dataset.wired = "1";
+    creditsLeaderboardModal.addEventListener("click", (e) => {
+      if (e.target === creditsLeaderboardModal) closeCreditsLeaderboardModal();
+    });
+  }
 }
 
 function wireReferralHistoryButton() {
@@ -18478,6 +18553,11 @@ const homeReferralCopyBtn = document.getElementById("home-referral-copy");
 const homeReferralCountEl = document.getElementById("home-referral-count");
 const homeReferralHistoryBtn = document.getElementById("home-referral-history");
 const homeLeaderboardListEl = document.getElementById("home-leaderboard-list");
+const homeLeaderboardViewFullBtn = document.getElementById("home-leaderboard-view-full");
+const creditsLeaderboardModal = document.getElementById("credits-leaderboard-modal");
+const creditsLeaderboardListEl = document.getElementById("credits-leaderboard-list");
+const creditsLeaderboardClose = document.getElementById("credits-leaderboard-close");
+const creditsLeaderboardOk = document.getElementById("credits-leaderboard-ok");
 const referralHistoryModal = document.getElementById("referral-history-modal");
 const referralHistoryListEl = document.getElementById("referral-history-list");
 const referralHistoryClose = document.getElementById("referral-history-close");
