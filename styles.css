@@ -22057,6 +22057,39 @@ body.state-open .auth-vault-grant .gline::after {
   overflow-y: auto;
 }
 
+/* Rows open that player's bankroll chart. */
+.hlb-clickable { cursor: pointer; }
+.hlb-clickable:hover,
+.hlb-clickable:focus-visible {
+  background: rgba(200, 255, 0, 0.06);
+  outline: none;
+}
+
+/* ---- BANKROLL HISTORY MODAL ---- */
+.bankroll-history-periods {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.bankroll-history-canvas-wrap {
+  width: 100%;
+  height: 340px;
+  position: relative;
+}
+
+#bankroll-history-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.modal-content.bankroll-history-modal {
+  width: min(760px, 94vw);
+  max-width: 760px;
+}
+
 .hlb-row {
   display: grid;
   grid-template-columns: 2rem 1fr auto auto;

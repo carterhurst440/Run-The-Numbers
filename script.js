@@ -3104,6 +3104,7 @@ function wireReferralCopyButton() {
 function renderReferralPanel() {
   wireReferralHistoryButton();
   wireCreditsLeaderboardModal();
+  wireBankrollHistoryModal();
   void renderHomeLeaderboard();
   if (!homeReferralLinkInput) return;
   wireReferralCopyButton();
@@ -3165,9 +3166,10 @@ function buildLeaderboardRow(p, rank, myId, { mini } = {}) {
   const ladder = getRankLadder();
   const tierName = ladder.find((r) => r.id === p.current_rank_id || r.tier === p.current_rank_tier)?.name || `Tier ${p.current_rank_tier ?? "—"}`;
   const tierCell = mini ? "" : `<span class="hlb-tier">${escapeAssistantHtml(tierName)}</span>`;
-  return `<li class="hlb-row${isMe ? " is-me" : ""}${medal}">
+  const uname = escapeAssistantHtml(p.username || "—");
+  return `<li class="hlb-row hlb-clickable${isMe ? " is-me" : ""}${medal}" data-bankroll-user="${escapeAssistantHtml(p.id || "")}" data-bankroll-name="${uname}" role="button" tabindex="0" title="View bankroll history">
       <span class="hlb-num">${rank}</span>
-      <span class="hlb-name">${escapeAssistantHtml(p.username || "—")}</span>
+      <span class="hlb-name">${uname}</span>
       ${tierCell}
       <span class="hlb-credits">${formatLeaderboardCredits(p.credits)}</span>
     </li>`;
@@ -3260,6 +3262,201 @@ function wireCreditsLeaderboardModal() {
       if (e.target === creditsLeaderboardModal) closeCreditsLeaderboardModal();
     });
   }
+}
+
+// ── Bankroll history chart (ledger-backed, cross-user) ─────────────────────
+let bankrollHistorySeries = [];
+let bankrollHistoryPeriod = "all";
+let bankrollHistoryFetchToken = 0;
+
+function bankrollHistoryPeriodStart(period) {
+  const now = Date.now();
+  if (period === "month") return new Date(now - 30 * 864e5);
+  if (period === "90days") return new Date(now - 90 * 864e5);
+  if (period === "year") return new Date(now - 365 * 864e5);
+  return null; // all
+}
+
+async function openBankrollHistoryModal(userId, username) {
+  if (!bankrollHistoryModal || !userId) return;
+  bankrollHistoryModal.hidden = false;
+  document.body.classList.add("modal-open");
+  if (bankrollHistoryTitleEl) {
+    bankrollHistoryTitleEl.textContent = username ? `${username} · Bankroll` : "Bankroll History";
+  }
+  bankrollHistorySeries = [];
+  bankrollHistoryPeriod = "all";
+  syncBankrollHistoryPeriodButtons();
+
+  const token = ++bankrollHistoryFetchToken;
+  drawBankrollHistoryChart(); // shows Loading via empty state
+  if (!supabase) return;
+  const { data, error } = await supabase.rpc("get_bankroll_series", { p_user_id: userId });
+  if (token !== bankrollHistoryFetchToken) return; // superseded by a newer open
+  if (error || !Array.isArray(data)) {
+    bankrollHistorySeries = [];
+  } else {
+    bankrollHistorySeries = data
+      .map((row) => ({ time: new Date(row.occurred_at), value: Number(row.balance) || 0 }))
+      .filter((p) => !Number.isNaN(p.time.getTime()))
+      .sort((a, b) => a.time - b.time);
+  }
+  drawBankrollHistoryChart();
+}
+
+function closeBankrollHistoryModal() {
+  if (!bankrollHistoryModal) return;
+  bankrollHistoryModal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+function syncBankrollHistoryPeriodButtons() {
+  if (!bankrollHistoryModal) return;
+  bankrollHistoryModal.querySelectorAll("[data-bh-period]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.bhPeriod === bankrollHistoryPeriod);
+  });
+}
+
+function getFilteredBankrollHistory() {
+  const start = bankrollHistoryPeriodStart(bankrollHistoryPeriod);
+  let pts = start ? bankrollHistorySeries.filter((p) => p.time >= start) : bankrollHistorySeries.slice();
+  // Downsample for performance: keep at most ~600 points, always the last one.
+  const MAX = 600;
+  if (pts.length > MAX) {
+    const step = pts.length / MAX;
+    const sampled = [];
+    for (let i = 0; i < MAX; i += 1) sampled.push(pts[Math.floor(i * step)]);
+    sampled.push(pts[pts.length - 1]);
+    pts = sampled;
+  }
+  return pts;
+}
+
+function drawBankrollHistoryChart() {
+  const canvas = bankrollHistoryCanvas;
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const width = canvas.clientWidth || 720;
+  const height = canvas.clientHeight || 320;
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  canvas.width = Math.round(width * dpr);
+  canvas.height = Math.round(height * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+
+  const points = getFilteredBankrollHistory();
+  if (!points.length) {
+    ctx.fillStyle = "rgba(168, 168, 112, 0.7)";
+    ctx.font = "600 15px JetBrains Mono, monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("No bankroll history in this range yet.", width / 2, height / 2);
+    return;
+  }
+
+  const padding = { top: 22, right: 18, bottom: 34, left: 78 };
+  const chartWidth = Math.max(10, width - padding.left - padding.right);
+  const chartHeight = Math.max(10, height - padding.top - padding.bottom);
+  const values = points.map((p) => p.value);
+  let minValue = Math.min(...values);
+  let maxValue = Math.max(...values);
+  if (minValue === maxValue) { minValue -= 10; maxValue += 10; }
+  const range = Math.max(1, maxValue - minValue);
+
+  ctx.strokeStyle = "rgba(200, 255, 0, 0.08)";
+  ctx.lineWidth = 1;
+  for (let step = 0; step <= 4; step += 1) {
+    const y = padding.top + (chartHeight / 4) * step;
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(width - padding.right, y);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = "rgba(168, 168, 112, 0.6)";
+  ctx.font = "600 12px JetBrains Mono, monospace";
+  ctx.textAlign = "right";
+  for (let step = 0; step <= 4; step += 1) {
+    const value = Math.round(maxValue - (range / 4) * step);
+    const y = padding.top + (chartHeight / 4) * step + 4;
+    ctx.fillText(value.toLocaleString(), padding.left - 10, y);
+  }
+
+  const coords = points.map((p, index) => {
+    const x = padding.left + (points.length === 1 ? chartWidth / 2 : (chartWidth * index) / (points.length - 1));
+    const y = padding.top + chartHeight - ((p.value - minValue) / range) * chartHeight;
+    return { x, y };
+  });
+
+  const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartHeight);
+  gradient.addColorStop(0, "rgba(200, 255, 0, 0.18)");
+  gradient.addColorStop(1, "rgba(200, 255, 0, 0)");
+  ctx.beginPath();
+  coords.forEach(({ x, y }, index) => { if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+  ctx.lineTo(coords[coords.length - 1].x, padding.top + chartHeight);
+  ctx.lineTo(coords[0].x, padding.top + chartHeight);
+  ctx.closePath();
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  ctx.beginPath();
+  coords.forEach(({ x, y }, index) => { if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+  ctx.strokeStyle = "#c8ff00";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Date axis: first + last
+  ctx.fillStyle = "rgba(168, 168, 112, 0.6)";
+  ctx.font = "600 11px JetBrains Mono, monospace";
+  const fmt = (d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "2-digit" });
+  ctx.textAlign = "left";
+  ctx.fillText(fmt(points[0].time), padding.left, height - 12);
+  ctx.textAlign = "right";
+  ctx.fillText(fmt(points[points.length - 1].time), width - padding.right, height - 12);
+}
+
+function wireBankrollHistoryModal() {
+  if (bankrollHistoryClose && !bankrollHistoryClose.dataset.wired) {
+    bankrollHistoryClose.dataset.wired = "1";
+    bankrollHistoryClose.addEventListener("click", closeBankrollHistoryModal);
+  }
+  if (bankrollHistoryOk && !bankrollHistoryOk.dataset.wired) {
+    bankrollHistoryOk.dataset.wired = "1";
+    bankrollHistoryOk.addEventListener("click", closeBankrollHistoryModal);
+  }
+  if (bankrollHistoryModal && !bankrollHistoryModal.dataset.wired) {
+    bankrollHistoryModal.dataset.wired = "1";
+    bankrollHistoryModal.addEventListener("click", (e) => {
+      if (e.target === bankrollHistoryModal) closeBankrollHistoryModal();
+      const periodBtn = e.target.closest?.("[data-bh-period]");
+      if (periodBtn) {
+        bankrollHistoryPeriod = periodBtn.dataset.bhPeriod || "all";
+        syncBankrollHistoryPeriodButtons();
+        drawBankrollHistoryChart();
+      }
+    });
+  }
+  if (accountBankrollHistoryOpenBtn && !accountBankrollHistoryOpenBtn.dataset.wired) {
+    accountBankrollHistoryOpenBtn.dataset.wired = "1";
+    accountBankrollHistoryOpenBtn.addEventListener("click", () => {
+      const uid = currentUser?.id;
+      if (!uid || uid === GUEST_USER.id) return;
+      const name = currentProfile?.username || "You";
+      void openBankrollHistoryModal(uid, name);
+    });
+  }
+  // Delegated: click any leaderboard row to view that player's bankroll.
+  [homeLeaderboardListEl, creditsLeaderboardListEl].forEach((listEl) => {
+    if (listEl && !listEl.dataset.bhWired) {
+      listEl.dataset.bhWired = "1";
+      listEl.addEventListener("click", (e) => {
+        const row = e.target.closest?.("[data-bankroll-user]");
+        if (!row) return;
+        void openBankrollHistoryModal(row.dataset.bankrollUser, row.dataset.bankrollName || "");
+      });
+    }
+  });
 }
 
 function wireReferralHistoryButton() {
@@ -18558,6 +18755,12 @@ const creditsLeaderboardModal = document.getElementById("credits-leaderboard-mod
 const creditsLeaderboardListEl = document.getElementById("credits-leaderboard-list");
 const creditsLeaderboardClose = document.getElementById("credits-leaderboard-close");
 const creditsLeaderboardOk = document.getElementById("credits-leaderboard-ok");
+const bankrollHistoryModal = document.getElementById("bankroll-history-modal");
+const bankrollHistoryCanvas = document.getElementById("bankroll-history-canvas");
+const bankrollHistoryTitleEl = document.getElementById("bankroll-history-title");
+const bankrollHistoryClose = document.getElementById("bankroll-history-close");
+const bankrollHistoryOk = document.getElementById("bankroll-history-ok");
+const accountBankrollHistoryOpenBtn = document.getElementById("account-bankroll-history-open");
 const referralHistoryModal = document.getElementById("referral-history-modal");
 const referralHistoryListEl = document.getElementById("referral-history-list");
 const referralHistoryClose = document.getElementById("referral-history-close");
