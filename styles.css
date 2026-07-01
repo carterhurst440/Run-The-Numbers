@@ -8654,12 +8654,35 @@ body.theme-angelic {
   animation: rlmReadyPulse 1.8s ease-in-out infinite;
 }
 
+.rlm-claim-btn {
+  font-family: inherit;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #0a0a09;
+  background: #c8ff00;
+  border: none;
+  border-radius: 5px;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 0 16px -4px rgba(200, 255, 0, 0.8);
+  animation: rlmReadyPulse 1.8s ease-in-out infinite;
+  transition: filter 0.15s;
+}
+
+.rlm-claim-btn:hover:not(:disabled) { filter: brightness(1.1); }
+.rlm-claim-btn:disabled { opacity: 0.6; cursor: default; animation: none; }
+
 @keyframes rlmReadyPulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(255, 213, 74, 0.5); }
   60% { box-shadow: 0 0 0 6px rgba(255, 213, 74, 0); }
 }
 
-/* Claim banner at the top of the rank ladder modal */
+/* Claim banner at the top of the rank ladder modal (deprecated: replaced by
+   per-rung CLAIM buttons — kept hidden). */
+.rank-claim-banner[hidden] { display: none; }
+
 .rank-claim-banner {
   display: flex;
   align-items: center;

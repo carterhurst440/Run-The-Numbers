@@ -908,6 +908,23 @@ function clearStoredReferralCode() {
   }
 }
 
+// True if the Supabase client has a persisted session in localStorage. Used to
+// avoid flashing the signup view on reload for an already-authenticated user.
+function hasStoredSupabaseSession() {
+  try {
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const k = window.localStorage.key(i);
+      if (k && /^sb-.*-auth-token$/.test(k)) {
+        const v = window.localStorage.getItem(k);
+        if (v && v.length > 20) return true;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
 captureReferralCodeFromUrl();
 
 function buildReferralLink(code) {
@@ -2661,13 +2678,13 @@ function renderRankLadderAward(rank) {
   const award = Math.max(0, Math.round(Number(rank?.advancement_bonus_credits || 0)));
   if (award <= 0) return "";
   const tier = Number(rank?.tier || 0);
-  let statusHtml = "";
+  let trailingHtml = "";
   if (tier <= rankClaimState.claimed_tier) {
-    statusHtml = `<span class="rlm-claim-tag is-claimed">CLAIMED</span>`;
+    trailingHtml = `<span class="rlm-claim-tag is-claimed">CLAIMED</span>`;
   } else if (tier <= rankClaimState.current_tier) {
-    statusHtml = `<span class="rlm-claim-tag is-ready">READY</span>`;
+    trailingHtml = `<button type="button" class="rlm-claim-btn" data-claim-tier="${tier}">CLAIM +${award.toLocaleString()}</button>`;
   }
-  return `<p class="rank-ladder-award"><span class="rlm-award-chip">RANK AWARD</span><span class="rlm-award-value">+${award.toLocaleString()} credits</span>${statusHtml}</p>`;
+  return `<p class="rank-ladder-award"><span class="rlm-award-chip">RANK AWARD</span><span class="rlm-award-value">+${award.toLocaleString()} credits</span>${trailingHtml}</p>`;
 }
 
 function renderRankLadderPlayers(rank) {
@@ -4864,46 +4881,56 @@ function renderRankClaimBanner() {
   }
 }
 
-function wireRankClaimButton() {
-  if (!rankClaimBtn || rankClaimBtn.dataset.wired) return;
-  rankClaimBtn.dataset.wired = "1";
-  rankClaimBtn.addEventListener("click", async () => {
-    if (!supabase || rankClaimBtn.disabled) return;
-    rankClaimBtn.disabled = true;
-    rankClaimBtn.textContent = "CLAIMING…";
-    try {
-      const { data, error } = await supabase.rpc("claim_rank_bonus");
-      if (error || !data?.claimed) {
-        rankClaimBtn.disabled = false;
-        rankClaimBtn.textContent = "CLAIM BONUS";
-        showToast(error ? "Could not claim bonus." : "Nothing to claim right now.", error ? "error" : "info");
-        return;
-      }
-      const amt = Math.round(Number(data.amount || 0));
-      showToast(`🎉 Claimed +${amt.toLocaleString()} rank bonus!`, "success");
-      if (currentProfile) {
-        currentProfile.credits = Number(data.new_balance ?? currentProfile.credits);
-        currentProfile.highest_rewarded_tier = Number(data.to_tier ?? currentProfile.highest_rewarded_tier);
-        applyProfileCredits(currentProfile);
-      }
-      await renderRankLadderModal();
-    } catch (err) {
-      console.warn("[RTN] claim_rank_bonus failed", err);
-      rankClaimBtn.disabled = false;
-      rankClaimBtn.textContent = "CLAIM BONUS";
-      showToast("Could not claim bonus.", "error");
+let rankClaimInFlight = false;
+
+async function performRankClaim(upToTier) {
+  if (!supabase || rankClaimInFlight) return;
+  rankClaimInFlight = true;
+  const btn = rankLadderListEl?.querySelector(`.rlm-claim-btn[data-claim-tier="${upToTier}"]`);
+  if (btn) { btn.disabled = true; btn.textContent = "CLAIMING…"; }
+  try {
+    const { data, error } = await supabase.rpc("claim_rank_bonus", { _up_to_tier: upToTier });
+    if (error || !data?.claimed) {
+      showToast(error ? "Could not claim bonus." : "Nothing to claim right now.", error ? "error" : "info");
+      if (btn) { btn.disabled = false; }
+      return;
     }
+    const amt = Math.round(Number(data.amount || 0));
+    showToast(`🎉 Claimed +${amt.toLocaleString()} rank bonus!`, "success");
+    if (currentProfile) {
+      currentProfile.credits = Number(data.new_balance ?? currentProfile.credits);
+      currentProfile.highest_rewarded_tier = Number(data.to_tier ?? currentProfile.highest_rewarded_tier);
+      applyProfileCredits(currentProfile);
+    }
+    await renderRankLadderModal();
+  } catch (err) {
+    console.warn("[RTN] claim_rank_bonus failed", err);
+    showToast("Could not claim bonus.", "error");
+    if (btn) { btn.disabled = false; }
+  } finally {
+    rankClaimInFlight = false;
+  }
+}
+
+function wireRankClaimClicks() {
+  if (!rankLadderListEl || rankLadderListEl.dataset.claimWired) return;
+  rankLadderListEl.dataset.claimWired = "1";
+  rankLadderListEl.addEventListener("click", (e) => {
+    const btn = e.target.closest?.(".rlm-claim-btn");
+    if (!btn) return;
+    const tier = Number(btn.dataset.claimTier || 0);
+    if (tier > 0) void performRankClaim(tier);
   });
 }
 
 async function renderRankLadderModal() {
   if (!rankLadderListEl) return;
-  wireRankClaimButton();
+  wireRankClaimClicks();
+  if (rankClaimBanner) rankClaimBanner.hidden = true; // per-rung claim buttons instead of a top rollup
   await loadThemeLibrary(true);
   const ladder = await loadRankLadder(true);
   await loadRankPlayerCounts();
   rankClaimState = await fetchClaimableRankBonus();
-  renderRankClaimBanner();
 
   rankLadderListEl.innerHTML = "";
   ladder.forEach((rank) => {
@@ -39667,6 +39694,9 @@ async function bootstrapAuth(initialRoute) {
     }
 
     currentUser = sessionUser;
+    // A signed-in member no longer needs a stored affiliate code; clearing it
+    // stops the signup view from flashing on future reloads.
+    clearStoredReferralCode();
     updateAdminVisibility(currentUser);
     updateResetButtonVisibility(currentUser);
     markAppReady();
@@ -39860,8 +39890,11 @@ async function initializeApp() {
   let initialRoute = getRouteFromHash();
   // A visitor arriving via an affiliate link (?ref=CODE) should drop straight
   // into the Create Account flow, not the login screen. Only override the
-  // neutral default route so we never hijack password-reset/confirm links.
-  if ((initialRoute === "home" || initialRoute === "auth" || initialRoute === "login" || !initialRoute) && sanitizeReferralCode(getStoredReferralCode())) {
+  // neutral default route so we never hijack password-reset/confirm links — and
+  // never for an already-authenticated user (that just flashes signup on reload).
+  if ((initialRoute === "home" || initialRoute === "auth" || initialRoute === "login" || !initialRoute)
+      && sanitizeReferralCode(getStoredReferralCode())
+      && !hasStoredSupabaseSession()) {
     initialRoute = "signup";
   }
   console.info(`[RTN] initializeApp initial route resolved to "${initialRoute}"`);
