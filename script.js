@@ -3152,6 +3152,7 @@ function renderReferralPanel() {
   wireCreditsLeaderboardModal();
   wireBankrollHistoryModal();
   void renderHomeLeaderboard();
+  void refreshAffiliateNotifications();
   if (!homeReferralLinkInput) return;
   wireReferralCopyButton();
 
@@ -14073,7 +14074,8 @@ async function maybeActivatePendingContest(contestId) {
 
 function updateNotificationBadge() {
   if (!notificationBadge || !notificationToggle) return;
-  const unreadCount = contestNotifications.filter((item) => item.unread).length;
+  const unreadCount = contestNotifications.filter((item) => item.unread).length
+    + affiliateNotifications.filter((item) => item.unread).length;
   notificationBadge.hidden = unreadCount <= 0;
   notificationBadge.textContent = unreadCount > 9 ? "9+" : String(unreadCount);
   notificationToggle.setAttribute(
@@ -14089,24 +14091,32 @@ function renderContestNotifications() {
   if (!notificationsListEl) return;
   notificationsListEl.innerHTML = "";
 
-  if (!contestNotifications.length) {
+  const allNotifications = [...affiliateNotifications, ...contestNotifications].sort((a, b) => {
+    const aTime = a?.sortAt ? new Date(a.sortAt).getTime() : 0;
+    const bTime = b?.sortAt ? new Date(b.sortAt).getTime() : 0;
+    return bTime - aTime;
+  });
+
+  if (!allNotifications.length) {
     const empty = document.createElement("li");
     empty.className = "notification-item notification-item-empty";
-    empty.textContent = "No contest notifications yet.";
+    empty.textContent = "No notifications yet.";
     notificationsListEl.appendChild(empty);
     updateNotificationBadge();
     return;
   }
 
-  contestNotifications.forEach((notification) => {
+  allNotifications.forEach((notification) => {
     const item = document.createElement("li");
     item.className = `notification-item${notification.unread ? " is-unread" : ""}`;
 
     const button = document.createElement("button");
     button.type = "button";
     button.className = "notification-card";
-    button.dataset.contestId = notification.contestId;
     button.dataset.notificationType = notification.type || "result";
+    if (notification.type !== "affiliate") {
+      button.dataset.contestId = notification.contestId;
+    }
 
     const topRow = document.createElement("div");
     topRow.className = "notification-card-top";
@@ -14127,9 +14137,13 @@ function renderContestNotifications() {
 
     const meta = document.createElement("div");
     meta.className = "notification-card-meta";
-    meta.textContent = notification.type === "start"
-      ? formatContestStartNotificationTime(notification.createdAt)
-      : formatContestNotificationTime(notification.endedAt);
+    if (notification.type === "affiliate") {
+      meta.textContent = formatContestNotificationTime(notification.createdAt);
+    } else if (notification.type === "start") {
+      meta.textContent = formatContestStartNotificationTime(notification.createdAt);
+    } else {
+      meta.textContent = formatContestNotificationTime(notification.endedAt);
+    }
 
     button.append(topRow, detail, meta);
     item.appendChild(button);
@@ -14185,6 +14199,88 @@ function refreshContestNotifications(contests = contestCache) {
     return bTime - aTime;
   });
 
+  renderContestNotifications();
+}
+
+// ── Affiliate referral notifications ───────────────────────────────────────
+function affiliateNotifSeenKey() {
+  return `rtn_affiliate_notif_seen_${currentUser?.id || ""}`;
+}
+function affiliateNotifToastKey() {
+  return `rtn_affiliate_notif_toast_${currentUser?.id || ""}`;
+}
+function getStoredTs(key) {
+  try {
+    const v = window.localStorage.getItem(key);
+    return v ? new Date(v).getTime() : 0;
+  } catch {
+    return 0;
+  }
+}
+function setStoredTs(key, iso) {
+  try { window.localStorage.setItem(key, iso); } catch { /* ignore */ }
+}
+
+function maybeToastNewAffiliate(rows) {
+  if (!Array.isArray(rows) || !rows.length) return;
+  const toastAt = getStoredTs(affiliateNotifToastKey());
+  const newer = rows.filter((r) => (r.created_at ? new Date(r.created_at).getTime() : 0) > toastAt);
+  if (!newer.length) return;
+  const newest = newer[0]; // rows are sorted desc
+  const name = newest.referred_username && newest.referred_username.trim() ? newest.referred_username : "A new player";
+  const amount = Math.round(Number(newest.amount_credited || 0)).toLocaleString();
+  const total = newer.reduce((sum, r) => sum + Math.round(Number(r.amount_credited || 0)), 0).toLocaleString();
+  const msg = newer.length > 1
+    ? `🎉 ${newer.length} new players joined with your code — +${total} credits!`
+    : `🎉 ${name} joined with your code — +${amount} credits!`;
+  showToast(msg, "success");
+  if (newest.created_at) setStoredTs(affiliateNotifToastKey(), newest.created_at);
+}
+
+async function refreshAffiliateNotifications() {
+  const signedIn = currentUser?.id && currentUser.id !== GUEST_USER.id;
+  if (!supabase || !signedIn) {
+    affiliateNotifications = [];
+    renderContestNotifications();
+    return;
+  }
+  const { data, error } = await supabase
+    .from("affiliate_signups")
+    .select("id, referred_username, amount_credited, created_at")
+    .eq("affiliate_user_id", currentUser.id)
+    .order("created_at", { ascending: false })
+    .limit(30);
+  if (error) {
+    console.warn("[RTN] refreshAffiliateNotifications error", error);
+    return;
+  }
+  const seenMs = getStoredTs(affiliateNotifSeenKey());
+  affiliateNotifications = (Array.isArray(data) ? data : []).map((row) => {
+    const name = row.referred_username && row.referred_username.trim() ? row.referred_username : "A new player";
+    const amount = Math.round(Number(row.amount_credited || 0)).toLocaleString();
+    const createdMs = row.created_at ? new Date(row.created_at).getTime() : 0;
+    return {
+      type: "affiliate",
+      id: row.id,
+      title: "Referral bonus",
+      message: `${name} signed up with your code — +${amount} credits.`,
+      unread: createdMs > seenMs,
+      createdAt: row.created_at,
+      sortAt: row.created_at
+    };
+  });
+  maybeToastNewAffiliate(Array.isArray(data) ? data : []);
+  renderContestNotifications();
+}
+
+function markAffiliateNotificationsSeen() {
+  if (!affiliateNotifications.some((i) => i.unread)) return;
+  const newest = affiliateNotifications.reduce((max, i) => {
+    const t = i.createdAt ? new Date(i.createdAt).getTime() : 0;
+    return t > max ? t : max;
+  }, 0);
+  if (newest > 0) setStoredTs(affiliateNotifSeenKey(), new Date(newest).toISOString());
+  affiliateNotifications = affiliateNotifications.map((i) => ({ ...i, unread: false }));
   renderContestNotifications();
 }
 
@@ -19954,6 +20050,7 @@ let contestResultsModalOpen = false;
 let contestJourneyModalOpen = false;
 let contestJourneyResizeHandler = null;
 let contestNotifications = [];
+let affiliateNotifications = [];
 let contestStartNotifications = [];
 
 const MAX_HISTORY_POINTS = 500;
@@ -29683,6 +29780,7 @@ if (notificationToggle && notificationsPanel && notificationsClose) {
       closeDrawer(notificationsPanel, notificationToggle);
     } else {
       openDrawer(notificationsPanel, notificationToggle);
+      markAffiliateNotificationsSeen();
     }
   });
 
@@ -29692,6 +29790,7 @@ if (notificationToggle && notificationsPanel && notificationsClose) {
 
   if (notificationsClearAllButton) {
     notificationsClearAllButton.addEventListener("click", () => {
+      markAffiliateNotificationsSeen();
       void markAllContestNotificationsSeen();
     });
   }
@@ -29900,9 +29999,14 @@ if (notificationsListEl) {
   notificationsListEl.addEventListener("click", (event) => {
     const button = event.target.closest(".notification-card");
     if (!button) return;
+    const notificationType = button.dataset.notificationType || "result";
+    if (notificationType === "affiliate") {
+      markAffiliateNotificationsSeen();
+      closeDrawer(notificationsPanel, notificationToggle);
+      return;
+    }
     const contestId = button.dataset.contestId;
     if (!contestId) return;
-    const notificationType = button.dataset.notificationType || "result";
     closeDrawer(notificationsPanel, notificationToggle);
     if (notificationType === "start") {
       void openContestStartNotification(contestId);
