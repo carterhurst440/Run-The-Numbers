@@ -10704,6 +10704,56 @@ async function handleAuthFormSubmit(event) {
   }
 }
 
+function validateUsernameFormat(u) {
+  if (!u || u.length < 3) return "Username must be at least 3 characters.";
+  if (u.length > 20) return "Username must be 20 characters or fewer.";
+  if (!/^[A-Za-z0-9_]+$/.test(u)) return "Use only letters, numbers, and underscores.";
+  return "";
+}
+
+function setSignupUsernameStatus(text, state) {
+  if (!signupUsernameStatus) return;
+  signupUsernameStatus.textContent = text || "";
+  signupUsernameStatus.hidden = !text;
+  signupUsernameStatus.classList.remove("is-ok", "is-err", "is-muted");
+  if (state) signupUsernameStatus.classList.add(`is-${state}`);
+}
+
+let signupUsernameCheckTimer = null;
+let signupUsernameAvailable = null; // true/false/null(unknown)
+
+async function checkSignupUsernameAvailability(u) {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase.rpc("is_username_available", { _username: u });
+    if (error) return null;
+    return !!data;
+  } catch {
+    return null;
+  }
+}
+
+function wireSignupUsernameField() {
+  if (!signupUsernameInput || signupUsernameInput.dataset.wired) return;
+  signupUsernameInput.dataset.wired = "1";
+  signupUsernameInput.addEventListener("input", () => {
+    const u = signupUsernameInput.value.trim();
+    signupUsernameAvailable = null;
+    if (signupUsernameCheckTimer) window.clearTimeout(signupUsernameCheckTimer);
+    if (!u) { setSignupUsernameStatus("", ""); return; }
+    const fmtErr = validateUsernameFormat(u);
+    if (fmtErr) { setSignupUsernameStatus(fmtErr, "err"); return; }
+    setSignupUsernameStatus("Checking availability…", "muted");
+    signupUsernameCheckTimer = window.setTimeout(async () => {
+      const available = await checkSignupUsernameAvailability(u);
+      if (signupUsernameInput.value.trim() !== u) return; // changed while waiting
+      signupUsernameAvailable = available;
+      if (available === null) setSignupUsernameStatus("", "");
+      else setSignupUsernameStatus(available ? "Username available" : "Username already taken", available ? "ok" : "err");
+    }, 400);
+  });
+}
+
 async function handleSignUpFormSubmit(event) {
   event.preventDefault();
   event.stopPropagation();
@@ -10716,15 +10766,25 @@ async function handleSignUpFormSubmit(event) {
   const formData = new FormData(form);
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
+  const username = String(formData.get("username") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
-  if (!firstName || !lastName || !email || !password || !confirmPassword) {
+  if (!firstName || !lastName || !username || !email || !password || !confirmPassword) {
     const message = "Please complete all fields.";
     if (signupErrorEl) {
       signupErrorEl.hidden = false;
       signupErrorEl.textContent = message;
+    }
+    return;
+  }
+
+  const usernameFmtError = validateUsernameFormat(username);
+  if (usernameFmtError) {
+    if (signupErrorEl) {
+      signupErrorEl.hidden = false;
+      signupErrorEl.textContent = usernameFmtError;
     }
     return;
   }
@@ -10745,6 +10805,19 @@ async function handleSignUpFormSubmit(event) {
   }
 
   try {
+    // Final availability check (covers races since the debounced check).
+    const available = await checkSignupUsernameAvailability(username);
+    if (available === false) {
+      const message = "That username is already taken. Please choose another.";
+      setSignupUsernameStatus("Username already taken", "err");
+      if (signupErrorEl) {
+        signupErrorEl.hidden = false;
+        signupErrorEl.textContent = message;
+      }
+      signupSubmitButton.disabled = false;
+      return;
+    }
+
     const referralCode = sanitizeReferralCode(getStoredReferralCode());
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -10754,6 +10827,7 @@ async function handleSignUpFormSubmit(event) {
           first_name: firstName,
           last_name: lastName,
           full_name: `${firstName} ${lastName}`,
+          username,
           ...(referralCode ? { referred_by: referralCode } : {})
         }
       }
@@ -10767,13 +10841,22 @@ async function handleSignUpFormSubmit(event) {
     if (signupForm) {
       signupForm.reset();
     }
+    setSignupUsernameStatus("", "");
+    signupUsernameAvailable = null;
     if (authEmailInput) {
       authEmailInput.value = email;
     }
     displayAuthScreen({ replaceHash: true });
   } catch (error) {
     console.error(error);
-    const message = error?.message || "Unable to create account";
+    const raw = String(error?.message || "");
+    // A username collision surfaces as a generic DB error (the provisioning
+    // trigger hits the unique index). Translate it for the user.
+    const looksLikeUsernameClash = /database error|duplicate key|unique|username/i.test(raw);
+    const message = looksLikeUsernameClash
+      ? "That username is already taken. Please choose another."
+      : (raw || "Unable to create account");
+    if (looksLikeUsernameClash) setSignupUsernameStatus("Username already taken", "err");
     showToast(message, "error");
     if (signupErrorEl) {
       signupErrorEl.hidden = false;
@@ -18900,6 +18983,8 @@ const signupForm = document.getElementById("signup-form");
 const signupErrorEl = document.getElementById("signup-error");
 const signupSubmitButton = document.getElementById("signup-submit");
 const signupFirstInput = document.getElementById("signup-first");
+const signupUsernameInput = document.getElementById("signup-username");
+const signupUsernameStatus = document.getElementById("signup-username-status");
 const signupAffiliateBanner = document.getElementById("signup-affiliate-banner");
 const signupAffiliateNameEl = document.getElementById("signup-affiliate-name");
 const showSignUpButton = document.getElementById("show-signup");
@@ -29901,6 +29986,7 @@ if (authResendConfirmationButton) {
 
 if (signupForm) {
   signupForm.addEventListener("submit", handleSignUpFormSubmit);
+  wireSignupUsernameField();
 }
 
 if (forgotPasswordForm) {

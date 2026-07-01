@@ -16363,6 +16363,16 @@ body.modal-open {
   margin-top: -0.35rem;
 }
 
+.signup-username-status {
+  margin: -0.4rem 0 0.2rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
+.signup-username-status.is-ok { color: #7bd13a; }
+.signup-username-status.is-err { color: var(--auth-error-color, #ff6b6b); }
+.signup-username-status.is-muted { color: #8a8a76; }
+
 .auth-inline-link {
   border: none;
   background: none;
