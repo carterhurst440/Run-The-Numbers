@@ -1,12 +1,17 @@
 -- ============================================================================
 -- BANKROLL HISTORY — long-running time-series of a user's real credit balance.
 --
--- Design (Option B): a single append-only ledger fed by ONE trigger on
--- profiles.credits. Because every NORMAL-mode game settlement, rank-up bonus,
--- affiliate signup, and admin grant ultimately writes profiles.credits — and
--- CONTEST play is isolated in contest_entries.current_credits and never touches
--- profiles.credits — this trigger captures exactly the non-contest bankroll the
--- chart needs, for every source, present and future, with no per-game wiring.
+-- Design: an append-only ledger recording ONE point per SETTLED event.
+--
+-- Game play writes profiles.credits twice per hand — once to escrow the wager at
+-- hand start, once at settlement — so a naive profiles.credits trigger recorded
+-- the mid-hand escrow as a spurious dip. Instead we record at settlement:
+--   * Game points come from triggers on each game's hand/round/trade table,
+--     firing when new_account_value is set (the resolved post-hand balance).
+--     NORMAL mode only (contest_id null) — contest play stays isolated.
+--   * Non-game points (rank_up_bonus, affiliate_signup) come from a trigger on
+--     account_events (new_balance).
+-- One clean point per hand, at the value the player actually ended on.
 --
 -- Cross-user viewing (global leaderboard) goes through the SECURITY DEFINER
 -- get_bankroll_series() RPC, matching the get_contest_journey_events pattern.
@@ -33,33 +38,114 @@ for select
 to authenticated
 using (user_id = auth.uid() or public.is_rtn_admin());
 
--- One trigger captures every credit change. Append-only; no recursion (it only
--- writes bankroll_history, never profiles).
-create or replace function public.record_bankroll_point()
+-- The old profiles.credits trigger recorded the mid-hand wager escrow; retired.
+drop trigger if exists record_bankroll_point_trigger on public.profiles;
+
+-- Game points: one clean point per settled hand/round/trade, at the resolved
+-- new_account_value. NORMAL mode only (contest_id null).
+create or replace function public.record_settled_bankroll_point()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_ts   timestamptz;
+  v_game text;
+begin
+  if new.new_account_value is null then return new; end if;
+  if coalesce(new.contest_id::text, '') <> '' then return new; end if;
+
+  if TG_TABLE_NAME = 'rtn_live_hands' then
+    if new.status = 'active' then return new; end if;
+    v_ts := coalesce(new.last_draw_at, new.started_at);
+    v_game := 'game_001';
+  elsif TG_TABLE_NAME = 'guess10_live_hands' then
+    if new.status = 'active' then return new; end if;
+    v_ts := coalesce(new.last_draw_at, new.started_at);
+    v_game := 'game_002';
+  elsif TG_TABLE_NAME = 'shape_trader_trades' then
+    v_ts := new.executed_at;
+    v_game := 'game_003';
+  elsif TG_TABLE_NAME = 'color_scheme_rounds' then
+    if new.status <> 'completed' then return new; end if;
+    v_ts := new.created_at;
+    v_game := 'game_004';
+  elsif TG_TABLE_NAME = 'fate_or_fortune_rounds' then
+    if new.status <> 'resolved' then return new; end if;
+    v_ts := coalesce(new.locked_at, new.created_at);
+    v_game := 'game_005';
+  else
+    return new;
+  end if;
+
+  insert into public.bankroll_history (user_id, occurred_at, balance, delta, source)
+  values (new.user_id, coalesce(v_ts, timezone('utc', now())), round(new.new_account_value, 2), 0, v_game);
+  return new;
+end;
+$$;
+
+drop trigger if exists rtn_bankroll_point_ins on public.rtn_live_hands;
+create trigger rtn_bankroll_point_ins after insert on public.rtn_live_hands
+for each row when (new.new_account_value is not null)
+execute function public.record_settled_bankroll_point();
+drop trigger if exists rtn_bankroll_point_upd on public.rtn_live_hands;
+create trigger rtn_bankroll_point_upd after update on public.rtn_live_hands
+for each row when (new.new_account_value is not null and new.new_account_value is distinct from old.new_account_value)
+execute function public.record_settled_bankroll_point();
+
+drop trigger if exists g10_bankroll_point_ins on public.guess10_live_hands;
+create trigger g10_bankroll_point_ins after insert on public.guess10_live_hands
+for each row when (new.new_account_value is not null)
+execute function public.record_settled_bankroll_point();
+drop trigger if exists g10_bankroll_point_upd on public.guess10_live_hands;
+create trigger g10_bankroll_point_upd after update on public.guess10_live_hands
+for each row when (new.new_account_value is not null and new.new_account_value is distinct from old.new_account_value)
+execute function public.record_settled_bankroll_point();
+
+drop trigger if exists st_bankroll_point_ins on public.shape_trader_trades;
+create trigger st_bankroll_point_ins after insert on public.shape_trader_trades
+for each row when (new.new_account_value is not null)
+execute function public.record_settled_bankroll_point();
+
+drop trigger if exists cs_bankroll_point_ins on public.color_scheme_rounds;
+create trigger cs_bankroll_point_ins after insert on public.color_scheme_rounds
+for each row when (new.new_account_value is not null)
+execute function public.record_settled_bankroll_point();
+drop trigger if exists cs_bankroll_point_upd on public.color_scheme_rounds;
+create trigger cs_bankroll_point_upd after update on public.color_scheme_rounds
+for each row when (new.new_account_value is not null and new.new_account_value is distinct from old.new_account_value)
+execute function public.record_settled_bankroll_point();
+
+drop trigger if exists fof_bankroll_point_ins on public.fate_or_fortune_rounds;
+create trigger fof_bankroll_point_ins after insert on public.fate_or_fortune_rounds
+for each row when (new.new_account_value is not null)
+execute function public.record_settled_bankroll_point();
+drop trigger if exists fof_bankroll_point_upd on public.fate_or_fortune_rounds;
+create trigger fof_bankroll_point_upd after update on public.fate_or_fortune_rounds
+for each row when (new.new_account_value is not null and new.new_account_value is distinct from old.new_account_value)
+execute function public.record_settled_bankroll_point();
+
+-- Non-game credit events (rank-up bonus, affiliate signup) from account_events.
+create or replace function public.record_event_bankroll_point()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
 as $$
 begin
-  insert into public.bankroll_history (user_id, occurred_at, balance, delta, source)
-  values (
-    new.id,
-    timezone('utc', now()),
-    round(coalesce(new.credits, 0), 2),
-    round(coalesce(new.credits, 0) - coalesce(old.credits, 0), 2),
-    'credit_change'
-  );
+  if new.event_type in ('rank_up_bonus', 'affiliate_signup') and new.new_balance is not null then
+    insert into public.bankroll_history (user_id, occurred_at, balance, delta, source)
+    values (new.user_id, coalesce(new.created_at, timezone('utc', now())),
+            round(new.new_balance, 2), round(coalesce(new.amount, 0), 2), new.event_type);
+  end if;
   return new;
 end;
 $$;
 
-drop trigger if exists record_bankroll_point_trigger on public.profiles;
-create trigger record_bankroll_point_trigger
-after update of credits on public.profiles
-for each row
-when (new.credits is distinct from old.credits)
-execute function public.record_bankroll_point();
+drop trigger if exists record_event_bankroll_point_trigger on public.account_events;
+create trigger record_event_bankroll_point_trigger after insert on public.account_events
+for each row execute function public.record_event_bankroll_point();
 
 -- ----------------------------------------------------------------------------
 -- Cross-user read path for the global leaderboard / account chart.
@@ -96,22 +182,44 @@ grant execute on function public.get_bankroll_series(uuid, timestamptz, timestam
 --
 -- On 2026-06-30 all accounts were reset to 1000 credits and bankroll charting
 -- was rebased to begin that day; nothing is ever charted before it (the RPC
--- above enforces the floor). Rather than backfill years of pre-reset history,
--- we seed a single 1000 baseline per user at the era start. From here the
--- profiles.credits trigger appends every normal-mode change going forward.
---
--- (An earlier version of this file backfilled bankroll_history from the per-game
--- new_account_value snapshots + account_events; that historical seed was purged
--- in favor of the era reset below.)
+-- above enforces the floor). We seed a 1000 baseline per user at the era start,
+-- then rebuild one point per settled event since — exactly what the settlement
+-- triggers above produce going forward.
 -- ----------------------------------------------------------------------------
-delete from public.bankroll_history
-where occurred_at < timestamptz '2026-06-30 00:00:00+00';
+delete from public.bankroll_history;
 
 insert into public.bankroll_history (user_id, occurred_at, balance, delta, source)
-select p.id, timestamptz '2026-06-30 00:00:00+00', round(coalesce(p.credits, 0), 2), 0, 'era_start'
-from public.profiles p
-where not exists (
-  select 1 from public.bankroll_history bh
-  where bh.user_id = p.id
-    and bh.occurred_at >= timestamptz '2026-06-30 00:00:00+00'
-);
+select p.id, timestamptz '2026-06-30 00:00:00+00', 1000, 0, 'era_start'
+from public.profiles p;
+
+with g as (
+  select user_id, coalesce(last_draw_at, started_at) as ts, new_account_value as bal, 'game_001'::text as src
+  from public.rtn_live_hands
+  where status <> 'active' and new_account_value is not null and coalesce(contest_id::text,'')=''
+  union all
+  select user_id, coalesce(last_draw_at, started_at), new_account_value, 'game_002'
+  from public.guess10_live_hands
+  where status <> 'active' and new_account_value is not null and coalesce(contest_id::text,'')=''
+  union all
+  select user_id, executed_at, new_account_value, 'game_003'
+  from public.shape_trader_trades
+  where new_account_value is not null and coalesce(contest_id::text,'')=''
+  union all
+  select user_id, created_at, new_account_value, 'game_004'
+  from public.color_scheme_rounds
+  where status='completed' and new_account_value is not null and coalesce(contest_id::text,'')=''
+  union all
+  select user_id, created_at, new_account_value, 'game_005'
+  from public.fate_or_fortune_rounds
+  where status='resolved' and new_account_value is not null and coalesce(contest_id::text,'')=''
+)
+insert into public.bankroll_history (user_id, occurred_at, balance, delta, source)
+select user_id, ts, round(bal,2), 0, src
+from g
+where ts >= timestamptz '2026-06-30 00:00:00+00';
+
+insert into public.bankroll_history (user_id, occurred_at, balance, delta, source)
+select user_id, created_at, round(new_balance,2), round(coalesce(amount,0),2), event_type
+from public.account_events
+where event_type in ('rank_up_bonus','affiliate_signup') and new_balance is not null
+  and created_at >= timestamptz '2026-06-30 00:00:00+00';
