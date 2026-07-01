@@ -83,6 +83,7 @@ as $$
   select occurred_at, balance, delta, source
   from public.bankroll_history
   where user_id = p_user_id
+    and occurred_at >= timestamptz '2026-06-30 00:00:00+00'  -- bankroll era start; never chart earlier
     and (p_from is null or occurred_at >= p_from)
     and (p_to   is null or occurred_at <= p_to)
   order by occurred_at asc;
@@ -91,57 +92,26 @@ $$;
 grant execute on function public.get_bankroll_series(uuid, timestamptz, timestamptz) to authenticated;
 
 -- ----------------------------------------------------------------------------
--- One-time backfill: seed past points from the existing per-game snapshots and
--- account_events. NORMAL mode only (contest_id null). Safe to re-run only after
--- truncating bankroll_history — otherwise it duplicates the seeded rows.
+-- BANKROLL ERA START — 2026-06-30.
+--
+-- On 2026-06-30 all accounts were reset to 1000 credits and bankroll charting
+-- was rebased to begin that day; nothing is ever charted before it (the RPC
+-- above enforces the floor). Rather than backfill years of pre-reset history,
+-- we seed a single 1000 baseline per user at the era start. From here the
+-- profiles.credits trigger appends every normal-mode change going forward.
+--
+-- (An earlier version of this file backfilled bankroll_history from the per-game
+-- new_account_value snapshots + account_events; that historical seed was purged
+-- in favor of the era reset below.)
 -- ----------------------------------------------------------------------------
-with raw as (
-  select user_id, started_at as occurred_at, new_account_value as balance, 'game_001'::text as source
-  from public.rtn_live_hands
-  where status <> 'active' and new_account_value is not null
-    and coalesce(contest_id::text, '') = ''
-    and (mode_type is null or lower(mode_type) = 'normal')
+delete from public.bankroll_history
+where occurred_at < timestamptz '2026-06-30 00:00:00+00';
 
-  union all
-  select user_id, started_at, new_account_value, 'game_002'
-  from public.guess10_live_hands
-  where status <> 'active' and new_account_value is not null
-    and coalesce(contest_id::text, '') = ''
-    and (mode_type is null or lower(mode_type) = 'normal')
-
-  union all
-  select user_id, executed_at, new_account_value, 'game_003'
-  from public.shape_trader_trades
-  where new_account_value is not null
-    and coalesce(contest_id::text, '') = ''
-
-  union all
-  select user_id, created_at, new_account_value, 'game_004'
-  from public.color_scheme_rounds
-  where status = 'completed' and new_account_value is not null
-    and coalesce(contest_id::text, '') = ''
-
-  union all
-  select user_id, created_at, new_account_value, 'game_005'
-  from public.fate_or_fortune_rounds
-  where status = 'resolved' and new_account_value is not null
-    and coalesce(contest_id::text, '') = ''
-
-  union all
-  select user_id, created_at, new_balance, event_type
-  from public.account_events
-  where event_type in ('rank_up_bonus', 'affiliate_signup')
-    and new_balance is not null
-),
-ordered as (
-  select
-    user_id,
-    occurred_at,
-    round(balance, 2) as balance,
-    source,
-    round(balance - lag(balance) over (partition by user_id order by occurred_at, source), 2) as delta
-  from raw
-)
 insert into public.bankroll_history (user_id, occurred_at, balance, delta, source)
-select user_id, occurred_at, balance, coalesce(delta, 0), source
-from ordered;
+select p.id, timestamptz '2026-06-30 00:00:00+00', round(coalesce(p.credits, 0), 2), 0, 'era_start'
+from public.profiles p
+where not exists (
+  select 1 from public.bankroll_history bh
+  where bh.user_id = p.id
+    and bh.occurred_at >= timestamptz '2026-06-30 00:00:00+00'
+);
