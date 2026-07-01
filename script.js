@@ -3322,12 +3322,40 @@ let bankrollHistorySeries = [];
 let bankrollHistoryPeriod = "all";
 let bankrollHistoryFetchToken = 0;
 
-function bankrollHistoryPeriodStart(period) {
+function bankrollPeriodStartDate(period) {
   const now = Date.now();
+  if (period === "week") return new Date(now - 7 * 864e5);
   if (period === "month") return new Date(now - 30 * 864e5);
   if (period === "90days") return new Date(now - 90 * 864e5);
+  if (period === "ytd") { const d = new Date(); return new Date(d.getFullYear(), 0, 1); }
   if (period === "year") return new Date(now - 365 * 864e5);
   return null; // all
+}
+
+// Filter a [{time, value}] series to a period and downsample to ~600 points.
+function filterDownsampleSeries(series, period) {
+  const start = bankrollPeriodStartDate(period);
+  let pts = start ? series.filter((p) => p.time >= start) : series.slice();
+  const MAX = 600;
+  if (pts.length > MAX) {
+    const step = pts.length / MAX;
+    const sampled = [];
+    for (let i = 0; i < MAX; i += 1) sampled.push(pts[Math.floor(i * step)]);
+    sampled.push(pts[pts.length - 1]);
+    pts = sampled;
+  }
+  return pts;
+}
+
+// Fetch a user's bankroll series into [{time, value}] (ascending).
+async function fetchBankrollSeries(userId) {
+  if (!supabase || !userId) return [];
+  const { data, error } = await supabase.rpc("get_bankroll_series", { p_user_id: userId });
+  if (error || !Array.isArray(data)) return [];
+  return data
+    .map((row) => ({ time: new Date(row.occurred_at), value: Number(row.balance) || 0 }))
+    .filter((p) => !Number.isNaN(p.time.getTime()))
+    .sort((a, b) => a.time - b.time);
 }
 
 async function openBankrollHistoryModal(userId, username) {
@@ -3371,22 +3399,15 @@ function syncBankrollHistoryPeriodButtons() {
 }
 
 function getFilteredBankrollHistory() {
-  const start = bankrollHistoryPeriodStart(bankrollHistoryPeriod);
-  let pts = start ? bankrollHistorySeries.filter((p) => p.time >= start) : bankrollHistorySeries.slice();
-  // Downsample for performance: keep at most ~600 points, always the last one.
-  const MAX = 600;
-  if (pts.length > MAX) {
-    const step = pts.length / MAX;
-    const sampled = [];
-    for (let i = 0; i < MAX; i += 1) sampled.push(pts[Math.floor(i * step)]);
-    sampled.push(pts[pts.length - 1]);
-    pts = sampled;
-  }
-  return pts;
+  return filterDownsampleSeries(bankrollHistorySeries, bankrollHistoryPeriod);
 }
 
 function drawBankrollHistoryChart() {
-  const canvas = bankrollHistoryCanvas;
+  drawBankrollLineChart(bankrollHistoryCanvas, getFilteredBankrollHistory());
+}
+
+// Reusable time-series line renderer for [{time, value}] points.
+function drawBankrollLineChart(canvas, points) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -3399,7 +3420,6 @@ function drawBankrollHistoryChart() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, width, height);
 
-  const points = getFilteredBankrollHistory();
   if (!points.length) {
     ctx.fillStyle = "rgba(168, 168, 112, 0.7)";
     ctx.font = "600 15px JetBrains Mono, monospace";
@@ -3467,6 +3487,84 @@ function drawBankrollHistoryChart() {
   ctx.fillText(fmt(points[0].time), padding.left, height - 12);
   ctx.textAlign = "right";
   ctx.fillText(fmt(points[points.length - 1].time), width - padding.right, height - 12);
+}
+
+// ── Embedded charts in the Account Chart & Logs view ───────────────────────
+const accountBankrollCanvas = document.getElementById("account-bankroll-canvas");
+const accountBankrollPeriodsEl = document.getElementById("account-bankroll-periods");
+const accountJourneySelect = document.getElementById("account-journey-select");
+const accountJourneyCanvas = document.getElementById("account-journey-canvas");
+
+let accountBankrollSeries = [];
+let accountBankrollPeriod = "all";
+let accountBankrollUserId = null;
+
+async function renderAccountBankrollChart(force = false) {
+  if (!accountBankrollCanvas) return;
+  const signedIn = currentUser?.id && currentUser.id !== GUEST_USER.id;
+  if (!signedIn) {
+    accountBankrollSeries = [];
+    accountBankrollUserId = null;
+    drawBankrollLineChart(accountBankrollCanvas, []);
+    return;
+  }
+  if (force || accountBankrollUserId !== currentUser.id || !accountBankrollSeries.length) {
+    accountBankrollSeries = await fetchBankrollSeries(currentUser.id);
+    accountBankrollUserId = currentUser.id;
+  }
+  drawBankrollLineChart(accountBankrollCanvas, filterDownsampleSeries(accountBankrollSeries, accountBankrollPeriod));
+}
+
+function wireAccountBankrollPeriods() {
+  if (!accountBankrollPeriodsEl || accountBankrollPeriodsEl.dataset.wired) return;
+  accountBankrollPeriodsEl.dataset.wired = "1";
+  accountBankrollPeriodsEl.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-abh-period]");
+    if (!btn) return;
+    accountBankrollPeriod = btn.dataset.abhPeriod || "all";
+    accountBankrollPeriodsEl.querySelectorAll("[data-abh-period]").forEach((b) => b.classList.toggle("active", b === btn));
+    drawBankrollLineChart(accountBankrollCanvas, filterDownsampleSeries(accountBankrollSeries, accountBankrollPeriod));
+  });
+}
+
+function populateAccountJourneySelect() {
+  if (!accountJourneySelect) return;
+  const ended = (contestCache || [])
+    .filter((c) => getContestStatus(c) === "ended" && getContestEntryById(c.id))
+    .sort((a, b) => new Date(b.ends_at || 0) - new Date(a.ends_at || 0));
+  const prev = accountJourneySelect.value;
+  accountJourneySelect.innerHTML =
+    `<option value="">${ended.length ? "Select an ended contest…" : "No ended contests yet"}</option>` +
+    ended.map((c) => `<option value="${escapeAssistantHtml(c.id)}">${escapeAssistantHtml(c.title || "Contest")}</option>`).join("");
+  if (prev && ended.some((c) => c.id === prev)) {
+    accountJourneySelect.value = prev;
+  }
+}
+
+async function renderAccountJourneyChart(contestId) {
+  if (!accountJourneyCanvas) return;
+  if (!contestId) { drawContestJourneyChart([], accountJourneyCanvas); return; }
+  const contest = getContestById(contestId);
+  const entry = getContestEntryById(contestId);
+  if (!contest || !entry) { drawContestJourneyChart([], accountJourneyCanvas); return; }
+  const points = await loadContestJourneyPoints(contest, entry);
+  drawContestJourneyChart(points, accountJourneyCanvas);
+}
+
+function wireAccountJourneySelect() {
+  if (!accountJourneySelect || accountJourneySelect.dataset.wired) return;
+  accountJourneySelect.dataset.wired = "1";
+  accountJourneySelect.addEventListener("change", () => {
+    void renderAccountJourneyChart(accountJourneySelect.value);
+  });
+}
+
+function renderAccountAnalyticsCharts() {
+  wireAccountBankrollPeriods();
+  wireAccountJourneySelect();
+  void renderAccountBankrollChart(true);
+  populateAccountJourneySelect();
+  void renderAccountJourneyChart(accountJourneySelect?.value || "");
 }
 
 function wireBankrollHistoryModal() {
@@ -10149,6 +10247,8 @@ async function setRoute(route, { replaceHash = false } = {}) {
       loadPersistentBankrollHistory({ force: true }),
       loadActivityLogPage({ force: true })
     ]);
+    await syncContestState();
+    renderAccountAnalyticsCharts();
   }
 
   if (isAuthRoute || isPublicAuthRoute) {
@@ -14816,16 +14916,16 @@ async function loadContestJourneyPoints(contest, entry) {
   return points;
 }
 
-function drawContestJourneyChart(points = []) {
-  if (!contestJourneyChartEl) return;
-  const ctx = contestJourneyChartEl.getContext("2d");
+function drawContestJourneyChart(points = [], canvasEl = contestJourneyChartEl) {
+  if (!canvasEl) return;
+  const ctx = canvasEl.getContext("2d");
   if (!ctx) return;
 
-  const width = contestJourneyChartEl.clientWidth || 720;
-  const height = contestJourneyChartEl.clientHeight || 320;
+  const width = canvasEl.clientWidth || 720;
+  const height = canvasEl.clientHeight || 320;
   const dpr = Math.max(1, window.devicePixelRatio || 1);
-  contestJourneyChartEl.width = Math.round(width * dpr);
-  contestJourneyChartEl.height = Math.round(height * dpr);
+  canvasEl.width = Math.round(width * dpr);
+  canvasEl.height = Math.round(height * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, width, height);
 
@@ -30889,6 +30989,7 @@ if (activityLogRefreshButton) {
       loadPersistentBankrollHistory({ force: true }),
       loadActivityLogPage({ force: true })
     ]);
+    void (async () => { await syncContestState({ force: true }); renderAccountAnalyticsCharts(); })();
   });
 }
 
