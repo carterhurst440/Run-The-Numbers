@@ -22188,10 +22188,31 @@ body.state-open .auth-vault-grant .gline::after {
 .hlb-list--mini .hlb-name { font-size: 0.78rem; }
 .hlb-list--mini .hlb-credits { font-size: 0.76rem; }
 
-/* Full modal list scrolls. */
+/* Full modal list scrolls with a thin, discreet scrollbar that clears the
+   credit values. */
 .credits-leaderboard-body {
   max-height: 60vh;
   overflow-y: auto;
+  padding-right: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(200, 255, 0, 0.3) transparent;
+}
+
+.credits-leaderboard-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.credits-leaderboard-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.credits-leaderboard-body::-webkit-scrollbar-thumb {
+  background: rgba(200, 255, 0, 0.28);
+  border-radius: 3px;
+}
+
+.credits-leaderboard-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(200, 255, 0, 0.45);
 }
 
 /* Rows open that player's bankroll chart. */

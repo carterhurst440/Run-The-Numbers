@@ -3201,7 +3201,13 @@ async function refreshReferralSignupCount(userId) {
 
 function formatLeaderboardCredits(value) {
   const n = Math.round(Number(value || 0));
-  return Number.isFinite(n) ? n.toLocaleString() : "0";
+  if (!Number.isFinite(n)) return "0";
+  const abs = Math.abs(n);
+  const trim = (s) => s.replace(/\.0$/, "");
+  if (abs >= 1e9) return trim((n / 1e9).toFixed(1)) + "B";
+  if (abs >= 1e6) return trim((n / 1e6).toFixed(1)) + "M";
+  if (abs >= 1e4) return Math.round(n / 1e3) + "K"; // 45,000 -> 45K
+  return n.toLocaleString();
 }
 
 const HOME_LEADERBOARD_MINI_COUNT = 5;
