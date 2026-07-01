@@ -3120,7 +3120,34 @@ function wireReferralCopyButton() {
   });
 }
 
+const HAB_COLLAPSE_KEY = "rtn_affiliate_banner_collapsed";
+const habBannerEl = document.querySelector(".home-affiliate-banner");
+const habToggleBtn = document.getElementById("hab-toggle");
+
+function applyHabCollapsed(collapsed) {
+  if (!habBannerEl) return;
+  habBannerEl.classList.toggle("is-collapsed", collapsed);
+  if (habToggleBtn) {
+    habToggleBtn.setAttribute("aria-expanded", String(!collapsed));
+    habToggleBtn.setAttribute("aria-label", collapsed ? "Expand announcement" : "Collapse announcement");
+  }
+}
+
+function wireHabToggle() {
+  if (!habToggleBtn || habToggleBtn.dataset.wired) return;
+  habToggleBtn.dataset.wired = "1";
+  let collapsed = false;
+  try { collapsed = localStorage.getItem(HAB_COLLAPSE_KEY) === "1"; } catch { /* ignore */ }
+  applyHabCollapsed(collapsed);
+  habToggleBtn.addEventListener("click", () => {
+    const next = !habBannerEl.classList.contains("is-collapsed");
+    applyHabCollapsed(next);
+    try { localStorage.setItem(HAB_COLLAPSE_KEY, next ? "1" : "0"); } catch { /* ignore */ }
+  });
+}
+
 function renderReferralPanel() {
+  wireHabToggle();
   wireReferralHistoryButton();
   wireCreditsLeaderboardModal();
   wireBankrollHistoryModal();

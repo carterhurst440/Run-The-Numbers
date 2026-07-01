@@ -21936,6 +21936,67 @@ body.state-open .auth-vault-grant .gline::after {
   z-index: 1;
 }
 
+/* Collapse / expand toggle */
+.hab-toggle {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 3;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(200, 255, 0, 0.28);
+  border-radius: 6px;
+  background: rgba(10, 12, 7, 0.6);
+  color: #c8ff00;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.hab-toggle:hover {
+  background: rgba(200, 255, 0, 0.1);
+  border-color: rgba(200, 255, 0, 0.6);
+}
+
+.hab-toggle-chevron {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s ease;
+}
+
+.home-affiliate-banner.is-collapsed .hab-toggle-chevron {
+  transform: rotate(-90deg);
+}
+
+/* Collapsed: headline + copy link only */
+.home-affiliate-banner.is-collapsed {
+  padding: 12px 18px;
+}
+
+.home-affiliate-banner.is-collapsed .hab-copy,
+.home-affiliate-banner.is-collapsed .hab-link-label,
+.home-affiliate-banner.is-collapsed .hab-link-foot {
+  display: none;
+}
+
+.home-affiliate-banner.is-collapsed .hab-eyebrow {
+  margin-bottom: 5px;
+}
+
+.home-affiliate-banner.is-collapsed .hab-title {
+  margin: 0;
+  font-size: clamp(18px, 2.4vw, 26px);
+}
+
+@media (min-width: 901px) {
+  .home-affiliate-banner.is-collapsed .hab-inner {
+    align-items: center;
+  }
+}
+
 .hab-eyebrow {
   display: inline-flex;
   align-items: center;
