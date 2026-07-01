@@ -21973,7 +21973,12 @@ body.state-open .auth-vault-grant .gline::after {
 
 /* Collapsed: headline + copy link only */
 .home-affiliate-banner.is-collapsed {
-  padding: 12px 18px;
+  padding: 12px 50px 12px 18px; /* right gutter clears the toggle */
+}
+
+.home-affiliate-banner.is-collapsed .hab-toggle {
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .home-affiliate-banner.is-collapsed .hab-copy,
