@@ -21944,7 +21944,7 @@ body.state-open .auth-vault-grant .gline::after {
   letter-spacing: 0.28em;
   color: #c8ff00;
   text-transform: uppercase;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .hab-pulse {
@@ -21964,11 +21964,11 @@ body.state-open .auth-vault-grant .gline::after {
 
 .hab-title {
   position: relative;
-  font-size: clamp(26px, 4.4vw, 44px);
+  font-size: clamp(22px, 3.1vw, 34px);
   line-height: 1.02;
   letter-spacing: 0.02em;
   font-weight: 800;
-  margin: 0 0 14px;
+  margin: 0 0 8px;
   color: #f4ffd6;
   text-shadow: 0 0 22px rgba(200, 255, 0, 0.35);
   background: linear-gradient(100deg, #f4ffd6 0%, #c8ff00 38%, #9fe8ff 64%, #c8ff00 100%);
@@ -21984,11 +21984,11 @@ body.state-open .auth-vault-grant .gline::after {
 }
 
 .hab-copy {
-  max-width: 60ch;
-  font-size: 14px;
-  line-height: 1.6;
+  max-width: 68ch;
+  font-size: 13.5px;
+  line-height: 1.5;
   color: #c8c8b0;
-  margin: 0 0 22px;
+  margin: 0;
 }
 
 .hab-copy strong {
@@ -21998,7 +21998,27 @@ body.state-open .auth-vault-grant .gline::after {
 
 .hab-link-block {
   border-top: 1px solid rgba(200, 255, 0, 0.14);
-  padding-top: 18px;
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+/* Desktop: lay the banner out horizontally — message left, link right — so it
+   reads as a slim banner and the casino floor tiles sit above the fold. */
+@media (min-width: 901px) {
+  .home-affiliate-banner .hab-inner {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 30px;
+    align-items: center;
+  }
+  .hab-link-block {
+    border-top: none;
+    border-left: 1px solid rgba(200, 255, 0, 0.14);
+    padding-top: 0;
+    margin-top: 0;
+    padding-left: 28px;
+  }
+  .hab-link-row { max-width: none; }
 }
 
 .hab-link-label {
