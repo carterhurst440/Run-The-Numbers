@@ -2651,6 +2651,25 @@ function getRankPlayerCount(rank) {
   return rankPlayerCountByTier.get(tier) || 0;
 }
 
+function rankProfileIconSvg(className = "rlm-player-icon") {
+  return `<svg class="${className}" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5" r="3"></circle><path d="M2.5 14.5a5.5 5.5 0 0 1 11 0z"></path></svg>`;
+}
+
+function renderRankLadderAward(rank) {
+  const award = Math.max(0, Math.round(Number(rank?.advancement_bonus_credits || 0)));
+  if (award <= 0) return "";
+  return `<p class="rank-ladder-award"><span class="rlm-award-chip">RANK AWARD</span><span class="rlm-award-value">+${award.toLocaleString()} credits</span></p>`;
+}
+
+function renderRankLadderPlayers(rank) {
+  const playerCount = rankPlayerCountsLoaded ? getRankPlayerCount(rank) : null;
+  const icon = rankProfileIconSvg();
+  if (playerCount == null) {
+    return `<p class="rank-ladder-player-count is-unavailable">${icon}<span>Player count unavailable</span></p>`;
+  }
+  return `<p class="rank-ladder-player-count">${icon}<span>${playerCount} player${playerCount === 1 ? "" : "s"} in this rank</span></p>`;
+}
+
 function renderRankPlayerCountText(rank, className = "rank-ladder-player-count") {
   const playerCount = rankPlayerCountsLoaded ? getRankPlayerCount(rank) : null;
   const tagName = className.startsWith("home-") ? "span" : "p";
@@ -4698,7 +4717,8 @@ async function renderRankLadderModal() {
           <h3>${rank.name}</h3>
         </div>
         <p class="rank-ladder-requirements">${buildRankRequirementsCopy(rank)}</p>
-        ${renderRankPlayerCountText(rank)}
+        ${renderRankLadderAward(rank)}
+        ${renderRankLadderPlayers(rank)}
         ${buildHomeRankLadderProgressMarkup(rank, "rank-ladder")}
       </div>
     `;
