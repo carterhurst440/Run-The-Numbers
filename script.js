@@ -40191,18 +40191,26 @@ function drawHomePnlChart() {
 // fetches all four at once. Data is cached for the session to avoid refetching
 // on every refreshHomeDashboard() pass.
 let _homeActivityData = null;
+let _homeActivityUserId = null;
 let _homeActivityFetching = false;
 
 async function drawHomeActivityChart(force = false) {
   const canvas = document.getElementById("home-activity-chart");
   if (!canvas || typeof Chart === "undefined") return;
 
-  // Signed-out / guest: nothing meaningful to plot.
+  // Signed-out / guest: nothing meaningful to plot. Drop any cached user data.
   if (!currentUser?.id || (typeof isGuestRuntimeUser === "function" && isGuestRuntimeUser())) {
+    _homeActivityData = null;
+    _homeActivityUserId = null;
     if (window._homeActivityChart) { window._homeActivityChart.destroy(); window._homeActivityChart = null; }
     const subEl = document.getElementById("hra-sub");
     if (subEl) subEl.textContent = "SIGN IN TO TRACK DAILY ACTIVITY";
     return;
+  }
+
+  // Cache is per-user: a different signed-in user must refetch, never reuse.
+  if (_homeActivityUserId !== currentUser.id) {
+    _homeActivityData = null;
   }
 
   if (_homeActivityData && !force) {
@@ -40271,6 +40279,13 @@ async function drawHomeActivityChart(force = false) {
         { label: "FOF rounds", data: keys.map((k) => fofC[k] || 0), color: "#b07bff" },
       ],
     };
+    // If the user switched while this fetch was in flight, discard the result.
+    if (currentUser?.id !== uid) {
+      _homeActivityData = null;
+      _homeActivityUserId = null;
+      return;
+    }
+    _homeActivityUserId = uid;
     _renderHomeActivityChart(canvas, _homeActivityData);
   } catch (err) {
     console.error("[RTN] home activity chart error", err);
