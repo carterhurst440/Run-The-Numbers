@@ -2655,10 +2655,19 @@ function rankProfileIconSvg(className = "rlm-player-icon") {
   return `<svg class="${className}" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5" r="3"></circle><path d="M2.5 14.5a5.5 5.5 0 0 1 11 0z"></path></svg>`;
 }
 
+let rankClaimState = { amount: 0, claimed_tier: 1, current_tier: 1 };
+
 function renderRankLadderAward(rank) {
   const award = Math.max(0, Math.round(Number(rank?.advancement_bonus_credits || 0)));
   if (award <= 0) return "";
-  return `<p class="rank-ladder-award"><span class="rlm-award-chip">RANK AWARD</span><span class="rlm-award-value">+${award.toLocaleString()} credits</span></p>`;
+  const tier = Number(rank?.tier || 0);
+  let statusHtml = "";
+  if (tier <= rankClaimState.claimed_tier) {
+    statusHtml = `<span class="rlm-claim-tag is-claimed">CLAIMED</span>`;
+  } else if (tier <= rankClaimState.current_tier) {
+    statusHtml = `<span class="rlm-claim-tag is-ready">READY</span>`;
+  }
+  return `<p class="rank-ladder-award"><span class="rlm-award-chip">RANK AWARD</span><span class="rlm-award-value">+${award.toLocaleString()} credits</span>${statusHtml}</p>`;
 }
 
 function renderRankLadderPlayers(rank) {
@@ -4831,11 +4840,70 @@ function closeRankUpModal() {
   document.body.classList.remove("modal-open");
 }
 
+async function fetchClaimableRankBonus() {
+  const signedIn = currentUser?.id && currentUser.id !== GUEST_USER.id;
+  if (!supabase || !signedIn) return { amount: 0, claimed_tier: 1, current_tier: 1 };
+  const { data, error } = await supabase.rpc("get_claimable_rank_bonus");
+  if (error || !data) return { amount: 0, claimed_tier: 1, current_tier: 1 };
+  return {
+    amount: Number(data.amount || 0),
+    claimed_tier: Number(data.claimed_tier || 1),
+    current_tier: Number(data.current_tier || 1)
+  };
+}
+
+function renderRankClaimBanner() {
+  if (!rankClaimBanner) return;
+  const amt = Math.max(0, Math.round(rankClaimState.amount || 0));
+  if (amt > 0) {
+    rankClaimBanner.hidden = false;
+    if (rankClaimAmountEl) rankClaimAmountEl.textContent = `+${amt.toLocaleString()} credits`;
+    if (rankClaimBtn) { rankClaimBtn.disabled = false; rankClaimBtn.textContent = "CLAIM BONUS"; }
+  } else {
+    rankClaimBanner.hidden = true;
+  }
+}
+
+function wireRankClaimButton() {
+  if (!rankClaimBtn || rankClaimBtn.dataset.wired) return;
+  rankClaimBtn.dataset.wired = "1";
+  rankClaimBtn.addEventListener("click", async () => {
+    if (!supabase || rankClaimBtn.disabled) return;
+    rankClaimBtn.disabled = true;
+    rankClaimBtn.textContent = "CLAIMING…";
+    try {
+      const { data, error } = await supabase.rpc("claim_rank_bonus");
+      if (error || !data?.claimed) {
+        rankClaimBtn.disabled = false;
+        rankClaimBtn.textContent = "CLAIM BONUS";
+        showToast(error ? "Could not claim bonus." : "Nothing to claim right now.", error ? "error" : "info");
+        return;
+      }
+      const amt = Math.round(Number(data.amount || 0));
+      showToast(`🎉 Claimed +${amt.toLocaleString()} rank bonus!`, "success");
+      if (currentProfile) {
+        currentProfile.credits = Number(data.new_balance ?? currentProfile.credits);
+        currentProfile.highest_rewarded_tier = Number(data.to_tier ?? currentProfile.highest_rewarded_tier);
+        applyProfileCredits(currentProfile);
+      }
+      await renderRankLadderModal();
+    } catch (err) {
+      console.warn("[RTN] claim_rank_bonus failed", err);
+      rankClaimBtn.disabled = false;
+      rankClaimBtn.textContent = "CLAIM BONUS";
+      showToast("Could not claim bonus.", "error");
+    }
+  });
+}
+
 async function renderRankLadderModal() {
   if (!rankLadderListEl) return;
+  wireRankClaimButton();
   await loadThemeLibrary(true);
   const ladder = await loadRankLadder(true);
   await loadRankPlayerCounts();
+  rankClaimState = await fetchClaimableRankBonus();
+  renderRankClaimBanner();
 
   rankLadderListEl.innerHTML = "";
   ladder.forEach((rank) => {
@@ -19545,6 +19613,9 @@ const pnlRankSubheadEl = document.getElementById("pnl-rank-subhead");
 const pnlRankLoadMoreButton = document.getElementById("pnl-rank-load-more");
 const rankLadderModal = document.getElementById("rank-ladder-modal");
 const rankLadderListEl = document.getElementById("rank-ladder-list");
+const rankClaimBanner = document.getElementById("rank-claim-banner");
+const rankClaimAmountEl = document.getElementById("rank-claim-amount");
+const rankClaimBtn = document.getElementById("rank-claim-btn");
 const rankLadderCloseButton = document.getElementById("rank-ladder-close");
 const rankLadderOkButton = document.getElementById("rank-ladder-ok");
 const platformRankingsModal = document.getElementById("platform-rankings-modal");

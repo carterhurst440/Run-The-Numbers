@@ -8634,6 +8634,84 @@ body.theme-angelic {
   color: #dfffa0;
 }
 
+.rlm-claim-tag {
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.rlm-claim-tag.is-claimed {
+  color: #7a8a5a;
+  border: 1px solid rgba(122, 138, 90, 0.5);
+}
+
+.rlm-claim-tag.is-ready {
+  color: #0a0a09;
+  background: #ffd54a;
+  animation: rlmReadyPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes rlmReadyPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 213, 74, 0.5); }
+  60% { box-shadow: 0 0 0 6px rgba(255, 213, 74, 0); }
+}
+
+/* Claim banner at the top of the rank ladder modal */
+.rank-claim-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid #6f9020;
+  border-radius: 8px;
+  background: linear-gradient(120deg, rgba(200, 255, 0, 0.12), rgba(200, 255, 0, 0.03));
+}
+
+.rank-claim-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rank-claim-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  color: #9fb56a;
+  text-transform: uppercase;
+}
+
+.rank-claim-amount {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #c8ff00;
+  font-variant-numeric: tabular-nums;
+}
+
+.rank-claim-btn {
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #0a0a09;
+  background: #c8ff00;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 18px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 0 20px -4px rgba(200, 255, 0, 0.7);
+  transition: filter 0.15s;
+}
+
+.rank-claim-btn:hover:not(:disabled) { filter: brightness(1.1); }
+.rank-claim-btn:disabled { opacity: 0.6; cursor: default; }
+
 .rank-ladder-item.is-current {
   border-color: rgba(255, 255, 255, 0.92);
   background: rgba(255, 255, 255, 0.11);

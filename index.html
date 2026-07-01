@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260701-acctcharts-v1" />
+    <link rel="stylesheet" href="styles.css?v=20260701-rankclaim-v1" />
     <link rel="stylesheet" href="assets/bloom/bloom-flowers.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-weather.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-growth.css" />
@@ -4891,6 +4891,13 @@
           <button type="button" class="modal-close" id="rank-ladder-close" aria-label="Close rank ladder">×</button>
         </div>
         <div class="modal-body rank-ladder-body">
+          <div id="rank-claim-banner" class="rank-claim-banner" hidden>
+            <div class="rank-claim-info">
+              <span class="rank-claim-label">RANK BONUS READY TO CLAIM</span>
+              <span class="rank-claim-amount" id="rank-claim-amount">+0 credits</span>
+            </div>
+            <button type="button" id="rank-claim-btn" class="rank-claim-btn">CLAIM BONUS</button>
+          </div>
           <p class="rank-ladder-copy">Advance by playing hands, making trades, and collecting contest victories.</p>
           <ul id="rank-ladder-list" class="rank-ladder-list"></ul>
         </div>
@@ -5167,7 +5174,7 @@
     <script>window.__h = preact.h; window.__Fragment = preact.Fragment;</script>
     <script src="assets/bloom/morphs/flowers-compiled.js"></script>
     <script src="assets/bloom/morphs/flower-morphs.js"></script>
-    <script type="module" src="script.js?v=20260701-acctcharts-v1"></script>
+    <script type="module" src="script.js?v=20260701-rankclaim-v1"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
