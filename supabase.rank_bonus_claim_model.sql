@@ -44,6 +44,8 @@ end;
 $$;
 grant execute on function public.get_claimable_rank_bonus() to authenticated;
 
+-- Each tier claimed is logged as its own individual rank_up_bonus event (chained
+-- balances, distinct timestamps), even when one claim spans multiple tiers.
 create or replace function public.claim_rank_bonus(_up_to_tier integer default null)
 returns jsonb
 language plpgsql
@@ -56,9 +58,10 @@ declare
   v_from integer;
   v_current integer;
   v_to integer;
-  v_bonus numeric(12,2);
+  v_total numeric(12,2) := 0;
+  v_running numeric(12,2);
   v_prev numeric(12,2);
-  v_new numeric(12,2);
+  r record;
 begin
   if v_user is null then raise exception 'Authentication required'; end if;
   select * into v_profile from public.profiles where id = v_user for update;
@@ -70,25 +73,31 @@ begin
     return jsonb_build_object('claimed', false, 'reason', 'nothing_to_claim', 'amount', 0);
   end if;
 
-  select coalesce(sum(advancement_bonus_credits), 0)::numeric(12,2) into v_bonus
-  from public.ranks where tier > v_from and tier <= v_to;
-
-  v_prev := coalesce(v_profile.credits, 0);
-  v_new := round(v_prev + v_bonus, 2);
-
   perform set_config('rtn.allow_sensitive_balance_write', '1', true);
+  v_running := coalesce(v_profile.credits, 0);
+
+  for r in
+    select tier, advancement_bonus_credits as bonus
+    from public.ranks
+    where tier > v_from and tier <= v_to
+    order by tier asc
+  loop
+    if coalesce(r.bonus, 0) > 0 then
+      v_prev := v_running;
+      v_running := round(v_prev + r.bonus, 2);
+      insert into public.account_events (user_id, event_type, amount, previous_balance, new_balance, metadata, created_at)
+      values (v_user, 'rank_up_bonus', r.bonus, v_prev, v_running,
+        jsonb_build_object('tier', r.tier, 'source', 'claim_rank_bonus'),
+        timezone('utc', now()) + (r.tier * interval '1 millisecond'));
+      v_total := v_total + r.bonus;
+    end if;
+  end loop;
+
   update public.profiles
-  set credits = v_new, highest_rewarded_tier = v_to
+  set credits = v_running, highest_rewarded_tier = v_to
   where id = v_user;
 
-  if v_bonus > 0 then
-    insert into public.account_events (user_id, event_type, amount, previous_balance, new_balance, metadata, created_at)
-    values (v_user, 'rank_up_bonus', v_bonus, v_prev, v_new,
-      jsonb_build_object('from_tier', v_from, 'to_tier', v_to, 'source', 'claim_rank_bonus'),
-      timezone('utc', now()));
-  end if;
-
-  return jsonb_build_object('claimed', true, 'amount', v_bonus, 'from_tier', v_from, 'to_tier', v_to, 'new_balance', v_new);
+  return jsonb_build_object('claimed', true, 'amount', v_total, 'from_tier', v_from, 'to_tier', v_to, 'new_balance', v_running);
 end;
 $$;
 grant execute on function public.claim_rank_bonus(integer) to authenticated;
