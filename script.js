@@ -27799,6 +27799,15 @@ function getActivityLogGameLogoMarkup(gameKey) {
   return `<img class="activity-log-game-logo" src="${escapeGameAssetField(record.logo_url)}" alt="${escapeAssistantHtml(record.label || getGameLabel(gameKey))} logo" />`;
 }
 
+function accountEventLabel(eventType) {
+  switch (String(eventType || "").toLowerCase()) {
+    case "rank_up_bonus": return "RANK BONUS";
+    case "affiliate_signup": return "AFFILIATE BONUS";
+    case "daily_credit_refresh": return "CREDIT REFRESH";
+    default: return "ACCOUNT";
+  }
+}
+
 function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true } = {}) {
   return entries.map((entry, _i) => {
     // ── derive shared columns ────────────────────────────────────────────
@@ -27813,7 +27822,7 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
     let isClickable = false;
 
     if (entry.entryType === "account") {
-      game = "ACCT";
+      game = accountEventLabel(entry.eventType);
       shortId = "—";
       modeLabel = "—";
       net = Number(entry.amount ?? 0);
@@ -27875,7 +27884,8 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
     const ts = formatActivityLogTimestamp(entry.createdAt);
     const clickableClass = isClickable ? " alr-row-clickable" : "";
 
-    return `<li class="activity-log-item alr-row${clickableClass}"${clickAttr}${isClickable ? ' tabindex="0" role="button"' : ""}>
+    const accountClass = entry.entryType === "account" ? " alr-row-account" : "";
+    return `<li class="activity-log-item alr-row${clickableClass}${accountClass}"${clickAttr}${isClickable ? ' tabindex="0" role="button"' : ""}>
       <span class="alr-col alr-col-game">${escapeAssistantHtml(game)}</span>
       <span class="alr-col alr-col-id">#${escapeAssistantHtml(String(shortId))}</span>
       <span class="alr-col alr-col-mode">${escapeAssistantHtml(modeLabel)}</span>
@@ -40263,7 +40273,7 @@ function renderHomeSidebarActivity() {
       resultClass = pl > 0 ? "is-win" : pl < 0 ? "is-loss" : "is-neutral";
       resultText = pl >= 0 ? `+${formatCurrency(Math.abs(pl))}` : `-${formatCurrency(Math.abs(pl))}`;
     } else {
-      label = `<b>ACCOUNT</b>`;
+      label = `<b>${escapeAssistantHtml(accountEventLabel(entry.eventType))}</b>`;
       resultText = formatSignedCurrency(entry.amount || 0);
       resultClass = "is-neutral";
     }

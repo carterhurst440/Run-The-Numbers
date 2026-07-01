@@ -30555,6 +30555,18 @@ body[data-ui="new"] .alr-col-game {
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
+
+/* Account events (rank/affiliate bonus, etc.): let the description span the
+   game+id+mode columns so the full label is readable. */
+body[data-ui="new"] .alr-row-account .alr-col-id,
+body[data-ui="new"] .alr-row-account .alr-col-mode {
+  display: none;
+}
+body[data-ui="new"] .alr-row-account .alr-col-game {
+  grid-column: 1 / 4;
+  color: #c8ff00;
+  white-space: nowrap;
+}
 body[data-ui="new"] .alr-col-id {
   color: #a8a870;
   font-weight: 600;
