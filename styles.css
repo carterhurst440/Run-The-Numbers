@@ -22752,6 +22752,11 @@ body.state-open .auth-vault-grant .gline::after {
 .home-sb-act-right.is-win { color: #c8ff00; }
 .home-sb-act-right.is-loss { color: #cc5555; }
 .home-sb-act-right.is-neutral { color: #aaaa74; }
+/* Account bonuses (rank / affiliate) get a cool orange amount. */
+.home-sb-activity-item.is-account .home-sb-act-right {
+  color: #ff9e40;
+  text-shadow: 0 0 10px rgba(255, 158, 64, 0.35);
+}
 
 .home-sb-act-time {
   font-size: 9px;
@@ -30585,6 +30590,13 @@ body[data-ui="new"] .alr-col-net {
 body[data-ui="new"] .alr-col-net.is-win    { color: #c8ff00; }
 body[data-ui="new"] .alr-col-net.is-loss   { color: #cc5555; }
 body[data-ui="new"] .alr-col-net.is-neutral { color: #aaaa74; }
+/* Account bonuses (rank / affiliate) get a cool orange amount. */
+body[data-ui="new"] .alr-row-account .alr-col-net.is-win,
+body[data-ui="new"] .alr-row-account .alr-col-net.is-loss,
+body[data-ui="new"] .alr-row-account .alr-col-net.is-neutral {
+  color: #ff9e40;
+  text-shadow: 0 0 10px rgba(255, 158, 64, 0.35);
+}
 body[data-ui="new"] .alr-col-bal {
   color: rgba(226, 248, 255, 0.28);
   font-size: 9px;

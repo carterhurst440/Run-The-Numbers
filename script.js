@@ -40288,7 +40288,8 @@ function renderHomeSidebarActivity() {
       : "";
     const modeBadge = modeLabel ? ` <span class="home-sb-act-mode">${modeLabel}</span>` : "";
 
-    return `<li class="home-sb-activity-item${isClickable ? " is-clickable" : ""}"${dataAttrs}${tradeAttr}${isClickable ? ' tabindex="0" role="button"' : ""}>
+    const acctClass = entry.entryType === "account" ? " is-account" : "";
+    return `<li class="home-sb-activity-item${isClickable ? " is-clickable" : ""}${acctClass}"${dataAttrs}${tradeAttr}${isClickable ? ' tabindex="0" role="button"' : ""}>
       <span class="home-sb-act-left">${label}${modeBadge}</span>
       <span class="home-sb-act-right ${resultClass}">${escapeAssistantHtml(resultText)}</span>
       <span class="home-sb-act-time">${escapeAssistantHtml(ts)}</span>
