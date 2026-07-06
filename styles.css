@@ -31831,3 +31831,25 @@ body[data-ui="new"] #bloom-chipBar .chip-rack-edit:hover {
   #bloom-view .bloom-history-panel { transform: none; }
 }
 
+
+/* ── MONKEY MOONSHINE (admin-only game) ───────────────────────────────
+   The game ships as a self-contained static file in /games and is embedded
+   in an isolated iframe so its generic IDs / CSS can't collide with the app
+   shell. The iframe fills the play area; the game centers itself inside. */
+.monkey-moonshine-view {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.monkey-moonshine-frame {
+  display: block;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: calc(100dvh - 120px);
+  border: 0;
+  border-radius: 16px;
+  background: #16101d;
+}
+@media (max-width: 560px) {
+  .monkey-moonshine-frame { min-height: calc(100dvh - 88px); border-radius: 0; }
+}

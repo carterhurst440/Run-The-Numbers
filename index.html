@@ -423,6 +423,17 @@
                 <span class="drawer-link-label">Bloom</span>
               </span>
             </button>
+            <button type="button" data-route-target="monkey-moonshine" class="drawer-link" id="drawer-monkey-moonshine-link" hidden>
+              <span class="drawer-link-inner">
+                <span class="drawer-link-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 13.2A7.2 7.2 0 1 1 10.8 4a5.6 5.6 0 0 0 9.2 9.2Z"></path>
+                    <circle cx="8.5" cy="9.5" r="0.6" fill="currentColor"></circle>
+                  </svg>
+                </span>
+                <span class="drawer-link-label">Monkey Moonshine</span>
+              </span>
+            </button>
             <button type="button" data-route-target="admin" class="drawer-link" id="admin-nav" hidden>
               <span class="drawer-link-inner">
                 <span class="drawer-link-icon" aria-hidden="true">
@@ -3819,6 +3830,19 @@
               </label>
             </div>
           </div>
+        </section>
+
+        <section id="monkey-moonshine-view" class="route-view app-page monkey-moonshine-view" hidden aria-labelledby="monkey-moonshine-view-title">
+          <h1 id="monkey-moonshine-view-title" class="sr-only">Monkey Moonshine</h1>
+          <!-- Admin-only sandbox. The whole game (play simulator + built-in Deck Lab
+               RTP simulator) is a self-contained static file loaded in an isolated
+               iframe so its generic IDs/CSS never collide with the app shell. Balance
+               is in-memory only for now; wiring it to the real wallet/DB is a later
+               pass and the iframe boundary is the clean seam for that (postMessage). -->
+          <iframe id="monkey-moonshine-frame"
+                  class="monkey-moonshine-frame"
+                  title="Monkey Moonshine"
+                  loading="lazy"></iframe>
         </section>
 
         <section id="color-scheme-view" class="route-view app-page cs-view" hidden aria-labelledby="cs-view-title">

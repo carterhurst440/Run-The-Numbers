@@ -10023,6 +10023,11 @@ function updateAdminVisibility(user = currentUser) {
     if (adminVisible) drawerBloomLink.removeAttribute("hidden");
     else drawerBloomLink.setAttribute("hidden", "");
   }
+  const drawerMonkeyMoonshineLink = document.getElementById("drawer-monkey-moonshine-link");
+  if (drawerMonkeyMoonshineLink) {
+    if (adminVisible) drawerMonkeyMoonshineLink.removeAttribute("hidden");
+    else drawerMonkeyMoonshineLink.setAttribute("hidden", "");
+  }
   // Show/hide the Admin Tools trigger button (controls now live in modal)
   if (stAdminToolsOpenBtn) {
     stAdminToolsOpenBtn.hidden = !adminVisible;
@@ -10325,6 +10330,14 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
   if (resolvedRoute === "bloom") {
     bloomRouteOpen();
+  }
+  if (resolvedRoute === "monkey-moonshine") {
+    // The game file is ~8MB (all art inlined), so only attach the iframe src the
+    // first time an admin actually opens the route — not on every page load.
+    const frame = document.getElementById("monkey-moonshine-frame");
+    if (frame && !frame.getAttribute("src")) {
+      frame.setAttribute("src", "games/monkey-moonshine.html");
+    }
   }
 
   if (PLAY_ASSISTANT_ROUTES.has(resolvedRoute)) {
@@ -19309,6 +19322,7 @@ const profileView = document.getElementById("profile-view");
 const colorSchemeView = document.getElementById("color-scheme-view");
 const fateOrFortuneView = document.getElementById("fate-or-fortune-view");
 const bloomView = document.getElementById("bloom-view");
+const monkeyMoonshineView = document.getElementById("monkey-moonshine-view");
 const routeViews = {
   home: homeView,
   "shape-traders": shapeTradersView,
@@ -19322,15 +19336,16 @@ const routeViews = {
   profile: profileView,
   "color-scheme": colorSchemeView,
   "fate-or-fortune": fateOrFortuneView,
-  "bloom": bloomView
+  "bloom": bloomView,
+  "monkey-moonshine": monkeyMoonshineView
 };
 const headerEl = document.querySelector(".header");
 const chipBarEl = runTheNumbersView ? runTheNumbersView.querySelector(".chip-bar") : null;
 const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout") : null;
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
-const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile", "color-scheme", "fate-or-fortune", "bloom"]);
+const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile", "color-scheme", "fate-or-fortune", "bloom", "monkey-moonshine"]);
 // Routes only admins may reach (hidden in drawer + blocked on direct URL/hash nav).
-const ADMIN_ONLY_ROUTES = new Set(["bloom", "admin"]);
+const ADMIN_ONLY_ROUTES = new Set(["bloom", "monkey-moonshine", "admin"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
