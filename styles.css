@@ -26841,7 +26841,7 @@ body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked) .fof-tile-logo-let
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  gap: 1px;
+  gap: 18px;
   padding: 2px 6px 0;
   min-height: 62px;
   width: 100%;
@@ -26855,7 +26855,11 @@ body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked) .fof-tile-logo-let
   background-position: -20px -16px; /* crop origin x30 y24 × scale */
   image-rendering: pixelated;
   filter: drop-shadow(0 0 5px color-mix(in oklab, #b07bff 28%, transparent));
+  animation: mm-tile-bounce 2s ease-in-out infinite;
 }
+.fof-tile-sprite:nth-child(2) { animation-delay: 0.25s; }
+.fof-tile-sprite:nth-child(3) { animation-delay: 0.50s; }
+.fof-tile-sprite:nth-child(4) { animation-delay: 0.75s; }
 
 /* Zone 3 — wordmark (matches other tile labels: 11px / 700 / 0.10em) */
 .fof-tile-wordmark {
@@ -26892,6 +26896,94 @@ body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked) .fof-tile-wordmark
     background-position: -16px -13px;
   }
   .fof-tile-sprites { min-height: 48px; }
+}
+
+/* ============================================================
+   MONKEY MOONSHINE floor tile — locked feature tile beside FOF.
+   Mirrors the FOF tile treatment with a rich-green accent: coconut-drink
+   logo up top, a row of gently bouncing fruit icons, wordmark below.
+   ============================================================ */
+body[data-ui="new"] .home-game-card-mm {
+  --hgc-accent: #2fd06e;
+  --hgc-accent-rgb: 47, 208, 110;
+  grid-column: 1 / -1;
+  aspect-ratio: auto;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hgc-accent);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 3px,
+      color-mix(in oklab, var(--hgc-accent) 8%, transparent) 3px 4px
+    ),
+    #0d100c;
+  box-shadow:
+    inset 0 0 0 1px var(--hgc-accent),
+    0 0 0 2px color-mix(in oklab, var(--hgc-accent) 35%, transparent),
+    0 0 22px -2px color-mix(in oklab, var(--hgc-accent) 50%, transparent),
+    0 18px 40px -18px color-mix(in oklab, var(--hgc-accent) 55%, transparent);
+}
+/* locked feature tile keeps the accent glow (unlike the small locked tiles) */
+body[data-ui="new"] .home-game-card-mm.is-locked { opacity: 0.9; }
+
+/* Zone 1 — coconut-drink logo */
+.mm-tile-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 13px 0 2px;
+}
+.mm-tile-coconut {
+  display: block;
+  width: 44px;
+  height: 44px;
+  color: #2fd06e;
+  filter: drop-shadow(0 0 6px color-mix(in oklab, #2fd06e 70%, transparent));
+}
+/* Zone 2 — bouncing fruit row */
+.mm-tile-sprites {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 16px;
+  padding: 4px 6px 0;
+  min-height: 62px;
+  width: 100%;
+}
+.mm-tile-sprite {
+  display: block;
+  width: 52px;
+  height: 56px;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center bottom;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.5));
+  animation: mm-tile-bounce 1.9s ease-in-out infinite;
+}
+.mm-tile-sprite:nth-child(2) { animation-delay: 0.24s; }
+.mm-tile-sprite:nth-child(3) { animation-delay: 0.48s; }
+.mm-tile-sprite:nth-child(4) { animation-delay: 0.72s; }
+@keyframes mm-tile-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+/* Zone 3 — wordmark */
+.mm-tile-wordmark {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  color: #2fd06e;
+  text-align: center;
+  padding: 6px 0 13px;
+  text-shadow: 0 0 10px color-mix(in oklab, #2fd06e 55%, transparent), 0 0 2px #2fd06e;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mm-tile-sprite, .fof-tile-sprite { animation: none; }
 }
 
 /* ============================================================
