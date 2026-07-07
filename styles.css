@@ -26986,6 +26986,25 @@ body[data-ui="new"] .home-game-card-mm.is-locked { opacity: 0.9; }
   .mm-tile-sprite, .fof-tile-sprite { animation: none; }
 }
 
+/* Keep Fate or Fortune + Monkey Moonshine side by side when the game grid
+   drops from 4 to 2 columns (<=720px): span 1 each = half the row. On very
+   narrow phones shrink the icons so 4 still fit their half-width tile. */
+@media (max-width: 720px) {
+  body[data-ui="new"] .home-game-card-fof,
+  body[data-ui="new"] .home-game-card-mm {
+    grid-column: span 1;
+  }
+}
+@media (max-width: 520px) {
+  .fof-tile-sprite {
+    width: 38px; height: 50px;
+    background-size: 145px 72px;
+    background-position: -16px -13px;
+  }
+  .mm-tile-sprite { width: 36px; height: 46px; }
+  .fof-tile-sprites, .mm-tile-sprites { gap: 6px; }
+}
+
 /* ============================================================
    HOME STAT BLOCKS (new UI) — card containers aligned with game tiles
    ============================================================ */
