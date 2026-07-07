@@ -26725,7 +26725,7 @@ body[data-ui="new"] .home-game-card-color .cc-label {
 body[data-ui="new"] .home-game-card-fof {
   --hgc-accent: #b07bff;
   --hgc-accent-rgb: 176, 123, 255;
-  grid-column: 1 / -1;
+  grid-column: span 2;   /* half-row so FOF + Monkey Moonshine sit side by side */
   aspect-ratio: auto;
   height: auto;
   display: flex;
@@ -26841,7 +26841,7 @@ body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked) .fof-tile-logo-let
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  gap: 18px;
+  gap: 10px;
   padding: 2px 6px 0;
   min-height: 62px;
   width: 100%;
@@ -26906,7 +26906,7 @@ body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked) .fof-tile-wordmark
 body[data-ui="new"] .home-game-card-mm {
   --hgc-accent: #2fd06e;
   --hgc-accent-rgb: 47, 208, 110;
-  grid-column: 1 / -1;
+  grid-column: span 2;   /* half-row so FOF + Monkey Moonshine sit side by side */
   aspect-ratio: auto;
   height: auto;
   display: flex;
@@ -26949,14 +26949,14 @@ body[data-ui="new"] .home-game-card-mm.is-locked { opacity: 0.9; }
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  gap: 16px;
+  gap: 10px;
   padding: 4px 6px 0;
   min-height: 62px;
   width: 100%;
 }
 .mm-tile-sprite {
   display: block;
-  width: 52px;
+  width: 46px;
   height: 56px;
   background-repeat: no-repeat;
   background-size: contain;
