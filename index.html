@@ -823,7 +823,7 @@
                   </div>
                   <div class="fof-tile-wordmark" aria-hidden="true">FATE OR FORTUNE</div>
                 </button>
-                <button type="button" class="home-game-card home-game-card-mm mm-floor-tile is-locked" disabled aria-disabled="true" aria-label="Monkey Moonshine — locked">
+                <button type="button" class="home-game-card home-game-card-mm mm-floor-tile is-locked" data-route-target="monkey-moonshine" disabled aria-disabled="true" aria-label="Monkey Moonshine">
                   <div class="hgc-lock-overlay" aria-hidden="true"><span class="hgc-lock-icon">&#x1F512;</span><span class="hgc-lock-label">LOCKED</span></div>
                   <div class="mm-tile-logo" aria-hidden="true">
                     <svg class="mm-tile-coconut" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -2821,6 +2821,7 @@
               <button type="button" class="admin-tab" data-admin-tab="cs-clips">COLOR SCHEME</button>
               <button type="button" class="admin-tab" data-admin-tab="fate-or-fortune">FATE OR FORTUNE</button>
               <button type="button" class="admin-tab" data-admin-tab="bloom">BLOOM</button>
+              <button type="button" class="admin-tab" data-admin-tab="monkey-moonshine">MONKEY MOONSHINE</button>
             </div>
             <section class="admin-tab-content" id="admin-prizes-content">
               <section class="route-section admin-list-section">
@@ -3754,6 +3755,49 @@
                   <div id="admin-bloom-regions-grid" class="admin-fof-chars"></div>
                 </section>
               </div>
+            </section>
+
+            <section class="admin-tab-content" id="admin-monkey-moonshine-content" hidden>
+              <section class="route-section admin-list-section">
+                <div class="admin-listing-header"><h2>MONKEY MOONSHINE — Decks</h2></div>
+                <p class="admin-cs-hint">Edit each wild fruit's draw weights (regular board + raid replacement) and Monte-Carlo the RTP. Weights are raw draw counts. In the replacement deck the <strong>coconut</strong> row is the MONKEY weight (a coconut hit in a raid becomes a monkey). Edits are live for the simulation below; <strong>Save to DB</strong> writes to <code>mm_decks</code> and the game picks it up on next load.</p>
+                <div id="admin-mm-status" class="admin-fof-status"></div>
+
+                <div class="admin-fof-sim-panel">
+                  <h3>Deck Editor</h3>
+                  <div class="admin-fof-log-controls">
+                    <label class="admin-fof-sim-pick">Wild
+                      <select id="admin-mm-wild"></select>
+                    </label>
+                    <label class="admin-fof-sim-pick">Wild mult
+                      <input type="number" id="admin-mm-mult" class="admin-fof-log-seed-input" min="1" step="1">
+                    </label>
+                    <button type="button" class="admin-fof-runall-btn" id="admin-mm-reset-rep">Reset replacement to &frac14;-odds</button>
+                    <button type="button" class="primary" id="admin-mm-save">Save to DB</button>
+                  </div>
+                  <div class="admin-mm-tbl-wrap">
+                    <table class="admin-mm-tbl" id="admin-mm-editor-tbl">
+                      <thead>
+                        <tr><th rowspan="2">symbol</th><th colspan="2">regular deck</th><th colspan="2">replacement deck</th></tr>
+                        <tr><th>wt</th><th>%</th><th>wt</th><th>%</th></tr>
+                      </thead>
+                      <tbody id="admin-mm-editor-body"></tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div class="admin-fof-sim-panel">
+                  <h3>Run Simulation — RTP</h3>
+                  <p class="admin-cs-hint">Faithful Monte-Carlo of the live engine — full coconut-row raid, extra-shake bonus rows, wild + monkey scoring. Uses the weights above (edited or saved). Target band 93&ndash;96% RTP. <strong>moon%</strong> = Moonshine trigger rate; <strong>ret/moon</strong> = avg win on Moonshine rounds.</p>
+                  <div class="admin-fof-sim-controls">
+                    <label class="admin-fof-sim-pick">Rounds / deck
+                      <input type="number" id="admin-mm-rounds" class="admin-fof-log-seed-input" value="100000" min="1000" max="2000000" step="1000">
+                    </label>
+                    <button type="button" class="primary" id="admin-mm-run">Run simulation</button>
+                  </div>
+                  <div id="admin-mm-sim-results" class="admin-fof-sim-results"></div>
+                </div>
+              </section>
             </section>
           </div>
         </section>

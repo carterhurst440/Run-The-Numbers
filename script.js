@@ -10028,6 +10028,15 @@ function updateAdminVisibility(user = currentUser) {
     if (adminVisible) drawerMonkeyMoonshineLink.removeAttribute("hidden");
     else drawerMonkeyMoonshineLink.setAttribute("hidden", "");
   }
+  // Monkey Moonshine home tile: admin-only game — unlocked (clickable) for admins,
+  // shown LOCKED / disabled for everyone else.
+  const mmHomeTile = document.querySelector(".home-game-card-mm");
+  if (mmHomeTile) {
+    mmHomeTile.classList.toggle("is-locked", !adminVisible);
+    mmHomeTile.disabled = !adminVisible;
+    const mmLockLabel = mmHomeTile.querySelector(".hgc-lock-label");
+    if (mmLockLabel) mmLockLabel.textContent = "ADMIN ONLY";
+  }
   // Show/hide the Admin Tools trigger button (controls now live in modal)
   if (stAdminToolsOpenBtn) {
     stAdminToolsOpenBtn.hidden = !adminVisible;
@@ -31410,7 +31419,11 @@ adminTabButtons.forEach(button => {
     // Update active tab
     adminTabButtons.forEach(btn => btn.classList.remove("active"));
     button.classList.add("active");
-    
+
+    // Hide every tab-content up front so newer tabs (e.g. monkey-moonshine) don't
+    // need a line in each branch below; the matching branch just un-hides its own.
+    document.querySelectorAll(".admin-tab-content").forEach(c => { c.hidden = true; });
+
     // Show/hide content
     if (targetTab === "prizes") {
       adminPrizesContent.hidden = false;
@@ -31510,12 +31523,202 @@ adminTabButtons.forEach(button => {
       if (adminBloomContent) adminBloomContent.hidden = false;
       adminCsMiniPause();
       adminBloomInit();
+    } else if (targetTab === "monkey-moonshine") {
+      const mmContent = document.getElementById("admin-monkey-moonshine-content");
+      if (mmContent) mmContent.hidden = false;
+      adminCsMiniPause();
+      mmAdminInit();
     } else {
       // Pause the mini canvas RAF whenever we leave the CS Clips tab
       adminCsMiniPause();
     }
   });
 });
+
+// ══════════════════════════════════════════════════════════════
+// MONKEY MOONSHINE — admin deck editor + RTP simulator.
+// Reads/writes the mm_decks table (authenticated) and Monte-Carlos the
+// live engine. The game loads the same decks from mm_decks on boot.
+// ══════════════════════════════════════════════════════════════
+const MM_FRUIT_NAMES = ['cherry','apple','banana','lemon','peach','dragonfruit','mango','pineapple'];
+const MM_SYMBOLS = MM_FRUIT_NAMES.concat(['coconut']);
+const MM_EDITOR_ORDER = ['coconut'].concat(MM_FRUIT_NAMES);   // coconut first in the editor
+const MM_BASE_PAY = { 3: 1, 4: 3, 5: 10 };
+const MM_COLS = 5;
+function mmBasePay(len){ return MM_BASE_PAY[Math.min(len, 5)] || 0; }
+
+let _mmDecks = null;          // { wild: { display_name, mult, deck:{}, replace_deck:{} } }
+let _mmEditWild = null;
+let _mmSimRunning = false;
+
+function mmStatus(msg){ const el = document.getElementById('admin-mm-status'); if (el) el.textContent = msg || ''; }
+
+async function mmAdminInit(){ if (!_mmDecks) await mmLoadDecks(); }
+
+async function mmLoadDecks(){
+  if (!supabase){ mmStatus('No database connection.'); return; }
+  mmStatus('Loading decks…');
+  const { data, error } = await supabase.from('mm_decks')
+    .select('wild,display_name,mult,deck,replace_deck,sort_order').order('sort_order');
+  if (error){ mmStatus('Load error: ' + error.message); console.error('[mm] load', error); return; }
+  _mmDecks = {};
+  (data || []).forEach(r => { _mmDecks[r.wild] = { display_name: r.display_name, mult: r.mult, deck: { ...r.deck }, replace_deck: { ...r.replace_deck } }; });
+  const sel = document.getElementById('admin-mm-wild');
+  if (sel){
+    sel.innerHTML = (data || []).map(r => `<option value="${r.wild}">${r.display_name} ×${r.mult}</option>`).join('');
+    if (!_mmEditWild || !_mmDecks[_mmEditWild]) _mmEditWild = (data && data[0]) ? data[0].wild : null;
+    sel.value = _mmEditWild;
+  }
+  mmRenderEditor();
+  mmStatus(`Loaded ${Object.keys(_mmDecks).length} decks from mm_decks.`);
+}
+
+function mmPct(v, total){ return total > 0 ? (v / total * 100).toFixed(1) + '%' : '0.0%'; }
+
+function mmRenderEditor(){
+  const body = document.getElementById('admin-mm-editor-body');
+  const sel = document.getElementById('admin-mm-wild');
+  const multInput = document.getElementById('admin-mm-mult');
+  if (!body || !_mmDecks) return;
+  const wild = sel ? sel.value : _mmEditWild;
+  _mmEditWild = wild;
+  const d = _mmDecks[wild];
+  if (!d){ body.innerHTML = ''; return; }
+  if (multInput) multInput.value = d.mult;
+  const regTotal = MM_SYMBOLS.reduce((s, x) => s + (d.deck[x] || 0), 0);
+  const repTotal = MM_SYMBOLS.reduce((s, x) => s + (d.replace_deck[x] || 0), 0);
+  body.innerHTML = MM_EDITOR_ORDER.map(sym => `
+    <tr>
+      <td class="mm-sym">${sym}${sym === 'coconut' ? ' <span class="mm-note">(monkey in repl.)</span>' : ''}</td>
+      <td><input type="number" min="0" step="1" class="mm-wt" data-kind="deck" data-sym="${sym}" value="${d.deck[sym] || 0}"></td>
+      <td class="mm-pct" data-pct="deck-${sym}">${mmPct(d.deck[sym] || 0, regTotal)}</td>
+      <td><input type="number" min="0" step="1" class="mm-wt" data-kind="replace_deck" data-sym="${sym}" value="${d.replace_deck[sym] || 0}"></td>
+      <td class="mm-pct" data-pct="replace_deck-${sym}">${mmPct(d.replace_deck[sym] || 0, repTotal)}</td>
+    </tr>`).join('');
+}
+
+function mmUpdatePcts(){
+  const d = _mmDecks && _mmDecks[_mmEditWild]; if (!d) return;
+  const regTotal = MM_SYMBOLS.reduce((s, x) => s + (d.deck[x] || 0), 0);
+  const repTotal = MM_SYMBOLS.reduce((s, x) => s + (d.replace_deck[x] || 0), 0);
+  MM_SYMBOLS.forEach(sym => {
+    const r = document.querySelector(`[data-pct="deck-${sym}"]`); if (r) r.textContent = mmPct(d.deck[sym] || 0, regTotal);
+    const p = document.querySelector(`[data-pct="replace_deck-${sym}"]`); if (p) p.textContent = mmPct(d.replace_deck[sym] || 0, repTotal);
+  });
+}
+
+document.getElementById('admin-mm-editor-body')?.addEventListener('input', e => {
+  const t = e.target;
+  if (!(t instanceof HTMLInputElement) || !t.classList.contains('mm-wt')) return;
+  const d = _mmDecks && _mmDecks[_mmEditWild]; if (!d) return;
+  d[t.dataset.kind][t.dataset.sym] = Math.max(0, Math.round(parseFloat(t.value) || 0));
+  mmUpdatePcts();
+});
+document.getElementById('admin-mm-mult')?.addEventListener('input', e => {
+  const d = _mmDecks && _mmDecks[_mmEditWild]; if (!d) return;
+  d.mult = Math.max(1, Math.round(parseFloat(e.target.value) || 1));
+});
+document.getElementById('admin-mm-wild')?.addEventListener('change', () => mmRenderEditor());
+document.getElementById('admin-mm-reset-rep')?.addEventListener('click', () => {
+  const d = _mmDecks && _mmDecks[_mmEditWild]; if (!d) return;
+  const C = d.deck.coconut || 0;
+  const F = MM_FRUIT_NAMES.reduce((s, f) => s + (d.deck[f] || 0), 0);
+  const M = (3 * C + 4 * F) > 0 ? Math.round(C * F / (3 * C + 4 * F)) : 0;
+  MM_FRUIT_NAMES.forEach(f => d.replace_deck[f] = d.deck[f] || 0);
+  d.replace_deck.coconut = M;
+  mmRenderEditor();
+  mmStatus(`Replacement deck reset to ¼-odds (monkey wt ${M}).`);
+});
+document.getElementById('admin-mm-save')?.addEventListener('click', async () => {
+  const wild = _mmEditWild;
+  const d = _mmDecks && _mmDecks[wild];
+  if (!d || !supabase) return;
+  const btn = document.getElementById('admin-mm-save'); if (btn) btn.disabled = true;
+  mmStatus(`Saving ${wild}…`);
+  const { error } = await supabase.from('mm_decks')
+    .update({ deck: d.deck, replace_deck: d.replace_deck, mult: d.mult, updated_at: new Date().toISOString() })
+    .eq('wild', wild);
+  if (btn) btn.disabled = false;
+  if (error){ mmStatus('Save error: ' + error.message); console.error('[mm] save', error); return; }
+  mmStatus(`Saved ${wild} to mm_decks — the game will use it on next load.`);
+});
+
+// ---- sim engine (mirrors the live game) ----
+function mmBuildTable(deck){ const names = [], cum = []; let total = 0; for (const s of MM_SYMBOLS){ const c = deck[s] || 0; if (c <= 0) continue; total += c; names.push(s); cum.push(total); } return { names, cum, total }; }
+function mmDraw(t){ const r = Math.random() * t.total; for (let i = 0; i < t.cum.length; i++){ if (r < t.cum[i]) return t.names[i]; } return t.names[t.names.length - 1]; }
+function mmShakes(m){ if (m >= 6) return 3; if (m >= 3) return 2; if (m >= 1) return 1; return 0; }
+function mmScore(grid, rows, wild, mult){
+  const seqs = [];
+  for (let r = 0; r < rows; r++){ const s = []; for (let c = 0; c < MM_COLS; c++) s.push([r, c]); seqs.push(s); }
+  for (let c = 0; c < MM_COLS; c++){ const s = []; for (let r = 0; r < rows; r++) s.push([r, c]); seqs.push(s); }
+  for (let k = -(rows - 1); k <= MM_COLS - 1; k++){ const s = []; for (let r = 0; r < rows; r++){ const c = r + k; if (c >= 0 && c < MM_COLS) s.push([r, c]); } if (s.length >= 3) seqs.push(s); }
+  for (let k = 0; k <= (rows - 1) + (MM_COLS - 1); k++){ const s = []; for (let r = 0; r < rows; r++){ const c = k - r; if (c >= 0 && c < MM_COLS) s.push([r, c]); } if (s.length >= 3) seqs.push(s); }
+  let win = 0;
+  for (const cells of seqs){
+    const vals = cells.map(([r, c]) => grid[r][c]); const cand = [];
+    for (const F of MM_FRUIT_NAMES){ const isM = v => v != null && v !== 'coconut' && (v === F || v === wild || v === 'monkey'); let i = 0;
+      while (i < vals.length){ if (isM(vals[i])){ let j = i; while (j < vals.length && isM(vals[j])) j++; const len = j - i;
+        if (len >= 3){ let rF = false, hW = false; for (let k = i; k < j; k++){ if (vals[k] === F) rF = true; if (F === wild && vals[k] === 'monkey') rF = true; if (vals[k] === wild) hW = true; } if (rF) cand.push({ len, mult: hW ? mult : 1, i, j }); } i = j; } else i++; } }
+    cand.sort((a, b) => (b.len - a.len) || (b.mult - a.mult)); const used = new Set();
+    for (const c of cand){ let ov = false; for (let k = c.i; k < c.j; k++){ if (used.has(k)){ ov = true; break; } } if (ov) continue; for (let k = c.i; k < c.j; k++) used.add(k); win += mmBasePay(c.len) * c.mult; }
+  }
+  return win;
+}
+function mmPlayRound(dT, rT, wild, mult){
+  let rows = 3; const grid = []; for (let r = 0; r < 3; r++){ const row = []; for (let c = 0; c < MM_COLS; c++) row.push(mmDraw(dT)); grid.push(row); }
+  const raid = []; for (let r = 0; r < 3; r++){ let a = true; for (let c = 0; c < MM_COLS; c++){ if (grid[r][c] !== 'coconut'){ a = false; break; } } if (a) raid.push(r); }
+  const moon = raid.length > 0;
+  if (moon){ let mk = 0, ex = 0, gr = 0; for (const r of raid) for (let c = 0; c < MM_COLS; c++){ let dd = mmDraw(rT); if (dd === 'coconut') dd = 'monkey'; if (dd === 'monkey') mk++; grid[r][c] = dd; }
+    let nt = mmShakes(mk); if (nt > gr){ ex += nt - gr; gr = nt; } let mt = mk;
+    while (ex > 0){ ex--; const row = []; for (let c = 0; c < MM_COLS; c++){ let dd = mmDraw(rT); if (dd === 'coconut') dd = 'monkey'; row.push(dd); } grid.push(row); rows = grid.length; let bm = 0; for (const v of row) if (v === 'monkey') bm++; mt += bm; nt = mmShakes(mt); if (nt > gr){ ex += nt - gr; gr = nt; } } }
+  return { win: mmScore(grid, rows, wild, mult), moon };
+}
+function mmRunSim(){
+  if (_mmSimRunning || !_mmDecks) return;
+  const roundsInput = document.getElementById('admin-mm-rounds');
+  const N = Math.max(1000, Math.min(2000000, parseInt(roundsInput.value) || 100000));
+  roundsInput.value = N;
+  const wilds = Object.keys(_mmDecks);
+  const acc = {}; wilds.forEach(w => acc[w] = { pay: 0, hits: 0, moon: 0, moonPay: 0, done: 0, dT: mmBuildTable(_mmDecks[w].deck), rT: mmBuildTable(_mmDecks[w].replace_deck) });
+  _mmSimRunning = true;
+  const runBtn = document.getElementById('admin-mm-run'); if (runBtn) runBtn.disabled = true;
+  const results = document.getElementById('admin-mm-sim-results');
+  results.innerHTML = `<div class="admin-mm-simmsg">Simulating ${N.toLocaleString()} rounds × ${wilds.length} decks…</div>`;
+  const CHUNK = 5000; let wi = 0;
+  const step = () => {
+    const w = wilds[wi]; const a = acc[w]; const mult = _mmDecks[w].mult;
+    const end = Math.min(N, a.done + CHUNK);
+    for (; a.done < end; a.done++){ const r = mmPlayRound(a.dT, a.rT, w, mult); a.pay += r.win; if (r.win > 0) a.hits++; if (r.moon){ a.moon++; a.moonPay += r.win; } }
+    if (a.done >= N) wi++;
+    if (wi < wilds.length) setTimeout(step, 0);
+    else mmRenderSim(acc, N);
+  };
+  setTimeout(step, 20);
+}
+function mmRenderSim(acc, N){
+  const results = document.getElementById('admin-mm-sim-results');
+  const p = x => (x * 100).toFixed(2) + '%';
+  const rows = Object.keys(_mmDecks).map(w => {
+    const a = acc[w]; const d = _mmDecks[w];
+    const coco = (d.deck.coconut || 0) / MM_SYMBOLS.reduce((s, x) => s + (d.deck[x] || 0), 0);
+    const rtp = a.pay / N;
+    return { w, mult: d.mult, coco, rtp, moon: a.moon / N, ret: a.moon ? a.moonPay / a.moon : 0, hit: a.hits / N, ok: rtp >= 0.93 && rtp <= 0.96 };
+  });
+  results.innerHTML = `<table class="admin-mm-tbl admin-mm-sim-tbl"><thead><tr>
+    <th>deck</th><th>coco%</th><th>RTP</th><th>HE</th><th>moon%</th><th>ret/moon</th><th>hit%</th></tr></thead><tbody>` +
+    rows.map(r => `<tr>
+      <td class="mm-sym">${r.w} <span class="mm-note">×${r.mult}</span></td>
+      <td>${(r.coco * 100).toFixed(1)}%</td>
+      <td class="${r.ok ? 'mm-ok' : 'mm-bad'}">${p(r.rtp)}</td>
+      <td>${p(1 - r.rtp)}</td>
+      <td>${(r.moon * 100).toFixed(1)}%</td>
+      <td>${r.ret.toFixed(2)}×</td>
+      <td>${(r.hit * 100).toFixed(1)}%</td>
+    </tr>`).join('') + `</tbody></table>`;
+  _mmSimRunning = false;
+  const runBtn = document.getElementById('admin-mm-run'); if (runBtn) runBtn.disabled = false;
+}
+document.getElementById('admin-mm-run')?.addEventListener('click', mmRunSim);
 
 // ── FATE OR FORTUNE — battle simulator ─────────────────────────
 let fofChars = [];
