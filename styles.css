@@ -26567,6 +26567,7 @@ body[data-ui="new"] .home-game-card-color { --hgc-accent: #ff2d4a; --hgc-accent-
 /* 4-up grid */
 body[data-ui="new"] .home-game-cards {
   grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 1fr;   /* every row the same height → all tiles consistent height */
   gap: 18px;
 }
 @media (max-width: 720px) {
