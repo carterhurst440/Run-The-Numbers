@@ -10345,7 +10345,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin actually opens the route — not on every page load.
     const frame = document.getElementById("monkey-moonshine-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/monkey-moonshine.html?v=20260707-mm-grunge");
+      frame.setAttribute("src", "games/monkey-moonshine.html?v=20260707-mm-grungeslot");
     }
   }
 
