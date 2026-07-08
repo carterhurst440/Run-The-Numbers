@@ -22004,6 +22004,7 @@ body.state-open .auth-vault-grant .gline::after {
     0 0 0 1px rgba(200, 255, 0, 0.06) inset,
     0 18px 50px -28px rgba(200, 255, 0, 0.35);
   animation: habBorderPulse 4.5s ease-in-out infinite;
+  transition: padding 0.34s ease;
 }
 
 @keyframes habBorderPulse {
@@ -22093,10 +22094,24 @@ body.state-open .auth-vault-grant .gline::after {
   transform: translateY(-50%);
 }
 
+/* smooth expand / collapse of the detail rows (no display:none) */
+.hab-copy,
+.hab-link-label,
+.hab-link-foot {
+  overflow: hidden;
+  max-height: 260px;
+  transition: max-height 0.36s ease, opacity 0.26s ease, margin 0.36s ease;
+}
+.hab-title {
+  transition: font-size 0.3s ease, margin 0.3s ease;
+}
 .home-affiliate-banner.is-collapsed .hab-copy,
 .home-affiliate-banner.is-collapsed .hab-link-label,
 .home-affiliate-banner.is-collapsed .hab-link-foot {
-  display: none;
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 .home-affiliate-banner.is-collapsed .hab-eyebrow {

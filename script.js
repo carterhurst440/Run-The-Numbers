@@ -3162,8 +3162,8 @@ function applyHabCollapsed(collapsed) {
 function wireHabToggle() {
   if (!habToggleBtn || habToggleBtn.dataset.wired) return;
   habToggleBtn.dataset.wired = "1";
-  let collapsed = false;
-  try { collapsed = localStorage.getItem(HAB_COLLAPSE_KEY) === "1"; } catch { /* ignore */ }
+  let collapsed = true;   // default collapsed; only expanded if the player chose it ("0")
+  try { collapsed = localStorage.getItem(HAB_COLLAPSE_KEY) !== "0"; } catch { /* ignore */ }
   applyHabCollapsed(collapsed);
   habToggleBtn.addEventListener("click", () => {
     const next = !habBannerEl.classList.contains("is-collapsed");

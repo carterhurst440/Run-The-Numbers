@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260707-mm-selector" />
+    <link rel="stylesheet" href="styles.css?v=20260707-hab-collapse" />
     <link rel="stylesheet" href="assets/bloom/bloom-flowers.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-weather.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-growth.css" />
@@ -715,10 +715,10 @@
             <div class="home-main">
 
               <!-- AFFILIATE BANNER -->
-              <div class="home-affiliate-banner" data-home-section="affiliate">
+              <div class="home-affiliate-banner is-collapsed" data-home-section="affiliate">
                 <div class="hab-glow" aria-hidden="true"></div>
                 <div class="hab-grid" aria-hidden="true"></div>
-                <button type="button" id="hab-toggle" class="hab-toggle" aria-expanded="true" aria-label="Collapse announcement">
+                <button type="button" id="hab-toggle" class="hab-toggle" aria-expanded="false" aria-label="Expand announcement">
                   <svg class="hab-toggle-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
                 </button>
                 <div class="hab-inner">
@@ -744,6 +744,21 @@
                   </div>
                 </div>
               </div>
+              <script>
+                /* Apply the saved affiliate-banner state before paint so it never
+                   flashes open then collapses. Default is collapsed; only expand
+                   if the player explicitly expanded it before ("0"). */
+                try {
+                  if (localStorage.getItem("rtn_affiliate_banner_collapsed") === "0") {
+                    var _hab = document.querySelector(".home-affiliate-banner");
+                    if (_hab) {
+                      _hab.classList.remove("is-collapsed");
+                      var _habT = document.getElementById("hab-toggle");
+                      if (_habT) { _habT.setAttribute("aria-expanded", "true"); _habT.setAttribute("aria-label", "Collapse announcement"); }
+                    }
+                  }
+                } catch (e) {}
+              </script>
 
               <!-- PLAYER HERO -->
               <div class="home-player-hero" data-home-section="hero">
@@ -5282,7 +5297,7 @@
     <script>window.__h = preact.h; window.__Fragment = preact.Fragment;</script>
     <script src="assets/bloom/morphs/flowers-compiled.js"></script>
     <script src="assets/bloom/morphs/flower-morphs.js"></script>
-    <script type="module" src="script.js?v=20260707-mm-selector"></script>
+    <script type="module" src="script.js?v=20260707-hab-collapse"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
