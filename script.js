@@ -3126,7 +3126,7 @@ function wireReferralCopyButton() {
   homeReferralCopyBtn.addEventListener("click", async () => {
     const link = homeReferralLinkInput?.value || "";
     if (!link) return;
-    const original = homeReferralCopyBtn.textContent;
+    const original = homeReferralCopyBtn.innerHTML;   // preserve inner markup (e.g. the "LINK" span)
     try {
       await navigator.clipboard.writeText(link);
     } catch {
@@ -3140,7 +3140,7 @@ function wireReferralCopyButton() {
     homeReferralCopyBtn.textContent = "COPIED";
     homeReferralCopyBtn.classList.add("is-copied");
     window.setTimeout(() => {
-      homeReferralCopyBtn.textContent = original || "COPY";
+      homeReferralCopyBtn.innerHTML = original || "COPY";
       homeReferralCopyBtn.classList.remove("is-copied");
     }, 1600);
   });
