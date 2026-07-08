@@ -31978,4 +31978,24 @@ body[data-ui="new"] #bloom-chipBar .chip-rack-edit:hover {
 .admin-mm-tbl td.mm-pct { color: #7f8c94; font-size: 10.5px; min-width: 46px; }
 .admin-mm-sim-tbl td.mm-ok { color: #4ad07a; font-weight: 800; }
 .admin-mm-sim-tbl td.mm-bad { color: #ff7a9c; font-weight: 800; }
+
+/* MONKEY MOONSHINE sound uploader */
+.admin-mm-snd-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.admin-mm-snd-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.10); background: rgba(0,0,0,.24); }
+.admin-mm-snd-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.admin-mm-snd-name { color: #eafff2; font-size: 12.5px; font-weight: 700; }
+.admin-mm-snd-key { color: #7f8c94; font-family: "JetBrains Mono", monospace; font-size: 10px; }
+.admin-mm-snd-tag { flex: none; font-size: 9.5px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 999px; border: 1px solid transparent; }
+.admin-mm-snd-tag.is-file { color: #4ad07a; border-color: rgba(74,208,122,.4); background: rgba(74,208,122,.12); }
+.admin-mm-snd-tag.is-synth { color: #8a97a0; border-color: rgba(255,255,255,.14); background: rgba(255,255,255,.04); }
+.admin-mm-snd-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.admin-mm-snd-btn { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font: inherit; font-size: 11px;
+  font-weight: 700; color: #cfe6dc; padding: 5px 10px; border-radius: 7px; border: 1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.3); transition: border-color .12s, color .12s, opacity .12s; white-space: nowrap; }
+.admin-mm-snd-btn:hover { border-color: #2fd06e; color: #eafff2; }
+.admin-mm-snd-btn:disabled { opacity: .4; pointer-events: none; }
+.admin-mm-snd-upload { margin: 0; }
+.admin-mm-snd-clear:hover { border-color: #ff7a9c; color: #ffd9e2; }
 .admin-mm-simmsg { color: #8ea; padding: 10px 2px; font-family: "JetBrains Mono", monospace; font-size: 12px; }

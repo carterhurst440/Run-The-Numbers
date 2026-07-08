@@ -31550,10 +31550,19 @@ function mmBasePay(len){ return MM_BASE_PAY[Math.min(len, 5)] || 0; }
 let _mmDecks = null;          // { wild: { display_name, mult, deck:{}, replace_deck:{} } }
 let _mmEditWild = null;
 let _mmSimRunning = false;
+let _mmSounds = null;         // { name: url|null } from mm_sounds
+const MM_SOUNDS_BUCKET = 'mm-sounds';
+const MM_SOUND_ORDER = ['shake','rowClunk','lineMatch','wildLand','monkeyWild','extraShake','whoosh','coconutRow','moonshine','uiClick','coin','ambient','music'];
+const MM_SOUND_LABELS = {
+  shake:'Tree shake / change tree', rowClunk:'Row lands in dirt', lineMatch:'Winning payline drawn',
+  wildLand:'Wild fruit lands', monkeyWild:'Monkey wild appears', extraShake:'Extra shake earned',
+  whoosh:'Monkey-dot whoosh', coconutRow:'Coconut row lands', moonshine:'MONKEY MOONSHINE banner',
+  uiClick:'Open WILD FRUIT menu', coin:'Bet + / − (coin)', ambient:'Ambient bed (loops)', music:'Moonshine music (loops)'
+};
 
 function mmStatus(msg){ const el = document.getElementById('admin-mm-status'); if (el) el.textContent = msg || ''; }
 
-async function mmAdminInit(){ if (!_mmDecks) await mmLoadDecks(); }
+async function mmAdminInit(){ if (!_mmDecks) await mmLoadDecks(); if (!_mmSounds) await mmLoadSounds(); }
 
 async function mmLoadDecks(){
   if (!supabase){ mmStatus('No database connection.'); return; }
@@ -31572,6 +31581,98 @@ async function mmLoadDecks(){
   mmRenderEditor();
   mmStatus(`Loaded ${Object.keys(_mmDecks).length} decks from mm_decks.`);
 }
+
+/* ---- MONKEY MOONSHINE sound uploader (mm_sounds + mm-sounds bucket) ---- */
+function mmSoundsStatus(msg){ const el = document.getElementById('admin-mm-sounds-status'); if (el) el.textContent = msg || ''; }
+
+async function mmLoadSounds(){
+  if (!supabase){ mmSoundsStatus('No database connection.'); return; }
+  mmSoundsStatus('Loading sounds…');
+  const { data, error } = await supabase.from('mm_sounds').select('name,url');
+  if (error){ mmSoundsStatus('Load error: ' + error.message); console.error('[mm] sounds load', error); return; }
+  _mmSounds = {};
+  (data || []).forEach(r => { _mmSounds[r.name] = r.url || null; });
+  mmRenderSounds();
+  const set = Object.values(_mmSounds).filter(Boolean).length;
+  mmSoundsStatus(`${set} of ${MM_SOUND_ORDER.length} sounds use a custom file — the rest use the built-in synth.`);
+}
+
+function mmRenderSounds(){
+  const wrap = document.getElementById('admin-mm-snd-list');
+  if (!wrap || !_mmSounds) return;
+  wrap.innerHTML = MM_SOUND_ORDER.map(name => {
+    const has = !!_mmSounds[name];
+    return `
+    <div class="admin-mm-snd-row" data-name="${name}">
+      <div class="admin-mm-snd-info">
+        <span class="admin-mm-snd-name">${MM_SOUND_LABELS[name] || name}</span>
+        <span class="admin-mm-snd-key">${name}</span>
+      </div>
+      <span class="admin-mm-snd-tag ${has ? 'is-file' : 'is-synth'}">${has ? 'custom file' : 'synth'}</span>
+      <div class="admin-mm-snd-actions">
+        <button type="button" class="admin-mm-snd-btn" data-act="preview" ${has ? '' : 'disabled'}>▶ Preview</button>
+        <label class="admin-mm-snd-btn admin-mm-snd-upload">⤴ Upload<input type="file" accept="audio/*" data-act="upload" hidden></label>
+        <button type="button" class="admin-mm-snd-btn admin-mm-snd-clear" data-act="clear" ${has ? '' : 'disabled'}>Clear</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function mmSetSoundUrl(name, url){
+  const { error } = await supabase.from('mm_sounds').update({ url: url, updated_at: new Date().toISOString() }).eq('name', name);
+  if (error) throw error;
+  _mmSounds[name] = url || null;
+}
+
+async function mmUploadSound(name, file){
+  if (!supabase){ mmSoundsStatus('No database connection.'); return; }
+  if (!file) return;
+  mmSoundsStatus('Uploading “' + name + '”…');
+  try {
+    const ext = (file.name.split('.').pop() || 'mp3').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp3';
+    const path = name + '-' + Date.now() + '.' + ext;
+    const up = await supabase.storage.from(MM_SOUNDS_BUCKET).upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type || 'audio/mpeg' });
+    if (up.error) throw up.error;
+    const { data: pub } = supabase.storage.from(MM_SOUNDS_BUCKET).getPublicUrl(path);
+    const url = pub && pub.publicUrl;
+    if (!url) throw new Error('no public URL');
+    await mmSetSoundUrl(name, url);
+    mmRenderSounds();
+    mmSoundsStatus('Saved “' + name + '”. Reload the game to hear it.');
+  } catch (e){ mmSoundsStatus('Upload failed: ' + (e && e.message || e)); console.error('[mm] sound upload', e); }
+}
+
+async function mmClearSound(name){
+  if (!supabase) return;
+  mmSoundsStatus('Clearing “' + name + '”…');
+  try { await mmSetSoundUrl(name, null); mmRenderSounds(); mmSoundsStatus('“' + name + '” back to the built-in synth.'); }
+  catch (e){ mmSoundsStatus('Clear failed: ' + (e && e.message || e)); }
+}
+
+let _mmPreviewAudio = null;
+function mmPreviewSound(name){
+  const url = _mmSounds && _mmSounds[name]; if (!url) return;
+  try { if (_mmPreviewAudio) _mmPreviewAudio.pause(); _mmPreviewAudio = new Audio(url); _mmPreviewAudio.play().catch(() => {}); } catch (e){}
+}
+
+// delegated handlers (the list element is static in index.html)
+(function mmWireSoundHandlers(){
+  const list = document.getElementById('admin-mm-snd-list');
+  if (!list) return;
+  list.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]'); const row = e.target.closest('.admin-mm-snd-row');
+    if (!btn || !row) return;
+    const name = row.dataset.name;
+    if (btn.dataset.act === 'preview') mmPreviewSound(name);
+    else if (btn.dataset.act === 'clear') mmClearSound(name);
+  });
+  list.addEventListener('change', (e) => {
+    const inp = e.target.closest('input[data-act="upload"]'); const row = e.target.closest('.admin-mm-snd-row');
+    if (!inp || !row) return;
+    if (inp.files && inp.files[0]) mmUploadSound(row.dataset.name, inp.files[0]);
+    inp.value = '';
+  });
+})();
 
 function mmPct(v, total){ return total > 0 ? (v / total * 100).toFixed(1) + '%' : '0.0%'; }
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260707-mm-snddb" />
+    <link rel="stylesheet" href="styles.css?v=20260707-mm-snduploader" />
     <link rel="stylesheet" href="assets/bloom/bloom-flowers.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-weather.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-growth.css" />
@@ -3810,6 +3810,13 @@
                   </div>
                   <div id="admin-mm-sim-results" class="admin-fof-sim-results"></div>
                 </div>
+
+                <div class="admin-fof-sim-panel">
+                  <h3>Sounds</h3>
+                  <p class="admin-cs-hint">Upload an audio file (mp3 / ogg / wav) to replace the built-in synth for any sound. Clear to revert to the synth. Files upload to the <code>mm-sounds</code> bucket; the URL is saved in <code>mm_sounds</code> and the game loads it on boot.</p>
+                  <div id="admin-mm-sounds-status" class="admin-fof-status"></div>
+                  <div class="admin-mm-snd-list" id="admin-mm-snd-list"></div>
+                </div>
               </section>
             </section>
           </div>
@@ -5275,7 +5282,7 @@
     <script>window.__h = preact.h; window.__Fragment = preact.Fragment;</script>
     <script src="assets/bloom/morphs/flowers-compiled.js"></script>
     <script src="assets/bloom/morphs/flower-morphs.js"></script>
-    <script type="module" src="script.js?v=20260707-mm-snddb"></script>
+    <script type="module" src="script.js?v=20260707-mm-snduploader"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
