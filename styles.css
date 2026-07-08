@@ -26597,8 +26597,11 @@ body[data-ui="new"] .home-game-cards {
 body[data-ui="new"] .home-game-card {
   container-type: inline-size;
   position: relative;
-  aspect-ratio: 16 / 9;
+  /* no fixed aspect-ratio — content-height + grid-auto-rows:1fr makes every tile
+     the same height regardless of its contents (16/9 tiles vs taller sprite tiles) */
+  aspect-ratio: auto;
   height: auto;
+  min-height: 0;
   padding: 0;
   display: block;
   border-radius: 0;
