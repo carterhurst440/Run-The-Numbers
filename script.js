@@ -3490,6 +3490,7 @@ const ACTIVITY_GAME_SERIES = [
   { key: "st",  label: "ST",   color: "#c8ff00" },
   { key: "ryb", label: "RYB",  color: "#ff4444" },
   { key: "fof", label: "FOF",  color: "#b07bff" },
+  { key: "mm",  label: "MM",   color: "#3fd07a" },
 ];
 
 // Collapse daily rows into day / week / month display buckets.
@@ -3510,10 +3511,10 @@ function bucketActivityRows(rows, mode) {
       const wk = Math.floor((cur - first) / (7 * 86400000));
       key = String(wk);
     }
-    if (!groups.has(key)) { groups.set(key, { label: null, rtn: 0, g10: 0, st: 0, ryb: 0, fof: 0, firstDay: r.d }); order.push(key); }
+    if (!groups.has(key)) { groups.set(key, { label: null, rtn: 0, g10: 0, st: 0, ryb: 0, fof: 0, mm: 0, firstDay: r.d }); order.push(key); }
     const g = groups.get(key);
     g.rtn += Number(r.rtn || 0); g.g10 += Number(r.g10 || 0); g.st += Number(r.st || 0);
-    g.ryb += Number(r.ryb || 0); g.fof += Number(r.fof || 0);
+    g.ryb += Number(r.ryb || 0); g.fof += Number(r.fof || 0); g.mm += Number(r.mm || 0);
   }
   return order.map((key) => {
     const g = groups.get(key);
@@ -3525,7 +3526,7 @@ function bucketActivityRows(rows, mode) {
 function pickGameCounts(r) {
   return {
     rtn: Number(r.rtn || 0), g10: Number(r.g10 || 0), st: Number(r.st || 0),
-    ryb: Number(r.ryb || 0), fof: Number(r.fof || 0),
+    ryb: Number(r.ryb || 0), fof: Number(r.fof || 0), mm: Number(r.mm || 0),
   };
 }
 
@@ -3544,7 +3545,7 @@ async function drawActivityHistoryChart() {
   activityHistoryRows = Array.isArray(data) ? data : [];
 
   const display = bucketActivityRows(activityHistoryRows, bucket);
-  const total = display.reduce((s, b) => s + b.rtn + b.g10 + b.st + b.ryb + b.fof, 0);
+  const total = display.reduce((s, b) => s + b.rtn + b.g10 + b.st + b.ryb + b.fof + b.mm, 0);
 
   if (activityHistoryChart) { activityHistoryChart.destroy(); activityHistoryChart = null; }
   const ctx = bankrollActivityCanvas.getContext("2d");

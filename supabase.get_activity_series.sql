@@ -3,8 +3,9 @@
 -- Powers the ACCOUNT ACTIVITY view in the leaderboard player modal
 -- (bankroll-history-modal). Returns one row per day for the last p_days days;
 -- the client re-buckets into week/month for longer windows.
+drop function if exists public.get_activity_series(uuid, int);
 create or replace function public.get_activity_series(p_user_id uuid, p_days int default 30)
-returns table(d date, rtn bigint, g10 bigint, st bigint, ryb bigint, fof bigint)
+returns table(d date, rtn bigint, g10 bigint, st bigint, ryb bigint, fof bigint, mm bigint)
 language sql
 stable
 security definer
@@ -40,16 +41,22 @@ as $$
     select created_at::date d, count(*) n from fate_or_fortune_rounds
     where user_id = p_user_id and status = 'resolved'
       and created_at >= (select start_day from bounds) group by 1
+  ),
+  mm_c as (
+    select created_at::date d, count(*) n from mm_spins
+    where user_id = p_user_id and status = 'resolved'
+      and created_at >= (select start_day from bounds) group by 1
   )
   select days.d,
          coalesce(rtn_c.n,0), coalesce(g10_c.n,0), coalesce(st_c.n,0),
-         coalesce(ryb_c.n,0), coalesce(fof_c.n,0)
+         coalesce(ryb_c.n,0), coalesce(fof_c.n,0), coalesce(mm_c.n,0)
   from days
   left join rtn_c on rtn_c.d = days.d
   left join g10_c on g10_c.d = days.d
   left join st_c  on st_c.d  = days.d
   left join ryb_c on ryb_c.d = days.d
   left join fof_c on fof_c.d = days.d
+  left join mm_c  on mm_c.d  = days.d
   order by days.d;
 $$;
 
