@@ -10569,7 +10569,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin actually opens the route — not on every page load.
     const frame = document.getElementById("monkey-moonshine-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/monkey-moonshine.html?v=20260709-audioscope");
+      frame.setAttribute("src", "games/monkey-moonshine.html?v=20260709-settle");
     }
     installMonkeyMoonshineBridge();   // idempotent: broker spins + push the wallet balance
     mmSendInit();                     // refresh balance on re-open (first open waits for mm:ready)
@@ -10587,6 +10587,9 @@ async function setRoute(route, { replaceHash = false } = {}) {
         "*"
       );
     }
+    // Leaving MM before a round finished animating: apply the pending spin result
+    // now so the header is correct on the page they land on.
+    if (resolvedRoute !== "monkey-moonshine") mmFlushPendingBalance();
   }
 
   if (PLAY_ASSISTANT_ROUTES.has(resolvedRoute)) {
@@ -19632,6 +19635,37 @@ function mmSendInit() {
   if (!w) return;
   w.postMessage({ source: "mm-shell", type: "init", balance: Number(currentProfile?.credits ?? 0) }, "*");
 }
+// The spin resolves in the DB immediately, but we hold the shell header at the
+// pre-spin value until the game finishes animating the outcome (it posts an
+// "mm:settled" message with the in-game total), so the header doesn't jump ahead
+// of what the player is watching. Rounds can be player-paced (extra shakes), so
+// we do NOT use a timer; if the player leaves MM before a round settles, we flush
+// the pending value on route-leave (mmFlushPendingBalance).
+let _mmPendingBalance = null;
+function mmApplyBalance(newVal) {
+  if (typeof newVal !== "number" || !Number.isFinite(newVal) || !currentProfile) return;
+  currentProfile.credits = newVal;   // the normal wallet always changed
+  // Repaint the header live only in normal mode (the header shows the contest
+  // snapshot in contest mode, where an MM spin does not apply).
+  if (!isContestAccountMode(currentAccountMode)) {
+    bankroll = newVal;
+    lastSyncedBankroll = bankroll;
+    try { updateBankroll(); } catch (e) {}
+  }
+  try { updateDashboardCreditsDisplay(currentProfile.credits); } catch (e) {}
+}
+function mmSettleBalance(newVal) {
+  const val = (typeof newVal === "number" && Number.isFinite(newVal)) ? newVal : _mmPendingBalance;
+  _mmPendingBalance = null;
+  mmApplyBalance(val);
+}
+// Apply any not-yet-animated spin result (e.g. player navigated away mid-round).
+function mmFlushPendingBalance() {
+  if (_mmPendingBalance === null) return;
+  const val = _mmPendingBalance;
+  _mmPendingBalance = null;
+  mmApplyBalance(val);
+}
 async function mmHandleSpin(bet, wild) {
   const w = mmFrameWindow();
   if (!w) return;
@@ -19653,21 +19687,11 @@ async function mmHandleSpin(bet, wild) {
       w.postMessage({ source: "mm-shell", type: "error", reason }, "*");
       return;
     }
-    // Authoritative wallet update → reflect the new balance across the shell live.
-    // MM is normal-mode, so the header reads currentProfile.credits via the account
-    // snapshot; keep the bankroll global in sync and repaint the header (updateBankroll)
-    // + dashboard so the top-of-page number tracks the in-game balance immediately —
-    // not only after a navigation. Mirrors applyAccountSnapshot.
-    if (data && typeof data.new_account_value === "number" && currentProfile) {
-      currentProfile.credits = data.new_account_value;   // the normal wallet always changed
-      // Repaint the header live only in normal mode (the header shows the contest
-      // snapshot in contest mode, where an MM spin does not apply).
-      if (!isContestAccountMode(currentAccountMode)) {
-        bankroll = data.new_account_value;
-        lastSyncedBankroll = bankroll;
-        try { updateBankroll(); } catch (e) {}
-      }
-      try { updateDashboardCreditsDisplay(currentProfile.credits); } catch (e) {}
+    // Defer the shell header update until the game reports the spin fully
+    // resolved (mm:settled), so the top-of-page number tracks the in-game total
+    // instead of jumping ahead before the player sees the outcome.
+    if (data && typeof data.new_account_value === "number") {
+      _mmPendingBalance = data.new_account_value;
     }
     w.postMessage({ source: "mm-shell", type: "result", payload: data }, "*");
   } catch (e) {
@@ -19682,6 +19706,7 @@ function installMonkeyMoonshineBridge() {
     if (!m || m.source !== "mm") return;
     if (m.type === "ready") mmSendInit();
     else if (m.type === "spin") mmHandleSpin(m.bet, m.wild);
+    else if (m.type === "settled") mmSettleBalance(m.balance);
   });
 }
 
