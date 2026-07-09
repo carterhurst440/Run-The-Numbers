@@ -25,6 +25,16 @@ CREATE TABLE IF NOT EXISTS public.mm_spins (
   monkeys_total             INTEGER NOT NULL DEFAULT 0,       -- cumulative monkeys landed
   bonus_rows                SMALLINT NOT NULL DEFAULT 0,      -- extra-shake rows unlocked (0..3)
   spin_number               INTEGER,                          -- client session spin counter
+
+  -- Definitive board snapshot for reconciliation: the exact reels the spin
+  -- settled on, self-contained (carries its own wild + multiplier) so a spin is
+  -- auditable from this one column alone. Shape:
+  --   { "wild":"apple", "wild_mult":2, "cols":5,
+  --     "rows":[ ["apple","coconut","cherry","banana","apple"], ... ] }
+  -- index 0 = top row; 3 base rows + up to 3 monkey-shake bonus rows (max 6).
+  -- Each cell: a fruit name | 'coconut' | 'monkey' (raid-replaced coconut) | null.
+  board                     JSONB,
+
   round_details             JSONB,   -- line wins / raid summary
   round_replay              JSONB,   -- reserved: grid states for client-stitched replay
 
