@@ -19610,9 +19610,20 @@ async function mmHandleSpin(bet, wild) {
       w.postMessage({ source: "mm-shell", type: "error", reason }, "*");
       return;
     }
-    // Authoritative wallet update → reflect the new balance across the shell.
+    // Authoritative wallet update → reflect the new balance across the shell live.
+    // MM is normal-mode, so the header reads currentProfile.credits via the account
+    // snapshot; keep the bankroll global in sync and repaint the header (updateBankroll)
+    // + dashboard so the top-of-page number tracks the in-game balance immediately —
+    // not only after a navigation. Mirrors applyAccountSnapshot.
     if (data && typeof data.new_account_value === "number" && currentProfile) {
-      currentProfile.credits = data.new_account_value;
+      currentProfile.credits = data.new_account_value;   // the normal wallet always changed
+      // Repaint the header live only in normal mode (the header shows the contest
+      // snapshot in contest mode, where an MM spin does not apply).
+      if (!isContestAccountMode(currentAccountMode)) {
+        bankroll = data.new_account_value;
+        lastSyncedBankroll = bankroll;
+        try { updateBankroll(); } catch (e) {}
+      }
       try { updateDashboardCreditsDisplay(currentProfile.credits); } catch (e) {}
     }
     w.postMessage({ source: "mm-shell", type: "result", payload: data }, "*");
