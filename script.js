@@ -32092,10 +32092,195 @@ async function mmSaveGeneratedSynth(name){
   list.addEventListener('change', (e) => {
     const inp = e.target.closest('input[data-act="upload"]'); const row = e.target.closest('.admin-mm-snd-row');
     if (!inp || !row) return;
-    if (inp.files && inp.files[0]) mmUploadSound(row.dataset.name, inp.files[0]);
+    if (inp.files && inp.files[0]) mmOpenTrimTool(row.dataset.name, inp.files[0]);   // decode → trim → save
     inp.value = '';
   });
 })();
+
+/* ══════ MONKEY MOONSHINE upload clip/trim tool ══════
+   Decodes the chosen file, shows a waveform with draggable start/end handles,
+   previews just the selection, and saves the trimmed region as a WAV (or
+   uploads the whole file untouched). Fully client-side (Web Audio). */
+let _mmTrimCtx = null;
+function mmTrimAudioCtx(){ if (!_mmTrimCtx){ const AC = window.AudioContext || window.webkitAudioContext; _mmTrimCtx = AC ? new AC() : null; } return _mmTrimCtx; }
+let _mmTrim = null;     // active session { name, file, buf, startFrac, endFrac, src, raf, els }
+let _mmTrimUI = null;   // cached overlay DOM + element refs
+
+function mmFmtTime(sec){ sec = Math.max(0, sec || 0); const m = Math.floor(sec/60); const s = sec - m*60; return m + ':' + (s < 10 ? '0' : '') + s.toFixed(2); }
+
+function mmBufferToWavBlob(buf){
+  const numCh = Math.min(2, buf.numberOfChannels), sr = buf.sampleRate, n = buf.length;
+  const chans = []; for (let c=0;c<numCh;c++) chans.push(buf.getChannelData(c));
+  const blockAlign = numCh * 2, dataLen = n * blockAlign;
+  const ab = new ArrayBuffer(44 + dataLen); const view = new DataView(ab); let p = 0;
+  const ws = (str)=>{ for (let i=0;i<str.length;i++) view.setUint8(p++, str.charCodeAt(i)); };
+  const w32 = (v)=>{ view.setUint32(p, v, true); p += 4; };
+  const w16 = (v)=>{ view.setUint16(p, v, true); p += 2; };
+  ws('RIFF'); w32(36 + dataLen); ws('WAVE'); ws('fmt '); w32(16); w16(1); w16(numCh); w32(sr); w32(sr*blockAlign); w16(blockAlign); w16(16); ws('data'); w32(dataLen);
+  for (let i=0;i<n;i++){ for (let c=0;c<numCh;c++){ const v = Math.max(-1, Math.min(1, chans[c][i])); view.setInt16(p, v < 0 ? v*0x8000 : v*0x7FFF, true); p += 2; } }
+  return new Blob([ab], { type: 'audio/wav' });
+}
+function mmSliceBuffer(ctx, buf, startSec, endSec){
+  const sr = buf.sampleRate;
+  const s = Math.max(0, Math.floor(startSec*sr));
+  const e = Math.min(buf.length, Math.floor(endSec*sr));
+  const len = Math.max(1, e - s);
+  const out = ctx.createBuffer(buf.numberOfChannels, len, sr);
+  for (let c=0;c<buf.numberOfChannels;c++) out.getChannelData(c).set(buf.getChannelData(c).subarray(s, e));
+  return out;
+}
+
+function mmTrimDrawWave(){
+  const t = _mmTrim; if (!t || !t.buf) return;
+  const canvas = t.els.canvas, wrap = t.els.wave;
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const w = wrap.clientWidth || 600, h = wrap.clientHeight || 130;
+  canvas.width = Math.round(w*dpr); canvas.height = Math.round(h*dpr);
+  const ctx = canvas.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
+  const data = t.buf.getChannelData(0), n = data.length, mid = h/2;
+  ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(w, mid); ctx.stroke();
+  ctx.strokeStyle = 'rgba(47,208,110,.6)'; ctx.lineWidth = 1; ctx.beginPath();
+  for (let x=0;x<w;x++){
+    const from = Math.floor(x/w*n), to = Math.floor((x+1)/w*n);
+    let mn = 1, mx = -1;
+    for (let i=from;i<to;i++){ const v = data[i]; if (v<mn) mn = v; if (v>mx) mx = v; }
+    if (mn > mx){ mn = 0; mx = 0; }
+    ctx.moveTo(x+0.5, mid - mx*mid*0.92); ctx.lineTo(x+0.5, mid - mn*mid*0.92);
+  }
+  ctx.stroke();
+}
+function mmTrimSync(){
+  const t = _mmTrim; if (!t || !t.buf) return; const dur = t.buf.duration, el = t.els;
+  el.shadeL.style.width = (t.startFrac*100) + '%';
+  el.shadeR.style.width = ((1 - t.endFrac)*100) + '%';
+  el.hStart.style.left = (t.startFrac*100) + '%';
+  el.hEnd.style.left = (t.endFrac*100) + '%';
+  el.tStart.textContent = mmFmtTime(t.startFrac*dur);
+  el.tEnd.textContent = mmFmtTime(t.endFrac*dur);
+  el.tLen.textContent = mmFmtTime((t.endFrac - t.startFrac)*dur);
+}
+function mmTrimStop(){
+  const t = _mmTrim; if (!t) return;
+  if (t.src){ try { t.src.stop(); } catch(e){} t.src = null; }
+  if (t.raf){ cancelAnimationFrame(t.raf); t.raf = null; }
+  if (t.els && t.els.playhead) t.els.playhead.style.display = 'none';
+}
+function mmTrimPlay(){
+  const t = _mmTrim, ctx = mmTrimAudioCtx(); if (!t || !t.buf || !ctx) return;
+  mmTrimStop(); if (ctx.state === 'suspended') ctx.resume();
+  const dur = t.buf.duration, s = t.startFrac*dur, e = t.endFrac*dur, len = Math.max(0.02, e - s);
+  const src = ctx.createBufferSource(); src.buffer = t.buf; src.connect(ctx.destination);
+  src.start(0, s, len); t.src = src;
+  const startedAt = ctx.currentTime, ph = t.els.playhead; ph.style.display = 'block';
+  const tick = ()=>{
+    if (!_mmTrim || _mmTrim.src !== src){ return; }
+    const elapsed = ctx.currentTime - startedAt;
+    if (elapsed >= len){ mmTrimStop(); return; }
+    ph.style.left = ((t.startFrac + elapsed/dur)*100) + '%';
+    t.raf = requestAnimationFrame(tick);
+  };
+  t.raf = requestAnimationFrame(tick);
+}
+async function mmTrimSave(){
+  const t = _mmTrim, ctx = mmTrimAudioCtx(); if (!t || !t.buf || !ctx) return;
+  mmTrimStop();
+  const dur = t.buf.duration, name = t.name;
+  t.els.status.textContent = 'Encoding clip…';
+  try {
+    const clip = mmSliceBuffer(ctx, t.buf, t.startFrac*dur, t.endFrac*dur);
+    const file = new File([mmBufferToWavBlob(clip)], name + '-clip.wav', { type: 'audio/wav' });
+    mmTrimClose();
+    await mmUploadSound(name, file);
+  } catch (err){ t.els.status.textContent = 'Clip failed: ' + (err && err.message || err); console.error('[mm] trim save', err); }
+}
+async function mmTrimUseFull(){
+  const t = _mmTrim; if (!t) return; mmTrimStop();
+  const name = t.name, file = t.file; mmTrimClose();
+  await mmUploadSound(name, file);
+}
+function mmTrimClose(){ mmTrimStop(); if (_mmTrimUI) _mmTrimUI.ov.classList.remove('is-open'); _mmTrim = null; }
+
+function mmTrimUI(){
+  if (_mmTrimUI) return _mmTrimUI;
+  const ov = document.createElement('div'); ov.className = 'mm-trim-overlay';
+  ov.innerHTML =
+    '<div class="mm-trim-panel" role="dialog" aria-modal="true">' +
+      '<p class="mm-trim-title" id="mm-trim-title">Trim clip</p>' +
+      '<p class="mm-trim-sub" id="mm-trim-sub"></p>' +
+      '<div class="mm-trim-wave-wrap" id="mm-trim-wave">' +
+        '<canvas class="mm-trim-canvas" id="mm-trim-canvas"></canvas>' +
+        '<div class="mm-trim-shade left" id="mm-trim-shade-l"></div>' +
+        '<div class="mm-trim-shade right" id="mm-trim-shade-r"></div>' +
+        '<div class="mm-trim-handle" id="mm-trim-h-start"></div>' +
+        '<div class="mm-trim-handle" id="mm-trim-h-end"></div>' +
+        '<div class="mm-trim-playhead" id="mm-trim-playhead"></div>' +
+      '</div>' +
+      '<div class="mm-trim-times"><span>Start <b id="mm-trim-t-start">0:00.00</b></span>' +
+        '<span>Length <b id="mm-trim-t-len">0:00.00</b></span>' +
+        '<span>End <b id="mm-trim-t-end">0:00.00</b></span></div>' +
+      '<div class="mm-trim-actions"><span class="mm-trim-status" id="mm-trim-status"></span>' +
+        '<button type="button" class="admin-mm-snd-btn" data-trim="play">▶ Play selection</button>' +
+        '<button type="button" class="admin-mm-snd-btn" data-trim="full">Use full file</button>' +
+        '<button type="button" class="admin-mm-snd-btn admin-mm-snd-save" data-trim="save">✓ Save clip</button>' +
+        '<button type="button" class="admin-mm-snd-btn admin-mm-snd-clear" data-trim="cancel">Cancel</button></div>' +
+    '</div>';
+  document.body.appendChild(ov);
+  const q = (s)=> ov.querySelector(s);
+  const els = { wave:q('#mm-trim-wave'), canvas:q('#mm-trim-canvas'), shadeL:q('#mm-trim-shade-l'), shadeR:q('#mm-trim-shade-r'),
+    hStart:q('#mm-trim-h-start'), hEnd:q('#mm-trim-h-end'), playhead:q('#mm-trim-playhead'),
+    title:q('#mm-trim-title'), sub:q('#mm-trim-sub'), tStart:q('#mm-trim-t-start'), tEnd:q('#mm-trim-t-end'), tLen:q('#mm-trim-t-len'), status:q('#mm-trim-status') };
+  _mmTrimUI = { ov, els };
+  ov.addEventListener('click', (e)=>{
+    if (e.target === ov){ mmTrimClose(); return; }
+    const b = e.target.closest('[data-trim]'); if (!b) return;
+    const a = b.dataset.trim;
+    if (a === 'play') mmTrimPlay();
+    else if (a === 'save') void mmTrimSave();
+    else if (a === 'full') void mmTrimUseFull();
+    else if (a === 'cancel') mmTrimClose();
+  });
+  // Drag the nearest handle (works for both handles + clicking anywhere on the wave)
+  const wrap = els.wave; let active = null;
+  const fracAt = (e)=>{ const r = wrap.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left)/r.width)); };
+  const setFrac = (which, f)=>{
+    const t = _mmTrim; if (!t) return; const gap = 0.004;
+    if (which === 'start') t.startFrac = Math.max(0, Math.min(f, t.endFrac - gap));
+    else t.endFrac = Math.min(1, Math.max(f, t.startFrac + gap));
+    mmTrimSync();
+  };
+  wrap.addEventListener('pointerdown', (e)=>{
+    const t = _mmTrim; if (!t || !t.buf) return;
+    const f = fracAt(e);
+    active = Math.abs(f - t.startFrac) <= Math.abs(f - t.endFrac) ? 'start' : 'end';
+    setFrac(active, f); try { wrap.setPointerCapture(e.pointerId); } catch(_){}
+  });
+  wrap.addEventListener('pointermove', (e)=>{ if (active) setFrac(active, fracAt(e)); });
+  const endDrag = ()=>{ active = null; };
+  wrap.addEventListener('pointerup', endDrag); wrap.addEventListener('pointercancel', endDrag);
+  return _mmTrimUI;
+}
+
+async function mmOpenTrimTool(name, file){
+  const ctx = mmTrimAudioCtx();
+  if (!ctx){ await mmUploadSound(name, file); return; }   // no Web Audio → plain upload
+  const ui = mmTrimUI();
+  ui.els.title.textContent = 'Trim “' + (MM_SOUND_LABELS[name] || name) + '”';
+  ui.els.sub.textContent = file.name + ' — decoding…';
+  ui.els.status.textContent = '';
+  ui.ov.classList.add('is-open');
+  _mmTrim = { name, file, buf:null, startFrac:0, endFrac:1, src:null, raf:null, els:ui.els };
+  try {
+    const ab = await file.arrayBuffer();
+    const buf = await ctx.decodeAudioData(ab.slice(0));
+    if (!_mmTrim) return;   // cancelled while decoding
+    _mmTrim.buf = buf;
+    ui.els.sub.textContent = file.name + ' — ' + mmFmtTime(buf.duration) + ' · ' + buf.numberOfChannels + 'ch · ' + Math.round(buf.sampleRate/1000) + 'kHz · drag the green handles, preview, then Save clip';
+    mmTrimDrawWave(); mmTrimSync();
+  } catch (err){
+    if (_mmTrim) ui.els.sub.textContent = 'Could not decode this file — use “Use full file” to upload it as-is.';
+    console.error('[mm] trim decode', err);
+  }
+}
 
 function mmPct(v, total){ return total > 0 ? (v / total * 100).toFixed(1) + '%' : '0.0%'; }
 

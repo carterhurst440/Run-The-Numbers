@@ -32047,3 +32047,27 @@ body[data-ui="new"] #bloom-chipBar .chip-rack-edit:hover {
 .admin-mm-snd-upload { margin: 0; }
 .admin-mm-snd-clear:hover { border-color: #ff7a9c; color: #ffd9e2; }
 .admin-mm-simmsg { color: #8ea; padding: 10px 2px; font-family: "JetBrains Mono", monospace; font-size: 12px; }
+
+/* Upload clip/trim tool */
+.mm-trim-overlay { position: fixed; inset: 0; z-index: 10000; display: none; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.74); }
+.mm-trim-overlay.is-open { display: flex; }
+.mm-trim-panel { width: min(680px, 92vw); background: #12140f; border: 1px solid rgba(47,208,110,.4);
+  border-radius: 12px; padding: 18px 18px 16px; box-shadow: 0 20px 60px rgba(0,0,0,.65); }
+.mm-trim-title { color: #eafff2; font-weight: 800; font-size: 15px; margin: 0 0 3px; }
+.mm-trim-sub { color: #8a97a0; font-size: 11px; font-family: "JetBrains Mono", monospace; margin: 0 0 14px; line-height: 1.4; }
+.mm-trim-wave-wrap { position: relative; height: 130px; background: #0a0c08; border: 1px solid rgba(255,255,255,.1);
+  border-radius: 8px; overflow: hidden; touch-action: none; cursor: ew-resize; user-select: none; }
+.mm-trim-canvas { display: block; width: 100%; height: 100%; }
+.mm-trim-shade { position: absolute; top: 0; bottom: 0; width: 0; background: rgba(2,4,2,.66); pointer-events: none; z-index: 2; }
+.mm-trim-shade.left { left: 0; }
+.mm-trim-shade.right { right: 0; }
+.mm-trim-handle { position: absolute; top: 0; bottom: 0; width: 14px; margin-left: -7px; z-index: 3; cursor: ew-resize; }
+.mm-trim-handle::before { content: ""; position: absolute; left: 6px; top: 0; bottom: 0; width: 2px; background: #2fd06e; box-shadow: 0 0 8px #2fd06e; }
+.mm-trim-handle::after { content: ""; position: absolute; left: 2px; top: 50%; width: 10px; height: 26px; transform: translateY(-50%); border-radius: 3px; background: #2fd06e; box-shadow: 0 0 8px rgba(47,208,110,.7); }
+.mm-trim-playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #ffcf4a; box-shadow: 0 0 6px #ffcf4a; pointer-events: none; display: none; z-index: 4; }
+.mm-trim-times { display: flex; justify-content: space-between; gap: 10px; margin: 11px 2px 14px;
+  color: #cfe6dc; font-family: "JetBrains Mono", monospace; font-size: 11px; }
+.mm-trim-times b { color: #2fd06e; font-weight: 700; }
+.mm-trim-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+.mm-trim-status { color: #8ea; font-size: 11px; font-family: "JetBrains Mono", monospace; margin-right: auto; }
