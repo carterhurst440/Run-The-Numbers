@@ -10533,8 +10533,10 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin actually opens the route — not on every page load.
     const frame = document.getElementById("monkey-moonshine-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/monkey-moonshine.html?v=20260709-bgsuspend");
+      frame.setAttribute("src", "games/monkey-moonshine.html?v=20260709-server");
     }
+    installMonkeyMoonshineBridge();   // idempotent: broker spins + push the wallet balance
+    mmSendInit();                     // refresh balance on re-open (first open waits for mm:ready)
   }
 
   if (PLAY_ASSISTANT_ROUTES.has(resolvedRoute)) {
@@ -19539,6 +19541,64 @@ const routeViews = {
   "bloom": bloomView,
   "monkey-moonshine": monkeyMoonshineView
 };
+
+// ── Monkey Moonshine server-play bridge ──────────────────────────────
+// The game runs in an isolated iframe (anon key only), so the shell brokers
+// every spin through the authoritative mm_play_spin RPC and pushes the wallet
+// balance in. Anti-spoof: the board + payout are decided server-side; the
+// iframe only supplies the wild + bet and replays the returned outcome.
+let _mmBridgeInstalled = false;
+function mmFrameWindow() {
+  const f = document.getElementById("monkey-moonshine-frame");
+  return f ? f.contentWindow : null;
+}
+function mmSendInit() {
+  const w = mmFrameWindow();
+  if (!w) return;
+  w.postMessage({ source: "mm-shell", type: "init", balance: Number(currentProfile?.credits ?? 0) }, "*");
+}
+async function mmHandleSpin(bet, wild) {
+  const w = mmFrameWindow();
+  if (!w) return;
+  if (!supabase || !currentUser?.id) {
+    w.postMessage({ source: "mm-shell", type: "error", reason: "not_authenticated" }, "*");
+    return;
+  }
+  try {
+    const { data, error } = await supabase.rpc("mm_play_spin", {
+      p_wild: String(wild || ""),
+      p_bet: Math.round(Number(bet)),
+      p_contest_id: null
+    });
+    if (error) {
+      const msg = String(error.message || "");
+      const reason = msg.includes("insufficient_funds") ? "insufficient_funds"
+                   : msg.includes("invalid_bet") ? "invalid_bet"
+                   : msg.includes("invalid_wild") ? "invalid_wild" : "spin_failed";
+      w.postMessage({ source: "mm-shell", type: "error", reason }, "*");
+      return;
+    }
+    // Authoritative wallet update → reflect the new balance across the shell.
+    if (data && typeof data.new_account_value === "number" && currentProfile) {
+      currentProfile.credits = data.new_account_value;
+      try { updateDashboardCreditsDisplay(currentProfile.credits); } catch (e) {}
+    }
+    w.postMessage({ source: "mm-shell", type: "result", payload: data }, "*");
+  } catch (e) {
+    w.postMessage({ source: "mm-shell", type: "error", reason: "spin_failed" }, "*");
+  }
+}
+function installMonkeyMoonshineBridge() {
+  if (_mmBridgeInstalled) return;
+  _mmBridgeInstalled = true;
+  window.addEventListener("message", (e) => {
+    const m = e && e.data;
+    if (!m || m.source !== "mm") return;
+    if (m.type === "ready") mmSendInit();
+    else if (m.type === "spin") mmHandleSpin(m.bet, m.wild);
+  });
+}
+
 const headerEl = document.querySelector(".header");
 const chipBarEl = runTheNumbersView ? runTheNumbersView.querySelector(".chip-bar") : null;
 const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout") : null;
