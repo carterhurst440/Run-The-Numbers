@@ -405,6 +405,10 @@ begin
     v_total_wagered, v_total_returned, v_pre, v_new
   ) returning id into v_spin_id;
 
+  -- Count this spin toward the player's qualifying-events progress (game_006)
+  -- and the profile spin counter / rank recompute. Mirrors the other games.
+  perform public.increment_profile_hands_played(v_uid, 1, 'game_006');
+
   return jsonb_build_object(
     'spin_id', v_spin_id,
     'wild', p_wild, 'wild_mult', v_wild_mult, 'cols', c_cols, 'base_rows', c_base_rows,
