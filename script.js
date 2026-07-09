@@ -342,6 +342,9 @@ function hydrateGameAssetLibrary() {
   const overrides = loadStoredGameAssetLibrary();
   gameAssetLibraryCache = Object.values(GAME_KEYS).reduce((next, gameKey) => {
     const defaults = DEFAULT_GAME_ASSET_LIBRARY[gameKey];
+    // Admin-only games (e.g. Monkey Moonshine / game_006) have no catalog card
+    // entry — skip them rather than crash on undefined defaults.
+    if (!defaults) return next;
     const override = overrides?.[gameKey];
     next[gameKey] = {
       ...defaults,
@@ -474,6 +477,7 @@ function persistGameAssetLibrary() {
   try {
     const payload = Object.values(GAME_KEYS).reduce((next, gameKey) => {
       const record = gameAssetLibraryCache[gameKey] || DEFAULT_GAME_ASSET_LIBRARY[gameKey];
+      if (!record) return next;   // admin-only games (game_006) have no asset entry
       next[gameKey] = {
         status: normalizeGameStatusForStorage(record.status, gameKey),
         logo_url: record.logo_url || DEFAULT_GAME_ASSET_LIBRARY[gameKey].logo_url,
