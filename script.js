@@ -10569,7 +10569,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin actually opens the route — not on every page load.
     const frame = document.getElementById("monkey-moonshine-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/monkey-moonshine.html?v=20260709-audiofix");
+      frame.setAttribute("src", "games/monkey-moonshine.html?v=20260709-maxbet");
     }
     installMonkeyMoonshineBridge();   // idempotent: broker spins + push the wallet balance
     mmSendInit();                     // refresh balance on re-open (first open waits for mm:ready)

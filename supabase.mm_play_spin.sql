@@ -252,9 +252,10 @@ begin
   if v_uid is null then
     raise exception 'not_authenticated' using errcode = '28000';
   end if;
-  if p_bet is null or p_bet < 1 or p_bet > 100 then
-    raise exception 'invalid_bet' using errcode = '22023', detail = 'bet must be an integer 1..100';
+  if p_bet is null or p_bet < 1 then
+    raise exception 'invalid_bet' using errcode = '22023', detail = 'bet must be a positive integer';
   end if;
+  -- No fixed max: the funds check below caps the bet at the player's balance.
 
   select deck, replace_deck, coalesce(mult, 1)
     into v_deck, v_replace, v_wild_mult
