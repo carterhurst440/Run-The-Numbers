@@ -2,10 +2,10 @@
 -- get_admin_activity_timeseries(p_start_at, p_end_at, p_bucket)
 --
 -- Returns bucketed event counts per game per user for the
--- admin activity chart. Covers all five live game tables:
+-- admin activity chart. Covers all six live game tables:
 --   rtn_live_hands, guess10_live_hands,
 --   shape_trader_trades, color_scheme_rounds,
---   fate_or_fortune_rounds
+--   fate_or_fortune_rounds, mm_spins
 --
 -- FOF rounds are realized at lock time, so they're bucketed by
 -- locked_at and counted only when status = 'resolved' (matching
@@ -109,6 +109,20 @@ begin
     where fr.locked_at >= p_start_at
       and fr.locked_at <= p_end_at
       and fr.status     = 'resolved'
+    group by 1, 2, 3
+
+    union all
+
+    -- Monkey Moonshine (MM) — admin-only slot; one row per spin
+    select
+      date_bin(p_bucket, ms.created_at, p_start_at),
+      'mm'::text,
+      ms.user_id,
+      count(*)::bigint
+    from public.mm_spins ms
+    where ms.created_at >= p_start_at
+      and ms.created_at <= p_end_at
+      and ms.status      = 'resolved'
     group by 1, 2, 3;
 end;
 $$;

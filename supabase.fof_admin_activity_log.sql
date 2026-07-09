@@ -193,6 +193,41 @@ begin
 
     union all
 
+    -- ── Monkey Moonshine spins ────────────────────────────────────────────
+    -- Emitted as a generic 'hand' with game_id 'game_006'. The wild fruit rides
+    -- in stopper_label and a Moonshine trigger in stopper_suit so the log UI can
+    -- surface them; one row per spin, all resolved.
+    select
+      'hand'::text as entry_type,
+      ms.id::text as id,
+      ms.created_at,
+      'game_006'::text as game_id,
+      case when ms.contest_id is null then 'normal' else 'contest' end as mode_type,
+      ms.contest_id,
+      null::integer as total_cards,
+      ms.wild as stopper_label,
+      case when ms.moonshine_triggered then 'moonshine' else null end as stopper_suit,
+      ms.total_wagered as total_wager,
+      ms.total_returned as total_paid,
+      ms.net_profit as net,
+      null::numeric as commission_kept,
+      ms.new_account_value,
+      null::jsonb as drawn_cards,
+      null::text as trade_side,
+      null::text as shape,
+      null::numeric as quantity,
+      null::numeric as total_value,
+      null::numeric as shape_price,
+      ms.net_profit,
+      null::text as event_type,
+      null::numeric as amount,
+      null::numeric as previous_balance
+    from public.mm_spins ms
+    where ms.user_id = target_user_id
+      and ms.status = 'resolved'
+
+    union all
+
     -- ── Account events ────────────────────────────────────────────────────
     select
       'account'::text as entry_type,

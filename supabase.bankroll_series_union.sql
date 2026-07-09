@@ -56,6 +56,10 @@ as $$
     from public.fate_or_fortune_rounds
     where user_id = p_user_id and status = 'resolved' and new_account_value is not null and coalesce(contest_id::text,'')=''
     union all
+    select created_at, new_account_value, 0, 'game_006'
+    from public.mm_spins
+    where user_id = p_user_id and status = 'resolved' and new_account_value is not null and coalesce(contest_id::text,'')=''
+    union all
     select created_at, new_balance, amount, event_type
     from public.account_events
     where user_id = p_user_id and event_type in ('rank_up_bonus','affiliate_signup') and new_balance is not null

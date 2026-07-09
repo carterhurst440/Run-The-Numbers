@@ -16,7 +16,8 @@ const GAME_KEYS = {
   GUESS_10: "game_002",
   SHAPE_TRADERS: "game_003",
   COLOR_SCHEME: "game_004",
-  FATE_OR_FORTUNE: "game_005"
+  FATE_OR_FORTUNE: "game_005",
+  MONKEY_MOONSHINE: "game_006"
 };
 
 const CONTEST_GAME_KEYS = [GAME_KEYS.RUN_THE_NUMBERS, GAME_KEYS.GUESS_10, GAME_KEYS.SHAPE_TRADERS, GAME_KEYS.COLOR_SCHEME, GAME_KEYS.FATE_OR_FORTUNE];
@@ -26,7 +27,8 @@ const GAME_LABELS = {
   [GAME_KEYS.GUESS_10]: "Guess 10",
   [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders",
   [GAME_KEYS.COLOR_SCHEME]: "Color Scheme",
-  [GAME_KEYS.FATE_OR_FORTUNE]: "Fate or Fortune"
+  [GAME_KEYS.FATE_OR_FORTUNE]: "Fate or Fortune",
+  [GAME_KEYS.MONKEY_MOONSHINE]: "Monkey Moonshine"
 };
 
 const GAME_ASSET_STORAGE_KEY = "rtn:game-assets";
@@ -185,6 +187,15 @@ function normalizeGameKey(value) {
     normalized === "fof"
   ) {
     return GAME_KEYS.FATE_OR_FORTUNE;
+  }
+  if (
+    normalized === GAME_KEYS.MONKEY_MOONSHINE ||
+    normalized === "monkey-moonshine" ||
+    normalized === "monkey_moonshine" ||
+    normalized === "monkeymoonshine" ||
+    normalized === "mm"
+  ) {
+    return GAME_KEYS.MONKEY_MOONSHINE;
   }
   return null;
 }
@@ -14924,7 +14935,8 @@ async function fetchContestJourneyEventStream(contestId, userId) {
       [GAME_KEYS.GUESS_10]: 0,
       [GAME_KEYS.SHAPE_TRADERS]: 0,
       [GAME_KEYS.COLOR_SCHEME]: 0,
-      [GAME_KEYS.FATE_OR_FORTUNE]: 0
+      [GAME_KEYS.FATE_OR_FORTUNE]: 0,
+      [GAME_KEYS.MONKEY_MOONSHINE]: 0
     };
     return eventStream.map((event, index) => {
       gameCounters[event.gameKey] = (gameCounters[event.gameKey] || 0) + 1;
@@ -14939,6 +14951,8 @@ async function fetchContestJourneyEventStream(contestId, userId) {
         label = `RYB ${gameCounters[event.gameKey]}`;
       } else if (event.gameKey === GAME_KEYS.FATE_OR_FORTUNE) {
         label = `FOF ${gameCounters[event.gameKey]}`;
+      } else if (event.gameKey === GAME_KEYS.MONKEY_MOONSHINE) {
+        label = `MM ${gameCounters[event.gameKey]}`;
       }
       return { label, value: event.value, created_at: event.created_at };
     });
@@ -20309,6 +20323,7 @@ const ADMIN_ACTIVITY_GAME_COLORS = {
   st:  "#ff6600",
   ryb: "#cc44ff",
   fof: "#ffc400",
+  mm:  "#66ffcc",
 };
 const ADMIN_ACTIVITY_PLAYER_PALETTE = [
   "#00ff88", "#00aaff", "#ff6600", "#cc44ff",
@@ -20316,7 +20331,7 @@ const ADMIN_ACTIVITY_PLAYER_PALETTE = [
   "#88ff00", "#ff00aa", "#00ffbb", "#aa00ff",
 ];
 let adminActivityPeriod = "1m";
-let adminActivityGameFilter = new Set(["rtn", "g10", "st", "ryb", "fof"]);
+let adminActivityGameFilter = new Set(["rtn", "g10", "st", "ryb", "fof", "mm"]);
 let adminActivityLineMode = "aggregate";
 let adminActivitySelectedPlayers = new Set();
 let adminActivityRawData = [];
@@ -20498,7 +20513,8 @@ let activityLogSelectedGames = new Set([
   GAME_KEYS.GUESS_10,
   GAME_KEYS.SHAPE_TRADERS,
   GAME_KEYS.COLOR_SCHEME,
-  GAME_KEYS.FATE_OR_FORTUNE
+  GAME_KEYS.FATE_OR_FORTUNE,
+  GAME_KEYS.MONKEY_MOONSHINE
 ]);
 let activityLogTradeFilter = "all";
 let playerActivityLogEntries = [];
@@ -20513,7 +20529,8 @@ let playerActivityLogSelectedGames = new Set([
   GAME_KEYS.GUESS_10,
   GAME_KEYS.SHAPE_TRADERS,
   GAME_KEYS.COLOR_SCHEME,
-  GAME_KEYS.FATE_OR_FORTUNE
+  GAME_KEYS.FATE_OR_FORTUNE,
+  GAME_KEYS.MONKEY_MOONSHINE
 ]);
 let playerActivityLogTradeFilter = "all";
 let handReviewModalTrigger = null;
@@ -23233,13 +23250,61 @@ async function fetchGameHandsRecords({
     return fofRecords;
   };
 
-  const [rtnRecords, g10Records, csRecords, fofRecords] = await Promise.all([
+  const fetchMonkeyMoonshineSpinsRecords = async () => {
+    if (!supabase) return [];
+    const mmRecords = [];
+    const mmPageSize = 1000;
+    let mmPage = 0;
+    let mmHasMore = true;
+    while (mmHasMore) {
+      let query = supabase
+        .from("mm_spins")
+        .select("id, user_id, created_at, contest_id, wild, moonshine_triggered, total_wagered, total_returned, net_profit, new_account_value")
+        .eq("status", "resolved")
+        .order("created_at", { ascending: true })
+        .range(mmPage * mmPageSize, (mmPage + 1) * mmPageSize - 1);
+      if (startAt) query = query.gte("created_at", startAt.toISOString());
+      if (endAt) query = query.lte("created_at", endAt.toISOString());
+      if (Array.isArray(userIds) && userIds.length > 0) query = query.in("user_id", userIds);
+      const { data, error } = await query;
+      if (error) {
+        if (isMissingRelationError(error, "mm_spins")) return [];
+        throw error;
+      }
+      const rows = Array.isArray(data) ? data : [];
+      rows.forEach(row => {
+        mmRecords.push({
+          id: row.id,
+          user_id: row.user_id,
+          created_at: row.created_at,
+          game_id: GAME_KEYS.MONKEY_MOONSHINE,
+          mode_type: row.contest_id ? "contest" : "normal",
+          contest_id: row.contest_id || null,
+          total_cards: 0,
+          stopper_label: row.wild || null,
+          stopper_suit: row.moonshine_triggered ? "moonshine" : null,
+          total_wager: row.total_wagered || 0,
+          total_paid: row.total_returned || 0,
+          net: row.net_profit || 0,
+          commission_kept: 0,
+          new_account_value: row.new_account_value || 0,
+          drawn_cards: []
+        });
+      });
+      mmHasMore = rows.length === mmPageSize;
+      mmPage += 1;
+    }
+    return mmRecords;
+  };
+
+  const [rtnRecords, g10Records, csRecords, fofRecords, mmRecords] = await Promise.all([
     fetchRtnLiveHandRecords(),
     fetchGuess10LiveHandsRecords(),
     fetchColorSchemeRoundsRecords(),
-    fetchFateOrFortuneRoundsRecords()
+    fetchFateOrFortuneRoundsRecords(),
+    fetchMonkeyMoonshineSpinsRecords()
   ]);
-  return [...allRecords, ...rtnRecords, ...g10Records, ...csRecords, ...fofRecords]
+  return [...allRecords, ...rtnRecords, ...g10Records, ...csRecords, ...fofRecords, ...mmRecords]
     .sort((left, right) => new Date(left?.created_at || 0).getTime() - new Date(right?.created_at || 0).getTime());
 }
 
@@ -28129,6 +28194,15 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
         clickAttr = ` data-hand-review-id="${escapeAssistantHtml(entry.handId)}"`;
         isClickable = true;
       }
+    } else if (entry.gameKey === GAME_KEYS.MONKEY_MOONSHINE) {
+      // Monkey Moonshine spins (entryType:"hand"). No hand-review modal.
+      game = "MM";
+      shortId = entry.handNumber || entry.handId?.slice(-4) || entry.id?.split(":")[1]?.slice(-4) || "—";
+      modeLabel = (entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL";
+      net = Number(entry.net ?? 0);
+      netClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
+      netText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
+      bal = entry.newAccountValue ?? null;
     } else if (entry.gameKey === GAME_KEYS.FATE_OR_FORTUNE) {
       // Fate or Fortune (entryType:"hand"). No hand-review modal, so not clickable.
       game = "FOF";
@@ -38053,7 +38127,7 @@ function formatAdminActivityLabel(bucketIso) {
 }
 
 function buildAdminActivitySeries() {
-  const activeGames = ["rtn", "g10", "st", "ryb", "fof"].filter(g => adminActivityGameFilter.has(g));
+  const activeGames = ["rtn", "g10", "st", "ryb", "fof", "mm"].filter(g => adminActivityGameFilter.has(g));
   const activePlayers = adminActivitySelectedPlayers.size > 0
     ? adminActivityPlayers.filter(p => adminActivitySelectedPlayers.has(p.userId))
     : adminActivityPlayers;
@@ -41237,7 +41311,15 @@ function renderHomeSidebarActivity() {
     let isTrade = false;
     let suppressReview = false;
 
-    if (entry.gameKey === GAME_KEYS.FATE_OR_FORTUNE) {
+    if (entry.gameKey === GAME_KEYS.MONKEY_MOONSHINE) {
+      // MM spins have no hand-review modal, so render non-clickable.
+      suppressReview = true;
+      const handNum = entry.handNumber || entry.handId?.slice(-4) || entry.id?.split(":")[1]?.slice(-4) || "—";
+      label = `MM · <b>#${escapeAssistantHtml(String(handNum))}</b>`;
+      const net = Number(entry.net ?? 0);
+      resultClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
+      resultText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
+    } else if (entry.gameKey === GAME_KEYS.FATE_OR_FORTUNE) {
       // FOF rounds have no hand-review modal, so render non-clickable.
       suppressReview = true;
       const handNum = entry.handNumber || entry.handId?.slice(-4) || "—";

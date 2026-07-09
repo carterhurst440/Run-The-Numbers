@@ -103,6 +103,21 @@ as $$
     and status     = 'resolved'
     and new_account_value is not null
 
+  union all
+
+  -- Monkey Moonshine resolved spins
+  select
+    id::text               as event_id,
+    created_at,
+    new_account_value,
+    'game_006'             as game_key,
+    'round'                as source_type
+  from public.mm_spins
+  where user_id    = p_user_id
+    and contest_id = p_contest_id
+    and status     = 'resolved'
+    and new_account_value is not null
+
   order by created_at asc;
 $$;
 
