@@ -25,7 +25,8 @@ returns table (
   pnl_rtn           numeric,
   pnl_g10           numeric,
   pnl_shape_traders numeric,
-  pnl_ryb           numeric
+  pnl_ryb           numeric,
+  pnl_mm            numeric
 )
 language plpgsql
 security definer
@@ -101,6 +102,21 @@ begin
     group by 1, 2, 3
   ),
 
+  mm_data as (
+    select
+      date_bin(p_bucket, created_at, p_start_at)                   as ts,
+      case when contest_id is null then 'normal' else 'contest' end as grp_mode,
+      ms.user_id                                                    as grp_user,
+      sum(coalesce(net_profit, 0))::numeric                        as pnl
+    from public.mm_spins ms
+    where created_at >= p_start_at
+      and created_at <= p_end_at
+      and status = 'resolved'
+      and case when contest_id is null then 'normal' else 'contest' end = any(p_modes)
+      and (p_user_id is null or ms.user_id = p_user_id)
+    group by 1, 2, 3
+  ),
+
   spine as (
     select ts, grp_mode, grp_user from rtn_data
     union
@@ -109,6 +125,8 @@ begin
     select ts, grp_mode, grp_user from st_data
     union
     select ts, grp_mode, grp_user from ryb_data
+    union
+    select ts, grp_mode, grp_user from mm_data
   )
 
   select
@@ -118,12 +136,14 @@ begin
     coalesce(r.pnl,  0)          as pnl_rtn,
     coalesce(g.pnl,  0)          as pnl_g10,
     coalesce(s.pnl,  0)          as pnl_shape_traders,
-    coalesce(y.pnl,  0)          as pnl_ryb
+    coalesce(y.pnl,  0)          as pnl_ryb,
+    coalesce(m.pnl,  0)          as pnl_mm
   from spine sp
   left join rtn_data r on r.ts = sp.ts and r.grp_mode = sp.grp_mode and r.grp_user = sp.grp_user
   left join g10_data g on g.ts = sp.ts and g.grp_mode = sp.grp_mode and g.grp_user = sp.grp_user
   left join st_data  s on s.ts = sp.ts and s.grp_mode = sp.grp_mode and s.grp_user = sp.grp_user
-  left join ryb_data y on y.ts = sp.ts and y.grp_mode = sp.grp_mode and y.grp_user = sp.grp_user;
+  left join ryb_data y on y.ts = sp.ts and y.grp_mode = sp.grp_mode and y.grp_user = sp.grp_user
+  left join mm_data  m on m.ts = sp.ts and m.grp_mode = sp.grp_mode and m.grp_user = sp.grp_user;
 end;
 $$;
 

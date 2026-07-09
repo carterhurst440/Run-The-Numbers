@@ -20351,7 +20351,7 @@ const ADMIN_PNL_PERIODS = {
   "1y":  { label: "1Y",   useLive: false, days: 365 },
 };
 let adminPnlPeriod       = "1w";
-let adminPnlGameFilter   = new Set(["rtn", "g10", "st", "ryb"]);
+let adminPnlGameFilter   = new Set(["rtn", "g10", "st", "ryb", "mm"]);
 let adminPnlModes        = new Set(["normal", "contest"]);
 let adminPnlSelectedPlayer = null; // uuid string or null = all players
 let adminPnlChartInst    = null;
@@ -23500,7 +23500,7 @@ async function fetchDailyProfitLossRows(userId) {
   while (hasMore) {
     const { data, error } = await supabase
       .from("daily_profit_loss")
-      .select("profit_date, mode, pnl_total, pnl_rtn, pnl_g10, pnl_shape_traders, pnl_ryb, pnl_fof")
+      .select("profit_date, mode, pnl_total, pnl_rtn, pnl_g10, pnl_shape_traders, pnl_ryb, pnl_fof, pnl_mm")
       .eq("user_id", userId)
       .order("profit_date", { ascending: true })
       .range(page * pageSize, (page + 1) * pageSize - 1);
@@ -23525,9 +23525,9 @@ async function fetchDailyProfitLossRows(userId) {
     if (!agg[key]) {
       agg[key] = {
         profit_date: key,
-        pnl_total: 0, pnl_rtn: 0, pnl_g10: 0, pnl_shape_traders: 0, pnl_ryb: 0, pnl_fof: 0,
-        normal_pnl_total: 0, normal_pnl_rtn: 0, normal_pnl_g10: 0, normal_pnl_shape_traders: 0, normal_pnl_ryb: 0, normal_pnl_fof: 0,
-        contest_pnl_total: 0, contest_pnl_rtn: 0, contest_pnl_g10: 0, contest_pnl_shape_traders: 0, contest_pnl_ryb: 0, contest_pnl_fof: 0
+        pnl_total: 0, pnl_rtn: 0, pnl_g10: 0, pnl_shape_traders: 0, pnl_ryb: 0, pnl_fof: 0, pnl_mm: 0,
+        normal_pnl_total: 0, normal_pnl_rtn: 0, normal_pnl_g10: 0, normal_pnl_shape_traders: 0, normal_pnl_ryb: 0, normal_pnl_fof: 0, normal_pnl_mm: 0,
+        contest_pnl_total: 0, contest_pnl_rtn: 0, contest_pnl_g10: 0, contest_pnl_shape_traders: 0, contest_pnl_ryb: 0, contest_pnl_fof: 0, contest_pnl_mm: 0
       };
     }
     const d = agg[key];
@@ -23538,6 +23538,7 @@ async function fetchDailyProfitLossRows(userId) {
     d.pnl_shape_traders += Number(row.pnl_shape_traders || 0);
     d.pnl_ryb           += Number(row.pnl_ryb           || 0);
     d.pnl_fof           += Number(row.pnl_fof           || 0);
+    d.pnl_mm            += Number(row.pnl_mm            || 0);
     if (isContest) {
       d.contest_pnl_total         += Number(row.pnl_total         || 0);
       d.contest_pnl_rtn           += Number(row.pnl_rtn           || 0);
@@ -23545,6 +23546,7 @@ async function fetchDailyProfitLossRows(userId) {
       d.contest_pnl_shape_traders += Number(row.pnl_shape_traders || 0);
       d.contest_pnl_ryb           += Number(row.pnl_ryb           || 0);
       d.contest_pnl_fof           += Number(row.pnl_fof           || 0);
+      d.contest_pnl_mm            += Number(row.pnl_mm            || 0);
     } else {
       d.normal_pnl_total         += Number(row.pnl_total         || 0);
       d.normal_pnl_rtn           += Number(row.pnl_rtn           || 0);
@@ -23552,6 +23554,7 @@ async function fetchDailyProfitLossRows(userId) {
       d.normal_pnl_shape_traders += Number(row.pnl_shape_traders || 0);
       d.normal_pnl_ryb           += Number(row.pnl_ryb           || 0);
       d.normal_pnl_fof           += Number(row.pnl_fof           || 0);
+      d.normal_pnl_mm            += Number(row.pnl_mm            || 0);
     }
   });
   return Object.values(agg).sort((a, b) => a.profit_date.localeCompare(b.profit_date));
@@ -23845,6 +23848,9 @@ function getBankrollChartGameValue(point) {
   }
   if (bankrollChartGameFilter === GAME_KEYS.FATE_OR_FORTUNE) {
     return roundCurrencyValue(Number(point[modeKey("pnlFof")] || 0));
+  }
+  if (bankrollChartGameFilter === GAME_KEYS.MONKEY_MOONSHINE) {
+    return roundCurrencyValue(Number(point[modeKey("pnlMm")] || 0));
   }
   return roundCurrencyValue(Number(point[modeKey("pnlTotal")] || 0));
 }
@@ -24176,7 +24182,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
       // Fetch all sources for today's live data.
       // NOTE: todayRtnLive already covers rtn_live_hands, so we do NOT also
       // pull RTN hands separately here.
-      const [todayRtnLive, todayG10Live, todayTrades, todayCsRounds, todayFofRounds] = await Promise.all([
+      const [todayRtnLive, todayG10Live, todayTrades, todayCsRounds, todayFofRounds, todayMmSpins] = await Promise.all([
         (async () => {
           const { data } = await supabase
             .from("rtn_live_hands")
@@ -24223,13 +24229,23 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
             .gte("locked_at", liveTodayStart.toISOString())
             .lte("locked_at", liveTodayEnd.toISOString());
           return Array.isArray(data) ? data : [];
+        })(),
+        (async () => {
+          const { data } = await supabase
+            .from("mm_spins")
+            .select("created_at, net_profit, contest_id")
+            .eq("user_id", currentUser.id)
+            .eq("status", "resolved")
+            .gte("created_at", liveTodayStart.toISOString())
+            .lte("created_at", liveTodayEnd.toISOString());
+          return Array.isArray(data) ? data : [];
         })()
       ]);
 
       const liveToday = {
-        pnlTotal: 0, pnlRtn: 0, pnlG10: 0, pnlShapeTraders: 0, pnlRyb: 0, pnlFof: 0,
-        normalPnlTotal: 0, normalPnlRtn: 0, normalPnlG10: 0, normalPnlShapeTraders: 0, normalPnlRyb: 0, normalPnlFof: 0,
-        contestPnlTotal: 0, contestPnlRtn: 0, contestPnlG10: 0, contestPnlShapeTraders: 0, contestPnlRyb: 0, contestPnlFof: 0
+        pnlTotal: 0, pnlRtn: 0, pnlG10: 0, pnlShapeTraders: 0, pnlRyb: 0, pnlFof: 0, pnlMm: 0,
+        normalPnlTotal: 0, normalPnlRtn: 0, normalPnlG10: 0, normalPnlShapeTraders: 0, normalPnlRyb: 0, normalPnlFof: 0, normalPnlMm: 0,
+        contestPnlTotal: 0, contestPnlRtn: 0, contestPnlG10: 0, contestPnlShapeTraders: 0, contestPnlRyb: 0, contestPnlFof: 0, contestPnlMm: 0
       };
 
       // All hands — split by contest_id for mode tracking
@@ -24289,14 +24305,25 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
         else liveToday.normalPnlFof = roundCurrencyValue(liveToday.normalPnlFof + net);
       });
 
+      // Monkey Moonshine spins — atomic (resolved at play time), split by contest_id
+      todayMmSpins.forEach((row) => {
+        const dayKey = formatAnalyticsDateKey(row?.created_at);
+        if (dayKey !== todayKey) return;
+        const net = roundCurrencyValue(Number(row?.net_profit || 0));
+        const isContest = !!row?.contest_id;
+        liveToday.pnlMm = roundCurrencyValue(liveToday.pnlMm + net);
+        if (isContest) liveToday.contestPnlMm = roundCurrencyValue(liveToday.contestPnlMm + net);
+        else liveToday.normalPnlMm = roundCurrencyValue(liveToday.normalPnlMm + net);
+      });
+
       liveToday.pnlTotal = roundCurrencyValue(
-        liveToday.pnlRtn + liveToday.pnlG10 + liveToday.pnlShapeTraders + liveToday.pnlRyb + liveToday.pnlFof
+        liveToday.pnlRtn + liveToday.pnlG10 + liveToday.pnlShapeTraders + liveToday.pnlRyb + liveToday.pnlFof + liveToday.pnlMm
       );
       liveToday.normalPnlTotal = roundCurrencyValue(
-        liveToday.normalPnlRtn + liveToday.normalPnlG10 + liveToday.normalPnlShapeTraders + liveToday.normalPnlRyb + liveToday.normalPnlFof
+        liveToday.normalPnlRtn + liveToday.normalPnlG10 + liveToday.normalPnlShapeTraders + liveToday.normalPnlRyb + liveToday.normalPnlFof + liveToday.normalPnlMm
       );
       liveToday.contestPnlTotal = roundCurrencyValue(
-        liveToday.contestPnlRtn + liveToday.contestPnlG10 + liveToday.contestPnlShapeTraders + liveToday.contestPnlRyb + liveToday.contestPnlFof
+        liveToday.contestPnlRtn + liveToday.contestPnlG10 + liveToday.contestPnlShapeTraders + liveToday.contestPnlRyb + liveToday.contestPnlFof + liveToday.contestPnlMm
       );
 
       const historicalRows = snapshotRows
@@ -24310,18 +24337,21 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
           pnlShapeTraders: roundCurrencyValue(Number(row?.pnl_shape_traders || 0)),
           pnlRyb: roundCurrencyValue(Number(row?.pnl_ryb || 0)),
           pnlFof: roundCurrencyValue(Number(row?.pnl_fof || 0)),
+          pnlMm: roundCurrencyValue(Number(row?.pnl_mm || 0)),
           normalPnlTotal: roundCurrencyValue(Number(row?.normal_pnl_total || 0)),
           normalPnlRtn: roundCurrencyValue(Number(row?.normal_pnl_rtn || 0)),
           normalPnlG10: roundCurrencyValue(Number(row?.normal_pnl_g10 || 0)),
           normalPnlShapeTraders: roundCurrencyValue(Number(row?.normal_pnl_shape_traders || 0)),
           normalPnlRyb: roundCurrencyValue(Number(row?.normal_pnl_ryb || 0)),
           normalPnlFof: roundCurrencyValue(Number(row?.normal_pnl_fof || 0)),
+          normalPnlMm: roundCurrencyValue(Number(row?.normal_pnl_mm || 0)),
           contestPnlTotal: roundCurrencyValue(Number(row?.contest_pnl_total || 0)),
           contestPnlRtn: roundCurrencyValue(Number(row?.contest_pnl_rtn || 0)),
           contestPnlG10: roundCurrencyValue(Number(row?.contest_pnl_g10 || 0)),
           contestPnlShapeTraders: roundCurrencyValue(Number(row?.contest_pnl_shape_traders || 0)),
           contestPnlRyb: roundCurrencyValue(Number(row?.contest_pnl_ryb || 0)),
           contestPnlFof: roundCurrencyValue(Number(row?.contest_pnl_fof || 0)),
+          contestPnlMm: roundCurrencyValue(Number(row?.contest_pnl_mm || 0)),
           fallbackIndex: index
         }))
         .filter((row) => row.dayKey);
@@ -24339,7 +24369,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
       // No snapshots — build from raw records.
       // NOTE: allRtnLive already covers rtn_live_hands, so we do NOT also
       // pull RTN hands separately here.
-      const [allRtnLive, allG10Live, allTrades, allCsRounds, allFofRounds] = await Promise.all([
+      const [allRtnLive, allG10Live, allTrades, allCsRounds, allFofRounds, allMmSpins] = await Promise.all([
         (async () => {
           const { data } = await supabase
             .from("rtn_live_hands")
@@ -24380,6 +24410,15 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
             .not("locked_at", "is", null)
             .order("locked_at", { ascending: true });
           return Array.isArray(data) ? data : [];
+        })(),
+        (async () => {
+          const { data } = await supabase
+            .from("mm_spins")
+            .select("created_at, net_profit, contest_id")
+            .eq("user_id", currentUser.id)
+            .eq("status", "resolved")
+            .order("created_at", { ascending: true });
+          return Array.isArray(data) ? data : [];
         })()
       ]);
 
@@ -24390,9 +24429,9 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
         if (!dailyTotals.has(dayKey)) {
           dailyTotals.set(dayKey, {
             dayKey, created_at: createdAt,
-            pnlTotal: 0, pnlRtn: 0, pnlG10: 0, pnlShapeTraders: 0, pnlRyb: 0, pnlFof: 0,
-            normalPnlTotal: 0, normalPnlRtn: 0, normalPnlG10: 0, normalPnlShapeTraders: 0, normalPnlRyb: 0, normalPnlFof: 0,
-            contestPnlTotal: 0, contestPnlRtn: 0, contestPnlG10: 0, contestPnlShapeTraders: 0, contestPnlRyb: 0, contestPnlFof: 0
+            pnlTotal: 0, pnlRtn: 0, pnlG10: 0, pnlShapeTraders: 0, pnlRyb: 0, pnlFof: 0, pnlMm: 0,
+            normalPnlTotal: 0, normalPnlRtn: 0, normalPnlG10: 0, normalPnlShapeTraders: 0, normalPnlRyb: 0, normalPnlFof: 0, normalPnlMm: 0,
+            contestPnlTotal: 0, contestPnlRtn: 0, contestPnlG10: 0, contestPnlShapeTraders: 0, contestPnlRyb: 0, contestPnlFof: 0, contestPnlMm: 0
           });
         }
         return dailyTotals.get(dayKey);
@@ -24456,12 +24495,24 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
         else bucket.normalPnlFof = roundCurrencyValue(bucket.normalPnlFof + net);
       });
 
+      // Monkey Moonshine spins — atomic (resolved at play time), split by contest_id
+      allMmSpins.forEach((row) => {
+        const dayKey = formatAnalyticsDateKey(row?.created_at);
+        if (!dayKey) return;
+        const bucket = ensureDay(dayKey, row?.created_at || `${dayKey}T12:00:00`);
+        const net = roundCurrencyValue(Number(row?.net_profit || 0));
+        const isContest = !!row?.contest_id;
+        bucket.pnlMm = roundCurrencyValue(bucket.pnlMm + net);
+        if (isContest) bucket.contestPnlMm = roundCurrencyValue(bucket.contestPnlMm + net);
+        else bucket.normalPnlMm = roundCurrencyValue(bucket.normalPnlMm + net);
+      });
+
       persistentBankrollHistory = Array.from(dailyTotals.values())
         .map((row, index) => ({
           ...row,
-          pnlTotal: roundCurrencyValue(row.pnlRtn + row.pnlG10 + row.pnlShapeTraders + row.pnlRyb + row.pnlFof),
-          normalPnlTotal: roundCurrencyValue(row.normalPnlRtn + row.normalPnlG10 + row.normalPnlShapeTraders + row.normalPnlRyb + row.normalPnlFof),
-          contestPnlTotal: roundCurrencyValue(row.contestPnlRtn + row.contestPnlG10 + row.contestPnlShapeTraders + row.contestPnlRyb + row.contestPnlFof),
+          pnlTotal: roundCurrencyValue(row.pnlRtn + row.pnlG10 + row.pnlShapeTraders + row.pnlRyb + row.pnlFof + row.pnlMm),
+          normalPnlTotal: roundCurrencyValue(row.normalPnlRtn + row.normalPnlG10 + row.normalPnlShapeTraders + row.normalPnlRyb + row.normalPnlFof + row.normalPnlMm),
+          contestPnlTotal: roundCurrencyValue(row.contestPnlRtn + row.contestPnlG10 + row.contestPnlShapeTraders + row.contestPnlRyb + row.contestPnlFof + row.contestPnlMm),
           fallbackIndex: index
         }))
         .sort((left, right) => String(left.dayKey).localeCompare(String(right.dayKey)));
@@ -38320,6 +38371,7 @@ function _apnlSumGames(row) {
   if (adminPnlGameFilter.has("g10")) total += Number(row.pnl_g10           || 0);
   if (adminPnlGameFilter.has("st"))  total += Number(row.pnl_shape_traders || 0);
   if (adminPnlGameFilter.has("ryb")) total += Number(row.pnl_ryb           || 0);
+  if (adminPnlGameFilter.has("mm"))  total += Number(row.pnl_mm            || 0);
   return total;
 }
 
