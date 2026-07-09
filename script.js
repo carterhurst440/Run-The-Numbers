@@ -31904,19 +31904,32 @@ const MmSynth = (() => {
   const R = (a,b)=> a + (b-a)*Math.random();
   const RI = (a,b)=> Math.floor(R(a,b+1));
   const pick = (arr)=> arr[Math.floor(Math.random()*arr.length)];
+  const chance = (p)=> Math.random() < p;
   const OSC = ['sine','triangle','square','sawtooth'];
+  const NFILT = ['highpass','bandpass','lowpass'];
+  // Generators roll structure (layer counts, filter types, sweeps), not just
+  // small param jitter, so each New Synth is audibly different.
   const GEN = {
-    shake:()=>{ const f1=R(1300,2500), d1=R(0.34,0.6), f2=R(2400,3900), d2=R(0.3,0.5), lo=R(70,120); return (s)=>{ s.hit({dur:d1,peak:0.32,type:'highpass',freq:f1,q:0.5}); s.hit({t:0.02,dur:d2,peak:0.2,type:'bandpass',freq:f2,q:0.8}); s.beep(lo,{dur:0.14,peak:0.12,to:lo*0.6}); }; },
-    rowClunk:()=>{ const f=R(110,200), d=R(0.12,0.2), lp=R(280,520); return (s)=>{ s.beep(f,{dur:d,peak:0.32,to:f*0.36}); s.hit({dur:0.12,peak:0.4,type:'lowpass',freq:lp,q:1}); }; },
-    lineMatch:()=>{ const root=R(392,660), steps=pick([[0,4,7,12],[0,3,7,10],[0,5,7,12],[0,4,7,11]]), type=pick(['triangle','sine','square']), sp=R(0.04,0.07); return (s)=>{ steps.forEach((n,i)=> s.beep(root*Math.pow(2,n/12),{type,t:i*sp,dur:0.16,peak:0.15})); }; },
-    wildLand:()=>{ const base=R(700,980), type=pick(['triangle','sine']); return (s)=>{ s.beep(base,{type,dur:0.42,peak:0.19}); s.beep(base*1.5,{dur:0.5,t:0.02,peak:0.11}); s.beep(base*2,{dur:0.4,t:0.04,peak:0.06}); }; },
-    monkeyWild:()=>{ const a=R(300,460), b=R(950,1300), c=R(680,900), o=pick(['sawtooth','square']); return (s)=>{ s.beep(a,{type:o,dur:0.16,peak:0.15,to:b}); s.beep(b,{type:o,t:0.15,dur:0.2,peak:0.13,to:a*1.4}); s.beep(c,{type:'square',t:0.3,dur:0.12,peak:0.09,to:c*1.2}); }; },
-    extraShake:()=>{ const a=R(280,400), type=pick(['square','triangle','sawtooth']); return (s)=>{ s.beep(a,{type,dur:0.34,peak:0.12,to:a*2}); s.beep(a*2,{t:0.1,dur:0.4,peak:0.12,to:a*3}); s.beep(a*3,{type:'triangle',t:0.24,dur:0.3,peak:0.09}); }; },
-    whoosh:()=>{ const f=R(380,640), to=R(2100,3000), tip=R(1300,1800); return (s)=>{ s.hit({dur:0.34,peak:0.3,type:'bandpass',freq:f,q:0.6,to}); s.beep(tip,{t:0.3,dur:0.14,peak:0.13}); }; },
-    coconutRow:()=>{ const start=R(180,240), stepDn=R(6,12), sp=R(0.07,0.11), lp=R(560,820); return (s)=>{ for(let i=0;i<5;i++){ s.beep(start-i*stepDn,{t:i*sp,dur:0.14,peak:0.3,to:80}); s.hit({t:i*sp,dur:0.07,peak:0.17,type:'lowpass',freq:lp}); } }; },
-    moonshine:()=>{ const root=R(233,294), type=pick(['sawtooth','square','triangle']); return (s)=>{ [0,4,7,12].forEach((n,i)=> s.beep(root*Math.pow(2,n/12),{type,t:i*0.06,dur:1.2,peak:0.1})); s.hit({dur:1.0,peak:0.2,type:'bandpass',freq:R(240,360),q:0.4,to:2200}); s.beep(root*2,{type:'triangle',t:0.5,dur:0.9,peak:0.11}); s.beep(root*3,{type:'triangle',t:0.7,dur:0.7,peak:0.09}); }; },
-    uiClick:()=>{ const hi=R(1200,1900), lo=R(700,1000), type=pick(['sine','triangle','square']); return (s)=>{ s.beep(hi,{type:'sine',dur:0.035,peak:0.09}); s.beep(lo,{type,t:0.012,dur:0.05,peak:0.07}); }; },
-    coin:()=>{ const a=R(1150,1500), type=pick(['square','triangle']); return (s)=>{ s.beep(a,{type,dur:0.08,peak:0.11}); s.beep(a*1.5,{type,t:0.06,dur:0.17,peak:0.1}); s.beep(a*2,{type:'sine',t:0.06,dur:0.14,peak:0.05}); }; },
+    shake:()=>{
+      const layers = RI(1,3), specs = [];
+      for (let i=0;i<layers;i++){
+        const freq = R(500,5400);
+        specs.push({ t:i*R(0,0.05), dur:R(0.18,0.8), peak:R(0.16,0.34),
+          type:pick(NFILT), freq, q:R(0.3,5), to: chance(0.55) ? freq*R(0.3,2.8) : null });
+      }
+      const thump = chance(0.55) ? R(55,150) : null;
+      return (s)=>{ specs.forEach(x=> s.hit(x)); if (thump) s.beep(thump,{dur:0.14,peak:0.13,to:thump*0.6}); };
+    },
+    rowClunk:()=>{ const f=R(75,270), d=R(0.1,0.3), to=f*R(0.2,0.6), type=pick(['sine','triangle','square']), lp=R(200,820), hd=R(0.08,0.22), hp=R(0.26,0.5); return (s)=>{ s.beep(f,{type,dur:d,peak:0.32,to}); s.hit({dur:hd,peak:hp,type:'lowpass',freq:lp,q:R(0.6,2)}); }; },
+    lineMatch:()=>{ const root=R(280,780), pats=[[0,4,7,12],[0,3,7,10],[0,5,7,12],[0,4,7,11],[0,2,4,7,11],[0,7,12,16],[0,3,5,7,10]]; let steps=pick(pats).slice(); if (chance(0.4)) steps.reverse(); const type=pick(OSC), sp=R(0.03,0.1), pk=R(0.11,0.2); return (s)=>{ steps.forEach((n,i)=> s.beep(root*Math.pow(2,n/12),{type,t:i*sp,dur:R(0.12,0.22),peak:pk})); }; },
+    wildLand:()=>{ const base=R(480,1150), type=pick(['triangle','sine','square']), n=RI(2,4), dur=R(0.3,0.62), spread=R(0.4,0.75); return (s)=>{ for (let i=0;i<n;i++) s.beep(base*(1+i*spread),{type,dur,t:i*R(0.02,0.06),peak:0.2/(i+1)}); }; },
+    monkeyWild:()=>{ const a=R(240,540), b=R(780,1500), c=R(560,980), o=pick(['sawtooth','square','triangle']); return (s)=>{ s.beep(a,{type:o,dur:R(0.14,0.22),peak:0.15,to:b}); s.beep(b,{type:o,t:0.15,dur:R(0.16,0.26),peak:0.13,to:a*R(1.1,1.7)}); s.beep(c,{type:'square',t:0.3,dur:0.12,peak:0.09,to:c*R(0.8,1.4)}); }; },
+    extraShake:()=>{ const a=R(200,440), r=R(1.35,2.2), type=pick(['square','triangle','sawtooth']); return (s)=>{ s.beep(a,{type,dur:0.34,peak:0.12,to:a*r}); s.beep(a*r,{t:0.1,dur:0.4,peak:0.12,to:a*r*r}); s.beep(a*r*r,{type:'triangle',t:0.24,dur:0.3,peak:0.09}); }; },
+    whoosh:()=>{ const f=R(280,780), to=R(1300,3600), q=R(0.3,1.4), dur=R(0.24,0.58), type=pick(['bandpass','highpass']); const tip=chance(0.6)?R(1100,2100):null; return (s)=>{ s.hit({dur,peak:0.3,type,freq:f,q,to}); if (tip) s.beep(tip,{t:dur*0.85,dur:0.14,peak:0.13}); }; },
+    coconutRow:()=>{ const start=R(150,285), stepDn=R(4,16), n=RI(4,6), sp=R(0.06,0.13), lp=R(480,880); return (s)=>{ for (let i=0;i<n;i++){ s.beep(Math.max(50,start-i*stepDn),{t:i*sp,dur:0.14,peak:0.3,to:70}); s.hit({t:i*sp,dur:0.07,peak:0.17,type:'lowpass',freq:lp}); } }; },
+    moonshine:()=>{ const root=R(196,330), chord=pick([[0,4,7,12],[0,3,7,10],[0,5,9,12],[0,4,7,11]]), type=pick(['sawtooth','square','triangle']); return (s)=>{ chord.forEach((n,i)=> s.beep(root*Math.pow(2,n/12),{type,t:i*R(0.04,0.09),dur:R(1.0,1.4),peak:0.1})); s.hit({dur:1.0,peak:0.2,type:'bandpass',freq:R(230,390),q:0.4,to:2200}); s.beep(root*2,{type:'triangle',t:0.5,dur:0.9,peak:0.11}); if (chance(0.7)) s.beep(root*3,{type:'triangle',t:0.7,dur:0.7,peak:0.09}); }; },
+    uiClick:()=>{ const hi=R(1000,2300), lo=R(480,1150), type=pick(['sine','triangle','square']); return (s)=>{ s.beep(hi,{type:'sine',dur:R(0.025,0.05),peak:0.09}); s.beep(lo,{type,t:0.012,dur:R(0.04,0.07),peak:0.07}); }; },
+    coin:()=>{ const a=R(1000,1600), r=R(1.3,1.7), type=pick(['square','triangle']); return (s)=>{ s.beep(a,{type,dur:0.08,peak:0.11}); s.beep(a*r,{type,t:0.06,dur:0.17,peak:0.1}); s.beep(a*r*r,{type:'sine',t:0.06,dur:0.14,peak:0.05}); }; },
   };
 
   // Turn a free-text prompt into tone modifiers. Keyword-driven (no audio model):
@@ -31925,24 +31938,33 @@ const MmSynth = (() => {
     const s = (prompt || '').toLowerCase();
     if (!s.trim()) return null;
     const has = (...w)=> w.some(x => s.includes(x));
-    let pitch = 1, dur = 1, peak = 1, bright = 1, osc = null;
-    if (has('high','bright','sharp','treble','squeak','tiny','chirp','shrill','airy')) pitch *= 1.5;
-    if (has('low','deep','bass','sub','rumble','heavy','fat','boom','thud')) pitch *= 0.6;
-    if (has('long','sustain','drawn','stretch','slow','drone','epic','big')) dur *= 1.8;
-    if (has('short','quick','snappy','tight','punchy','stab','blip','tick','clip')) dur *= 0.55;
-    if (has('loud','strong','bold','aggressive','intense','powerful')) peak *= 1.4;
-    if (has('soft','gentle','quiet','subtle','faint','delicate')) peak *= 0.62;
-    if (has('bright','crisp','metallic','glass','shiny','sparkle','shimmer','glassy','clang')) bright *= 1.8;
-    if (has('muffled','warm','dark','dull','round','underwater','mellow')) bright *= 0.55;
-    if (has('retro','8-bit','8bit','chiptune','chip','arcade','game','nes','pixel')) osc = 'square';
-    else if (has('buzzy','gritty','harsh','saw','rough','dirty','growl','grind')) osc = 'sawtooth';
-    else if (has('pure','clean','sine','pad','smooth','flute','whistle')) osc = 'sine';
-    else if (has('woody','hollow','triangle','mallow','soft')) osc = 'triangle';
+    let pitch = 1, dur = 1, peak = 1, bright = 1, q = 1, osc = null;
+    // pitch
+    if (has('high','bright','sharp','treble','squeak','tiny','chirp','shrill','whistle','ping')) pitch *= 1.5;
+    if (has('low','deep','bass','sub','rumble','heavy','fat','boom','thud','dark','earthy')) pitch *= 0.6;
+    // length
+    if (has('long','sustain','drawn','stretch','slow','drone','epic','big','wind','breeze','swell','wash','ambient','flow')) dur *= 1.85;
+    if (has('short','quick','snappy','tight','punchy','stab','blip','tick','clip','pop','click','pluck')) dur *= 0.55;
+    // loudness
+    if (has('loud','strong','bold','aggressive','intense','powerful','slam')) peak *= 1.4;
+    if (has('soft','gentle','quiet','subtle','faint','delicate','light','calm','whisper')) peak *= 0.6;
+    // brightness (filter / partial frequency)
+    if (has('bright','crisp','metallic','glass','glassy','shiny','sparkle','shimmer','clang','tinny','sizzle','ice')) bright *= 1.9;
+    if (has('muffled','warm','dark','dull','round','underwater','mellow','wooden','muddy','soft')) bright *= 0.5;
+    // resonance / texture: tonal-whistly vs broadband-airy (matters most for noise SFX)
+    if (has('tonal','resonant','whistle','ring','ringing','sing','vocal','laser','beam','pure','pitched')) q *= 3;
+    if (has('airy','air','hiss','breath','wind','breeze','noisy','rush','static','white','broad','leaves','rustle','wash')) q *= 0.4;
+    // oscillator flavor (tonal parts)
+    if (has('retro','8-bit','8bit','chiptune','chip','arcade','game','nes','pixel','videogame')) osc = 'square';
+    else if (has('buzzy','gritty','harsh','saw','rough','dirty','growl','grind','buzz')) osc = 'sawtooth';
+    else if (has('pure','clean','sine','pad','smooth','flute')) osc = 'sine';
+    else if (has('woody','hollow','triangle','mellow','warm','soft')) osc = 'triangle';
     pitch  = Math.max(0.35, Math.min(2.6, pitch));
     dur    = Math.max(0.4,  Math.min(2.5, dur));
     peak   = Math.max(0.4,  Math.min(1.8, peak));
     bright = Math.max(0.4,  Math.min(2.4, bright));
-    return { pitch, dur, peak, bright, osc };
+    q      = Math.max(0.2,  Math.min(6,   q));
+    return { pitch, dur, peak, bright, q, osc };
   }
   // Wrap a scheduler so every beep/hit is scaled by the prompt modifiers.
   function applyMods(sch, m){
@@ -31963,6 +31985,7 @@ const MmSynth = (() => {
           dur: (opts.dur == null ? 0.2 : opts.dur) * m.dur,
           peak: Math.min(0.6, (opts.peak == null ? 0.3 : opts.peak) * m.peak),
           freq: (opts.freq == null ? 800 : opts.freq) * m.bright,
+          q: (opts.q == null ? 1 : opts.q) * (m.q || 1),
           to: opts.to != null ? opts.to * m.bright : null,
         });
       },
