@@ -31793,6 +31793,8 @@ function mmRenderSounds(){
   if (!wrap || !_mmSounds) return;
   wrap.innerHTML = MM_SOUND_ORDER.map(name => {
     const has = !!_mmSounds[name];
+    const synthable = MmSynth.hasSynth(name);          // the 11 one-shot SFX (not the ambient/music loops)
+    const genPending = !!_mmGenerated[name];
     return `
     <div class="admin-mm-snd-row" data-name="${name}">
       <div class="admin-mm-snd-info">
@@ -31801,7 +31803,10 @@ function mmRenderSounds(){
       </div>
       <span class="admin-mm-snd-tag ${has ? 'is-file' : 'is-synth'}">${has ? 'custom file' : 'synth'}</span>
       <div class="admin-mm-snd-actions">
-        <button type="button" class="admin-mm-snd-btn" data-act="preview" ${has ? '' : 'disabled'}>▶ Preview</button>
+        <button type="button" class="admin-mm-snd-btn" data-act="preview" ${(has || synthable) ? '' : 'disabled'}>▶ Preview</button>
+        ${synthable ? `<button type="button" class="admin-mm-snd-btn" data-act="synth">♪ Synth</button>` : ''}
+        ${synthable ? `<button type="button" class="admin-mm-snd-btn admin-mm-snd-gen" data-act="generate">⚡ New Synth</button>` : ''}
+        ${synthable ? `<button type="button" class="admin-mm-snd-btn admin-mm-snd-save" data-act="save" ${genPending ? '' : 'disabled'}>✓ Save</button>` : ''}
         <label class="admin-mm-snd-btn admin-mm-snd-upload">⤴ Upload<input type="file" accept="audio/*" data-act="upload" hidden></label>
         <button type="button" class="admin-mm-snd-btn admin-mm-snd-clear" data-act="clear" ${has ? '' : 'disabled'}>Clear</button>
       </div>
@@ -31840,10 +31845,150 @@ async function mmClearSound(name){
   catch (e){ mmSoundsStatus('Clear failed: ' + (e && e.message || e)); }
 }
 
+/* ---- MONKEY MOONSHINE synth engine (admin-side twin of the in-game Snd) ----
+   Lets the admin preview the built-in procedural synth for each SFX, generate
+   fresh randomized variants, and (via renderWav) bake a variant into a WAV
+   that gets saved as that sound's custom file. The CURRENT map mirrors the
+   game's synth 1:1 so "preview" is faithful; GEN produces tasteful variants. */
+const MmSynth = (() => {
+  let actx = null;
+  function ac(){
+    if (!actx){ const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null; actx = new AC(); }
+    return actx;
+  }
+  function noiseBuf(ctx){
+    const b = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = b.getChannelData(0);
+    for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1; return b;
+  }
+  function env(g, st, a, dur, peak){
+    g.gain.setValueAtTime(0.0001, st);
+    g.gain.linearRampToValueAtTime(peak, st+a);
+    g.gain.exponentialRampToValueAtTime(0.0001, st+dur);
+  }
+  // A scheduler bound to a ctx/dest with a fixed base time, exposing the same
+  // beep()/hit() primitives the game uses (times are relative to base).
+  function scheduler(ctx, dest, base){
+    const nbuf = noiseBuf(ctx);
+    function beep(freq, {type='sine',t=0,dur=0.2,peak=0.3,a=0.005,to=null}={}){
+      const o=ctx.createOscillator(), g=ctx.createGain(); o.type=type; const st=base+t;
+      o.frequency.setValueAtTime(freq, st); if (to) o.frequency.exponentialRampToValueAtTime(Math.max(1,to), st+dur);
+      env(g, st, a, dur, peak); o.connect(g); g.connect(dest); o.start(st); o.stop(st+dur+0.06);
+    }
+    function hit({t=0,dur=0.2,peak=0.3,type='lowpass',freq=800,q=1,to=null}={}){
+      const s=ctx.createBufferSource(); s.buffer=nbuf; const f=ctx.createBiquadFilter(); f.type=type; f.frequency.value=freq; f.Q.value=q; const g=ctx.createGain();
+      const st=base+t; if (to) f.frequency.exponentialRampToValueAtTime(Math.max(20,to), st+dur);
+      env(g, st, 0.004, dur, peak); s.connect(f); f.connect(g); g.connect(dest); s.start(st); s.stop(st+dur+0.06);
+    }
+    return { beep, hit };
+  }
+  // Built-in synth, ported 1:1 from games/monkey-moonshine.html.
+  const CURRENT = {
+    shake:(s)=>{ s.hit({dur:0.5,peak:0.34,type:'highpass',freq:1800,q:0.5}); s.hit({t:0.02,dur:0.42,peak:0.2,type:'bandpass',freq:3200,q:0.8}); s.beep(96,{dur:0.14,peak:0.12,to:58}); },
+    rowClunk:(s)=>{ s.beep(150,{dur:0.16,peak:0.32,to:55}); s.hit({dur:0.12,peak:0.4,type:'lowpass',freq:380,q:1}); },
+    lineMatch:(s)=>{ [0,4,7,12].forEach((n,i)=> s.beep(523.25*Math.pow(2,n/12),{type:'triangle',t:i*0.05,dur:0.16,peak:0.15})); },
+    wildLand:(s)=>{ s.beep(880,{type:'triangle',dur:0.42,peak:0.19}); s.beep(1320,{dur:0.5,t:0.02,peak:0.11}); s.beep(1760,{dur:0.4,t:0.04,peak:0.06}); },
+    monkeyWild:(s)=>{ s.beep(380,{type:'sawtooth',dur:0.16,peak:0.15,to:1150}); s.beep(1150,{type:'sawtooth',t:0.15,dur:0.2,peak:0.13,to:520}); s.beep(780,{type:'square',t:0.3,dur:0.12,peak:0.09,to:920}); },
+    extraShake:(s)=>{ s.beep(330,{type:'square',dur:0.34,peak:0.12,to:660}); s.beep(660,{t:0.1,dur:0.4,peak:0.12,to:990}); s.beep(990,{type:'triangle',t:0.24,dur:0.3,peak:0.09}); },
+    whoosh:(s)=>{ s.hit({dur:0.34,peak:0.3,type:'bandpass',freq:500,q:0.6,to:2600}); s.beep(1500,{t:0.3,dur:0.14,peak:0.13}); },
+    coconutRow:(s)=>{ for(let i=0;i<5;i++){ s.beep(210-i*8,{t:i*0.09,dur:0.14,peak:0.3,to:80}); s.hit({t:i*0.09,dur:0.07,peak:0.17,type:'lowpass',freq:700}); } },
+    moonshine:(s)=>{ [261.63,329.63,392,523.25].forEach((f,i)=> s.beep(f,{type:'sawtooth',t:i*0.06,dur:1.2,peak:0.1})); s.hit({dur:1.0,peak:0.2,type:'bandpass',freq:300,q:0.4,to:2200}); s.beep(523.25,{type:'triangle',t:0.5,dur:0.9,peak:0.11}); s.beep(784,{type:'triangle',t:0.7,dur:0.7,peak:0.09}); },
+    uiClick:(s)=>{ s.beep(1500,{type:'sine',dur:0.035,peak:0.09}); s.beep(840,{type:'triangle',t:0.012,dur:0.05,peak:0.07}); },
+    coin:(s)=>{ s.beep(1318.5,{type:'square',dur:0.08,peak:0.11}); s.beep(1975.5,{type:'square',t:0.06,dur:0.17,peak:0.1}); s.beep(2637,{type:'sine',t:0.06,dur:0.14,peak:0.05}); },
+  };
+  // Approximate tail length per sound, for how long to render offline.
+  const DUR = { shake:0.7, rowClunk:0.35, lineMatch:0.55, wildLand:0.65, monkeyWild:0.6, extraShake:0.75, whoosh:0.6, coconutRow:0.75, moonshine:1.8, uiClick:0.2, coin:0.4 };
+
+  // Parametric variant generators. Each picks all random params up-front, then
+  // returns a concrete closure, so preview and the later WAV render are identical.
+  const R = (a,b)=> a + (b-a)*Math.random();
+  const RI = (a,b)=> Math.floor(R(a,b+1));
+  const pick = (arr)=> arr[Math.floor(Math.random()*arr.length)];
+  const OSC = ['sine','triangle','square','sawtooth'];
+  const GEN = {
+    shake:()=>{ const f1=R(1300,2500), d1=R(0.34,0.6), f2=R(2400,3900), d2=R(0.3,0.5), lo=R(70,120); return (s)=>{ s.hit({dur:d1,peak:0.32,type:'highpass',freq:f1,q:0.5}); s.hit({t:0.02,dur:d2,peak:0.2,type:'bandpass',freq:f2,q:0.8}); s.beep(lo,{dur:0.14,peak:0.12,to:lo*0.6}); }; },
+    rowClunk:()=>{ const f=R(110,200), d=R(0.12,0.2), lp=R(280,520); return (s)=>{ s.beep(f,{dur:d,peak:0.32,to:f*0.36}); s.hit({dur:0.12,peak:0.4,type:'lowpass',freq:lp,q:1}); }; },
+    lineMatch:()=>{ const root=R(392,660), steps=pick([[0,4,7,12],[0,3,7,10],[0,5,7,12],[0,4,7,11]]), type=pick(['triangle','sine','square']), sp=R(0.04,0.07); return (s)=>{ steps.forEach((n,i)=> s.beep(root*Math.pow(2,n/12),{type,t:i*sp,dur:0.16,peak:0.15})); }; },
+    wildLand:()=>{ const base=R(700,980), type=pick(['triangle','sine']); return (s)=>{ s.beep(base,{type,dur:0.42,peak:0.19}); s.beep(base*1.5,{dur:0.5,t:0.02,peak:0.11}); s.beep(base*2,{dur:0.4,t:0.04,peak:0.06}); }; },
+    monkeyWild:()=>{ const a=R(300,460), b=R(950,1300), c=R(680,900), o=pick(['sawtooth','square']); return (s)=>{ s.beep(a,{type:o,dur:0.16,peak:0.15,to:b}); s.beep(b,{type:o,t:0.15,dur:0.2,peak:0.13,to:a*1.4}); s.beep(c,{type:'square',t:0.3,dur:0.12,peak:0.09,to:c*1.2}); }; },
+    extraShake:()=>{ const a=R(280,400), type=pick(['square','triangle','sawtooth']); return (s)=>{ s.beep(a,{type,dur:0.34,peak:0.12,to:a*2}); s.beep(a*2,{t:0.1,dur:0.4,peak:0.12,to:a*3}); s.beep(a*3,{type:'triangle',t:0.24,dur:0.3,peak:0.09}); }; },
+    whoosh:()=>{ const f=R(380,640), to=R(2100,3000), tip=R(1300,1800); return (s)=>{ s.hit({dur:0.34,peak:0.3,type:'bandpass',freq:f,q:0.6,to}); s.beep(tip,{t:0.3,dur:0.14,peak:0.13}); }; },
+    coconutRow:()=>{ const start=R(180,240), stepDn=R(6,12), sp=R(0.07,0.11), lp=R(560,820); return (s)=>{ for(let i=0;i<5;i++){ s.beep(start-i*stepDn,{t:i*sp,dur:0.14,peak:0.3,to:80}); s.hit({t:i*sp,dur:0.07,peak:0.17,type:'lowpass',freq:lp}); } }; },
+    moonshine:()=>{ const root=R(233,294), type=pick(['sawtooth','square','triangle']); return (s)=>{ [0,4,7,12].forEach((n,i)=> s.beep(root*Math.pow(2,n/12),{type,t:i*0.06,dur:1.2,peak:0.1})); s.hit({dur:1.0,peak:0.2,type:'bandpass',freq:R(240,360),q:0.4,to:2200}); s.beep(root*2,{type:'triangle',t:0.5,dur:0.9,peak:0.11}); s.beep(root*3,{type:'triangle',t:0.7,dur:0.7,peak:0.09}); }; },
+    uiClick:()=>{ const hi=R(1200,1900), lo=R(700,1000), type=pick(['sine','triangle','square']); return (s)=>{ s.beep(hi,{type:'sine',dur:0.035,peak:0.09}); s.beep(lo,{type,t:0.012,dur:0.05,peak:0.07}); }; },
+    coin:()=>{ const a=R(1150,1500), type=pick(['square','triangle']); return (s)=>{ s.beep(a,{type,dur:0.08,peak:0.11}); s.beep(a*1.5,{type,t:0.06,dur:0.17,peak:0.1}); s.beep(a*2,{type:'sine',t:0.06,dur:0.14,peak:0.05}); }; },
+  };
+
+  function playFn(fn){
+    const ctx = ac(); if (!ctx || !fn) return; if (ctx.state === 'suspended') ctx.resume();
+    const g = ctx.createGain(); g.gain.value = 0.9; g.connect(ctx.destination);
+    const s = scheduler(ctx, g, ctx.currentTime + 0.03);
+    try { fn(s); } catch(e){ console.error('[mm] synth play', e); }
+  }
+  async function renderWav(fn, seconds){
+    const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext; if (!OAC || !fn) return null;
+    const sr = 44100, len = Math.ceil(sr * (seconds || 1.5));
+    const oac = new OAC(1, len, sr);
+    const g = oac.createGain(); g.gain.value = 0.9; g.connect(oac.destination);
+    const s = scheduler(oac, g, 0);
+    try { fn(s); } catch(e){ console.error('[mm] synth render', e); }
+    const buf = await oac.startRendering();
+    return audioBufferToWavBlob(buf);
+  }
+  function audioBufferToWavBlob(buf){
+    const sr = buf.sampleRate, n = buf.length, data = buf.getChannelData(0);
+    const ab = new ArrayBuffer(44 + n*2); const view = new DataView(ab); let p = 0;
+    const ws = (str)=>{ for (let i=0;i<str.length;i++) view.setUint8(p++, str.charCodeAt(i)); };
+    const w32 = (v)=>{ view.setUint32(p, v, true); p += 4; };
+    const w16 = (v)=>{ view.setUint16(p, v, true); p += 2; };
+    ws('RIFF'); w32(36 + n*2); ws('WAVE'); ws('fmt '); w32(16); w16(1); w16(1); w32(sr); w32(sr*2); w16(2); w16(16); ws('data'); w32(n*2);
+    for (let i=0;i<n;i++){ const v = Math.max(-1, Math.min(1, data[i])); view.setInt16(p, v < 0 ? v*0x8000 : v*0x7FFF, true); p += 2; }
+    return new Blob([ab], { type: 'audio/wav' });
+  }
+  return {
+    hasSynth: (name)=> !!CURRENT[name],
+    previewSynth: (name)=> playFn(CURRENT[name]),
+    generate: (name)=>{ const mk = GEN[name]; if (!mk) return null; const fn = mk(); playFn(fn); return fn; },
+    renderWav,
+    durOf: (name)=> DUR[name] || 1,
+  };
+})();
+
+const _mmGenerated = {};   // name -> last generated variant closure (pending save)
+
 let _mmPreviewAudio = null;
 function mmPreviewSound(name){
-  const url = _mmSounds && _mmSounds[name]; if (!url) return;
-  try { if (_mmPreviewAudio) _mmPreviewAudio.pause(); _mmPreviewAudio = new Audio(url); _mmPreviewAudio.play().catch(() => {}); } catch (e){}
+  const url = _mmSounds && _mmSounds[name];
+  if (url){
+    try { if (_mmPreviewAudio) _mmPreviewAudio.pause(); _mmPreviewAudio = new Audio(url); _mmPreviewAudio.play().catch(() => {}); } catch (e){}
+    return;
+  }
+  MmSynth.previewSynth(name);   // no custom file → play the built-in synth
+}
+
+function mmGenerateSynth(name){
+  const fn = MmSynth.generate(name);   // generates a fresh variant and plays it
+  if (!fn){ mmSoundsStatus('“' + name + '” has no procedural synth to vary.'); return; }
+  _mmGenerated[name] = fn;
+  const row = document.querySelector('.admin-mm-snd-row[data-name="' + name + '"]');
+  const saveBtn = row && row.querySelector('[data-act="save"]');
+  if (saveBtn) saveBtn.disabled = false;
+  mmSoundsStatus('New “' + name + '” synth generated — Preview again, roll another, or Save to use it in the game.');
+}
+
+async function mmSaveGeneratedSynth(name){
+  const fn = _mmGenerated[name];
+  if (!fn){ mmSoundsStatus('Generate a synth for “' + name + '” first.'); return; }
+  mmSoundsStatus('Rendering “' + name + '” synth to a file…');
+  try {
+    const blob = await MmSynth.renderWav(fn, MmSynth.durOf(name) + 0.3);
+    if (!blob) throw new Error('render unsupported in this browser');
+    delete _mmGenerated[name];
+    await mmUploadSound(name, new File([blob], name + '-synth.wav', { type: 'audio/wav' }));
+  } catch (e){
+    _mmGenerated[name] = fn;   // keep the variant so they can retry
+    mmSoundsStatus('Save failed: ' + (e && e.message || e));
+    console.error('[mm] save synth', e);
+  }
 }
 
 // delegated handlers (the list element is static in index.html)
@@ -31854,8 +31999,12 @@ function mmPreviewSound(name){
     const btn = e.target.closest('[data-act]'); const row = e.target.closest('.admin-mm-snd-row');
     if (!btn || !row) return;
     const name = row.dataset.name;
-    if (btn.dataset.act === 'preview') mmPreviewSound(name);
-    else if (btn.dataset.act === 'clear') mmClearSound(name);
+    const act = btn.dataset.act;
+    if (act === 'preview') mmPreviewSound(name);
+    else if (act === 'synth') MmSynth.previewSynth(name);
+    else if (act === 'generate') mmGenerateSynth(name);
+    else if (act === 'save') void mmSaveGeneratedSynth(name);
+    else if (act === 'clear') mmClearSound(name);
   });
   list.addEventListener('change', (e) => {
     const inp = e.target.closest('input[data-act="upload"]'); const row = e.target.closest('.admin-mm-snd-row');
