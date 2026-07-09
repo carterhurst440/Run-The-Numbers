@@ -497,15 +497,23 @@ function initHomeGameCardGlitch() {
     "home-game-card-g10":   { hex: "#00e5ff", r: 0,   g: 229, b: 255 },
     "home-game-card-shape": { hex: "#c8ff00", r: 200, g: 255, b: 0 },
     "home-game-card-color": { hex: "#ff2d4a", r: 255, g: 45,  b: 74 },
+    "home-game-card-fof":   { hex: "#b07bff", r: 176, g: 123, b: 255 },
+    "home-game-card-mm":    { hex: "#2fd06e", r: 47,  g: 208, b: 110 },
   };
 
   document.querySelectorAll(".home-game-card").forEach((card) => {
     const glyphEl = card.querySelector(".cc-glyph");
-    const nameEl  = card.querySelector(".cc-label");
-    if (!glyphEl || !nameEl) return;
+    const nameEl  = card.querySelector(".cc-label, .fof-tile-wordmark, .mm-tile-wordmark");
+    if (!nameEl) return;
 
-    const glyphTarget = glyphEl.textContent;
+    const glyphTarget = glyphEl ? glyphEl.textContent : null;
     const nameTarget  = nameEl.textContent;
+
+    // Text fields this card scrambles. The glyph is optional — the feature
+    // tiles (FOF/MM) have no text glyph, only a wordmark.
+    const fields = [];
+    if (glyphEl) fields.push({ el: glyphEl, target: glyphTarget });
+    fields.push({ el: nameEl, target: nameTarget });
 
     let accent = ACCENT["home-game-card-rtn"];
     for (const [cls, acc] of Object.entries(ACCENT)) {
@@ -529,9 +537,9 @@ function initHomeGameCardGlitch() {
       card.appendChild(el);
     }
 
-    // Chromatic aberration text-shadow on glyph
+    // Chromatic aberration text-shadow on glyph (glyph-only, like RTN)
     const c = AMP.chroma;
-    glyphEl.style.textShadow = `${-2*c}px 0 0 rgba(255,40,80,${(0.7*c).toFixed(2)}), ${2*c}px 0 0 rgba(0,200,255,${(0.7*c).toFixed(2)}), 0 0 ${10+12*c}px ${accent.hex}cc`;
+    if (glyphEl) glyphEl.style.textShadow = `${-2*c}px 0 0 rgba(255,40,80,${(0.7*c).toFixed(2)}), ${2*c}px 0 0 rgba(0,200,255,${(0.7*c).toFixed(2)}), 0 0 ${10+12*c}px ${accent.hex}cc`;
 
     let isHovered = false;
     let ambientId = null;
@@ -548,9 +556,8 @@ function initHomeGameCardGlitch() {
         // burst: occasionally scramble entire string
         if (AMP.burst && Math.random() < 0.06 * AMP.intensity) {
           const scramble = (t) => t.split("").map((ch) => ch === " " ? " " : CHARSET[Math.floor(Math.random() * CHARSET.length)]).join("");
-          glyphEl.textContent = scramble(glyphTarget);
-          nameEl.textContent  = scramble(nameTarget);
-          setTimeout(() => { if (!isHovered) { glyphEl.textContent = glyphTarget; nameEl.textContent = nameTarget; } }, 80 + Math.random() * 120);
+          fields.forEach((f) => { f.el.textContent = scramble(f.target); });
+          setTimeout(() => { if (!isHovered) fields.forEach((f) => { f.el.textContent = f.target; }); }, 80 + Math.random() * 120);
           return;
         }
         // single/multi-char flip
@@ -567,8 +574,7 @@ function initHomeGameCardGlitch() {
             setTimeout(() => { if (!isHovered) el.textContent = target; }, 70 + Math.random() * 90);
           }
         };
-        flip(glyphTarget, glyphEl);
-        flip(nameTarget, nameEl);
+        fields.forEach((f) => flip(f.target, f.el));
       }, rate);
     }
 
@@ -578,12 +584,12 @@ function initHomeGameCardGlitch() {
       let frame = 0;
       bootId = setInterval(() => {
         frame++;
-        glyphEl.textContent = glyphTarget.split("").map((ch, i) => frame > 6 + i ? ch : CHARSET[Math.floor(Math.random() * CHARSET.length)]).join("");
-        nameEl.textContent  = nameTarget.split("").map((ch, i)  => frame > 6 + i ? ch : CHARSET[Math.floor(Math.random() * CHARSET.length)]).join("");
-        if (frame > 6 + Math.max(glyphTarget.length, nameTarget.length)) {
+        fields.forEach((f) => {
+          f.el.textContent = f.target.split("").map((ch, i) => frame > 6 + i ? ch : CHARSET[Math.floor(Math.random() * CHARSET.length)]).join("");
+        });
+        if (frame > 6 + Math.max(...fields.map((f) => f.target.length))) {
           clearInterval(bootId);
-          glyphEl.textContent = glyphTarget;
-          nameEl.textContent  = nameTarget;
+          fields.forEach((f) => { f.el.textContent = f.target; });
         }
       }, 35);
     }
@@ -593,9 +599,9 @@ function initHomeGameCardGlitch() {
       if (isHovered) return;
       if (Math.random() < 0.35) {
         const jx = (Math.random() - 0.5) * 6 * AMP.jitter;
-        glyphEl.style.transform = `translateX(${jx}px)`;
+        if (glyphEl) glyphEl.style.transform = `translateX(${jx}px)`;
         nameEl.style.transform  = `translateX(${jx * 0.4}px)`;
-        setTimeout(() => { glyphEl.style.transform = ""; nameEl.style.transform = ""; }, 60 + Math.random() * 80);
+        setTimeout(() => { if (glyphEl) glyphEl.style.transform = ""; nameEl.style.transform = ""; }, 60 + Math.random() * 80);
       }
     }, 220);
 
@@ -604,9 +610,8 @@ function initHomeGameCardGlitch() {
       if (isHovered) return;
       if (Math.random() < 0.25) {
         const bri = 1 - Math.random() * 0.5 * AMP.flicker;
-        glyphEl.style.filter = `brightness(${bri})`;
-        nameEl.style.filter  = `brightness(${bri})`;
-        setTimeout(() => { glyphEl.style.filter = ""; nameEl.style.filter = ""; }, 50 + Math.random() * 80);
+        fields.forEach((f) => { f.el.style.filter = `brightness(${bri})`; });
+        setTimeout(() => { fields.forEach((f) => { f.el.style.filter = ""; }); }, 50 + Math.random() * 80);
       }
     }, 180);
 
@@ -617,10 +622,7 @@ function initHomeGameCardGlitch() {
     card.addEventListener("mouseleave", () => {
       isHovered = false;
       clearInterval(bootId);
-      glyphEl.textContent = glyphTarget;
-      nameEl.textContent  = nameTarget;
-      glyphEl.style.transform = "";
-      nameEl.style.transform  = "";
+      fields.forEach((f) => { f.el.textContent = f.target; f.el.style.transform = ""; });
     });
 
     const io = new IntersectionObserver((entries) => {
