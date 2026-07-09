@@ -112,6 +112,18 @@ const DEFAULT_GAME_ASSET_LIBRARY = {
     card_background_color: "",
     button_color: "",
     button_text_color: ""
+  },
+  [GAME_KEYS.MONKEY_MOONSHINE]: {
+    key: GAME_KEYS.MONKEY_MOONSHINE,
+    label: GAME_LABELS[GAME_KEYS.MONKEY_MOONSHINE],
+    route: "monkey-moonshine",
+    logo_url: "/assets/game-logos/monkey-moonshine.svg",
+    description: "Enchanted orchard slot",
+    status: "active",
+    card_description: "Charm a wild fruit, shake the tree, and chase the coconut-row Monkey Moonshine raid for stacked wild multipliers and extra shakes.",
+    card_background_color: "",
+    button_color: "",
+    button_text_color: ""
   }
 };
 
@@ -10229,17 +10241,25 @@ function updateAdminVisibility(user = currentUser) {
   }
   const drawerMonkeyMoonshineLink = document.getElementById("drawer-monkey-moonshine-link");
   if (drawerMonkeyMoonshineLink) {
-    if (adminVisible) drawerMonkeyMoonshineLink.removeAttribute("hidden");
+    // Visibility follows the game's admin-configurable status (default "active" =
+    // everyone). Set to "Admin Only" in the Games admin to hide again.
+    if (isGameVisibleToUser(GAME_KEYS.MONKEY_MOONSHINE, user)) drawerMonkeyMoonshineLink.removeAttribute("hidden");
     else drawerMonkeyMoonshineLink.setAttribute("hidden", "");
   }
-  // Monkey Moonshine home tile: admin-only game — unlocked (clickable) for admins,
-  // shown LOCKED / disabled for everyone else.
+  // Monkey Moonshine home tile: visibility + tier lock follow the game's status,
+  // same as the generic data-game-id tiles.
   const mmHomeTile = document.querySelector(".home-game-card-mm");
   if (mmHomeTile) {
-    mmHomeTile.classList.toggle("is-locked", !adminVisible);
-    mmHomeTile.disabled = !adminVisible;
+    const mmVisible = isGameVisibleToUser(GAME_KEYS.MONKEY_MOONSHINE, user);
+    mmHomeTile.hidden = !mmVisible;
+    const mmLocked = mmVisible && isGameLockedForPlayer(GAME_KEYS.MONKEY_MOONSHINE, user);
+    mmHomeTile.classList.toggle("is-locked", mmLocked);
+    mmHomeTile.disabled = mmLocked;
     const mmLockLabel = mmHomeTile.querySelector(".hgc-lock-label");
-    if (mmLockLabel) mmLockLabel.textContent = "ADMIN ONLY";
+    if (mmLockLabel) {
+      const mmTier = getGameAssetRecord(GAME_KEYS.MONKEY_MOONSHINE)?.unlock_tier;
+      mmLockLabel.textContent = mmTier ? `UNLOCKS AT TIER ${mmTier}` : "LOCKED";
+    }
   }
   // Show/hide the Admin Tools trigger button (controls now live in modal)
   if (stAdminToolsOpenBtn) {
@@ -13322,10 +13342,49 @@ async function loadAdminPrizeList(force = false) {
   }
 }
 
+// Games that have a bespoke admin section (deck editor / RTP sim / etc.), keyed by
+// game. Clicking the row (or its "Open tools" button) jumps to that admin section.
+const ADMIN_GAME_TOOLS = {
+  [GAME_KEYS.COLOR_SCHEME]: "cs-clips",
+  [GAME_KEYS.FATE_OR_FORTUNE]: "fate-or-fortune",
+  [GAME_KEYS.MONKEY_MOONSHINE]: "monkey-moonshine"
+};
+
+// A tool-only hub row (no branding record), e.g. Bloom.
+function renderAdminToolOnlyRow({ label, description, toolTab, logoUrl }) {
+  const item = document.createElement("li");
+  item.className = "admin-game-item";
+  const main = document.createElement("div");
+  main.className = "admin-game-main admin-game-main-open";
+  main.setAttribute("role", "button");
+  main.tabIndex = 0;
+  const open = () => showAdminTab(toolTab);
+  main.addEventListener("click", open);
+  main.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+  const logoFrame = document.createElement("div");
+  logoFrame.className = "admin-game-logo-frame";
+  if (logoUrl) { const img = document.createElement("img"); img.src = logoUrl; img.alt = `${label} logo`; logoFrame.appendChild(img); }
+  const info = document.createElement("div");
+  info.className = "admin-game-info";
+  const name = document.createElement("h3"); name.className = "admin-game-name"; name.textContent = label;
+  const meta = document.createElement("p"); meta.className = "admin-game-meta"; meta.textContent = description;
+  info.append(name, meta);
+  main.append(logoFrame, info);
+  const actions = document.createElement("div");
+  actions.className = "admin-game-actions";
+  const openButton = document.createElement("button");
+  openButton.type = "button"; openButton.className = "primary"; openButton.textContent = "Open tools";
+  openButton.addEventListener("click", open);
+  actions.appendChild(openButton);
+  item.append(main, actions);
+  return item;
+}
+
 function renderAdminGameAssetRow(gameKey) {
   const record = getGameAssetRecord(gameKey);
   if (!record) return null;
   const presentation = getGameAdminPresentation(gameKey, record.status);
+  const toolTab = ADMIN_GAME_TOOLS[gameKey] || null;
 
   const item = document.createElement("li");
   item.className = "admin-game-item";
@@ -13354,6 +13413,15 @@ function renderAdminGameAssetRow(gameKey) {
   info.append(name, meta, copy);
   main.append(logoFrame, info);
 
+  // The row opens the game's dedicated admin tool if it has one; otherwise the
+  // branding editor. (Branding stays reachable via the Edit button below.)
+  main.classList.add("admin-game-main-open");
+  main.setAttribute("role", "button");
+  main.tabIndex = 0;
+  const openPrimary = () => { if (toolTab) showAdminTab(toolTab); else openAdminGameModal(gameKey, main); };
+  main.addEventListener("click", openPrimary);
+  main.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPrimary(); } });
+
   const previewMeta = document.createElement("p");
   previewMeta.className = "admin-game-preview-meta";
   previewMeta.textContent = [
@@ -13366,6 +13434,15 @@ function renderAdminGameAssetRow(gameKey) {
 
   const actions = document.createElement("div");
   actions.className = "admin-game-actions";
+
+  if (toolTab) {
+    const openButton = document.createElement("button");
+    openButton.type = "button";
+    openButton.className = "primary";
+    openButton.textContent = "Open tools";
+    openButton.addEventListener("click", () => showAdminTab(toolTab));
+    actions.appendChild(openButton);
+  }
 
   const editButton = document.createElement("button");
   editButton.type = "button";
@@ -13614,49 +13691,14 @@ async function loadAdminGameAssets(force = false) {
       adminGameListEl.appendChild(item);
     }
   });
-}
-
-async function migrateGameAssetsToBackend() {
-  if (!currentUser?.id) {
-    showToast("Sign in to migrate game assets", "error");
-    return;
-  }
-
-  hydrateGameAssetLibrary();
-  renderGameLogoTargets();
-
-  if (adminGamesMigrateButton) {
-    adminGamesMigrateButton.disabled = true;
-    adminGamesMigrateButton.textContent = "Migrating...";
-  }
-  if (adminGameMessage) {
-    adminGameMessage.textContent = "Migrating current browser game assets to backend...";
-  }
-
-  try {
-    for (const gameKey of Object.values(GAME_KEYS)) {
-      await persistGameAssetRecordToBackend(gameKey);
-    }
-    await refreshGameAssetsFromBackend();
-    adminGameAssetsLoaded = false;
-    await loadAdminGameAssets(true);
-    if (adminGameMessage) {
-      adminGameMessage.textContent = "Game assets migrated to backend.";
-    }
-    showToast("Game assets migrated", "success");
-  } catch (error) {
-    console.error(error);
-    const message = error?.message || "Unable to migrate game assets";
-    if (adminGameMessage) {
-      adminGameMessage.textContent = message;
-    }
-    showToast(message, "error");
-  } finally {
-    if (adminGamesMigrateButton) {
-      adminGamesMigrateButton.disabled = false;
-      adminGamesMigrateButton.textContent = "Migrate To Backend";
-    }
-  }
+  // Bloom is an admin-only lab game with no branding record — surface it as a
+  // tool-only hub row so its admin section stays reachable after the tab removal.
+  adminGameListEl.appendChild(renderAdminToolOnlyRow({
+    label: "Bloom",
+    description: "Admin-only lab • Simulator, cards & regions",
+    toolTab: "bloom",
+    logoUrl: ""
+  }));
 }
 
 // ===========================
@@ -19649,7 +19691,7 @@ const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout"
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
 const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile", "color-scheme", "fate-or-fortune", "bloom", "monkey-moonshine"]);
 // Routes only admins may reach (hidden in drawer + blocked on direct URL/hash nav).
-const ADMIN_ONLY_ROUTES = new Set(["bloom", "monkey-moonshine", "admin"]);
+const ADMIN_ONLY_ROUTES = new Set(["bloom", "admin"]);
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
@@ -19888,7 +19930,6 @@ const adminFateOrFortuneContent = document.getElementById("admin-fate-or-fortune
 const adminBloomContent = document.getElementById("admin-bloom-content");
 const adminGameListEl = document.getElementById("admin-game-list");
 const adminGameMessage = document.getElementById("admin-game-message");
-const adminGamesMigrateButton = document.getElementById("admin-games-migrate-button");
 const adminGameModal = document.getElementById("admin-game-modal");
 const adminGameForm = document.getElementById("admin-game-form");
 const adminGameModalTitle = document.getElementById("admin-game-modal-title");
@@ -31338,12 +31379,6 @@ if (adminGameModal) {
   });
 }
 
-if (adminGamesMigrateButton) {
-  adminGamesMigrateButton.addEventListener("click", () => {
-    void migrateGameAssetsToBackend();
-  });
-}
-
 if (adminGameForm) {
   adminGameForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -31818,127 +31853,85 @@ playerBreakdownFilterButtons.forEach((button) => {
 });
 
 // Admin tab switching
+// Show an admin tab/section by id. Extracted so the Games hub buttons can open a
+// game's dedicated admin section directly — the per-game tabs (Color Scheme /
+// Fate or Fortune / Bloom / Monkey Moonshine) no longer have their own tab button.
+function showAdminTab(tabId) {
+  // Active state: highlight the matching tab button if one exists; per-game tool
+  // sections are reached from the Games hub, so keep "Games" highlighted for those.
+  adminTabButtons.forEach(btn => btn.classList.remove("active"));
+  const directBtn = document.querySelector(`.admin-tab[data-admin-tab="${tabId}"]`);
+  if (directBtn) directBtn.classList.add("active");
+  else document.querySelector('.admin-tab[data-admin-tab="games"]')?.classList.add("active");
+
+  // Hide every panel up front; the matching branch un-hides its own + runs its loader.
+  document.querySelectorAll(".admin-tab-content").forEach(c => { c.hidden = true; });
+
+  if (tabId === "prizes") {
+    adminPrizesContent.hidden = false;
+  } else if (tabId === "games") {
+    if (adminGamesContent) adminGamesContent.hidden = false;
+    void loadAdminGameAssets(true);
+  } else if (tabId === "analytics") {
+    adminAnalyticsContent.hidden = false;
+    void loadAdminActivityTimeseries();
+    void loadAdminActivityPlayers().then(() => {
+      populateAdminPnlPlayerSelect();
+      populateAdminUserLookupSelect();
+    });
+    void loadAdminPnlChart();
+  } else if (tabId === "contests") {
+    if (adminContestsContent) adminContestsContent.hidden = false;
+    loadAdminContestList(true);
+  } else if (tabId === "design") {
+    if (adminDesignContent) adminDesignContent.hidden = false;
+  } else if (tabId === "ranks") {
+    if (adminRanksContent) adminRanksContent.hidden = false;
+    void loadAdminRanks(true);
+  } else if (tabId === "cs-clips") {
+    if (adminCsClipsContent) adminCsClipsContent.hidden = false;
+    adminCsClipsTabOpen();
+  } else if (tabId === "fate-or-fortune") {
+    if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = false;
+    adminCsMiniPause();
+    void loadAdminFateOrFortuneStats();
+  } else if (tabId === "bloom") {
+    if (adminBloomContent) adminBloomContent.hidden = false;
+    adminCsMiniPause();
+    adminBloomInit();
+  } else if (tabId === "monkey-moonshine") {
+    const mmContent = document.getElementById("admin-monkey-moonshine-content");
+    if (mmContent) mmContent.hidden = false;
+    adminCsMiniPause();
+    mmAdminInit();
+  } else {
+    adminCsMiniPause();
+  }
+
+  // Per-game tool sections are reached from the Games hub (no tab button of their
+  // own), so give them a way back.
+  const toolPanel = {
+    "cs-clips": adminCsClipsContent,
+    "fate-or-fortune": adminFateOrFortuneContent,
+    "bloom": adminBloomContent,
+    "monkey-moonshine": document.getElementById("admin-monkey-moonshine-content")
+  }[tabId];
+  if (toolPanel) ensureAdminToolBackButton(toolPanel);
+}
+
+// Prepend a one-time "Back to Games" control to a per-game admin tool panel.
+function ensureAdminToolBackButton(panelEl) {
+  if (!panelEl || panelEl.querySelector(".admin-tool-back")) return;
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "secondary admin-tool-back";
+  back.textContent = "← Back to Games";
+  back.addEventListener("click", () => showAdminTab("games"));
+  panelEl.insertBefore(back, panelEl.firstChild);
+}
+
 adminTabButtons.forEach(button => {
-  button.addEventListener("click", () => {
-    const targetTab = button.dataset.adminTab;
-    
-    // Update active tab
-    adminTabButtons.forEach(btn => btn.classList.remove("active"));
-    button.classList.add("active");
-
-    // Hide every tab-content up front so newer tabs (e.g. monkey-moonshine) don't
-    // need a line in each branch below; the matching branch just un-hides its own.
-    document.querySelectorAll(".admin-tab-content").forEach(c => { c.hidden = true; });
-
-    // Show/hide content
-    if (targetTab === "prizes") {
-      adminPrizesContent.hidden = false;
-      if (adminGamesContent) adminGamesContent.hidden = true;
-      adminAnalyticsContent.hidden = true;
-      if (adminContestsContent) adminContestsContent.hidden = true;
-      if (adminDesignContent) adminDesignContent.hidden = true;
-      if (adminRanksContent) adminRanksContent.hidden = true;
-      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
-      if (adminBloomContent) adminBloomContent.hidden = true;
-    } else if (targetTab === "games") {
-      adminPrizesContent.hidden = true;
-      if (adminGamesContent) adminGamesContent.hidden = false;
-      adminAnalyticsContent.hidden = true;
-      if (adminContestsContent) adminContestsContent.hidden = true;
-      if (adminDesignContent) adminDesignContent.hidden = true;
-      if (adminRanksContent) adminRanksContent.hidden = true;
-      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
-      if (adminBloomContent) adminBloomContent.hidden = true;
-      void loadAdminGameAssets(true);
-    } else if (targetTab === "analytics") {
-      adminPrizesContent.hidden = true;
-      if (adminGamesContent) adminGamesContent.hidden = true;
-      adminAnalyticsContent.hidden = false;
-      if (adminContestsContent) adminContestsContent.hidden = true;
-      if (adminDesignContent) adminDesignContent.hidden = true;
-      if (adminRanksContent) adminRanksContent.hidden = true;
-      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
-      if (adminBloomContent) adminBloomContent.hidden = true;
-      void loadAdminActivityTimeseries();
-      void loadAdminActivityPlayers().then(() => {
-        populateAdminPnlPlayerSelect();
-        populateAdminUserLookupSelect();
-      });
-      void loadAdminPnlChart();
-    } else if (targetTab === "contests") {
-      adminPrizesContent.hidden = true;
-      if (adminGamesContent) adminGamesContent.hidden = true;
-      adminAnalyticsContent.hidden = true;
-      if (adminContestsContent) adminContestsContent.hidden = false;
-      if (adminDesignContent) adminDesignContent.hidden = true;
-      if (adminRanksContent) adminRanksContent.hidden = true;
-      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
-      if (adminBloomContent) adminBloomContent.hidden = true;
-      loadAdminContestList(true);
-    } else if (targetTab === "design") {
-      adminPrizesContent.hidden = true;
-      if (adminGamesContent) adminGamesContent.hidden = true;
-      adminAnalyticsContent.hidden = true;
-      if (adminContestsContent) adminContestsContent.hidden = true;
-      if (adminDesignContent) adminDesignContent.hidden = true;
-      if (adminRanksContent) adminRanksContent.hidden = true;
-      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
-      if (adminBloomContent) adminBloomContent.hidden = true;
-    } else if (targetTab === "ranks") {
-      adminPrizesContent.hidden = true;
-      if (adminGamesContent) adminGamesContent.hidden = true;
-      adminAnalyticsContent.hidden = true;
-      if (adminContestsContent) adminContestsContent.hidden = true;
-      if (adminDesignContent) adminDesignContent.hidden = true;
-      if (adminRanksContent) adminRanksContent.hidden = false;
-      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
-      if (adminBloomContent) adminBloomContent.hidden = true;
-      void loadAdminRanks(true);
-    } else if (targetTab === "cs-clips") {
-      adminPrizesContent.hidden = true;
-      if (adminGamesContent) adminGamesContent.hidden = true;
-      adminAnalyticsContent.hidden = true;
-      if (adminContestsContent) adminContestsContent.hidden = true;
-      if (adminDesignContent) adminDesignContent.hidden = true;
-      if (adminRanksContent) adminRanksContent.hidden = true;
-      if (adminCsClipsContent) adminCsClipsContent.hidden = false;
-      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
-      if (adminBloomContent) adminBloomContent.hidden = true;
-      adminCsClipsTabOpen();
-    } else if (targetTab === "fate-or-fortune") {
-      adminPrizesContent.hidden = true;
-      if (adminGamesContent) adminGamesContent.hidden = true;
-      adminAnalyticsContent.hidden = true;
-      if (adminContestsContent) adminContestsContent.hidden = true;
-      if (adminDesignContent) adminDesignContent.hidden = true;
-      if (adminRanksContent) adminRanksContent.hidden = true;
-      if (adminCsClipsContent) adminCsClipsContent.hidden = true;
-      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = false;
-      if (adminBloomContent) adminBloomContent.hidden = true;
-      adminCsMiniPause();
-      void loadAdminFateOrFortuneStats();
-    } else if (targetTab === "bloom") {
-      adminPrizesContent.hidden = true;
-      if (adminGamesContent) adminGamesContent.hidden = true;
-      adminAnalyticsContent.hidden = true;
-      if (adminContestsContent) adminContestsContent.hidden = true;
-      if (adminDesignContent) adminDesignContent.hidden = true;
-      if (adminRanksContent) adminRanksContent.hidden = true;
-      if (adminCsClipsContent) adminCsClipsContent.hidden = true;
-      if (adminFateOrFortuneContent) adminFateOrFortuneContent.hidden = true;
-      if (adminBloomContent) adminBloomContent.hidden = false;
-      adminCsMiniPause();
-      adminBloomInit();
-    } else if (targetTab === "monkey-moonshine") {
-      const mmContent = document.getElementById("admin-monkey-moonshine-content");
-      if (mmContent) mmContent.hidden = false;
-      adminCsMiniPause();
-      mmAdminInit();
-    } else {
-      // Pause the mini canvas RAF whenever we leave the CS Clips tab
-      adminCsMiniPause();
-    }
-  });
+  button.addEventListener("click", () => showAdminTab(button.dataset.adminTab));
 });
 
 // ══════════════════════════════════════════════════════════════

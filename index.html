@@ -423,13 +423,10 @@
                 <span class="drawer-link-label">Bloom</span>
               </span>
             </button>
-            <button type="button" data-route-target="monkey-moonshine" class="drawer-link" id="drawer-monkey-moonshine-link" hidden>
+            <button type="button" data-route-target="monkey-moonshine" class="drawer-link drawer-link-game" id="drawer-monkey-moonshine-link" hidden>
               <span class="drawer-link-inner">
-                <span class="drawer-link-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20 13.2A7.2 7.2 0 1 1 10.8 4a5.6 5.6 0 0 0 9.2 9.2Z"></path>
-                    <circle cx="8.5" cy="9.5" r="0.6" fill="currentColor"></circle>
-                  </svg>
+                <span class="drawer-link-icon drawer-link-icon-game" aria-hidden="true">
+                  <img class="drawer-link-game-logo" data-game-logo-for="game_006" src="/assets/game-logos/monkey-moonshine.svg" alt="" />
                 </span>
                 <span class="drawer-link-label">Monkey Moonshine</span>
               </span>
@@ -838,7 +835,7 @@
                   </div>
                   <div class="fof-tile-wordmark" aria-hidden="true">FATE OR FORTUNE</div>
                 </button>
-                <button type="button" class="home-game-card home-game-card-mm mm-floor-tile is-locked" data-route-target="monkey-moonshine" disabled aria-disabled="true" aria-label="Monkey Moonshine">
+                <button type="button" class="home-game-card home-game-card-mm mm-floor-tile" data-route-target="monkey-moonshine" aria-label="Monkey Moonshine">
                   <div class="hgc-lock-overlay" aria-hidden="true"><span class="hgc-lock-icon">&#x1F512;</span><span class="hgc-lock-label">LOCKED</span></div>
                   <div class="mm-tile-logo" aria-hidden="true">
                     <span class="mm-tile-logo-letter">M</span>
@@ -2855,10 +2852,6 @@
               <button type="button" class="admin-tab" data-admin-tab="analytics">Analytics</button>
               <button type="button" class="admin-tab" data-admin-tab="contests">Contests</button>
               <button type="button" class="admin-tab" data-admin-tab="ranks">Ranks</button>
-              <button type="button" class="admin-tab" data-admin-tab="cs-clips">COLOR SCHEME</button>
-              <button type="button" class="admin-tab" data-admin-tab="fate-or-fortune">FATE OR FORTUNE</button>
-              <button type="button" class="admin-tab" data-admin-tab="bloom">BLOOM</button>
-              <button type="button" class="admin-tab" data-admin-tab="monkey-moonshine">MONKEY MOONSHINE</button>
             </div>
             <section class="admin-tab-content" id="admin-prizes-content">
               <section class="route-section admin-list-section">
@@ -2874,9 +2867,8 @@
                 <div class="admin-listing-header">
                   <div>
                     <h2>Games</h2>
-                    <p class="route-subheading">Manage game branding assets. Logo overrides are stored in this browser for now.</p>
+                    <p class="route-subheading">Pick a game to manage its branding and its dedicated admin tools. Saves sync to the backend automatically.</p>
                   </div>
-                  <button type="button" class="secondary" id="admin-games-migrate-button">Migrate To Backend</button>
                 </div>
                 <ul id="admin-game-list" class="admin-prize-list admin-game-list" aria-live="polite"></ul>
                 <p id="admin-game-message" class="admin-message" role="status" aria-live="polite"></p>
@@ -2930,7 +2922,7 @@
                         <option value="7">Tier 7 — The Ledger</option>
                       </select>
                     </label>
-                    <div class="admin-game-style-grid">
+                    <div class="admin-game-style-grid" hidden>
                       <label class="admin-field">
                         <span>Background Color</span>
                         <div class="admin-game-color-input-row">
