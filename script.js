@@ -10544,10 +10544,24 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin actually opens the route — not on every page load.
     const frame = document.getElementById("monkey-moonshine-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/monkey-moonshine.html?v=20260709-server");
+      frame.setAttribute("src", "games/monkey-moonshine.html?v=20260709-audioscope");
     }
     installMonkeyMoonshineBridge();   // idempotent: broker spins + push the wallet balance
     mmSendInit();                     // refresh balance on re-open (first open waits for mm:ready)
+  }
+
+  // Keep Monkey Moonshine audio scoped to its own route. The iframe stays mounted
+  // (just hidden) when navigating away, and CSS-hiding it does NOT fire
+  // visibilitychange inside it — so tell it to suspend audio everywhere else and
+  // resume when back on its route.
+  {
+    const mmWin = mmFrameWindow();
+    if (mmWin) {
+      mmWin.postMessage(
+        { source: "mm-shell", type: resolvedRoute === "monkey-moonshine" ? "resume" : "suspend" },
+        "*"
+      );
+    }
   }
 
   if (PLAY_ASSISTANT_ROUTES.has(resolvedRoute)) {
