@@ -31803,6 +31803,7 @@ function mmRenderSounds(){
       </div>
       <span class="admin-mm-snd-tag ${has ? 'is-file' : 'is-synth'}">${has ? 'custom file' : 'synth'}</span>
       <div class="admin-mm-snd-actions">
+        ${synthable ? `<input type="text" class="admin-mm-snd-prompt" data-role="prompt" placeholder="prompt (optional): deep, punchy, retro, bright, long…" spellcheck="false">` : ''}
         <button type="button" class="admin-mm-snd-btn" data-act="preview" ${(has || synthable) ? '' : 'disabled'}>▶ Preview</button>
         ${synthable ? `<button type="button" class="admin-mm-snd-btn" data-act="synth">♪ Synth</button>` : ''}
         ${synthable ? `<button type="button" class="admin-mm-snd-btn admin-mm-snd-gen" data-act="generate">⚡ New Synth</button>` : ''}
@@ -31918,18 +31919,68 @@ const MmSynth = (() => {
     coin:()=>{ const a=R(1150,1500), type=pick(['square','triangle']); return (s)=>{ s.beep(a,{type,dur:0.08,peak:0.11}); s.beep(a*1.5,{type,t:0.06,dur:0.17,peak:0.1}); s.beep(a*2,{type:'sine',t:0.06,dur:0.14,peak:0.05}); }; },
   };
 
-  function playFn(fn){
+  // Turn a free-text prompt into tone modifiers. Keyword-driven (no audio model):
+  // words nudge pitch / length / loudness / brightness / oscillator shape.
+  function parsePrompt(prompt){
+    const s = (prompt || '').toLowerCase();
+    if (!s.trim()) return null;
+    const has = (...w)=> w.some(x => s.includes(x));
+    let pitch = 1, dur = 1, peak = 1, bright = 1, osc = null;
+    if (has('high','bright','sharp','treble','squeak','tiny','chirp','shrill','airy')) pitch *= 1.5;
+    if (has('low','deep','bass','sub','rumble','heavy','fat','boom','thud')) pitch *= 0.6;
+    if (has('long','sustain','drawn','stretch','slow','drone','epic','big')) dur *= 1.8;
+    if (has('short','quick','snappy','tight','punchy','stab','blip','tick','clip')) dur *= 0.55;
+    if (has('loud','strong','bold','aggressive','intense','powerful')) peak *= 1.4;
+    if (has('soft','gentle','quiet','subtle','faint','delicate')) peak *= 0.62;
+    if (has('bright','crisp','metallic','glass','shiny','sparkle','shimmer','glassy','clang')) bright *= 1.8;
+    if (has('muffled','warm','dark','dull','round','underwater','mellow')) bright *= 0.55;
+    if (has('retro','8-bit','8bit','chiptune','chip','arcade','game','nes','pixel')) osc = 'square';
+    else if (has('buzzy','gritty','harsh','saw','rough','dirty','growl','grind')) osc = 'sawtooth';
+    else if (has('pure','clean','sine','pad','smooth','flute','whistle')) osc = 'sine';
+    else if (has('woody','hollow','triangle','mallow','soft')) osc = 'triangle';
+    pitch  = Math.max(0.35, Math.min(2.6, pitch));
+    dur    = Math.max(0.4,  Math.min(2.5, dur));
+    peak   = Math.max(0.4,  Math.min(1.8, peak));
+    bright = Math.max(0.4,  Math.min(2.4, bright));
+    return { pitch, dur, peak, bright, osc };
+  }
+  // Wrap a scheduler so every beep/hit is scaled by the prompt modifiers.
+  function applyMods(sch, m){
+    if (!m) return sch;
+    return {
+      beep(freq, opts = {}){
+        sch.beep(freq * m.pitch, {
+          ...opts,
+          type: m.osc || opts.type,
+          dur: (opts.dur == null ? 0.2 : opts.dur) * m.dur,
+          peak: Math.min(0.5, (opts.peak == null ? 0.3 : opts.peak) * m.peak),
+          to: opts.to != null ? opts.to * m.pitch : null,
+        });
+      },
+      hit(opts = {}){
+        sch.hit({
+          ...opts,
+          dur: (opts.dur == null ? 0.2 : opts.dur) * m.dur,
+          peak: Math.min(0.6, (opts.peak == null ? 0.3 : opts.peak) * m.peak),
+          freq: (opts.freq == null ? 800 : opts.freq) * m.bright,
+          to: opts.to != null ? opts.to * m.bright : null,
+        });
+      },
+    };
+  }
+
+  function playFn(fn, mods){
     const ctx = ac(); if (!ctx || !fn) return; if (ctx.state === 'suspended') ctx.resume();
     const g = ctx.createGain(); g.gain.value = 0.9; g.connect(ctx.destination);
-    const s = scheduler(ctx, g, ctx.currentTime + 0.03);
+    const s = applyMods(scheduler(ctx, g, ctx.currentTime + 0.03), mods);
     try { fn(s); } catch(e){ console.error('[mm] synth play', e); }
   }
-  async function renderWav(fn, seconds){
+  async function renderWav(fn, seconds, mods){
     const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext; if (!OAC || !fn) return null;
     const sr = 44100, len = Math.ceil(sr * (seconds || 1.5));
     const oac = new OAC(1, len, sr);
     const g = oac.createGain(); g.gain.value = 0.9; g.connect(oac.destination);
-    const s = scheduler(oac, g, 0);
+    const s = applyMods(scheduler(oac, g, 0), mods);
     try { fn(s); } catch(e){ console.error('[mm] synth render', e); }
     const buf = await oac.startRendering();
     return audioBufferToWavBlob(buf);
@@ -31946,8 +31997,11 @@ const MmSynth = (() => {
   }
   return {
     hasSynth: (name)=> !!CURRENT[name],
-    previewSynth: (name)=> playFn(CURRENT[name]),
-    generate: (name)=>{ const mk = GEN[name]; if (!mk) return null; const fn = mk(); playFn(fn); return fn; },
+    previewSynth: (name)=> playFn(CURRENT[name], null),
+    // Generate a variant biased by an optional text prompt; plays it and
+    // returns { fn, mods } so the exact same sound can be re-rendered on Save.
+    generate: (name, prompt)=>{ const mk = GEN[name]; if (!mk) return null; const fn = mk(); const mods = parsePrompt(prompt); playFn(fn, mods); return { fn, mods }; },
+    playVariant: (variant)=>{ if (variant) playFn(variant.fn, variant.mods); },
     renderWav,
     durOf: (name)=> DUR[name] || 1,
   };
@@ -31957,6 +32011,7 @@ const _mmGenerated = {};   // name -> last generated variant closure (pending sa
 
 let _mmPreviewAudio = null;
 function mmPreviewSound(name){
+  if (_mmGenerated[name]){ MmSynth.playVariant(_mmGenerated[name]); return; }  // audition the pending roll
   const url = _mmSounds && _mmSounds[name];
   if (url){
     try { if (_mmPreviewAudio) _mmPreviewAudio.pause(); _mmPreviewAudio = new Audio(url); _mmPreviewAudio.play().catch(() => {}); } catch (e){}
@@ -31966,26 +32021,31 @@ function mmPreviewSound(name){
 }
 
 function mmGenerateSynth(name){
-  const fn = MmSynth.generate(name);   // generates a fresh variant and plays it
-  if (!fn){ mmSoundsStatus('“' + name + '” has no procedural synth to vary.'); return; }
-  _mmGenerated[name] = fn;
   const row = document.querySelector('.admin-mm-snd-row[data-name="' + name + '"]');
+  const promptEl = row && row.querySelector('[data-role="prompt"]');
+  const prompt = promptEl ? promptEl.value : '';
+  const variant = MmSynth.generate(name, prompt);   // generates a fresh variant and plays it
+  if (!variant){ mmSoundsStatus('“' + name + '” has no procedural synth to vary.'); return; }
+  _mmGenerated[name] = variant;
   const saveBtn = row && row.querySelector('[data-act="save"]');
   if (saveBtn) saveBtn.disabled = false;
-  mmSoundsStatus('New “' + name + '” synth generated — Preview again, roll another, or Save to use it in the game.');
+  mmSoundsStatus(prompt.trim()
+    ? 'New “' + name + '” synth from “' + prompt.trim() + '” — Preview again, roll another, or Save to use it.'
+    : 'New “' + name + '” synth generated — Preview again, roll another, or Save to use it in the game.');
 }
 
 async function mmSaveGeneratedSynth(name){
-  const fn = _mmGenerated[name];
-  if (!fn){ mmSoundsStatus('Generate a synth for “' + name + '” first.'); return; }
+  const variant = _mmGenerated[name];
+  if (!variant){ mmSoundsStatus('Generate a synth for “' + name + '” first.'); return; }
   mmSoundsStatus('Rendering “' + name + '” synth to a file…');
   try {
-    const blob = await MmSynth.renderWav(fn, MmSynth.durOf(name) + 0.3);
+    const secs = MmSynth.durOf(name) * ((variant.mods && variant.mods.dur) || 1) + 0.3;
+    const blob = await MmSynth.renderWav(variant.fn, secs, variant.mods);
     if (!blob) throw new Error('render unsupported in this browser');
     delete _mmGenerated[name];
     await mmUploadSound(name, new File([blob], name + '-synth.wav', { type: 'audio/wav' }));
   } catch (e){
-    _mmGenerated[name] = fn;   // keep the variant so they can retry
+    _mmGenerated[name] = variant;   // keep the variant so they can retry
     mmSoundsStatus('Save failed: ' + (e && e.message || e));
     console.error('[mm] save synth', e);
   }

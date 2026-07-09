@@ -32033,6 +32033,10 @@ body[data-ui="new"] #bloom-chipBar .chip-rack-edit:hover {
 .admin-mm-snd-tag.is-file { color: #4ad07a; border-color: rgba(74,208,122,.4); background: rgba(74,208,122,.12); }
 .admin-mm-snd-tag.is-synth { color: #8a97a0; border-color: rgba(255,255,255,.14); background: rgba(255,255,255,.04); }
 .admin-mm-snd-actions { display: flex; align-items: center; gap: 6px; flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; }
+.admin-mm-snd-prompt { flex: 1 1 200px; min-width: 150px; font: inherit; font-size: 11px; color: #eafff2;
+  background: rgba(0,0,0,.34); border: 1px solid rgba(255,255,255,.16); border-radius: 7px; padding: 5px 10px; }
+.admin-mm-snd-prompt::placeholder { color: #6f7c84; }
+.admin-mm-snd-prompt:focus { outline: none; border-color: #2fd06e; }
 .admin-mm-snd-btn.admin-mm-snd-gen:hover { border-color: #ffcf4a; color: #fff3d6; }
 .admin-mm-snd-btn.admin-mm-snd-save:hover { border-color: #4ad07a; color: #eafff2; }
 .admin-mm-snd-btn { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font: inherit; font-size: 11px;
