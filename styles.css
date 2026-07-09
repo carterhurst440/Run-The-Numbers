@@ -26968,7 +26968,17 @@ body[data-ui="new"] .home-game-card-mm.is-locked { opacity: 0.9; }
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   padding: 9px 0 2px;
+}
+.mm-tile-logo-letter {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #2fd06e;
+  line-height: 1;
+  text-shadow: 0 0 9px color-mix(in oklab, #2fd06e 50%, transparent), 0 0 2px #2fd06e;
 }
 .mm-tile-coconut {
   display: block;
