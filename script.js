@@ -3349,6 +3349,13 @@ function wireCreditsLeaderboardModal() {
 let bankrollHistorySeries = [];
 let bankrollHistoryPeriod = "all";
 let bankrollHistoryFetchToken = 0;
+// Account VALUE vs ACTIVITY toggle state for the leaderboard player modal.
+let bankrollHistoryView = "value";
+let bankrollHistoryUserId = null;
+let bankrollHistoryName = "";
+let activityHistoryRows = null;      // cached daily rows for the active user/period
+let activityHistoryFetchToken = 0;
+let activityHistoryChart = null;
 
 function bankrollPeriodStartDate(period) {
   const now = Date.now();
@@ -3390,12 +3397,15 @@ async function openBankrollHistoryModal(userId, username) {
   if (!bankrollHistoryModal || !userId) return;
   bankrollHistoryModal.hidden = false;
   document.body.classList.add("modal-open");
-  if (bankrollHistoryTitleEl) {
-    bankrollHistoryTitleEl.textContent = username ? `${username} · Bankroll` : "Bankroll History";
-  }
+  bankrollHistoryUserId = userId;
+  bankrollHistoryName = username || "";
+  bankrollHistoryView = "value";
   bankrollHistorySeries = [];
   bankrollHistoryPeriod = "all";
+  activityHistoryRows = null;
   syncBankrollHistoryPeriodButtons();
+  syncBankrollHistoryViewButtons();
+  applyBankrollHistoryView();     // shows value wrap, hides activity wrap, sets title
 
   const token = ++bankrollHistoryFetchToken;
   drawBankrollHistoryChart(); // shows Loading via empty state
@@ -3410,13 +3420,180 @@ async function openBankrollHistoryModal(userId, username) {
       .filter((p) => !Number.isNaN(p.time.getTime()))
       .sort((a, b) => a.time - b.time);
   }
-  drawBankrollHistoryChart();
+  if (bankrollHistoryView === "value") drawBankrollHistoryChart();
+}
+
+function syncBankrollHistoryViewButtons() {
+  if (!bankrollHistoryModal) return;
+  bankrollHistoryModal.querySelectorAll("[data-bh-view]").forEach((btn) => {
+    const on = btn.dataset.bhView === bankrollHistoryView;
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-selected", on ? "true" : "false");
+  });
+}
+
+// Show the canvas for the current view, hide the other, and update the title.
+function applyBankrollHistoryView() {
+  const isActivity = bankrollHistoryView === "activity";
+  if (bankrollValueWrapEl) bankrollValueWrapEl.hidden = isActivity;
+  if (bankrollActivityWrapEl) bankrollActivityWrapEl.hidden = !isActivity;
+  if (bankrollHistoryTitleEl) {
+    const who = bankrollHistoryName ? `${bankrollHistoryName} · ` : "";
+    bankrollHistoryTitleEl.textContent = who + (isActivity ? "Account Activity" : "Account Value");
+  }
+}
+
+function setBankrollHistoryView(view) {
+  const next = view === "activity" ? "activity" : "value";
+  if (next === bankrollHistoryView) return;
+  bankrollHistoryView = next;
+  syncBankrollHistoryViewButtons();
+  applyBankrollHistoryView();
+  if (next === "activity") {
+    void drawActivityHistoryChart();
+  } else {
+    drawBankrollHistoryChart();
+  }
+}
+
+// Map the shared period buttons to a day-window + display bucket for activity.
+function activityPeriodConfig(period) {
+  switch (period) {
+    case "month":  return { days: 30,   bucket: "day" };
+    case "90days": return { days: 90,   bucket: "day" };
+    case "year":   return { days: 364,  bucket: "week" };
+    // Cap "all" at 730 days: PostgREST returns at most 1000 rows, and this RPC
+    // emits one row per day, so a larger window would silently drop older days.
+    case "all":    return { days: 730,  bucket: "month" };
+    default:       return { days: 30,   bucket: "day" };
+  }
+}
+
+const ACTIVITY_GAME_SERIES = [
+  { key: "rtn", label: "RTN",  color: "#e8a020" },
+  { key: "g10", label: "G10",  color: "#00e5ff" },
+  { key: "st",  label: "ST",   color: "#c8ff00" },
+  { key: "ryb", label: "RYB",  color: "#ff4444" },
+  { key: "fof", label: "FOF",  color: "#b07bff" },
+];
+
+// Collapse daily rows into day / week / month display buckets.
+function bucketActivityRows(rows, mode) {
+  if (!Array.isArray(rows) || !rows.length) return [];
+  if (mode === "day") {
+    return rows.map((r) => ({ label: String(r.d).slice(5), ...pickGameCounts(r) }));
+  }
+  const groups = new Map();
+  const order = [];
+  for (const r of rows) {
+    let key;
+    if (mode === "month") {
+      key = String(r.d).slice(0, 7);            // YYYY-MM
+    } else {                                     // week: ISO-ish, group by 7-day index from first day
+      const first = new Date(rows[0].d + "T00:00:00Z");
+      const cur = new Date(r.d + "T00:00:00Z");
+      const wk = Math.floor((cur - first) / (7 * 86400000));
+      key = String(wk);
+    }
+    if (!groups.has(key)) { groups.set(key, { label: null, rtn: 0, g10: 0, st: 0, ryb: 0, fof: 0, firstDay: r.d }); order.push(key); }
+    const g = groups.get(key);
+    g.rtn += Number(r.rtn || 0); g.g10 += Number(r.g10 || 0); g.st += Number(r.st || 0);
+    g.ryb += Number(r.ryb || 0); g.fof += Number(r.fof || 0);
+  }
+  return order.map((key) => {
+    const g = groups.get(key);
+    g.label = mode === "month" ? key : String(g.firstDay).slice(5);
+    return g;
+  });
+}
+
+function pickGameCounts(r) {
+  return {
+    rtn: Number(r.rtn || 0), g10: Number(r.g10 || 0), st: Number(r.st || 0),
+    ryb: Number(r.ryb || 0), fof: Number(r.fof || 0),
+  };
+}
+
+async function drawActivityHistoryChart() {
+  if (!bankrollActivityCanvas || typeof Chart === "undefined") return;
+  const userId = bankrollHistoryUserId;
+  if (!userId || !supabase) return;
+
+  const { days, bucket } = activityPeriodConfig(bankrollHistoryPeriod);
+  const token = ++activityHistoryFetchToken;
+
+  const { data, error } = await supabase.rpc("get_activity_series", { p_user_id: userId, p_days: days });
+  if (token !== activityHistoryFetchToken) return;         // superseded by a newer period/user
+  if (bankrollHistoryView !== "activity") return;          // user toggled away mid-fetch
+  if (error) console.error("[RTN] get_activity_series error", error.message || error);
+  activityHistoryRows = Array.isArray(data) ? data : [];
+
+  const display = bucketActivityRows(activityHistoryRows, bucket);
+  const total = display.reduce((s, b) => s + b.rtn + b.g10 + b.st + b.ryb + b.fof, 0);
+
+  if (activityHistoryChart) { activityHistoryChart.destroy(); activityHistoryChart = null; }
+  const ctx = bankrollActivityCanvas.getContext("2d");
+  if (!ctx) return;
+
+  activityHistoryChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: display.length ? display.map((b) => b.label) : ["No activity"],
+      datasets: ACTIVITY_GAME_SERIES.map((s) => ({
+        label: s.label,
+        data: display.map((b) => b[s.key] || 0),
+        backgroundColor: s.color + "cc",
+        borderColor: s.color,
+        borderWidth: 0,
+        borderRadius: 1,
+        stack: "events",
+      })),
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      animation: { duration: 600, easing: "easeOutQuart" },
+      animations: {
+        x: { duration: 0 },
+        y: { from: (c) => c.chart.scales.y.getPixelForValue(0) },
+        base: { from: (c) => c.chart.scales.y.getPixelForValue(0) },
+      },
+      plugins: {
+        legend: {
+          display: true,
+          labels: { color: "rgba(226, 248, 255, 0.85)", boxWidth: 12, boxHeight: 12, font: { size: 11 } },
+        },
+        tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${c.parsed.y}` } },
+      },
+      scales: {
+        x: {
+          stacked: true,
+          ticks: { color: "rgba(168, 168, 112, 0.7)", font: { size: 9 }, maxTicksLimit: 12 },
+          grid: { display: false },
+          border: { color: "rgba(200, 255, 0, 0.12)" },
+        },
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          ticks: { color: "rgba(168, 168, 112, 0.7)", font: { size: 9 }, precision: 0 },
+          grid: { color: "rgba(200, 255, 0, 0.06)" },
+          border: { color: "rgba(200, 255, 0, 0.12)" },
+        },
+      },
+    },
+  });
+
+  if (!total) {
+    // Empty overlay via the "No activity" label already; nothing else needed.
+  }
 }
 
 function closeBankrollHistoryModal() {
   if (!bankrollHistoryModal) return;
   bankrollHistoryModal.hidden = true;
   document.body.classList.remove("modal-open");
+  if (activityHistoryChart) { activityHistoryChart.destroy(); activityHistoryChart = null; }
 }
 
 function syncBankrollHistoryPeriodButtons() {
@@ -3608,11 +3785,20 @@ function wireBankrollHistoryModal() {
     bankrollHistoryModal.dataset.wired = "1";
     bankrollHistoryModal.addEventListener("click", (e) => {
       if (e.target === bankrollHistoryModal) closeBankrollHistoryModal();
+      const viewBtn = e.target.closest?.("[data-bh-view]");
+      if (viewBtn) {
+        setBankrollHistoryView(viewBtn.dataset.bhView || "value");
+        return;
+      }
       const periodBtn = e.target.closest?.("[data-bh-period]");
       if (periodBtn) {
         bankrollHistoryPeriod = periodBtn.dataset.bhPeriod || "all";
         syncBankrollHistoryPeriodButtons();
-        drawBankrollHistoryChart();
+        if (bankrollHistoryView === "activity") {
+          void drawActivityHistoryChart();
+        } else {
+          drawBankrollHistoryChart();
+        }
       }
     });
   }
@@ -19208,6 +19394,9 @@ const creditsLeaderboardClose = document.getElementById("credits-leaderboard-clo
 const creditsLeaderboardOk = document.getElementById("credits-leaderboard-ok");
 const bankrollHistoryModal = document.getElementById("bankroll-history-modal");
 const bankrollHistoryCanvas = document.getElementById("bankroll-history-canvas");
+const bankrollActivityCanvas = document.getElementById("bankroll-activity-canvas");
+const bankrollValueWrapEl = document.getElementById("bankroll-value-canvas-wrap");
+const bankrollActivityWrapEl = document.getElementById("bankroll-activity-canvas-wrap");
 const bankrollHistoryTitleEl = document.getElementById("bankroll-history-title");
 const bankrollHistoryClose = document.getElementById("bankroll-history-close");
 const bankrollHistoryOk = document.getElementById("bankroll-history-ok");

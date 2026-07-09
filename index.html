@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260708-glitchtiles" />
+    <link rel="stylesheet" href="styles.css?v=20260708-activityview" />
     <link rel="stylesheet" href="assets/bloom/bloom-flowers.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-weather.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-growth.css" />
@@ -5116,14 +5116,21 @@
           <button type="button" class="modal-close" id="bankroll-history-close" aria-label="Close bankroll history">×</button>
         </div>
         <div class="modal-body bankroll-history-body">
+          <div class="bankroll-history-views chart-filters" role="tablist" aria-label="Chart view">
+            <button type="button" class="account-chart-period-btn active" data-bh-view="value" aria-selected="true">ACCOUNT VALUE</button>
+            <button type="button" class="account-chart-period-btn" data-bh-view="activity" aria-selected="false">ACCOUNT ACTIVITY</button>
+          </div>
           <div class="bankroll-history-periods chart-filters">
             <button type="button" class="account-chart-period-btn" data-bh-period="month">1M</button>
             <button type="button" class="account-chart-period-btn" data-bh-period="90days">3M</button>
             <button type="button" class="account-chart-period-btn" data-bh-period="year">1Y</button>
             <button type="button" class="account-chart-period-btn active" data-bh-period="all">ALL</button>
           </div>
-          <div class="bankroll-history-canvas-wrap">
-            <canvas id="bankroll-history-canvas" role="img" aria-label="Bankroll history line chart"></canvas>
+          <div class="bankroll-history-canvas-wrap" id="bankroll-value-canvas-wrap">
+            <canvas id="bankroll-history-canvas" role="img" aria-label="Account value line chart"></canvas>
+          </div>
+          <div class="bankroll-history-canvas-wrap" id="bankroll-activity-canvas-wrap" hidden>
+            <canvas id="bankroll-activity-canvas" role="img" aria-label="Account activity stacked bar chart of game events"></canvas>
           </div>
         </div>
         <div class="modal-actions">
@@ -5297,7 +5304,7 @@
     <script>window.__h = preact.h; window.__Fragment = preact.Fragment;</script>
     <script src="assets/bloom/morphs/flowers-compiled.js"></script>
     <script src="assets/bloom/morphs/flower-morphs.js"></script>
-    <script type="module" src="script.js?v=20260708-glitchtiles"></script>
+    <script type="module" src="script.js?v=20260708-activityview"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

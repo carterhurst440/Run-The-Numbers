@@ -22343,6 +22343,17 @@ body.state-open .auth-vault-grant .gline::after {
 }
 
 /* ---- BANKROLL HISTORY MODAL ---- */
+.bankroll-history-views {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.bankroll-history-views .account-chart-period-btn {
+  white-space: nowrap;
+}
+
 .bankroll-history-periods {
   display: flex;
   gap: 6px;
