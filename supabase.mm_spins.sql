@@ -35,7 +35,16 @@ CREATE TABLE IF NOT EXISTS public.mm_spins (
   -- Each cell: a fruit name | 'coconut' | 'monkey' (raid-replaced coconut) | null.
   board                     JSONB,
 
-  round_details             JSONB,   -- line wins / raid summary
+  -- Per-line pay breakdown: every paying line and what it paid. The sum of `pay`
+  -- across the array equals total_returned (the reconciliation cross-check). Shape:
+  --   [ { "fruit":"apple", "len":4, "mult":2, "kind":"row",
+  --       "cells":[[0,0],[0,1],[0,2],[0,3]], "pay":30 }, ... ]
+  --   fruit = the fruit the line pays as; len = match length (3..5);
+  --   mult  = wild multiplier applied (1 if no wild fruit in the line);
+  --   kind  = line orientation/type; cells = [row,col] pairs;
+  --   pay   = basePay(len) * bet * mult (credits paid on this line).
+  winning_lines             JSONB NOT NULL DEFAULT '[]'::jsonb,
+
   round_replay              JSONB,   -- reserved: grid states for client-stitched replay
 
   -- Money (NUMERIC — same precision pattern as bloom_rounds / fof_rounds).
