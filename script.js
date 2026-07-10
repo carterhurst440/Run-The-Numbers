@@ -3459,7 +3459,7 @@ async function openBankrollHistoryModal(userId, username) {
     bankrollHistorySeries = [];
   } else {
     bankrollHistorySeries = data
-      .map((row) => ({ time: new Date(row.occurred_at), value: Number(row.balance) || 0 }))
+      .map((row) => ({ time: new Date(row.occurred_at), value: Number(row.balance) || 0, source: row.source }))
       .filter((p) => !Number.isNaN(p.time.getTime()))
       .sort((a, b) => a.time - b.time);
   }
@@ -3652,7 +3652,7 @@ function getFilteredBankrollHistory() {
 }
 
 function drawBankrollHistoryChart() {
-  drawBankrollLineChart(bankrollHistoryCanvas, getFilteredBankrollHistory());
+  drawBankrollLineChart(bankrollHistoryCanvas, getFilteredBankrollHistory(), { colorBySource: true });
 }
 
 // Reusable time-series line renderer for [{time, value, source?}] points.

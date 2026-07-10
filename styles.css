@@ -22407,11 +22407,19 @@ body.state-open .auth-vault-grant .gline::after {
   height: 340px;
   position: relative;
 }
+/* Value view holds the colored line + its legend, so let it grow. */
+#bankroll-value-canvas-wrap {
+  height: auto;
+}
 
 #bankroll-history-canvas {
   width: 100%;
-  height: 100%;
+  height: 300px;
   display: block;
+}
+#bankroll-value-canvas-wrap .hra-balance-legend {
+  justify-content: center;
+  margin-top: 8px;
 }
 
 /* Embedded account/logs line charts */

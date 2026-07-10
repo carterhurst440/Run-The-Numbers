@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260710-balcolor" />
+    <link rel="stylesheet" href="styles.css?v=20260710-lbcolor" />
     <link rel="stylesheet" href="assets/bloom/bloom-flowers.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-weather.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-growth.css" />
@@ -5198,7 +5198,16 @@
             <button type="button" class="account-chart-period-btn active" data-bh-period="all">ALL</button>
           </div>
           <div class="bankroll-history-canvas-wrap" id="bankroll-value-canvas-wrap">
-            <canvas id="bankroll-history-canvas" role="img" aria-label="Account value line chart"></canvas>
+            <canvas id="bankroll-history-canvas" role="img" aria-label="Account value line chart, colored by the game or event behind each move"></canvas>
+            <div class="hra-legend hra-balance-legend">
+              <span class="hra-leg-item hra-leg-rtn"><span class="hra-leg-dot"></span>RTN</span>
+              <span class="hra-leg-item hra-leg-g10"><span class="hra-leg-dot"></span>G10</span>
+              <span class="hra-leg-item hra-leg-st"><span class="hra-leg-dot"></span>ST</span>
+              <span class="hra-leg-item hra-leg-ryb"><span class="hra-leg-dot"></span>CS</span>
+              <span class="hra-leg-item hra-leg-fof"><span class="hra-leg-dot"></span>FOF</span>
+              <span class="hra-leg-item hra-leg-mm"><span class="hra-leg-dot"></span>MM</span>
+              <span class="hra-leg-item hra-leg-evt"><span class="hra-leg-dot"></span>EVENTS</span>
+            </div>
           </div>
           <div class="bankroll-history-canvas-wrap" id="bankroll-activity-canvas-wrap" hidden>
             <canvas id="bankroll-activity-canvas" role="img" aria-label="Account activity stacked bar chart of game events"></canvas>
@@ -5375,7 +5384,7 @@
     <script>window.__h = preact.h; window.__Fragment = preact.Fragment;</script>
     <script src="assets/bloom/morphs/flowers-compiled.js"></script>
     <script src="assets/bloom/morphs/flower-morphs.js"></script>
-    <script type="module" src="script.js?v=20260710-balcolor"></script>
+    <script type="module" src="script.js?v=20260710-lbcolor"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
