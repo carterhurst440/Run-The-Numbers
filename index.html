@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260710-lbcolor" />
+    <link rel="stylesheet" href="styles.css?v=20260710-chartfilters" />
     <link rel="stylesheet" href="assets/bloom/bloom-flowers.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-weather.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-growth.css" />
@@ -777,8 +777,15 @@
 
                 <!-- ACTIVITY panel -->
                 <div class="hra-panel" data-home-chart-panel="activity">
+                  <div class="hra-balance-periods chart-filters">
+                    <button type="button" class="home-sb-chart-btn" data-home-activity-period="24h">24H</button>
+                    <button type="button" class="home-sb-chart-btn" data-home-activity-period="week">1W</button>
+                    <button type="button" class="home-sb-chart-btn is-active" data-home-activity-period="month">1M</button>
+                    <button type="button" class="home-sb-chart-btn" data-home-activity-period="90days">3M</button>
+                    <button type="button" class="home-sb-chart-btn" data-home-activity-period="all">ALL</button>
+                  </div>
                   <div class="hra-chart-wrap">
-                    <canvas id="home-activity-chart" aria-label="Stacked bar chart of daily game events over the last 30 days"></canvas>
+                    <canvas id="home-activity-chart" aria-label="Stacked bar chart of game events over the selected period"></canvas>
                   </div>
                   <div class="hra-legend">
                     <span class="hra-leg-item hra-leg-rtn"><span class="hra-leg-dot"></span>RTN</span>
@@ -793,6 +800,7 @@
                 <!-- ACCOUNT BALANCE panel -->
                 <div class="hra-panel" data-home-chart-panel="balance" hidden>
                   <div class="hra-balance-periods chart-filters">
+                    <button type="button" class="home-sb-chart-btn" data-home-balance-period="24h">24H</button>
                     <button type="button" class="home-sb-chart-btn is-active" data-home-balance-period="week">1W</button>
                     <button type="button" class="home-sb-chart-btn" data-home-balance-period="month">1M</button>
                     <button type="button" class="home-sb-chart-btn" data-home-balance-period="90days">3M</button>
@@ -5384,7 +5392,7 @@
     <script>window.__h = preact.h; window.__Fragment = preact.Fragment;</script>
     <script src="assets/bloom/morphs/flowers-compiled.js"></script>
     <script src="assets/bloom/morphs/flower-morphs.js"></script>
-    <script type="module" src="script.js?v=20260710-lbcolor"></script>
+    <script type="module" src="script.js?v=20260710-chartfilters"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

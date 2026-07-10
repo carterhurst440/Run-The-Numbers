@@ -3386,6 +3386,7 @@ let activityHistoryChart = null;
 
 function bankrollPeriodStartDate(period) {
   const now = Date.now();
+  if (period === "24h") return new Date(now - 24 * 36e5);
   if (period === "week") return new Date(now - 7 * 864e5);
   if (period === "month") return new Date(now - 30 * 864e5);
   if (period === "90days") return new Date(now - 90 * 864e5);
@@ -3434,6 +3435,16 @@ const BANKROLL_SOURCE_COLORS = {
 // Account events (rank-ups, affiliate, admin grants) and anything unmapped → orange.
 function bankrollSourceColor(source) {
   return BANKROLL_SOURCE_COLORS[source] || "#ff8a3d";
+}
+
+// Compact axis label for account value: 1000 -> "1k", 2500 -> "2.5k", 950 -> "950".
+function abbrevThousandsTick(n) {
+  const v = Number(n) || 0;
+  const abs = Math.abs(v);
+  if (abs < 1000) return String(Math.round(v));
+  const k = v / 1000;
+  const str = Math.abs(k) >= 10 || Number.isInteger(k) ? String(Math.round(k)) : k.toFixed(1);
+  return `${str}k`;
 }
 
 async function openBankrollHistoryModal(userId, username) {
@@ -3679,7 +3690,7 @@ function drawBankrollLineChart(canvas, points, { colorBySource = false } = {}) {
     return;
   }
 
-  const padding = { top: 22, right: 18, bottom: 34, left: 78 };
+  const padding = { top: 20, right: 18, bottom: 40, left: 48 };
   const chartWidth = Math.max(10, width - padding.left - padding.right);
   const chartHeight = Math.max(10, height - padding.top - padding.bottom);
   const values = points.map((p) => p.value);
@@ -3688,7 +3699,8 @@ function drawBankrollLineChart(canvas, points, { colorBySource = false } = {}) {
   if (minValue === maxValue) { minValue -= 10; maxValue += 10; }
   const range = Math.max(1, maxValue - minValue);
 
-  ctx.strokeStyle = "rgba(200, 255, 0, 0.08)";
+  // Match the ACTIVITY chart: faint white gridlines, 9px #686850 tick labels.
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
   ctx.lineWidth = 1;
   for (let step = 0; step <= 4; step += 1) {
     const y = padding.top + (chartHeight / 4) * step;
@@ -3698,13 +3710,13 @@ function drawBankrollLineChart(canvas, points, { colorBySource = false } = {}) {
     ctx.stroke();
   }
 
-  ctx.fillStyle = "rgba(168, 168, 112, 0.6)";
-  ctx.font = "600 12px JetBrains Mono, monospace";
+  ctx.fillStyle = "#686850";
+  ctx.font = "600 9px JetBrains Mono, monospace";
   ctx.textAlign = "right";
   for (let step = 0; step <= 4; step += 1) {
-    const value = Math.round(maxValue - (range / 4) * step);
-    const y = padding.top + (chartHeight / 4) * step + 4;
-    ctx.fillText(value.toLocaleString(), padding.left - 10, y);
+    const value = maxValue - (range / 4) * step;
+    const y = padding.top + (chartHeight / 4) * step + 3;
+    ctx.fillText(abbrevThousandsTick(value), padding.left - 8, y);
   }
 
   const coords = points.map((p, index) => {
@@ -3749,14 +3761,36 @@ function drawBankrollLineChart(canvas, points, { colorBySource = false } = {}) {
     ctx.stroke();
   }
 
-  // Date axis: first + last
-  ctx.fillStyle = "rgba(168, 168, 112, 0.6)";
-  ctx.font = "600 11px JetBrains Mono, monospace";
-  const fmt = (d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "2-digit" });
-  ctx.textAlign = "left";
-  ctx.fillText(fmt(points[0].time), padding.left, height - 12);
-  ctx.textAlign = "right";
-  ctx.fillText(fmt(points[points.length - 1].time), width - padding.right, height - 12);
+  // X axis: bottom border + tilted date/time labels (like the ACTIVITY chart).
+  const axisY = padding.top + chartHeight;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padding.left, axisY);
+  ctx.lineTo(width - padding.right, axisY);
+  ctx.stroke();
+
+  ctx.fillStyle = "#686850";
+  ctx.font = "600 9px JetBrains Mono, monospace";
+  // Intraday windows (<= ~36h) show clock times; longer windows show dates.
+  const spanMs = points.length > 1 ? (points[points.length - 1].time - points[0].time) : 0;
+  const intraday = spanMs > 0 && spanMs <= 36 * 36e5;
+  const fmt = intraday
+    ? (d) => d.toLocaleTimeString([], { hour: "numeric" })
+    : (d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const labelCount = Math.min(7, points.length);
+  const seen = new Set();
+  for (let li = 0; li < labelCount; li += 1) {
+    const idx = labelCount <= 1 ? points.length - 1 : Math.round(((points.length - 1) * li) / (labelCount - 1));
+    if (seen.has(idx)) continue;
+    seen.add(idx);
+    ctx.save();
+    ctx.translate(coords[idx].x, axisY + 12);
+    ctx.rotate(-0.5);
+    ctx.textAlign = "right";
+    ctx.fillText(fmt(points[idx].time), 0, 0);
+    ctx.restore();
+  }
 }
 
 // ── Embedded charts in the Account Chart & Logs view ───────────────────────
@@ -10673,6 +10707,9 @@ async function setRoute(route, { replaceHash = false } = {}) {
       void loadActivityLogPage({ force: true });
       void loadPersistentBankrollHistory({ force: true });
     }
+    // Always pull fresh chart data when the player returns to the dashboard.
+    drawHomeActivityChart(true);
+    renderHomeBalanceChart(true);
   } else if (resolvedRoute === "store") {
     await loadPrizeShop();
   } else if (resolvedRoute === "admin") {
@@ -41895,7 +41932,24 @@ function drawHomePnlChart() {
 // on every refreshHomeDashboard() pass.
 let _homeActivityData = null;
 let _homeActivityUserId = null;
+let _homeActivityCachedPeriod = null;
 let _homeActivityFetching = false;
+let homeActivityPeriod = "month"; // default 1 month
+
+// period -> { bucket unit, number of buckets ending "now" }
+const HOME_ACTIVITY_WINDOWS = {
+  "24h":    { unit: "hour", count: 24 },
+  "week":   { unit: "day",  count: 7 },
+  "month":  { unit: "day",  count: 30 },
+  "90days": { unit: "day",  count: 90 },
+  "all":    { unit: "day",  count: 180 },
+};
+
+function homeActivitySubText(period, hasActivity) {
+  const win = { "24h": "LAST 24 HOURS", week: "LAST 7 DAYS", month: "LAST 30 DAYS", "90days": "LAST 90 DAYS", all: "LAST 180 DAYS" }[period] || "LAST 30 DAYS";
+  const grain = period === "24h" ? "HOURLY GAME EVENTS" : "DAILY GAME EVENTS";
+  return `${grain} · ${win}${hasActivity ? "" : " · NO ACTIVITY YET"}`;
+}
 
 async function drawHomeActivityChart(force = false) {
   const canvas = document.getElementById("home-activity-chart");
@@ -41905,14 +41959,15 @@ async function drawHomeActivityChart(force = false) {
   if (!currentUser?.id || (typeof isGuestRuntimeUser === "function" && isGuestRuntimeUser())) {
     _homeActivityData = null;
     _homeActivityUserId = null;
+    _homeActivityCachedPeriod = null;
     if (window._homeActivityChart) { window._homeActivityChart.destroy(); window._homeActivityChart = null; }
     const subEl = document.getElementById("hra-sub");
     if (subEl) subEl.textContent = "SIGN IN TO TRACK DAILY ACTIVITY";
     return;
   }
 
-  // Cache is per-user: a different signed-in user must refetch, never reuse.
-  if (_homeActivityUserId !== currentUser.id) {
+  // Cache is per-user and per-period: a different user or window must refetch.
+  if (_homeActivityUserId !== currentUser.id || _homeActivityCachedPeriod !== homeActivityPeriod) {
     _homeActivityData = null;
   }
 
@@ -41924,9 +41979,18 @@ async function drawHomeActivityChart(force = false) {
   _homeActivityFetching = true;
 
   try {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 29);
-    cutoffDate.setHours(0, 0, 0, 0);
+    const period = homeActivityPeriod;
+    const win = HOME_ACTIVITY_WINDOWS[period] || HOME_ACTIVITY_WINDOWS.month;
+    const now = new Date();
+    let cutoffDate;
+    if (win.unit === "hour") {
+      cutoffDate = new Date(now.getTime() - (win.count - 1) * 36e5);
+      cutoffDate.setMinutes(0, 0, 0);
+    } else {
+      cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - (win.count - 1));
+      cutoffDate.setHours(0, 0, 0, 0);
+    }
     const cutoff = cutoffDate.toISOString();
     const uid = currentUser.id;
 
@@ -41942,14 +42006,13 @@ async function drawHomeActivityChart(force = false) {
       if (r?.error) console.error(`[RTN] home activity query error (${["rtn","g10","st","ryb","fof","mm"][i]}):`, r.error.message);
     });
 
-    // Bucket by LOCAL date so "today" matches the player's clock.
+    // Bucket by LOCAL day (or hour for the 24h window) to match the player's clock.
+    const pad2 = (n) => String(n).padStart(2, "0");
     const toKey = (ts) => {
       const d = new Date(ts);
       if (isNaN(d.getTime())) return null;
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${y}-${m}-${day}`;
+      const base = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+      return win.unit === "hour" ? `${base}-${pad2(d.getHours())}` : base;
     };
     const bucket = (rows, field) => {
       const c = {};
@@ -41966,12 +42029,18 @@ async function drawHomeActivityChart(force = false) {
 
     const labels = [];
     const keys = [];
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const k = toKey(d);
-      keys.push(k);
-      labels.push(k.slice(5));
+    for (let i = win.count - 1; i >= 0; i--) {
+      if (win.unit === "hour") {
+        const d = new Date(now.getTime() - i * 36e5);
+        keys.push(toKey(d));
+        labels.push(d.toLocaleTimeString([], { hour: "numeric" }));
+      } else {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const k = toKey(d);
+        keys.push(k);
+        labels.push(k.slice(5));
+      }
     }
 
     _homeActivityData = {
@@ -41989,9 +42058,11 @@ async function drawHomeActivityChart(force = false) {
     if (currentUser?.id !== uid) {
       _homeActivityData = null;
       _homeActivityUserId = null;
+      _homeActivityCachedPeriod = null;
       return;
     }
     _homeActivityUserId = uid;
+    _homeActivityCachedPeriod = period;
     _renderHomeActivityChart(canvas, _homeActivityData);
   } catch (err) {
     console.error("[RTN] home activity chart error", err);
@@ -42006,9 +42077,7 @@ function _renderHomeActivityChart(canvas, data) {
 
   const total = data.datasets.reduce((s, ds) => s + ds.data.reduce((a, b) => a + b, 0), 0);
   const subEl = document.getElementById("hra-sub");
-  if (subEl) subEl.textContent = total > 0
-    ? "DAILY GAME EVENTS · LAST 30 DAYS"
-    : "DAILY GAME EVENTS · LAST 30 DAYS · NO ACTIVITY YET";
+  if (subEl) subEl.textContent = homeActivitySubText(homeActivityPeriod, total > 0);
 
   const ctx = canvas.getContext("2d");
   window._homeActivityChart = new Chart(ctx, {
@@ -42177,8 +42246,9 @@ function setHomeChartTab(tab) {
     panel.hidden = panel.dataset.homeChartPanel !== next;
   });
   const sub = document.getElementById("hra-sub");
-  if (sub) sub.textContent = next === "balance" ? "ACCOUNT BALANCE OVER TIME" : "DAILY GAME EVENTS · LAST 30 DAYS";
+  if (sub && next === "balance") sub.textContent = "ACCOUNT BALANCE OVER TIME";
   // Canvas has zero size while its panel is hidden, so draw on the next frame.
+  // (drawHomeActivityChart sets its own period-aware subtitle.)
   if (next === "balance") window.requestAnimationFrame(() => renderHomeBalanceChart());
   else window.requestAnimationFrame(() => drawHomeActivityChart());
 }
@@ -42192,6 +42262,14 @@ document.querySelectorAll("[data-home-balance-period]").forEach((btn) => {
     homeBalancePeriod = btn.dataset.homeBalancePeriod;
     document.querySelectorAll("[data-home-balance-period]").forEach((b) => b.classList.toggle("is-active", b === btn));
     renderHomeBalanceChart();
+  });
+});
+
+document.querySelectorAll("[data-home-activity-period]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    homeActivityPeriod = btn.dataset.homeActivityPeriod;
+    document.querySelectorAll("[data-home-activity-period]").forEach((b) => b.classList.toggle("is-active", b === btn));
+    drawHomeActivityChart(true);
   });
 });
 
