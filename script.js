@@ -3779,18 +3779,32 @@ function drawBankrollLineChart(canvas, points, { colorBySource = false } = {}) {
     ? (d) => d.toLocaleTimeString([], { hour: "numeric" })
     : (d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   const labelCount = Math.min(7, points.length);
+  const idxs = [];
   const seen = new Set();
   for (let li = 0; li < labelCount; li += 1) {
     const idx = labelCount <= 1 ? points.length - 1 : Math.round(((points.length - 1) * li) / (labelCount - 1));
-    if (seen.has(idx)) continue;
-    seen.add(idx);
-    ctx.save();
-    ctx.translate(coords[idx].x, axisY + 12);
-    ctx.rotate(-0.5);
-    ctx.textAlign = "right";
-    ctx.fillText(fmt(points[idx].time), 0, 0);
-    ctx.restore();
+    if (!seen.has(idx)) { seen.add(idx); idxs.push(idx); }
   }
+  const texts = idxs.map((idx) => fmt(points[idx].time));
+  // Like the ACTIVITY chart (Chart.js): keep labels horizontal when they fit,
+  // and only tilt them when they'd collide — so desktop stays flat, mobile tilts.
+  const maxLabelW = texts.reduce((m, t) => Math.max(m, ctx.measureText(t).width), 0);
+  const slot = idxs.length > 1 ? chartWidth / (idxs.length - 1) : chartWidth;
+  // Need comfortable spacing between labels to stay flat, else tilt (like Chart.js).
+  const tilt = maxLabelW + 16 > slot;
+  idxs.forEach((idx, k) => {
+    ctx.save();
+    if (tilt) {
+      ctx.translate(coords[idx].x, axisY + 12);
+      ctx.rotate(-0.5);
+      ctx.textAlign = "right";
+      ctx.fillText(texts[k], 0, 0);
+    } else {
+      ctx.textAlign = k === 0 ? "left" : k === idxs.length - 1 ? "right" : "center";
+      ctx.fillText(texts[k], coords[idx].x, axisY + 16);
+    }
+    ctx.restore();
+  });
 }
 
 // ── Embedded charts in the Account Chart & Logs view ───────────────────────
