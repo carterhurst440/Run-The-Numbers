@@ -42100,7 +42100,63 @@ function refreshHomeDashboard() {
   renderHomeSystemBlock();
   drawHomePnlChart();
   drawHomeActivityChart();
+  if (homeChartTab === "balance") renderHomeBalanceChart(true);
 }
+
+// ── Home chart tabs: ACTIVITY ↔ ACCOUNT BALANCE ────────────────────────────
+let homeChartTab = "activity";
+let homeBalancePeriod = "week";
+let homeBalanceSeries = [];
+let homeBalanceUserId = null;
+
+// Draw the signed-in player's account-balance line chart in the home widget.
+// Reuses the same series + renderer as the account-page bankroll chart.
+async function renderHomeBalanceChart(force = false) {
+  const canvas = document.getElementById("home-balance-chart");
+  if (!canvas) return;
+  const signedIn = currentUser?.id && currentUser.id !== GUEST_USER.id;
+  if (!signedIn) {
+    homeBalanceSeries = [];
+    homeBalanceUserId = null;
+    drawBankrollLineChart(canvas, []);
+    return;
+  }
+  if (force || homeBalanceUserId !== currentUser.id || !homeBalanceSeries.length) {
+    homeBalanceSeries = await fetchBankrollSeries(currentUser.id);
+    homeBalanceUserId = currentUser.id;
+  }
+  drawBankrollLineChart(canvas, filterDownsampleSeries(homeBalanceSeries, homeBalancePeriod));
+}
+
+function setHomeChartTab(tab) {
+  const next = tab === "balance" ? "balance" : "activity";
+  homeChartTab = next;
+  document.querySelectorAll("[data-home-chart-tab]").forEach((btn) => {
+    const on = btn.dataset.homeChartTab === next;
+    btn.classList.toggle("is-active", on);
+    btn.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  document.querySelectorAll("[data-home-chart-panel]").forEach((panel) => {
+    panel.hidden = panel.dataset.homeChartPanel !== next;
+  });
+  const sub = document.getElementById("hra-sub");
+  if (sub) sub.textContent = next === "balance" ? "ACCOUNT BALANCE OVER TIME" : "DAILY GAME EVENTS · LAST 30 DAYS";
+  // Canvas has zero size while its panel is hidden, so draw on the next frame.
+  if (next === "balance") window.requestAnimationFrame(() => renderHomeBalanceChart());
+  else window.requestAnimationFrame(() => drawHomeActivityChart());
+}
+
+document.querySelectorAll("[data-home-chart-tab]").forEach((btn) => {
+  btn.addEventListener("click", () => setHomeChartTab(btn.dataset.homeChartTab));
+});
+
+document.querySelectorAll("[data-home-balance-period]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    homeBalancePeriod = btn.dataset.homeBalancePeriod;
+    document.querySelectorAll("[data-home-balance-period]").forEach((b) => b.classList.toggle("is-active", b === btn));
+    renderHomeBalanceChart();
+  });
+});
 
 // Hook into the existing render pipeline
 const _origRenderHomeRankPanel = typeof renderHomeRankPanel === "function" ? renderHomeRankPanel : null;
