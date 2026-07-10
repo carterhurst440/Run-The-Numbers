@@ -42053,7 +42053,8 @@ async function drawHomeActivityChart(force = false) {
         d.setDate(d.getDate() - i);
         const k = toKey(d);
         keys.push(k);
-        labels.push(k.slice(5));
+        // Match the balance chart's date format ("Jul 10").
+        labels.push(d.toLocaleDateString(undefined, { month: "short", day: "numeric" }));
       }
     }
 
