@@ -28347,7 +28347,7 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
         isClickable = true;
       }
     } else if (entry.gameKey === GAME_KEYS.MONKEY_MOONSHINE) {
-      // Monkey Moonshine spins (entryType:"hand"). No hand-review modal.
+      // Monkey Moonshine spins — click opens the reels + paylines detail modal.
       game = "MM";
       shortId = entry.handNumber || entry.handId?.slice(-4) || entry.id?.split(":")[1]?.slice(-4) || "—";
       modeLabel = (entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL";
@@ -28355,8 +28355,12 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
       netClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
       netText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
       bal = entry.newAccountValue ?? null;
+      if (showReviewButtons && entry.handId) {
+        clickAttr = ` data-mm-review-id="${escapeAssistantHtml(entry.handId)}"`;
+        isClickable = true;
+      }
     } else if (entry.gameKey === GAME_KEYS.FATE_OR_FORTUNE) {
-      // Fate or Fortune (entryType:"hand"). No hand-review modal, so not clickable.
+      // Fate or Fortune — click opens the battle detail modal.
       game = "FOF";
       shortId = entry.handNumber || entry.handId?.slice(-4) || "—";
       modeLabel = (entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL";
@@ -28364,6 +28368,10 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
       netClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
       netText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
       bal = entry.newAccountValue ?? null;
+      if (showReviewButtons && entry.handId) {
+        clickAttr = ` data-fof-review-id="${escapeAssistantHtml(entry.handId)}"`;
+        isClickable = true;
+      }
     } else {
       // RTN / G10 / COLOR_SCHEME (entryType:"hand")
       game = entry.gameKey === GAME_KEYS.GUESS_10 ? "G10"
@@ -31559,30 +31567,193 @@ if (historyList) {
   });
 }
 
+// ── Round-detail modals: Monkey Moonshine reels + Fate or Fortune battle ──
+const roundDetailModal = document.getElementById("round-detail-modal");
+const roundDetailTitleEl = document.getElementById("round-detail-title");
+const roundDetailBodyEl = document.getElementById("round-detail-body");
+let roundDetailTrigger = null;
+
+function openRoundDetailModal(title, bodyHtml, trigger) {
+  if (!roundDetailModal || !roundDetailBodyEl) return;
+  roundDetailTrigger = trigger instanceof HTMLElement ? trigger : null;
+  if (roundDetailTitleEl) roundDetailTitleEl.textContent = title;
+  roundDetailBodyEl.innerHTML = bodyHtml;
+  roundDetailModal.hidden = false;
+  roundDetailModal.classList.add("is-open");
+  roundDetailModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+function closeRoundDetailModal() {
+  if (!roundDetailModal) return;
+  roundDetailModal.classList.remove("is-open");
+  roundDetailModal.setAttribute("aria-hidden", "true");
+  roundDetailModal.hidden = true;
+  document.body.classList.remove("modal-open");
+  if (roundDetailTrigger instanceof HTMLElement) { try { roundDetailTrigger.focus(); } catch (e) {} }
+  roundDetailTrigger = null;
+}
+if (roundDetailModal) {
+  roundDetailModal.addEventListener("click", (e) => { if (e.target === roundDetailModal) closeRoundDetailModal(); });
+  const _rdClose = document.getElementById("round-detail-close");
+  if (_rdClose) _rdClose.addEventListener("click", () => closeRoundDetailModal());
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && roundDetailModal.classList.contains("is-open")) closeRoundDetailModal(); });
+}
+
+const _capWord = (s) => { const t = String(s || ""); return t.charAt(0).toUpperCase() + t.slice(1); };
+const MM_FRUIT_EMOJI = { cherry: "🍒", apple: "🍎", banana: "🍌", lemon: "🍋", peach: "🍑", dragonfruit: "🐉", mango: "🥭", pineapple: "🍍", coconut: "🥥", monkey: "🐵" };
+const mmGlyph = (s) => MM_FRUIT_EMOJI[s] || (s ? String(s).slice(0, 2) : "·");
+
+function renderMmDetailHtml(row) {
+  const board = row?.board || {};
+  const cols = Number(board.cols) || 5;
+  const grid = Array.isArray(board.rows) ? board.rows : [];
+  const rows = grid.length;
+  const lines = Array.isArray(row?.winning_lines) ? row.winning_lines : [];
+  const winCells = new Set();
+  lines.forEach((l) => (l.cells || []).forEach((cell) => winCells.add(cell[0] + "-" + cell[1])));
+  const CELL = 46, GAP = 5;
+  const W = cols * CELL + (cols - 1) * GAP, H = Math.max(1, rows) * CELL + (Math.max(1, rows) - 1) * GAP;
+  const cx = (c) => c * (CELL + GAP) + CELL / 2;
+  const cy = (r) => r * (CELL + GAP) + CELL / 2;
+  let cellsHtml = "";
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const sym = grid[r][c];
+    const win = winCells.has(r + "-" + c);
+    cellsHtml += `<div class="mmrv-cell${win ? " mmrv-cell-win" : ""}" style="left:${c * (CELL + GAP)}px;top:${r * (CELL + GAP)}px;width:${CELL}px;height:${CELL}px">${mmGlyph(sym)}</div>`;
+  }
+  const LINE_COLORS = ["#7ff03a", "#35e0e0", "#ff54c4", "#ffa81f", "#ffd45e", "#8a7bff"];
+  const linesHtml = lines.map((l, i) => {
+    const cs = l.cells || [];
+    if (cs.length < 2) return "";
+    const a = cs[0], b = cs[cs.length - 1];
+    const col = LINE_COLORS[i % LINE_COLORS.length];
+    return `<line x1="${cx(a[1])}" y1="${cy(a[0])}" x2="${cx(b[1])}" y2="${cy(b[0])}" stroke="${col}" stroke-width="4" stroke-linecap="round" opacity="0.92"/>`;
+  }).join("");
+  const wager = Number(row?.total_wagered || 0), ret = Number(row?.total_returned || 0), net = ret - wager;
+  const lineList = lines.length
+    ? lines.map((l) => `<li><span>${mmGlyph(l.fruit)} ${escapeAssistantHtml(_capWord(l.fruit))} · ${l.len} in a row${l.mult > 1 ? ` · ×${l.mult}` : ""}</span><span class="mmrv-line-pay">+${formatCurrency(Number(l.pay || 0))}</span></li>`).join("")
+    : `<li class="mmrv-noline">No paylines this spin.</li>`;
+  const wildMult = Number(row?.wild_mult ?? board?.wild_mult ?? 1) || 1;
+  const wildName = row?.wild || board?.wild || "";
+  return `
+    <div class="mmrv-head">
+      <span class="mmrv-wild">Wild ${mmGlyph(wildName)} ${escapeAssistantHtml(_capWord(wildName))} ×${wildMult}</span>
+      ${row?.moonshine_triggered ? '<span class="mmrv-moon">🌙 MONKEY MOONSHINE</span>' : ""}
+    </div>
+    <div class="mmrv-board-wrap"><div class="mmrv-board" style="width:${W}px;height:${H}px">
+      ${cellsHtml}
+      <svg class="mmrv-lines" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${linesHtml}</svg>
+    </div></div>
+    <ul class="mmrv-lines-list">${lineList}</ul>
+    <div class="rdrv-totals">
+      <span>Bet<b>${formatCurrency(wager)}</b></span>
+      <span>Returned<b>${formatCurrency(ret)}</b></span>
+      <span class="${net > 0 ? "is-win" : net < 0 ? "is-loss" : ""}">Net<b>${net >= 0 ? "+" : "−"}${formatCurrency(Math.abs(net))}</b></span>
+    </div>`;
+}
+
+async function openMmReviewModal(spinId, trigger) {
+  if (!spinId || !supabase) return;
+  openRoundDetailModal("Monkey Moonshine · Spin", '<p class="rdrv-loading">Loading…</p>', trigger);
+  try {
+    const { data, error } = await supabase.from("mm_spins")
+      .select("board, winning_lines, wild, wild_mult, total_wagered, total_returned, moonshine_triggered")
+      .eq("id", spinId).maybeSingle();
+    if (error || !data) { if (roundDetailBodyEl) roundDetailBodyEl.innerHTML = '<p class="rdrv-loading">Spin detail unavailable.</p>'; return; }
+    if (roundDetailBodyEl) roundDetailBodyEl.innerHTML = renderMmDetailHtml(data);
+  } catch (e) {
+    console.error("[RTN] openMmReviewModal error", e);
+    if (roundDetailBodyEl) roundDetailBodyEl.innerHTML = '<p class="rdrv-loading">Spin detail unavailable.</p>';
+  }
+}
+
+function renderFofDetailHtml(row) {
+  const details = row?.round_details || {};
+  const events = Array.isArray(details.events) ? details.events : [];
+  const heroId = row?.hero_character || details.fighterA?.id || "";
+  const oppId = row?.opponent_character || details.fighterB?.id || "";
+  const nameFor = (id, fallback) => (details.fighterA && details.fighterA.id === id) ? details.fighterA.name
+    : (details.fighterB && details.fighterB.id === id) ? details.fighterB.name : _capWord(fallback || id);
+  const heroName = nameFor(heroId, heroId), oppName = nameFor(oppId, oppId);
+  const winnerId = details.winner?.id || "";
+  const heroWon = !!winnerId && winnerId === heroId;
+  const heroPct = Number(row?.hero_win_pct);
+  const wager = Number(row?.total_wagered || 0), ret = Number(row?.total_returned || 0), net = ret - wager;
+  const potential = (Number.isFinite(heroPct) && heroPct > 0) ? Math.round(wager / heroPct) : null;
+  const shown = events.filter((e) => !String(e.type || "").startsWith("TAKE_"));
+  const logHtml = shown.length
+    ? shown.map((e) => {
+        const t = String(e.type || "");
+        const cls = t === "CRITICAL_HIT" ? "fofrv-crit" : t === "HIT" ? "fofrv-hit" : t === "MISS" ? "fofrv-miss" : (t === "VICTORY" || t === "DEFEAT") ? "fofrv-end" : "";
+        const tm = Number.isFinite(Number(e.time)) ? `${Number(e.time).toFixed(1)}s` : "";
+        return `<li class="${cls}"><span class="fofrv-time">${escapeAssistantHtml(tm)}</span>${escapeAssistantHtml(e.message || t)}</li>`;
+      }).join("")
+    : `<li class="fofrv-noline">No battle log for this round.</li>`;
+  return `
+    <div class="fofrv-matchup">
+      <div class="fofrv-fighter${heroWon ? " fofrv-winner" : ""}">
+        <span class="fofrv-role">YOUR CHAMPION</span>
+        <span class="fofrv-name">${escapeAssistantHtml(heroName || "—")}</span>
+        ${Number.isFinite(heroPct) ? `<span class="fofrv-odds">${(heroPct * 100).toFixed(0)}% to win</span>` : ""}
+      </div>
+      <div class="fofrv-vs">VS</div>
+      <div class="fofrv-fighter${winnerId && !heroWon ? " fofrv-winner" : ""}">
+        <span class="fofrv-role">OPPONENT</span>
+        <span class="fofrv-name">${escapeAssistantHtml(oppName || "—")}</span>
+      </div>
+    </div>
+    <div class="rdrv-totals">
+      <span>Wager<b>${formatCurrency(wager)}</b></span>
+      ${potential != null ? `<span>Potential<b>${formatCurrency(potential)}</b></span>` : ""}
+      <span>Returned<b>${formatCurrency(ret)}</b></span>
+      <span class="${net > 0 ? "is-win" : net < 0 ? "is-loss" : ""}">Net<b>${net >= 0 ? "+" : "−"}${formatCurrency(Math.abs(net))}</b></span>
+    </div>
+    <div class="fofrv-log-head">Battle log</div>
+    <ul class="fofrv-log">${logHtml}</ul>`;
+}
+
+async function openFofReviewModal(roundId, trigger) {
+  if (!roundId || !supabase) return;
+  openRoundDetailModal("Fate or Fortune · Battle", '<p class="rdrv-loading">Loading…</p>', trigger);
+  try {
+    const { data, error } = await supabase.from("fate_or_fortune_rounds")
+      .select("hero_character, opponent_character, hero_win_pct, round_winner, round_details, total_wagered, total_returned")
+      .eq("id", roundId).maybeSingle();
+    if (error || !data) { if (roundDetailBodyEl) roundDetailBodyEl.innerHTML = '<p class="rdrv-loading">Battle detail unavailable.</p>'; return; }
+    if (roundDetailBodyEl) roundDetailBodyEl.innerHTML = renderFofDetailHtml(data);
+  } catch (e) {
+    console.error("[RTN] openFofReviewModal error", e);
+    if (roundDetailBodyEl) roundDetailBodyEl.innerHTML = '<p class="rdrv-loading">Battle detail unavailable.</p>';
+  }
+}
+
+const ACTIVITY_ROW_DETAIL_SELECTOR = "[data-hand-review-id], [data-mm-review-id], [data-fof-review-id], [data-activity-trade-entry-id]";
+function dispatchActivityRowDetail(row) {
+  if (!(row instanceof HTMLElement)) return;
+  if (row.dataset.handReviewId) {
+    void openHandReviewModal(row.dataset.handReviewId, row);
+  } else if (row.dataset.mmReviewId) {
+    void openMmReviewModal(row.dataset.mmReviewId, row);
+  } else if (row.dataset.fofReviewId) {
+    void openFofReviewModal(row.dataset.fofReviewId, row);
+  } else if (row.dataset.activityTradeEntryId) {
+    const entry = activityLogEntries.find((e) => e.id === row.dataset.activityTradeEntryId);
+    if (entry) openHomeTradeDetailModal(entry);
+  }
+}
+
 if (activityLogListEl) {
   activityLogListEl.addEventListener("click", (event) => {
     if (!(event.target instanceof HTMLElement)) return;
-    const row = event.target.closest("[data-hand-review-id], [data-activity-trade-entry-id]");
-    if (!(row instanceof HTMLElement)) return;
-    if (row.dataset.handReviewId) {
-      void openHandReviewModal(row.dataset.handReviewId, row);
-    } else if (row.dataset.activityTradeEntryId) {
-      const entry = activityLogEntries.find((e) => e.id === row.dataset.activityTradeEntryId);
-      if (entry) openHomeTradeDetailModal(entry);
-    }
+    dispatchActivityRowDetail(event.target.closest(ACTIVITY_ROW_DETAIL_SELECTOR));
   });
   activityLogListEl.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
     if (!(event.target instanceof HTMLElement)) return;
-    const row = event.target.closest("[data-hand-review-id], [data-activity-trade-entry-id]");
+    const row = event.target.closest(ACTIVITY_ROW_DETAIL_SELECTOR);
     if (!(row instanceof HTMLElement)) return;
     event.preventDefault();
-    if (row.dataset.handReviewId) {
-      void openHandReviewModal(row.dataset.handReviewId, row);
-    } else if (row.dataset.activityTradeEntryId) {
-      const entry = activityLogEntries.find((e) => e.id === row.dataset.activityTradeEntryId);
-      if (entry) openHomeTradeDetailModal(entry);
-    }
+    dispatchActivityRowDetail(row);
   });
 }
 

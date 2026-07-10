@@ -32072,3 +32072,49 @@ body[data-ui="new"] #bloom-chipBar .chip-rack-edit:hover {
 .mm-trim-times b { color: #2fd06e; font-weight: 700; }
 .mm-trim-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
 .mm-trim-status { color: #8ea; font-size: 11px; font-family: "JetBrains Mono", monospace; margin-right: auto; }
+
+/* ── Round-detail modal: Monkey Moonshine reels + Fate or Fortune battle ── */
+.round-detail-content { max-width: 460px; width: 92%; }
+.round-detail-body { padding: 4px 2px 6px; }
+.rdrv-loading { text-align: center; color: var(--muted, #9aa); padding: 24px 0; }
+.rdrv-totals { display: flex; gap: 8px; justify-content: space-between; margin-top: 14px; flex-wrap: wrap; }
+.rdrv-totals span { flex: 1; min-width: 78px; display: flex; flex-direction: column; gap: 2px; align-items: center;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 8px; padding: 8px 6px;
+  font-size: 10px; letter-spacing: .5px; text-transform: uppercase; color: var(--muted, #9aa); }
+.rdrv-totals span b { font-size: 15px; color: var(--text, #e8f0ff); text-transform: none; letter-spacing: 0; }
+.rdrv-totals span.is-win b { color: #4ade80; }
+.rdrv-totals span.is-loss b { color: #f87171; }
+
+.mmrv-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.mmrv-wild { font-weight: 700; color: var(--text, #e8f0ff); text-transform: capitalize; }
+.mmrv-moon { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #ffd45e; background: rgba(255,212,94,.12);
+  border: 1px solid rgba(255,212,94,.4); border-radius: 999px; padding: 2px 9px; }
+.mmrv-board-wrap { display: flex; justify-content: center; }
+.mmrv-board { position: relative; }
+.mmrv-cell { position: absolute; display: flex; align-items: center; justify-content: center; font-size: 24px;
+  background: rgba(120,86,50,.4); border: 1px solid rgba(255,255,255,.08); border-radius: 8px; box-sizing: border-box; }
+.mmrv-cell-win { background: rgba(127,240,58,.16); border-color: rgba(127,240,58,.6); box-shadow: 0 0 8px rgba(127,240,58,.35); }
+.mmrv-lines { position: absolute; top: 0; left: 0; pointer-events: none; }
+.mmrv-lines-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.mmrv-lines-list li { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--text, #e8f0ff);
+  background: rgba(255,255,255,.03); border-radius: 6px; padding: 6px 9px; text-transform: capitalize; }
+.mmrv-line-pay { color: #4ade80; font-weight: 700; }
+.mmrv-noline { color: var(--muted, #9aa); justify-content: center; }
+
+.fofrv-matchup { display: flex; align-items: stretch; gap: 8px; margin-bottom: 12px; }
+.fofrv-fighter { flex: 1; display: flex; flex-direction: column; gap: 3px; align-items: center; text-align: center;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; padding: 10px 8px; }
+.fofrv-fighter.fofrv-winner { border-color: #4ade80; box-shadow: 0 0 10px rgba(74,222,128,.3); }
+.fofrv-role { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted, #9aa); }
+.fofrv-name { font-size: 16px; font-weight: 800; color: var(--text, #e8f0ff); text-transform: capitalize; }
+.fofrv-odds { font-size: 11px; color: #8a7bff; }
+.fofrv-vs { align-self: center; font-weight: 800; color: var(--muted, #9aa); font-size: 12px; }
+.fofrv-log-head { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted, #9aa); margin: 14px 0 6px; }
+.fofrv-log { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+.fofrv-log li { font-size: 12.5px; color: var(--text, #e8f0ff); padding: 5px 8px; border-radius: 6px; background: rgba(255,255,255,.03); }
+.fofrv-log li .fofrv-time { display: inline-block; min-width: 34px; color: var(--muted, #9aa); font-variant-numeric: tabular-nums; margin-right: 6px; }
+.fofrv-log li.fofrv-crit { background: rgba(255,84,196,.12); }
+.fofrv-log li.fofrv-hit { background: rgba(127,240,58,.08); }
+.fofrv-log li.fofrv-miss { opacity: .6; }
+.fofrv-log li.fofrv-end { background: rgba(255,212,94,.14); font-weight: 700; }
+.fofrv-noline { color: var(--muted, #9aa); }
