@@ -41662,17 +41662,17 @@ function renderHomeSidebarActivity() {
     let isTrade = false;
     let suppressReview = false;
 
+    let mmReviewId = null;
+    let fofReviewId = null;
     if (entry.gameKey === GAME_KEYS.MONKEY_MOONSHINE) {
-      // MM spins have no hand-review modal, so render non-clickable.
-      suppressReview = true;
+      mmReviewId = entry.handId || null;
       const handNum = entry.handNumber || entry.handId?.slice(-4) || entry.id?.split(":")[1]?.slice(-4) || "—";
       label = `MM · <b>#${escapeAssistantHtml(String(handNum))}</b>`;
       const net = Number(entry.net ?? 0);
       resultClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
       resultText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
     } else if (entry.gameKey === GAME_KEYS.FATE_OR_FORTUNE) {
-      // FOF rounds have no hand-review modal, so render non-clickable.
-      suppressReview = true;
+      fofReviewId = entry.handId || null;
       const handNum = entry.handNumber || entry.handId?.slice(-4) || "—";
       label = `FOF · <b>#${escapeAssistantHtml(String(handNum))}</b>`;
       const net = Number(entry.net ?? 0);
@@ -41698,10 +41698,16 @@ function renderHomeSidebarActivity() {
       resultClass = "is-neutral";
     }
 
-    const handId = (entry.handId && !suppressReview) ? entry.handId : null;
+    const handId = (entry.handId && !suppressReview && !mmReviewId && !fofReviewId) ? entry.handId : null;
     const ts = formatHomeSidebarTimestamp(entry.createdAt);
-    const isClickable = handId || isTrade;
-    const dataAttrs = handId ? ` data-hand-review-id="${escapeAssistantHtml(handId)}"` : "";
+    const isClickable = handId || mmReviewId || fofReviewId || isTrade;
+    const dataAttrs = handId
+      ? ` data-hand-review-id="${escapeAssistantHtml(handId)}"`
+      : mmReviewId
+        ? ` data-mm-review-id="${escapeAssistantHtml(mmReviewId)}"`
+        : fofReviewId
+          ? ` data-fof-review-id="${escapeAssistantHtml(fofReviewId)}"`
+          : "";
     const tradeAttr = isTrade ? ` data-activity-idx="${idx}"` : "";
     const modeLabel = entry.entryType !== "account"
       ? ((entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL")
@@ -41720,6 +41726,24 @@ function renderHomeSidebarActivity() {
     const activate = () => {
       const handId = item.dataset.handReviewId;
       if (handId && typeof openHandReviewModal === "function") openHandReviewModal(handId);
+    };
+    item.addEventListener("click", activate);
+    item.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } });
+  });
+
+  homeSidebarActivityEl.querySelectorAll("[data-mm-review-id]").forEach((item) => {
+    const activate = () => {
+      const spinId = item.dataset.mmReviewId;
+      if (spinId && typeof openMmReviewModal === "function") openMmReviewModal(spinId, item);
+    };
+    item.addEventListener("click", activate);
+    item.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } });
+  });
+
+  homeSidebarActivityEl.querySelectorAll("[data-fof-review-id]").forEach((item) => {
+    const activate = () => {
+      const roundId = item.dataset.fofReviewId;
+      if (roundId && typeof openFofReviewModal === "function") openFofReviewModal(roundId, item);
     };
     item.addEventListener("click", activate);
     item.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } });
