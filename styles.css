@@ -32094,6 +32094,7 @@ body[data-ui="new"] #bloom-chipBar .chip-rack-edit:hover {
 .mmrv-cell { position: absolute; display: flex; align-items: center; justify-content: center; font-size: 24px;
   background: rgba(120,86,50,.4); border: 1px solid rgba(255,255,255,.08); border-radius: 8px; box-sizing: border-box; }
 .mmrv-cell-win { background: rgba(127,240,58,.16); border-color: rgba(127,240,58,.6); box-shadow: 0 0 8px rgba(127,240,58,.35); }
+.mmrv-cell .mmrv-sprite { width: 100%; height: 100%; object-fit: contain; display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,.45)); }
 .mmrv-lines { position: absolute; top: 0; left: 0; pointer-events: none; }
 .mmrv-lines-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
 .mmrv-lines-list li { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--text, #e8f0ff);

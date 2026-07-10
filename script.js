@@ -31602,6 +31602,13 @@ if (roundDetailModal) {
 const _capWord = (s) => { const t = String(s || ""); return t.charAt(0).toUpperCase() + t.slice(1); };
 const MM_FRUIT_EMOJI = { cherry: "🍒", apple: "🍎", banana: "🍌", lemon: "🍋", peach: "🍑", dragonfruit: "🐉", mango: "🥭", pineapple: "🍍", coconut: "🥥", monkey: "🐵" };
 const mmGlyph = (s) => MM_FRUIT_EMOJI[s] || (s ? String(s).slice(0, 2) : "·");
+// Real reel sprites (extracted from the game's FRUIT_ART / MONKEYCOCO_IMG).
+const MM_ART_SYMBOLS = new Set(["cherry", "apple", "banana", "lemon", "peach", "dragonfruit", "mango", "pineapple", "coconut", "monkey"]);
+// Match the game's per-fruit sizing so the board reads like the reels.
+const MM_SPRITE_SCALE = { cherry: 0.7, apple: 0.7, banana: 0.7, lemon: 0.7, peach: 0.7, mango: 0.7, coconut: 0.7 };
+const mmCellInner = (sym) => MM_ART_SYMBOLS.has(sym)
+  ? `<img class="mmrv-sprite" src="/assets/mm/${sym}.png" alt="${escapeAssistantHtml(sym)}"${(MM_SPRITE_SCALE[sym] || 1) !== 1 ? ` style="transform:scale(${MM_SPRITE_SCALE[sym]})"` : ""}>`
+  : mmGlyph(sym);
 
 function renderMmDetailHtml(row) {
   const board = row?.board || {};
@@ -31619,7 +31626,7 @@ function renderMmDetailHtml(row) {
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
     const sym = grid[r][c];
     const win = winCells.has(r + "-" + c);
-    cellsHtml += `<div class="mmrv-cell${win ? " mmrv-cell-win" : ""}" style="left:${c * (CELL + GAP)}px;top:${r * (CELL + GAP)}px;width:${CELL}px;height:${CELL}px">${mmGlyph(sym)}</div>`;
+    cellsHtml += `<div class="mmrv-cell${win ? " mmrv-cell-win" : ""}" style="left:${c * (CELL + GAP)}px;top:${r * (CELL + GAP)}px;width:${CELL}px;height:${CELL}px">${mmCellInner(sym)}</div>`;
   }
   const LINE_COLORS = ["#7ff03a", "#35e0e0", "#ff54c4", "#ffa81f", "#ffd45e", "#8a7bff"];
   const linesHtml = lines.map((l, i) => {
