@@ -62,7 +62,7 @@ as $$
     union all
     select created_at, new_balance, amount, event_type
     from public.account_events
-    where user_id = p_user_id and event_type in ('rank_up_bonus','affiliate_signup') and new_balance is not null
+    where user_id = p_user_id and event_type in ('rank_up_bonus','affiliate_signup','admin_grant') and new_balance is not null
   )
   select occurred_at, round(balance, 2) as balance, delta, source
   from pts

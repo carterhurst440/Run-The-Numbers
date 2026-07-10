@@ -19950,6 +19950,11 @@ const adminAnalyticsContent = document.getElementById("admin-analytics-content")
 const adminContestsContent = document.getElementById("admin-contests-content");
 const adminDesignContent = document.getElementById("admin-design-content");
 const adminRanksContent = document.getElementById("admin-ranks-content");
+const adminToolsContent = document.getElementById("admin-tools-content");
+const adminAwardPlayerSelect = document.getElementById("admin-award-player");
+const adminAwardAmountInput = document.getElementById("admin-award-amount");
+const adminAwardSubmitButton = document.getElementById("admin-award-submit");
+const adminAwardMessageEl = document.getElementById("admin-award-message");
 const adminCsClipsContent = document.getElementById("admin-cs-clips-content");
 const adminFateOrFortuneContent = document.getElementById("admin-fate-or-fortune-content");
 const adminBloomContent = document.getElementById("admin-bloom-content");
@@ -31913,6 +31918,9 @@ function showAdminTab(tabId) {
   } else if (tabId === "ranks") {
     if (adminRanksContent) adminRanksContent.hidden = false;
     void loadAdminRanks(true);
+  } else if (tabId === "tools") {
+    if (adminToolsContent) adminToolsContent.hidden = false;
+    void loadAdminActivityPlayers().then(populateAdminAwardPlayerSelect);
   } else if (tabId === "cs-clips") {
     if (adminCsClipsContent) adminCsClipsContent.hidden = false;
     adminCsClipsTabOpen();
@@ -40015,6 +40023,67 @@ function populateAdminUserLookupSelect() {
     opt.textContent = p.displayName;
     sel.appendChild(opt);
   });
+}
+
+// ── Admin TOOLS · Award Credits ──────────────────────────────────────
+function populateAdminAwardPlayerSelect() {
+  const sel = adminAwardPlayerSelect;
+  if (!sel || !adminActivityPlayers.length) return;
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— Select a player —</option>';
+  adminActivityPlayers.forEach(p => {
+    const opt = document.createElement("option");
+    opt.value = p.userId;
+    opt.textContent = p.displayName;
+    sel.appendChild(opt);
+  });
+  if (prev) sel.value = prev;
+}
+
+async function handleAdminAwardCredits() {
+  if (!adminAwardSubmitButton) return;
+  const userId = adminAwardPlayerSelect?.value || "";
+  const amount = Math.round(Number(adminAwardAmountInput?.value));
+  const setMsg = (text, ok) => {
+    if (!adminAwardMessageEl) return;
+    adminAwardMessageEl.textContent = text;
+    adminAwardMessageEl.style.color = ok === true ? "var(--accent-green, #7ff03a)" : ok === false ? "#ff6b6b" : "";
+  };
+  if (!userId) { setMsg("Select a player first.", false); return; }
+  if (!Number.isFinite(amount) || amount <= 0) { setMsg("Enter a positive amount.", false); return; }
+  if (!supabase || !currentUser?.id) { setMsg("Not signed in.", false); return; }
+
+  const playerName = adminAwardPlayerSelect.options[adminAwardPlayerSelect.selectedIndex]?.textContent || "player";
+  adminAwardSubmitButton.disabled = true;
+  setMsg("Awarding…", null);
+  try {
+    const { data, error } = await supabase.rpc("admin_grant_credits", { p_user_id: userId, p_amount: amount });
+    if (error) {
+      const m = String(error.message || "");
+      setMsg(m.includes("Forbidden") ? "Not authorized." : m.includes("no_profile") ? "Player not found." : "Award failed — please try again.", false);
+      return;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    const newBal = Number(row?.new_balance);
+    setMsg(`Awarded ${formatCurrency(amount)} to ${playerName}. New balance: ${Number.isFinite(newBal) ? formatCurrency(newBal) : "—"}.`, true);
+    showToast(`Awarded ${formatCurrency(amount)} to ${playerName}`, "success");
+    if (adminAwardAmountInput) adminAwardAmountInput.value = "";
+    // If the admin awarded themselves, reflect it in the header.
+    if (userId === currentUser.id && currentProfile && Number.isFinite(newBal)) {
+      currentProfile.credits = newBal;
+      if (!isContestAccountMode(currentAccountMode)) { bankroll = newBal; lastSyncedBankroll = bankroll; try { updateBankroll(); } catch (e) {} }
+      try { updateDashboardCreditsDisplay(currentProfile.credits); } catch (e) {}
+    }
+  } catch (e) {
+    console.error("[RTN] admin_grant_credits error", e);
+    setMsg("Award failed — please try again.", false);
+  } finally {
+    adminAwardSubmitButton.disabled = false;
+  }
+}
+
+if (adminAwardSubmitButton) {
+  adminAwardSubmitButton.addEventListener("click", () => void handleAdminAwardCredits());
 }
 
 if (_adminUserLookupSelect) {

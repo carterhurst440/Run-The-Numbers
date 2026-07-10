@@ -2853,6 +2853,7 @@
               <button type="button" class="admin-tab" data-admin-tab="analytics">Analytics</button>
               <button type="button" class="admin-tab" data-admin-tab="contests">Contests</button>
               <button type="button" class="admin-tab" data-admin-tab="ranks">Ranks</button>
+              <button type="button" class="admin-tab" data-admin-tab="tools">Tools</button>
             </div>
             <section class="admin-tab-content" id="admin-prizes-content">
               <section class="route-section admin-list-section">
@@ -3361,6 +3362,28 @@
                   <button type="button" class="primary" id="admin-add-rank-button">Add rank</button>
                 </div>
                 <ul id="admin-rank-list" class="admin-prize-list admin-rank-list" aria-live="polite"></ul>
+              </section>
+            </section>
+            <section class="admin-tab-content" id="admin-tools-content" hidden>
+              <section class="route-section admin-list-section">
+                <div class="admin-listing-header">
+                  <div>
+                    <h2>Award Credits</h2>
+                    <p class="route-subheading">Grant credits directly to a player's account.</p>
+                  </div>
+                </div>
+                <div class="admin-form admin-award-form">
+                  <label class="admin-field">
+                    <span>Player</span>
+                    <select id="admin-award-player"><option value="">— Select a player —</option></select>
+                  </label>
+                  <label class="admin-field">
+                    <span>Amount</span>
+                    <input type="number" id="admin-award-amount" min="1" step="1" placeholder="e.g. 500" inputmode="numeric" />
+                  </label>
+                  <button type="button" class="primary" id="admin-award-submit">Award credits</button>
+                </div>
+                <p id="admin-award-message" class="admin-message" role="status" aria-live="polite"></p>
               </section>
             </section>
             <section class="admin-tab-content" id="admin-cs-clips-content" hidden>
