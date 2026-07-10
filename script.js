@@ -3409,15 +3409,31 @@ function filterDownsampleSeries(series, period) {
   return pts;
 }
 
-// Fetch a user's bankroll series into [{time, value}] (ascending).
+// Fetch a user's bankroll series into [{time, value, source}] (ascending).
+// `source` is the move that produced each balance: game_001..game_006, or an
+// account-event type (rank_up_bonus / affiliate_signup / admin_grant / era_start).
 async function fetchBankrollSeries(userId) {
   if (!supabase || !userId) return [];
   const { data, error } = await supabase.rpc("get_bankroll_series", { p_user_id: userId });
   if (error || !Array.isArray(data)) return [];
   return data
-    .map((row) => ({ time: new Date(row.occurred_at), value: Number(row.balance) || 0 }))
+    .map((row) => ({ time: new Date(row.occurred_at), value: Number(row.balance) || 0, source: row.source }))
     .filter((p) => !Number.isNaN(p.time.getTime()))
     .sort((a, b) => a.time - b.time);
+}
+
+// Per-source colors for the balance line (match the ACTIVITY legend swatches).
+const BANKROLL_SOURCE_COLORS = {
+  game_001: "#e8a020", // RTN
+  game_002: "#00e5ff", // G10
+  game_003: "#c8ff00", // Shape Traders
+  game_004: "#ff4444", // Color Scheme
+  game_005: "#b07bff", // Fate or Fortune
+  game_006: "#3fd07a", // Monkey Moonshine
+};
+// Account events (rank-ups, affiliate, admin grants) and anything unmapped → orange.
+function bankrollSourceColor(source) {
+  return BANKROLL_SOURCE_COLORS[source] || "#ff8a3d";
 }
 
 async function openBankrollHistoryModal(userId, username) {
@@ -3639,8 +3655,10 @@ function drawBankrollHistoryChart() {
   drawBankrollLineChart(bankrollHistoryCanvas, getFilteredBankrollHistory());
 }
 
-// Reusable time-series line renderer for [{time, value}] points.
-function drawBankrollLineChart(canvas, points) {
+// Reusable time-series line renderer for [{time, value, source?}] points.
+// Pass { colorBySource: true } to color each segment by the game/event that
+// produced it (points must carry `source`); otherwise a single lime line.
+function drawBankrollLineChart(canvas, points, { colorBySource = false } = {}) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -3696,8 +3714,14 @@ function drawBankrollLineChart(canvas, points) {
   });
 
   const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartHeight);
-  gradient.addColorStop(0, "rgba(200, 255, 0, 0.18)");
-  gradient.addColorStop(1, "rgba(200, 255, 0, 0)");
+  if (colorBySource) {
+    // Neutral fill so the multi-color line stays the focus.
+    gradient.addColorStop(0, "rgba(255, 255, 255, 0.06)");
+    gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+  } else {
+    gradient.addColorStop(0, "rgba(200, 255, 0, 0.18)");
+    gradient.addColorStop(1, "rgba(200, 255, 0, 0)");
+  }
   ctx.beginPath();
   coords.forEach(({ x, y }, index) => { if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
   ctx.lineTo(coords[coords.length - 1].x, padding.top + chartHeight);
@@ -3706,11 +3730,24 @@ function drawBankrollLineChart(canvas, points) {
   ctx.fillStyle = gradient;
   ctx.fill();
 
-  ctx.beginPath();
-  coords.forEach(({ x, y }, index) => { if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
-  ctx.strokeStyle = "#c8ff00";
   ctx.lineWidth = 2;
-  ctx.stroke();
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  if (colorBySource && coords.length > 1) {
+    // Color each segment by the source of the point it arrives at.
+    for (let i = 1; i < coords.length; i += 1) {
+      ctx.beginPath();
+      ctx.moveTo(coords[i - 1].x, coords[i - 1].y);
+      ctx.lineTo(coords[i].x, coords[i].y);
+      ctx.strokeStyle = bankrollSourceColor(points[i].source);
+      ctx.stroke();
+    }
+  } else {
+    ctx.beginPath();
+    coords.forEach(({ x, y }, index) => { if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    ctx.strokeStyle = "#c8ff00";
+    ctx.stroke();
+  }
 
   // Date axis: first + last
   ctx.fillStyle = "rgba(168, 168, 112, 0.6)";
@@ -42125,7 +42162,7 @@ async function renderHomeBalanceChart(force = false) {
     homeBalanceSeries = await fetchBankrollSeries(currentUser.id);
     homeBalanceUserId = currentUser.id;
   }
-  drawBankrollLineChart(canvas, filterDownsampleSeries(homeBalanceSeries, homeBalancePeriod));
+  drawBankrollLineChart(canvas, filterDownsampleSeries(homeBalanceSeries, homeBalancePeriod), { colorBySource: true });
 }
 
 function setHomeChartTab(tab) {

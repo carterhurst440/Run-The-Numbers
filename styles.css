@@ -21510,6 +21510,7 @@ body.state-open .auth-vault-grant .gline::after {
 .hra-leg-ryb .hra-leg-dot { background: #ff4444; }
 .hra-leg-fof .hra-leg-dot { background: #b07bff; }
 .hra-leg-mm  .hra-leg-dot { background: #3fd07a; }
+.hra-leg-evt .hra-leg-dot { background: #ff8a3d; }
 
 /* ACTIVITY / ACCOUNT BALANCE tabs */
 .hra-tabs {
