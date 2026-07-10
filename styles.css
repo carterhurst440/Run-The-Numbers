@@ -32090,11 +32090,16 @@ body[data-ui="new"] #bloom-chipBar .chip-rack-edit:hover {
 .mmrv-moon { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #ffd45e; background: rgba(255,212,94,.12);
   border: 1px solid rgba(255,212,94,.4); border-radius: 999px; padding: 2px 9px; }
 .mmrv-board-wrap { display: flex; justify-content: center; }
-.mmrv-board { position: relative; }
-.mmrv-cell { position: absolute; display: flex; align-items: center; justify-content: center; font-size: 24px;
-  background: rgba(120,86,50,.4); border: 1px solid rgba(255,255,255,.08); border-radius: 8px; box-sizing: border-box; }
-.mmrv-cell-win { background: rgba(127,240,58,.16); border-color: rgba(127,240,58,.6); box-shadow: 0 0 8px rgba(127,240,58,.35); }
-.mmrv-cell .mmrv-sprite { width: 100%; height: 100%; object-fit: contain; display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,.45)); }
+.mmrv-board { position: relative; padding: 9px; border-radius: 14px;
+  background: linear-gradient(180deg, rgba(78,57,33,.55), rgba(44,32,19,.6));
+  border: 1px solid rgba(255,255,255,.08); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 6px 18px rgba(0,0,0,.3); }
+.mmrv-cell { position: absolute; display: flex; align-items: center; justify-content: center; font-size: 24px; padding: 3px;
+  background: rgba(0,0,0,.26); border: 1px solid rgba(255,255,255,.06); border-radius: 9px; box-sizing: border-box; }
+.mmrv-cell-win { background: rgba(127,240,58,.12); border-color: rgba(127,240,58,.7);
+  box-shadow: 0 0 10px rgba(127,240,58,.4), inset 0 0 10px rgba(127,240,58,.12); }
+.mmrv-cell .mmrv-sprite { width: 100%; height: 100%; object-fit: contain; display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
+.mmrv-icon { width: 1.2em; height: 1.2em; object-fit: contain; vertical-align: -0.26em; display: inline-block;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
 .mmrv-lines { position: absolute; top: 0; left: 0; pointer-events: none; }
 .mmrv-lines-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
 .mmrv-lines-list li { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--text, #e8f0ff);

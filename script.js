@@ -31609,6 +31609,10 @@ const MM_SPRITE_SCALE = { cherry: 0.7, apple: 0.7, banana: 0.7, lemon: 0.7, peac
 const mmCellInner = (sym) => MM_ART_SYMBOLS.has(sym)
   ? `<img class="mmrv-sprite" src="/assets/mm/${sym}.png" alt="${escapeAssistantHtml(sym)}"${(MM_SPRITE_SCALE[sym] || 1) !== 1 ? ` style="transform:scale(${MM_SPRITE_SCALE[sym]})"` : ""}>`
   : mmGlyph(sym);
+// Small inline fruit icon for the header + payline list (real sprite, emoji fallback).
+const mmIcon = (sym) => MM_ART_SYMBOLS.has(sym)
+  ? `<img class="mmrv-icon" src="/assets/mm/${sym}.png" alt="${escapeAssistantHtml(sym)}">`
+  : mmGlyph(sym);
 
 function renderMmDetailHtml(row) {
   const board = row?.board || {};
@@ -31638,13 +31642,13 @@ function renderMmDetailHtml(row) {
   }).join("");
   const wager = Number(row?.total_wagered || 0), ret = Number(row?.total_returned || 0), net = ret - wager;
   const lineList = lines.length
-    ? lines.map((l) => `<li><span>${mmGlyph(l.fruit)} ${escapeAssistantHtml(_capWord(l.fruit))} · ${l.len} in a row${l.mult > 1 ? ` · ×${l.mult}` : ""}</span><span class="mmrv-line-pay">+${formatCurrency(Number(l.pay || 0))}</span></li>`).join("")
+    ? lines.map((l) => `<li><span>${mmIcon(l.fruit)} ${escapeAssistantHtml(_capWord(l.fruit))} · ${l.len} in a row${l.mult > 1 ? ` · ×${l.mult}` : ""}</span><span class="mmrv-line-pay">+${formatCurrency(Number(l.pay || 0))}</span></li>`).join("")
     : `<li class="mmrv-noline">No paylines this spin.</li>`;
   const wildMult = Number(row?.wild_mult ?? board?.wild_mult ?? 1) || 1;
   const wildName = row?.wild || board?.wild || "";
   return `
     <div class="mmrv-head">
-      <span class="mmrv-wild">Wild ${mmGlyph(wildName)} ${escapeAssistantHtml(_capWord(wildName))} ×${wildMult}</span>
+      <span class="mmrv-wild">Wild ${mmIcon(wildName)} ${escapeAssistantHtml(_capWord(wildName))} ×${wildMult}</span>
       ${row?.moonshine_triggered ? '<span class="mmrv-moon">🌙 MONKEY MOONSHINE</span>' : ""}
     </div>
     <div class="mmrv-board-wrap"><div class="mmrv-board" style="width:${W}px;height:${H}px">
