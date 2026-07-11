@@ -21959,10 +21959,14 @@ body.state-open .auth-vault-grant .gline::after {
 
 /* ---- QUOTE BLOCK ---- */
 .home-quote-block {
+  /* Sit as a solid container ABOVE the game tiles' underglow spillover rather
+     than letting their box-shadow bleed onto the text. */
+  position: relative;
+  z-index: 1;
   background: #111110;
   border: 1px solid #222220;
   border-radius: 2px;
-  padding: 16px 18px;
+  padding: 26px 18px;
   margin-bottom: 24px;
 }
 
@@ -27284,6 +27288,13 @@ body[data-ui="new"] #home-view .home-sidebar .home-sb-label-row {
 body[data-ui="new"] #home-view .home-sidebar .home-sb-card-body {
   margin-bottom: 0;
   padding-bottom: 0;
+}
+
+/* The About-us block is a real card (not a section header), so it keeps its own
+   vertical padding — the STEP 1 reset above zeroes it, so restore it here. */
+body[data-ui="new"] #home-view .home-quote-block {
+  padding-top: 26px;
+  padding-bottom: 26px;
 }
 
 /* ── STEP 2: every section title owns its own 20px above / 8px below ── */
