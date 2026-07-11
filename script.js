@@ -41899,10 +41899,9 @@ function getHomePnlFilteredPoints() {
   const byDay = new Map();
   for (const p of source) { if (p?.dayKey) byDay.set(p.dayKey, resolve(p)); }
 
-  // Window start (matches the ACTIVITY/BALANCE filter set, incl. 24H = today only).
+  // Window start (P&L uses 1W / 1M / 3M / ALL — daily data, so no 24H).
   let startDayKey;
-  if (homePnlChartPeriod === "24h") startDayKey = todayKey;
-  else if (homePnlChartPeriod === "week") startDayKey = shiftAnalyticsDateKey(todayKey, -6);
+  if (homePnlChartPeriod === "week") startDayKey = shiftAnalyticsDateKey(todayKey, -6);
   else if (homePnlChartPeriod === "month") startDayKey = shiftAnalyticsDateKey(todayKey, -29);
   else if (homePnlChartPeriod === "90days") startDayKey = shiftAnalyticsDateKey(todayKey, -89);
   else { // "all" → from the earliest day with data (or today if none)
