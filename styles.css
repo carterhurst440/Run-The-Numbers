@@ -21489,7 +21489,7 @@ body.state-open .auth-vault-grant .gline::after {
 /* YOUR STATS collapser — collapses the graphs on mobile so CASINO FLOOR sits
    above the fold. The toggle only appears on mobile; desktop stays open. */
 .home-stats-toggle {
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -21513,14 +21513,6 @@ body.state-open .auth-vault-grant .gline::after {
 .home-stats-collapse { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.38s cubic-bezier(0.4, 0, 0.2, 1); }
 .home-stats-collapser.collapsed .home-stats-collapse { grid-template-rows: 0fr; }
 .home-stats-collapse-inner { min-height: 0; overflow: hidden; }
-@media (max-width: 900px) {
-  .home-stats-toggle { display: flex; }
-}
-@media (min-width: 901px) {
-  /* Desktop: always open, no toggle, don't clip the widget. */
-  .home-stats-collapse { grid-template-rows: 1fr !important; }
-  .home-stats-collapse-inner { overflow: visible; }
-}
 
 .home-recent-activity {
   margin: 0 12px;
