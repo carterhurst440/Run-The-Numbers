@@ -41959,10 +41959,14 @@ function drawHomePnlChart() {
     const x = pad.left + i * (barW + barSpacing);
     const barH = Math.max(1, (Math.abs(val) / maxAbs) * (chartH / 2 - 2));
     const y = val >= 0 ? zeroY - barH : zeroY;
-    ctx.fillStyle = val >= 0 ? "#c8ff00" : "#ff6b6b";
-    ctx.globalAlpha = 0.85;
-    ctx.fillRect(x, y, barW, barH);
-    ctx.globalAlpha = 1;
+    // A flat (0) day draws no bar — just blank space (the column still holds its
+    // slot and stays hoverable so the axis stays continuous).
+    if (val !== 0) {
+      ctx.fillStyle = val > 0 ? "#c8ff00" : "#ff6b6b";
+      ctx.globalAlpha = 0.85;
+      ctx.fillRect(x, y, barW, barH);
+      ctx.globalAlpha = 1;
+    }
 
     // Hit-test region (full column height for easy hover)
     const pt = points[i];
