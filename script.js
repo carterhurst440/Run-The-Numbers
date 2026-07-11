@@ -42281,7 +42281,7 @@ async function renderHomeBalanceChart(force = false) {
 }
 
 function setHomeChartTab(tab) {
-  const next = tab === "balance" ? "balance" : "activity";
+  const next = (tab === "balance" || tab === "pnl") ? tab : "activity";
   homeChartTab = next;
   document.querySelectorAll("[data-home-chart-tab]").forEach((btn) => {
     const on = btn.dataset.homeChartTab === next;
@@ -42293,9 +42293,11 @@ function setHomeChartTab(tab) {
   });
   const sub = document.getElementById("hra-sub");
   if (sub && next === "balance") sub.textContent = "ACCOUNT BALANCE OVER TIME";
+  else if (sub && next === "pnl") sub.textContent = "REALIZED PROFIT & LOSS";
   // Canvas has zero size while its panel is hidden, so draw on the next frame.
   // (drawHomeActivityChart sets its own period-aware subtitle.)
   if (next === "balance") window.requestAnimationFrame(() => renderHomeBalanceChart());
+  else if (next === "pnl") window.requestAnimationFrame(() => drawHomePnlChart());
   else window.requestAnimationFrame(() => drawHomeActivityChart());
 }
 
@@ -42332,6 +42334,7 @@ document.querySelectorAll("[data-home-activity-period]").forEach((btn) => {
       window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
         try { drawHomeActivityChart(); } catch (e) {}
         try { renderHomeBalanceChart(); } catch (e) {}
+        try { drawHomePnlChart(); } catch (e) {}
       }));
     }
   });

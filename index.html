@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260710-sixpay" />
+    <link rel="stylesheet" href="styles.css?v=20260710-pnltab" />
     <link rel="stylesheet" href="assets/bloom/bloom-flowers.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-weather.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-growth.css" />
@@ -805,6 +805,7 @@
                   <div class="hra-tabs" role="tablist" aria-label="Home chart view">
                     <button type="button" class="hra-tab is-active" data-home-chart-tab="activity" role="tab" aria-selected="true">ACTIVITY</button>
                     <button type="button" class="hra-tab" data-home-chart-tab="balance" role="tab" aria-selected="false">ACCOUNT BALANCE</button>
+                    <button type="button" class="hra-tab" data-home-chart-tab="pnl" role="tab" aria-selected="false">P&amp;L</button>
                   </div>
                   <div class="hra-sub" id="hra-sub">DAILY GAME EVENTS · LAST 30 DAYS</div>
                 </div>
@@ -851,6 +852,38 @@
                     <span class="hra-leg-item hra-leg-fof"><span class="hra-leg-dot"></span>FOF</span>
                     <span class="hra-leg-item hra-leg-mm"><span class="hra-leg-dot"></span>MM</span>
                     <span class="hra-leg-item hra-leg-evt"><span class="hra-leg-dot"></span>EVENTS</span>
+                  </div>
+                </div>
+
+                <!-- P&L panel -->
+                <div class="hra-panel" data-home-chart-panel="pnl" hidden>
+                  <div class="hra-balance-periods chart-filters">
+                    <button type="button" class="home-sb-chart-btn is-active" data-home-pnl-period="week">1W</button>
+                    <button type="button" class="home-sb-chart-btn" data-home-pnl-period="month">1M</button>
+                    <button type="button" class="home-sb-chart-btn" data-home-pnl-period="90days">3M</button>
+                    <button type="button" class="home-sb-chart-btn" data-home-pnl-period="all">ALL</button>
+                  </div>
+                  <div class="home-sb-chart-game-filters">
+                    <button type="button" class="home-sb-chart-game-btn is-active" data-home-pnl-game="all">All</button>
+                    <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlRtn">RTN</button>
+                    <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlG10">G10</button>
+                    <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlShapeTraders">ST</button>
+                    <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlRyb">RYB</button>
+                    <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlFof">FOF</button>
+                    <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlMm">MM</button>
+                  </div>
+                  <div class="home-sb-chart-game-filters">
+                    <button type="button" class="home-sb-chart-game-btn is-active" data-home-pnl-mode="all">All</button>
+                    <button type="button" class="home-sb-chart-game-btn" data-home-pnl-mode="normal">Normal</button>
+                    <button type="button" class="home-sb-chart-game-btn" data-home-pnl-mode="contest">Contest</button>
+                  </div>
+                  <div id="home-pnl-total" class="home-sb-pnl-total">—</div>
+                  <div class="hra-chart-wrap" id="home-pnl-chart-wrap">
+                    <canvas id="home-pnl-chart" class="home-sb-chart-canvas"></canvas>
+                    <div class="account-chart-tooltip" id="home-pnl-tooltip" hidden>
+                      <p class="account-chart-tooltip-date" id="home-pnl-tooltip-date">Apr 17</p>
+                      <p class="account-chart-tooltip-value" id="home-pnl-tooltip-value">+$0.00</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1029,40 +1062,7 @@
                 </div><!-- /home-sb-card-body -->
               </div>
 
-              <!-- P&L CHART -->
-              <div class="home-sb-block home-sb-chart-block" data-home-section="pnl">
-                <div class="home-sb-label">// P&amp;L</div>
-                <div class="home-sb-card-body">
-                <div class="home-sb-chart-filters">
-                  <button type="button" class="home-sb-chart-btn is-active" data-home-pnl-period="week">1W</button>
-                  <button type="button" class="home-sb-chart-btn" data-home-pnl-period="month">1M</button>
-                  <button type="button" class="home-sb-chart-btn" data-home-pnl-period="90days">3M</button>
-                  <button type="button" class="home-sb-chart-btn" data-home-pnl-period="all">ALL</button>
-                </div>
-                <div class="home-sb-chart-game-filters">
-                  <button type="button" class="home-sb-chart-game-btn is-active" data-home-pnl-game="all">All</button>
-                  <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlRtn">RTN</button>
-                  <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlG10">G10</button>
-                  <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlShapeTraders">ST</button>
-                  <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlRyb">RYB</button>
-                  <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlFof">FOF</button>
-                  <button type="button" class="home-sb-chart-game-btn" data-home-pnl-game="pnlMm">MM</button>
-                </div>
-                <div class="home-sb-chart-game-filters">
-                  <button type="button" class="home-sb-chart-game-btn is-active" data-home-pnl-mode="all">All</button>
-                  <button type="button" class="home-sb-chart-game-btn" data-home-pnl-mode="normal">Normal</button>
-                  <button type="button" class="home-sb-chart-game-btn" data-home-pnl-mode="contest">Contest</button>
-                </div>
-                <div id="home-pnl-total" class="home-sb-pnl-total">—</div>
-                <div class="home-sb-chart-wrap" id="home-pnl-chart-wrap">
-                  <canvas id="home-pnl-chart" class="home-sb-chart-canvas"></canvas>
-                  <div class="account-chart-tooltip" id="home-pnl-tooltip" hidden>
-                    <p class="account-chart-tooltip-date" id="home-pnl-tooltip-date">Apr 17</p>
-                    <p class="account-chart-tooltip-value" id="home-pnl-tooltip-value">+$0.00</p>
-                  </div>
-                </div>
-                </div><!-- /home-sb-card-body -->
-              </div>
+              <!-- P&L CHART moved into the YOUR STATS tabs (3rd tab) -->
 
               <!-- SYSTEM -->
               <div class="home-sb-block">
@@ -5429,7 +5429,7 @@
     <script>window.__h = preact.h; window.__Fragment = preact.Fragment;</script>
     <script src="assets/bloom/morphs/flowers-compiled.js"></script>
     <script src="assets/bloom/morphs/flower-morphs.js"></script>
-    <script type="module" src="script.js?v=20260710-sixpay"></script>
+    <script type="module" src="script.js?v=20260710-pnltab"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
