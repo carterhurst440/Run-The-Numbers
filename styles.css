@@ -26772,7 +26772,10 @@ body[data-ui="new"] .home-game-card {
     border-color 240ms ease,
     box-shadow 240ms ease,
     background 240ms ease;
-  will-change: transform;
+  /* NOTE: no permanent will-change here — promoting all 6 tiles to their own GPU
+     layers blows iOS's compositing budget once the stats charts add more layers,
+     which made the tiles flicker/"cut in and out" on scroll. Promote only on
+     hover (below), where the scale transition actually runs. */
 }
 
 /* Accent wash overlay (fades in on hover — the "Quarter" treatment) */
@@ -29500,8 +29503,11 @@ body.admin-sk-fs-lock { overflow: hidden; }
   text-align: center; padding: 80px 20px;
 }
 .fof-idle-headline {
-  font-size: 28px; letter-spacing: 3px; margin-bottom: 12px; color: #d4a017;
+  font-size: 28px; letter-spacing: 3px; margin-bottom: 12px; color: #b07bff;
 }
+/* "Ready to face fate?" screen uses the FOF purple brand accent, not the gold. */
+.fof-idle .fof-btn-primary { background: #b07bff; color: #160f24; border-color: #b07bff; }
+.fof-idle .fof-btn-primary:hover { background: #c39cff; color: #0e0a18; }
 .fof-idle-sub {
   max-width: 520px; margin: 0 auto 32px; color: #888; font-size: 12px; line-height: 1.6;
 }
