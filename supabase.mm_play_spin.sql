@@ -165,9 +165,10 @@ begin
 
     run_len := (cand->>'len')::int;
     pay_units := (case
-                    when least(run_len, 5) = 3 then 1
-                    when least(run_len, 5) = 4 then 3
-                    when least(run_len, 5) >= 5 then 10
+                    when least(run_len, 6) = 3 then 1
+                    when least(run_len, 6) = 4 then 3
+                    when least(run_len, 6) = 5 then 10
+                    when least(run_len, 6) >= 6 then 50   -- vertical 6-in-a-row on a full raid board
                     else 0
                   end) * (cand->>'mult')::int;
     win_units := win_units + pay_units;
