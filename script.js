@@ -41881,16 +41881,8 @@ function renderHomeSidebarActivity() {
 }
 
 function getHomePnlFilteredPoints() {
-  const fallbackDayKey = formatAnalyticsDateKey(new Date());
-  const source = persistentBankrollHistory.length
-    ? persistentBankrollHistory
-    : [{ dayKey: fallbackDayKey, pnlTotal: 0 }];
   const todayKey = formatAnalyticsDateKey(new Date());
-  let startDayKey = null;
-  if (homePnlChartPeriod === "week") startDayKey = shiftAnalyticsDateKey(todayKey, -6);
-  else if (homePnlChartPeriod === "month") startDayKey = shiftAnalyticsDateKey(todayKey, -29);
-  else if (homePnlChartPeriod === "90days") startDayKey = shiftAnalyticsDateKey(todayKey, -89);
-  const periodFiltered = startDayKey ? source.filter((p) => !p?.dayKey || p.dayKey >= startDayKey) : source;
+  const source = persistentBankrollHistory.length ? persistentBankrollHistory : [];
   // Build a mode-aware key resolver: "pnlRtn" → "normalPnlRtn" or "contestPnlRtn" or "pnlRtn"
   const modeKey = (f) => {
     if (homePnlMode === "normal" || homePnlMode === "contest") {
@@ -41898,11 +41890,36 @@ function getHomePnlFilteredPoints() {
     }
     return f;
   };
-  if (homePnlChartGame === "all") {
-    if (homePnlMode === "all") return periodFiltered;
-    return periodFiltered.map((p) => ({ ...p, pnlTotal: Number(p?.[modeKey("pnlTotal")] ?? 0) }));
+  const resolve = (p) => {
+    if (!p) return 0;
+    if (homePnlChartGame === "all") return Number(p[modeKey("pnlTotal")] ?? p.pnlTotal ?? 0);
+    return Number(p[modeKey(homePnlChartGame)] ?? 0);
+  };
+  // Value per day from whatever days actually have data.
+  const byDay = new Map();
+  for (const p of source) { if (p?.dayKey) byDay.set(p.dayKey, resolve(p)); }
+
+  // Window start (matches the ACTIVITY/BALANCE filter set, incl. 24H = today only).
+  let startDayKey;
+  if (homePnlChartPeriod === "24h") startDayKey = todayKey;
+  else if (homePnlChartPeriod === "week") startDayKey = shiftAnalyticsDateKey(todayKey, -6);
+  else if (homePnlChartPeriod === "month") startDayKey = shiftAnalyticsDateKey(todayKey, -29);
+  else if (homePnlChartPeriod === "90days") startDayKey = shiftAnalyticsDateKey(todayKey, -89);
+  else { // "all" → from the earliest day with data (or today if none)
+    const keys = [...byDay.keys()].sort();
+    startDayKey = keys.length ? keys[0] : todayKey;
   }
-  return periodFiltered.map((p) => ({ ...p, pnlTotal: Number(p?.[modeKey(homePnlChartGame)] ?? 0) }));
+
+  // Fill EVERY day in the window so blank days show as a zero bar (continuous axis).
+  const out = [];
+  let k = startDayKey, guard = 0;
+  while (k <= todayKey && guard < 4000) {
+    out.push({ dayKey: k, pnlTotal: byDay.get(k) ?? 0 });
+    if (k === todayKey) break;
+    k = shiftAnalyticsDateKey(k, 1);
+    guard += 1;
+  }
+  return out;
 }
 
 function drawHomePnlChart() {

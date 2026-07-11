@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260710-pnltab" />
+    <link rel="stylesheet" href="styles.css?v=20260710-pnlfilters" />
     <link rel="stylesheet" href="assets/bloom/bloom-flowers.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-weather.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-growth.css" />
@@ -858,6 +858,7 @@
                 <!-- P&L panel -->
                 <div class="hra-panel" data-home-chart-panel="pnl" hidden>
                   <div class="hra-balance-periods chart-filters">
+                    <button type="button" class="home-sb-chart-btn" data-home-pnl-period="24h">24H</button>
                     <button type="button" class="home-sb-chart-btn is-active" data-home-pnl-period="week">1W</button>
                     <button type="button" class="home-sb-chart-btn" data-home-pnl-period="month">1M</button>
                     <button type="button" class="home-sb-chart-btn" data-home-pnl-period="90days">3M</button>
@@ -5429,7 +5430,7 @@
     <script>window.__h = preact.h; window.__Fragment = preact.Fragment;</script>
     <script src="assets/bloom/morphs/flowers-compiled.js"></script>
     <script src="assets/bloom/morphs/flower-morphs.js"></script>
-    <script type="module" src="script.js?v=20260710-pnltab"></script>
+    <script type="module" src="script.js?v=20260710-pnlfilters"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
