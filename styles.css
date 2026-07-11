@@ -20356,6 +20356,55 @@ body.state-open .auth-vault-grant .gline::after {
   filter: none;
 }
 
+/* ---- Drawer GAMES accordion ---- */
+.drawer-games { display: flex; flex-direction: column; }
+.drawer-games-chevron {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: #686850;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.drawer-games-chevron svg { width: 14px; height: 14px; }
+.drawer-games.is-open .drawer-games-chevron { transform: rotate(180deg); color: #c8ff00; }
+.drawer-games-sub {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.drawer-games.is-open .drawer-games-sub { grid-template-rows: 1fr; }
+.drawer-games-sub-inner { min-height: 0; overflow: hidden; }
+
+/* Nested game links: indented, name + icon in the game's neon accent. */
+.utility-panel .drawer-games-sub .drawer-link-game { padding-left: 20px; }
+.utility-panel .drawer-games-sub .drawer-link-game .drawer-link-label {
+  color: var(--game-accent, #c8ff00);
+  font-weight: 600;
+}
+.drawer-game-ico {
+  display: block;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  background: var(--game-accent, #c8ff00);
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: contain; mask-size: contain;
+  opacity: 0.92;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.utility-panel .drawer-games-sub .drawer-link-game:hover .drawer-game-ico,
+.utility-panel .drawer-games-sub .drawer-link-game:focus-visible .drawer-game-ico { opacity: 1; transform: scale(1.08); }
+
+/* Per-game accent — matches the home tile outline colors. */
+.drawer-link-game[data-route-target="run-the-numbers"]  { --game-accent: #e8a43a; }
+.drawer-link-game[data-route-target="red-black"]        { --game-accent: #22d3ee; }
+.drawer-link-game[data-route-target="shape-traders"]    { --game-accent: #c8ff3a; }
+.drawer-link-game[data-route-target="color-scheme"]     { --game-accent: #ff2d4a; }
+.drawer-link-game[data-route-target="fate-or-fortune"]  { --game-accent: #b07bff; }
+.drawer-link-game[data-route-target="monkey-moonshine"] { --game-accent: #2fd06e; }
+
 .utility-panel .drawer-link-meta {
   color: #686850;
   font-size: 9px;
@@ -21437,6 +21486,42 @@ body.state-open .auth-vault-grant .gline::after {
 }
 
 /* ---- RECENT ACTIVITY (stacked daily-events chart, replaces spark cards) ---- */
+/* YOUR STATS collapser — collapses the graphs on mobile so CASINO FLOOR sits
+   above the fold. The toggle only appears on mobile; desktop stays open. */
+.home-stats-toggle {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: calc(100% - 24px);
+  margin: 0 12px 8px;
+  padding: 10px 12px;
+  background: #171714;
+  border: 1px solid #2e2e22;
+  border-radius: 2px;
+  color: #c8ff00;
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.home-stats-toggle:hover { border-color: #3d3d2c; }
+.home-stats-chevron { display: inline-flex; width: 15px; height: 15px; color: #8a8a5a; transition: transform 0.34s cubic-bezier(0.4, 0, 0.2, 1); }
+.home-stats-collapser.collapsed .home-stats-chevron { transform: rotate(-90deg); }
+.home-stats-collapse { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.38s cubic-bezier(0.4, 0, 0.2, 1); }
+.home-stats-collapser.collapsed .home-stats-collapse { grid-template-rows: 0fr; }
+.home-stats-collapse-inner { min-height: 0; overflow: hidden; }
+@media (max-width: 900px) {
+  .home-stats-toggle { display: flex; }
+}
+@media (min-width: 901px) {
+  /* Desktop: always open, no toggle, don't clip the widget. */
+  .home-stats-collapse { grid-template-rows: 1fr !important; }
+  .home-stats-collapse-inner { overflow: visible; }
+}
+
 .home-recent-activity {
   margin: 0 12px;
   background: #171714;

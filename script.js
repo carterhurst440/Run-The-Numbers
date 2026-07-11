@@ -674,6 +674,18 @@ function renderGameLogoTargets() {
     node.alt = `${record.label} logo`;
   });
 
+  // Drawer GAMES submenu icons: the white logo SVG masks an accent-colored box,
+  // so each game's icon renders in its neon accent (set via CSS --game-accent).
+  document.querySelectorAll("[data-game-mask-for]").forEach((node) => {
+    if (!(node instanceof HTMLElement)) return;
+    const gameKey = resolveGameKey(node.dataset.gameMaskFor || "");
+    const record = getGameAssetRecord(gameKey);
+    const url = (record && record.logo_url) || (DEFAULT_GAME_ASSET_LIBRARY[gameKey] && DEFAULT_GAME_ASSET_LIBRARY[gameKey].logo_url);
+    if (!url) return;
+    node.style.webkitMaskImage = `url("${url}")`;
+    node.style.maskImage = `url("${url}")`;
+  });
+
   document.querySelectorAll("[data-game-description-for]").forEach((node) => {
     const gameKey = resolveGameKey(node.dataset.gameDescriptionFor || "");
     const record = getGameAssetRecord(gameKey);
@@ -5102,6 +5114,13 @@ function syncDrawerRouteState() {
       button.removeAttribute("aria-current");
     }
   });
+
+  // Auto-open the GAMES accordion when the active route is one of its games.
+  const gamesGroup = document.getElementById("drawerGames");
+  if (gamesGroup && gamesGroup.querySelector(".drawer-link-game.is-active")) {
+    gamesGroup.classList.add("is-open");
+    document.getElementById("drawerGamesToggle")?.setAttribute("aria-expanded", "true");
+  }
 }
 
 function getStoredAnnouncedRankTier(userId = currentUser?.id) {
@@ -40428,6 +40447,17 @@ routeButtons.forEach((button) => {
   });
 });
 
+// Drawer GAMES accordion toggle.
+(function wireDrawerGames() {
+  const group = document.getElementById("drawerGames");
+  const toggle = document.getElementById("drawerGamesToggle");
+  if (!group || !toggle) return;
+  toggle.addEventListener("click", () => {
+    const open = group.classList.toggle("is-open");
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+})();
+
 // Rank modal triggers — badge buttons on home and drawer rank summary
 document.getElementById("hph-badges")?.addEventListener("click", (e) => {
   if (e.target.closest("[data-action='open-rank-modal']")) openRankLadderModal();
@@ -42288,6 +42318,24 @@ document.querySelectorAll("[data-home-activity-period]").forEach((btn) => {
     drawHomeActivityChart(true);
   });
 });
+
+// YOUR STATS collapse toggle (mobile). Charts drawn while collapsed have zero
+// size, so redraw them once the panel animates open.
+(function wireHomeStatsToggle() {
+  const collapser = document.getElementById("homeStatsCollapser");
+  const toggle = document.getElementById("homeStatsToggle");
+  if (!collapser || !toggle) return;
+  toggle.addEventListener("click", () => {
+    const collapsed = collapser.classList.toggle("collapsed");
+    toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    if (!collapsed) {
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+        try { drawHomeActivityChart(); } catch (e) {}
+        try { renderHomeBalanceChart(); } catch (e) {}
+      }));
+    }
+  });
+})();
 
 // Hook into the existing render pipeline
 const _origRenderHomeRankPanel = typeof renderHomeRankPanel === "function" ? renderHomeRankPanel : null;

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260710-bigwinslow" />
+    <link rel="stylesheet" href="styles.css?v=20260710-drawerstats" />
     <link rel="stylesheet" href="assets/bloom/bloom-flowers.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-weather.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-growth.css" />
@@ -323,51 +323,82 @@
                 <span class="drawer-link-label">Home</span>
               </span>
             </button>
-            <button type="button" data-route-target="run-the-numbers" class="drawer-link drawer-link-game">
-              <span class="drawer-link-inner">
-                <span class="drawer-link-icon drawer-link-icon-game" aria-hidden="true">
-                  <img class="drawer-link-game-logo" data-game-logo-for="game_001" src="/assets/game-logos/run-the-numbers.svg" alt="" aria-hidden="true" />
+            <div class="drawer-games" id="drawerGames">
+              <button type="button" class="drawer-link drawer-games-toggle" id="drawerGamesToggle" aria-expanded="false" aria-controls="drawerGamesSub">
+                <span class="drawer-link-inner">
+                  <span class="drawer-link-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="7" width="18" height="11" rx="3.5"></rect>
+                      <path d="M8 11v3"></path><path d="M6.5 12.5h3"></path>
+                      <circle cx="15.5" cy="11.5" r="0.9" fill="currentColor" stroke="none"></circle>
+                      <circle cx="17.5" cy="14" r="0.9" fill="currentColor" stroke="none"></circle>
+                    </svg>
+                  </span>
+                  <span class="drawer-link-label">Games</span>
                 </span>
-                <span class="drawer-link-label">Run The Numbers</span>
-              </span>
-              <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
-            </button>
-            <button type="button" data-route-target="red-black" class="drawer-link drawer-link-game">
-              <span class="drawer-link-inner">
-                <span class="drawer-link-icon drawer-link-icon-game" aria-hidden="true">
-                  <img class="drawer-link-game-logo" data-game-logo-for="game_002" src="/assets/game-logos/guess-10.svg" alt="" aria-hidden="true" />
+                <span class="drawer-games-chevron" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
                 </span>
-                <span class="drawer-link-label">Guess 10</span>
-              </span>
-              <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
-            </button>
-            <button type="button" data-route-target="shape-traders" class="drawer-link drawer-link-game">
-              <span class="drawer-link-inner">
-                <span class="drawer-link-icon drawer-link-icon-game" aria-hidden="true">
-                  <img class="drawer-link-game-logo" data-game-logo-for="game_003" src="/assets/game-logos/shape-traders.svg" alt="" aria-hidden="true" />
-                </span>
-                <span class="drawer-link-label">Shape Traders</span>
-              </span>
-              <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
-            </button>
-            <button type="button" data-route-target="color-scheme" class="drawer-link drawer-link-game" id="drawer-color-scheme-link" hidden>
-              <span class="drawer-link-inner">
-                <span class="drawer-link-icon drawer-link-icon-game" aria-hidden="true">
-                  <img class="drawer-link-game-logo" data-game-logo-for="game_004" src="/assets/game-logos/color-scheme.svg" alt="" aria-hidden="true" />
-                </span>
-                <span class="drawer-link-label">Color Scheme</span>
-              </span>
-              <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
-            </button>
-            <button type="button" data-route-target="fate-or-fortune" class="drawer-link drawer-link-game" id="drawer-fof-link" hidden>
-              <span class="drawer-link-inner">
-                <span class="drawer-link-icon drawer-link-icon-game" aria-hidden="true">
-                  <img class="drawer-link-game-logo" data-game-logo-for="game_005" src="/assets/game-logos/fate-or-fortune.svg" alt="" aria-hidden="true" />
-                </span>
-                <span class="drawer-link-label">Fate or Fortune</span>
-              </span>
-              <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
-            </button>
+              </button>
+              <div class="drawer-games-sub" id="drawerGamesSub">
+                <div class="drawer-games-sub-inner">
+                  <button type="button" data-route-target="run-the-numbers" class="drawer-link drawer-link-game">
+                    <span class="drawer-link-inner">
+                      <span class="drawer-link-icon drawer-link-icon-game" aria-hidden="true">
+                        <span class="drawer-game-ico" data-game-mask-for="game_001"></span>
+                      </span>
+                      <span class="drawer-link-label">Run The Numbers</span>
+                    </span>
+                    <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
+                  </button>
+                  <button type="button" data-route-target="red-black" class="drawer-link drawer-link-game">
+                    <span class="drawer-link-inner">
+                      <span class="drawer-link-icon drawer-link-icon-game" aria-hidden="true">
+                        <span class="drawer-game-ico" data-game-mask-for="game_002"></span>
+                      </span>
+                      <span class="drawer-link-label">Guess 10</span>
+                    </span>
+                    <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
+                  </button>
+                  <button type="button" data-route-target="shape-traders" class="drawer-link drawer-link-game">
+                    <span class="drawer-link-inner">
+                      <span class="drawer-link-icon drawer-link-icon-game" aria-hidden="true">
+                        <span class="drawer-game-ico" data-game-mask-for="game_003"></span>
+                      </span>
+                      <span class="drawer-link-label">Shape Traders</span>
+                    </span>
+                    <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
+                  </button>
+                  <button type="button" data-route-target="color-scheme" class="drawer-link drawer-link-game" id="drawer-color-scheme-link" hidden>
+                    <span class="drawer-link-inner">
+                      <span class="drawer-link-icon drawer-link-icon-game" aria-hidden="true">
+                        <span class="drawer-game-ico" data-game-mask-for="game_004"></span>
+                      </span>
+                      <span class="drawer-link-label">Color Scheme</span>
+                    </span>
+                    <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
+                  </button>
+                  <button type="button" data-route-target="fate-or-fortune" class="drawer-link drawer-link-game" id="drawer-fof-link" hidden>
+                    <span class="drawer-link-inner">
+                      <span class="drawer-link-icon drawer-link-icon-game" aria-hidden="true">
+                        <span class="drawer-game-ico" data-game-mask-for="game_005"></span>
+                      </span>
+                      <span class="drawer-link-label">Fate or Fortune</span>
+                    </span>
+                    <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
+                  </button>
+                  <button type="button" data-route-target="monkey-moonshine" class="drawer-link drawer-link-game" id="drawer-monkey-moonshine-link" hidden>
+                    <span class="drawer-link-inner">
+                      <span class="drawer-link-icon drawer-link-icon-game" aria-hidden="true">
+                        <span class="drawer-game-ico" data-game-mask-for="game_006"></span>
+                      </span>
+                      <span class="drawer-link-label">Monkey Moonshine</span>
+                    </span>
+                    <span class="drawer-link-lock-badge" aria-hidden="true">&#x1F512;</span>
+                  </button>
+                </div>
+              </div>
+            </div>
             <button type="button" data-route-target="contests" id="drawer-contest-link" class="drawer-link drawer-contest-link" hidden>
               <span class="drawer-link-inner">
                 <span class="drawer-link-icon" aria-hidden="true">
@@ -421,14 +452,6 @@
                   </svg>
                 </span>
                 <span class="drawer-link-label">Bloom</span>
-              </span>
-            </button>
-            <button type="button" data-route-target="monkey-moonshine" class="drawer-link drawer-link-game" id="drawer-monkey-moonshine-link" hidden>
-              <span class="drawer-link-inner">
-                <span class="drawer-link-icon drawer-link-icon-game" aria-hidden="true">
-                  <img class="drawer-link-game-logo" data-game-logo-for="game_006" src="/assets/game-logos/monkey-moonshine.svg" alt="" />
-                </span>
-                <span class="drawer-link-label">Monkey Moonshine</span>
               </span>
             </button>
             <button type="button" data-route-target="admin" class="drawer-link" id="admin-nav" hidden>
@@ -765,6 +788,17 @@
                 <div class="hph-badges" id="hph-badges"></div>
               </div>
 
+              <!-- YOUR STATS (collapsible on mobile so CASINO FLOOR sits above the fold) -->
+              <div class="home-stats-collapser collapsed" id="homeStatsCollapser">
+                <button type="button" class="home-stats-toggle" id="homeStatsToggle" aria-expanded="false" aria-controls="homeStatsBody">
+                  <span class="home-stats-toggle-label">// YOUR STATS</span>
+                  <span class="home-stats-chevron" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+                  </span>
+                </button>
+                <div class="home-stats-collapse" id="homeStatsBody">
+                  <div class="home-stats-collapse-inner">
+
               <!-- RECENT ACTIVITY / ACCOUNT BALANCE -->
               <div class="home-recent-activity" role="status" aria-live="polite" data-home-section="stats">
                 <div class="hra-top-row">
@@ -820,6 +854,9 @@
                   </div>
                 </div>
               </div>
+                  </div><!-- /home-stats-collapse-inner -->
+                </div><!-- /home-stats-collapse -->
+              </div><!-- /home-stats-collapser -->
 
               <!-- CASINO FLOOR -->
               <div class="home-section-hdr">
@@ -5392,7 +5429,7 @@
     <script>window.__h = preact.h; window.__Fragment = preact.Fragment;</script>
     <script src="assets/bloom/morphs/flowers-compiled.js"></script>
     <script src="assets/bloom/morphs/flower-morphs.js"></script>
-    <script type="module" src="script.js?v=20260710-bigwinslow"></script>
+    <script type="module" src="script.js?v=20260710-drawerstats"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
