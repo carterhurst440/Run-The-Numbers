@@ -10654,7 +10654,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin actually opens the route — not on every page load.
     const frame = document.getElementById("monkey-moonshine-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/monkey-moonshine.html?v=20260710-bigwin");
+      frame.setAttribute("src", "games/monkey-moonshine.html?v=20260710-bigwinsound");
     }
     installMonkeyMoonshineBridge();   // idempotent: broker spins + push the wallet balance
     mmSendInit();                     // refresh balance on re-open (first open waits for mm:ready)
@@ -32254,12 +32254,13 @@ let _mmEditWild = null;
 let _mmSimRunning = false;
 let _mmSounds = null;         // { name: url|null } from mm_sounds
 const MM_SOUNDS_BUCKET = 'mm-sounds';
-const MM_SOUND_ORDER = ['shake','rowClunk','lineMatch','wildLand','monkeyWild','extraShake','whoosh','coconutRow','moonshine','uiClick','coin','ambient','music'];
+const MM_SOUND_ORDER = ['shake','rowClunk','lineMatch','wildLand','monkeyWild','extraShake','whoosh','coconutRow','moonshine','chaChing','uiClick','coin','ambient','music'];
 const MM_SOUND_LABELS = {
   shake:'Tree shake / change tree', rowClunk:'Row lands in dirt', lineMatch:'Winning payline drawn',
   wildLand:'Wild fruit lands', monkeyWild:'Monkey wild appears', extraShake:'Extra shake earned',
   whoosh:'Monkey-dot whoosh', coconutRow:'Coconut row lands', moonshine:'MONKEY MOONSHINE banner',
-  uiClick:'Open WILD FRUIT menu', coin:'Bet + / − (coin)', ambient:'Ambient bed (loops)', music:'Moonshine music (loops)'
+  chaChing:'BIG WIN cha-ching (loops)', uiClick:'Open WILD FRUIT menu', coin:'Bet + / − (coin)',
+  ambient:'Ambient bed (loops)', music:'Moonshine music (loops)'
 };
 
 function mmStatus(msg){ const el = document.getElementById('admin-mm-status'); if (el) el.textContent = msg || ''; }
