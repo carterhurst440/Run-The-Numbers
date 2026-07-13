@@ -249,6 +249,14 @@ declare
   v_net        numeric(12,2);
   v_new        numeric(12,2);
   v_spin_id    uuid;
+
+  -- Carter Cash playthrough (the wager counts toward CC progress; 1000 = 1 CC).
+  v_pre_cc       integer;
+  v_pre_cc_prog  integer;
+  v_cc_total_prog integer;
+  v_cc_earned    integer;
+  v_new_cc       integer;
+  v_new_cc_prog  integer;
 begin
   if v_uid is null then
     raise exception 'not_authenticated' using errcode = '28000';
@@ -269,7 +277,11 @@ begin
   perform set_config('rtn.allow_sensitive_balance_write', '1', true);
 
   -- Lock the wallet row → serialize concurrent spins, prevent double-spend.
-  select credits into v_pre from public.profiles where id = v_uid for update;
+  select credits,
+         greatest(coalesce(carter_cash, 0), 0),
+         greatest(coalesce(carter_cash_progress, 0), 0)
+    into v_pre, v_pre_cc, v_pre_cc_prog
+  from public.profiles where id = v_uid for update;
   if v_pre is null then
     raise exception 'no_profile' using errcode = 'P0002';
   end if;
@@ -383,6 +395,13 @@ begin
   v_net            := v_total_returned - v_total_wagered;
   v_new            := round(v_pre + v_net, 2);
 
+  -- ── Carter Cash: the full wager counts toward CC progress, exactly like the
+  --    other games (1000 progress = 1 Carter Cash; remainder rolls forward). ──
+  v_cc_total_prog := greatest(0, coalesce(v_pre_cc_prog, 0) + greatest(round(p_bet)::integer, 0));
+  v_cc_earned     := floor(v_cc_total_prog / 1000.0);
+  v_new_cc        := greatest(0, coalesce(v_pre_cc, 0) + v_cc_earned);
+  v_new_cc_prog   := v_cc_total_prog - (v_cc_earned * 1000);
+
   -- ── Board snapshot rows[][]. ──
   v_rows := '[]'::jsonb;
   for r in 0..v_nrows-1 loop
@@ -395,7 +414,11 @@ begin
   v_board := jsonb_build_object('wild', p_wild, 'wild_mult', v_wild_mult, 'cols', c_cols, 'rows', v_rows);
 
   -- ── Settle the wallet + write the ledger row (both under one lock). ──
-  update public.profiles set credits = v_new where id = v_uid;
+  update public.profiles
+     set credits = v_new,
+         carter_cash = v_new_cc,
+         carter_cash_progress = v_new_cc_prog
+   where id = v_uid;
 
   insert into public.mm_spins(
     user_id, contest_id, status, wild, wild_mult, moonshine_triggered,
@@ -426,7 +449,9 @@ begin
     'total_returned', v_total_returned,
     'net_profit', v_net,
     'pre_hand_account_value', v_pre,
-    'new_account_value', v_new
+    'new_account_value', v_new,
+    'carter_cash', v_new_cc,
+    'carter_cash_progress', v_new_cc_prog
   );
 end;
 $$;

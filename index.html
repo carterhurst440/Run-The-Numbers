@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260712-mmroute" />
+    <link rel="stylesheet" href="styles.css?v=20260712-settings" />
     <link rel="stylesheet" href="assets/bloom/bloom-flowers.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-weather.css" />
     <link rel="stylesheet" href="assets/bloom/bloom-growth.css" />
@@ -495,6 +495,27 @@
               Reset
             </button>
           </div>
+        </section>
+        <section class="drawer-section drawer-settings" aria-labelledby="drawer-settings-title">
+          <div class="section-heading">
+            <h3 id="drawer-settings-title">Settings</h3>
+            <p class="section-sub">Email notifications</p>
+          </div>
+          <div class="drawer-settings-list">
+            <label class="drawer-setting-row">
+              <span class="drawer-setting-label">Contest notifications</span>
+              <input type="checkbox" class="drawer-setting-input" id="setting-contest-notifications" data-notif-column="receive_contest_start_emails" />
+            </label>
+            <label class="drawer-setting-row">
+              <span class="drawer-setting-label">Prize notifications</span>
+              <input type="checkbox" class="drawer-setting-input" id="setting-prize-notifications" data-notif-column="receive_prize_notifications" />
+            </label>
+            <label class="drawer-setting-row">
+              <span class="drawer-setting-label">Promotional notifications</span>
+              <input type="checkbox" class="drawer-setting-input" id="setting-promo-notifications" data-notif-column="receive_promo_notifications" />
+            </label>
+          </div>
+          <p id="drawer-settings-message" class="contest-email-setting-message" role="status" aria-live="polite"></p>
         </section>
       </aside>
 
@@ -5429,7 +5450,7 @@
     <script>window.__h = preact.h; window.__Fragment = preact.Fragment;</script>
     <script src="assets/bloom/morphs/flowers-compiled.js"></script>
     <script src="assets/bloom/morphs/flower-morphs.js"></script>
-    <script type="module" src="script.js?v=20260712-mmroute"></script>
+    <script type="module" src="script.js?v=20260712-settings"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

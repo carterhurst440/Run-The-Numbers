@@ -13664,6 +13664,36 @@ body.play-assistant-open .play-assistant-fab {
   font-size: 0.96rem;
 }
 
+/* Drawer Settings — email notification channel toggles */
+.drawer-settings .section-heading { margin-bottom: 0.5rem; }
+.drawer-settings .section-sub {
+  margin: 0.1rem 0 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.drawer-settings-list { display: flex; flex-direction: column; }
+.drawer-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 2px;
+  cursor: pointer;
+  border-bottom: 1px solid color-mix(in srgb, var(--drawer-border) 30%, transparent);
+}
+.drawer-setting-row:last-child { border-bottom: 0; }
+.drawer-setting-label { font-size: 0.9rem; color: var(--text-light); }
+.drawer-setting-input {
+  width: 18px;
+  height: 18px;
+  accent-color: #c8ff00;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.drawer-settings #drawer-settings-message { margin-top: 0.5rem; }
+
 .drawer-subhead {
   margin: 0 0 0.85rem 0;
   font-size: 0.85rem;

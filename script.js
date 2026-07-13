@@ -10901,7 +10901,7 @@ async function fetchProfileWithRetries(
     try {
       const fetchPromise = supabase
         .from("profiles")
-        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, referral_code, updated_at")
+        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, receive_prize_notifications, receive_promo_notifications, referral_code, updated_at")
         .eq("id", userId)
         .maybeSingle();
 
@@ -11037,7 +11037,7 @@ async function provisionProfileForUser(user) {
       .from("profiles")
       .insert([profileInsert])
       .select(
-        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, referral_code, updated_at"
+        "id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, receive_prize_notifications, receive_promo_notifications, referral_code, updated_at"
       )
       .maybeSingle();
 
@@ -14388,6 +14388,7 @@ function hasSeenContestResultsForEntry(entry) {
 }
 
 function renderContestEmailPreference() {
+  syncNotificationSettings();   // keep the drawer Settings toggles in sync on every profile render
   if (!contestEmailOptInInput) return;
   const enabled = currentProfile?.receive_contest_start_emails ?? true;
   contestEmailOptInInput.checked = Boolean(enabled);
@@ -14442,6 +14443,69 @@ async function handleContestEmailPreferenceChange(event) {
       contestEmailOptInInput.disabled = false;
     }
   }
+}
+
+// ── Drawer Settings · email notification channels ─────────────────────────
+// Contest / Prize / Promotional. Contest reuses the existing
+// receive_contest_start_emails column; the other two default to true. Each
+// toggle carries its profile column in data-notif-column.
+const NOTIFICATION_SETTING_IDS = ["setting-contest-notifications", "setting-prize-notifications", "setting-promo-notifications"];
+
+function syncNotificationSettings() {
+  NOTIFICATION_SETTING_IDS.forEach((id) => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.checked = Boolean(currentProfile?.[input.dataset.notifColumn] ?? true);
+  });
+}
+
+function setDrawerSettingsMessage(message = "", tone = "") {
+  const el = document.getElementById("drawer-settings-message");
+  if (!el) return;
+  el.textContent = message;
+  el.className = "contest-email-setting-message";
+  if (tone === "success") el.classList.add("is-success");
+  else if (tone === "error") el.classList.add("is-error");
+}
+
+async function handleNotificationSettingChange(event) {
+  const input = event?.target;
+  if (!input) return;
+  const col = input.dataset.notifColumn;
+  const checked = Boolean(input.checked);
+  if (!col) return;
+  if (!currentUser?.id || currentUser.id === GUEST_USER.id) {
+    input.checked = !checked;
+    showToast("Please sign in again.", "error");
+    return;
+  }
+  input.disabled = true;
+  setDrawerSettingsMessage("Saving…");
+  try {
+    const { error } = await supabase.from("profiles").update({ [col]: checked }).eq("id", currentUser.id);
+    if (error) throw error;
+    if (currentProfile && currentProfile.id === currentUser.id) currentProfile[col] = checked;
+    setDrawerSettingsMessage("Preference updated.", "success");
+    // Keep the standalone Contests-page toggle in sync with the drawer one.
+    if (col === "receive_contest_start_emails") { try { renderContestEmailPreference(); } catch (e) {} }
+  } catch (error) {
+    console.error("[RTN] handleNotificationSettingChange error", error);
+    input.checked = !checked;
+    setDrawerSettingsMessage("Unable to update your preference.", "error");
+    showToast("Unable to update notification preference", "error");
+  } finally {
+    input.disabled = false;
+  }
+}
+
+function wireNotificationSettings() {
+  NOTIFICATION_SETTING_IDS.forEach((id) => {
+    const input = document.getElementById(id);
+    if (input && !input.dataset.notifWired) {
+      input.dataset.notifWired = "1";
+      input.addEventListener("change", handleNotificationSettingChange);
+    }
+  });
 }
 
 async function markContestStartNotificationSeen(contestId) {
@@ -16661,7 +16725,7 @@ async function optIntoContest(contest = currentContest) {
         }
 
         const { data: deductedProfile, error: deductError } = await deductQuery
-          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, referral_code, updated_at")
+          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, receive_prize_notifications, receive_promo_notifications, referral_code, updated_at")
           .maybeSingle();
 
         if (deductError) throw deductError;
@@ -16713,7 +16777,7 @@ async function optIntoContest(contest = currentContest) {
             .update({ carter_cash: refundedAmount })
             .eq("id", currentUser.id)
             .eq("updated_at", chargedProfile.updated_at ?? null)
-            .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, referral_code, updated_at")
+            .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, receive_prize_notifications, receive_promo_notifications, referral_code, updated_at")
             .maybeSingle();
           if (refundedProfile) {
             currentProfile = {
@@ -19773,6 +19837,24 @@ function mmFlushPendingBalance() {
   _mmPendingBalance = null;
   mmApplyBalance(val);
 }
+// The MM spin's wager counts toward Carter Cash progress (the server settles it
+// authoritatively and returns the new totals). Apply immediately — unlike the
+// header balance, CC progress isn't tied to the in-game spin animation. MM is
+// normal-mode only (p_contest_id is always null).
+function mmApplyCarterCash(data) {
+  if (!data || typeof data.carter_cash !== "number") return;
+  const nextCC = Math.max(0, Math.round(Number(data.carter_cash)));
+  const nextProg = normalizeCarterCashProgressValue(Number(data.carter_cash_progress ?? 0));
+  carterCash = nextCC;
+  carterCashProgress = nextProg;
+  lastSyncedCarterCash = nextCC;
+  lastSyncedCarterProgress = nextProg;
+  if (currentProfile) {
+    currentProfile.carter_cash = nextCC;
+    currentProfile.carter_cash_progress = nextProg;
+  }
+  try { handleCarterCashChanged(); } catch (e) {}
+}
 async function mmHandleSpin(bet, wild) {
   const w = mmFrameWindow();
   if (!w) return;
@@ -19800,6 +19882,7 @@ async function mmHandleSpin(bet, wild) {
     if (data && typeof data.new_account_value === "number") {
       _mmPendingBalance = data.new_account_value;
     }
+    mmApplyCarterCash(data);   // wager → Carter Cash progress (applied now, not deferred)
     w.postMessage({ source: "mm-shell", type: "result", payload: data }, "*");
   } catch (e) {
     w.postMessage({ source: "mm-shell", type: "error", reason: "spin_failed" }, "*");
@@ -30506,6 +30589,10 @@ function openDrawer(panel, toggle) {
     requestAnimationFrame(() => {
       drawBankrollChart();
     });
+  }
+  if (panel === utilityPanel) {
+    wireNotificationSettings();     // attach change listeners (once)
+    syncNotificationSettings();     // reflect the latest saved preferences
   }
 }
 
