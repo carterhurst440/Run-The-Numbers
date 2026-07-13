@@ -5,12 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260712-settings" />
-    <link rel="stylesheet" href="assets/bloom/bloom-flowers.css" />
-    <link rel="stylesheet" href="assets/bloom/bloom-weather.css" />
-    <link rel="stylesheet" href="assets/bloom/bloom-growth.css" />
-    <link rel="stylesheet" href="assets/bloom/biome-backgrounds.css" />
-    <link rel="stylesheet" href="assets/bloom/morphs/flower-morphs.css" />
+    <link rel="stylesheet" href="styles.css?v=20260712-nobloom" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -3754,157 +3749,10 @@
               </div>
             </section>
             <section class="admin-tab-content" id="admin-bloom-content" hidden>
-              <div class="admin-fof-subtabs">
-                <button type="button" class="admin-fof-subtab admin-bloom-subtab active" data-bloom-subtab="sim">Sim</button>
-                <button type="button" class="admin-fof-subtab admin-bloom-subtab" data-bloom-subtab="cards">Cards</button>
-                <button type="button" class="admin-fof-subtab admin-bloom-subtab" data-bloom-subtab="regions">Regions</button>
-                <button type="button" class="admin-fof-subtab admin-bloom-subtab" data-bloom-subtab="flowers">Flowers</button>
-                <button type="button" class="admin-fof-subtab admin-bloom-subtab" data-bloom-subtab="anims">Anims</button>
-              </div>
-              <div id="admin-bloom-status" class="admin-fof-status"></div>
-              <div class="admin-fof-subtab-content admin-bloom-subtab-content" id="admin-bloom-sim-content">
               <section class="route-section admin-list-section">
-                <div class="admin-listing-header">
-                  <h2>BLOOM — Sim</h2>
-                </div>
-                <p class="admin-cs-hint">Five flowers race to bloom. Each draw is an independent weighted pick from the selected region's deck. First flower to 100 wins.</p>
-                <div class="admin-fof-sim-panel">
-                  <h3>Single Round — Event Log</h3>
-                  <p class="admin-cs-hint">Run one deterministic race and see every draw. Leave seed blank for a random round.</p>
-                  <div class="admin-fof-log-controls">
-                    <label class="admin-fof-sim-pick">Region
-                      <select id="admin-bloom-region">
-                        <option value="">Random</option>
-                        <option value="desert">Desert</option>
-                        <option value="rainforest">Rainforest</option>
-                        <option value="temperate_forest">Temperate Forest</option>
-                        <option value="tundra">Tundra</option>
-                        <option value="tropical_island">Tropical Island</option>
-                      </select>
-                    </label>
-                    <label class="admin-fof-sim-pick">Seed
-                      <input type="number" id="admin-bloom-seed" class="admin-fof-log-seed-input" placeholder="random" min="0" max="999999999">
-                    </label>
-                    <button type="button" class="primary" id="admin-bloom-run">Run round</button>
-                    <button type="button" class="admin-fof-runall-btn" id="admin-bloom-copy">Copy JSON</button>
-                  </div>
-                  <div id="admin-bloom-summary" class="admin-fof-sim-results"></div>
-                  <pre id="admin-bloom-log-output" class="admin-fof-log-output"></pre>
-                </div>
-                <div class="admin-fof-sim-panel">
-                  <h3>Stress Test — Win Distribution</h3>
-                  <p class="admin-cs-hint">Run N sims for each region (or a single region) and tally winners. Useful for tuning region/deck balance.</p>
-                  <div class="admin-fof-sim-controls">
-                    <label class="admin-fof-sim-pick">Region
-                      <select id="admin-bloom-stress-region">
-                        <option value="all">All regions</option>
-                        <option value="desert">Desert</option>
-                        <option value="rainforest">Rainforest</option>
-                        <option value="temperate_forest">Temperate Forest</option>
-                        <option value="tundra">Tundra</option>
-                        <option value="tropical_island">Tropical Island</option>
-                      </select>
-                    </label>
-                    <div class="admin-fof-vol-row">
-                      <span class="admin-fof-vol-label">Runs per region:</span>
-                      <button type="button" class="admin-fof-vol-btn active" data-bloom-vol="1000">Quick 1K</button>
-                      <button type="button" class="admin-fof-vol-btn" data-bloom-vol="10000">Medium 10K</button>
-                      <button type="button" class="admin-fof-vol-btn" data-bloom-vol="1000000">Serious 1M</button>
-                    </div>
-                    <button type="button" class="primary" id="admin-bloom-stress-run">Run stress test</button>
-                  </div>
-                  <div id="admin-bloom-stress-results" class="admin-fof-sim-results"></div>
-                </div>
-                <div class="admin-fof-matrix-panel">
-                  <div class="admin-fof-matrix-hdr">
-                    <h3>Master Matrix — Per-Region Win %</h3>
-                    <div class="admin-fof-matrix-actions">
-                      <label class="admin-fof-sim-pick">Sims per region
-                        <input type="number" id="admin-bloom-master-size" class="admin-fof-log-seed-input" value="1000000" min="1000" step="1000">
-                      </label>
-                      <button type="button" class="admin-fof-runall-btn" id="admin-bloom-run-master">Run Master Matrix &amp; save to DB</button>
-                    </div>
-                  </div>
-                  <p class="admin-cs-hint">Runs N sims per region in-browser, tallies winners, and writes <code>pct_&lt;region&gt;</code> on each flower in <code>bloom_flowers</code>. Required before live rounds — <code>bloom_lock_round</code> reads these to compute payouts.</p>
-                  <div id="admin-bloom-master-status" class="admin-fof-status"></div>
-                  <div id="admin-bloom-master-matrix"></div>
-                </div>
+                <div class="admin-listing-header"><h2>BLOOM — Retired</h2></div>
+                <p class="admin-cs-hint">The Bloom game has been removed. This is a placeholder — rebuild here when Bloom returns.</p>
               </section>
-              </div>
-              <div class="admin-fof-subtab-content admin-bloom-subtab-content" id="admin-bloom-cards-content" hidden>
-                <section class="route-section admin-list-section">
-                  <div class="admin-listing-header">
-                    <h2>BLOOM — Cards</h2>
-                    <button type="button" class="primary" id="admin-bloom-card-new">+ New card</button>
-                  </div>
-                  <p class="admin-cs-hint">Edit name + flower-effect values per card. Save writes <code>display_name</code> and <code>effects</code>. <strong>Delete</strong> also strips the card from every region's deck via the <code>bloom_delete_card</code> RPC. Slugs are immutable.</p>
-                  <div id="admin-bloom-cards-grid" class="admin-fof-chars"></div>
-                </section>
-              </div>
-              <div class="admin-fof-subtab-content admin-bloom-subtab-content" id="admin-bloom-flowers-content" hidden>
-                <section class="route-section admin-list-section">
-                  <div class="admin-listing-header">
-                    <h2>BLOOM — Flowers</h2>
-                  </div>
-                  <p class="admin-cs-hint">Rename flowers (display name only — slugs are FK references and stay fixed). Saving updates <code>bloom_flowers.display_name</code>.</p>
-                  <div id="admin-bloom-flowers-grid" class="admin-fof-chars"></div>
-                </section>
-              </div>
-              <div class="admin-fof-subtab-content admin-bloom-subtab-content" id="admin-bloom-anims-content" hidden>
-                <section class="route-section admin-list-section">
-                  <div class="admin-listing-header">
-                    <h2>BLOOM — Animations</h2>
-                  </div>
-                  <p class="admin-cs-hint">Asset slots are derived live from the seeded regions / cards / flowers. Paste a URL (mp4, webm, gif, lottie JSON) — <code>clip_data</code> is JSONB so additional fields can be added later. Phase 2 will wire these into the resolving stage so each card overlay plays in sequence and each flower advances through its 6 stages with transitions between.</p>
-                  <div id="admin-bloom-anim-status" class="admin-fof-status"></div>
-                  <div id="admin-bloom-anims-grid" class="admin-fof-anim-grid-wrap"></div>
-                </section>
-                <div class="modal" id="admin-bloom-anim-modal" role="dialog" aria-modal="true" hidden>
-                  <div class="modal-backdrop" data-bloom-anim-close></div>
-                  <div class="modal-content admin-fof-anim-modal-content">
-                    <div class="modal-header">
-                      <h3 id="admin-bloom-anim-modal-title">Edit clip</h3>
-                      <button type="button" class="modal-close" data-bloom-anim-close aria-label="Close">×</button>
-                    </div>
-                    <div class="modal-body">
-                      <label class="admin-fof-anim-field">
-                        <span>Asset URL</span>
-                        <input type="url" id="admin-bloom-anim-url" placeholder="https://…" autocomplete="off">
-                      </label>
-                      <label class="admin-fof-anim-field">
-                        <span>Duration (seconds, optional)</span>
-                        <input type="number" id="admin-bloom-anim-duration" min="0" step="0.05" placeholder="auto">
-                      </label>
-                      <label class="admin-fof-anim-field">
-                        <span>Loop</span>
-                        <select id="admin-bloom-anim-loop">
-                          <option value="false">No (play once)</option>
-                          <option value="true">Yes (loop continuously)</option>
-                        </select>
-                      </label>
-                      <label class="admin-fof-anim-field">
-                        <span>Notes (optional)</span>
-                        <input type="text" id="admin-bloom-anim-notes" placeholder="format, frame counts, anchor offsets, etc.">
-                      </label>
-                      <div class="admin-fof-anim-preview" id="admin-bloom-anim-preview"></div>
-                    </div>
-                    <div class="modal-footer">
-                      <button type="button" class="secondary" id="admin-bloom-anim-clear-btn">Clear</button>
-                      <button type="button" class="secondary" data-bloom-anim-close>Cancel</button>
-                      <button type="button" class="primary" id="admin-bloom-anim-save-btn">Save</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="admin-fof-subtab-content admin-bloom-subtab-content" id="admin-bloom-regions-content" hidden>
-                <section class="route-section admin-list-section">
-                  <div class="admin-listing-header">
-                    <h2>BLOOM — Regions</h2>
-                  </div>
-                  <p class="admin-cs-hint">Adjust deck composition per region (0–15 of each card). Save writes <code>bloom_regions.deck_composition</code> for that one region.</p>
-                  <div id="admin-bloom-regions-grid" class="admin-fof-chars"></div>
-                </section>
-              </div>
             </section>
 
             <section class="admin-tab-content" id="admin-monkey-moonshine-content" hidden>
@@ -4024,33 +3872,13 @@
 
         <section id="bloom-view" class="route-view app-page fof-view" hidden aria-labelledby="bloom-view-title">
           <h1 id="bloom-view-title" class="sr-only">Bloom</h1>
-          <div class="fof-page">
-            <header class="fof-page-header">
-              <div class="fof-page-title">// BLOOM <span>FIRST FLOWER WINS</span></div>
-              <div class="fof-page-balance">BALANCE <strong id="bloom-page-balance-val">—</strong></div>
-            </header>
-            <div id="bloom-stage" class="fof-stage" data-state="idle"></div>
-          </div>
-          <!-- Sticky chip rack — only visible while bloomGame.state === 'selecting'.
-               Matches RTN's pattern: lives inside the route-view as the last child,
-               position:sticky bottom:0 inside the view's scroll context. -->
-          <div class="chip-bar chip-rack bloom-chip-bar" id="bloom-chipBar" aria-label="BLOOM bet controls" hidden>
-            <div class="chip-selector-row chip-rack__row">
-              <button type="button" class="chip-rack-edit chip-rack__edit" id="bloom-chipRackEdit">Edit</button>
-              <div class="chip-selector chip-rack__selector bloom-chip-selector"
-                   id="bloom-chipSelector"
-                   role="radiogroup" aria-label="Choose chip denomination"></div>
-            </div>
-            <div class="chip-actions chip-rack__actions">
-              <button type="button" class="primary chip-rack__button" id="bloom-clearBetsBtn">Clear</button>
-              <button type="button" class="deal chip-rack__button chip-rack__button--primary" id="bloom-begin-btn" disabled>⬡ BEGIN ROUND</button>
-              <label class="bloom-auto-toggle" id="bloom-autoDrawWrap" for="bloom-autoDrawToggle">
-                <input type="checkbox" id="bloom-autoDrawToggle">
-                <span class="bloom-auto-toggle-pill" aria-hidden="true"></span>
-                <span class="bloom-auto-toggle-text">AUTO</span>
-              </label>
-            </div>
-          </div>
+          <header class="route-header">
+            <div><h1>Bloom</h1><p class="route-subheading">Retired — placeholder (admin only)</p></div>
+            <div class="route-actions"><button type="button" data-route-target="home" class="link-button">&larr; Home</button></div>
+          </header>
+          <section class="route-section">
+            <p class="admin-cs-hint">The Bloom game has been removed. This route is an admin-only placeholder for now.</p>
+          </section>
         </section>
 
         <section id="monkey-moonshine-view" class="route-view app-page monkey-moonshine-view" hidden aria-labelledby="monkey-moonshine-view-title">
@@ -5437,20 +5265,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script src="assets/bloom/bloom-flowers.js"></script>
-    <script src="assets/bloom/bloom-regions.js"></script>
-    <script src="assets/bloom/bloom-weather.js"></script>
-    <script src="assets/bloom/bloom-growth.js"></script>
-    <link rel="stylesheet" href="assets/bloom/bloom-region-cards.css">
-    <script src="assets/bloom/bloom-region-cards.js"></script>
-    <link rel="stylesheet" href="assets/bloom/bloom-weather-cards.css">
-    <script src="assets/bloom/bloom-weather-cards.js"></script>
-    <!-- 11-stage Morph flower system: preact runtime + bootstrap + compiled JSX + wrapper -->
-    <script src="assets/bloom/morphs/preact.umd.js"></script>
-    <script>window.__h = preact.h; window.__Fragment = preact.Fragment;</script>
-    <script src="assets/bloom/morphs/flowers-compiled.js"></script>
-    <script src="assets/bloom/morphs/flower-morphs.js"></script>
-    <script type="module" src="script.js?v=20260712-settings"></script>
+    <script type="module" src="script.js?v=20260712-nobloom"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
