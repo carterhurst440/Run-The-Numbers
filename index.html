@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260712-nobloom" />
+    <link rel="stylesheet" href="styles.css?v=20260713-notifsettings" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -491,27 +491,6 @@
             </button>
           </div>
         </section>
-        <section class="drawer-section drawer-settings" aria-labelledby="drawer-settings-title">
-          <div class="section-heading">
-            <h3 id="drawer-settings-title">Settings</h3>
-            <p class="section-sub">Email notifications</p>
-          </div>
-          <div class="drawer-settings-list">
-            <label class="drawer-setting-row">
-              <span class="drawer-setting-label">Contest notifications</span>
-              <input type="checkbox" class="drawer-setting-input" id="setting-contest-notifications" data-notif-column="receive_contest_start_emails" />
-            </label>
-            <label class="drawer-setting-row">
-              <span class="drawer-setting-label">Prize notifications</span>
-              <input type="checkbox" class="drawer-setting-input" id="setting-prize-notifications" data-notif-column="receive_prize_notifications" />
-            </label>
-            <label class="drawer-setting-row">
-              <span class="drawer-setting-label">Promotional notifications</span>
-              <input type="checkbox" class="drawer-setting-input" id="setting-promo-notifications" data-notif-column="receive_promo_notifications" />
-            </label>
-          </div>
-          <p id="drawer-settings-message" class="contest-email-setting-message" role="status" aria-live="polite"></p>
-        </section>
       </aside>
 
       <aside
@@ -527,14 +506,40 @@
             <span aria-hidden="true">×</span>
           </button>
         </div>
+        <!-- Collapsible email-notification settings (gear) at the top of the panel -->
+        <section class="notif-settings" id="notif-settings">
+          <button type="button" class="notif-settings-toggle" id="notif-settings-toggle" aria-expanded="false" aria-controls="notif-settings-body">
+            <span class="notif-settings-gear" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </span>
+            <span class="notif-settings-label">Settings</span>
+            <span class="notif-settings-chevron" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+            </span>
+          </button>
+          <div class="notif-settings-body" id="notif-settings-body">
+            <p class="notif-settings-sub">Email notifications</p>
+            <div class="drawer-settings-list">
+              <label class="drawer-setting-row">
+                <span class="drawer-setting-label">Contest notifications</span>
+                <input type="checkbox" class="drawer-setting-input" id="setting-contest-notifications" data-notif-column="receive_contest_start_emails" />
+              </label>
+              <label class="drawer-setting-row">
+                <span class="drawer-setting-label">Prize notifications</span>
+                <input type="checkbox" class="drawer-setting-input" id="setting-prize-notifications" data-notif-column="receive_prize_notifications" />
+              </label>
+              <label class="drawer-setting-row">
+                <span class="drawer-setting-label">Promotional notifications</span>
+                <input type="checkbox" class="drawer-setting-input" id="setting-promo-notifications" data-notif-column="receive_promo_notifications" />
+              </label>
+            </div>
+            <p id="drawer-settings-message" class="contest-email-setting-message" role="status" aria-live="polite"></p>
+          </div>
+        </section>
         <div class="drawer-toolbar">
           <button type="button" class="drawer-action-button" id="notifications-clear-all">Clear All</button>
         </div>
         <section class="drawer-section">
-          <div class="section-heading">
-            <h3>Contest Results</h3>
-            <p class="section-sub">Open a notification to review standings and winners.</p>
-          </div>
           <ul id="notifications-list" class="notifications-list" aria-live="polite"></ul>
         </section>
       </aside>
@@ -5265,7 +5270,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260712-nobloom"></script>
+    <script type="module" src="script.js?v=20260713-notifsettings"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

@@ -21072,6 +21072,60 @@ body.state-open .auth-vault-grant .gline::after {
   letter-spacing: 0.04em;
 }
 
+/* Collapsible email-notification settings (gear) at the top of the panel */
+.notif-settings {
+  margin: 0 0 0.85rem;
+  border: 1px solid rgba(168, 255, 62, 0.14);
+  background: rgba(20, 20, 16, 0.55);
+}
+.notif-settings-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: transparent;
+  border: 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.notif-settings-toggle:hover { color: #a8ff3e; }
+.notif-settings-gear { display: inline-flex; width: 16px; height: 16px; color: #a8ff3e; flex-shrink: 0; }
+.notif-settings-gear svg, .notif-settings-chevron svg { width: 100%; height: 100%; display: block; }
+.notif-settings-label { flex: 1; text-align: left; }
+.notif-settings-chevron {
+  display: inline-flex; width: 13px; height: 13px; flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.4);
+  transition: transform 0.28s ease;
+}
+.notif-settings.is-open .notif-settings-chevron { transform: rotate(180deg); }
+.notif-settings-body {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.32s ease, opacity 0.25s ease;
+}
+.notif-settings.is-open .notif-settings-body { max-height: 340px; opacity: 1; }
+.notif-settings-sub {
+  margin: 0 14px 2px;
+  padding-top: 2px;
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.32);
+}
+.notif-settings .drawer-settings-list { padding: 0 14px; }
+.notif-settings .drawer-setting-row { border-bottom-color: rgba(168, 255, 62, 0.1); }
+.notif-settings .drawer-setting-label { color: rgba(255, 255, 255, 0.82); font-size: 0.82rem; }
+.notif-settings .drawer-setting-input { accent-color: #a8ff3e; }
+.notif-settings #drawer-settings-message { margin: 6px 14px 12px; font-size: 10px; }
+
 .notification-item-empty {
   border-radius: 0;
   border: 1px dashed rgba(168, 255, 62, 0.12);
@@ -21107,20 +21161,22 @@ body.state-open .auth-vault-grant .gline::after {
 }
 
 .notification-card-title {
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(255, 255, 255, 0.95);
   font-family: 'JetBrains Mono', 'Fira Mono', monospace;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
+  line-height: 1.4;
 }
 
 .notification-card-status {
   color: #a8ff3e;
   font-family: 'JetBrains Mono', 'Fira Mono', monospace;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
+  flex-shrink: 0;
 }
 
 .notification-item.is-unread .notification-card-status::before {
@@ -21129,18 +21185,18 @@ body.state-open .auth-vault-grant .gline::after {
 }
 
 .notification-card-detail {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 11px;
-  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12.5px;
+  line-height: 1.6;
   letter-spacing: 0.01em;
 }
 
 .notification-card-meta {
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.44);
   font-family: 'JetBrains Mono', 'Fira Mono', monospace;
-  font-size: 8px;
+  font-size: 9.5px;
   font-weight: 500;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 

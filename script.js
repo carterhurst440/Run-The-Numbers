@@ -14504,6 +14504,17 @@ function wireNotificationSettings() {
       input.addEventListener("change", handleNotificationSettingChange);
     }
   });
+  // Gear header expands/collapses the settings section at the top of the panel.
+  const toggle = document.getElementById("notif-settings-toggle");
+  if (toggle && !toggle.dataset.notifWired) {
+    toggle.dataset.notifWired = "1";
+    toggle.addEventListener("click", () => {
+      const section = document.getElementById("notif-settings");
+      const open = toggle.getAttribute("aria-expanded") === "true";
+      toggle.setAttribute("aria-expanded", open ? "false" : "true");
+      if (section) section.classList.toggle("is-open", !open);
+    });
+  }
 }
 
 async function markContestStartNotificationSeen(contestId) {
@@ -30588,7 +30599,7 @@ function openDrawer(panel, toggle) {
       drawBankrollChart();
     });
   }
-  if (panel === utilityPanel) {
+  if (panel === notificationsPanel) {
     wireNotificationSettings();     // attach change listeners (once)
     syncNotificationSettings();     // reflect the latest saved preferences
   }
