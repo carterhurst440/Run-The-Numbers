@@ -13813,7 +13813,7 @@ async function loadAdminGameAssets(force = false) {
   // tool-only hub row so its admin section stays reachable after the tab removal.
   adminGameListEl.appendChild(renderAdminToolOnlyRow({
     label: "Bloom",
-    description: "Admin-only lab • Simulator, cards & regions",
+    description: "Admin-only lab • Edit flowers & weather",
     toolTab: "bloom",
     logoUrl: ""
   }));
@@ -32361,7 +32361,7 @@ function showAdminTab(tabId) {
   } else if (tabId === "bloom") {
     if (adminBloomContent) adminBloomContent.hidden = false;
     adminCsMiniPause();
-    // Bloom retired — adminBloomContent is just a placeholder now.
+    bloomAdminInit();   // load flowers + weather from Supabase into the editors
   } else if (tabId === "monkey-moonshine") {
     const mmContent = document.getElementById("admin-monkey-moonshine-content");
     if (mmContent) mmContent.hidden = false;
@@ -32395,6 +32395,181 @@ function ensureAdminToolBackButton(panelEl) {
 
 adminTabButtons.forEach(button => {
   button.addEventListener("click", () => showAdminTab(button.dataset.adminTab));
+});
+
+// ══════════════════════════════════════════════════════════════
+// BLOOM — admin flower + weather editor.
+// Reads/writes bloom_flowers and bloom_weather (authenticated). The game will
+// load the same deck from these tables on boot once the deck-from-DB wiring
+// lands; for now this is the tuning surface (balance is still in-memory).
+// ══════════════════════════════════════════════════════════════
+let _bloomFlowers = null;   // [{ flower, display_name, emoji, accent_color, archetype, take_pct, bloom_pay, super_mult, weather_odds:{wid:{b,k}} }]
+let _bloomWeather = null;   // [{ weather, display_name, icon, accent_color, sort_order }]
+let _bloomEditFlower = null;
+
+function bloomStatus(msg){ const el = document.getElementById('admin-bloom-status'); if (el) el.textContent = msg || ''; }
+
+async function bloomAdminInit(){
+  if (!_bloomFlowers || !_bloomWeather) await bloomLoadData();
+}
+
+async function bloomLoadData(){
+  if (!supabase){ bloomStatus('No database connection.'); return; }
+  bloomStatus('Loading flowers & weather…');
+  const [fRes, wRes] = await Promise.all([
+    supabase.from('bloom_flowers')
+      .select('flower,display_name,emoji,accent_color,archetype,take_pct,bloom_pay,super_mult,weather_odds,sort_order')
+      .order('sort_order'),
+    supabase.from('bloom_weather')
+      .select('weather,display_name,icon,accent_color,sort_order').order('sort_order')
+  ]);
+  if (fRes.error){ bloomStatus('Load error: ' + fRes.error.message); console.error('[bloom] flowers load', fRes.error); return; }
+  if (wRes.error){ bloomStatus('Load error: ' + wRes.error.message); console.error('[bloom] weather load', wRes.error); return; }
+  _bloomFlowers = (fRes.data || []).map(r => ({ ...r, weather_odds: { ...(r.weather_odds || {}) } }));
+  _bloomWeather = wRes.data || [];
+
+  const sel = document.getElementById('admin-bloom-flower');
+  if (sel){
+    sel.innerHTML = _bloomFlowers.map(f => `<option value="${f.flower}">${f.emoji || ''} ${f.display_name}</option>`).join('');
+    if (!_bloomEditFlower || !_bloomFlowers.some(f => f.flower === _bloomEditFlower)){
+      _bloomEditFlower = _bloomFlowers[0] ? _bloomFlowers[0].flower : null;
+    }
+    sel.value = _bloomEditFlower;
+  }
+  bloomRenderFlowerEditor();
+  bloomRenderWeatherEditor();
+  bloomStatus(`Loaded ${_bloomFlowers.length} flowers and ${_bloomWeather.length} weather patterns.`);
+}
+
+function bloomCurrentFlower(){ return _bloomFlowers && _bloomFlowers.find(f => f.flower === _bloomEditFlower); }
+
+function bloomUpdateSuperPay(){
+  const f = bloomCurrentFlower(); if (!f) return;
+  const sp = document.getElementById('admin-bloom-superpay');
+  if (sp) sp.value = (Number(f.bloom_pay) || 0) * (Number(f.super_mult) || 0);
+}
+
+function bloomRenderFlowerEditor(){
+  const f = bloomCurrentFlower();
+  if (!f) return;
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val ?? ''; };
+  set('admin-bloom-name', f.display_name);
+  set('admin-bloom-emoji', f.emoji);
+  set('admin-bloom-color', f.accent_color);
+  set('admin-bloom-archetype', f.archetype || 'specialist');
+  set('admin-bloom-take', f.take_pct);
+  set('admin-bloom-pay', f.bloom_pay);
+  set('admin-bloom-super', f.super_mult);
+  bloomUpdateSuperPay();
+
+  const body = document.getElementById('admin-bloom-odds-body');
+  if (body && _bloomWeather){
+    body.innerHTML = _bloomWeather.map(w => {
+      const o = f.weather_odds[w.weather] || { b: 0, k: 0 };
+      return `<tr>
+        <td class="mm-sym">${w.icon || ''} ${w.display_name} <span class="mm-note">${w.weather}</span></td>
+        <td><input type="number" min="0" max="100" step="1" class="bloom-odds" data-wid="${w.weather}" data-key="b" value="${o.b ?? 0}"></td>
+        <td><input type="number" min="0" max="100" step="1" class="bloom-odds" data-wid="${w.weather}" data-key="k" value="${o.k ?? 0}"></td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+function bloomRenderWeatherEditor(){
+  const body = document.getElementById('admin-bloom-weather-body');
+  if (!body || !_bloomWeather) return;
+  body.innerHTML = _bloomWeather.map(w => `<tr>
+    <td class="mm-sym">${w.weather}</td>
+    <td><input type="text" class="bloom-wx" data-wid="${w.weather}" data-key="display_name" value="${w.display_name || ''}"></td>
+    <td><input type="text" class="bloom-wx" data-wid="${w.weather}" data-key="icon" style="width:60px" value="${w.icon || ''}"></td>
+    <td><input type="text" class="bloom-wx" data-wid="${w.weather}" data-key="accent_color" style="width:110px" value="${w.accent_color || ''}"></td>
+  </tr>`).join('');
+}
+
+// Flower field edits → in-memory model
+document.getElementById('admin-bloom-flower')?.addEventListener('change', e => {
+  _bloomEditFlower = e.target.value;
+  bloomRenderFlowerEditor();
+});
+function bloomBindField(id, prop, cast){
+  document.getElementById(id)?.addEventListener('input', e => {
+    const f = bloomCurrentFlower(); if (!f) return;
+    f[prop] = cast ? cast(e.target.value) : e.target.value;
+    if (prop === 'bloom_pay' || prop === 'super_mult') bloomUpdateSuperPay();
+  });
+}
+const bloomNum = v => Math.max(0, parseFloat(v) || 0);
+bloomBindField('admin-bloom-name', 'display_name');
+bloomBindField('admin-bloom-emoji', 'emoji');
+bloomBindField('admin-bloom-color', 'accent_color');
+bloomBindField('admin-bloom-archetype', 'archetype');
+bloomBindField('admin-bloom-take', 'take_pct', v => Math.round(bloomNum(v)));
+bloomBindField('admin-bloom-pay', 'bloom_pay', bloomNum);
+bloomBindField('admin-bloom-super', 'super_mult', bloomNum);
+
+// Per-weather odds edits
+document.getElementById('admin-bloom-odds-body')?.addEventListener('input', e => {
+  const t = e.target;
+  if (!(t instanceof HTMLInputElement) || !t.classList.contains('bloom-odds')) return;
+  const f = bloomCurrentFlower(); if (!f) return;
+  const wid = t.dataset.wid;
+  if (!f.weather_odds[wid]) f.weather_odds[wid] = { b: 0, k: 0 };
+  f.weather_odds[wid][t.dataset.key] = Math.max(0, Math.min(100, Math.round(parseFloat(t.value) || 0)));
+});
+
+// Weather row edits
+document.getElementById('admin-bloom-weather-body')?.addEventListener('input', e => {
+  const t = e.target;
+  if (!(t instanceof HTMLInputElement) || !t.classList.contains('bloom-wx')) return;
+  const w = _bloomWeather && _bloomWeather.find(x => x.weather === t.dataset.wid); if (!w) return;
+  w[t.dataset.key] = t.value;
+});
+
+// Save the current flower
+document.getElementById('admin-bloom-save-flower')?.addEventListener('click', async () => {
+  const f = bloomCurrentFlower();
+  if (!f || !supabase) return;
+  const btn = document.getElementById('admin-bloom-save-flower'); if (btn) btn.disabled = true;
+  bloomStatus(`Saving ${f.display_name}…`);
+  const { error } = await supabase.from('bloom_flowers').update({
+    display_name: f.display_name,
+    emoji: f.emoji,
+    accent_color: f.accent_color,
+    archetype: f.archetype,
+    take_pct: Math.round(Number(f.take_pct) || 0),
+    bloom_pay: Number(f.bloom_pay) || 0,
+    super_mult: Number(f.super_mult) || 0,
+    weather_odds: f.weather_odds,
+    updated_at: new Date().toISOString()
+  }).eq('flower', f.flower);
+  if (btn) btn.disabled = false;
+  if (error){ bloomStatus('Save error: ' + error.message); console.error('[bloom] save flower', error); return; }
+  // refresh the dropdown label in case name/emoji changed
+  const sel = document.getElementById('admin-bloom-flower');
+  const opt = sel && Array.from(sel.options).find(o => o.value === f.flower);
+  if (opt) opt.textContent = `${f.emoji || ''} ${f.display_name}`;
+  bloomStatus(`Saved ${f.display_name} to bloom_flowers.`);
+});
+
+// Save all weather rows
+document.getElementById('admin-bloom-save-weather')?.addEventListener('click', async () => {
+  if (!_bloomWeather || !supabase) return;
+  const btn = document.getElementById('admin-bloom-save-weather'); if (btn) btn.disabled = true;
+  bloomStatus('Saving weather…');
+  const nowIso = new Date().toISOString();
+  const rows = _bloomWeather.map(w => ({
+    weather: w.weather,
+    display_name: w.display_name,
+    icon: w.icon,
+    accent_color: w.accent_color,
+    sort_order: w.sort_order,
+    updated_at: nowIso
+  }));
+  const { error } = await supabase.from('bloom_weather').upsert(rows, { onConflict: 'weather' });
+  if (btn) btn.disabled = false;
+  if (error){ bloomStatus('Save error: ' + error.message); console.error('[bloom] save weather', error); return; }
+  bloomRenderFlowerEditor();   // refresh the odds table's weather labels
+  bloomStatus(`Saved ${rows.length} weather patterns to bloom_weather.`);
 });
 
 // ══════════════════════════════════════════════════════════════
