@@ -19955,11 +19955,16 @@ async function bloomFetchDeck() {
   } catch (e) { console.error("[bloom] deck fetch", e); return null; }
 }
 function bloomInvalidateDeck() { _bloomDeckCache = null; }
+// BLOOM balance is an IN-MEMORY sandbox for this pass — it does NOT touch the real
+// wallet. Seed a comfortable testing bankroll (never below a playable floor) so a
+// cast is never blocked while the admin's real credits sit at ~0. Swap this for
+// currentProfile.credits when the game is wired to a server-authoritative wallet.
+const BLOOM_SANDBOX_BALANCE = 10000;
 function bloomInitPayload(deck) {
   return {
     source: "bloom-shell",
     type: "init",
-    balance: Number(currentProfile?.credits ?? 0),
+    balance: Math.max(BLOOM_SANDBOX_BALANCE, Number(currentProfile?.credits ?? 0)),
     isAdmin: isAdmin(currentUser),
     deck
   };
