@@ -3810,20 +3810,20 @@
                   </div>
                 </div>
 
-                <!-- WEATHER EDITOR -->
+                <!-- WEATHER EDITOR / DECK COMPOSITION -->
                 <div class="admin-fof-sim-panel">
-                  <h3>Weather Patterns</h3>
-                  <p class="admin-cs-hint">The reel deck — exactly these patterns, one card each. The <code>id</code> is the key used in each flower's odds above, so it is not editable here.</p>
+                  <h3>Weather Patterns &amp; Deck Composition</h3>
+                  <p class="admin-cs-hint"><strong>count</strong> = how many copies of that card sit in the reel deck. Each reel is an independent weighted pull, so 3× a card makes it drawn 3× as often (set 0 to pull a card out). The <strong>🦋 butterfly</strong> is the wild — it revives wilted/dud plants back to seed and, when it completes a 3-in-a-row, doubles the round total. The <code>id</code> keys the flower odds above, so it is not editable here.</p>
                   <div class="admin-mm-tbl-wrap">
                     <table class="admin-mm-tbl" id="admin-bloom-weather-tbl">
                       <thead>
-                        <tr><th>id</th><th>name</th><th>icon</th><th>color</th></tr>
+                        <tr><th>id</th><th>name</th><th>icon</th><th>color</th><th>count</th></tr>
                       </thead>
                       <tbody id="admin-bloom-weather-body"></tbody>
                     </table>
                   </div>
                   <div class="admin-fof-log-controls">
-                    <button type="button" class="primary" id="admin-bloom-save-weather">Save weather to DB</button>
+                    <button type="button" class="primary" id="admin-bloom-save-weather">Save weather &amp; composition to DB</button>
                   </div>
                 </div>
               </section>

@@ -2146,7 +2146,8 @@ const genId=()=>'x'+Math.random().toString(36).slice(2,8);
 --------------------------------------------------------------------------- */
 const SEED=0, BLOOM=1, SUPER=2;
 const DEFAULT_SUPER_MULT = 2;               // a flower's super = superMult × its bloom pay
-const MATCH_MULT = 5;                       // all three reels match = x5 the board
+const MATCH_MULT = 5;                       // natural 3-of-a-kind weather = x5 the board
+const BUTTERFLY_MULT = 2;                   // a butterfly-completed 3-in-a-row = x2 (doubles the round)
 const PHASE_NAME = ['Seed','Bloom','Super Bloom'];
 const superMult = f => (f && f.superMult>0) ? f.superMult : DEFAULT_SUPER_MULT;
 function phasePay(f, phase){
@@ -2456,9 +2457,10 @@ function paintPlant(p,phase,alive,cause,dur){
 const TAG_MS=1600;
 function popPlant(p,kind){
   if(!p.gfx) return;
-  const tag = kind==='bloom' ? 'BLOOM'
-            : kind==='super' ? 'SUPER BLOOM'
-            : kind==='wilt'  ? 'WILT' : null;
+  const tag = kind==='bloom'  ? 'BLOOM'
+            : kind==='super'  ? 'SUPER BLOOM'
+            : kind==='wilt'   ? 'WILT'
+            : kind==='revive' ? 'REVIVED' : null;
   if(!tag) return;
   p.gfx.tag=tag;
   if(p.gfx.tagT) clearTimeout(p.gfx.tagT);
@@ -2472,12 +2474,22 @@ function popPlant(p,kind){
   if(plants.indexOf(p)>=0) paintLabels(plants);
 }
 
-/* WEATHER DECK: one card per pattern, drawn fresh each reel, so a pattern can
-   repeat — which is the only way the x5 board match ever happens.
-   The BUTTERFLY wild is gone: its whole job was reviving dead seeds, and a wilt
-   is now final. */
+/* WEATHER DECK: a weighted multiset. Each card sits in the deck `count` times
+   (its deck_count from bloom_weather), and every reel is an independent weighted
+   pull — so a 3× card is drawn 3× as often, and a pattern can repeat (the only
+   way a board match happens).
+   The BUTTERFLY is the WILD: a butterfly reel revives every wilted/dud plant back
+   to SEED, rolls no flower odds, and counts as a wild toward a 3-in-a-row (a
+   butterfly-completed line DOUBLES the round total; a natural three-of-a-kind
+   still pays the ×5 board). */
 function wxById(id){return state.weather.find(x=>x.id===id);}
-function weatherDeck(){return state.weather.map(w=>w.id);}
+function wxKind(id){const w=wxById(id);return (w&&w.kind)||'weather';}
+function isButterfly(id){return wxKind(id)==='butterfly';}
+function weatherDeck(){
+  const out=[];
+  state.weather.forEach(w=>{ const n=Math.max(0, Math.round(w.count==null?1:w.count)); for(let i=0;i<n;i++) out.push(w.id); });
+  return out.length ? out : state.weather.map(w=>w.id);   // fallback: never draw from an empty deck
+}
 function drawWeather(){
   const deck=weatherDeck(), n=state.config.drawsPerRound, out=[];
   for(let i=0;i<n;i++)out.push(deck[Math.floor(Math.random()*deck.length)]);
@@ -2507,6 +2519,11 @@ const sleep2=ms=>new Promise(r=>setTimeout(r,ms));
 function growPlant(p,draws){
   p.phase=SEED; p.alive=p._took; p.events=[];
   draws.forEach(wid=>{
+    if(isButterfly(wid)){                             // BUTTERFLY WILD — revive the fallen
+      if(!p.alive){ p.alive=true; p.phase=SEED; p.events.push('revive'); } // wilted/dud → back to seed
+      else p.events.push('flutter');                  // a living plant is untouched
+      return;
+    }
     if(!p.alive){p.events.push('none');return;}
     const r=p.f.resp[wid]||{b:0,k:0};
     const roll=Math.random()*100;
@@ -2514,7 +2531,7 @@ function growPlant(p,draws){
       p.phase=Math.min(SUPER,p.phase+1);
       p.events.push(p.phase===SUPER?'super':'bloom');
     }
-    else if(roll < r.b + r.k){                        // WILT — dead. No step-back, no revive.
+    else if(roll < r.b + r.k){                        // WILT — dead (a later butterfly can still revive it)
       p.alive=false; p.phase=SEED; p.events.push('wilt');
     }
     else p.events.push('none');                       // weather did nothing to it
@@ -2525,6 +2542,7 @@ function growReplay(plants,upto){
     let phase=SEED, alive=p._took, cause=p._took?null:'dud';
     for(let s=0;s<upto;s++){
       const ev=p.events[s];
+      if(ev==='revive'){ alive=true; phase=SEED; cause=null; continue; }  // butterfly brought it back
       if(!alive)continue;
       if(ev==='bloom'||ev==='super') phase=Math.min(SUPER,phase+1);
       else if(ev==='wilt'){alive=false;phase=SEED;cause='killed';}
@@ -2533,17 +2551,25 @@ function growReplay(plants,upto){
     if(upto>0) popPlant(p, p.events[upto-1]);
   });
 }
-/* Every reel showing the same pattern multiplies the WHOLE BOARD. Nothing else
-   pays a multiplier — no partial runs, no near-misses. */
+/* A 3-in-a-row on the weather reels multiplies the WHOLE BOARD. Butterflies are
+   WILD: a line counts as a match if every non-butterfly reel is the same pattern.
+   A NATURAL match (three identical real weathers, no wild) pays ×5; a match that
+   needed a butterfly wild pays ×2 (doubles the round). Nothing else multiplies. */
 function lineMultiplier(draws){
-  const all = draws.length>0 && draws.every(x=>x===draws[0]);
-  return {mult: all?MATCH_MULT:1, start:0, len:draws.length, all};
+  if(!draws.length) return {mult:1, start:0, len:0, all:false, wild:false};
+  const reals=draws.filter(x=>!isButterfly(x));
+  const line=reals.every(x=>x===reals[0]);            // all real reels agree (or none are real)
+  if(!line) return {mult:1, start:0, len:draws.length, all:false, wild:false};
+  const wild=reals.length<draws.length;               // at least one butterfly helped
+  return {mult: wild?BUTTERFLY_MULT:MATCH_MULT, start:0, len:draws.length, all:true, wild};
 }
-function highlightRun(start,len,mult){
+function highlightRun(start,len,mult,wild){
   const cells=[...$('#weatherReel').children];
   if(mult>1){
     cells.forEach(c=>c.classList.add('hot'));
-    $('#multi').textContent=`ALL ${len} MATCH  →  ×${mult} WHOLE BOARD`;
+    $('#multi').textContent = wild
+      ? `🦋 WILD ${len}-IN-A-ROW  →  ×${mult} WHOLE BOARD`
+      : `ALL ${len} MATCH  →  ×${mult} WHOLE BOARD`;
   } else $('#multi').textContent='';
 }
 
@@ -2584,8 +2610,8 @@ async function revealNextReel(){
   busy=false;$('#spinBtn').disabled=false;updateSpinButton();
 }
 function finalizeRound(){
-  const {mult,start,len}=lineMultiplier(round.draws);
-  highlightRun(start,len,mult);
+  const {mult,start,len,wild}=lineMultiplier(round.draws);
+  highlightRun(start,len,mult,wild);
   const bet=state.config.bet;let base=0;
   round.plants.forEach(p=>{if(p.alive)base+=bet*(phasePay(p.f,p.phase)/100)*payScale();});
   const total=base*mult;
@@ -2594,7 +2620,7 @@ function finalizeRound(){
   bloomPostSettled();                 // let the shell mirror the new balance (in-memory pass)
   round.phase='done';round.done=true;
   // a WIN means more back than you staked. Anything under the bet is a softened loss.
-  const mtxt=mult>1?`  ALL ${len} MATCH — ×${mult} BOARD!`:'';
+  const mtxt = mult>1 ? (wild ? `  🦋 WILD ${len}-IN-A-ROW — ×${mult} BOARD!` : `  ALL ${len} MATCH — ×${mult} BOARD!`) : '';
   if(total>=bet) banner('win',`🌸 WIN ${total.toFixed(0)}  (${(total/bet).toFixed(2)}× bet)${mtxt}`);
   else if(total>0) banner('lose',`🌿 ${total.toFixed(0)} back  (${(total/bet).toFixed(2)}× bet) — under your stake${mtxt}`);
   else banner('lose','No bloom this round 🥀');
@@ -2968,6 +2994,39 @@ function bloomPostSettled(){
   if(!SHELL.connected||!window.parent||window.parent===window)return;
   window.parent.postMessage({source:'bloom',type:'settled',balance:Math.round(SHELL.balance)},'*');
 }
+// Rebuild the deck (flowers + weather) from the DB rows the shell fetched, so the
+// game plays the authoritative bloom_flowers / bloom_weather config instead of the
+// baked-in defaults. Mapping DB → the game's internal shapes:
+function bloomApplyDeck(deck){
+  if(!deck) return;
+  if(Array.isArray(deck.flowers) && deck.flowers.length){
+    state.flowers = deck.flowers.map(r=>({
+      id:   r.flower,
+      name: r.display_name,
+      sp:   CODEX[r.flower] ? r.flower : SPECIES_KEYS[0],   // slug doubles as the art species
+      emoji:r.emoji,
+      color:r.accent_color,
+      take: Number(r.take_pct)||0,
+      pay:  Number(r.bloom_pay)||0,
+      superMult: Number(r.super_mult)||DEFAULT_SUPER_MULT,
+      resp: r.weather_odds || {}
+    }));
+  }
+  if(Array.isArray(deck.weather) && deck.weather.length){
+    state.weather = deck.weather.map(r=>({
+      id:   r.weather,
+      name: r.display_name,
+      icon: r.icon,
+      color:r.accent_color,
+      kind: r.kind || 'weather',
+      count:(r.deck_count==null?1:Number(r.deck_count))
+    }));
+  }
+  // drop any satchel seeds whose flower no longer exists
+  state.satchel = (state.satchel||[]).filter(id=>state.flowers.some(f=>f.id===id));
+  save();
+  initAll();
+}
 window.addEventListener('message',(e)=>{
   const m=e&&e.data;
   if(!m||m.source!=='bloom-shell')return;
@@ -2975,6 +3034,7 @@ window.addEventListener('message',(e)=>{
     SHELL.connected=true;
     if(typeof m.balance==='number'&&isFinite(m.balance))SHELL.balance=m.balance;
     if(typeof m.isAdmin==='boolean')SHELL.isAdmin=m.isAdmin;
+    if(m.deck) bloomApplyDeck(m.deck);   // load the DB deck (rebuilds + re-inits the UI)
     bloomApplyAdminGate();
     bloomRenderBalance();
   }

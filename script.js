@@ -19929,18 +19929,42 @@ function installMonkeyMoonshineBridge() {
 // each cast and mirroring the settled balance into the header) is the later
 // pass — this postMessage seam is exactly where that wiring goes.
 let _bloomBridgeInstalled = false;
+let _bloomDeckCache = null;   // { flowers:[…], weather:[…] } from bloom_flowers / bloom_weather
 function bloomFrameWindow() {
   const f = document.getElementById("bloom-frame");
   return f ? f.contentWindow : null;
 }
-function bloomSendInit() {
+// Pull the authoritative deck (public config, anon-readable) so the game plays the
+// DB roster instead of its baked-in defaults. Cached after the first fetch; the
+// admin editor calls bloomInvalidateDeck() after a save so the next open re-pulls.
+async function bloomFetchDeck() {
+  if (_bloomDeckCache) return _bloomDeckCache;
+  if (!supabase) return null;
+  try {
+    const [f, w] = await Promise.all([
+      supabase.from("bloom_flowers")
+        .select("flower,display_name,emoji,accent_color,archetype,take_pct,bloom_pay,super_mult,weather_odds,sort_order")
+        .order("sort_order"),
+      supabase.from("bloom_weather")
+        .select("weather,display_name,icon,accent_color,kind,deck_count,sort_order")
+        .order("sort_order")
+    ]);
+    if (f.error || w.error) { console.error("[bloom] deck fetch", f.error || w.error); return null; }
+    _bloomDeckCache = { flowers: f.data || [], weather: w.data || [] };
+    return _bloomDeckCache;
+  } catch (e) { console.error("[bloom] deck fetch", e); return null; }
+}
+function bloomInvalidateDeck() { _bloomDeckCache = null; }
+async function bloomSendInit() {
   const w = bloomFrameWindow();
   if (!w) return;
+  const deck = await bloomFetchDeck();
   w.postMessage({
     source: "bloom-shell",
     type: "init",
     balance: Number(currentProfile?.credits ?? 0),
-    isAdmin: isAdmin(currentUser)
+    isAdmin: isAdmin(currentUser),
+    deck
   }, "*");
 }
 function installBloomBridge() {
@@ -32421,7 +32445,7 @@ async function bloomLoadData(){
       .select('flower,display_name,emoji,accent_color,archetype,take_pct,bloom_pay,super_mult,weather_odds,sort_order')
       .order('sort_order'),
     supabase.from('bloom_weather')
-      .select('weather,display_name,icon,accent_color,sort_order').order('sort_order')
+      .select('weather,display_name,icon,accent_color,kind,deck_count,sort_order').order('sort_order')
   ]);
   if (fRes.error){ bloomStatus('Load error: ' + fRes.error.message); console.error('[bloom] flowers load', fRes.error); return; }
   if (wRes.error){ bloomStatus('Load error: ' + wRes.error.message); console.error('[bloom] weather load', wRes.error); return; }
@@ -32464,7 +32488,8 @@ function bloomRenderFlowerEditor(){
 
   const body = document.getElementById('admin-bloom-odds-body');
   if (body && _bloomWeather){
-    body.innerHTML = _bloomWeather.map(w => {
+    // Only real weather has per-flower odds; the butterfly wild rolls no flower odds.
+    body.innerHTML = _bloomWeather.filter(w => (w.kind || 'weather') === 'weather').map(w => {
       const o = f.weather_odds[w.weather] || { b: 0, k: 0 };
       return `<tr>
         <td class="mm-sym">${w.icon || ''} ${w.display_name} <span class="mm-note">${w.weather}</span></td>
@@ -32479,10 +32504,11 @@ function bloomRenderWeatherEditor(){
   const body = document.getElementById('admin-bloom-weather-body');
   if (!body || !_bloomWeather) return;
   body.innerHTML = _bloomWeather.map(w => `<tr>
-    <td class="mm-sym">${w.weather}</td>
+    <td class="mm-sym">${w.weather}${(w.kind || 'weather') === 'butterfly' ? ' <span class="mm-note">wild</span>' : ''}</td>
     <td><input type="text" class="bloom-wx" data-wid="${w.weather}" data-key="display_name" value="${w.display_name || ''}"></td>
     <td><input type="text" class="bloom-wx" data-wid="${w.weather}" data-key="icon" style="width:60px" value="${w.icon || ''}"></td>
     <td><input type="text" class="bloom-wx" data-wid="${w.weather}" data-key="accent_color" style="width:110px" value="${w.accent_color || ''}"></td>
+    <td><input type="number" min="0" step="1" class="bloom-wx-count" data-wid="${w.weather}" style="width:70px" value="${w.deck_count == null ? 1 : w.deck_count}"></td>
   </tr>`).join('');
 }
 
@@ -32517,12 +32543,13 @@ document.getElementById('admin-bloom-odds-body')?.addEventListener('input', e =>
   f.weather_odds[wid][t.dataset.key] = Math.max(0, Math.min(100, Math.round(parseFloat(t.value) || 0)));
 });
 
-// Weather row edits
+// Weather row edits (text fields + deck-count number)
 document.getElementById('admin-bloom-weather-body')?.addEventListener('input', e => {
   const t = e.target;
-  if (!(t instanceof HTMLInputElement) || !t.classList.contains('bloom-wx')) return;
+  if (!(t instanceof HTMLInputElement)) return;
   const w = _bloomWeather && _bloomWeather.find(x => x.weather === t.dataset.wid); if (!w) return;
-  w[t.dataset.key] = t.value;
+  if (t.classList.contains('bloom-wx')) w[t.dataset.key] = t.value;
+  else if (t.classList.contains('bloom-wx-count')) w.deck_count = Math.max(0, Math.round(parseFloat(t.value) || 0));
 });
 
 // Save the current flower
@@ -32544,6 +32571,7 @@ document.getElementById('admin-bloom-save-flower')?.addEventListener('click', as
   }).eq('flower', f.flower);
   if (btn) btn.disabled = false;
   if (error){ bloomStatus('Save error: ' + error.message); console.error('[bloom] save flower', error); return; }
+  bloomInvalidateDeck();   // next time the game opens, it re-pulls this
   // refresh the dropdown label in case name/emoji changed
   const sel = document.getElementById('admin-bloom-flower');
   const opt = sel && Array.from(sel.options).find(o => o.value === f.flower);
@@ -32562,12 +32590,15 @@ document.getElementById('admin-bloom-save-weather')?.addEventListener('click', a
     display_name: w.display_name,
     icon: w.icon,
     accent_color: w.accent_color,
+    kind: w.kind || 'weather',
+    deck_count: Math.max(0, Math.round(Number(w.deck_count == null ? 1 : w.deck_count))),
     sort_order: w.sort_order,
     updated_at: nowIso
   }));
   const { error } = await supabase.from('bloom_weather').upsert(rows, { onConflict: 'weather' });
   if (btn) btn.disabled = false;
   if (error){ bloomStatus('Save error: ' + error.message); console.error('[bloom] save weather', error); return; }
+  bloomInvalidateDeck();       // next time the game opens, it re-pulls this
   bloomRenderFlowerEditor();   // refresh the odds table's weather labels
   bloomStatus(`Saved ${rows.length} weather patterns to bloom_weather.`);
 });
