@@ -88,6 +88,18 @@
     border-radius:9px;padding:6px 8px;cursor:pointer}
   .pick:hover{border-color:var(--accent)}
   .pick .pe{font-size:20px} .pick .pn{font-size:12px;flex:1}
+  .pick img.pe{width:30px;height:30px;object-fit:contain;display:block}
+  .slot .sicon{height:60%;display:flex;align-items:center;justify-content:center;font-size:22px}
+  .slot .sicon img.ficon{height:100%;width:auto;max-width:100%;object-fit:contain}
+  .deckchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .deckchip{display:inline-flex;align-items:center;gap:5px;font-size:12px;background:#12241a;
+    border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+  .deckchip.wild{border-color:#c9a0ff;box-shadow:0 0 0 1px rgba(201,160,255,.25) inset}
+  .deckchip b{color:var(--gold)}
+  .deckcards{font-size:20px;letter-spacing:2px;line-height:1.5;background:#0d1913;
+    border:1px solid var(--line);border-radius:10px;padding:8px 10px;word-break:break-word}
+  .wildtag{font-size:9px;font-weight:800;letter-spacing:.5px;color:#c9a0ff;
+    border:1px solid #c9a0ff;border-radius:6px;padding:2px 6px;align-self:center}
   .statbtn{font-size:9px;font-weight:800;letter-spacing:.5px;color:var(--muted);
     background:transparent;border:1px solid var(--line);border-radius:6px;padding:3px 6px;cursor:pointer}
   .statbtn:hover{color:var(--gold);border-color:var(--gold)}
@@ -333,7 +345,7 @@
     <div class="row">
       <label class="fld" style="margin:0">Weather reels
         <input id="drawsPerRound" type="number" min="3" max="3" value="3" disabled style="width:80px;display:inline-block"></label>
-      <div class="muted">Three reels a round. Each plant rolls once per reel. If <b style="color:var(--gold)">all three land on the same pattern</b>, the <b>whole board pays ×5</b>. Nothing else multiplies — no partial runs.</div>
+      <div class="muted">Three reels a round. Each plant rolls once per reel. If <b style="color:var(--gold)">all three land on the same pattern</b>, the <b>whole board pays ×5</b>. A <b style="color:#c9a0ff">🦋 butterfly</b> is wild: it completes a 3-in-a-row (which <b>doubles</b> the round) and revives every wilted/dud plant back to seed.</div>
     </div>
     <div class="row" style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px">
       <label class="fld" style="margin:0">🏠 Target RTP %
@@ -343,9 +355,15 @@
     </div>
     <div class="row" style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px">
       <div style="font-size:13px"><b>🌦️ Weather deck:</b> <span id="deckInfo" class="muted"></span></div>
-      <div class="muted" style="font-size:12px;flex-basis:100%">Each reel is an independent pull, so a pattern can repeat — that is the only way the ×5 board match happens. A <b style="color:var(--danger)">wilt is final</b>: the plant reverse-grows back to a seed and is gone. There is no revive.</div>
+      <div class="muted" style="font-size:12px;flex-basis:100%">Each reel is an independent <b>weighted</b> pull — a card with count 2 is drawn twice as often as count 1, so a pattern can repeat (the only way a board match happens). Set a count to 0 to pull a card out of the deck.</div>
     </div>
   </div>
+
+  <div class="card" id="deckContentsCard" style="margin-bottom:16px">
+    <h3 style="margin-top:0">🎴 Current deck contents</h3>
+    <div id="deckContents"></div>
+  </div>
+
   <div class="toolbar"><button class="primary" id="addWeather">+ Add Weather Pattern</button></div>
   <div class="flowergrid" id="weatherGrid"></div>
 
@@ -2325,10 +2343,19 @@ function statPanelHTML(f){
     <div class="statstyle">${s.style}</div>`;
 }
 let openStat=null;
+// Illustrated satchel icons (extracted from the flower art sheet). Keyed by slug;
+// any flower without a matching icon falls back to its emoji.
+const FLOWER_ICON_SET = new Set(['lotus','cactus','hydrangea','snapdragon','wisteria','tulip','daisy','sunflower','poppy','orchid']);
+const FLOWER_ICON_VER = '20260715';
+function flowerIcon(f, cls){
+  if(f && FLOWER_ICON_SET.has(f.id))
+    return `<img class="${cls} ficon" src="bloom-icons/${f.id}.png?v=${FLOWER_ICON_VER}" alt="${f.name}">`;
+  return `<span class="${cls}">${f?f.emoji:''}</span>`;
+}
 function renderPicker(){
   const p=$('#picker');p.innerHTML='';
   state.flowers.forEach(f=>{
-    const d=el('div','pick',`<span class="pe">${f.emoji}</span><span class="pn">${f.name}</span>`
+    const d=el('div','pick',`${flowerIcon(f,'pe')}<span class="pn">${f.name}</span>`
       +`<span class="muted" style="font-size:10px" title="bloom pay / super bloom pay">+${f.pay}% / +${topPay(f)}%</span>`
       +`<button class="statbtn" title="Player stats">STATS</button>`);
     d.onclick=()=>{if(state.satchel.length<10){state.satchel.push(f.id);syncSatchel();}};
@@ -2353,7 +2380,7 @@ function renderSlots(){
     const fid=state.satchel[i];
     const slot=el('div','slot');
     if(fid){const f=flower(fid);
-      slot.innerHTML=`<div>${f.emoji}</div><small>${f.name}</small>`;
+      slot.innerHTML=`<div class="sicon">${flowerIcon(f,'')}</div><small>${f.name}</small>`;
       const rm=el('button','rm','×');rm.onclick=(e)=>{e.stopPropagation();state.satchel.splice(i,1);syncSatchel();};
       slot.appendChild(rm);
     } else {slot.innerHTML='<span class="muted" style="font-size:22px">+</span>';slot.style.opacity=.5;}
@@ -2744,16 +2771,87 @@ function markStale(card){
 const clamp=v=>Math.max(0,Math.min(100,v||0));
 
 /* ===================== WEATHER TAB ===================== */
+// Deck math for the WEIGHTED, butterfly-wild deck. Each reel is an independent
+// weighted pull; a line matches if every non-butterfly reel is the same pattern
+// (butterfly is wild). Natural 3-of-a-kind pays ×MATCH_MULT; a butterfly-completed
+// line pays ×BUTTERFLY_MULT.
+function deckStats(){
+  const W=state.weather;
+  const cnt=w=>Math.max(0,Math.round(w.count==null?1:w.count));
+  const total=W.reduce((s,w)=>s+cnt(w),0);
+  const reals=W.filter(w=>w.kind!=='butterfly');
+  const B = total ? W.filter(w=>w.kind==='butterfly').reduce((s,w)=>s+cnt(w),0)/total : 0;
+  let pNat=0, lineSum=0;
+  reals.forEach(w=>{ const p=total?cnt(w)/total:0; pNat+=p*p*p; lineSum+=Math.pow(p+B,3); });
+  const R=reals.length;
+  const pLine = Math.max(0, lineSum - (R>0?R-1:0)*Math.pow(B,3));   // all-butterfly counted once
+  const pWild = Math.max(0, pLine - pNat);
+  const avgMult = 1 + (MATCH_MULT-1)*pNat + (BUTTERFLY_MULT-1)*pWild;
+  return {total,B,pNat,pWild,avgMult,cnt};
+}
+function refreshDeckStats(){
+  const {total,pNat,pWild,avgMult,cnt}=deckStats();
+  const di=$('#deckInfo');
+  if(di)di.innerHTML=`${total} cards &nbsp;·&nbsp; `
+    +`<b style="color:var(--gold)">natural 3-match ${(pNat*100).toFixed(1)}%</b> → ×${MATCH_MULT}`
+    +` &nbsp;·&nbsp; <b style="color:#c9a0ff">🦋 wild match ${(pWild*100).toFixed(1)}%</b> → ×${BUTTERFLY_MULT}`
+    +` &nbsp;·&nbsp; avg board <b>×${avgMult.toFixed(3)}</b>`;
+  const dc=$('#deckContents');
+  if(dc){
+    if(total===0){ dc.innerHTML='<div class="muted">Deck is empty — give at least one pattern a count above 0.</div>'; return; }
+    const chips=state.weather.filter(w=>cnt(w)>0).map(w=>{
+      const p=(cnt(w)/total*100).toFixed(1); const wild=w.kind==='butterfly';
+      return `<span class="deckchip${wild?' wild':''}">${w.icon||''} ${w.name} <b>×${cnt(w)}</b> <span class="muted">${p}%/reel</span></span>`;
+    }).join('');
+    const cards=state.weather.flatMap(w=>Array.from({length:cnt(w)},()=>w.icon||'▫')).join(' ');
+    dc.innerHTML=`<div class="deckchips">${chips}</div><div class="deckcards" title="every card in the reel deck">${cards}</div>`
+      +`<div class="muted" style="font-size:11px;margin-top:8px">Independent weighted pull per reel. `
+      +`Natural 3-match ${(pNat*100).toFixed(2)}% (×${MATCH_MULT}) · 🦋 wild match ${(pWild*100).toFixed(2)}% (×${BUTTERFLY_MULT}) · average board multiplier ×${avgMult.toFixed(3)}.</div>`;
+  }
+}
+function weatherCard(w){
+  const c=el('div','card fcard');
+  const isB=(w.kind==='butterfly');
+  c.appendChild(el('div','fhead',
+    `<input class="icon" style="width:44px;text-align:center;font-size:22px" value="${w.icon||''}">
+     <div style="flex:1"><input value="${w.name||''}" data-wname></div>
+     ${isB?'<span class="wildtag">🦋 WILD</span>':''}
+     <button class="mini ghost" data-wdel>🗑</button>`));
+  c.querySelector('.icon').oninput=e=>{w.icon=e.target.value;save();refreshDeckStats();};
+  c.querySelector('[data-wname]').oninput=e=>{w.name=e.target.value;save();refreshDeckStats();};
+  const row=el('div','row');
+  row.innerHTML=`<label class="fld" style="margin:0;flex:1" title="Copies of this card in the reel deck (its draw weight).">🎴 Deck count
+      <input type="number" min="0" step="1" value="${w.count==null?1:w.count}" data-wcount></label>
+    <label class="fld" style="margin:0;flex:1">Accent color
+      <input value="${w.color||''}" data-wcolor></label>
+    <label class="fld" style="margin:0;flex:1">Type
+      <select data-wkind>
+        <option value="weather" ${!isB?'selected':''}>weather</option>
+        <option value="butterfly" ${isB?'selected':''}>butterfly (wild)</option>
+      </select></label>`;
+  row.querySelector('[data-wcount]').oninput=e=>{w.count=Math.max(0,Math.round(+e.target.value||0));save();refreshDeckStats();};
+  row.querySelector('[data-wcolor]').oninput=e=>{w.color=e.target.value;save();};
+  row.querySelector('[data-wkind]').onchange=e=>{w.kind=e.target.value;save();renderWeatherTab();};
+  c.appendChild(row);
+  c.appendChild(el('div','muted','<div style="font-size:11px;margin-top:6px">id <code>'+w.id+'</code>'
+    + (isB?' · rolls no flower odds; revives wilted/dud plants to seed':'') +'</div>'));
+  c.querySelector('[data-wdel]').onclick=()=>{
+    if(confirm('Delete weather "'+(w.name||w.id)+'"?')){
+      state.weather=state.weather.filter(x=>x.id!==w.id);
+      state.flowers.forEach(f=>{ if(f.resp) delete f.resp[w.id]; });   // drop its odds column
+      save(); renderWeatherTab(); renderDeck(); resetPlayArea();
+    }
+  };
+  return c;
+}
 function renderWeatherTab(){
   $('#drawsPerRound').value=state.config.drawsPerRound;
   const tr=$('#targetRtp');if(tr)tr.value=state.config.targetRTP;
   const ei=$('#edgeInfo');
   if(ei)ei.textContent=`house edge ${(100-state.config.targetRTP).toFixed(1)}% · every payout ×${payScale().toFixed(3)}`;
-  const n=state.weather.length, di=$('#deckInfo');
-  const pMatch = n>0 ? Math.pow(1/n,2) : 0;      // reel 1 is free; reels 2 and 3 must copy it
-  if(di)di.innerHTML=`${n} patterns, one card each &nbsp;·&nbsp; ${(100/n).toFixed(1)}% per reel &nbsp;·&nbsp; `
-    +`<b style="color:var(--gold)">3-match = ${(pMatch*100).toFixed(1)}%</b> of rounds → ×${MATCH_MULT} board`
-    +` &nbsp;·&nbsp; average board multiplier <b>×${(1+(MATCH_MULT-1)*pMatch).toFixed(3)}</b>`;
+  refreshDeckStats();
+  const g=$('#weatherGrid');
+  if(g){ g.innerHTML=''; state.weather.forEach(w=>g.appendChild(weatherCard(w))); }
 }
 
 /* ===================== SIMULATOR ===================== */
@@ -2942,8 +3040,8 @@ $('#addFlower').onclick=()=>{const w0={};state.weather.forEach(w=>w0[w.id]={g:15
     dbl:10,
     phases:[{name:'Seed',pay:0,emoji:'🌰'},{name:'Sprout',pay:5,emoji:'🌱'},{name:'Small Flower',pay:25,emoji:'🌷'},{name:'Full Bloom',pay:200,emoji:'🌸'}],resp:w0});
   save();renderDeck();renderPicker();};
-$('#addWeather').onclick=()=>{const id=genId();state.weather.push({id,name:'New Weather',icon:'🌈',color:'#88c'});
-  state.flowers.forEach(f=>f.resp[id]={g:15,wilt:10});save();renderWeatherTab();renderDeck();resetPlayArea();};
+$('#addWeather').onclick=()=>{const id=genId();state.weather.push({id,name:'New Weather',icon:'🌈',color:'#88c',kind:'weather',count:1});
+  state.flowers.forEach(f=>f.resp[id]={b:15,k:10});save();renderWeatherTab();renderDeck();resetPlayArea();};
 $('#resetBtn').onclick=()=>{if(confirm('Reset flowers, weather & satchel to defaults?')){state=defaults();save();initAll();}};
 $('#exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='bloom-deck.json';a.click();};
