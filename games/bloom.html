@@ -40,6 +40,8 @@
 
   /* PLAY */
   .stage{display:flex;gap:22px;flex-wrap:wrap}
+  .stage-play{justify-content:center}
+  .stage-play .reelwrap{flex:1 1 100%;max-width:660px;margin:0 auto}
   .reelwrap{flex:1 1 420px;min-width:0}
   .reel{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;background:linear-gradient(180deg,#14261a,#0d1811);
     border:2px solid var(--line);border-radius:16px;padding:12px;transition:background .6s,box-shadow .6s,border-color .6s}
@@ -141,6 +143,16 @@
   .slot .rm{position:absolute;top:-6px;right:-6px;background:var(--danger);border:none;border-radius:50%;
     width:18px;height:18px;font-size:11px;line-height:1;color:#fff;padding:0}
   .slot small{font-size:9px;color:var(--muted)}
+  /* top-of-panel satchel: horizontal-scrolling strip + EDIT dropdown */
+  .satchel-bar{display:flex;align-items:stretch;gap:8px;margin-bottom:6px}
+  .satchel-strip{display:flex;gap:6px;overflow-x:auto;flex:1;min-width:0;padding:2px 2px 8px;scroll-snap-type:x proximity;scrollbar-width:thin}
+  .satchel-strip .slot{aspect-ratio:auto;flex:0 0 auto;width:62px;height:62px;scroll-snap-align:end}
+  .satchel-strip .slot .rm{width:16px;height:16px;font-size:10px}
+  .satchel-edit-btn{flex:0 0 auto;align-self:center;font-size:11px;font-weight:800;letter-spacing:.5px;
+    padding:9px 12px;border-radius:9px;border:1px solid var(--accent);background:#12241a;color:var(--accent);cursor:pointer;white-space:nowrap}
+  .satchel-edit-btn:hover{background:#183123}
+  .satchel-edit-btn.active{background:var(--accent);color:#08120b}
+  .satchel-edit{background:#0f1e16;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
   .voltrack{height:10px;border-radius:6px;background:linear-gradient(90deg,#57b657,#f4c95d,#e06a6a);position:relative;margin-top:6px}
   .voltrack .knob{position:absolute;top:-3px;width:16px;height:16px;border-radius:50%;background:#fff;
     border:2px solid #12241a;transform:translateX(-50%)}
@@ -275,12 +287,33 @@
 
 <!-- ============ PLAY ============ -->
 <section class="view active" id="view-play">
-  <div class="stage">
+  <div class="stage stage-play">
     <div class="reelwrap">
       <div class="row" style="margin-bottom:8px;align-items:center">
         <label class="fld" style="margin:0">Bet <input id="bet" type="number" value="100" style="width:90px;display:inline-block"></label>
         <div class="muted" id="balHud" style="margin-left:auto">Balance: <b id="balVal">—</b></div>
       </div>
+
+      <!-- Satchel: horizontal strip at the top of the plant panel + EDIT dropdown -->
+      <div class="satchel-bar">
+        <div class="satchel-strip" id="slots5"></div>
+        <button class="satchel-edit-btn" id="editSatchelBtn">✎ EDIT SATCHEL</button>
+      </div>
+      <div class="satchel-edit" id="satchelEdit" hidden>
+        <div class="muted" style="font-size:12px;margin-bottom:6px">Pick 10 — stack duplicates to go all-in, or spread out.</div>
+        <div class="row" style="justify-content:space-between">
+          <span class="tinylbl">Diversify</span><span class="tinylbl">All-in</span>
+        </div>
+        <div class="voltrack"><div class="knob" id="volKnob" style="left:0%"></div></div>
+        <div class="muted" id="volLabel" style="font-size:11px;text-align:center;margin-top:4px">—</div>
+        <div class="row" style="margin:8px 0">
+          <button class="mini ghost" id="clearSatchel">Clear</button>
+          <button class="mini ghost" id="randomSatchel">Random 10</button>
+        </div>
+        <div class="sectlbl">Add seeds</div>
+        <div class="picker" id="picker"></div>
+      </div>
+
       <div class="row" style="margin-bottom:8px">
         <div class="muted" style="margin-left:auto">Max this satchel: <b id="perCol">—</b></div>
       </div>
@@ -290,23 +323,6 @@
       <div class="winbanner lose" id="winBanner">— fill your satchel & cast —</div>
       <div class="row">
         <button class="gold" style="flex:1;font-size:16px;padding:13px" id="spinBtn">🌱 CAST SEEDS</button>
-      </div>
-    </div>
-
-    <div class="satchel card">
-      <h3 style="margin:0 0 4px">Your Satchel</h3>
-      <div class="muted" style="font-size:12px;margin-bottom:6px">Pick 10 — stack duplicates to go all-in, or spread out.</div>
-      <div class="slots5" id="slots5"></div>
-      <div class="row" style="justify-content:space-between">
-        <span class="tinylbl">Diversify</span><span class="tinylbl">All-in</span>
-      </div>
-      <div class="voltrack"><div class="knob" id="volKnob" style="left:0%"></div></div>
-      <div class="muted" id="volLabel" style="font-size:11px;text-align:center;margin-top:4px">—</div>
-      <div class="sectlbl">Add seeds</div>
-      <div class="picker" id="picker"></div>
-      <div class="row" style="margin-top:8px">
-        <button class="mini ghost" id="clearSatchel">Clear</button>
-        <button class="mini ghost" id="randomSatchel">Random 10</button>
       </div>
     </div>
   </div>
@@ -2358,7 +2374,7 @@ function renderPicker(){
     const d=el('div','pick',`${flowerIcon(f,'pe')}<span class="pn">${f.name}</span>`
       +`<span class="muted" style="font-size:10px" title="bloom pay / super bloom pay">+${f.pay}% / +${topPay(f)}%</span>`
       +`<button class="statbtn" title="Player stats">STATS</button>`);
-    d.onclick=()=>{if(state.satchel.length<10){state.satchel.push(f.id);syncSatchel();}};
+    d.onclick=()=>{if(state.satchel.length<10){state.satchel.push(f.id);syncSatchel();scrollSatchelEnd();}};
     const panel=el('div','pickstats');
     panel.style.display='none';
     d.querySelector('.statbtn').onclick=(e)=>{
@@ -2383,11 +2399,21 @@ function renderSlots(){
       slot.innerHTML=`<div class="sicon">${flowerIcon(f,'')}</div><small>${f.name}</small>`;
       const rm=el('button','rm','×');rm.onclick=(e)=>{e.stopPropagation();state.satchel.splice(i,1);syncSatchel();};
       slot.appendChild(rm);
-    } else {slot.innerHTML='<span class="muted" style="font-size:22px">+</span>';slot.style.opacity=.5;}
+    } else {slot.innerHTML='<span class="muted" style="font-size:22px">+</span>';slot.style.opacity=.5;slot.style.cursor='pointer';slot.onclick=()=>openSatchelEdit(true);}
     s.appendChild(slot);
   }
   updateVolatility();
 }
+// EDIT SATCHEL dropdown (the selection menu). openSatchelEdit(true) forces open.
+function setSatchelEdit(open){
+  const ed=$('#satchelEdit'), btn=$('#editSatchelBtn');
+  if(!ed) return;
+  ed.hidden=!open;
+  if(btn){ btn.classList.toggle('active',open); btn.textContent = open ? '✕ CLOSE' : '✎ EDIT SATCHEL'; }
+}
+function openSatchelEdit(force){ const ed=$('#satchelEdit'); if(ed && (force || ed.hidden)) setSatchelEdit(true); }
+function toggleSatchelEdit(){ const ed=$('#satchelEdit'); if(ed) setSatchelEdit(ed.hidden); }
+function scrollSatchelEnd(){ const s=$('#slots5'); if(s) s.scrollLeft=s.scrollWidth; }
 function updateVolatility(){
   // concentration = how stacked the satchel is (0 diversified .. 1 all-in)
   const n=state.satchel.length;
@@ -3033,6 +3059,7 @@ function updateMax(){
 $('#drawsPerRound').oninput=e=>{state.config.drawsPerRound=Math.max(1,Math.min(8,+e.target.value||1));save();resetPlayArea();};
 $('#targetRtp').oninput=e=>{state.config.targetRTP=Math.max(50,Math.min(120,+e.target.value||99));save();renderWeatherTab();updateMax();};
 $('#spinBtn').onclick=spinButtonClick;
+$('#editSatchelBtn').onclick=toggleSatchelEdit;
 $('#clearSatchel').onclick=()=>{state.satchel=[];syncSatchel();};
 $('#randomSatchel').onclick=()=>{state.satchel=[];for(let i=0;i<10;i++)state.satchel.push(state.flowers[Math.floor(Math.random()*state.flowers.length)].id);syncSatchel();};
 $('#addFlower').onclick=()=>{const w0={};state.weather.forEach(w=>w0[w.id]={g:15,wilt:10});
