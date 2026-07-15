@@ -3755,8 +3755,8 @@
             </section>
             <section class="admin-tab-content" id="admin-bloom-content" hidden>
               <section class="route-section admin-list-section">
-                <div class="admin-listing-header"><h2>BLOOM — Retired</h2></div>
-                <p class="admin-cs-hint">The Bloom game has been removed. This is a placeholder — rebuild here when Bloom returns.</p>
+                <div class="admin-listing-header"><h2>BLOOM</h2></div>
+                <p class="admin-cs-hint">Bloom runs as a self-contained iframe game (admin-only route). Balance is in-memory for this testing pass — seeded from the player's credits, not yet wired to the wallet/DB. Deck config lives inside the game's own Deck Builder / Weather tabs.</p>
               </section>
             </section>
 
@@ -3875,15 +3875,18 @@
           </div>
         </section>
 
-        <section id="bloom-view" class="route-view app-page fof-view" hidden aria-labelledby="bloom-view-title">
+        <section id="bloom-view" class="route-view app-page monkey-moonshine-view" hidden aria-labelledby="bloom-view-title">
           <h1 id="bloom-view-title" class="sr-only">Bloom</h1>
-          <header class="route-header">
-            <div><h1>Bloom</h1><p class="route-subheading">Retired — placeholder (admin only)</p></div>
-            <div class="route-actions"><button type="button" data-route-target="home" class="link-button">&larr; Home</button></div>
-          </header>
-          <section class="route-section">
-            <p class="admin-cs-hint">The Bloom game has been removed. This route is an admin-only placeholder for now.</p>
-          </section>
+          <!-- Admin-only sandbox. The whole game (play + built-in Deck Builder/Weather
+               RTP tools) is a self-contained static file loaded in an isolated iframe
+               so its generic IDs/CSS never collide with the app shell. Balance is
+               in-memory only for now (seeded from the player's real credits); wiring
+               it to the real wallet/DB is a later pass and the iframe boundary
+               (postMessage) is the clean seam for that. -->
+          <iframe id="bloom-frame"
+                  class="monkey-moonshine-frame"
+                  title="Bloom"
+                  loading="lazy"></iframe>
         </section>
 
         <section id="monkey-moonshine-view" class="route-view app-page monkey-moonshine-view" hidden aria-labelledby="monkey-moonshine-view-title">

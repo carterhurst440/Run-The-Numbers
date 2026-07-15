@@ -10665,7 +10665,17 @@ async function setRoute(route, { replaceHash = false } = {}) {
   if (resolvedRoute === "fate-or-fortune") {
     fofRouteOpen();
   }
-  // Bloom is retired — the route only shows the admin-only placeholder view now.
+  if (resolvedRoute === "bloom") {
+    // Self-contained game file (all art inlined) — only attach the iframe src the
+    // first time an admin opens the route, not on every page load.
+    const frame = document.getElementById("bloom-frame");
+    if (frame && !frame.getAttribute("src")) {
+      frame.setAttribute("src", "games/bloom.html?v=20260715-bloomroute");
+    }
+    installBloomBridge();   // idempotent: seed the in-memory balance + admin flag
+    bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
+  }
+
   if (resolvedRoute === "monkey-moonshine") {
     // The game file is ~8MB (all art inlined), so only attach the iframe src the
     // first time an admin actually opens the route — not on every page load.
@@ -19906,6 +19916,41 @@ function installMonkeyMoonshineBridge() {
     if (m.type === "ready") mmSendInit();
     else if (m.type === "spin") mmHandleSpin(m.bet, m.wild);
     else if (m.type === "settled") mmSettleBalance(m.balance);
+  });
+}
+
+// ── Bloom bridge ─────────────────────────────────────────────────────
+// Bloom runs in an isolated iframe. For THIS pass the balance lives entirely
+// IN-MEMORY inside the game — seeded from the player's real credits for a
+// realistic starting number, but nothing is written back to the wallet/DB and
+// the shell header is intentionally left untouched (no server authority yet).
+// The shell only pushes the starting balance + admin flag in. Swapping this to
+// a server-authoritative RPC (like Monkey Moonshine's mm_play_spin, brokering
+// each cast and mirroring the settled balance into the header) is the later
+// pass — this postMessage seam is exactly where that wiring goes.
+let _bloomBridgeInstalled = false;
+function bloomFrameWindow() {
+  const f = document.getElementById("bloom-frame");
+  return f ? f.contentWindow : null;
+}
+function bloomSendInit() {
+  const w = bloomFrameWindow();
+  if (!w) return;
+  w.postMessage({
+    source: "bloom-shell",
+    type: "init",
+    balance: Number(currentProfile?.credits ?? 0),
+    isAdmin: isAdmin(currentUser)
+  }, "*");
+}
+function installBloomBridge() {
+  if (_bloomBridgeInstalled) return;
+  _bloomBridgeInstalled = true;
+  window.addEventListener("message", (e) => {
+    const m = e && e.data;
+    if (!m || m.source !== "bloom") return;
+    if (m.type === "ready") bloomSendInit();
+    // "settled" is received but ignored in this pass — balance is sandbox-only.
   });
 }
 
