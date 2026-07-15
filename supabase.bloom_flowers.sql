@@ -18,10 +18,11 @@
 -- drift). Treat these seeds as the tuned source of truth.
 
 CREATE TABLE IF NOT EXISTS public.bloom_flowers (
-  flower        TEXT PRIMARY KEY,                 -- stable species slug (lotus, orchid, …)
+  flower        TEXT PRIMARY KEY,                 -- stable slug / id (lotus, orchid, …)
   display_name  TEXT NOT NULL,
   emoji         TEXT,
   accent_color  TEXT,
+  art_species   TEXT,                             -- which Codex art draws it ("Drawn as"); defaults to the slug
   archetype     TEXT CHECK (archetype IN ('specialist', 'balanced', 'pay_band')),
   take_pct      INTEGER NOT NULL DEFAULT 90,      -- sprout chance, 0..100
   bloom_pay     NUMERIC NOT NULL DEFAULT 0,       -- Bloom payout, % of bet
@@ -45,6 +46,7 @@ CREATE POLICY "anon_read_bloom_flowers" ON public.bloom_flowers
 
 -- Seed Carter's ten (idempotent — re-running RESETS values to these seeds).
 -- weather_odds order matches bloom_weather: w_dew, w_frz, w_heat, w_rain, w_wind.
+-- art_species defaults to the slug (all ten slugs are valid Codex art keys).
 INSERT INTO public.bloom_flowers
   (flower, display_name, emoji, accent_color, archetype, take_pct, bloom_pay, super_mult, weather_odds, sort_order)
 VALUES
@@ -73,6 +75,7 @@ ON CONFLICT (flower) DO UPDATE SET
   emoji        = EXCLUDED.emoji,
   accent_color = EXCLUDED.accent_color,
   archetype    = EXCLUDED.archetype,
+  art_species  = COALESCE(public.bloom_flowers.art_species, EXCLUDED.flower),
   take_pct     = EXCLUDED.take_pct,
   bloom_pay    = EXCLUDED.bloom_pay,
   super_mult   = EXCLUDED.super_mult,

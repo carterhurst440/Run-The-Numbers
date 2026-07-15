@@ -303,12 +303,13 @@
 <!-- ============ DECK ============ -->
 <section class="view" id="view-deck">
   <div class="toolbar">
+    <button class="gold" id="saveDeckDbBtn" style="display:none">💾 Save deck to DB</button>
     <button class="primary" id="addFlower">+ Add Flower</button>
     <button class="ghost" id="exportBtn">⬇ Export JSON</button>
     <button class="ghost" id="importBtn">⬆ Import JSON</button>
     <button class="ghost" id="resetBtn">↺ Reset defaults</button>
     <input type="file" id="importFile" accept="application/json" style="display:none">
-    <div class="muted" style="margin-left:auto">Edits auto-save to this browser.</div>
+    <div class="muted" id="saveDeckDbStatus" style="margin-left:auto">Edits auto-save to this browser.</div>
   </div>
 
   <div class="card" style="margin-bottom:14px">
@@ -2969,25 +2970,33 @@ function initAll(){
    that (no backend wallet writes yet — this is the testing pass, same stage
    Monkey Moonshine shipped at first). Debit at cast, credit at settle, and
    mirror the new balance back to the shell so its header can track it. */
+// DECK-ADMIN mode: the game is embedded in the casino Admin > Games > Bloom area
+// as the deck builder (Deck Builder + Weather tabs, a Save-to-DB button, no Play).
+// The normal play build is Play-only — the deck builder now lives in the admin area.
+const DECK_ADMIN = /[?&]deckadmin=1/.test(location.search);
 const SHELL={balance:10000,isAdmin:true,connected:false};
 function bloomRenderBalance(){
   const v=$('#balVal'); if(v) v.textContent=Math.round(SHELL.balance).toLocaleString();
 }
-// Player-facing build hides the designer tabs (Deck Builder + Weather). Admins
-// keep them for tuning. Called whenever the admin flag arrives from the shell.
-function bloomApplyAdminGate(){
-  document.querySelectorAll('.tab').forEach(t=>{
-    if(t.dataset.view==='deck'||t.dataset.view==='weather')
-      t.style.display=SHELL.isAdmin?'':'none';
-  });
-  if(!SHELL.isAdmin){
-    // if a hidden tab was somehow active, snap back to PLAY
+// Show the right tabs for the mode. DECK_ADMIN → Deck Builder + Weather (default
+// Deck Builder), no Play. Normal → Play only (the designer tabs are gone).
+function bloomApplyMode(){
+  const show=(view,on)=>{ const t=document.querySelector(`.tab[data-view="${view}"]`); if(t) t.style.display=on?'':'none'; };
+  const activate=(view)=>{
+    document.querySelectorAll('.tab,.view').forEach(x=>x.classList.remove('active'));
+    const t=document.querySelector(`.tab[data-view="${view}"]`), v=document.getElementById('view-'+view);
+    if(t) t.classList.add('active'); if(v) v.classList.add('active');
+  };
+  if(DECK_ADMIN){
+    show('play',false); show('deck',true); show('weather',true);
     const active=document.querySelector('.tab.active');
-    if(active&&(active.dataset.view==='deck'||active.dataset.view==='weather')){
-      document.querySelectorAll('.tab,.view').forEach(x=>x.classList.remove('active'));
-      const pt=document.querySelector('.tab[data-view="play"]');
-      if(pt){pt.classList.add('active');$('#view-play').classList.add('active');}
-    }
+    if(!active || active.dataset.view==='play') activate('deck');
+    const btn=$('#saveDeckDbBtn'); if(btn) btn.style.display='';
+    const st=$('#saveDeckDbStatus'); if(st) st.textContent='Edits save to the DB when you press Save.';
+  } else {
+    show('play',true); show('deck',false); show('weather',false);
+    const active=document.querySelector('.tab.active');
+    if(!active || active.dataset.view!=='play') activate('play');
   }
 }
 function bloomPostSettled(){
@@ -3003,7 +3012,7 @@ function bloomApplyDeck(deck){
     state.flowers = deck.flowers.map(r=>({
       id:   r.flower,
       name: r.display_name,
-      sp:   CODEX[r.flower] ? r.flower : SPECIES_KEYS[0],   // slug doubles as the art species
+      sp:   CODEX[r.art_species] ? r.art_species : (CODEX[r.flower] ? r.flower : SPECIES_KEYS[0]),  // "Drawn as" art
       emoji:r.emoji,
       color:r.accent_color,
       take: Number(r.take_pct)||0,
@@ -3027,6 +3036,17 @@ function bloomApplyDeck(deck){
   save();
   initAll();
 }
+// Push the whole deck up to the shell to persist to bloom_flowers / bloom_weather.
+function bloomSaveDeckToDb(){
+  if(!window.parent||window.parent===window)return;
+  const st=$('#saveDeckDbStatus'); if(st) st.textContent='Saving…';
+  window.parent.postMessage({source:'bloom',type:'save-deck',deck:{
+    flowers: state.flowers,
+    weather: state.weather
+  }},'*');
+}
+$('#saveDeckDbBtn')?.addEventListener('click', bloomSaveDeckToDb);
+
 window.addEventListener('message',(e)=>{
   const m=e&&e.data;
   if(!m||m.source!=='bloom-shell')return;
@@ -3035,12 +3055,16 @@ window.addEventListener('message',(e)=>{
     if(typeof m.balance==='number'&&isFinite(m.balance))SHELL.balance=m.balance;
     if(typeof m.isAdmin==='boolean')SHELL.isAdmin=m.isAdmin;
     if(m.deck) bloomApplyDeck(m.deck);   // load the DB deck (rebuilds + re-inits the UI)
-    bloomApplyAdminGate();
+    bloomApplyMode();
     bloomRenderBalance();
+  } else if(m.type==='save-ack'){
+    const st=$('#saveDeckDbStatus');
+    if(st) st.textContent = m.ok ? ('Saved to DB ✓  ' + (m.msg||'')) : ('Save failed: ' + (m.msg||''));
   }
 });
 // Boot the game now that SHELL (used by bloomRenderBalance) is defined.
 initAll();
+bloomApplyMode();   // apply Play-only vs deck-admin immediately (before init arrives)
 
 // Tell the shell we're ready so it can push the wallet balance + admin flag in.
 try{ if(window.parent&&window.parent!==window) window.parent.postMessage({source:'bloom',type:'ready'},'*'); }catch(_){}

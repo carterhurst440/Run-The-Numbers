@@ -3755,77 +3755,13 @@
             </section>
             <section class="admin-tab-content" id="admin-bloom-content" hidden>
               <section class="route-section admin-list-section">
-                <div class="admin-listing-header"><h2>BLOOM — Flowers &amp; Weather</h2></div>
-                <p class="admin-cs-hint">Edit the flower roster and the weather patterns. <strong>take %</strong> = sprout chance; <strong>bloom pay</strong> = payout as % of bet at Bloom; <strong>super ×</strong> = how much Super Bloom multiplies that pay (Super pay is derived). The per-weather grid is each flower's <strong>bloom %</strong> / <strong>wilt %</strong> for that weather. Changing a flower's odds or super × means its bloom pay should be re-solved to hold RTP. <strong>Save</strong> writes to <code>bloom_flowers</code> / <code>bloom_weather</code>; the game reads them on next load once the deck-from-DB wiring lands.</p>
+                <div class="admin-listing-header"><h2>BLOOM — Deck Builder</h2></div>
+                <p class="admin-cs-hint">The full deck builder: edit each flower's stats and per-weather bloom/wilt odds, tune the weather <strong>deck composition</strong> (counts + the 🦋 butterfly wild), and <strong>Sim every flower</strong> to check RTP. Loads the live deck from <code>bloom_flowers</code> / <code>bloom_weather</code>; press <strong>💾 Save deck to DB</strong> (top-left of the Deck Builder) to persist — the game re-pulls it on next load.</p>
                 <div id="admin-bloom-status" class="admin-fof-status"></div>
-
-                <!-- FLOWER EDITOR -->
-                <div class="admin-fof-sim-panel">
-                  <h3>Flower Editor</h3>
-                  <div class="admin-fof-log-controls">
-                    <label class="admin-fof-sim-pick">Flower
-                      <select id="admin-bloom-flower"></select>
-                    </label>
-                    <button type="button" class="primary" id="admin-bloom-save-flower">Save flower to DB</button>
-                  </div>
-
-                  <div class="admin-bloom-fields">
-                    <label class="admin-fof-sim-pick">Name
-                      <input type="text" id="admin-bloom-name" class="admin-fof-log-seed-input">
-                    </label>
-                    <label class="admin-fof-sim-pick">Emoji
-                      <input type="text" id="admin-bloom-emoji" class="admin-fof-log-seed-input" style="width:70px">
-                    </label>
-                    <label class="admin-fof-sim-pick">Accent color
-                      <input type="text" id="admin-bloom-color" class="admin-fof-log-seed-input" style="width:110px" placeholder="#e69ac0">
-                    </label>
-                    <label class="admin-fof-sim-pick">Archetype
-                      <select id="admin-bloom-archetype">
-                        <option value="specialist">specialist</option>
-                        <option value="balanced">balanced</option>
-                        <option value="pay_band">pay_band</option>
-                      </select>
-                    </label>
-                    <label class="admin-fof-sim-pick">Take %
-                      <input type="number" id="admin-bloom-take" class="admin-fof-log-seed-input" min="0" max="100" step="1" style="width:80px">
-                    </label>
-                    <label class="admin-fof-sim-pick">Bloom pay %
-                      <input type="number" id="admin-bloom-pay" class="admin-fof-log-seed-input" min="0" step="1" style="width:90px">
-                    </label>
-                    <label class="admin-fof-sim-pick">Super ×
-                      <input type="number" id="admin-bloom-super" class="admin-fof-log-seed-input" min="0" step="0.1" style="width:80px">
-                    </label>
-                    <label class="admin-fof-sim-pick">Super pay % (derived)
-                      <input type="number" id="admin-bloom-superpay" class="admin-fof-log-seed-input" style="width:90px" readonly disabled>
-                    </label>
-                  </div>
-
-                  <div class="admin-mm-tbl-wrap">
-                    <table class="admin-mm-tbl" id="admin-bloom-odds-tbl">
-                      <thead>
-                        <tr><th>weather</th><th>bloom %</th><th>wilt %</th></tr>
-                      </thead>
-                      <tbody id="admin-bloom-odds-body"></tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <!-- WEATHER EDITOR / DECK COMPOSITION -->
-                <div class="admin-fof-sim-panel">
-                  <h3>Weather Patterns &amp; Deck Composition</h3>
-                  <p class="admin-cs-hint"><strong>count</strong> = how many copies of that card sit in the reel deck. Each reel is an independent weighted pull, so 3× a card makes it drawn 3× as often (set 0 to pull a card out). The <strong>🦋 butterfly</strong> is the wild — it revives wilted/dud plants back to seed and, when it completes a 3-in-a-row, doubles the round total. The <code>id</code> keys the flower odds above, so it is not editable here.</p>
-                  <div class="admin-mm-tbl-wrap">
-                    <table class="admin-mm-tbl" id="admin-bloom-weather-tbl">
-                      <thead>
-                        <tr><th>id</th><th>name</th><th>icon</th><th>color</th><th>count</th></tr>
-                      </thead>
-                      <tbody id="admin-bloom-weather-body"></tbody>
-                    </table>
-                  </div>
-                  <div class="admin-fof-log-controls">
-                    <button type="button" class="primary" id="admin-bloom-save-weather">Save weather &amp; composition to DB</button>
-                  </div>
-                </div>
+                <iframe id="admin-bloom-frame"
+                        class="admin-bloom-frame"
+                        title="Bloom Deck Builder"
+                        loading="lazy"></iframe>
               </section>
             </section>
 
