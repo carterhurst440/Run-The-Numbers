@@ -38,13 +38,14 @@ CREATE POLICY "anon_read_bloom_weather" ON public.bloom_weather
 -- Seed the 5 patterns + the butterfly wild (idempotent — re-running RESETS
 -- name/icon/color/kind/sort to these seeds; deck_count is left alone on conflict
 -- so admin composition edits are not clobbered by a re-seed).
+-- Default composition: an 11-card deck — 2× each of the 5 weathers + 1 butterfly.
 INSERT INTO public.bloom_weather (weather, display_name, icon, accent_color, kind, deck_count, sort_order)
 VALUES
-  ('w_dew',     'Morning Dew', '💧', '#6fb7e0', 'weather',   1, 1),
-  ('w_frz',     'Late Freeze', '❄️', '#a9d6ef', 'weather',   1, 2),
-  ('w_heat',    'Summer Heat', '☀️', '#f4b23c', 'weather',   1, 3),
-  ('w_rain',    'Spring Rain', '🌧️', '#7a9bd0', 'weather',   1, 4),
-  ('w_wind',    'Autumn Wind', '🍂', '#d08a4a', 'weather',   1, 5),
+  ('w_dew',     'Morning Dew', '💧', '#6fb7e0', 'weather',   2, 1),
+  ('w_frz',     'Late Freeze', '❄️', '#a9d6ef', 'weather',   2, 2),
+  ('w_heat',    'Summer Heat', '☀️', '#f4b23c', 'weather',   2, 3),
+  ('w_rain',    'Spring Rain', '🌧️', '#7a9bd0', 'weather',   2, 4),
+  ('w_wind',    'Autumn Wind', '🍂', '#d08a4a', 'weather',   2, 5),
   ('butterfly', 'Butterfly',   '🦋', '#f7c948', 'butterfly', 1, 6)
 ON CONFLICT (weather) DO UPDATE SET
   display_name = EXCLUDED.display_name,
