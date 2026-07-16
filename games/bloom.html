@@ -88,6 +88,20 @@
   .sat-edit-tag{margin-left:2px;font-size:10px;font-weight:800;letter-spacing:.5px;
     border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:3px 7px}
   .satchel-head:hover .sat-edit-tag{background:var(--accent);color:#08120b}
+  /* round scoreboard — neon box, top-right of the planter */
+  .scoreboard{position:absolute;top:8px;right:8px;z-index:12;min-width:104px;
+    background:rgba(4,10,7,.9);border:1.5px solid rgba(80,240,170,.7);border-radius:10px;
+    padding:6px 12px;font-family:'JetBrains Mono',ui-monospace,monospace;
+    box-shadow:0 0 11px rgba(70,235,160,.5), 0 0 2px rgba(70,235,160,.9), inset 0 0 10px rgba(70,235,160,.12);
+    backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+  .sb-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;line-height:1.5}
+  .sb-label{font-size:9px;letter-spacing:2px;color:rgba(120,220,175,.85);font-weight:700}
+  .sb-val{font-size:16px;font-weight:800;color:#dffff0;font-variant-numeric:tabular-nums}
+  .sb-win{color:#57ffab;text-shadow:0 0 9px rgba(90,255,180,.8)}
+  .scoreboard.pulse{animation:sbpulse .4s ease}
+  @keyframes sbpulse{0%{box-shadow:0 0 11px rgba(70,235,160,.5),0 0 2px rgba(70,235,160,.9)}
+    45%{box-shadow:0 0 22px rgba(120,255,190,.95),0 0 6px rgba(120,255,190,1)}
+    100%{box-shadow:0 0 11px rgba(70,235,160,.5),0 0 2px rgba(70,235,160,.9)}}
   /* SATCHEL editor modal */
   .sat-modal[hidden]{display:none}
   .sat-modal{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
@@ -343,7 +357,6 @@
       <div class="row playtop" style="margin-bottom:8px;align-items:center">
         <label class="fld" style="margin:0">Bet <input id="bet" type="number" value="100" style="width:82px;display:inline-block"></label>
         <div class="playtop-hud">
-          <div class="hud-stat"><span class="hud-label">WINNINGS</span><b class="hud-val" id="winTotal">0</b></div>
           <div class="hud-stat"><span class="hud-label">BALANCE</span><b class="hud-val" id="balVal">—</b></div>
         </div>
       </div>
@@ -360,6 +373,11 @@
           <span class="sat-count" id="satCount">0/10</span>
           <span class="sat-edit-tag">✎ EDIT</span>
         </button>
+
+        <div class="scoreboard" id="scoreboard">
+          <div class="sb-row"><span class="sb-label">BET</span><span class="sb-val" id="sbBet">100</span></div>
+          <div class="sb-row"><span class="sb-label">WIN</span><span class="sb-val sb-win" id="sbWin">0</span></div>
+        </div>
       </div>
 
       <div class="winbanner lose" id="winBanner">— fill your satchel & cast —</div>
@@ -2725,8 +2743,9 @@ function castSeeds(){
   const plants=state.satchel.map(fid=>{const f=flower(fid);return{f,_took:Math.random()*100<f.take};});
   const draws=drawWeather();
   plants.forEach(p=>growPlant(p,draws));      // outcome fixed at cast, revealed reel-by-reel
-  round={plants,draws,step:0,phase:'cast',done:false,bet};   // remember the staked bet for the net
+  round={plants,draws,step:0,phase:'cast',done:false,bet};   // remember the staked bet
   const hint=$('#dirtHint');if(hint)hint.style.display='none';
+  updateScoreBet(); setScoreWin(0);             // scoreboard: lock in the bet, reset the win
   setSatchelOpen(false);                        // collapse the satchel so the plants are clear
   buildWeatherReel();$('#multi').textContent='';applyWeatherTheme(null);banner('','');
   renderPlants(plants);
@@ -2742,6 +2761,7 @@ async function revealNextReel(){
   applyWeatherTheme(w);
   growReplay(round.plants,s+1);
   round.step++;
+  if(round.step<round.draws.length) setScoreWin(roundReturnUpTo(round.step), true);  // running return
   await sleep2(340);
   if(round.step>=round.draws.length)finalizeRound();
   busy=false;$('#spinBtn').disabled=false;updateSpinButton();
@@ -2753,9 +2773,8 @@ function finalizeRound(){
   round.plants.forEach(p=>{if(p.alive)base+=bet*(phasePay(p.f,p.phase)/100)*payScale();});
   const total=base*mult;
   SHELL.balance+=total;               // credit the round payout at settle
-  SHELL.winnings += total - (round.bet!=null?round.bet:bet);   // running session net
   bloomRenderBalance();
-  bloomRenderWinnings();
+  setScoreWin(total, true);           // scoreboard settles on the final round return
   bloomPostSettled();                 // let the shell mirror the new balance (in-memory pass)
   round.phase='done';round.done=true;
   // a WIN means more back than you staked. Anything under the bet is a softened loss.
@@ -3161,7 +3180,7 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   if(t.dataset.view==='deck')renderDeck();
   if(t.dataset.view==='weather')renderWeatherTab();
 });
-$('#bet').oninput=e=>{state.config.bet=+e.target.value||0;updateMax();save();};
+$('#bet').oninput=e=>{state.config.bet=+e.target.value||0;updateMax();updateScoreBet();save();};
 function updateMax(){
   const elx=$('#perCol');
   if(state.satchel.length<10){elx.textContent='fill satchel';return;}
@@ -3205,7 +3224,7 @@ function initAll(){
   buildWeatherReel();renderPicker();renderSlots();updateMax();renderDeck();renderWeatherTab();
   resetPlayArea();                 // draw the empty plot up front so the dirt is always in view
   bloomRenderBalance();
-  bloomRenderWinnings();
+  updateScoreBet(); setScoreWin(0);
 }
 
 /* ===================== CASINO SHELL BRIDGE =====================
@@ -3218,16 +3237,51 @@ function initAll(){
 // as the deck builder (Deck Builder + Weather tabs, a Save-to-DB button, no Play).
 // The normal play build is Play-only — the deck builder now lives in the admin area.
 const DECK_ADMIN = /[?&]deckadmin=1/.test(location.search);
-const SHELL={balance:10000,winnings:0,isAdmin:true,connected:false};
+const SHELL={balance:10000,isAdmin:true,connected:false};
 function bloomRenderBalance(){
   const v=$('#balVal'); if(v) v.textContent=Math.round(SHELL.balance).toLocaleString();
 }
-// Session winnings = running net (payouts - stakes), updated at each settle.
-function bloomRenderWinnings(){
-  const el=$('#winTotal'); if(!el) return;
-  const v=Math.round(SHELL.winnings);
-  el.textContent=(v>0?'+':v<0?'−':'')+Math.abs(v).toLocaleString();
-  el.style.color = v>0 ? 'var(--gold)' : v<0 ? 'var(--danger)' : 'var(--muted)';
+
+// ── Round scoreboard (neon box, top-right of the planter) ──────────────
+// BET mirrors the current bet; WIN tracks where the round's return currently
+// sits — it moves as each reel is revealed and settles on the final payout.
+function updateScoreBet(){ const el=$('#sbBet'); if(el) el.textContent=Math.round(Number(state.config.bet)||0).toLocaleString(); }
+// The round outcome is fixed at cast; replay each plant's events up to `k` reels
+// to get its live phase, then value the living board (board ×mult only once all
+// reels are in).
+function roundReturnUpTo(k){
+  if(!round) return 0;
+  const bet = round.bet!=null?round.bet:state.config.bet, sc=payScale();
+  let base=0;
+  round.plants.forEach(p=>{
+    let phase=SEED, alive=p._took;
+    for(let s=0;s<k;s++){
+      const ev=p.events[s];
+      if(ev==='revive'){ alive=true; phase=SEED; continue; }
+      if(!alive) continue;
+      if(ev==='bloom'||ev==='super') phase=Math.min(SUPER,phase+1);
+      else if(ev==='wilt'){ alive=false; phase=SEED; }
+    }
+    if(alive) base += bet*(phasePay(p.f,phase)/100)*sc;
+  });
+  const mult = k>=round.draws.length ? lineMultiplier(round.draws).mult : 1;
+  return base*mult;
+}
+let _sbTween=null;
+function setScoreWin(target, pulse){
+  const el=$('#sbWin'); if(!el) return;
+  target=Math.round(target||0);
+  const from=parseInt((el.textContent||'0').replace(/[^0-9-]/g,''),10)||0;
+  if(_sbTween) cancelAnimationFrame(_sbTween);
+  const sb=$('#scoreboard');
+  if(pulse && sb){ sb.classList.remove('pulse'); void sb.offsetWidth; sb.classList.add('pulse'); }
+  const dur=420, t0=performance.now();
+  const step=(now)=>{
+    const p=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-p,3);
+    el.textContent=Math.round(from+(target-from)*e).toLocaleString();
+    if(p<1) _sbTween=requestAnimationFrame(step);
+  };
+  _sbTween=requestAnimationFrame(step);
 }
 // Show the right tabs for the mode. DECK_ADMIN → Deck Builder + Weather (default
 // Deck Builder), no Play. Normal → Play only (the designer tabs are gone).
