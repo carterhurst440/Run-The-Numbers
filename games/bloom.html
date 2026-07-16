@@ -63,10 +63,11 @@
   .fx.show{opacity:1;transform:translate(-50%,-90%)}
   /* ---- THE BED: one groomed plot, ten planted spots ---- */
   .dirt{position:relative;border-radius:16px;border:2px solid #4a3826;padding:6px;
+    aspect-ratio:240/224;                     /* always holds the plot's shape, even empty */
     background:linear-gradient(180deg,#3a2c1d,#221a10);
     box-shadow:inset 0 2px 0 rgba(255,255,255,.06);
     transition:box-shadow .5s, filter .5s}
-  #bed{display:block;width:100%;height:auto;overflow:visible}
+  #bed{display:block;width:100%;height:100%;overflow:visible}
   #dirtHint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     font-size:13px;color:var(--muted);pointer-events:none;z-index:5}
   /* weather reel */
@@ -2365,7 +2366,9 @@ const FLOWER_ICON_SET = new Set(['lotus','cactus','hydrangea','snapdragon','wist
 const FLOWER_ICON_VER = '20260715';
 function flowerIcon(f, cls){
   if(f && FLOWER_ICON_SET.has(f.id))
-    return `<img class="${cls} ficon" src="bloom-icons/${f.id}.png?v=${FLOWER_ICON_VER}" alt="${f.name}">`;
+    // if the icon file is missing, fall back to the emoji instead of a broken-image box
+    return `<img class="${cls} ficon" src="bloom-icons/${f.id}.png?v=${FLOWER_ICON_VER}" alt=""`
+      + ` onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'${cls}',textContent:'${f.emoji||''}'}))">`;
   return `<span class="${cls}">${f?f.emoji:''}</span>`;
 }
 function renderPicker(){
@@ -3086,6 +3089,7 @@ function playRound(satchel,draws){
 function initAll(){
   $('#bet').value=state.config.bet;
   buildWeatherReel();renderPicker();renderSlots();updateMax();renderDeck();renderWeatherTab();
+  resetPlayArea();                 // draw the empty plot up front so the dirt is always in view
   bloomRenderBalance();
 }
 
