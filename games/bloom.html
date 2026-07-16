@@ -71,29 +71,37 @@
   #bed{display:block;width:100%;height:100%;overflow:visible}
   #dirtHint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     font-size:13px;color:var(--muted);pointer-events:none;z-index:2}
-  /* Satchel: collapsible overlay pinned to the planter's top-left */
-  .satchel-overlay{position:absolute;top:8px;left:8px;z-index:12;
-    font-family:'JetBrains Mono',ui-monospace,monospace;max-width:calc(100% - 16px)}
-  .satchel-head{display:inline-flex;align-items:center;gap:7px;background:rgba(8,16,11,.9);
-    border:1px solid var(--line);border-radius:10px;padding:6px 9px;cursor:pointer;
-    backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+  /* Satchel: a compact pill in the planter top-left that opens the editor modal */
+  .satchel-overlay{position:absolute;top:8px;left:8px;z-index:12;max-width:calc(100% - 16px)}
+  .satchel-head{display:inline-flex;align-items:center;gap:8px;background:rgba(8,16,11,.9);
+    border:1px solid var(--line);border-radius:10px;padding:7px 10px;cursor:pointer;color:var(--fg);
+    font-family:'JetBrains Mono',ui-monospace,monospace;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
   .satchel-head:hover{border-color:var(--accent)}
-  .sat-caret{font-size:10px;color:var(--accent);transition:transform .2s}
-  .satchel-overlay[data-open="true"] .sat-caret{transform:rotate(90deg)}
+  .sat-caret{font-size:10px;color:var(--accent)}
   .sat-title{font-size:12px;font-weight:800;letter-spacing:1.5px}
   .sat-count{font-size:11px;color:var(--muted)}
-  .sat-edit{margin-left:2px;font-size:10px;font-weight:800;letter-spacing:.5px;border:1px solid var(--accent);
-    color:var(--accent);background:transparent;border-radius:6px;padding:3px 7px;cursor:pointer}
-  .sat-edit:hover{background:var(--accent);color:#08120b}
-  .satchel-panel{display:none;margin-top:6px;width:300px;max-width:calc(100vw - 44px);
-    background:rgba(8,16,11,.97);border:1px solid var(--line);border-radius:12px;padding:10px;
-    max-height:min(340px,68vh);overflow:auto;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-    box-shadow:0 14px 30px rgba(0,0,0,.55)}
-  .satchel-overlay[data-open="true"] .satchel-panel{display:block}
-  /* seeds as a compact 5x2 grid inside the panel (overrides the horizontal strip) */
-  .satchel-panel .satchel-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;overflow:visible;padding:0}
-  .satchel-panel .satchel-strip .slot{width:auto;height:auto;aspect-ratio:1;flex:none}
-  .satchel-panel .picker{grid-template-columns:1fr;max-height:none;overflow:visible}
+  .sat-edit-tag{margin-left:2px;font-size:10px;font-weight:800;letter-spacing:.5px;
+    border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:3px 7px}
+  .satchel-head:hover .sat-edit-tag{background:var(--accent);color:#08120b}
+  /* SATCHEL editor modal */
+  .sat-modal[hidden]{display:none}
+  .sat-modal{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+  .sat-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+  .sat-modal-card{position:relative;z-index:1;width:min(760px,100%);max-height:90vh;overflow:auto;
+    background:#0e1c14;border:1px solid var(--line);border-radius:16px;padding:18px 20px;
+    box-shadow:0 22px 60px rgba(0,0,0,.6)}
+  .sat-modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .sat-modal-title{font-size:18px;font-weight:800}
+  .sat-modal-title b{color:var(--accent)}
+  .sat-modal-close{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:#12241a;
+    color:var(--fg);font-size:15px;cursor:pointer;flex:0 0 auto}
+  .sat-modal-close:hover{border-color:var(--danger);color:var(--danger)}
+  .sat-modal-sub{color:var(--muted);font-size:12px;margin:4px 0 16px}
+  .sat-modal-body{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+  .sat-col-current .satchel-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;overflow:visible;padding:0}
+  .sat-col-current .satchel-strip .slot{width:auto;height:auto;aspect-ratio:1;flex:none}
+  .sat-modal .picker{grid-template-columns:1fr;max-height:56vh;overflow:auto;padding-right:4px}
+  @media (max-width:600px){ .sat-modal-body{grid-template-columns:1fr} .sat-modal .picker{max-height:38vh} }
   /* weather reel — vertical casino reels */
   .wreel{display:grid;gap:10px;margin:8px auto 8px;max-width:500px}
   .wcell{--wh:118px;height:var(--wh);border-radius:14px;position:relative;overflow:hidden;background:#0b1710;
@@ -339,29 +347,12 @@
         <div class="bed-layer" id="bedLayer"></div>
         <div class="muted dirt-hint" id="dirtHint">cast your seeds →</div>
 
-        <div class="satchel-overlay" id="satchelOverlay" data-open="false">
-          <div class="satchel-head" id="satchelHead">
-            <span class="sat-caret">▸</span>
-            <span class="sat-title">SATCHEL</span>
-            <span class="sat-count" id="satCount">0/10</span>
-            <button type="button" class="sat-edit" id="editSatchelBtn">✎ EDIT</button>
-          </div>
-          <div class="satchel-panel" id="satchelPanel">
-            <div class="muted" style="font-size:11px;margin-bottom:6px">Pick 10 — stack duplicates to go all-in, or spread out.</div>
-            <div class="satchel-strip" id="slots5"></div>
-            <div class="row" style="justify-content:space-between;margin-top:6px">
-              <span class="tinylbl">Diversify</span><span class="tinylbl">All-in</span>
-            </div>
-            <div class="voltrack"><div class="knob" id="volKnob" style="left:0%"></div></div>
-            <div class="muted" id="volLabel" style="font-size:11px;text-align:center;margin-top:4px">—</div>
-            <div class="row" style="margin:8px 0">
-              <button class="mini ghost" id="clearSatchel">Clear</button>
-              <button class="mini ghost" id="randomSatchel">Random 10</button>
-            </div>
-            <div class="sectlbl">Add seeds</div>
-            <div class="picker" id="picker"></div>
-          </div>
-        </div>
+        <button type="button" class="satchel-overlay satchel-head" id="satchelHead">
+          <span class="sat-caret">▸</span>
+          <span class="sat-title">SATCHEL</span>
+          <span class="sat-count" id="satCount">0/10</span>
+          <span class="sat-edit-tag">✎ EDIT</span>
+        </button>
       </div>
 
       <div class="winbanner lose" id="winBanner">— fill your satchel & cast —</div>
@@ -369,6 +360,37 @@
       <div class="wreel" id="weatherReel"></div>
       <div class="row">
         <button class="gold" style="flex:1;font-size:16px;padding:13px" id="spinBtn">🌱 CAST SEEDS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SATCHEL editor — large modal for plenty of room -->
+  <div class="sat-modal" id="satModal" hidden>
+    <div class="sat-modal-backdrop" id="satModalBackdrop"></div>
+    <div class="sat-modal-card">
+      <div class="sat-modal-head">
+        <div class="sat-modal-title">🌱 Your Satchel <b id="satCountModal">0/10</b></div>
+        <button type="button" class="sat-modal-close" id="satModalClose" aria-label="Close">✕</button>
+      </div>
+      <div class="sat-modal-sub">Pick 10 — stack duplicates to go all-in, or spread out.</div>
+      <div class="sat-modal-body">
+        <div class="sat-col-current">
+          <div class="sectlbl">Your seeds</div>
+          <div class="satchel-strip" id="slots5"></div>
+          <div class="row" style="justify-content:space-between;margin-top:12px">
+            <span class="tinylbl">Diversify</span><span class="tinylbl">All-in</span>
+          </div>
+          <div class="voltrack"><div class="knob" id="volKnob" style="left:0%"></div></div>
+          <div class="muted" id="volLabel" style="font-size:12px;text-align:center;margin-top:6px">—</div>
+          <div class="row" style="margin-top:12px;gap:8px">
+            <button class="mini ghost" id="clearSatchel">Clear</button>
+            <button class="mini ghost" id="randomSatchel">Random 10</button>
+          </div>
+        </div>
+        <div class="sat-col-add">
+          <div class="sectlbl">Add seeds</div>
+          <div class="picker" id="picker"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -2452,18 +2474,18 @@ function renderSlots(){
   }
   updateVolatility();
 }
-// Collapsible satchel overlay inside the planter (top-left).
-function setSatchelOpen(open){
-  const ov=$('#satchelOverlay'); if(!ov) return;
-  ov.dataset.open = open ? 'true' : 'false';
-}
-function openSatchelEdit(){ setSatchelOpen(true); const p=$('#picker'); if(p) p.scrollIntoView && p.scrollIntoView({block:'nearest'}); }
-function toggleSatchelEdit(){ const ov=$('#satchelOverlay'); setSatchelOpen(ov ? ov.dataset.open!=='true' : true); }
-function scrollSatchelEnd(){ /* grid layout — no horizontal scroll to chase */ }
+// The satchel pill opens a large editor modal.
+function openSatModal(){ const m=$('#satModal'); if(m){ m.hidden=false; updateVolatility(); } }
+function closeSatModal(){ const m=$('#satModal'); if(m) m.hidden=true; }
+function setSatchelOpen(open){ open ? openSatModal() : closeSatModal(); }   // castSeeds calls setSatchelOpen(false)
+function openSatchelEdit(){ openSatModal(); }
+function toggleSatchelEdit(){ const m=$('#satModal'); if(m){ m.hidden ? openSatModal() : closeSatModal(); } }
+function scrollSatchelEnd(){ /* grid layout — nothing to scroll */ }
 function updateVolatility(){
   // concentration = how stacked the satchel is (0 diversified .. 1 all-in)
   const n=state.satchel.length;
   const sc=$('#satCount'); if(sc) sc.textContent=n+'/10';
+  const scm=$('#satCountModal'); if(scm) scm.textContent=n+'/10';
   const knob=$('#volKnob'),lbl=$('#volLabel');
   if(n===0){knob.style.left='0%';lbl.textContent='empty';return;}
   const counts={};state.satchel.forEach(id=>counts[id]=(counts[id]||0)+1);
@@ -3141,8 +3163,10 @@ function updateMax(){
 $('#drawsPerRound').oninput=e=>{state.config.drawsPerRound=Math.max(1,Math.min(8,+e.target.value||1));save();resetPlayArea();};
 $('#targetRtp').oninput=e=>{state.config.targetRTP=Math.max(50,Math.min(120,+e.target.value||99));save();renderWeatherTab();updateMax();};
 $('#spinBtn').onclick=spinButtonClick;
-$('#satchelHead').onclick=(e)=>{ if(e.target.closest('#editSatchelBtn'))return; toggleSatchelEdit(); };
-$('#editSatchelBtn').onclick=(e)=>{ e.stopPropagation(); const ov=$('#satchelOverlay'); if(ov&&ov.dataset.open==='true') setSatchelOpen(false); else openSatchelEdit(); };
+$('#satchelHead').onclick=openSatModal;
+$('#satModalClose').onclick=closeSatModal;
+$('#satModalBackdrop').onclick=closeSatModal;
+document.addEventListener('keydown',(e)=>{ if(e.key==='Escape' && !$('#satModal').hidden) closeSatModal(); });
 $('#clearSatchel').onclick=()=>{state.satchel=[];syncSatchel();};
 $('#randomSatchel').onclick=()=>{state.satchel=[];for(let i=0;i<10;i++)state.satchel.push(state.flowers[Math.floor(Math.random()*state.flowers.length)].id);syncSatchel();};
 $('#addFlower').onclick=()=>{const w0={};state.weather.forEach(w=>w0[w.id]={g:15,wilt:10});
