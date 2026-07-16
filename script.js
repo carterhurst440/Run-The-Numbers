@@ -10670,7 +10670,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260716g-bloomroute");
+      frame.setAttribute("src", "games/bloom.html?v=20260716h-bloomroute");
     }
     installBloomBridge();   // idempotent: seed the in-memory balance + admin flag
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -32449,7 +32449,7 @@ function bloomStatus(msg){ const el = document.getElementById('admin-bloom-statu
 async function bloomAdminInit(){
   const frame = document.getElementById('admin-bloom-frame');
   if (frame && !frame.getAttribute('src')){
-    frame.setAttribute('src', 'games/bloom.html?deckadmin=1&v=20260716g-deckadmin');
+    frame.setAttribute('src', 'games/bloom.html?deckadmin=1&v=20260716h-deckadmin');
   }
   installBloomBridge();                 // shared handler: replies init to whichever iframe is ready
   bloomSendInit('admin-bloom-frame');   // refresh the deck on re-open (first open waits for the iframe's ready)

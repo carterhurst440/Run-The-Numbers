@@ -121,21 +121,29 @@
   .sat-col-current .satchel-strip .slot{width:auto;height:auto;aspect-ratio:1;flex:none}
   .sat-modal .picker{grid-template-columns:1fr;max-height:56vh;overflow:auto;padding-right:4px}
   @media (max-width:600px){ .sat-modal-body{grid-template-columns:1fr} .sat-modal .picker{max-height:38vh} }
-  /* weather reel — vertical casino reels */
-  .wreel{display:grid;gap:10px;margin:8px auto 8px;max-width:500px}
-  .wcell{--wh:118px;height:var(--wh);border-radius:14px;position:relative;overflow:hidden;background:#0b1710;
-    box-shadow:inset 0 0 0 2px #2b4534, inset 0 13px 22px rgba(0,0,0,.66), inset 0 -13px 22px rgba(0,0,0,.66);
+  /* weather reel — vertical casino reels (tightened) */
+  .wreel{display:grid;gap:8px;margin:6px auto 6px;max-width:372px}
+  .wcell{--wh:90px;height:var(--wh);border-radius:12px;position:relative;overflow:hidden;background:#0b1710;
+    box-shadow:inset 0 0 0 2px #2b4534, inset 0 10px 18px rgba(0,0,0,.66), inset 0 -10px 18px rgba(0,0,0,.66);
     transition:box-shadow .35s}
-  .wcell::before,.wcell::after{content:'';position:absolute;left:0;right:0;height:34%;z-index:3;pointer-events:none}
+  .wcell::before,.wcell::after{content:'';position:absolute;left:0;right:0;height:32%;z-index:3;pointer-events:none}
   .wcell::before{top:0;background:linear-gradient(#0b1710,rgba(11,23,16,0))}
   .wcell::after{bottom:0;background:linear-gradient(rgba(11,23,16,0),#0b1710)}
   .wcell .payline{position:absolute;left:8px;right:8px;top:50%;height:2px;margin-top:-1px;z-index:2;pointer-events:none;
     background:linear-gradient(90deg,transparent,rgba(244,201,93,.4),transparent);opacity:0;transition:opacity .3s}
   .wcell.hot .payline{opacity:1}
+  /* the next reel to spin: neon glow + a SPIN tap tag inside it */
+  .wcell.next{cursor:pointer;animation:reelnext 1.15s ease-in-out infinite}
+  @keyframes reelnext{0%,100%{box-shadow:inset 0 0 0 2px #57ffab,0 0 12px rgba(90,255,180,.4),inset 0 10px 18px rgba(0,0,0,.5),inset 0 -10px 18px rgba(0,0,0,.5)}
+    50%{box-shadow:inset 0 0 0 2px #7dffc0,0 0 22px rgba(120,255,190,.85),inset 0 10px 18px rgba(0,0,0,.5),inset 0 -10px 18px rgba(0,0,0,.5)}}
+  .spin-tag{position:absolute;inset:0;z-index:5;display:none;align-items:center;justify-content:center;pointer-events:none}
+  .wcell.next .spin-tag{display:flex}
+  .spin-tag b{background:#57ffab;color:#08120b;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:800;letter-spacing:1.5px;
+    font-family:'JetBrains Mono',ui-monospace,monospace;box-shadow:0 0 14px rgba(90,255,180,.8)}
   .wstrip{position:absolute;left:0;right:0;top:0;will-change:transform}
   .wstrip.spinning{filter:blur(.7px)}
-  .wtile{height:var(--wh);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
-  .wtile .wi{font-size:42px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+  .wtile{height:var(--wh);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+  .wtile .wi{font-size:33px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
   .wtile .wn{font-size:11px;color:var(--muted);letter-spacing:.4px}
   .wcell.hot{box-shadow:inset 0 0 0 2px var(--gold), 0 0 20px rgba(244,201,93,.45),
     inset 0 13px 22px rgba(0,0,0,.5), inset 0 -13px 22px rgba(0,0,0,.5)}
@@ -294,8 +302,8 @@
 
     /* weather reel — shrink the reel window (drives cell + tile height together) */
     .wreel{gap:6px;margin:10px auto 2px}
-    .wcell{--wh:92px;border-radius:11px}
-    .wtile .wi{font-size:34px}
+    .wcell{--wh:76px;border-radius:11px}
+    .wtile .wi{font-size:29px}
     .wtile .wn{font-size:9px;line-height:1.1;padding:0 2px;text-align:center;
       overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
     .multi{font-size:16px;min-height:20px}
@@ -334,7 +342,7 @@
     .slots5{grid-template-columns:repeat(5,1fr)}
     .picker{grid-template-columns:1fr}
     .wtile .wn{display:none}
-    .wcell{--wh:80px}
+    .wcell{--wh:66px}
   }
 </style>
 </head>
@@ -380,9 +388,9 @@
         </div>
       </div>
 
+      <div class="wreel" id="weatherReel"></div>
       <div class="winbanner lose" id="winBanner">— fill your satchel & cast —</div>
       <div class="multi" id="multi"></div>
-      <div class="wreel" id="weatherReel"></div>
       <div class="row">
         <button class="gold" style="flex:1;font-size:16px;padding:13px" id="spinBtn">🌱 CAST SEEDS</button>
       </div>
@@ -2551,9 +2559,21 @@ function buildWeatherReel(){
   const n=state.config.drawsPerRound;
   r.style.gridTemplateColumns='repeat('+n+',1fr)';
   for(let i=0;i<n;i++){
-    const c=el('div','wcell',`<div class="payline"></div><div class="wstrip">${wtileHTML(null)}</div>`);
+    const c=el('div','wcell',`<div class="payline"></div><div class="spin-tag"><b>▶ SPIN</b></div><div class="wstrip">${wtileHTML(null)}</div>`);
+    c.onclick=()=>reelClicked(i);
     r.appendChild(c);
   }
+}
+// A reel is clickable only when it is the next one to reveal.
+function reelClicked(i){
+  if(busy||!round||round.phase!=='cast')return;
+  if(i===round.step) revealNextReel();
+}
+// Highlight the next reel to spin (glow + SPIN tag); clear while a reel spins or the round is idle/done.
+function markActiveReel(){
+  const cells=$('#weatherReel')?$('#weatherReel').children:[];
+  const active = (round && round.phase==='cast' && !busy) ? round.step : -1;
+  [...cells].forEach((c,i)=> c.classList.toggle('next', i===active));
 }
 // Resting state: snap the strip back to a single locked tile.
 function setWCell(cell,w,hot){
@@ -2728,10 +2748,16 @@ function highlightRun(start,len,mult,wild){
 }
 
 let round=null, busy=false;
+// The below-dirt button only STARTS a round; the per-reel spinning is done by
+// tapping the glowing reel. So: idle -> CAST SEEDS, revealing -> hidden,
+// round done -> START NEW ROUND.
 function updateSpinButton(){
-  const btn=$('#spinBtn');
-  if(!round||round.phase!=='cast'){btn.textContent='🌱 CAST SEEDS';btn.classList.remove('shine');return;}
-  btn.innerHTML=`🎰 SPIN REEL ${round.step+1} / ${round.draws.length}`;btn.classList.add('shine');
+  const btn=$('#spinBtn'); if(!btn) return;
+  if(!round){ btn.style.display=''; btn.innerHTML='🌱 CAST SEEDS'; btn.classList.add('shine'); }
+  else if(round.phase==='cast'){ btn.style.display='none'; }
+  else { btn.style.display=''; btn.innerHTML='🔄 START NEW ROUND'; btn.classList.add('shine'); }
+  btn.disabled=false;
+  markActiveReel();
 }
 function castSeeds(){
   if(state.satchel.length<10){banner('lose','Fill all 10 satchel slots first');return;}
@@ -2755,6 +2781,7 @@ async function revealNextReel(){
   if(busy||!round||round.phase!=='cast')return;
   const s=round.step;if(s>=round.draws.length)return;
   busy=true;$('#spinBtn').disabled=true;$('#spinBtn').classList.remove('shine');
+  markActiveReel();                    // drop the SPIN tag off the reel now spinning
   const w=wxById(round.draws[s]);
   const cell=$('#weatherReel').children[s];
   await spinOneCell(cell,w);          // this reel position spins, then locks
@@ -2823,8 +2850,7 @@ function spinOneCell(cell,finalW){
 }
 function spinButtonClick(){
   if(busy)return;
-  if(!round||round.phase!=='cast')castSeeds();
-  else revealNextReel();
+  castSeeds();                 // the below button only ever starts a new round
 }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
