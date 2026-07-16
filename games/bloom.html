@@ -76,27 +76,38 @@
   #bed{display:block;width:100%;height:100%;overflow:visible}
   #dirtHint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     font-size:13px;color:var(--muted);pointer-events:none;z-index:2}
-  /* Satchel + scoreboard: their own bar sitting directly on top of the planter */
-  .planter-hud{display:flex;align-items:stretch;justify-content:space-between;gap:10px;margin-bottom:6px}
-  .satchel-head{display:inline-flex;align-items:center;gap:8px;background:rgba(8,16,11,.9);
-    border:1px solid var(--line);border-radius:10px;padding:7px 10px;cursor:pointer;color:var(--fg);
-    font-family:'JetBrains Mono',ui-monospace,monospace}
-  .satchel-head:hover{border-color:var(--accent)}
-  .sat-caret{font-size:10px;color:var(--accent)}
-  .sat-title{font-size:12px;font-weight:800;letter-spacing:1.5px}
-  .sat-count{font-size:11px;color:var(--muted)}
-  .sat-edit-tag{margin-left:2px;font-size:10px;font-weight:800;letter-spacing:.5px;
-    border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:3px 7px}
-  .satchel-head:hover .sat-edit-tag{background:var(--accent);color:#08120b}
-  /* round scoreboard — neon box */
-  .scoreboard{min-width:104px;
-    background:rgba(4,10,7,.9);border:1.5px solid rgba(80,240,170,.7);border-radius:10px;
-    padding:6px 12px;font-family:'JetBrains Mono',ui-monospace,monospace;
-    box-shadow:0 0 11px rgba(70,235,160,.5), 0 0 2px rgba(70,235,160,.9), inset 0 0 10px rgba(70,235,160,.12)}
-  .sb-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;line-height:1.5}
-  .sb-label{font-size:9px;letter-spacing:2px;color:rgba(120,220,175,.85);font-weight:700}
-  .sb-val{font-size:16px;font-weight:800;color:#dffff0;font-variant-numeric:tabular-nums}
-  .sb-win{color:#57ffab;text-shadow:0 0 9px rgba(90,255,180,.8)}
+  /* Satchel bar: full-width seed strip stacked flush on top of the planter */
+  .satchel-bar{display:flex;align-items:center;gap:8px;background:#0e1c14;
+    border:2px solid #4a3826;border-bottom:none;border-radius:14px 14px 0 0;padding:6px 8px 6px 12px}
+  .satchel-bar-label{flex:0 0 auto;font-family:'JetBrains Mono',ui-monospace,monospace;
+    font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--muted)}
+  .satchel-bar .satchel-strip{display:flex;gap:5px;overflow-x:auto;flex:1;min-width:0;padding:2px 0;scrollbar-width:thin}
+  .satchel-bar .satchel-strip .slot{flex:0 0 auto;width:46px;height:46px;aspect-ratio:auto;border-radius:8px}
+  .satchel-bar .satchel-strip .slot small{display:none}
+  .satchel-bar .satchel-strip .slot .rm{width:15px;height:15px;font-size:10px}
+  .satchel-bar-edit{flex:0 0 auto;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:800;
+    letter-spacing:.5px;padding:8px 12px;border-radius:8px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer}
+  .satchel-bar-edit:hover{background:var(--accent);color:#08120b}
+  .dirt-stacked{border-radius:0 0 16px 16px;border-top:none}
+  /* cast flourish: seeds tossed onto the divots */
+  .seedtoss{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:hidden}
+  .seed-dot{position:absolute;width:9px;height:9px;margin:-4.5px;border-radius:50%;
+    background:radial-gradient(circle at 34% 30%,#e6c07a,#7a4a1e);box-shadow:0 1px 2px rgba(0,0,0,.4);
+    animation:seedtoss .5s cubic-bezier(.25,.7,.4,1) both}
+  @keyframes seedtoss{
+    0%{transform:translate(var(--dx,0),-120px) scale(.5);opacity:0}
+    20%{opacity:1}
+    72%{transform:translate(0,0) scale(1);opacity:1}
+    100%{transform:translate(0,3px) scale(.85);opacity:0}}
+  /* round scoreboard — small neon overlay, planter top-right */
+  .scoreboard{position:absolute;top:6px;right:6px;z-index:12;min-width:84px;
+    background:rgba(4,10,7,.9);border:1px solid rgba(80,240,170,.7);border-radius:8px;
+    padding:4px 9px;font-family:'JetBrains Mono',ui-monospace,monospace;
+    box-shadow:0 0 9px rgba(70,235,160,.45), inset 0 0 8px rgba(70,235,160,.1)}
+  .sb-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;line-height:1.35}
+  .sb-label{font-size:8px;letter-spacing:1.5px;color:rgba(120,220,175,.85);font-weight:700}
+  .sb-val{font-size:13px;font-weight:800;color:#dffff0;font-variant-numeric:tabular-nums}
+  .sb-win{color:#57ffab;text-shadow:0 0 7px rgba(90,255,180,.8)}
   .scoreboard.pulse{animation:sbpulse .4s ease}
   @keyframes sbpulse{0%{box-shadow:0 0 11px rgba(70,235,160,.5),0 0 2px rgba(70,235,160,.9)}
     45%{box-shadow:0 0 22px rgba(120,255,190,.95),0 0 6px rgba(120,255,190,1)}
@@ -361,23 +372,20 @@
         </div>
       </div>
 
-      <!-- Satchel + scoreboard are their own sections sitting directly on top of
-           the planter, so they never overlap the growing flowers. -->
-      <div class="planter-hud">
-        <button type="button" class="satchel-head" id="satchelHead">
-          <span class="sat-caret">▸</span>
-          <span class="sat-title">SATCHEL</span>
-          <span class="sat-count" id="satCount">0/10</span>
-          <span class="sat-edit-tag">✎ EDIT</span>
-        </button>
+      <!-- Satchel bar: a full-width strip of the current seeds (horizontal scroll)
+           + EDIT, stacked flush on top of the planter. -->
+      <div class="satchel-bar">
+        <span class="satchel-bar-label">SATCHEL</span>
+        <div class="satchel-strip" id="slots5"></div>
+        <button type="button" class="satchel-bar-edit" id="satchelHead">✎ EDIT</button>
+      </div>
+      <div class="dirt dirt-stacked" id="dirt">
+        <div class="bed-layer" id="bedLayer"></div>
+        <div class="muted dirt-hint" id="dirtHint">cast your seeds →</div>
         <div class="scoreboard" id="scoreboard">
           <div class="sb-row"><span class="sb-label">BET</span><span class="sb-val" id="sbBet">100</span></div>
           <div class="sb-row"><span class="sb-label">WIN</span><span class="sb-val sb-win" id="sbWin">0</span></div>
         </div>
-      </div>
-      <div class="dirt" id="dirt">
-        <div class="bed-layer" id="bedLayer"></div>
-        <div class="muted dirt-hint" id="dirtHint">cast your seeds →</div>
       </div>
 
       <div class="winbanner lose" id="winBanner">fill your satchel & cast</div>
@@ -400,9 +408,8 @@
       <div class="sat-modal-sub">Pick 10 — stack duplicates to go all-in, or spread out.</div>
       <div class="sat-modal-body">
         <div class="sat-col-current">
-          <div class="sectlbl">Your seeds</div>
-          <div class="satchel-strip" id="slots5"></div>
-          <div class="row" style="justify-content:space-between;margin-top:12px">
+          <div class="sectlbl">Volatility</div>
+          <div class="row" style="justify-content:space-between;margin-top:8px">
             <span class="tinylbl">Diversify</span><span class="tinylbl">All-in</span>
           </div>
           <div class="voltrack"><div class="knob" id="volKnob" style="left:0%"></div></div>
@@ -2146,9 +2153,9 @@ function positionLabel(i, p){
   const t = (g.gone||g.dud) ? T_STATE[0] : snap(g.t);     // gone/dud: hover over the divot
   const crown = headBedY(spot, p.f.sp, t);
   const h = labelH(g.tag);
-  let y = crown - 3 - h;                                   // ride just above the crown
-  if(back) y = Math.max(VB_TOP+1, Math.min(LANE_MID - h, y));   // back band: top .. mid
-  else     y = Math.max(LANE_MID, y);                          // front band: mid .. down
+  // Back (top) row labels ABOVE the crown; front (bottom) row labels BELOW, at
+  // the base — so the two rows' labels sit on opposite sides and never overlap.
+  let y = back ? Math.max(VB_TOP+1, crown - 3 - h) : (spot.y - 1);
   lb.setAttribute('transform','translate('+spot.x+' '+y.toFixed(1)+')');
 }
 
@@ -2733,7 +2740,7 @@ function updateSpinButton(){
   const btn=$('#spinBtn'); if(!btn) return;
   if(!round){ btn.innerHTML='🌱 CAST SEEDS'; }
   else if(round.phase==='cast'){ btn.innerHTML=`🎰 SPIN REEL ${round.step+1} / ${round.draws.length}`; }
-  else { btn.innerHTML='🔄 START NEW ROUND'; }
+  else { btn.innerHTML='🔄 NEW ROUND'; }         // done -> clears the board, then it becomes CAST SEEDS
   btn.style.display=''; btn.disabled=false; btn.classList.add('shine');
 }
 function castSeeds(){
@@ -2752,7 +2759,24 @@ function castSeeds(){
   setSatchelOpen(false);                        // collapse the satchel so the plants are clear
   buildWeatherReel();$('#multi').textContent='';applyWeatherTheme(null);banner('','');
   renderPlants(plants);
+  tossSeedsAnim();                              // little flurry of seeds tossed onto the bed
   updateSpinButton();
+}
+// Cast flourish: scatter a handful of seed dots that arc down onto the divots.
+function tossSeedsAnim(){
+  const dirt=$('#dirt'); if(!dirt) return;
+  const old=dirt.querySelector('.seedtoss'); if(old) old.remove();
+  const layer=document.createElement('div'); layer.className='seedtoss';
+  SPOTS.forEach((s,i)=>{
+    const dot=document.createElement('div'); dot.className='seed-dot';
+    dot.style.left=(s.x/240*100).toFixed(2)+'%';
+    dot.style.top=((s.y-VB_TOP)/168*100).toFixed(2)+'%';
+    dot.style.setProperty('--dx',(-34+Math.random()*68).toFixed(0)+'px');
+    dot.style.animationDelay=(i*28)+'ms';
+    layer.appendChild(dot);
+  });
+  dirt.appendChild(layer);
+  setTimeout(()=>layer.remove(), 1000);
 }
 async function revealNextReel(){
   if(busy||!round||round.phase!=='cast')return;
@@ -2826,8 +2850,11 @@ function spinOneCell(cell,finalW){
 }
 function spinButtonClick(){
   if(busy)return;
-  if(!round||round.phase==='done')castSeeds();   // idle or finished -> start a new round
-  else revealNextReel();                          // mid-round -> reveal the next reel
+  if(!round) castSeeds();                          // CAST SEEDS -> roll + reveal
+  else if(round.phase==='cast') revealNextReel();  // SPIN REEL x/3
+  else {                                           // NEW ROUND -> clear the board, back to CAST SEEDS
+    resetPlayArea(); setScoreWin(0); banner('lose','fill your satchel & cast'); updateSpinButton();
+  }
 }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
