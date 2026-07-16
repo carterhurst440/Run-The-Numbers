@@ -70,13 +70,26 @@
   #bed{display:block;width:100%;height:100%;overflow:visible}
   #dirtHint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     font-size:13px;color:var(--muted);pointer-events:none;z-index:5}
-  /* weather reel */
-  .wreel{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:12px 0 4px}
-  .wcell{height:80px;border-radius:12px;border:1px solid var(--line);background:#12241a;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden}
-  .wcell .wi{font-size:30px;line-height:1}
-  .wcell .wn{font-size:9px;color:var(--muted);margin-top:2px}
-  .wcell.hot{box-shadow:0 0 0 2px var(--gold) inset;background:#2a2410}
+  /* weather reel — vertical casino reels */
+  .wreel{display:grid;gap:10px;margin:14px auto 6px;max-width:500px}
+  .wcell{--wh:118px;height:var(--wh);border-radius:14px;position:relative;overflow:hidden;background:#0b1710;
+    box-shadow:inset 0 0 0 2px #2b4534, inset 0 13px 22px rgba(0,0,0,.66), inset 0 -13px 22px rgba(0,0,0,.66);
+    transition:box-shadow .35s}
+  .wcell::before,.wcell::after{content:'';position:absolute;left:0;right:0;height:34%;z-index:3;pointer-events:none}
+  .wcell::before{top:0;background:linear-gradient(#0b1710,rgba(11,23,16,0))}
+  .wcell::after{bottom:0;background:linear-gradient(rgba(11,23,16,0),#0b1710)}
+  .wcell .payline{position:absolute;left:8px;right:8px;top:50%;height:2px;margin-top:-1px;z-index:2;pointer-events:none;
+    background:linear-gradient(90deg,transparent,rgba(244,201,93,.4),transparent);opacity:0;transition:opacity .3s}
+  .wcell.hot .payline{opacity:1}
+  .wstrip{position:absolute;left:0;right:0;top:0;will-change:transform}
+  .wstrip.spinning{filter:blur(.7px)}
+  .wtile{height:var(--wh);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+  .wtile .wi{font-size:42px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+  .wtile .wn{font-size:11px;color:var(--muted);letter-spacing:.4px}
+  .wcell.hot{box-shadow:inset 0 0 0 2px var(--gold), 0 0 20px rgba(244,201,93,.45),
+    inset 0 13px 22px rgba(0,0,0,.5), inset 0 -13px 22px rgba(0,0,0,.5)}
+  .wcell.landed{animation:wland .34s cubic-bezier(.2,1.4,.35,1)}
+  @keyframes wland{0%{transform:translateY(-5px)}60%{transform:translateY(2px)}100%{transform:translateY(0)}}
   .multi{text-align:center;font-weight:800;font-size:20px;min-height:26px;color:var(--gold);letter-spacing:1px}
 
   .weatherrow{display:flex;gap:8px;margin:14px 0}
@@ -228,11 +241,11 @@
     /* board */
     .dirt{padding:4px}
 
-    /* weather reel — 5 cells must fit 100% width, so shrink not scroll */
-    .wreel{gap:5px;margin:10px 0 2px}
-    .wcell{height:62px;border-radius:9px}
-    .wcell .wi{font-size:22px}
-    .wcell .wn{font-size:8px;line-height:1.1;padding:0 2px;text-align:center;
+    /* weather reel — shrink the reel window (drives cell + tile height together) */
+    .wreel{gap:6px;margin:10px auto 2px}
+    .wcell{--wh:92px;border-radius:11px}
+    .wtile .wi{font-size:34px}
+    .wtile .wn{font-size:9px;line-height:1.1;padding:0 2px;text-align:center;
       overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
     .multi{font-size:16px;min-height:20px}
     .winbanner{font-size:20px;min-height:28px;margin:8px 0}
@@ -269,8 +282,8 @@
   @media (max-width:380px){
     .slots5{grid-template-columns:repeat(5,1fr)}
     .picker{grid-template-columns:1fr}
-    .wcell .wn{display:none}
-    .wcell{height:54px}
+    .wtile .wn{display:none}
+    .wcell{--wh:80px}
   }
 </style>
 </head>
@@ -2450,18 +2463,22 @@ function resetPlayArea(){
 }
 function syncSatchel(){resetPlayArea();renderSlots();updateMax();save();}
 
-/* weather reel — a spinning row of N slots */
+/* weather reel — vertical casino reels: a viewport (.wcell) over a scrolling
+   strip (.wstrip) of symbol tiles (.wtile). */
+function wtileHTML(w){ return `<div class="wtile"><div class="wi">${w?w.icon:'❔'}</div><div class="wn">${w?w.name:'—'}</div></div>`; }
 function buildWeatherReel(){
   const r=$('#weatherReel');r.innerHTML='';
   const n=state.config.drawsPerRound;
+  r.style.gridTemplateColumns='repeat('+n+',1fr)';
   for(let i=0;i<n;i++){
-    const c=el('div','wcell',`<div class="wi">❔</div><div class="wn">—</div>`);
+    const c=el('div','wcell',`<div class="payline"></div><div class="wstrip">${wtileHTML(null)}</div>`);
     r.appendChild(c);
   }
 }
+// Resting state: snap the strip back to a single locked tile.
 function setWCell(cell,w,hot){
-  cell.querySelector('.wi').textContent=w?w.icon:'❔';
-  cell.querySelector('.wn').textContent=w?w.name:'—';
+  const strip=cell.querySelector('.wstrip');
+  if(strip){ strip.classList.remove('spinning'); strip.style.transition='none'; strip.style.transform='translateY(0)'; strip.innerHTML=wtileHTML(w); }
   cell.classList.toggle('hot',!!hot);
 }
 
@@ -2682,13 +2699,42 @@ function finalizeRound(){
   else if(total>0) banner('lose',`🌿 ${total.toFixed(0)} back  (${(total/bet).toFixed(2)}× bet) — under your stake${mtxt}`);
   else banner('lose','No bloom this round 🥀');
 }
-async function spinOneCell(cell,finalW){
-  const pool=state.weather;let t=0;
+// Casino reel spin: stack N random tiles above the landing tile, then scroll the
+// strip up past all of them with an ease-out so it flies then decelerates into
+// place, with a little settle bounce.
+function spinOneCell(cell,finalW){
+  const strip=cell.querySelector('.wstrip');
+  if(!strip){ setWCell(cell,finalW,false); return Promise.resolve(); }
+  const pool=(state.weather&&state.weather.length)?state.weather:[finalW];
+  const N=16;                                   // symbols that blur past before landing
+  let html='';
+  for(let i=0;i<N;i++) html+=wtileHTML(pool[(Math.random()*pool.length)|0]);
+  html+=wtileHTML(finalW);                      // the landing symbol, last
+  strip.style.transition='none';
+  strip.style.transform='translateY(0)';
+  strip.innerHTML=html;
+  strip.classList.add('spinning');
+  cell.classList.remove('landed');
+  const tileH=(strip.firstElementChild&&strip.firstElementChild.getBoundingClientRect().height)||cell.clientHeight||118;
+  const offset=N*tileH;                         // scroll so the last tile fills the window
+  const dur=820;
+  void strip.offsetHeight;                       // commit the start position
   return new Promise(res=>{
-    const iv=setInterval(()=>{t++;
-      if(t>=9){clearInterval(iv);setWCell(cell,finalW,false);res();return;}
-      setWCell(cell,pool[Math.floor(Math.random()*pool.length)],false);
-    },60);
+    let done=false;
+    const finish=()=>{ if(done)return; done=true;
+      strip.classList.remove('spinning');
+      strip.style.transition='none';
+      strip.style.transform='translateY(0)';
+      strip.innerHTML=wtileHTML(finalW);         // snap to the clean locked tile
+      cell.classList.add('landed');
+      res();
+    };
+    strip.addEventListener('transitionend',finish,{once:true});
+    setTimeout(finish,dur+160);                  // safety if transitionend is missed
+    requestAnimationFrame(()=>{
+      strip.style.transition=`transform ${dur}ms cubic-bezier(.11,.66,.2,1)`;
+      strip.style.transform=`translateY(${-offset}px)`;
+    });
   });
 }
 function spinButtonClick(){
