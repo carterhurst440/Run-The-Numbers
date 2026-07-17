@@ -155,7 +155,7 @@
   .wcell{--wh:90px;height:var(--wh);border-radius:5px;position:relative;overflow:hidden;background:#1c1712;
     box-shadow:inset 0 0 0 2px #463a2d, inset 0 10px 18px rgba(0,0,0,.66), inset 0 -10px 18px rgba(0,0,0,.66);
     transition:box-shadow .35s}
-  .wcell::before,.wcell::after{content:'';position:absolute;left:0;right:0;height:32%;z-index:3;pointer-events:none}
+  .wcell::before,.wcell::after{content:'';position:absolute;left:0;right:0;height:24%;z-index:3;pointer-events:none}
   .wcell::before{top:0;background:linear-gradient(#1c1712,rgba(11,23,16,0))}
   .wcell::after{bottom:0;background:linear-gradient(rgba(11,23,16,0),#1c1712)}
   .wcell .payline{position:absolute;left:8px;right:8px;top:50%;height:2px;margin-top:-1px;z-index:2;pointer-events:none;
@@ -165,10 +165,12 @@
   .wstrip.spinning{filter:blur(.7px)}
   .wtile{height:var(--wh);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
   .wtile .wi{font-size:33px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
-  .wtile .wi img.wicon{display:block;height:46px;width:auto;object-fit:contain}
-  .wchip .wi img.wicon{display:block;height:30px;width:auto;object-fit:contain;margin:0 auto}
-  .prrow .wname img.wicon{height:15px;width:auto;vertical-align:-2px}
-  .deckchip img.wicon{height:15px;width:auto;vertical-align:-2px}
+  /* illustrated weather tiles fill the reel face; the tile self-labels so hide the name */
+  .wtile:has(img.wicon){padding:0;gap:0}
+  .wtile:has(img.wicon) .wn{display:none}
+  .wtile:has(img.wicon) .wi{flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center;filter:none}
+  .wtile img.wicon{max-height:88%;max-width:92%;width:auto;height:auto;object-fit:contain;border-radius:5px;box-shadow:0 3px 8px rgba(0,0,0,.45)}
+  .wchip .wi img.wicon{display:block;height:34px;width:auto;object-fit:contain;margin:0 auto;border-radius:4px}
   .wtile .wn{font-size:11px;color:var(--muted);letter-spacing:.4px}
   .wcell.hot{box-shadow:inset 0 0 0 2px var(--accent), 0 0 20px rgba(236,106,158,.42),
     inset 0 13px 22px rgba(0,0,0,.5), inset 0 -13px 22px rgba(0,0,0,.5)}
@@ -2453,7 +2455,7 @@ function statPanelHTML(f){
     const r=f.resp[w.id]||{b:0,k:0};
     const cell=(v,cls)=>`<div class="prcell ${cls} ${v<=0?'z':''}">`
       +`<i style="width:${Math.min(100,v)}%"></i><b>${v}%</b></div>`;
-    return `<div class="prrow"><span class="wname">${weatherIcon(w,'')} ${w.name}</span>`
+    return `<div class="prrow"><span class="wname">${w.icon} ${w.name}</span>`
       + cell(r.b,'bl') + cell(r.k,'wl') + `</div>`;
   }).join('');
   const bar=(label,val,color,tip)=>`<div class="sbar" title="${tip}">`
@@ -2491,7 +2493,7 @@ function flowerIcon(f, cls){
 }
 // Illustrated weather icons (extracted from the weather sheet). Any weather not in
 // this set — the butterfly wild, admin-added weathers — falls back to its emoji.
-const WEATHER_ICON_VER = '20260716a';
+const WEATHER_ICON_VER = '20260716b';
 const WEATHER_ICON_SET = new Set(['w_rain','w_heat','w_wind','w_frz','w_dew']);
 function weatherIcon(w, cls){
   if(w && WEATHER_ICON_SET.has(w.id))
@@ -3034,7 +3036,7 @@ function refreshDeckStats(){
     if(total===0){ dc.innerHTML='<div class="muted">Deck is empty — give at least one pattern a count above 0.</div>'; return; }
     const chips=state.weather.filter(w=>cnt(w)>0).map(w=>{
       const p=(cnt(w)/total*100).toFixed(1); const wild=w.kind==='butterfly';
-      return `<span class="deckchip${wild?' wild':''}">${weatherIcon(w,'')} ${w.name} <b>×${cnt(w)}</b> <span class="muted">${p}%/reel</span></span>`;
+      return `<span class="deckchip${wild?' wild':''}">${w.icon||''} ${w.name} <b>×${cnt(w)}</b> <span class="muted">${p}%/reel</span></span>`;
     }).join('');
     const cards=state.weather.flatMap(w=>Array.from({length:cnt(w)},()=>w.icon||'▫')).join(' ');
     dc.innerHTML=`<div class="deckchips">${chips}</div><div class="deckcards" title="every card in the reel deck">${cards}</div>`
