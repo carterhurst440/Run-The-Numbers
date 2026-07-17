@@ -77,20 +77,23 @@
   #dirtHint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     font-size:13px;color:var(--muted);pointer-events:none;z-index:2}
   /* Satchel bar: full-width seed strip stacked flush on top of the planter */
-  .satchel-bar{display:flex;align-items:center;gap:7px;background:#0e1c14;
-    border:2px solid #4a3826;border-bottom:none;border-radius:14px 14px 0 0;padding:5px 7px 5px 9px}
-  .satchel-bar-label{flex:0 0 auto;font-family:'JetBrains Mono',ui-monospace,monospace;
-    font-size:9px;font-weight:800;letter-spacing:1px;color:var(--muted)}
-  /* all 10 seats fit across — a fixed 10-col grid, no scroll */
-  .satchel-bar .satchel-strip{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;overflow:hidden;flex:1;min-width:0;padding:0}
-  .satchel-bar .satchel-strip .slot{width:auto;height:auto;aspect-ratio:1;border-radius:6px}
+  .satchel-bar{background:#0e1c14;border:2px solid #4a3826;border-bottom:none;
+    border-radius:14px 14px 0 0;padding:8px 12px 10px}
+  .satchel-bar-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .satchel-bar-label{font-family:'JetBrains Mono',ui-monospace,monospace;
+    font-size:11px;font-weight:800;letter-spacing:2px;color:var(--muted)}
+  .satchel-bar-edit{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:800;
+    letter-spacing:1px;color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 2px}
+  .satchel-bar-edit:hover{color:#8fe89a;text-decoration:underline}
+  /* all ten seeds — 5 across, 2 rows */
+  .satchel-bar .satchel-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;overflow:visible;padding:0;justify-items:stretch}
+  .satchel-bar .satchel-strip .slot{width:auto;height:auto;aspect-ratio:1;border-radius:9px;cursor:pointer;
+    background:#12241a;border:1px solid var(--line);transition:border-color .15s,transform .1s}
+  .satchel-bar .satchel-strip .slot:hover{border-color:var(--accent);transform:translateY(-1px)}
   .satchel-bar .satchel-strip .slot small{display:none}
-  .satchel-bar .satchel-strip .slot .sicon{height:82%}
-  .satchel-bar .satchel-strip .slot .rm{width:12px;height:12px;font-size:8px;top:-3px;right:-3px}
-  .satchel-bar .satchel-strip .slot>span{font-size:13px !important}
-  .satchel-bar-edit{flex:0 0 auto;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:800;
-    letter-spacing:.5px;padding:7px 10px;border-radius:8px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer}
-  .satchel-bar-edit:hover{background:var(--accent);color:#08120b}
+  .satchel-bar .satchel-strip .slot .sicon{height:80%}
+  .satchel-bar .satchel-strip .slot .rm{display:none}
+  .satchel-bar .satchel-strip .slot>span{font-size:20px !important}
   .dirt-stacked{border-radius:0 0 16px 16px;border-top:none}
   /* cast flourish: seeds tossed onto the divots */
   .seedtoss{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:hidden}
@@ -221,15 +224,6 @@
   .slot .rm{position:absolute;top:-6px;right:-6px;background:var(--danger);border:none;border-radius:50%;
     width:18px;height:18px;font-size:11px;line-height:1;color:#fff;padding:0}
   .slot small{font-size:9px;color:var(--muted)}
-  /* top-of-panel satchel: horizontal-scrolling strip + EDIT dropdown */
-  .satchel-bar{display:flex;align-items:stretch;gap:8px;margin-bottom:6px}
-  .satchel-strip{display:flex;gap:6px;overflow-x:auto;flex:1;min-width:0;padding:2px 2px 8px;scroll-snap-type:x proximity;scrollbar-width:thin}
-  .satchel-strip .slot{aspect-ratio:auto;flex:0 0 auto;width:62px;height:62px;scroll-snap-align:end}
-  .satchel-strip .slot .rm{width:16px;height:16px;font-size:10px}
-  .satchel-edit-btn{flex:0 0 auto;align-self:center;font-size:11px;font-weight:800;letter-spacing:.5px;
-    padding:9px 12px;border-radius:9px;border:1px solid var(--accent);background:#12241a;color:var(--accent);cursor:pointer;white-space:nowrap}
-  .satchel-edit-btn:hover{background:#183123}
-  .satchel-edit-btn.active{background:var(--accent);color:#08120b}
   .satchel-edit{background:#0f1e16;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
   .voltrack{height:10px;border-radius:6px;background:linear-gradient(90deg,#57b657,#f4c95d,#e06a6a);position:relative;margin-top:6px}
   .voltrack .knob{position:absolute;top:-3px;width:16px;height:16px;border-radius:50%;background:#fff;
@@ -375,12 +369,14 @@
         </div>
       </div>
 
-      <!-- Satchel bar: a full-width strip of the current seeds (horizontal scroll)
-           + EDIT, stacked flush on top of the planter. -->
+      <!-- Satchel bar stacked flush on the planter: SATCHEL + EDIT on top, all ten
+           seeds as a 5x2 grid below. Tap any seed (or EDIT) to change the satchel. -->
       <div class="satchel-bar">
-        <span class="satchel-bar-label">SATCHEL</span>
+        <div class="satchel-bar-top">
+          <span class="satchel-bar-label">SATCHEL</span>
+          <button type="button" class="satchel-bar-edit" id="satchelHead">EDIT ✎</button>
+        </div>
         <div class="satchel-strip" id="slots5"></div>
-        <button type="button" class="satchel-bar-edit" id="satchelHead">✎ EDIT</button>
       </div>
       <div class="dirt dirt-stacked" id="dirt">
         <div class="bed-layer" id="bedLayer"></div>
@@ -2501,11 +2497,10 @@ function renderSlots(){
   for(let i=0;i<10;i++){
     const fid=state.satchel[i];
     const slot=el('div','slot');
+    slot.onclick=()=>openSatModal();            // tap any seat (filled or empty) to edit — no per-seat X
     if(fid){const f=flower(fid);
       slot.innerHTML=`<div class="sicon">${flowerIcon(f,'')}</div><small>${f.name}</small>`;
-      const rm=el('button','rm','×');rm.onclick=(e)=>{e.stopPropagation();state.satchel.splice(i,1);syncSatchel();};
-      slot.appendChild(rm);
-    } else {slot.innerHTML='<span class="muted" style="font-size:22px">+</span>';slot.style.opacity=.5;slot.style.cursor='pointer';slot.onclick=()=>openSatchelEdit();}
+    } else {slot.innerHTML='<span class="muted">+</span>';slot.style.opacity=.5;}
     s.appendChild(slot);
   }
   updateVolatility();
