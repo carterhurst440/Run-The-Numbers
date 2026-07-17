@@ -140,10 +140,16 @@
   .sat-modal-close:hover{border-color:var(--danger);color:var(--danger)}
   .sat-modal-sub{color:var(--muted);font-size:12px;margin:4px 0 16px}
   .sat-modal-body{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
-  .sat-col-current .satchel-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;overflow:visible;padding:0}
-  .sat-col-current .satchel-strip .slot{width:auto;height:auto;aspect-ratio:1;flex:none}
-  .sat-modal .picker{grid-template-columns:1fr;max-height:56vh;overflow:auto;padding-right:4px}
-  @media (max-width:600px){ .sat-modal-body{grid-template-columns:1fr} .sat-modal .picker{max-height:38vh} }
+  .sat-col-current .satchel-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;overflow:visible;padding:0}
+  .sat-col-current .satchel-strip .slot{width:auto;height:auto;aspect-ratio:1;flex:none;border-style:solid}
+  .sat-col-current .satchel-strip .slot .sicon{height:64%}
+  .sat-col-current .satchel-strip .slot small{display:block;font-size:8px;line-height:1;margin-top:1px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
+  /* ADD SEEDS: show all ten at once, no inner scroll, compact rows */
+  .sat-modal .picker{grid-template-columns:1fr;max-height:none;overflow:visible;padding-right:0;gap:6px}
+  .sat-modal .pick{padding:5px 9px;border-radius:6px}
+  .sat-modal .pick img.pe{width:26px;height:26px}
+  .sat-modal .pick .pe{font-size:18px}
+  @media (max-width:600px){ .sat-modal-body{grid-template-columns:1fr} }
   /* weather reel — vertical casino reels (tightened) */
   .wreel{display:grid;gap:8px;margin:6px auto 6px;max-width:372px}
   .wcell{--wh:90px;height:var(--wh);border-radius:5px;position:relative;overflow:hidden;background:#1c1712;
@@ -414,6 +420,8 @@
       <div class="sat-modal-sub">Pick 10 — stack duplicates to go all-in, or spread out.</div>
       <div class="sat-modal-body">
         <div class="sat-col-current">
+          <div class="sectlbl" style="margin-top:0;border-top:0;padding-top:0">Your picks</div>
+          <div class="satchel-strip" id="satModalSlots" style="margin-bottom:18px"></div>
           <div class="sectlbl">Volatility</div>
           <div class="row" style="justify-content:space-between;margin-top:8px">
             <span class="tinylbl">Diversify</span><span class="tinylbl">All-in</span>
@@ -2512,8 +2520,25 @@ function renderSlots(){
   }
   updateVolatility();
 }
+// The modal's left column: the current ten seats, tap or × to drop a pick.
+function renderModalSlots(){
+  const s=$('#satModalSlots'); if(!s) return; s.innerHTML='';
+  for(let i=0;i<10;i++){
+    const fid=state.satchel[i];
+    const slot=el('div','slot');
+    if(fid){const f=flower(fid);
+      slot.innerHTML=`<div class="sicon">${flowerIcon(f,'')}</div><small>${f.name}</small>`;
+      const rm=el('button','rm','×');
+      rm.onclick=(e)=>{e.stopPropagation();state.satchel.splice(i,1);syncSatchel();};
+      slot.appendChild(rm);
+      slot.title='Remove '+f.name;
+      slot.onclick=()=>{state.satchel.splice(i,1);syncSatchel();};
+    } else {slot.innerHTML='<span class="muted">+</span>';slot.style.opacity=.5;}
+    s.appendChild(slot);
+  }
+}
 // The satchel pill opens a large editor modal.
-function openSatModal(){ const m=$('#satModal'); if(m){ m.hidden=false; updateVolatility(); } }
+function openSatModal(){ const m=$('#satModal'); if(m){ m.hidden=false; renderModalSlots(); updateVolatility(); } }
 function closeSatModal(){ const m=$('#satModal'); if(m) m.hidden=true; }
 function setSatchelOpen(open){ open ? openSatModal() : closeSatModal(); }   // castSeeds calls setSatchelOpen(false)
 function openSatchelEdit(){ openSatModal(); }
@@ -2553,7 +2578,7 @@ function resetPlayArea(){
   buildWeatherReel();$('#multi').textContent='';applyWeatherTheme(null);
   if(typeof updateSpinButton==='function')updateSpinButton();
 }
-function syncSatchel(){resetPlayArea();renderSlots();updateMax();save();}
+function syncSatchel(){resetPlayArea();renderSlots();renderModalSlots();updateMax();save();}
 
 /* weather reel — vertical casino reels: a viewport (.wcell) over a scrolling
    strip (.wstrip) of symbol tiles (.wtile). */
