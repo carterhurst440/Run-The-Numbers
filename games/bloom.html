@@ -2490,7 +2490,7 @@ function flowerIcon(f, cls){
 }
 // Illustrated weather icons (extracted from the weather sheet). Any weather not in
 // this set — the butterfly wild, admin-added weathers — falls back to its emoji.
-const WEATHER_ICON_VER = '20260717d';
+const WEATHER_ICON_VER = '20260717e';
 const WEATHER_ICON_SET = new Set(['w_rain','w_heat','w_wind','w_frz','w_dew','butterfly']);
 function weatherIcon(w, cls){
   if(w && WEATHER_ICON_SET.has(w.id))
@@ -3365,13 +3365,16 @@ function bloomApplyMode(){
     const t=document.querySelector(`.tab[data-view="${view}"]`), v=document.getElementById('view-'+view);
     if(t) t.classList.add('active'); if(v) v.classList.add('active');
   };
+  const hdr=document.querySelector('header');
   if(DECK_ADMIN){
+    if(hdr) hdr.style.display='';               // admin keeps the header for the Deck Builder / Weather tabs
     show('play',false); show('deck',true); show('weather',true);
     const active=document.querySelector('.tab.active');
     if(!active || active.dataset.view==='play') activate('deck');
     const btn=$('#saveDeckDbBtn'); if(btn) btn.style.display='';
     const st=$('#saveDeckDbStatus'); if(st) st.textContent='Edits save to the DB when you press Save.';
   } else {
+    if(hdr) hdr.style.display='none';           // play game: drop the BLOOM/PLAY strip entirely
     show('play',true); show('deck',false); show('weather',false);
     const active=document.querySelector('.tab.active');
     if(!active || active.dataset.view!=='play') activate('play');
