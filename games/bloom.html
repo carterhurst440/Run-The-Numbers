@@ -2675,7 +2675,7 @@ function applyWeatherTheme(w){
 }
 function banner(cls,txt){const b=$('#winBanner');b.className='winbanner '+cls;b.textContent=txt;}
 /* global house-edge scaler applied to every payout */
-function payScale(){return (state.config.targetRTP==null?99:state.config.targetRTP)/100;}
+function payScale(){return 1;}   // pay the EXACT saved percentage — no RTP shaving. Tune the DB percentages to set the house edge; targetRTP is now only an aiming reference.
 const sleep2=ms=>new Promise(r=>setTimeout(r,ms));
 
 /* growth logic for a single scattered plant.
@@ -3042,7 +3042,7 @@ function renderWeatherTab(){
   $('#drawsPerRound').value=state.config.drawsPerRound;
   const tr=$('#targetRtp');if(tr)tr.value=state.config.targetRTP;
   const ei=$('#edgeInfo');
-  if(ei)ei.textContent=`house edge ${(100-state.config.targetRTP).toFixed(1)}% · every payout ×${payScale().toFixed(3)}`;
+  if(ei)ei.textContent=`payouts pay the exact saved % · ×${payScale().toFixed(3)} (target ${state.config.targetRTP}% is an aiming reference only)`;
   refreshDeckStats();
   const g=$('#weatherGrid');
   if(g){ g.innerHTML=''; state.weather.forEach(w=>g.appendChild(weatherCard(w))); }
