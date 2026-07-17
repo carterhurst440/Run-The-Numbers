@@ -12634,6 +12634,46 @@ async function fetchPrizeRedemptionStatus() {
   }
 }
 
+let prizeRedemptionResetAt = null; // Date of next monthly reset
+let prizeRedemptionTimer = null;
+
+function formatRedemptionCountdown(target) {
+  if (!(target instanceof Date) || Number.isNaN(target.getTime())) return "";
+  const diffMs = target.getTime() - Date.now();
+  if (diffMs <= 0) return "any moment now";
+  const totalSeconds = Math.floor(diffMs / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  return `${minutes}m ${seconds}s`;
+}
+
+function updateRedemptionCountdownText() {
+  const text = prizeRedemptionResetAt
+    ? `Resets in ${formatRedemptionCountdown(prizeRedemptionResetAt)}`
+    : "";
+  const storeTimer = document.getElementById("prize-redemption-timer");
+  if (storeTimer && !storeTimer.hidden) storeTimer.textContent = text;
+  const profileTimer = document.getElementById("profile-redemption-timer");
+  if (profileTimer && !profileTimer.hidden) profileTimer.textContent = text;
+  if (!storeTimer && !profileTimer && prizeRedemptionTimer) {
+    clearInterval(prizeRedemptionTimer);
+    prizeRedemptionTimer = null;
+  }
+}
+
+function setRedemptionCountdownActive(active) {
+  if (active && !prizeRedemptionTimer) {
+    prizeRedemptionTimer = setInterval(updateRedemptionCountdownText, 1000);
+  } else if (!active && prizeRedemptionTimer) {
+    clearInterval(prizeRedemptionTimer);
+    prizeRedemptionTimer = null;
+  }
+}
+
 function renderPrizeRedemptionStatus(status) {
   const limit = Math.max(0, Math.round(Number(status?.monthly_limit ?? 0)));
   const used = Math.max(0, Math.round(Number(status?.units_used ?? 0)));
@@ -12642,21 +12682,39 @@ function renderPrizeRedemptionStatus(status) {
     Math.round(Number(status?.units_remaining ?? Math.max(0, limit - used)))
   );
   const hasStatus = Boolean(status) && limit > 0;
+  const depleted = hasStatus && remaining <= 0;
+
+  prizeRedemptionResetAt = status?.next_reset_at ? new Date(status.next_reset_at) : null;
+  const countdownText = prizeRedemptionResetAt
+    ? `Resets in ${formatRedemptionCountdown(prizeRedemptionResetAt)}`
+    : "";
 
   // Store banner
   const banner = document.getElementById("prize-redemption-banner");
   if (banner) {
     banner.hidden = !hasStatus;
     if (hasStatus) {
-      banner.classList.toggle("is-depleted", remaining <= 0);
+      banner.classList.toggle("is-depleted", depleted);
+      const iconEl = banner.querySelector(".prize-redemption-banner-icon");
+      if (iconEl) iconEl.textContent = depleted ? "⏳" : "🎁";
       const remainingEl = document.getElementById("prize-redemption-remaining");
-      if (remainingEl) remainingEl.textContent = String(remaining);
       const labelEl = document.getElementById("prize-redemption-label");
-      if (labelEl) {
-        labelEl.textContent =
-          remaining === 1
-            ? `redemption left this month (of ${limit})`
-            : `redemptions left this month (of ${limit})`;
+      if (depleted) {
+        if (remainingEl) remainingEl.textContent = "Out";
+        if (labelEl) labelEl.textContent = "of prize redemptions this month";
+      } else {
+        if (remainingEl) remainingEl.textContent = String(remaining);
+        if (labelEl) {
+          labelEl.textContent =
+            remaining === 1
+              ? `redemption left this month (of ${limit})`
+              : `redemptions left this month (of ${limit})`;
+        }
+      }
+      const storeTimer = document.getElementById("prize-redemption-timer");
+      if (storeTimer) {
+        storeTimer.hidden = !depleted;
+        storeTimer.textContent = depleted ? countdownText : "";
       }
     }
   }
@@ -12676,9 +12734,9 @@ function renderPrizeRedemptionStatus(status) {
     pBar.setAttribute("aria-valuenow", String(used));
   }
   if (pFill) {
-    const pct = hasStatus ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+    const pct = hasStatus && limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
     pFill.style.width = `${pct}%`;
-    pFill.classList.toggle("is-depleted", hasStatus && remaining <= 0);
+    pFill.classList.toggle("is-depleted", depleted);
   }
   const pUsed = document.getElementById("profile-redemption-used");
   if (pUsed) {
@@ -12686,6 +12744,14 @@ function renderPrizeRedemptionStatus(status) {
       ? `You have redeemed ${used} of ${limit} unit${limit === 1 ? "" : "s"} this month.`
       : "";
   }
+  const pTimer = document.getElementById("profile-redemption-timer");
+  if (pTimer) {
+    pTimer.hidden = !depleted;
+    pTimer.textContent = depleted ? countdownText : "";
+  }
+
+  // Live countdown only matters while depleted and a reset time is known.
+  setRedemptionCountdownActive(depleted && Boolean(prizeRedemptionResetAt));
 }
 
 async function refreshPrizeRedemptionStatus() {
@@ -32797,48 +32863,139 @@ async function loadAdminPurchases(force = false) {
   if (!body) return;
   if (adminPurchasesLoaded && !force) return;
   adminPurchasesLoaded = true;
-  body.innerHTML = `<tr><td colspan="8" class="admin-purchases-empty">Loading purchases…</td></tr>`;
+  body.innerHTML = `<tr><td colspan="10" class="admin-purchases-empty">Loading purchases…</td></tr>`;
   try {
     const { data, error } = await supabase.rpc("admin_list_prize_purchases");
     if (error) throw error;
     const rows = Array.isArray(data) ? data : [];
     if (!rows.length) {
-      body.innerHTML = `<tr><td colspan="8" class="admin-purchases-empty">No purchases yet.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="10" class="admin-purchases-empty">No purchases yet.</td></tr>`;
       return;
     }
     body.innerHTML = "";
     rows.forEach((row) => {
-      const tr = document.createElement("tr");
-      const fullName = [row.first_name, row.last_name].filter(Boolean).join(" ").trim() || "—";
-      const date = row.created_at ? new Date(row.created_at).toLocaleString() : "—";
-      const cells = [
-        date,
-        row.prize_name || "—",
-        formatCurrency(Math.max(0, Math.round(Number(row.quantity ?? 1)))),
-        fullName,
-        row.username || "—",
-        row.contact_email || "—",
-        row.shipping_address || "—",
-        formatPurchaseCost(row)
-      ];
-      cells.forEach((value, idx) => {
-        const td = document.createElement("td");
-        if (idx === 6) {
-          // Address: preserve line breaks from the composed snapshot.
-          td.className = "admin-purchase-address";
-          td.textContent = String(value);
-        } else {
-          td.textContent = String(value);
-        }
-        tr.appendChild(td);
-      });
-      body.appendChild(tr);
+      body.appendChild(renderAdminPurchaseRow(row));
     });
   } catch (error) {
     console.error("[RTN] loadAdminPurchases error", error);
     adminPurchasesLoaded = false;
-    body.innerHTML = `<tr><td colspan="8" class="admin-purchases-empty">Unable to load purchases.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="10" class="admin-purchases-empty">Unable to load purchases.</td></tr>`;
     showToast(error?.message || "Unable to load purchases", "error");
+  }
+}
+
+function renderAdminPurchaseRow(row) {
+  const tr = document.createElement("tr");
+  const fullName = [row.first_name, row.last_name].filter(Boolean).join(" ").trim() || "—";
+  const date = row.created_at ? new Date(row.created_at).toLocaleString() : "—";
+  const isShipped = (row.status || "pending") === "shipped";
+
+  const textCells = [
+    date,
+    row.prize_name || "—",
+    formatCurrency(Math.max(0, Math.round(Number(row.quantity ?? 1)))),
+    fullName,
+    row.username || "—",
+    row.contact_email || "—",
+    row.shipping_address || "—",
+    formatPurchaseCost(row)
+  ];
+  textCells.forEach((value, idx) => {
+    const td = document.createElement("td");
+    if (idx === 6) {
+      td.className = "admin-purchase-address";
+    }
+    td.textContent = String(value);
+    tr.appendChild(td);
+  });
+
+  // Status badge
+  const statusTd = document.createElement("td");
+  const badge = document.createElement("span");
+  badge.className = `purchase-status-badge ${isShipped ? "is-shipped" : "is-pending"}`;
+  badge.textContent = isShipped ? "SHIPPED" : "PENDING";
+  statusTd.appendChild(badge);
+  if (isShipped && row.shipped_at) {
+    const when = document.createElement("div");
+    when.className = "purchase-shipped-at";
+    when.textContent = new Date(row.shipped_at).toLocaleDateString();
+    statusTd.appendChild(when);
+  }
+  tr.appendChild(statusTd);
+
+  // Action
+  const actionTd = document.createElement("td");
+  if (!isShipped) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "secondary admin-mark-shipped";
+    btn.textContent = "Mark shipped";
+    btn.addEventListener("click", () => handleMarkShipped(row, btn));
+    actionTd.appendChild(btn);
+  } else {
+    actionTd.textContent = "—";
+  }
+  tr.appendChild(actionTd);
+
+  return tr;
+}
+
+async function handleMarkShipped(row, button) {
+  if (!isAdmin()) {
+    showToast("Admin access only", "error");
+    return;
+  }
+  if (!row?.purchase_id) {
+    showToast("Unable to identify purchase", "error");
+    return;
+  }
+  const prizeLabel = row.prize_name || "this prize";
+  if (typeof window !== "undefined" && window.confirm) {
+    const ok = window.confirm(
+      `Mark "${prizeLabel}" as SHIPPED? This notifies ${row.contact_email || "the recipient"} that their item has shipped.`
+    );
+    if (!ok) return;
+  }
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Shipping…";
+  }
+  try {
+    const { error } = await supabase.rpc("admin_mark_purchase_shipped", {
+      _purchase_id: row.purchase_id
+    });
+    if (error) throw error;
+
+    // Best-effort branded "your item has shipped" email to the recipient.
+    let emailWarned = false;
+    try {
+      const { data: emailResult, error: emailError } = await supabase.functions.invoke(
+        "send-prize-shipped-email",
+        { body: { purchaseId: row.purchase_id } }
+      );
+      if (emailError) throw emailError;
+      if (emailResult && emailResult.sent === 0) {
+        emailWarned = true;
+        showToast("Marked shipped, but the notification email was not sent.", "warning");
+      }
+    } catch (emailErr) {
+      emailWarned = true;
+      console.error("[RTN] shipped email failed", emailErr);
+      showToast("Marked shipped, but the notification email failed to send.", "warning");
+    }
+
+    if (!emailWarned) {
+      showToast(`Marked shipped — recipient notified.`, "success");
+    }
+    adminPurchasesLoaded = false;
+    await loadAdminPurchases(true);
+  } catch (error) {
+    console.error("[RTN] handleMarkShipped error", error);
+    showToast(error?.message || "Unable to mark shipped", "error");
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Mark shipped";
+    }
   }
 }
 

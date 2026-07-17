@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260717-prizes2" />
+    <link rel="stylesheet" href="styles.css?v=20260717-prizes3" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -2930,8 +2930,11 @@
             <div id="prize-redemption-banner" class="prize-redemption-banner" role="status" aria-live="polite" hidden>
               <span class="prize-redemption-banner-icon" aria-hidden="true">🎁</span>
               <span class="prize-redemption-banner-text">
-                <strong id="prize-redemption-remaining">–</strong>
-                <span id="prize-redemption-label">redemptions left this month</span>
+                <span class="prize-redemption-banner-main">
+                  <strong id="prize-redemption-remaining">–</strong>
+                  <span id="prize-redemption-label">redemptions left this month</span>
+                </span>
+                <span id="prize-redemption-timer" class="prize-redemption-timer" hidden></span>
               </span>
             </div>
             <ul id="prize-list" class="prize-list" aria-live="polite"></ul>
@@ -2986,10 +2989,12 @@
                         <th>Email</th>
                         <th>Address</th>
                         <th>Cost</th>
+                        <th>Status</th>
+                        <th>Action</th>
                       </tr>
                     </thead>
                     <tbody id="admin-purchases-body">
-                      <tr><td colspan="8" class="admin-purchases-empty">Loading purchases…</td></tr>
+                      <tr><td colspan="10" class="admin-purchases-empty">Loading purchases…</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -3946,6 +3951,7 @@
                   <div id="profile-redemption-bar-fill" class="profile-redemption-bar-fill"></div>
                 </div>
                 <p id="profile-redemption-used" class="profile-redemption-used"></p>
+                <p id="profile-redemption-timer" class="profile-redemption-timer" hidden></p>
               </div>
             </section>
 
@@ -5372,7 +5378,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260717e-prizes2"></script>
+    <script type="module" src="script.js?v=20260717f-prizes3"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

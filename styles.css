@@ -31368,3 +31368,86 @@ body[data-ui="new"] .alr-col-date {
 }
 .profile-redemption-bar-fill.is-depleted { background: #ff5a5a; }
 .profile-redemption-used { margin: 0; font-size: 0.82rem; color: var(--muted, #9aa); }
+
+/* Autofill: keep profile + redeem inputs on-theme instead of the browser's
+   white/yellow autofill highlight. */
+body[data-ui="new"] .profile-input-group input:-webkit-autofill,
+body[data-ui="new"] .profile-input-group input:-webkit-autofill:hover,
+body[data-ui="new"] .profile-input-group input:-webkit-autofill:focus,
+body[data-ui="new"] .profile-input-group input:-webkit-autofill:active {
+  -webkit-text-fill-color: #d8d8b0;
+  -webkit-box-shadow: 0 0 0 1000px #0a0a08 inset;
+  box-shadow: 0 0 0 1000px #0a0a08 inset;
+  caret-color: #d8d8b0;
+  border: 1px solid #2a2a22;
+}
+.redeem-modal input:-webkit-autofill,
+.redeem-modal input:-webkit-autofill:hover,
+.redeem-modal input:-webkit-autofill:focus,
+.redeem-modal input:-webkit-autofill:active {
+  -webkit-text-fill-color: #fff;
+  -webkit-box-shadow: 0 0 0 1000px #23253a inset;
+  box-shadow: 0 0 0 1000px #23253a inset;
+  caret-color: #fff;
+}
+
+/* Redemption countdown (store banner + profile card) */
+.prize-redemption-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.prize-redemption-banner-main {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.prize-redemption-timer {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: #ff9a9a;
+  letter-spacing: 0.04em;
+}
+.prize-redemption-timer[hidden] { display: none; }
+.profile-redemption-timer {
+  margin: 0.25rem 0 0 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  color: #ff7a7a;
+  letter-spacing: 0.04em;
+}
+.profile-redemption-timer[hidden] { display: none; }
+
+/* Admin purchases: fulfillment status */
+.purchase-status-badge {
+  display: inline-block;
+  padding: 0.16rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.purchase-status-badge.is-pending {
+  background: color-mix(in srgb, #f5c518 22%, transparent);
+  color: #f5c518;
+  border: 1px solid color-mix(in srgb, #f5c518 55%, transparent);
+}
+.purchase-status-badge.is-shipped {
+  background: color-mix(in srgb, #33d17a 22%, transparent);
+  color: #4be08a;
+  border: 1px solid color-mix(in srgb, #33d17a 55%, transparent);
+}
+.purchase-shipped-at {
+  margin-top: 3px;
+  font-size: 0.7rem;
+  color: var(--muted, #9aa);
+}
+.admin-mark-shipped {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.74rem;
+  white-space: nowrap;
+}

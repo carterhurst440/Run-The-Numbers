@@ -294,3 +294,49 @@ grant execute on function public.get_prize_redemption_status() to authenticated;
 -- NOTE: redeem_prize_secure was also updated to set
 --   v_monthly_limit integer := public.prize_monthly_redemption_limit();
 -- (see the function definition above).
+
+-- ---------------------------------------------------------------------------
+-- Stored monthly counter + cron reset + fulfillment status
+-- (migrations: prize_redemptions_stored_counter_and_cron_v2,
+--  redeem_prize_secure_uses_stored_counter, prize_purchase_fulfillment_status,
+--  admin_mark_purchase_shipped_clean_return / _fix_ambiguous)
+-- ---------------------------------------------------------------------------
+
+-- Store the monthly allowance + live remaining counter on the profile.
+alter table public.profiles
+  add column if not exists prize_redemption_limit integer not null default 10,
+  add column if not exists prize_redemptions_remaining integer not null default 10;
+
+-- (guard_profile_sensitive_fields was extended to also block direct client
+-- writes to prize_redemption_limit / prize_redemptions_remaining.)
+
+-- Monthly reset restores each profile's remaining to its stored limit.
+create or replace function public.reset_all_prize_redemptions()
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  perform set_config('rtn.allow_sensitive_balance_write', '1', true);
+  update public.profiles
+  set prize_redemptions_remaining = coalesce(prize_redemption_limit, public.prize_monthly_redemption_limit());
+end; $$;
+revoke execute on function public.reset_all_prize_redemptions() from public;
+
+-- pg_cron: run at 00:00 UTC on the 1st of every month.
+select cron.schedule('reset-prize-redemptions', '0 0 1 * *',
+  $$select public.reset_all_prize_redemptions();$$);
+
+-- get_prize_redemption_status now returns the stored remaining + next reset time.
+-- redeem_prize_secure now checks/decrements profiles.prize_redemptions_remaining
+-- instead of counting rows. (See live definitions.)
+
+-- Fulfillment state per purchase.
+alter table public.prize_purchases
+  add column if not exists status text not null default 'pending',
+  add column if not exists shipped_at timestamptz;
+alter table public.prize_purchases drop constraint if exists prize_purchases_status_check;
+alter table public.prize_purchases
+  add constraint prize_purchases_status_check check (status in ('pending', 'shipped'));
+
+-- admin_mark_purchase_shipped(_purchase_id): admin-only; sets status='shipped',
+-- shipped_at=now(); returns recipient email / name / prize for the email.
+-- admin_list_prize_purchases now also returns status + shipped_at.
+-- Branded "YOUR ITEM HAS SHIPPED" email: edge function send-prize-shipped-email.
