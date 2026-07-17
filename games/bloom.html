@@ -2490,8 +2490,8 @@ function flowerIcon(f, cls){
 }
 // Illustrated weather icons (extracted from the weather sheet). Any weather not in
 // this set — the butterfly wild, admin-added weathers — falls back to its emoji.
-const WEATHER_ICON_VER = '20260716c';
-const WEATHER_ICON_SET = new Set(['w_rain','w_heat','w_wind','w_frz','w_dew']);
+const WEATHER_ICON_VER = '20260717d';
+const WEATHER_ICON_SET = new Set(['w_rain','w_heat','w_wind','w_frz','w_dew','butterfly']);
 function weatherIcon(w, cls){
   if(w && WEATHER_ICON_SET.has(w.id))
     return `<img class="${cls} wicon" src="weather-icons/${w.id}.png?v=${WEATHER_ICON_VER}" alt=""`
