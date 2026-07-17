@@ -259,3 +259,38 @@ end;
 $$;
 
 grant execute on function public.admin_list_prize_purchases() to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Monthly limit as a shared function + per-user status RPC (for UI display)
+-- (migration: prize_monthly_limit_shared_and_status_rpc)
+-- ---------------------------------------------------------------------------
+
+-- Single source of truth for the monthly redemption cap (total units).
+-- redeem_prize_secure reads v_monthly_limit from this; change it here to
+-- change both the enforced cap and the number shown in the Store/Profile.
+create or replace function public.prize_monthly_redemption_limit()
+returns integer language sql immutable as $$ select 10; $$;
+grant execute on function public.prize_monthly_redemption_limit() to authenticated;
+
+-- Per-user status the client shows in the Store banner and Profile card.
+create or replace function public.get_prize_redemption_status()
+returns table (monthly_limit integer, units_used integer, units_remaining integer)
+language plpgsql security definer set search_path = public as $$
+declare
+  v_limit integer := public.prize_monthly_redemption_limit();
+  v_used integer;
+begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
+  select coalesce(sum(pp.quantity), 0) into v_used
+  from public.prize_purchases pp
+  where pp.user_id = auth.uid() and pp.created_at >= date_trunc('month', now());
+  monthly_limit := v_limit;
+  units_used := v_used;
+  units_remaining := greatest(0, v_limit - v_used);
+  return next;
+end; $$;
+grant execute on function public.get_prize_redemption_status() to authenticated;
+
+-- NOTE: redeem_prize_secure was also updated to set
+--   v_monthly_limit integer := public.prize_monthly_redemption_limit();
+-- (see the function definition above).

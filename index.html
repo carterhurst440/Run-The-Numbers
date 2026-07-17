@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260717-prizes" />
+    <link rel="stylesheet" href="styles.css?v=20260717-prizes2" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -2927,6 +2927,13 @@
                 <p class="store-subtitle">Redeem Units or Carter Cash for limited rewards.</p>
               </div>
             </header>
+            <div id="prize-redemption-banner" class="prize-redemption-banner" role="status" aria-live="polite" hidden>
+              <span class="prize-redemption-banner-icon" aria-hidden="true">🎁</span>
+              <span class="prize-redemption-banner-text">
+                <strong id="prize-redemption-remaining">–</strong>
+                <span id="prize-redemption-label">redemptions left this month</span>
+              </span>
+            </div>
             <ul id="prize-list" class="prize-list" aria-live="polite"></ul>
           </div>
         </section>
@@ -3924,6 +3931,23 @@
                 <button type="submit" id="profile-save-button" class="profile-btn profile-btn-primary" hidden>Save</button>
               </div>
             </form>
+
+            <section class="profile-redemption-card" aria-labelledby="profile-redemption-title">
+              <div class="profile-redemption-header">
+                <h2 id="profile-redemption-title">Prize Redemptions</h2>
+                <p>Each account can redeem a limited number of prize units per month.</p>
+              </div>
+              <div class="profile-redemption-meter">
+                <div class="profile-redemption-count">
+                  <strong id="profile-redemption-remaining">–</strong>
+                  <span id="profile-redemption-caption">remaining this month</span>
+                </div>
+                <div id="profile-redemption-bar" class="profile-redemption-bar" role="progressbar" aria-valuemin="0" aria-valuenow="0" aria-valuemax="0">
+                  <div id="profile-redemption-bar-fill" class="profile-redemption-bar-fill"></div>
+                </div>
+                <p id="profile-redemption-used" class="profile-redemption-used"></p>
+              </div>
+            </section>
 
             <section class="profile-medals-card" aria-labelledby="profile-medals-title">
               <div class="profile-medals-header">
@@ -5348,7 +5372,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260717d-prizes"></script>
+    <script type="module" src="script.js?v=20260717e-prizes2"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

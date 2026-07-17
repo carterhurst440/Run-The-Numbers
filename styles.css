@@ -31298,3 +31298,73 @@ body[data-ui="new"] .alr-col-date {
   font-size: 0.85rem;
   color: #9aa;
 }
+
+/* Monthly redemption status — Store banner + Profile meter */
+.prize-redemption-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1.25rem 0;
+  padding: 0.85rem 1.15rem;
+  border: 1px solid var(--change-paytable-border-hover, #1ff1ff);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--neon-cyan, #1ff1ff) 12%, transparent);
+  box-shadow: var(--change-paytable-shadow);
+}
+.prize-redemption-banner[hidden] { display: none; }
+.prize-redemption-banner.is-depleted {
+  border-color: color-mix(in srgb, #ff5a5a 70%, transparent);
+  background: color-mix(in srgb, #ff5a5a 12%, transparent);
+}
+.prize-redemption-banner-icon { font-size: 1.4rem; line-height: 1; }
+.prize-redemption-banner-text {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  color: var(--text-light);
+}
+.prize-redemption-banner-text strong {
+  font-size: 1.35rem;
+  color: var(--neon-cyan, #1ff1ff);
+  line-height: 1;
+}
+.prize-redemption-banner.is-depleted .prize-redemption-banner-text strong { color: #ff7a7a; }
+
+.profile-redemption-card {
+  background: var(--betting-panel-bg);
+  border: 1px solid var(--betting-panel-border);
+  border-radius: 12px;
+  padding: 1.75rem 2rem;
+  box-shadow: var(--betting-panel-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+.profile-redemption-header h2 {
+  margin: 0 0 0.35rem 0;
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--neon-cyan);
+}
+.profile-redemption-header p { margin: 0; font-size: 0.85rem; color: var(--muted, #9aa); }
+.profile-redemption-count { display: flex; align-items: baseline; gap: 0.5rem; }
+.profile-redemption-count strong { font-size: 2rem; line-height: 1; color: var(--text-light); }
+.profile-redemption-count span { font-size: 0.9rem; color: var(--muted, #9aa); }
+.profile-redemption-bar {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--active-paytable-bg, rgba(255,255,255,0.08));
+  overflow: hidden;
+}
+.profile-redemption-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--neon-cyan, #1ff1ff);
+  transition: width 0.3s ease;
+}
+.profile-redemption-bar-fill.is-depleted { background: #ff5a5a; }
+.profile-redemption-used { margin: 0; font-size: 0.82rem; color: var(--muted, #9aa); }

@@ -12621,6 +12621,79 @@ function renderPrize(prize) {
   return item;
 }
 
+// -- Monthly redemption status (shown in Store + Profile) -------------------
+async function fetchPrizeRedemptionStatus() {
+  if (!currentUser || currentUser.id === GUEST_USER.id || !supabase) return null;
+  try {
+    const { data, error } = await supabase.rpc("get_prize_redemption_status");
+    if (error) throw error;
+    return Array.isArray(data) ? data[0] || null : data || null;
+  } catch (error) {
+    console.error("[RTN] fetchPrizeRedemptionStatus error", error);
+    return null;
+  }
+}
+
+function renderPrizeRedemptionStatus(status) {
+  const limit = Math.max(0, Math.round(Number(status?.monthly_limit ?? 0)));
+  const used = Math.max(0, Math.round(Number(status?.units_used ?? 0)));
+  const remaining = Math.max(
+    0,
+    Math.round(Number(status?.units_remaining ?? Math.max(0, limit - used)))
+  );
+  const hasStatus = Boolean(status) && limit > 0;
+
+  // Store banner
+  const banner = document.getElementById("prize-redemption-banner");
+  if (banner) {
+    banner.hidden = !hasStatus;
+    if (hasStatus) {
+      banner.classList.toggle("is-depleted", remaining <= 0);
+      const remainingEl = document.getElementById("prize-redemption-remaining");
+      if (remainingEl) remainingEl.textContent = String(remaining);
+      const labelEl = document.getElementById("prize-redemption-label");
+      if (labelEl) {
+        labelEl.textContent =
+          remaining === 1
+            ? `redemption left this month (of ${limit})`
+            : `redemptions left this month (of ${limit})`;
+      }
+    }
+  }
+
+  // Profile card
+  const pRemaining = document.getElementById("profile-redemption-remaining");
+  if (pRemaining) pRemaining.textContent = hasStatus ? String(remaining) : "–";
+  const pCaption = document.getElementById("profile-redemption-caption");
+  if (pCaption) {
+    pCaption.textContent =
+      remaining === 1 ? "redemption remaining this month" : "redemptions remaining this month";
+  }
+  const pBar = document.getElementById("profile-redemption-bar");
+  const pFill = document.getElementById("profile-redemption-bar-fill");
+  if (pBar) {
+    pBar.setAttribute("aria-valuemax", String(limit));
+    pBar.setAttribute("aria-valuenow", String(used));
+  }
+  if (pFill) {
+    const pct = hasStatus ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+    pFill.style.width = `${pct}%`;
+    pFill.classList.toggle("is-depleted", hasStatus && remaining <= 0);
+  }
+  const pUsed = document.getElementById("profile-redemption-used");
+  if (pUsed) {
+    pUsed.textContent = hasStatus
+      ? `You have redeemed ${used} of ${limit} unit${limit === 1 ? "" : "s"} this month.`
+      : "";
+  }
+}
+
+async function refreshPrizeRedemptionStatus() {
+  const status = await fetchPrizeRedemptionStatus();
+  renderPrizeRedemptionStatus(status);
+  return status;
+}
+
 async function loadPrizeShop(force = false) {
   const { data: userResponse, error: prizeShopUserError } = await supabase.auth.getUser();
   if (prizeShopUserError) {
@@ -12671,6 +12744,8 @@ async function loadPrizeShop(force = false) {
   prizes.forEach((prize) => {
     prizeListEl.appendChild(renderPrize(prize));
   });
+
+  void refreshPrizeRedemptionStatus();
 }
 
 async function handlePurchase(prize, button) {
@@ -13004,6 +13079,7 @@ async function submitRedeem(prize, options) {
     await loadDashboard(true);
     await loadPrizeShop(true);
     await loadAdminPrizeList(true);
+    await refreshPrizeRedemptionStatus();
   } catch (error) {
     console.error("submitRedeem error", error);
     throw error;
@@ -17951,6 +18027,7 @@ async function loadProfile() {
     currentMedals = Array.isArray(medals) ? medals : [];
     renderProfileMedals(currentMedals);
     await refreshCurrentRankState();
+    void refreshPrizeRedemptionStatus();
 
     // Reset to view mode
     setProfileEditMode(false);
