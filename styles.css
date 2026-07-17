@@ -31115,3 +31115,186 @@ body[data-ui="new"] .alr-col-date {
 .fofrv-log li.fofrv-miss { opacity: .6; }
 .fofrv-log li.fofrv-end { background: rgba(255,212,94,.14); font-weight: 700; }
 .fofrv-noline { color: var(--muted, #9aa); }
+
+/* ===================================================================
+   PRIZES: combination cost, quantity, saved address, admin purchases
+   =================================================================== */
+
+/* Profile page — saved shipping address */
+.profile-address-fieldset {
+  border: 1px solid var(--betting-panel-border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin: 0;
+}
+.profile-address-fieldset legend {
+  padding: 0 0.5rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  color: var(--neon-cyan);
+  text-transform: uppercase;
+}
+.profile-address-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted, #9aa);
+}
+.profile-address-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+@media (max-width: 560px) {
+  .profile-address-row { grid-template-columns: 1fr; }
+}
+
+/* Admin — prize sub-tabs (Listings / Purchases) */
+.admin-subtabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+.admin-subtab {
+  padding: 0.45rem 1.1rem;
+  background: transparent;
+  border: 1px solid var(--betting-panel-border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.admin-subtab:hover {
+  background: var(--secondary-button-bg);
+  color: var(--text-light);
+}
+.admin-subtab.active {
+  background: var(--secondary-button-bg);
+  border-color: var(--change-paytable-border-hover);
+  color: var(--text-light);
+  box-shadow: var(--change-paytable-shadow);
+}
+
+/* Admin — purchases table */
+.admin-purchases-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--betting-panel-border);
+  border-radius: 10px;
+}
+.admin-purchases-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  min-width: 820px;
+}
+.admin-purchases-table th,
+.admin-purchases-table td {
+  padding: 0.7rem 0.85rem;
+  text-align: left;
+  border-bottom: 1px solid var(--betting-panel-border);
+  vertical-align: top;
+  color: var(--text-light);
+}
+.admin-purchases-table th {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--neon-cyan);
+  background: var(--secondary-button-bg);
+  position: sticky;
+  top: 0;
+}
+.admin-purchases-table tbody tr:hover {
+  background: color-mix(in srgb, var(--secondary-button-bg) 55%, transparent);
+}
+.admin-purchases-table .admin-purchase-address {
+  white-space: pre-line;
+  max-width: 240px;
+  color: var(--muted, #9aa);
+}
+.admin-purchases-empty {
+  text-align: center;
+  color: var(--muted, #9aa);
+  padding: 1.5rem 0.85rem;
+}
+
+/* Store + admin prize meta — stock */
+.store-prize-stock {
+  font-size: 0.82rem;
+  color: var(--muted, #9aa);
+  margin-top: 0.25rem;
+}
+.admin-prize-stock {
+  font-size: 0.82rem;
+  color: var(--muted, #9aa);
+  margin-left: 0.75rem;
+}
+
+/* Redeem modal — combination cost, quantity, structured address */
+.redeem-modal .modal-panel {
+  max-height: 90vh;
+  overflow-y: auto;
+  width: 460px;
+}
+.redeem-modal input[type="text"],
+.redeem-modal input[type="number"] {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #2c2e3a;
+  background: #23253a;
+  color: #fff;
+  margin-top: 0.25rem;
+  font-size: 1rem;
+}
+.redeem-summary {
+  background: #23253a;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+}
+.redeem-summary-name {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.redeem-summary-cost {
+  color: #1ff1ff;
+  font-size: 0.9rem;
+  margin-top: 0.2rem;
+}
+.redeem-qty-field { margin-bottom: 0.75rem; }
+.redeem-qty-field input { max-width: 120px; }
+.redeem-qty-hint {
+  display: block;
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: #9aa;
+  margin-top: 0.3rem;
+}
+.redeem-total {
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+.redeem-total .redeem-total-value { color: #1ff1ff; }
+.redeem-address {
+  border: 1px solid #2c2e3a;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+.redeem-address legend {
+  padding: 0 0.4rem;
+  font-weight: 600;
+  color: #1ff1ff;
+}
+.redeem-address-note {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.85rem;
+  color: #9aa;
+}

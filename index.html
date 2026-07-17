@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260713-notifsettings" />
+    <link rel="stylesheet" href="styles.css?v=20260717-prizes" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -2951,12 +2951,41 @@
               <button type="button" class="admin-tab" data-admin-tab="tools">Tools</button>
             </div>
             <section class="admin-tab-content" id="admin-prizes-content">
-              <section class="route-section admin-list-section">
+              <div class="admin-subtabs">
+                <button type="button" class="admin-subtab active" data-prize-subtab="listings">Listings</button>
+                <button type="button" class="admin-subtab" data-prize-subtab="purchases">Purchases</button>
+              </div>
+              <section class="route-section admin-list-section admin-prize-subpanel" id="admin-prize-listings-panel">
                 <div class="admin-listing-header">
-                  <h2>Active prize listings</h2>
+                  <h2>Prize listings</h2>
                   <button type="button" class="primary" id="admin-add-button">Add new listing</button>
                 </div>
                 <ul id="admin-prize-list" class="admin-prize-list" aria-live="polite"></ul>
+              </section>
+              <section class="route-section admin-list-section admin-prize-subpanel" id="admin-prize-purchases-panel" hidden>
+                <div class="admin-listing-header">
+                  <h2>Purchases</h2>
+                  <button type="button" class="secondary" id="admin-purchases-refresh">Refresh</button>
+                </div>
+                <div class="admin-purchases-table-wrap">
+                  <table class="admin-purchases-table" id="admin-purchases-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Prize</th>
+                        <th>Qty</th>
+                        <th>Name</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Address</th>
+                        <th>Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody id="admin-purchases-body">
+                      <tr><td colspan="8" class="admin-purchases-empty">Loading purchases…</td></tr>
+                    </tbody>
+                  </table>
+                </div>
               </section>
             </section>
             <section class="admin-tab-content" id="admin-games-content" hidden>
@@ -3843,6 +3872,43 @@
                 <input type="text" id="profile-email" name="email" autocomplete="username" disabled readonly />
               </div>
 
+              <fieldset class="profile-address-fieldset">
+                <legend>Shipping Address</legend>
+                <p class="profile-address-hint">Saved for prize redemptions. We'll confirm this at checkout.</p>
+                <div class="profile-input-group">
+                  <label for="profile-address-line1">Street Address</label>
+                  <input type="text" id="profile-address-line1" name="addressLine1" autocomplete="address-line1" disabled />
+                </div>
+                <div class="profile-input-group">
+                  <label for="profile-address-line2">Apartment, suite, etc. (optional)</label>
+                  <input type="text" id="profile-address-line2" name="addressLine2" autocomplete="address-line2" disabled />
+                </div>
+                <div class="profile-address-row">
+                  <div class="profile-input-group">
+                    <label for="profile-address-city">City</label>
+                    <input type="text" id="profile-address-city" name="city" autocomplete="address-level2" disabled />
+                  </div>
+                  <div class="profile-input-group">
+                    <label for="profile-address-state">State / Region</label>
+                    <input type="text" id="profile-address-state" name="state" autocomplete="address-level1" disabled />
+                  </div>
+                </div>
+                <div class="profile-address-row">
+                  <div class="profile-input-group">
+                    <label for="profile-address-postal">Postal Code</label>
+                    <input type="text" id="profile-address-postal" name="postalCode" autocomplete="postal-code" disabled />
+                  </div>
+                  <div class="profile-input-group">
+                    <label for="profile-address-country">Country</label>
+                    <input type="text" id="profile-address-country" name="country" autocomplete="country-name" disabled />
+                  </div>
+                </div>
+                <div class="profile-input-group">
+                  <label for="profile-address-phone">Contact Phone (optional)</label>
+                  <input type="tel" id="profile-address-phone" name="shippingPhone" autocomplete="tel" disabled />
+                </div>
+              </fieldset>
+
               <div class="profile-reset-panel">
                 <p class="profile-reset-copy">Need to change your password?</p>
                 <button type="button" id="profile-reset-password-button" class="profile-btn profile-btn-secondary">
@@ -4284,15 +4350,19 @@
           </label>
           <div class="admin-row">
             <label class="admin-field">
-              <span>Cost currency</span>
-              <select name="currency" required>
-                <option value="units">Units</option>
-                <option value="carter_cash">Carter Cash</option>
-              </select>
+              <span>Cost — Credits</span>
+              <input type="number" name="costCredits" min="0" step="1" value="0" required />
             </label>
             <label class="admin-field">
-              <span>Cost</span>
-              <input type="number" name="cost" min="0" step="1" required />
+              <span>Cost — Carter Cash</span>
+              <input type="number" name="costCarterCash" min="0" step="1" value="0" required />
+            </label>
+          </div>
+          <span class="admin-hint">Set either or both. A prize can cost Credits, Carter Cash, or a combination of the two.</span>
+          <div class="admin-row">
+            <label class="admin-field">
+              <span>Quantity in stock</span>
+              <input type="number" name="quantity" min="0" step="1" value="1" required />
             </label>
             <label class="admin-checkbox">
               <input type="checkbox" name="active" checked />
@@ -5278,7 +5348,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260717c-newweather"></script>
+    <script type="module" src="script.js?v=20260717d-prizes"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
