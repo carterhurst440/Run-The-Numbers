@@ -1540,6 +1540,118 @@ async function uploadBloomAsset(file, subdir = "asset") {
   return publicUrl;
 }
 
+// ── Square image cropper (used before uploading a flower icon) ───────────────
+// Opens a modal with a fixed square viewport; the user pans (drag) and zooms
+// (slider / wheel) to frame the image, then it's rendered to a transparent PNG
+// at `output` px and passed back as a File to `onCropped`. Transparency is kept.
+function openImageCropper(file, { output = 256, name = "icon.png" } = {}, onCropped) {
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => build();
+  img.onerror = () => { URL.revokeObjectURL(url); showToast("Could not read that image.", "error"); };
+  img.src = url;
+
+  function build() {
+    const modal = document.createElement("div");
+    modal.className = "img-cropper modal is-open";
+    modal.innerHTML = `
+      <div class="modal-backdrop"></div>
+      <div class="cropper-panel">
+        <h2>Crop icon</h2>
+        <p class="cropper-hint">Drag to reposition · slider or scroll to zoom.</p>
+        <div class="cropper-stage"><img class="cropper-img" alt=""></div>
+        <label class="cropper-zoom">Zoom<input type="range" min="1" max="5" step="0.01" value="1"></label>
+        <div class="modal-actions">
+          <button type="button" class="secondary cropper-cancel">Cancel</button>
+          <button type="button" class="primary cropper-save">Crop &amp; Save</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    document.body.classList.add("modal-open");
+
+    const stage = modal.querySelector(".cropper-stage");
+    const imgEl = modal.querySelector(".cropper-img");
+    const zoom = modal.querySelector("input[type=range]");
+    imgEl.src = url;
+
+    const natW = img.naturalWidth, natH = img.naturalHeight;
+    const V = () => stage.clientWidth || 300;      // square viewport size (px)
+    const minScale = () => Math.max(V() / natW, V() / natH);
+    let scale = minScale(), tx = 0, ty = 0;
+
+    function clamp() {
+      const v = V(), w = natW * scale, h = natH * scale;
+      // image must fully cover the viewport
+      tx = Math.min(0, Math.max(v - w, tx));
+      ty = Math.min(0, Math.max(v - h, ty));
+    }
+    function apply() {
+      clamp();
+      imgEl.style.transformOrigin = "0 0";
+      imgEl.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    }
+    function centerFit() {
+      scale = minScale();
+      const v = V();
+      tx = (v - natW * scale) / 2;
+      ty = (v - natH * scale) / 2;
+      zoom.min = "1"; zoom.max = "5"; zoom.value = "1";
+      apply();
+    }
+    function setZoom(mult) {
+      const v = V(), s0 = scale, s1 = minScale() * mult;
+      // keep the viewport centre pinned to the same image point
+      const cx = (v / 2 - tx) / s0, cy = (v / 2 - ty) / s0;
+      scale = s1;
+      tx = v / 2 - cx * scale;
+      ty = v / 2 - cy * scale;
+      apply();
+    }
+    // wait a frame so the stage has a measured size
+    requestAnimationFrame(centerFit);
+
+    zoom.addEventListener("input", () => setZoom(parseFloat(zoom.value) || 1));
+    stage.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const cur = parseFloat(zoom.value) || 1;
+      const next = Math.min(5, Math.max(1, cur + (e.deltaY < 0 ? 0.15 : -0.15)));
+      zoom.value = String(next); setZoom(next);
+    }, { passive: false });
+
+    let dragging = false, lastX = 0, lastY = 0;
+    stage.addEventListener("pointerdown", (e) => { dragging = true; lastX = e.clientX; lastY = e.clientY; stage.setPointerCapture(e.pointerId); });
+    stage.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      tx += e.clientX - lastX; ty += e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY; apply();
+    });
+    const endDrag = () => { dragging = false; };
+    stage.addEventListener("pointerup", endDrag);
+    stage.addEventListener("pointercancel", endDrag);
+
+    const close = () => { modal.remove(); document.body.classList.remove("modal-open"); URL.revokeObjectURL(url); };
+    modal.querySelector(".cropper-cancel").addEventListener("click", close);
+    modal.querySelector(".modal-backdrop").addEventListener("click", close);
+
+    modal.querySelector(".cropper-save").addEventListener("click", () => {
+      const v = V();
+      const canvas = document.createElement("canvas");
+      canvas.width = output; canvas.height = output;
+      const ctx = canvas.getContext("2d");
+      // source rect (in natural image px) that currently fills the viewport square
+      const sx = (0 - tx) / scale, sy = (0 - ty) / scale, sSize = v / scale;
+      ctx.drawImage(img, sx, sy, sSize, sSize, 0, 0, output, output);
+      canvas.toBlob((blob) => {
+        if (!blob) { showToast("Crop failed.", "error"); return; }
+        const cropped = new File([blob], name.replace(/\.[^.]+$/, "") + ".png", { type: "image/png" });
+        close();
+        onCropped(cropped);
+      }, "image/png");
+    });
+  }
+}
+
 function slugifyThemeKey(value) {
   return String(value || "")
     .trim()
@@ -33171,7 +33283,7 @@ const BloomAdmin = {
     const uploads = document.createElement('div');
     uploads.className = 'bloom-fcard-uploads';
     uploads.append(
-      this.uploadBtn(f.icon_url ? 'Replace icon' : 'Upload icon', 'image/*', file => this.uploadAsset(f, file, 'icon', card, idx)),
+      this.uploadBtn(f.icon_url ? 'Replace icon' : 'Upload icon', 'image/*', file => openImageCropper(file, { name: `${f.flower}.png` }, cropped => this.uploadAsset(f, cropped, 'icon', card, idx))),
       this.uploadBtn(f.animation_url ? 'Replace animation' : 'Upload animation', '.json,application/json,video/mp4,video/webm,image/gif', file => this.uploadAsset(f, file, 'animation', card, idx))
     );
     const animNote = document.createElement('span');

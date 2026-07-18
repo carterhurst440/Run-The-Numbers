@@ -6881,7 +6881,7 @@ body[data-ui="new"] .str-rule-example {
 
 .store-view {
   align-items: stretch;
-  justify-content: center;
+  justify-content: flex-start;   /* content flows from the top — no giant centred gaps when short */
   padding: 0;
 }
 
@@ -31710,3 +31710,66 @@ select.bloom-in { cursor: pointer; }
 .bloom-wcount input { width: 64px; }
 .bloom-wrow .danger { padding: 0.35rem 0.6rem; font-size: 0.72rem; }
 @media (max-width: 560px){ .bloom-fcard-stats { grid-template-columns: 1fr; } }
+
+/* Image cropper modal (flower icon upload) */
+.img-cropper.modal { z-index: 6000; }
+.img-cropper .cropper-panel {
+  background: #0e0e0c;
+  border: 1px solid #2a2a22;
+  border-radius: 14px;
+  box-shadow: 0 32px 64px rgba(0,0,0,0.6);
+  padding: 1.4rem;
+  width: min(360px, 94vw);
+  color: #e8e8c8;
+  font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.img-cropper .cropper-panel h2 { margin: 0; font-size: 1.15rem; color: #f4f4e0; }
+.img-cropper .cropper-hint { margin: 0; font-size: 0.78rem; color: var(--muted, #8a8a72); }
+.img-cropper .cropper-stage {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  max-width: 100%;
+  aspect-ratio: 1;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid #2a2a22;
+  background:
+    repeating-conic-gradient(#151513 0% 25%, #0a0a08 0% 50%) 50% / 20px 20px;  /* checker = transparency */
+  cursor: grab;
+  touch-action: none;
+}
+.img-cropper .cropper-stage:active { cursor: grabbing; }
+.img-cropper .cropper-img {
+  position: absolute;
+  top: 0; left: 0;
+  max-width: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+.img-cropper .cropper-zoom {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted, #8a8a72);
+}
+.img-cropper .cropper-zoom input { flex: 1 1 auto; accent-color: #c8ff00; }
+.img-cropper .modal-actions { display: flex; justify-content: flex-end; gap: 0.75rem; }
+.img-cropper .primary {
+  background: #c8ff00; color: #0a0a08; border: none; border-radius: 999px;
+  padding: 0.55rem 1.3rem; font-family: inherit; font-weight: 800; font-size: 0.8rem;
+  letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
+}
+.img-cropper .secondary {
+  background: transparent; color: #d8d8b0; border: 1px solid #2a2a22; border-radius: 999px;
+  padding: 0.55rem 1.3rem; font-family: inherit; font-weight: 700; font-size: 0.8rem;
+  letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
+}
