@@ -157,29 +157,44 @@
     border:2px solid rgba(20,20,20,.14);
     transition:border-color .35s, box-shadow .35s}
   .wcell .payline{position:absolute;left:8px;right:8px;top:50%;height:2px;margin-top:-1px;z-index:2;pointer-events:none;
-    background:linear-gradient(90deg,transparent,var(--wneon,rgba(240,138,114,.5)),transparent);opacity:0;transition:opacity .3s}
-  .wcell.hot .payline{opacity:.9}
+    background:linear-gradient(90deg,transparent,var(--wmain,rgba(240,138,114,.5)),transparent);opacity:0;transition:opacity .3s}
+  .wcell.hot .payline{opacity:.85}
   .wstrip{position:absolute;left:0;right:0;top:0;will-change:transform}
   .wstrip.spinning{filter:blur(.6px)}
   .wtile{height:var(--wh);display:flex;align-items:center;justify-content:center}
   .wtile .wi{display:flex;align-items:center;justify-content:center;width:100%;height:100%}
-  /* the icon carries the neon: stroke + glow both driven by the svg's own color */
-  .wtile .wglyph{width:52px;height:52px;display:block;
-    filter:drop-shadow(0 0 3px currentColor) drop-shadow(0 0 7px currentColor)}
+  /* flat colour-filled icon; a hair of shadow lifts it off the tinted cell */
+  .wtile .wglyph{width:52px;height:52px;display:block;filter:drop-shadow(0 1px 1px rgba(20,20,20,.12))}
   .wtile .wemoji{font-size:33px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
   .wtile .wq{font:700 30px/1 var(--font,inherit);color:var(--muted);opacity:.4}
-  .wtile img.wicon{width:64%;height:64%;object-fit:contain;display:block;filter:drop-shadow(0 0 4px rgba(0,0,0,.25))}
+  .wtile img.wicon{width:64%;height:64%;object-fit:contain;display:block;filter:drop-shadow(0 1px 1px rgba(20,20,20,.18))}
   .wchip .wi .wglyph{width:28px;height:28px}
   .wchip .wi img.wicon{display:block;height:30px;width:auto;object-fit:contain;margin:0 auto}
-  /* landed cell lights its border/glow to the weather's neon; a 3-match burns brighter */
-  .wcell.lit{border-color:var(--wneon);
-    box-shadow:0 0 12px -2px color-mix(in srgb, var(--wneon) 60%, transparent),
-               inset 0 0 10px -4px color-mix(in srgb, var(--wneon) 42%, transparent)}
-  .wcell.hot{border-color:var(--wneon,#141414);
-    box-shadow:0 0 0 2px var(--wneon,#141414),
-               0 0 20px -1px color-mix(in srgb, var(--wneon,#141414) 72%, transparent)}
+  /* landed cell washes to the weather's tint + colours its border; a 3-match pops */
+  .wcell.lit{background:var(--wtint);border-color:var(--wmain)}
+  .wcell.hot{border-color:var(--wmain,#141414);box-shadow:0 0 0 2px var(--wmain,#141414)}
   .wcell.landed{animation:wland .34s cubic-bezier(.2,1.4,.35,1)}
   @keyframes wland{0%{transform:translateY(-5px)}60%{transform:translateY(2px)}100%{transform:translateY(0)}}
+
+  /* ---- subtle idle motion — only on the resting (locked) tile, never mid-spin ---- */
+  .wglyph [class^="wx-"]{transform-box:fill-box}
+  .wstrip:not(.spinning) .wx-rays{transform-origin:center;animation:wx-spin 18s linear infinite}
+  .wstrip:not(.spinning) .wx-disc{transform-origin:center;animation:wx-pulse 3.2s ease-in-out infinite}
+  .wstrip:not(.spinning) .wx-flake{transform-origin:center;animation:wx-spin 22s linear infinite}
+  .wstrip:not(.spinning) .wx-drop{transform-origin:center;animation:wx-bob 2.6s ease-in-out infinite}
+  .wstrip:not(.spinning) .wx-leaf{transform-origin:50% 92%;animation:wx-sway 3.4s ease-in-out infinite}
+  .wstrip:not(.spinning) .wx-rain .wx-d1{animation:wx-fall 1.15s linear infinite}
+  .wstrip:not(.spinning) .wx-rain .wx-d2{animation:wx-fall 1.15s linear .32s infinite}
+  .wstrip:not(.spinning) .wx-rain .wx-d3{animation:wx-fall 1.15s linear .62s infinite}
+  .wstrip:not(.spinning) .wx-wingL{transform-origin:100% 50%;animation:wx-flap .78s ease-in-out infinite}
+  .wstrip:not(.spinning) .wx-wingR{transform-origin:0% 50%;animation:wx-flap .78s ease-in-out infinite}
+  @keyframes wx-spin{to{transform:rotate(360deg)}}
+  @keyframes wx-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+  @keyframes wx-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.6px)}}
+  @keyframes wx-sway{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+  @keyframes wx-fall{0%{transform:translateY(-3px);opacity:0}30%{opacity:1}100%{transform:translateY(5px);opacity:0}}
+  @keyframes wx-flap{0%,100%{transform:scaleX(1)}50%{transform:scaleX(.8)}}
+  @media (prefers-reduced-motion:reduce){ .wglyph [class^="wx-"]{animation:none!important} }
   .multi{text-align:center;font-weight:800;font-size:20px;min-height:26px;color:var(--coral);letter-spacing:1px}
 
   .weatherrow{display:flex;gap:8px;margin:14px 0}
@@ -2693,42 +2708,41 @@ function flowerIcon(f, cls){
       + ` onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'${cls}',textContent:'${(f.emoji||'').replace(/'/g,'')}'}))">`;
   return `<span class="${cls}">${f?f.emoji:''}</span>`;
 }
-// Weather reel symbols are clean neon line-icons drawn as inline SVG — no text.
-// The icon's own colour drives both the stroke and its glow (drop-shadow uses
-// currentColor). Known weathers get a hand-tuned neon; anything custom falls back
-// to its accent colour, then to its emoji if we have no glyph for it.
-const WEATHER_NEON = {
-  w_heat:'#ff6b2c', w_rain:'#3a86ff', w_frz:'#38e1ff',
-  w_dew:'#12e0a8', w_wind:'#b06bff', butterfly:'#ff2d95', _default:'#ff2d95'
-};
-const WEATHER_GLYPH = {
-  // sun
-  w_heat:'<circle cx="24" cy="24" r="7"/><line x1="24" y1="7" x2="24" y2="12.5"/><line x1="24" y1="35.5" x2="24" y2="41"/><line x1="7" y1="24" x2="12.5" y2="24"/><line x1="35.5" y1="24" x2="41" y2="24"/><line x1="12.3" y1="12.3" x2="16.2" y2="16.2"/><line x1="31.8" y1="31.8" x2="35.7" y2="35.7"/><line x1="12.3" y1="35.7" x2="16.2" y2="31.8"/><line x1="31.8" y1="16.2" x2="35.7" y2="12.3"/>',
-  // rain cloud
-  w_rain:'<path d="M15.5 30 a6.3 6.3 0 0 1 0.4 -12.55 a8 8 0 0 1 15.2 -0.7 a5.9 5.9 0 0 1 0.9 13.25 Z"/><line x1="18" y1="33.5" x2="16.2" y2="39"/><line x1="24" y1="33.5" x2="22.2" y2="39"/><line x1="30" y1="33.5" x2="28.2" y2="39"/>',
-  // snowflake
-  w_frz:'<line x1="24" y1="8.5" x2="24" y2="39.5"/><line x1="10.6" y1="16.25" x2="37.4" y2="31.75"/><line x1="37.4" y1="16.25" x2="10.6" y2="31.75"/><path d="M20.8 11.7 L24 8.5 L27.2 11.7"/><path d="M20.8 36.3 L24 39.5 L27.2 36.3"/><path d="M11.3 20.6 L10.6 16.25 L14.95 15.55"/><path d="M36.7 27.4 L37.4 31.75 L33.05 32.45"/><path d="M33.05 15.55 L37.4 16.25 L36.7 20.6"/><path d="M14.95 32.45 L10.6 31.75 L11.3 27.4"/>',
-  // dew drop
-  w_dew:'<path d="M24 10.5 C 31.5 21, 33 27, 24 34 C 15 27, 16.5 21, 24 10.5 Z"/><path d="M19.6 27.4 a4.4 4.4 0 0 0 2.6 4.2"/>',
-  // wind gusts
-  w_wind:'<path d="M11 19 h15 a3 3 0 1 0 -3 -3"/><path d="M11 25 h20 a3.2 3.2 0 1 1 -3.2 3.2"/><path d="M11 31 h12 a2.6 2.6 0 1 0 -2.6 2.6"/>',
-  // butterfly (WILD)
-  butterfly:'<line x1="24" y1="16" x2="24" y2="34"/><path d="M24 15 q-2.5 -4.5 -5.5 -4.5"/><path d="M24 15 q2.5 -4.5 5.5 -4.5"/><path d="M24 20 C 17 12, 9 14, 11 21.5 C 12 26.5, 19 27, 24 22 Z"/><path d="M24 20 C 31 12, 39 14, 37 21.5 C 36 26.5, 29 27, 24 22 Z"/><path d="M24 24 C 19.5 26.5, 14 28.5, 15 33.5 C 16 37.5, 22 35.5, 24 30 Z"/><path d="M24 24 C 28.5 26.5, 34 28.5, 33 33.5 C 32 37.5, 26 35.5, 24 30 Z"/>'
+// Weather reel symbols are colour-filled Kiiro line-icons drawn as inline SVG — no
+// text. Each weather has a `main` colour (line/border work), a soft `tint` (the
+// reel-cell wash, so every outcome reads uniquely) and an SVG body whose `.wx-*`
+// parts get a subtle idle animation (see the keyframes in the reel CSS). Anything
+// custom falls back to its accent colour, then to its emoji.
+const WEATHER_ART = {
+  // sun — rays slowly turn, disc gently pulses
+  w_heat:{main:'#ff8a1f',tint:'#ffe6bf',svg:'<g class="wx-rays" stroke="#ff8a1f" stroke-width="3" stroke-linecap="round"><line x1="24" y1="7" x2="24" y2="11.5"/><line x1="24" y1="36.5" x2="24" y2="41"/><line x1="7" y1="24" x2="11.5" y2="24"/><line x1="36.5" y1="24" x2="41" y2="24"/><line x1="11.6" y1="11.6" x2="15.1" y2="15.1"/><line x1="32.9" y1="32.9" x2="36.4" y2="36.4"/><line x1="11.6" y1="36.4" x2="15.1" y2="32.9"/><line x1="32.9" y1="15.1" x2="36.4" y2="11.6"/></g><circle class="wx-disc" cx="24" cy="24" r="8.5" fill="#ffc23e" stroke="#ff8a1f" stroke-width="2.4"/>'},
+  // rain — drops fall on a loop
+  w_rain:{main:'#2f6bff',tint:'#d7e4ff',svg:'<path d="M15.5 30 a6.3 6.3 0 0 1 0.4 -12.55 a8 8 0 0 1 15.2 -0.7 a5.9 5.9 0 0 1 0.9 13.25 Z" fill="#dbe7ff" stroke="#2f6bff" stroke-width="2.2" stroke-linejoin="round"/><g class="wx-rain" stroke="#2f6bff" stroke-width="2.8" stroke-linecap="round"><line class="wx-d1" x1="18" y1="33.5" x2="16.2" y2="39"/><line class="wx-d2" x1="24" y1="33.5" x2="22.2" y2="39"/><line class="wx-d3" x1="30" y1="33.5" x2="28.2" y2="39"/></g>'},
+  // snowflake — turns very slowly
+  w_frz:{main:'#26a7e0',tint:'#cfeefb',svg:'<g class="wx-flake" stroke="#26a7e0" stroke-width="3.1" stroke-linecap="round" stroke-linejoin="round"><line x1="24" y1="8.5" x2="24" y2="39.5"/><line x1="10.6" y1="16.25" x2="37.4" y2="31.75"/><line x1="37.4" y1="16.25" x2="10.6" y2="31.75"/><path d="M20.8 11.7 L24 8.5 L27.2 11.7"/><path d="M20.8 36.3 L24 39.5 L27.2 36.3"/><path d="M11.3 20.6 L10.6 16.25 L14.95 15.55"/><path d="M36.7 27.4 L37.4 31.75 L33.05 32.45"/><path d="M33.05 15.55 L37.4 16.25 L36.7 20.6"/><path d="M14.95 32.45 L10.6 31.75 L11.3 27.4"/></g><circle cx="24" cy="24" r="2.6" fill="#26a7e0"/>'},
+  // dew — drop bobs softly
+  w_dew:{main:'#12b28a',tint:'#c9f2e7',svg:'<g class="wx-drop"><path d="M24 10.5 C 31.5 21, 33 27, 24 34 C 15 27, 16.5 21, 24 10.5 Z" fill="#17c39a" stroke="#0e957a" stroke-width="2" stroke-linejoin="round"/><path d="M19.8 26.6 a4.4 4.4 0 0 0 2.6 4.4" fill="none" stroke="#c4f7ec" stroke-width="2.2" stroke-linecap="round"/></g>'},
+  // autumn leaf — sways in the wind
+  w_wind:{main:'#d9772b',tint:'#f5ddc2',svg:'<g class="wx-leaf"><path d="M24 9 C 33 13, 34.5 27, 24 38 C 13.5 27, 15 13, 24 9 Z" fill="#e2872f" stroke="#a3541b" stroke-width="2" stroke-linejoin="round"/><g stroke="#a3541b" stroke-width="1.8" stroke-linecap="round"><line x1="24" y1="12" x2="24" y2="35.5"/><line x1="24" y1="20" x2="18.5" y2="16.8"/><line x1="24" y1="20" x2="29.5" y2="16.8"/><line x1="24" y1="26" x2="18.8" y2="23.4"/><line x1="24" y1="26" x2="29.2" y2="23.4"/></g></g>'},
+  // butterfly (WILD) — wings flutter
+  butterfly:{main:'#ff2d95',tint:'#ffd4ea',svg:'<g class="wx-wingL"><path d="M24 20 C 17 12, 9 14, 11 21.5 C 12 26.5, 19 27, 24 22 Z" fill="#ff5bb0" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/><path d="M24 24 C 19.5 26.5, 14 28.5, 15 33.5 C 16 37.5, 22 35.5, 24 30 Z" fill="#ff8fca" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/></g><g class="wx-wingR"><path d="M24 20 C 31 12, 39 14, 37 21.5 C 36 26.5, 29 27, 24 22 Z" fill="#ff5bb0" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/><path d="M24 24 C 28.5 26.5, 34 28.5, 33 33.5 C 32 37.5, 26 35.5, 24 30 Z" fill="#ff8fca" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/></g><line x1="24" y1="15" x2="24" y2="33.5" stroke="#c8811a" stroke-width="2.6" stroke-linecap="round"/><path d="M24 15 q-2.5 -4.5 -5.5 -4.5" fill="none" stroke="#c8811a" stroke-width="1.8" stroke-linecap="round"/><path d="M24 15 q2.5 -4.5 5.5 -4.5" fill="none" stroke="#c8811a" stroke-width="1.8" stroke-linecap="round"/>'}
 };
 function glyphKey(w){ return (w && w.kind==='butterfly') ? 'butterfly' : (w && w.id); }
-function weatherNeon(w){ const k=glyphKey(w); return WEATHER_NEON[k] || (w && w.color) || WEATHER_NEON._default; }
+function weatherArt(w){ return WEATHER_ART[glyphKey(w)] || null; }
+function weatherMain(w){ const a=weatherArt(w); return a ? a.main : ((w && w.color) || '#141414'); }
 function weatherGlyph(w, cls){
-  const k=glyphKey(w), p=WEATHER_GLYPH[k]; if(!p) return '';
-  return `<svg class="${cls} wglyph" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="color:${weatherNeon(w)}">${p}</svg>`;
+  const a=weatherArt(w); if(!a) return '';
+  return `<svg class="${cls} wglyph" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">${a.svg}</svg>`;
 }
-// Tint a reel cell's border + glow to the landed weather's neon (or clear it).
+// Wash a reel cell in the landed weather's tint + colour its border (or clear it).
 function cellNeon(cell, w){
   if(!cell) return;
-  if(w){ cell.style.setProperty('--wneon', weatherNeon(w)); cell.classList.add('lit'); }
-  else { cell.style.removeProperty('--wneon'); cell.classList.remove('lit'); }
+  const a=weatherArt(w);
+  if(w && a){ cell.style.setProperty('--wmain', a.main); cell.style.setProperty('--wtint', a.tint); cell.classList.add('lit'); }
+  else { cell.style.removeProperty('--wmain'); cell.style.removeProperty('--wtint'); cell.classList.remove('lit'); }
 }
 function weatherIcon(w, cls){
-  if(WEATHER_GLYPH[glyphKey(w)]) return weatherGlyph(w, cls);
+  if(weatherArt(w)) return weatherGlyph(w, cls);
   if(w && typeof w.icon==='string' && /^(https?:|data:)/.test(w.icon))
     return `<img class="${cls} wicon" src="${w.icon}" alt="">`;
   if(!w) return `<span class="${cls} wq">?</span>`;
