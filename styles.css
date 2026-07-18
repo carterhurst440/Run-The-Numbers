@@ -31649,6 +31649,18 @@ body[data-ui="new"] .profile-input-group input:-webkit-autofill:active {
 .admin-bloom-toolbar {
   display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin: 0.75rem 0 0.5rem;
 }
+/* BLOOM background uploader */
+.bloom-bg-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-top: 0.75rem; }
+.bloom-bg-preview {
+  width: 180px; aspect-ratio: 1; flex: none; border-radius: 8px; border: 1px solid #2a2a22;
+  background-size: cover; background-position: center bottom; background-repeat: no-repeat;
+  background-color: #11110f;
+}
+.bloom-bg-preview.is-empty {
+  background-image: repeating-conic-gradient(#151513 0% 25%, #0a0a08 0% 50%) !important;
+  background-size: 20px 20px;
+}
+.bloom-bg-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; }
 .admin-bloom-toolbar-spacer { flex: 1 1 auto; }
 .admin-bloom-rounds { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted, #9aa); }
 .admin-bloom-rounds input { width: 96px; }

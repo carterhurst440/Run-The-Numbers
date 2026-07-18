@@ -412,8 +412,12 @@
   .maxwin-card.pulse{animation:sbpulse .4s ease}
   /* garden: illustrated landscape background (sky/hills/fence); flowers plant on
      the fence "dirt" section. bottom-anchored so the fence stays at the base. */
+  /* garden background: a CSS var so the admin can swap the image (bloom_settings
+     background_url) — falls back to the baked 2/3-dirt landscape. */
   .garden-card{min-height:300px;padding:0;overflow:hidden;
-    background:#d3e8f2 url("https://jfqdjqhqumoqcoivjwbi.supabase.co/storage/v1/object/public/bloom-assets/bg/garden-landscape.png") center bottom / cover no-repeat}
+    background-color:#d3e8f2;
+    background-image:var(--garden-bg, url("https://jfqdjqhqumoqcoivjwbi.supabase.co/storage/v1/object/public/bloom-assets/bg/garden-2thirds-v1.png"));
+    background-position:center bottom;background-size:cover;background-repeat:no-repeat}
   /* satchel: one horizontal row */
   /* header row (SATCHEL + MAX WIN on the left, EDIT on the right) sits above a
      single full-width row of all ten seed slots */
@@ -2196,12 +2200,12 @@ const SATCHEL_SIZE = 10;
    row is listed first so it's painted behind the front row. */
 const SPOT_SC = 0.23;                          // Codex plant ~150 tall -> ~35 in the bed.
 const SPOTS=[
-  // back row (5) — higher on the fence; painted first (behind). x = even columns.
-  {x: 42, y:98, sc:SPOT_SC}, {x: 87, y:98, sc:SPOT_SC}, {x:131, y:98, sc:SPOT_SC},
-  {x:176, y:98, sc:SPOT_SC}, {x:220, y:98, sc:SPOT_SC},
+  // back row (5) — high on the taller (2/3) dirt; painted first (behind). x = even columns.
+  {x: 42, y:84, sc:SPOT_SC}, {x: 87, y:84, sc:SPOT_SC}, {x:131, y:84, sc:SPOT_SC},
+  {x:176, y:84, sc:SPOT_SC}, {x:220, y:84, sc:SPOT_SC},
   // front row (5) — lower, staggered between the back plants. x = odd columns.
-  {x: 20, y:130, sc:SPOT_SC}, {x: 64, y:130, sc:SPOT_SC}, {x:109, y:130, sc:SPOT_SC},
-  {x:153, y:130, sc:SPOT_SC}, {x:198, y:130, sc:SPOT_SC},
+  {x: 20, y:120, sc:SPOT_SC}, {x: 64, y:120, sc:SPOT_SC}, {x:109, y:120, sc:SPOT_SC},
+  {x:153, y:120, sc:SPOT_SC}, {x:198, y:120, sc:SPOT_SC},
 ];
 
 /* Three states, one ladder, every flower. A bloom hit tweens the plant from
@@ -3687,8 +3691,16 @@ function bloomPostSettled(){
 // Rebuild the deck (flowers + weather) from the DB rows the shell fetched, so the
 // game plays the authoritative bloom_flowers / bloom_weather config instead of the
 // baked-in defaults. Mapping DB → the game's internal shapes:
+// Swap the garden background image (admin-uploaded via bloom_settings). Empty →
+// clears the override so the baked CSS default shows.
+function applyGardenBg(url){
+  const d=$('#dirt'); if(!d) return;
+  if(url && /^(https?:|data:)/.test(url)) d.style.setProperty('--garden-bg', 'url("'+url+'")');
+  else d.style.removeProperty('--garden-bg');
+}
 function bloomApplyDeck(deck){
   if(!deck) return;
+  if(typeof deck.background_url==='string') applyGardenBg(deck.background_url);
   if(Array.isArray(deck.flowers) && deck.flowers.length){
     // In the live game only ACTIVE flowers appear; the deck-admin sees them all
     // (so inactive ones can still be edited/re-activated).

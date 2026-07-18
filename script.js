@@ -10809,7 +10809,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260718s-castshine");
+      frame.setAttribute("src", "games/bloom.html?v=20260718t-bgupload");
     }
     installBloomBridge();   // idempotent: seed the in-memory balance + admin flag
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -20404,16 +20404,19 @@ async function bloomFetchDeck() {
   if (_bloomDeckCache) return _bloomDeckCache;
   if (!supabase) return null;
   try {
-    const [f, w] = await Promise.all([
+    const [f, w, s] = await Promise.all([
       supabase.from("bloom_flowers")
         .select("flower,display_name,emoji,accent_color,art_species,archetype,take_pct,bloom_pay,super_mult,weather_odds,sort_order,active,icon_url,animation_url,animation_kind")
         .order("sort_order"),
       supabase.from("bloom_weather")
         .select("weather,display_name,icon,accent_color,kind,deck_count,sort_order")
-        .order("sort_order")
+        .order("sort_order"),
+      supabase.from("bloom_settings").select("key,value")   // background_url + future tunables
     ]);
     if (f.error || w.error) { console.error("[bloom] deck fetch", f.error || w.error); return null; }
-    _bloomDeckCache = { flowers: f.data || [], weather: w.data || [] };
+    const settings = {};
+    (s && s.data || []).forEach(r => { settings[r.key] = r.value; });
+    _bloomDeckCache = { flowers: f.data || [], weather: w.data || [], background_url: settings.background_url || null };
     return _bloomDeckCache;
   } catch (e) { console.error("[bloom] deck fetch", e); return null; }
 }
@@ -32947,6 +32950,8 @@ document.getElementById("bloom-save")?.addEventListener("click", () => BloomAdmi
 document.getElementById("bloom-export")?.addEventListener("click", () => BloomAdmin.exportJson());
 document.getElementById("bloom-import")?.addEventListener("click", () => document.getElementById("bloom-import-file")?.click());
 document.getElementById("bloom-import-file")?.addEventListener("change", (e) => { const f = e.target.files?.[0]; if (f) BloomAdmin.importJson(f); e.target.value = ""; });
+document.getElementById("bloom-bg-upload")?.addEventListener("click", () => document.getElementById("bloom-bg-file")?.click());
+document.getElementById("bloom-bg-file")?.addEventListener("change", (e) => { const f = e.target.files?.[0]; if (f) BloomAdmin.uploadBackground(f); e.target.value = ""; });
 
 function formatPurchaseCost(row) {
   const parts = [];
@@ -33128,8 +33133,39 @@ const BLOOM_TARGET_PER_SEED = 99 / BLOOM_SATCHEL_SIZE; // 9.9% (99% target RTP /
 const BloomAdmin = {
   flowers: [],
   weather: [],
+  backgroundUrl: null,
 
   status(msg){ const el = document.getElementById('bloom-editor-status'); if (el) el.textContent = msg || ''; },
+
+  // ── Garden background ─────────────────────────────────────────────────────
+  renderBackground(){
+    const prev = document.getElementById('bloom-bg-preview');
+    const btn = document.getElementById('bloom-bg-upload');
+    if (prev){
+      prev.style.backgroundImage = this.backgroundUrl ? `url("${this.backgroundUrl}")` : 'none';
+      prev.classList.toggle('is-empty', !this.backgroundUrl);
+    }
+    if (btn) btn.textContent = this.backgroundUrl ? 'Replace background' : 'Upload background';
+  },
+  bgStatus(msg){ const el = document.getElementById('bloom-bg-status'); if (el) el.textContent = msg || ''; },
+  async uploadBackground(file){
+    if (!isAdmin(currentUser)){ this.bgStatus('Admin access only'); return; }
+    if (!file) return;
+    this.bgStatus('Uploading background…');
+    try {
+      const url = await uploadBloomAsset(file, 'bg');
+      const up = await supabase.from('bloom_settings')
+        .upsert({ key: 'background_url', value: url, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (up.error) throw up.error;
+      this.backgroundUrl = url;
+      this.renderBackground();
+      bloomInvalidateDeck();          // so the game re-pulls the new background next open
+      this.bgStatus('Background saved — reopen the game to see it.');
+    } catch (e){
+      console.error('[bloom] background upload', e);
+      this.bgStatus('Upload error: ' + (e?.message || e));
+    }
+  },
 
   slugify(name){
     return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -33139,16 +33175,20 @@ const BloomAdmin = {
     if (!isAdmin(currentUser)) return;
     this.status('Loading…');
     try {
-      const [f, w] = await Promise.all([
+      const [f, w, s] = await Promise.all([
         supabase.from('bloom_flowers')
           .select('flower,display_name,emoji,accent_color,art_species,archetype,take_pct,bloom_pay,super_mult,weather_odds,sort_order,active,icon_url,animation_url,animation_kind')
           .order('sort_order'),
         supabase.from('bloom_weather')
           .select('weather,display_name,icon,accent_color,kind,deck_count,sort_order')
-          .order('sort_order')
+          .order('sort_order'),
+        supabase.from('bloom_settings').select('key,value')
       ]);
       if (f.error) throw f.error;
       if (w.error) throw w.error;
+      const settings = {};
+      (s && s.data || []).forEach(r => { settings[r.key] = r.value; });
+      this.backgroundUrl = settings.background_url || null;
       this.flowers = (f.data || []).map(r => ({
         flower: r.flower,
         display_name: r.display_name || r.flower,
@@ -33175,6 +33215,7 @@ const BloomAdmin = {
       }));
       this.renderWeather();
       this.renderFlowers();
+      this.renderBackground();
       this.status('');
     } catch (e){
       console.error('[bloom] load', e);
