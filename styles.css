@@ -1,15 +1,16 @@
-/* Redeem Modal Styles */
+/* Redeem Modal — app neon theme (black + lime, JetBrains Mono) */
 .redeem-modal.modal {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  z-index: 1000;
+  inset: 0;
+  z-index: 5000;
   display: none;
   align-items: center;
   justify-content: center;
-  background: rgba(0,0,0,0.45);
+  background: rgba(0, 0, 0, 0.76);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
+  padding: clamp(1rem, 4vw, 2.5rem);
 }
 
 .redeem-modal.modal.is-open {
@@ -19,68 +20,88 @@
 }
 
 .redeem-modal .modal-panel {
-  background: #181a2b;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-  padding: 2rem 2.5rem;
-  min-width: 320px;
-  max-width: 95vw;
-  color: #fff;
+  background: #0e0e0c;
+  border: 1px solid #2a2a22;
+  border-radius: 14px;
+  box-shadow: 0 32px 64px rgba(0, 0, 0, 0.6);
+  padding: clamp(1.4rem, 3vw, 2rem);
+  min-width: 300px;
+  color: #e8e8c8;
+  font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
 }
 .redeem-modal h2 {
-  margin-top: 0;
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
+  margin: 0 0 1.1rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #f4f4e0;
 }
 .redeem-modal label {
   display: block;
-  margin-bottom: 1rem;
-  font-weight: 500;
+  margin-bottom: 0.9rem;
+  font-weight: 700;
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #8a8a72);
 }
 .redeem-modal textarea,
 .redeem-modal input[type="email"],
-.redeem-modal input[type="tel"] {
+.redeem-modal input[type="tel"],
+.redeem-modal input[type="text"],
+.redeem-modal input[type="number"] {
   width: 100%;
-  padding: 0.5rem;
-  border-radius: 6px;
-  border: 1px solid #2c2e3a;
-  background: #23253a;
-  color: #fff;
-  margin-top: 0.25rem;
-  font-size: 1rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 4px;
+  border: 1px solid #2a2a22;
+  background: #0a0a08;
+  color: #e8e8c8;
+  margin-top: 0.3rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+.redeem-modal textarea:focus,
+.redeem-modal input:focus {
+  outline: none;
+  border-color: rgba(200, 255, 0, 0.5);
+  box-shadow: 0 0 0 2px rgba(200, 255, 0, 0.08);
 }
 .redeem-modal .modal-actions {
   display: flex;
-  gap: 1rem;
+  gap: 0.85rem;
   justify-content: flex-end;
-  margin-top: 1.5rem;
+  margin-top: 1.4rem;
 }
 .redeem-modal .primary {
-  background: #1ff1ff;
-  color: #181a2b;
+  background: #c8ff00;
+  color: #0a0a08;
   border: none;
-  border-radius: 6px;
-  padding: 0.6rem 1.2rem;
-  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.65rem 1.5rem;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: filter 0.15s ease, transform 0.15s ease;
 }
-.redeem-modal .primary:disabled {
-  background: #7ad7d7;
-  cursor: not-allowed;
-}
+.redeem-modal .primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.redeem-modal .primary:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 .redeem-modal .secondary {
-  background: #23253a;
-  color: #fff;
-  border: 1px solid #2c2e3a;
-  border-radius: 6px;
-  padding: 0.6rem 1.2rem;
-  font-weight: 500;
+  background: transparent;
+  color: #d8d8b0;
+  border: 1px solid #2a2a22;
+  border-radius: 999px;
+  padding: 0.65rem 1.5rem;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   cursor: pointer;
 }
-.redeem-modal .secondary:hover {
-  background: #2c2e3a;
-}
+.redeem-modal .secondary:hover { background: #17170f; border-color: #3a3a2a; }
 
 /* Admin Prize Purchase Section */
 .admin-prize-purchase {
@@ -6865,12 +6886,12 @@ body[data-ui="new"] .str-rule-example {
 }
 
 .store-content {
-  width: min(960px, 100%);
+  width: min(1120px, 100%);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: clamp(1.25rem, 2.8vw, 2.25rem);
-  padding: clamp(2rem, 4vw, 3.5rem) clamp(1.5rem, 5vw, 3rem) clamp(3rem, 6vw, 5rem);
+  gap: clamp(1.5rem, 3vw, 2rem);
+  padding: clamp(1.75rem, 4vw, 3rem) clamp(1.25rem, 4vw, 2.5rem) clamp(3rem, 6vw, 4.5rem);
 }
 
 .store-header {
@@ -6883,18 +6904,18 @@ body[data-ui="new"] .str-rule-example {
 .store-heading {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.4rem;
 }
 
 .store-back {
-  padding: 0.35rem 0.85rem;
+  padding: 0.4rem 0.9rem;
   border-radius: 999px;
-  border: 1px solid var(--secondary-button-border);
+  border: 1px solid var(--secondary-button-border, #2a2a22);
   background: transparent;
   color: var(--text-light);
   font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
-  font-size: 0.78rem;
-  letter-spacing: 0.2em;
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   cursor: pointer;
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
@@ -6903,99 +6924,150 @@ body[data-ui="new"] .str-rule-example {
 .store-back:hover,
 .store-back:focus-visible {
   transform: translateY(-2px);
-  border-color: rgba(160, 248, 255, 0.92);
-  box-shadow: 0 14px 32px rgba(63, 240, 255, 0.3);
+  border-color: rgba(200, 255, 0, 0.6);
+  box-shadow: 0 10px 26px rgba(200, 255, 0, 0.14);
   outline: none;
 }
 
 .store-title {
   font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
-  font-size: clamp(1.8rem, 5vw, 2.6rem);
-  letter-spacing: 0.16em;
+  font-size: clamp(1.7rem, 4.5vw, 2.4rem);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-light);
-  text-shadow: 0 0 18px rgba(63, 240, 255, 0.5);
+  text-shadow: 0 0 18px rgba(200, 255, 0, 0.25);
+  margin: 0;
 }
 
 .store-subtitle {
-  font-size: clamp(0.85rem, 1.8vw, 1rem);
-  letter-spacing: 0.08em;
+  font-size: clamp(0.82rem, 1.7vw, 0.95rem);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(224, 244, 255, 0.76);
+  color: var(--muted, #8a8a72);
+  margin: 0;
 }
 
-
+/* Prize grid — image-forward cards */
 .prize-list {
   list-style: none;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(240px, 30vw, 300px), 1fr));
+  gap: clamp(1rem, 2vw, 1.4rem);
   margin: 0;
   padding: 0;
 }
 
 .store-prize-item {
   position: relative;
-}
-
-.store-prize-meta {
-  color: rgba(224, 244, 255, 0.72);
-}
-
-.store-prize-controls {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 0.65rem;
-  flex: 0 0 clamp(170px, 28vw, 220px);
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid var(--betting-panel-border, #2a2a22);
+  background: #0e0e0c;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.store-prize-price {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
-  border: 1px solid rgba(160, 248, 255, 0.45);
-  background: rgba(6, 24, 52, 0.72);
+.store-prize-item:not(.is-sold):hover {
+  transform: translateY(-4px);
+  border-color: rgba(200, 255, 0, 0.4);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* image on top, full-bleed */
+.store-prize-item .admin-prize-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1 1 auto;
+  align-items: stretch;
+}
+.store-prize-item .admin-prize-thumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--betting-panel-border, #2a2a22);
+  background: #08120a;
+}
+.store-prize-item .admin-prize-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.store-prize-item .admin-prize-thumb-placeholder {
+  font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted, #8a8a72);
+}
+.store-prize-item .admin-prize-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 1rem 1.1rem 0.25rem;
+  flex: 1 1 auto;
+}
+.store-prize-item .admin-prize-name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-light);
+}
+.store-prize-item .admin-prize-description {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--muted, #9a9a82);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.store-prize-meta {
+  margin-top: auto;
   font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
-  letter-spacing: 0.14em;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+  color: #c8ff00;
+  padding-top: 0.35rem;
+}
+.store-prize-stock {
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  font-size: 0.7rem;
-  color: rgba(224, 244, 255, 0.92);
+  color: var(--muted, #8a8a72);
 }
 
+/* controls row at the bottom — full-width Redeem */
+.store-prize-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1.1rem 1.1rem;
+}
+.store-prize-price { display: none; }   /* cost already shown in the card body */
 .store-prize-button {
-  min-width: 8rem;
-  padding: 0.55rem 1.4rem;
-  font-size: 0.78rem;
-  letter-spacing: 0.16em;
+  flex: 1 1 auto;
+  width: 100%;
+  padding: 0.7rem 1.2rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
 }
 
-.store-prize-item.is-sold .store-prize-button {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
+.store-prize-item.is-sold { opacity: 0.72; }
+.store-prize-item.is-sold .store-prize-button { opacity: 0.65; cursor: not-allowed; }
 
 .store-prize-badge {
   position: absolute;
-  top: 0.85rem;
-  left: 0.85rem;
-  padding: 0.3rem 0.75rem;
+  top: 0.75rem;
+  right: 0.75rem;
+  left: auto;
+  padding: 0.3rem 0.7rem;
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(255, 68, 119, 0.92), rgba(255, 150, 86, 0.92));
+  background: color-mix(in srgb, #ff5a5a 88%, black 12%);
   color: #fff;
-  font-size: 0.66rem;
-  letter-spacing: 0.18em;
+  font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
-}
-
-@media (min-width: 900px) {
-  .prize-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
 }
 
 .prize-empty {
@@ -31236,67 +31308,69 @@ body[data-ui="new"] .alr-col-date {
   margin-left: 0.75rem;
 }
 
-/* Redeem modal — combination cost, quantity, structured address */
+/* Redeem modal — combination cost, quantity, structured address (neon theme) */
 .redeem-modal .modal-panel {
   max-height: 90vh;
   overflow-y: auto;
   width: 460px;
 }
-.redeem-modal input[type="text"],
-.redeem-modal input[type="number"] {
-  width: 100%;
-  padding: 0.5rem;
-  border-radius: 6px;
-  border: 1px solid #2c2e3a;
-  background: #23253a;
-  color: #fff;
-  margin-top: 0.25rem;
-  font-size: 1rem;
-}
 .redeem-summary {
-  background: #23253a;
+  background: #17170f;
+  border: 1px solid #2a2a22;
   border-radius: 8px;
   padding: 0.85rem 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.1rem;
 }
 .redeem-summary-name {
   font-weight: 700;
   font-size: 1.05rem;
+  color: #f4f4e0;
 }
 .redeem-summary-cost {
-  color: #1ff1ff;
-  font-size: 0.9rem;
-  margin-top: 0.2rem;
+  color: #c8ff00;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  margin-top: 0.25rem;
 }
-.redeem-qty-field { margin-bottom: 0.75rem; }
+.redeem-qty-field { margin-bottom: 0.85rem; }
 .redeem-qty-field input { max-width: 120px; }
 .redeem-qty-hint {
   display: block;
   font-weight: 400;
-  font-size: 0.8rem;
-  color: #9aa;
+  font-size: 0.78rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--muted, #8a8a72);
   margin-top: 0.3rem;
 }
 .redeem-total {
-  margin-bottom: 1rem;
-  font-size: 0.95rem;
+  margin-bottom: 1.1rem;
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #8a8a72);
 }
-.redeem-total .redeem-total-value { color: #1ff1ff; }
+.redeem-total .redeem-total-value { color: #c8ff00; font-size: 1rem; }
 .redeem-address {
-  border: 1px solid #2c2e3a;
+  border: 1px solid #2a2a22;
   border-radius: 8px;
   padding: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.1rem;
 }
 .redeem-address legend {
   padding: 0 0.4rem;
-  font-weight: 600;
-  color: #1ff1ff;
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--neon-cyan, #7fe7d6);
 }
 .redeem-address-note {
-  margin: 0 0 0.75rem 0;
-  font-size: 0.85rem;
-  color: #9aa;
+  margin: 0 0 0.85rem 0;
+  font-size: 0.82rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--muted, #8a8a72);
 }
 
 /* Monthly redemption status — Store banner + Profile meter */
@@ -31385,10 +31459,10 @@ body[data-ui="new"] .profile-input-group input:-webkit-autofill:active {
 .redeem-modal input:-webkit-autofill:hover,
 .redeem-modal input:-webkit-autofill:focus,
 .redeem-modal input:-webkit-autofill:active {
-  -webkit-text-fill-color: #fff;
-  -webkit-box-shadow: 0 0 0 1000px #23253a inset;
-  box-shadow: 0 0 0 1000px #23253a inset;
-  caret-color: #fff;
+  -webkit-text-fill-color: #e8e8c8;
+  -webkit-box-shadow: 0 0 0 1000px #0a0a08 inset;
+  box-shadow: 0 0 0 1000px #0a0a08 inset;
+  caret-color: #e8e8c8;
 }
 
 /* Redemption countdown (store banner + profile card) */

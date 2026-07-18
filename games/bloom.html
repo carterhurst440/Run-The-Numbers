@@ -2575,19 +2575,14 @@ function statPanelHTML(f){
     <div class="statstyle">${s.style}</div>`;
 }
 let openStat=null;
-// Illustrated satchel icons (extracted from the flower art sheet). Keyed by slug;
-// any flower without a matching icon falls back to its emoji.
-const FLOWER_ICON_SET = new Set(['lotus','cactus','hydrangea','snapdragon','wisteria','tulip','daisy','sunflower','poppy','orchid']);
-const FLOWER_ICON_VER = '20260716b';
+// Satchel icons are DB-driven: each flower carries its own icon_url (bloom_flowers).
+// The bundled bloom-icons/*.png art was migrated into the bloom-assets bucket and
+// its URL saved on the flower, so the game no longer hardcodes any icon paths.
+// A flower with no icon_url falls back to its emoji.
 function flowerIcon(f, cls){
-  // Admin-uploaded icon (custom flowers) wins over the bundled art sheet.
   if(f && f.iconUrl)
     return `<img class="${cls} ficon" src="${f.iconUrl}" alt=""`
       + ` onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'${cls}',textContent:'${(f.emoji||'').replace(/'/g,'')}'}))">`;
-  if(f && FLOWER_ICON_SET.has(f.id))
-    // if the icon file is missing, fall back to the emoji instead of a broken-image box
-    return `<img class="${cls} ficon" src="bloom-icons/${f.id}.png?v=${FLOWER_ICON_VER}" alt=""`
-      + ` onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'${cls}',textContent:'${f.emoji||''}'}))">`;
   return `<span class="${cls}">${f?f.emoji:''}</span>`;
 }
 // Illustrated weather icons (extracted from the weather sheet). Any weather not in
