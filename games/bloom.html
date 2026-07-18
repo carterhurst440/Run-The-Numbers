@@ -2179,18 +2179,19 @@ const BED_VB = '0 -22 240 168';                // plants fill the plot; the satc
 /* The satchel + bed hold FIVE plants in a single row (the game used to run two
    rows of five). Fewer seeds means each pays ~2x, so the house edge holds. */
 const SATCHEL_SIZE = 10;
-/* Ten spots in two rows on the fence/dirt section of the landscape background:
-   five higher back plants (smaller, for depth) with five lower front plants
-   staggered/framing over them. The back row is painted first so the front row
-   overlaps it. */
-const SPOT_SC = 0.46;                          // Codex plant ~150 tall -> ~69 in the bed.
+/* Ten spots zig-zagged across the fence/dirt section of the landscape: the ten
+   x-positions alternate front/back so, read left→right, the leftmost is a front
+   plant and the rightmost is a back plant. Both rows are the SAME size (half the
+   old scale); only their y differs — the back row sits a bit higher. The back
+   row is listed first so it's painted behind the front row. */
+const SPOT_SC = 0.23;                          // Codex plant ~150 tall -> ~35 in the bed.
 const SPOTS=[
-  // back row (5) — higher on the fence + smaller (depth); painted first
-  {x: 42, y:106, sc:0.40}, {x: 79, y:106, sc:0.40}, {x:116, y:106, sc:0.40},
-  {x:153, y:106, sc:0.40}, {x:190, y:106, sc:0.40},
-  // front row (5) — lower + larger, staggered/framing over the back row
-  {x: 32, y:132, sc:SPOT_SC}, {x: 77, y:132, sc:SPOT_SC}, {x:122, y:132, sc:SPOT_SC},
-  {x:167, y:132, sc:SPOT_SC}, {x:210, y:132, sc:SPOT_SC},
+  // back row (5) — higher on the fence; painted first (behind). x = even columns.
+  {x: 42, y:98, sc:SPOT_SC}, {x: 87, y:98, sc:SPOT_SC}, {x:131, y:98, sc:SPOT_SC},
+  {x:176, y:98, sc:SPOT_SC}, {x:220, y:98, sc:SPOT_SC},
+  // front row (5) — lower, staggered between the back plants. x = odd columns.
+  {x: 20, y:130, sc:SPOT_SC}, {x: 64, y:130, sc:SPOT_SC}, {x:109, y:130, sc:SPOT_SC},
+  {x:153, y:130, sc:SPOT_SC}, {x:198, y:130, sc:SPOT_SC},
 ];
 
 /* Three states, one ladder, every flower. A bloom hit tweens the plant from
