@@ -10697,7 +10697,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260718a-customflowers");
+      frame.setAttribute("src", "games/bloom.html?v=20260718d-fiveplant");
     }
     installBloomBridge();   // idempotent: seed the in-memory balance + admin flag
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -33010,7 +33010,8 @@ async function bloomAdminInit(){
 // ═══════════════════════════════════════════════════════════════════════════
 const BLOOM_CODEX_SPECIES = ['lotus','poppy','sunflower','orchid','wisteria','daisy','tulip','hydrangea','cactus','snapdragon'];
 const BLOOM_MATCH_MULT = 5, BLOOM_BUTTERFLY_MULT = 2, BLOOM_DEFAULT_SUPER_MULT = 2;
-const BLOOM_TARGET_PER_SEED = 9.9;   // 99% target RTP / 10 seeds
+const BLOOM_SATCHEL_SIZE = 5;                          // one row of 5 plants per round
+const BLOOM_TARGET_PER_SEED = 99 / BLOOM_SATCHEL_SIZE; // 19.8% (99% target RTP / 5 seeds)
 
 const BloomAdmin = {
   flowers: [],
@@ -33360,12 +33361,12 @@ const BloomAdmin = {
   simulateFlower(f, rounds){
     const deck = this._weatherDeck(), dl = deck.length;
     let winSum = 0, winSq = 0, winMax = 0, hits = 0, topEnd = 0;
-    const seeds = rounds * 10;
+    const seeds = rounds * BLOOM_SATCHEL_SIZE;
     for (let r = 0; r < rounds; r++){
       const draws = [deck[(Math.random()*dl)|0], deck[(Math.random()*dl)|0], deck[(Math.random()*dl)|0]];
       const mult = this._lineMultiplier(draws);
       let win = 0;
-      for (let i = 0; i < 10; i++){
+      for (let i = 0; i < BLOOM_SATCHEL_SIZE; i++){
         const took = Math.random() * 100 < f.take_pct;
         const g = this._growPlant(f, took, draws);
         if (g.alive){ if (g.phase === 2) topEnd++; win += this._phasePay(f, g.phase) / 100; }
@@ -33374,7 +33375,7 @@ const BloomAdmin = {
       winSum += win; winSq += win * win; if (win > winMax) winMax = win; if (win > 0) hits++;
     }
     const allIn = winSum / rounds;
-    return { perSeed: allIn / 10, allIn, hit: hits / rounds, maxX: winMax, vol: Math.sqrt(Math.max(0, winSq/rounds - allIn*allIn)), top: topEnd / seeds };
+    return { perSeed: allIn / BLOOM_SATCHEL_SIZE, allIn, hit: hits / rounds, maxX: winMax, vol: Math.sqrt(Math.max(0, winSq/rounds - allIn*allIn)), top: topEnd / seeds };
   },
   simRounds(){
     const inp = document.getElementById('bloom-sim-rounds');
@@ -33392,7 +33393,7 @@ const BloomAdmin = {
       const s = this.simulateFlower(f, this.simRounds());
       const v = this.verdict(s.perSeed * 100);
       outEl.className = `bloom-fcard-simout ${v.cls}`;
-      outEl.textContent = `${v.text} · all-in ×10 = ${(s.allIn*100).toFixed(1)}% RTP · super ${(s.top*100).toFixed(1)}%`;
+      outEl.textContent = `${v.text} · all-in ×5 = ${(s.allIn*100).toFixed(1)}% RTP · super ${(s.top*100).toFixed(1)}%`;
     }, 20);
   },
   simAll(){
@@ -33406,7 +33407,7 @@ const BloomAdmin = {
         const s = this.simulateFlower(f, rounds);
         const v = this.verdict(s.perSeed * 100);
         if (v.cls !== 'ok') flagged++;
-        if (out){ out.className = `bloom-fcard-simout ${v.cls}`; out.textContent = `${v.text} · all-in ×10 = ${(s.allIn*100).toFixed(1)}% RTP`; }
+        if (out){ out.className = `bloom-fcard-simout ${v.cls}`; out.textContent = `${v.text} · all-in ×5 = ${(s.allIn*100).toFixed(1)}% RTP`; }
       });
       this.status(flagged ? `Sim done — ${flagged} flower(s) off target (>±0.25%).` : `Sim done — all ${this.flowers.length} flowers on target.`);
     }, 20);
