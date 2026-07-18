@@ -414,9 +414,12 @@
   .garden-card{min-height:300px;padding:0;overflow:hidden;
     background:#d3e8f2 url("https://jfqdjqhqumoqcoivjwbi.supabase.co/storage/v1/object/public/bloom-assets/bg/garden-landscape.png") center bottom / cover no-repeat}
   /* satchel: one horizontal row */
-  .kiiro-satchel{display:flex;align-items:center;gap:14px;padding:9px 16px}
+  .kiiro-satchel{display:flex;align-items:center;gap:14px;padding:8px 16px}
   .kiiro-satchel .satchel-bar-label{font-size:12px;font-weight:700;letter-spacing:.22em;color:var(--muted);flex:none}
-  .kiiro-satchel .satchel-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;flex:1 1 auto;margin:0}
+  /* fixed small squares, centred — the slots no longer stretch to fill the row,
+     so the satchel stays short vertically */
+  .kiiro-satchel .satchel-strip{display:grid;grid-template-columns:repeat(5,50px);gap:8px;
+    justify-content:center;flex:1 1 auto;margin:0}
   .kiiro-satchel .satchel-bar-edit{flex:none;background:transparent;border:2px solid var(--line);border-radius:2px;
     color:var(--text);font-weight:700;letter-spacing:.12em;font-size:12px;padding:9px 16px;text-transform:uppercase}
   .kiiro-satchel .satchel-bar-edit:hover{background:var(--line);color:var(--btn-ink)}
@@ -448,6 +451,10 @@
   .bet-field input{width:70px;text-align:center;background:transparent;border:none;color:var(--text);
     font-family:var(--ui);font-size:20px;font-weight:800;padding:0;margin:0}
   .bet-field input:focus{outline:none}
+  /* kill the number-input spinner so the digits sit truly centred under "BET" */
+  .bet-field input[type=number]{-moz-appearance:textfield;appearance:textfield}
+  .bet-field input::-webkit-outer-spin-button,
+  .bet-field input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   /* the play winbanner is quiet status text that only appears for transient
      prompts/errors — it collapses to zero height when empty so it never adds a
      gap between the reels and the action button. */
