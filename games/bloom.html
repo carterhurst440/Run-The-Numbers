@@ -449,8 +449,18 @@
   .wreel-card .multi:not(:empty){max-height:48px;opacity:1;margin-top:12px;transform:translateY(0)}
   /* bottom bar: big action + bet stepper */
   .bottom-bar{display:flex;align-items:stretch;gap:12px}
-  .bottom-bar .main-action{flex:1 1 auto;background:var(--accent);color:var(--btn-ink);border:2px solid var(--accent);
-    border-radius:2px;font-size:17px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;padding:0 20px;min-height:54px}
+  .bottom-bar .main-action{position:relative;overflow:hidden;flex:1 1 auto;
+    background:var(--accent);color:var(--btn-ink);border:2px solid var(--accent);
+    border-radius:2px;font-size:14px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+    white-space:nowrap;padding:0 14px;min-height:44px;box-shadow:0 2px 0 rgba(20,20,20,.18)}
+  /* moving light-sweep shimmer + a soft shine glow on the primary CTA */
+  .bottom-bar .main-action::before{content:"";position:absolute;top:0;bottom:0;left:0;width:60%;
+    background:linear-gradient(100deg,transparent 0%,rgba(255,255,255,.28) 40%,rgba(246,228,0,.92) 50%,rgba(255,255,255,.28) 60%,transparent 100%);
+    transform:translateX(-180%) skewX(-18deg);animation:castshimmer 3.4s ease-in-out infinite;pointer-events:none}
+  .bottom-bar .main-action:hover{box-shadow:0 0 0 2px var(--accent),0 0 16px -2px rgba(20,20,20,.5)}
+  .bottom-bar .main-action:active{transform:translateY(1px)}
+  @keyframes castshimmer{0%{transform:translateX(-180%) skewX(-18deg)}55%,100%{transform:translateX(320%) skewX(-18deg)}}
+  @media (prefers-reduced-motion:reduce){.bottom-bar .main-action::before{animation:none;opacity:0}}
   .bet-stepper{display:flex;align-items:center;gap:12px;padding:0 14px;flex:none}
   .bet-step{width:32px;height:32px;flex:none;display:flex;align-items:center;justify-content:center;
     background:transparent;border:2px solid var(--line);border-radius:2px;color:var(--text);font-size:18px;font-weight:800;line-height:1}
