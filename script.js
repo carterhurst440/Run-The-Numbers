@@ -32827,10 +32827,14 @@ if (adminPurchasesRefreshBtn) {
   adminPurchasesRefreshBtn.addEventListener("click", () => loadAdminPurchases(true));
 }
 
-const adminBloomFlowerAddBtn = document.getElementById("admin-bloom-flower-add");
-if (adminBloomFlowerAddBtn) {
-  adminBloomFlowerAddBtn.addEventListener("click", () => handleAdminBloomFlowerAdd());
-}
+// BLOOM native editor toolbar wiring.
+document.getElementById("bloom-add-flower")?.addEventListener("click", () => BloomAdmin.addFlower());
+document.getElementById("bloom-add-weather")?.addEventListener("click", () => BloomAdmin.addWeather());
+document.getElementById("bloom-sim-all")?.addEventListener("click", () => BloomAdmin.simAll());
+document.getElementById("bloom-save")?.addEventListener("click", () => BloomAdmin.save());
+document.getElementById("bloom-export")?.addEventListener("click", () => BloomAdmin.exportJson());
+document.getElementById("bloom-import")?.addEventListener("click", () => document.getElementById("bloom-import-file")?.click());
+document.getElementById("bloom-import-file")?.addEventListener("change", (e) => { const f = e.target.files?.[0]; if (f) BloomAdmin.importJson(f); e.target.value = ""; });
 
 function formatPurchaseCost(row) {
   const parts = [];
@@ -32993,153 +32997,516 @@ async function handleMarkShipped(row, button) {
 function bloomStatus(msg){ const el = document.getElementById('admin-bloom-status'); if (el) el.textContent = msg || ''; }
 
 async function bloomAdminInit(){
-  const frame = document.getElementById('admin-bloom-frame');
-  if (frame && !frame.getAttribute('src')){
-    frame.setAttribute('src', 'games/bloom.html?deckadmin=1&v=20260718a-customflowers');
-  }
-  installBloomBridge();                 // shared handler: replies init to whichever iframe is ready
-  bloomSendInit('admin-bloom-frame');   // refresh the deck on re-open (first open waits for the iframe's ready)
-  loadAdminBloomFlowers();              // active toggles + custom art uploads
+  BloomAdmin.load();
 }
 
-// ── BLOOM Flowers admin: active toggle + custom icon/animation uploads ──────
-let _adminBloomFlowers = [];
+// ═══════════════════════════════════════════════════════════════════════════
+// BLOOM — native admin editor (flowers + weather). One master surface, admin
+// theme: full per-flower stats + per-weather bloom/wilt odds + active toggle +
+// custom icon/animation uploads + a faithful RTP "Sim every flower". The sim
+// rules (growPlant / lineMultiplier / phasePay / weather deck) are ported
+// verbatim from games/bloom.html so the numbers can't drift from the live game.
+// Replaces the old pink Deck Builder iframe.
+// ═══════════════════════════════════════════════════════════════════════════
+const BLOOM_CODEX_SPECIES = ['lotus','poppy','sunflower','orchid','wisteria','daisy','tulip','hydrangea','cactus','snapdragon'];
+const BLOOM_MATCH_MULT = 5, BLOOM_BUTTERFLY_MULT = 2, BLOOM_DEFAULT_SUPER_MULT = 2;
+const BLOOM_TARGET_PER_SEED = 9.9;   // 99% target RTP / 10 seeds
 
-function bloomFlowerStatus(msg){
-  const el = document.getElementById('admin-bloom-flower-status');
-  if (el) el.textContent = msg || '';
-}
+const BloomAdmin = {
+  flowers: [],
+  weather: [],
 
-async function loadAdminBloomFlowers(){
-  const list = document.getElementById('admin-bloom-flower-list');
-  if (!list) return;
-  if (!isAdmin(currentUser)) { list.innerHTML = ''; return; }
-  list.innerHTML = '<li class="admin-prize-empty">Loading flowers…</li>';
-  try {
-    const { data, error } = await supabase
-      .from('bloom_flowers')
-      .select('flower, display_name, emoji, accent_color, active, icon_url, animation_url, animation_kind, sort_order')
-      .order('sort_order', { ascending: true });
-    if (error) throw error;
-    _adminBloomFlowers = Array.isArray(data) ? data : [];
-    list.innerHTML = '';
-    if (!_adminBloomFlowers.length){
-      list.innerHTML = '<li class="admin-prize-empty">No flowers yet. Add one, or build the deck below.</li>';
+  status(msg){ const el = document.getElementById('bloom-editor-status'); if (el) el.textContent = msg || ''; },
+
+  slugify(name){
+    return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  },
+
+  async load(){
+    if (!isAdmin(currentUser)) return;
+    this.status('Loading…');
+    try {
+      const [f, w] = await Promise.all([
+        supabase.from('bloom_flowers')
+          .select('flower,display_name,emoji,accent_color,art_species,archetype,take_pct,bloom_pay,super_mult,weather_odds,sort_order,active,icon_url,animation_url,animation_kind')
+          .order('sort_order'),
+        supabase.from('bloom_weather')
+          .select('weather,display_name,icon,accent_color,kind,deck_count,sort_order')
+          .order('sort_order')
+      ]);
+      if (f.error) throw f.error;
+      if (w.error) throw w.error;
+      this.flowers = (f.data || []).map(r => ({
+        flower: r.flower,
+        display_name: r.display_name || r.flower,
+        emoji: r.emoji || '',
+        accent_color: r.accent_color || '#8f7bd6',
+        art_species: r.art_species || r.flower,
+        archetype: r.archetype || 'balanced',
+        take_pct: Number(r.take_pct) || 0,
+        bloom_pay: Number(r.bloom_pay) || 0,
+        super_mult: Number(r.super_mult) || BLOOM_DEFAULT_SUPER_MULT,
+        weather_odds: r.weather_odds || {},
+        active: r.active !== false,
+        icon_url: r.icon_url || null,
+        animation_url: r.animation_url || null,
+        animation_kind: r.animation_kind || null
+      }));
+      this.weather = (w.data || []).map(r => ({
+        weather: r.weather,
+        display_name: r.display_name || r.weather,
+        icon: r.icon || '',
+        accent_color: r.accent_color || '#88aacc',
+        kind: r.kind === 'butterfly' ? 'butterfly' : 'weather',
+        deck_count: r.deck_count == null ? 1 : Math.max(0, Math.round(r.deck_count))
+      }));
+      this.renderWeather();
+      this.renderFlowers();
+      this.status('');
+    } catch (e){
+      console.error('[bloom] load', e);
+      this.status('Load error: ' + (e?.message || e));
+    }
+  },
+
+  realWeathers(){ return this.weather.filter(w => w.kind !== 'butterfly'); },
+
+  // ── Flowers rendering ─────────────────────────────────────────────────────
+  renderFlowers(){
+    const host = document.getElementById('bloom-flower-editor');
+    if (!host) return;
+    host.innerHTML = '';
+    if (!this.flowers.length){
+      host.innerHTML = '<p class="admin-prize-empty">No flowers yet. Add one to get started.</p>';
       return;
     }
-    _adminBloomFlowers.forEach((f) => list.appendChild(renderAdminBloomFlowerRow(f)));
-  } catch (e){
-    console.error('[bloom] load flowers', e);
-    list.innerHTML = '<li class="admin-prize-empty">Unable to load flowers.</li>';
-    bloomFlowerStatus('Load error: ' + (e?.message || e));
+    this.flowers.forEach((f, idx) => host.appendChild(this.flowerCard(f, idx)));
+  },
+
+  flowerCard(f, idx){
+    const card = document.createElement('div');
+    card.className = 'bloom-fcard';
+    if (!f.active) card.classList.add('is-inactive');
+    card.style.setProperty('--accent', f.accent_color || '#8f7bd6');
+
+    // Header: icon, name, active toggle, delete
+    const head = document.createElement('div');
+    head.className = 'bloom-fcard-head';
+
+    const thumb = document.createElement('div');
+    thumb.className = 'bloom-fcard-thumb';
+    if (f.icon_url){ const img = document.createElement('img'); img.src = f.icon_url; img.alt=''; thumb.appendChild(img); }
+    else thumb.textContent = f.emoji || '🌱';
+
+    const nameWrap = document.createElement('div');
+    nameWrap.className = 'bloom-fcard-namewrap';
+    const nameIn = document.createElement('input');
+    nameIn.type = 'text'; nameIn.className = 'bloom-in bloom-fname'; nameIn.value = f.display_name;
+    nameIn.placeholder = 'Flower name';
+    nameIn.addEventListener('input', () => { f.display_name = nameIn.value; });
+    const slug = document.createElement('span');
+    slug.className = 'bloom-fcard-slug'; slug.textContent = f.flower;
+    nameWrap.append(nameIn, slug);
+
+    const activeWrap = document.createElement('label');
+    activeWrap.className = 'admin-status-toggle bloom-fcard-active';
+    const activeIn = document.createElement('input');
+    activeIn.type = 'checkbox'; activeIn.className = 'admin-status-input'; activeIn.checked = f.active;
+    const activeLbl = document.createElement('span'); activeLbl.className = 'admin-status-label';
+    setAdminStatusLabel(activeLbl, f.active);
+    activeIn.addEventListener('change', () => { f.active = activeIn.checked; setAdminStatusLabel(activeLbl, f.active); card.classList.toggle('is-inactive', !f.active); });
+    activeWrap.append(activeIn, activeLbl);
+
+    const del = document.createElement('button');
+    del.type = 'button'; del.className = 'secondary danger bloom-fcard-del'; del.textContent = 'Delete';
+    del.addEventListener('click', () => this.deleteFlower(idx));
+
+    head.append(thumb, nameWrap, activeWrap, del);
+
+    // Stats row: drawn-as, take, bloom pay, super mult (+ computed)
+    const stats = document.createElement('div');
+    stats.className = 'bloom-fcard-stats';
+
+    const drawnField = this.field('Drawn as', (() => {
+      const sel = document.createElement('select'); sel.className = 'bloom-in';
+      BLOOM_CODEX_SPECIES.forEach(sp => { const o = document.createElement('option'); o.value = sp; o.textContent = sp.charAt(0).toUpperCase()+sp.slice(1); sel.appendChild(o); });
+      sel.value = BLOOM_CODEX_SPECIES.includes(f.art_species) ? f.art_species : 'wisteria';
+      sel.addEventListener('change', () => { f.art_species = sel.value; });
+      return sel;
+    })(), 'Fallback drawn art when no animation is uploaded.');
+
+    const takeField = this.numField('Take %', f.take_pct, 0, 100, v => { f.take_pct = v; });
+    const payField = this.numField('Bloom pay %', f.bloom_pay, 0, 100000, v => { f.bloom_pay = v; });
+    const superComputed = document.createElement('em');
+    superComputed.className = 'bloom-super-computed';
+    const setSuper = () => { superComputed.textContent = `= +${Math.round((f.bloom_pay||0)*(f.super_mult||0))}%`; };
+    const superField = this.numField('Super × bloom', f.super_mult, 0, 20, v => { f.super_mult = v; setSuper(); }, 0.1);
+    // recompute super when bloom pay changes
+    payField.querySelector('input').addEventListener('input', setSuper);
+    setSuper();
+    superField.appendChild(superComputed);
+
+    stats.append(drawnField, takeField, payField, superField);
+
+    // Weather odds grid
+    const grid = document.createElement('div');
+    grid.className = 'bloom-fcard-odds';
+    const hd = document.createElement('div'); hd.className = 'bloom-odds-row bloom-odds-head';
+    hd.innerHTML = '<span>Weather</span><span>🌸 bloom %</span><span>🥀 wilt %</span>';
+    grid.appendChild(hd);
+    this.realWeathers().forEach(w => {
+      const row = document.createElement('div'); row.className = 'bloom-odds-row';
+      const label = document.createElement('span'); label.className = 'bloom-odds-w'; label.textContent = `${w.icon} ${w.display_name}`;
+      const cur = f.weather_odds[w.weather] || { b:0, k:0 };
+      const b = document.createElement('input'); b.type='number'; b.min='0'; b.max='100'; b.className='bloom-in bloom-odds-in'; b.value = Number(cur.b)||0;
+      const k = document.createElement('input'); k.type='number'; k.min='0'; k.max='100'; k.className='bloom-in bloom-odds-in'; k.value = Number(cur.k)||0;
+      const upd = () => { f.weather_odds[w.weather] = { b: Math.max(0, Number(b.value)||0), k: Math.max(0, Number(k.value)||0) }; };
+      b.addEventListener('input', upd); k.addEventListener('input', upd);
+      row.append(label, b, k);
+      grid.appendChild(row);
+    });
+
+    // Uploads row
+    const uploads = document.createElement('div');
+    uploads.className = 'bloom-fcard-uploads';
+    uploads.append(
+      this.uploadBtn(f.icon_url ? 'Replace icon' : 'Upload icon', 'image/*', file => this.uploadAsset(f, file, 'icon', card, idx)),
+      this.uploadBtn(f.animation_url ? 'Replace animation' : 'Upload animation', '.json,application/json,video/mp4,video/webm,image/gif', file => this.uploadAsset(f, file, 'animation', card, idx))
+    );
+    const animNote = document.createElement('span');
+    animNote.className = 'bloom-fcard-animnote';
+    animNote.textContent = f.animation_url ? `animation: ${f.animation_kind || 'file'} ✓` : 'animation: none (drawn art)';
+    uploads.appendChild(animNote);
+    if (f.animation_url){
+      const clr = document.createElement('button'); clr.type='button'; clr.className='secondary'; clr.textContent='Clear animation';
+      clr.addEventListener('click', () => { f.animation_url = null; f.animation_kind = null; this.renderFlowers(); });
+      uploads.appendChild(clr);
+    }
+
+    // Sim output
+    const sim = document.createElement('div');
+    sim.className = 'bloom-fcard-sim';
+    const simBtn = document.createElement('button'); simBtn.type='button'; simBtn.className='secondary'; simBtn.textContent='Sim this flower';
+    const simOut = document.createElement('span'); simOut.className='bloom-fcard-simout';
+    simBtn.addEventListener('click', () => this.simOne(f, simOut));
+    sim.append(simBtn, simOut);
+
+    card.append(head, stats, grid, uploads, sim);
+    card.dataset.flower = f.flower;
+    return card;
+  },
+
+  field(label, control, hint){
+    const w = document.createElement('label'); w.className = 'bloom-field';
+    const s = document.createElement('span'); s.textContent = label; w.appendChild(s);
+    w.appendChild(control);
+    if (hint){ const h = document.createElement('em'); h.className='bloom-field-hint'; h.textContent = hint; w.appendChild(h); }
+    return w;
+  },
+
+  numField(label, value, min, max, onChange, step){
+    const w = document.createElement('label'); w.className = 'bloom-field';
+    const s = document.createElement('span'); s.textContent = label; w.appendChild(s);
+    const inp = document.createElement('input');
+    inp.type = 'number'; inp.className = 'bloom-in';
+    if (min != null) inp.min = String(min);
+    if (max != null) inp.max = String(max);
+    inp.step = step ? String(step) : '1';
+    inp.value = String(value);
+    inp.addEventListener('input', () => onChange(Math.max(min ?? -Infinity, Number(inp.value) || 0)));
+    w.appendChild(inp);
+    return w;
+  },
+
+  uploadBtn(label, accept, onFile){
+    const wrap = document.createElement('span'); wrap.className = 'bloom-upload';
+    const btn = document.createElement('button'); btn.type='button'; btn.className='secondary'; btn.textContent = label;
+    const inp = document.createElement('input'); inp.type='file'; inp.accept = accept; inp.hidden = true;
+    btn.addEventListener('click', () => inp.click());
+    inp.addEventListener('change', () => { const file = inp.files?.[0]; if (file) onFile(file); inp.value=''; });
+    wrap.append(btn, inp);
+    return wrap;
+  },
+
+  async uploadAsset(f, file, which, card, idx){
+    this.status(`Uploading ${which} for ${f.display_name}…`);
+    try {
+      if (which === 'icon'){
+        f.icon_url = await uploadBloomAsset(file, `icons/${f.flower}`);
+      } else {
+        const kind = bloomAnimationKind(file);
+        if (!kind) throw new Error('Use a Lottie .json, an .mp4/.webm video, or a .gif.');
+        f.animation_url = await uploadBloomAsset(file, `anim/${f.flower}`);
+        f.animation_kind = kind;
+      }
+      this.status(`${which === 'icon' ? 'Icon' : 'Animation'} uploaded for ${f.display_name} — remember to Save to DB.`);
+      this.renderFlowers();
+    } catch (e){
+      console.error('[bloom] upload', e);
+      this.status('Upload error: ' + (e?.message || e));
+    }
+  },
+
+  addFlower(){
+    const name = (typeof window !== 'undefined' && window.prompt) ? window.prompt('New flower name (e.g. Marigold):') : '';
+    if (!name || !name.trim()) return;
+    let slug = this.slugify(name);
+    if (!slug){ showToast('Enter a valid name', 'error'); return; }
+    if (this.flowers.some(x => x.flower === slug)) slug = `${slug}_${Date.now().toString(36).slice(-4)}`;
+    const odds = {};
+    this.realWeathers().forEach(w => { odds[w.weather] = { b: 15, k: 8 }; });
+    this.flowers.push({
+      flower: slug, display_name: name.trim(), emoji: '🌱', accent_color: '#8f7bd6',
+      art_species: 'wisteria', archetype: 'balanced', take_pct: 90, bloom_pay: 0,
+      super_mult: 2, weather_odds: odds, active: true, icon_url: null, animation_url: null, animation_kind: null
+    });
+    this.renderFlowers();
+    this.status(`Added ${name.trim()} — set its odds + pay, then Save to DB.`);
+  },
+
+  deleteFlower(idx){
+    const f = this.flowers[idx]; if (!f) return;
+    if (typeof window !== 'undefined' && window.confirm && !window.confirm(`Delete ${f.display_name}? (applies on Save to DB)`)) return;
+    this.flowers.splice(idx, 1);
+    this.renderFlowers();
+  },
+
+  // ── Weather rendering ─────────────────────────────────────────────────────
+  renderWeather(){
+    const host = document.getElementById('bloom-weather-editor');
+    if (!host) return;
+    host.innerHTML = '';
+    if (!this.weather.length){ host.innerHTML = '<p class="admin-prize-empty">No weather yet. Add one.</p>'; return; }
+    this.weather.forEach((w, idx) => host.appendChild(this.weatherRow(w, idx)));
+  },
+
+  weatherRow(w, idx){
+    const row = document.createElement('div'); row.className = 'bloom-wrow';
+    row.style.setProperty('--accent', w.accent_color || '#88aacc');
+
+    const icon = document.createElement('input'); icon.type='text'; icon.className='bloom-in bloom-wicon'; icon.value = w.icon; icon.placeholder='🌈';
+    icon.addEventListener('input', () => { w.icon = icon.value; });
+
+    const name = document.createElement('input'); name.type='text'; name.className='bloom-in bloom-wname'; name.value = w.display_name; name.placeholder='Weather name';
+    name.addEventListener('input', () => { w.display_name = name.value; });
+
+    const kindSel = document.createElement('select'); kindSel.className='bloom-in bloom-wkind';
+    [['weather','Weather'],['butterfly','🦋 Butterfly (wild)']].forEach(([v,l]) => { const o=document.createElement('option'); o.value=v; o.textContent=l; kindSel.appendChild(o); });
+    kindSel.value = w.kind;
+    kindSel.addEventListener('change', () => { w.kind = kindSel.value; this.renderFlowers(); });  // odds grid depends on real weathers
+
+    const countWrap = document.createElement('label'); countWrap.className='bloom-wcount';
+    countWrap.append(document.createTextNode('Deck ×'));
+    const count = document.createElement('input'); count.type='number'; count.min='0'; count.className='bloom-in'; count.value = String(w.deck_count);
+    count.addEventListener('input', () => { w.deck_count = Math.max(0, Math.round(Number(count.value)||0)); });
+    countWrap.appendChild(count);
+
+    const del = document.createElement('button'); del.type='button'; del.className='secondary danger'; del.textContent='Delete';
+    del.addEventListener('click', () => {
+      if (typeof window !== 'undefined' && window.confirm && !window.confirm(`Delete ${w.display_name}? (applies on Save)`)) return;
+      const wid = this.weather[idx]?.weather;
+      this.weather.splice(idx, 1);
+      if (wid) this.flowers.forEach(f => { if (f.weather_odds) delete f.weather_odds[wid]; });
+      this.renderWeather(); this.renderFlowers();
+    });
+
+    row.append(icon, name, kindSel, countWrap, del);
+    return row;
+  },
+
+  addWeather(){
+    const name = (typeof window !== 'undefined' && window.prompt) ? window.prompt('New weather name (e.g. Foggy):') : '';
+    if (!name || !name.trim()) return;
+    let slug = 'w_' + this.slugify(name);
+    if (this.weather.some(x => x.weather === slug)) slug = `${slug}_${Date.now().toString(36).slice(-4)}`;
+    this.weather.push({ weather: slug, display_name: name.trim(), icon: '🌈', accent_color: '#88aacc', kind: 'weather', deck_count: 1 });
+    this.flowers.forEach(f => { f.weather_odds = f.weather_odds || {}; f.weather_odds[slug] = { b: 15, k: 8 }; });
+    this.renderWeather(); this.renderFlowers();
+  },
+
+  // ── RTP sim (ported verbatim from games/bloom.html) ───────────────────────
+  _isButterfly(wid){ const w = this.weather.find(x => x.weather === wid); return (w && w.kind) === 'butterfly'; },
+  _weatherDeck(){
+    const out = [];
+    this.weather.forEach(w => { const n = Math.max(0, Math.round(w.deck_count == null ? 1 : w.deck_count)); for (let i=0;i<n;i++) out.push(w.weather); });
+    return out.length ? out : this.weather.map(w => w.weather);
+  },
+  _phasePay(f, phase){
+    const sm = (f.super_mult > 0) ? f.super_mult : BLOOM_DEFAULT_SUPER_MULT;
+    if (phase === 1) return f.bloom_pay || 0;
+    if (phase >= 2) return (f.bloom_pay || 0) * sm;
+    return 0;
+  },
+  _growPlant(f, took, draws){
+    let phase = 0, alive = took;
+    for (const wid of draws){
+      if (this._isButterfly(wid)){ if (!alive){ alive = true; phase = 0; } continue; }
+      if (!alive) continue;
+      const r = (f.weather_odds && f.weather_odds[wid]) || { b:0, k:0 };
+      const roll = Math.random() * 100;
+      if (roll < r.b) phase = Math.min(2, phase + 1);
+      else if (roll < r.b + (r.k || 0)) { alive = false; phase = 0; }
+    }
+    return { alive, phase };
+  },
+  _lineMultiplier(draws){
+    if (!draws.length) return 1;
+    const reals = draws.filter(x => !this._isButterfly(x));
+    const line = reals.every(x => x === reals[0]);
+    if (!line) return 1;
+    const wild = reals.length < draws.length;
+    return wild ? BLOOM_BUTTERFLY_MULT : BLOOM_MATCH_MULT;
+  },
+  simulateFlower(f, rounds){
+    const deck = this._weatherDeck(), dl = deck.length;
+    let winSum = 0, winSq = 0, winMax = 0, hits = 0, topEnd = 0;
+    const seeds = rounds * 10;
+    for (let r = 0; r < rounds; r++){
+      const draws = [deck[(Math.random()*dl)|0], deck[(Math.random()*dl)|0], deck[(Math.random()*dl)|0]];
+      const mult = this._lineMultiplier(draws);
+      let win = 0;
+      for (let i = 0; i < 10; i++){
+        const took = Math.random() * 100 < f.take_pct;
+        const g = this._growPlant(f, took, draws);
+        if (g.alive){ if (g.phase === 2) topEnd++; win += this._phasePay(f, g.phase) / 100; }
+      }
+      win *= mult;
+      winSum += win; winSq += win * win; if (win > winMax) winMax = win; if (win > 0) hits++;
+    }
+    const allIn = winSum / rounds;
+    return { perSeed: allIn / 10, allIn, hit: hits / rounds, maxX: winMax, vol: Math.sqrt(Math.max(0, winSq/rounds - allIn*allIn)), top: topEnd / seeds };
+  },
+  simRounds(){
+    const inp = document.getElementById('bloom-sim-rounds');
+    return Math.max(1000, Math.min(1000000, Number(inp?.value) || 50000));
+  },
+  verdict(perSeedPct){
+    const dev = perSeedPct - BLOOM_TARGET_PER_SEED;
+    if (Math.abs(dev) <= 0.25) return { cls: 'ok', text: `✅ ${perSeedPct.toFixed(2)}% (target ${BLOOM_TARGET_PER_SEED}%)` };
+    if (dev > 0) return { cls: 'hot', text: `🔥 ${perSeedPct.toFixed(2)}% — +${dev.toFixed(2)}% over` };
+    return { cls: 'cold', text: `❄️ ${perSeedPct.toFixed(2)}% — ${dev.toFixed(2)}% under` };
+  },
+  simOne(f, outEl){
+    outEl.textContent = 'running…';
+    setTimeout(() => {
+      const s = this.simulateFlower(f, this.simRounds());
+      const v = this.verdict(s.perSeed * 100);
+      outEl.className = `bloom-fcard-simout ${v.cls}`;
+      outEl.textContent = `${v.text} · all-in ×10 = ${(s.allIn*100).toFixed(1)}% RTP · super ${(s.top*100).toFixed(1)}%`;
+    }, 20);
+  },
+  simAll(){
+    this.status('Simulating every flower…');
+    setTimeout(() => {
+      const rounds = this.simRounds();
+      let flagged = 0;
+      this.flowers.forEach(f => {
+        const card = document.querySelector(`.bloom-fcard[data-flower="${CSS.escape(f.flower)}"]`);
+        const out = card?.querySelector('.bloom-fcard-simout');
+        const s = this.simulateFlower(f, rounds);
+        const v = this.verdict(s.perSeed * 100);
+        if (v.cls !== 'ok') flagged++;
+        if (out){ out.className = `bloom-fcard-simout ${v.cls}`; out.textContent = `${v.text} · all-in ×10 = ${(s.allIn*100).toFixed(1)}% RTP`; }
+      });
+      this.status(flagged ? `Sim done — ${flagged} flower(s) off target (>±0.25%).` : `Sim done — all ${this.flowers.length} flowers on target.`);
+    }, 20);
+  },
+
+  // ── Persistence ───────────────────────────────────────────────────────────
+  cleanOdds(f){
+    const out = {};
+    this.realWeathers().forEach(w => {
+      const o = f.weather_odds[w.weather] || {};
+      out[w.weather] = { b: Math.max(0, Number(o.b) || 0), k: Math.max(0, Number(o.k) || 0) };
+    });
+    return out;
+  },
+  async save(){
+    if (!isAdmin(currentUser)){ showToast('Admin access only', 'error'); return; }
+    if (!this.flowers.length){ this.status('Add at least one flower before saving.'); return; }
+    this.status('Saving…');
+    try {
+      const nowIso = new Date().toISOString();
+      const fRows = this.flowers.map((f, i) => ({
+        flower: f.flower,
+        display_name: f.display_name || f.flower,
+        emoji: f.emoji || '',
+        accent_color: f.accent_color || null,
+        art_species: BLOOM_CODEX_SPECIES.includes(f.art_species) ? f.art_species : 'wisteria',
+        archetype: ['specialist','balanced','pay_band'].includes(f.archetype) ? f.archetype : 'balanced',
+        take_pct: Math.max(0, Math.round(f.take_pct || 0)),
+        bloom_pay: Number(f.bloom_pay) || 0,
+        super_mult: Number(f.super_mult) || BLOOM_DEFAULT_SUPER_MULT,
+        weather_odds: this.cleanOdds(f),
+        active: f.active !== false,
+        icon_url: f.icon_url || null,
+        animation_url: f.animation_url || null,
+        animation_kind: f.animation_kind || null,
+        cost: 0, cost_currency: 'units',
+        sort_order: i,
+        updated_at: nowIso
+      }));
+      const wRows = this.weather.map((w, i) => ({
+        weather: w.weather,
+        display_name: w.display_name || w.weather,
+        icon: w.icon || '',
+        accent_color: w.accent_color || null,
+        kind: w.kind === 'butterfly' ? 'butterfly' : 'weather',
+        deck_count: Math.max(0, Math.round(w.deck_count == null ? 1 : w.deck_count)),
+        sort_order: i,
+        updated_at: nowIso
+      }));
+
+      const fUp = await supabase.from('bloom_flowers').upsert(fRows, { onConflict: 'flower' });
+      if (fUp.error) throw fUp.error;
+      const wUp = await supabase.from('bloom_weather').upsert(wRows, { onConflict: 'weather' });
+      if (wUp.error) throw wUp.error;
+
+      // delete rows the admin removed
+      const fKeep = fRows.map(r => r.flower), wKeep = wRows.map(r => r.weather);
+      const [fEx, wEx] = await Promise.all([
+        supabase.from('bloom_flowers').select('flower'),
+        supabase.from('bloom_weather').select('weather')
+      ]);
+      const fDel = (fEx.data || []).map(r => r.flower).filter(id => !fKeep.includes(id));
+      const wDel = (wEx.data || []).map(r => r.weather).filter(id => !wKeep.includes(id));
+      if (fDel.length) { const d = await supabase.from('bloom_flowers').delete().in('flower', fDel); if (d.error) throw d.error; }
+      if (wDel.length) { const d = await supabase.from('bloom_weather').delete().in('weather', wDel); if (d.error) throw d.error; }
+
+      bloomInvalidateDeck();
+      this.status(`Saved ${fRows.length} flowers + ${wRows.length} weather to the DB.`);
+      showToast('Bloom deck saved', 'success');
+    } catch (e){
+      console.error('[bloom] save', e);
+      this.status('Save error: ' + (e?.message || e));
+      showToast(e?.message || 'Save failed', 'error');
+    }
+  },
+
+  exportJson(){
+    const payload = { flowers: this.flowers, weather: this.weather };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'bloom-deck.json'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  },
+  importJson(file){
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        const data = JSON.parse(rd.result);
+        if (Array.isArray(data.flowers)) this.flowers = data.flowers;
+        if (Array.isArray(data.weather)) this.weather = data.weather;
+        this.renderWeather(); this.renderFlowers();
+        this.status('Imported from JSON — review, then Save to DB.');
+      } catch (e){ this.status('Import error: ' + (e?.message || e)); }
+    };
+    rd.readAsText(file);
   }
-}
+};
 
-function renderAdminBloomFlowerRow(f){
-  const li = document.createElement('li');
-  li.className = 'admin-prize-item admin-bloom-flower-item';
-  li.dataset.flower = f.flower;
+if (typeof window !== "undefined") window.BloomAdmin = BloomAdmin;   // admin console/debug handle
 
-  // Thumb: uploaded icon, else emoji
-  const thumb = document.createElement('div');
-  thumb.className = 'admin-bloom-flower-thumb';
-  thumb.style.setProperty('--accent', f.accent_color || '#8f7bd6');
-  if (f.icon_url){
-    const img = document.createElement('img');
-    img.src = f.icon_url; img.alt = '';
-    thumb.appendChild(img);
-  } else {
-    thumb.textContent = f.emoji || '🌱';
-  }
-
-  const info = document.createElement('div');
-  info.className = 'admin-bloom-flower-info';
-  const name = document.createElement('div');
-  name.className = 'admin-bloom-flower-name';
-  name.textContent = f.display_name || f.flower;
-  const meta = document.createElement('div');
-  meta.className = 'admin-bloom-flower-meta';
-  const bits = [f.flower];
-  bits.push(f.animation_url ? `animation: ${f.animation_kind || 'file'} ✓` : 'animation: none (drawn art)');
-  bits.push(f.icon_url ? 'icon ✓' : 'icon: emoji');
-  meta.textContent = bits.join(' · ');
-  info.append(name, meta);
-
-  const controls = document.createElement('div');
-  controls.className = 'admin-bloom-flower-controls';
-
-  // Active toggle
-  const toggleWrap = document.createElement('label');
-  toggleWrap.className = 'admin-status-toggle';
-  const toggle = document.createElement('input');
-  toggle.type = 'checkbox';
-  toggle.className = 'admin-status-input';
-  toggle.checked = f.active !== false;
-  const toggleLbl = document.createElement('span');
-  toggleLbl.className = 'admin-status-label';
-  setAdminStatusLabel(toggleLbl, toggle.checked);
-  toggle.addEventListener('change', () => handleBloomFlowerActive(f, toggle, toggleLbl));
-  toggleWrap.append(toggle, toggleLbl);
-
-  // Upload icon
-  const iconBtn = document.createElement('button');
-  iconBtn.type = 'button'; iconBtn.className = 'secondary';
-  iconBtn.textContent = f.icon_url ? 'Replace icon' : 'Upload icon';
-  const iconInput = document.createElement('input');
-  iconInput.type = 'file'; iconInput.accept = 'image/*'; iconInput.hidden = true;
-  iconBtn.addEventListener('click', () => iconInput.click());
-  iconInput.addEventListener('change', () => handleBloomFlowerUpload(f, iconInput, 'icon'));
-
-  // Upload animation
-  const animBtn = document.createElement('button');
-  animBtn.type = 'button'; animBtn.className = 'secondary';
-  animBtn.textContent = f.animation_url ? 'Replace animation' : 'Upload animation';
-  const animInput = document.createElement('input');
-  animInput.type = 'file';
-  animInput.accept = '.json,application/json,video/mp4,video/webm,image/gif';
-  animInput.hidden = true;
-  animBtn.addEventListener('click', () => animInput.click());
-  animInput.addEventListener('change', () => handleBloomFlowerUpload(f, animInput, 'animation'));
-
-  const btnRow = document.createElement('div');
-  btnRow.className = 'admin-bloom-flower-buttons';
-  btnRow.append(iconBtn, iconInput, animBtn, animInput);
-  if (f.animation_url){
-    const clearAnim = document.createElement('button');
-    clearAnim.type = 'button'; clearAnim.className = 'secondary';
-    clearAnim.textContent = 'Clear animation';
-    clearAnim.addEventListener('click', () => handleBloomFlowerClearAnimation(f));
-    btnRow.appendChild(clearAnim);
-  }
-
-  controls.append(toggleWrap, btnRow);
-  li.append(thumb, info, controls);
-  return li;
-}
-
-async function handleBloomFlowerActive(f, toggle, label){
-  const desired = toggle.checked;
-  toggle.disabled = true;
-  try {
-    const { error } = await supabase
-      .from('bloom_flowers')
-      .update({ active: desired, updated_at: new Date().toISOString() })
-      .eq('flower', f.flower);
-    if (error) throw error;
-    f.active = desired;
-    setAdminStatusLabel(label, desired);
-    bloomInvalidateDeck();
-    bloomFlowerStatus(`${f.display_name || f.flower} is now ${desired ? 'active' : 'inactive'}.`);
-  } catch (e){
-    console.error('[bloom] toggle active', e);
-    toggle.checked = !desired;
-    setAdminStatusLabel(label, toggle.checked);
-    bloomFlowerStatus('Update error: ' + (e?.message || e));
-  } finally {
-    toggle.disabled = false;
-  }
-}
-
+// Reusable: classify an uploaded animation file into a kind.
 function bloomAnimationKind(file){
   const name = (file?.name || '').toLowerCase();
   const type = (file?.type || '').toLowerCase();
@@ -33147,92 +33514,6 @@ function bloomAnimationKind(file){
   if (type.startsWith('video/') || name.endsWith('.mp4') || name.endsWith('.webm')) return 'video';
   if (type === 'image/gif' || name.endsWith('.gif')) return 'gif';
   return null;
-}
-
-async function handleBloomFlowerUpload(f, input, which){
-  const file = input.files?.[0];
-  if (!file) return;
-  input.disabled = true;
-  bloomFlowerStatus(`Uploading ${which} for ${f.display_name || f.flower}…`);
-  try {
-    let patch = { updated_at: new Date().toISOString() };
-    if (which === 'icon'){
-      const url = await uploadBloomAsset(file, `icons/${f.flower}`);
-      patch.icon_url = url;
-    } else {
-      const kind = bloomAnimationKind(file);
-      if (!kind){
-        throw new Error('Use a Lottie .json, an .mp4/.webm video, or a .gif.');
-      }
-      const url = await uploadBloomAsset(file, `anim/${f.flower}`);
-      patch.animation_url = url;
-      patch.animation_kind = kind;
-    }
-    const { error } = await supabase.from('bloom_flowers').update(patch).eq('flower', f.flower);
-    if (error) throw error;
-    Object.assign(f, patch);
-    bloomInvalidateDeck();
-    bloomFlowerStatus(`${which === 'icon' ? 'Icon' : 'Animation'} saved for ${f.display_name || f.flower}.`);
-    loadAdminBloomFlowers();
-  } catch (e){
-    console.error('[bloom] upload asset', e);
-    bloomFlowerStatus('Upload error: ' + (e?.message || e));
-  } finally {
-    input.disabled = false;
-    input.value = '';
-  }
-}
-
-async function handleBloomFlowerClearAnimation(f){
-  bloomFlowerStatus(`Clearing animation for ${f.display_name || f.flower}…`);
-  try {
-    const { error } = await supabase
-      .from('bloom_flowers')
-      .update({ animation_url: null, animation_kind: null, updated_at: new Date().toISOString() })
-      .eq('flower', f.flower);
-    if (error) throw error;
-    f.animation_url = null; f.animation_kind = null;
-    bloomInvalidateDeck();
-    bloomFlowerStatus(`Animation cleared for ${f.display_name || f.flower} (reverts to drawn art).`);
-    loadAdminBloomFlowers();
-  } catch (e){
-    console.error('[bloom] clear animation', e);
-    bloomFlowerStatus('Update error: ' + (e?.message || e));
-  }
-}
-
-async function handleAdminBloomFlowerAdd(){
-  if (!isAdmin(currentUser)){ showToast('Admin access only', 'error'); return; }
-  const name = (typeof window !== 'undefined' && window.prompt) ? window.prompt('New flower name (e.g. Marigold):') : '';
-  if (!name || !name.trim()) return;
-  const display = name.trim();
-  const slug = display.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-  if (!slug){ showToast('Enter a valid name', 'error'); return; }
-  bloomFlowerStatus(`Adding ${display}…`);
-  try {
-    const maxSort = _adminBloomFlowers.reduce((m, f) => Math.max(m, Number(f.sort_order) || 0), 0);
-    const { error } = await supabase.from('bloom_flowers').insert({
-      flower: slug,
-      display_name: display,
-      emoji: '🌱',
-      accent_color: '#8f7bd6',
-      art_species: 'wisteria',        // fallback drawn art until an animation is uploaded
-      archetype: 'balanced',
-      take_pct: 90,
-      bloom_pay: 0,
-      super_mult: 2,
-      weather_odds: {},
-      active: true,
-      sort_order: maxSort + 1
-    });
-    if (error) throw error;
-    bloomInvalidateDeck();
-    bloomFlowerStatus(`Added ${display}. Upload art here, then tune its odds in the Deck Builder.`);
-    await loadAdminBloomFlowers();
-  } catch (e){
-    console.error('[bloom] add flower', e);
-    bloomFlowerStatus('Add error: ' + (e?.message || e));
-  }
 }
 
 // Persist a full deck posted from the deck-builder iframe: upsert every flower +

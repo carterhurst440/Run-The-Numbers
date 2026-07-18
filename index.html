@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260718a-profilebloom" />
+    <link rel="stylesheet" href="styles.css?v=20260718b-bloomeditor" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -3797,21 +3797,36 @@
             <section class="admin-tab-content" id="admin-bloom-content" hidden>
               <section class="route-section admin-list-section">
                 <div class="admin-listing-header">
-                  <h2>BLOOM — Flowers</h2>
-                  <button type="button" class="primary" id="admin-bloom-flower-add">Add flower</button>
+                  <div>
+                    <h2>BLOOM — Flowers</h2>
+                    <p class="route-subheading">One master editor: stats, per-weather bloom/wilt odds, active toggle, and custom icon / animation uploads. Only <strong>active</strong> flowers appear in the game. Loads from <code>bloom_flowers</code>; press <strong>Save to DB</strong> to persist (the game re-pulls on next load).</p>
+                  </div>
                 </div>
-                <p class="admin-cs-hint">Toggle which flowers are <strong>active</strong> — only active flowers appear in the game. Upload a custom <strong>icon</strong> (shown in the satchel) and a <strong>Lottie / video / GIF animation</strong> (played in the bed when the flower blooms) so new flowers render without hand-coded art. Files upload to the <code>bloom-assets</code> bucket; URLs save on the flower in <code>bloom_flowers</code>. Tune bloom/wilt odds in the Deck Builder below.</p>
-                <div id="admin-bloom-flower-status" class="admin-fof-status"></div>
-                <ul id="admin-bloom-flower-list" class="admin-prize-list admin-bloom-flower-list" aria-live="polite"></ul>
+                <div class="admin-bloom-toolbar">
+                  <button type="button" class="primary" id="bloom-add-flower">+ Add flower</button>
+                  <button type="button" class="secondary" id="bloom-export">Export JSON</button>
+                  <button type="button" class="secondary" id="bloom-import">Import JSON</button>
+                  <input type="file" id="bloom-import-file" accept="application/json,.json" hidden />
+                  <span class="admin-bloom-toolbar-spacer"></span>
+                  <label class="admin-bloom-rounds">Rounds
+                    <input type="number" id="bloom-sim-rounds" min="1000" max="1000000" step="1000" value="50000" />
+                  </label>
+                  <button type="button" class="secondary" id="bloom-sim-all">▶ Sim every flower</button>
+                  <button type="button" class="primary" id="bloom-save">Save to DB</button>
+                </div>
+                <p class="admin-cs-hint">Sim runs each flower as its own all-in satchel (10 seeds) and compares its RTP contribution to the fair share (<strong>9.9% per seed</strong>). Anything off by more than ±0.25% is flagged. Same rules the live game runs.</p>
+                <div id="bloom-editor-status" class="admin-fof-status"></div>
+                <div id="bloom-flower-editor" class="bloom-flower-editor"></div>
               </section>
               <section class="route-section admin-list-section">
-                <div class="admin-listing-header"><h2>BLOOM — Deck Builder</h2></div>
-                <p class="admin-cs-hint">The full deck builder: edit each flower's stats and per-weather bloom/wilt odds, tune the weather <strong>deck composition</strong> (counts + the 🦋 butterfly wild), and <strong>Sim every flower</strong> to check RTP. Loads the live deck from <code>bloom_flowers</code> / <code>bloom_weather</code>; press <strong>💾 Save deck to DB</strong> (top-left of the Deck Builder) to persist — the game re-pulls it on next load.</p>
-                <div id="admin-bloom-status" class="admin-fof-status"></div>
-                <iframe id="admin-bloom-frame"
-                        class="admin-bloom-frame"
-                        title="Bloom Deck Builder"
-                        loading="lazy"></iframe>
+                <div class="admin-listing-header">
+                  <div>
+                    <h2>BLOOM — Weather</h2>
+                    <p class="route-subheading">The weather deck: how many of each card sit in the reel pool (<code>deck_count</code>) and the 🦋 butterfly <strong>wild</strong>. Saved together with flowers.</p>
+                  </div>
+                  <button type="button" class="primary" id="bloom-add-weather">+ Add weather</button>
+                </div>
+                <div id="bloom-weather-editor" class="bloom-weather-editor"></div>
               </section>
             </section>
 
@@ -5421,7 +5436,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260718a-profilebloom"></script>
+    <script type="module" src="script.js?v=20260718b-bloomeditor"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

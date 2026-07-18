@@ -31570,3 +31570,69 @@ body[data-ui="new"] .profile-input-group input:-webkit-autofill:active {
 }
 .admin-bloom-flower-buttons { display: flex; gap: 0.4rem; flex-wrap: wrap; }
 .admin-bloom-flower-buttons .secondary { padding: 0.4rem 0.7rem; font-size: 0.75rem; }
+
+/* ═══ BLOOM native admin editor (flowers + weather) ═══ */
+.admin-bloom-toolbar {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin: 0.75rem 0 0.5rem;
+}
+.admin-bloom-toolbar-spacer { flex: 1 1 auto; }
+.admin-bloom-rounds { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted, #9aa); }
+.admin-bloom-rounds input { width: 96px; }
+
+/* shared themed input */
+.bloom-in {
+  background: #0a0a08; color: #e8e8c8; border: 1px solid #2a2a22; border-radius: 4px;
+  padding: 0.42rem 0.55rem; font-size: 0.92rem; font-family: inherit;
+}
+.bloom-in:focus { outline: none; border-color: rgba(200,255,0,0.5); box-shadow: 0 0 0 2px rgba(200,255,0,0.08); }
+select.bloom-in { cursor: pointer; }
+
+.bloom-flower-editor { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1rem; margin-top: 0.75rem; }
+.bloom-fcard {
+  border: 1px solid var(--betting-panel-border); border-left: 3px solid var(--accent, #8f7bd6);
+  border-radius: 10px; background: color-mix(in srgb, var(--accent, #8f7bd6) 6%, #0e0e0c);
+  padding: 1rem; display: flex; flex-direction: column; gap: 0.85rem;
+}
+.bloom-fcard.is-inactive { opacity: 0.6; }
+.bloom-fcard-head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.bloom-fcard-thumb {
+  width: 40px; height: 40px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; border-radius: 8px; overflow: hidden;
+  background: color-mix(in srgb, var(--accent, #8f7bd6) 18%, #0a0a08);
+  border: 1px solid color-mix(in srgb, var(--accent, #8f7bd6) 45%, transparent);
+}
+.bloom-fcard-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.bloom-fcard-namewrap { flex: 1 1 120px; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.bloom-fname { width: 100%; font-weight: 700; }
+.bloom-fcard-slug { font-size: 0.68rem; color: var(--muted, #9aa); letter-spacing: 0.04em; }
+.bloom-fcard-del { padding: 0.3rem 0.6rem; font-size: 0.72rem; }
+.bloom-fcard-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.bloom-field { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted, #9aa); }
+.bloom-field-hint, .bloom-super-computed { font-size: 0.68rem; color: var(--muted, #9aa); text-transform: none; font-style: normal; letter-spacing: 0; }
+.bloom-super-computed { color: var(--neon-cyan, #7fe); }
+.bloom-fcard-odds { display: flex; flex-direction: column; gap: 0.3rem; }
+.bloom-odds-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 0.4rem; align-items: center; }
+.bloom-odds-head { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted, #9aa); }
+.bloom-odds-w { font-size: 0.82rem; color: var(--text-light); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bloom-odds-in { width: 100%; text-align: center; padding: 0.3rem; }
+.bloom-fcard-uploads, .bloom-fcard-sim { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.bloom-fcard-uploads .secondary, .bloom-fcard-sim .secondary { padding: 0.35rem 0.7rem; font-size: 0.74rem; }
+.bloom-fcard-animnote { font-size: 0.72rem; color: var(--muted, #9aa); }
+.bloom-fcard-simout { font-size: 0.78rem; color: var(--muted, #9aa); }
+.bloom-fcard-simout.ok { color: #4be08a; }
+.bloom-fcard-simout.hot { color: #ff7a7a; }
+.bloom-fcard-simout.cold { color: #f5c518; }
+
+.bloom-weather-editor { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem; }
+.bloom-wrow {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  border: 1px solid var(--betting-panel-border); border-left: 3px solid var(--accent, #88aacc);
+  border-radius: 8px; padding: 0.6rem 0.75rem; background: #0e0e0c;
+}
+.bloom-wicon { width: 56px; text-align: center; }
+.bloom-wname { flex: 1 1 140px; min-width: 0; }
+.bloom-wkind { flex: 0 0 auto; }
+.bloom-wcount { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted, #9aa); }
+.bloom-wcount input { width: 64px; }
+.bloom-wrow .danger { padding: 0.35rem 0.6rem; font-size: 0.72rem; }
+@media (max-width: 560px){ .bloom-fcard-stats { grid-template-columns: 1fr; } }
