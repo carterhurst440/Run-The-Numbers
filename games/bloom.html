@@ -421,9 +421,8 @@
   /* satchel's max-win potential (moved off the top card) */
   .kiiro-satchel .satchel-maxwin{font-size:10px;font-weight:700;letter-spacing:.03em;color:var(--muted);white-space:nowrap;line-height:1.1}
   .kiiro-satchel .satchel-maxwin b{color:var(--text);font-size:13px}
-  /* fixed small squares, centred — the slots no longer stretch to fill the row,
-     so the satchel stays short vertically */
-  .kiiro-satchel .satchel-strip{display:grid;grid-template-columns:repeat(5,50px);gap:8px;
+  /* ten fixed squares in a 5×2 grid, centred */
+  .kiiro-satchel .satchel-strip{display:grid;grid-template-columns:repeat(5,44px);grid-auto-rows:44px;gap:7px;
     justify-content:center;flex:1 1 auto;margin:0}
   .kiiro-satchel .satchel-bar-edit{flex:none;background:transparent;border:2px solid var(--line);border-radius:2px;
     color:var(--text);font-weight:700;letter-spacing:.12em;font-size:12px;padding:9px 16px;text-transform:uppercase}
@@ -559,10 +558,10 @@
     <div class="sat-modal-backdrop" id="satModalBackdrop"></div>
     <div class="sat-modal-card">
       <div class="sat-modal-head">
-        <div class="sat-modal-title">Your Satchel <b id="satCountModal">0/5</b></div>
+        <div class="sat-modal-title">Your Satchel <b id="satCountModal">0/10</b></div>
         <button type="button" class="sat-modal-close" id="satModalClose" aria-label="Close">✕</button>
       </div>
-      <div class="sat-modal-sub">Pick 5 — stack duplicates to go all-in, or spread out.</div>
+      <div class="sat-modal-sub">Pick 10 — stack duplicates to go all-in, or spread out.</div>
       <div class="sat-modal-body">
         <div class="sat-col-current">
           <div class="sectlbl" style="margin-top:0;border-top:0;padding-top:0">Your picks</div>
@@ -575,7 +574,7 @@
           <div class="muted" id="volLabel" style="font-size:12px;text-align:center;margin-top:6px">—</div>
           <div class="row" style="margin-top:12px;gap:8px">
             <button class="mini ghost" id="clearSatchel">Clear</button>
-            <button class="mini ghost" id="randomSatchel">Random 5</button>
+            <button class="mini ghost" id="randomSatchel">Random 10</button>
           </div>
           <div class="muted" style="font-size:12px;text-align:center;margin-top:12px">Max this satchel: <b id="perCol">—</b></div>
         </div>
@@ -2174,19 +2173,19 @@ const BED_VB = '0 -22 240 168';                // plants fill the plot; the satc
 
 /* The satchel + bed hold FIVE plants in a single row (the game used to run two
    rows of five). Fewer seeds means each pays ~2x, so the house edge holds. */
-const SATCHEL_SIZE = 5;
-/* Five spots, staggered on the fence/dirt section of the landscape background:
-   two slightly higher back plants tucked behind three lower front plants. The
-   back pair is painted first so the front row overlaps them (depth). */
-const SPOT_SC = 0.56;                          // Codex plant ~150 tall -> ~84 in the bed.
+const SATCHEL_SIZE = 10;
+/* Ten spots in two rows on the fence/dirt section of the landscape background:
+   five higher back plants (smaller, for depth) with five lower front plants
+   staggered/framing over them. The back row is painted first so the front row
+   overlaps it. */
+const SPOT_SC = 0.46;                          // Codex plant ~150 tall -> ~69 in the bed.
 const SPOTS=[
-  // back row (2) — a touch higher + smaller, offset between the front three
-  {x: 82, y:100, sc:0.50},
-  {x:158, y:100, sc:0.50},
-  // front row (3) — lower + larger, staggered across
-  {x: 46, y:128, sc:SPOT_SC},
-  {x:120, y:128, sc:SPOT_SC},
-  {x:194, y:128, sc:SPOT_SC},
+  // back row (5) — higher on the fence + smaller (depth); painted first
+  {x: 42, y:106, sc:0.40}, {x: 79, y:106, sc:0.40}, {x:116, y:106, sc:0.40},
+  {x:153, y:106, sc:0.40}, {x:190, y:106, sc:0.40},
+  // front row (5) — lower + larger, staggered/framing over the back row
+  {x: 32, y:132, sc:SPOT_SC}, {x: 77, y:132, sc:SPOT_SC}, {x:122, y:132, sc:SPOT_SC},
+  {x:167, y:132, sc:SPOT_SC}, {x:210, y:132, sc:SPOT_SC},
 ];
 
 /* Three states, one ladder, every flower. A bloom hit tweens the plant from
@@ -3377,8 +3376,8 @@ function simulate(rounds){
    runs — so this can never drift from the live rules.
 
    The number that matters is PER-SEED RTP: the satchel's seeds must sum to your
-   target, so each seed's fair share is targetRTP / SATCHEL_SIZE (19.8% per seed
-   for a 5-seed satchel at a 99% target).                                     */
+   target, so each seed's fair share is targetRTP / SATCHEL_SIZE (9.9% per seed
+   for a 10-seed satchel at a 99% target).                                    */
 function simulateFlower(f,rounds){
   const sc=payScale(), last=SUPER;
   let winSum=0,winSq=0,winMax=0,hits=0;

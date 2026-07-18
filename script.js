@@ -10809,7 +10809,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260718o-scoreswap");
+      frame.setAttribute("src", "games/bloom.html?v=20260718p-tenflowers");
     }
     installBloomBridge();   // idempotent: seed the in-memory balance + admin flag
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -33122,8 +33122,8 @@ async function bloomAdminInit(){
 // ═══════════════════════════════════════════════════════════════════════════
 const BLOOM_CODEX_SPECIES = ['lotus','poppy','sunflower','orchid','wisteria','daisy','tulip','hydrangea','cactus','snapdragon'];
 const BLOOM_MATCH_MULT = 5, BLOOM_BUTTERFLY_MULT = 2, BLOOM_DEFAULT_SUPER_MULT = 2;
-const BLOOM_SATCHEL_SIZE = 5;                          // one row of 5 plants per round
-const BLOOM_TARGET_PER_SEED = 99 / BLOOM_SATCHEL_SIZE; // 19.8% (99% target RTP / 5 seeds)
+const BLOOM_SATCHEL_SIZE = 10;                         // two rows of 5 plants per round
+const BLOOM_TARGET_PER_SEED = 99 / BLOOM_SATCHEL_SIZE; // 9.9% (99% target RTP / 10 seeds)
 
 const BloomAdmin = {
   flowers: [],
