@@ -391,8 +391,10 @@
   .maxwin-card{text-align:center;padding:16px 18px}
   .maxwin-num{font-size:34px;font-weight:800;line-height:1;color:var(--text)}
   .maxwin-cap{margin-top:6px;font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
-  /* garden: light-blue sky behind the dirt SVG */
-  .garden-card{background:#d3e8f2;min-height:360px;padding:0;overflow:hidden}
+  /* garden: illustrated landscape background (sky/hills/fence); flowers plant on
+     the fence "dirt" section. bottom-anchored so the fence stays at the base. */
+  .garden-card{min-height:360px;padding:0;overflow:hidden;
+    background:#d3e8f2 url("https://jfqdjqhqumoqcoivjwbi.supabase.co/storage/v1/object/public/bloom-assets/bg/garden-landscape.png") center bottom / cover no-repeat}
   /* satchel: one horizontal row */
   .kiiro-satchel{display:flex;align-items:center;gap:14px;padding:14px 16px}
   .kiiro-satchel .satchel-bar-label{font-size:12px;font-weight:700;letter-spacing:.22em;color:var(--muted);flex:none}
@@ -2139,12 +2141,18 @@ const BED_VB = '0 -22 240 168';                // plants fill the plot; the satc
 /* The satchel + bed hold FIVE plants in a single row (the game used to run two
    rows of five). Fewer seeds means each pays ~2x, so the house edge holds. */
 const SATCHEL_SIZE = 5;
-/* Five spots on the plot: one centred row, every plant the same scale. A bit
-   larger than the old two-row layout now that they aren't stacked. */
+/* Five spots, staggered on the fence/dirt section of the landscape background:
+   two slightly higher back plants tucked behind three lower front plants. The
+   back pair is painted first so the front row overlaps them (depth). */
 const SPOT_SC = 0.56;                          // Codex plant ~150 tall -> ~84 in the bed.
 const SPOTS=[
-  {x: 40, y:112, sc:SPOT_SC}, {x: 80, y:112, sc:SPOT_SC}, {x:120, y:112, sc:SPOT_SC},
-  {x:160, y:112, sc:SPOT_SC}, {x:200, y:112, sc:SPOT_SC}
+  // back row (2) — a touch higher + smaller, offset between the front three
+  {x: 82, y:100, sc:0.50},
+  {x:158, y:100, sc:0.50},
+  // front row (3) — lower + larger, staggered across
+  {x: 46, y:128, sc:SPOT_SC},
+  {x:120, y:128, sc:SPOT_SC},
+  {x:194, y:128, sc:SPOT_SC},
 ];
 
 /* Three states, one ladder, every flower. A bloom hit tweens the plant from
@@ -2234,10 +2242,8 @@ function spotBox(spot){
 }
 /* just the soil under a spot — the plant itself is drawn inline in its own group */
 function soilSVG(spot, t, gfx){
-  const gone = gfx.gone || gfx.dud;
-  let s='<g transform="translate('+spot.x+' '+spot.y+')">';
-  s += gone ? emptyDivot() : seedMarker(snap(t), false);
-  return s+'</g>';
+  // Landscape background provides the ground now — no dirt mounds / divots.
+  return '';
 }
 function emptyDivot(){
   return '<ellipse cx="0" cy="0.5" rx="6" ry="3" fill="#2e1b0d"/>'
@@ -2286,7 +2292,7 @@ let bedSVG=null, bedRAF=null, spotG=[], spotPlant=[], spotLbl=[], labelG=null;
 const NS='http://www.w3.org/2000/svg';
 function buildBed(plants){
   resetOverlays();                 // custom-flower overlays are rebuilt with the bed
-  bedSVG.innerHTML = DIRT_PLOT;
+  bedSVG.innerHTML = '';           // no dirt plot — flowers sit on the landscape bg
   // Back row first so the front row overlaps it: soil, then the plant drawn INLINE.
   // Inline SVG (not a rasterised <image>) always renders — a heavy blob-backed
   // image can fail to load in a sandbox and show a broken-file box. The markup is
@@ -2774,13 +2780,8 @@ function updateVolatility(){
 function resetPlayArea(){
   round=null;
   const bl=$('#bedLayer');
-  if(bl){                                      // blank bed: groomed dirt, ten empty divots
-    let divots='';
-    SPOTS.forEach(s=>{ divots+='<g transform="translate('+s.x+' '+s.y+')" opacity=".5">'
-      +'<ellipse cx="0" cy="0.5" rx="6" ry="3" fill="#2e1b0d"/>'
-      +'<ellipse cx="0" cy="0.2" rx="3.7" ry="1.8" fill="#160d06"/></g>'; });
-    bl.innerHTML='<svg id="bed" viewBox="'+BED_VB+'" preserveAspectRatio="xMidYMax meet">'
-      +DIRT_PLOT+divots+'</svg>';
+  if(bl){                                      // blank bed: just the landscape bg, no dirt
+    bl.innerHTML='<svg id="bed" viewBox="'+BED_VB+'" preserveAspectRatio="xMidYMax meet"></svg>';
     bedSVG=null;
   }
   const hint=$('#dirtHint'); if(hint) hint.style.display='';   // "cast your seeds" back on an empty bed
