@@ -82,6 +82,11 @@
     transition:box-shadow .5s, filter .5s}
   .bed-layer{position:absolute;inset:0;z-index:1}
   #bed{display:block;width:100%;height:100%;overflow:visible}
+  .bloomOverlay{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:visible}
+  .bloomOverlayItem{position:absolute;display:none;transform-origin:center bottom;
+    transition:opacity .18s ease;will-change:left,top,width,height}
+  .bloomOverlayItem>img,.bloomOverlayItem>video,.bloomOverlayItem>.bloomLottie,
+  .bloomOverlayItem>.bloomLottie>svg{width:100%!important;height:100%!important;object-fit:contain;display:block}
   #dirtHint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     font-size:13px;color:var(--muted);pointer-events:none;z-index:2}
   /* Satchel bar: full-width seed strip stacked flush on top of the planter */
@@ -2181,6 +2186,7 @@ function positionLabel(i, p){
 let bedSVG=null, bedRAF=null, spotG=[], spotPlant=[], spotLbl=[], labelG=null;
 const NS='http://www.w3.org/2000/svg';
 function buildBed(plants){
+  resetOverlays();                 // custom-flower overlays are rebuilt with the bed
   bedSVG.innerHTML = DIRT_PLOT;
   // Back row first so the front row overlaps it: soil, then the plant drawn INLINE.
   // Inline SVG (not a rasterised <image>) always renders — a heavy blob-backed
@@ -2206,6 +2212,90 @@ function buildBed(plants){
     labelG.appendChild(lb); spotLbl.push(lb);
   });
 }
+/* ── Custom-flower art overlays ─────────────────────────────────────────────
+   Flowers created in the admin with an uploaded animation render as an HTML
+   overlay (Lottie / video / gif) over the bed instead of the hand-drawn SVG.
+   The overlay pops in when the plant blooms and holds; it hides at seed/death. */
+const _ovl = { layer:null, items:{}, lottiePending:null, lastPlants:null, ro:null };
+function isCustomFlower(f){ return !!(f && f.animUrl); }
+function ensureOverlayLayer(){
+  const bl = document.getElementById('bedLayer'); if(!bl) return null;
+  if(_ovl.layer && _ovl.layer.isConnected) return _ovl.layer;
+  let l = bl.querySelector('.bloomOverlay');
+  if(!l){
+    l = document.createElement('div'); l.className='bloomOverlay';
+    if(getComputedStyle(bl).position==='static') bl.style.position='relative';
+    bl.appendChild(l);
+    if(window.ResizeObserver && !_ovl.ro){
+      _ovl.ro = new ResizeObserver(()=>{ if(_ovl.lastPlants) _ovl.lastPlants.forEach((p,i)=>positionOverlay(i,p)); });
+      _ovl.ro.observe(bl);
+    }
+  }
+  _ovl.layer = l; return l;
+}
+function resetOverlays(){
+  Object.values(_ovl.items).forEach(it=>{ try{ it.__anim && it.__anim.destroy(); }catch(_){}; it.remove(); });
+  _ovl.items = {};
+}
+function loadLottie(){
+  if(window.lottie) return Promise.resolve(window.lottie);
+  if(_ovl.lottiePending) return _ovl.lottiePending;
+  _ovl.lottiePending = new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/lottie-web@5.12.2/build/player/lottie_light.min.js';
+    s.onload=()=>res(window.lottie); s.onerror=rej; document.head.appendChild(s);
+  });
+  return _ovl.lottiePending;
+}
+function makeOverlayItem(f){
+  const wrap=document.createElement('div'); wrap.className='bloomOverlayItem';
+  if(f.animKind==='video'){
+    const v=document.createElement('video');
+    v.src=f.animUrl; v.autoplay=true; v.loop=true; v.muted=true; v.playsInline=true;
+    v.setAttribute('playsinline',''); v.setAttribute('muted',''); wrap.appendChild(v);
+    v.play&&v.play().catch(()=>{});
+  } else if(f.animKind==='gif'){
+    const img=document.createElement('img'); img.src=f.animUrl; wrap.appendChild(img);
+  } else { // lottie (default for .json)
+    const holder=document.createElement('div'); holder.className='bloomLottie'; wrap.appendChild(holder);
+    loadLottie().then(lot=>{
+      if(!wrap.isConnected) return;
+      try{ wrap.__anim = lot.loadAnimation({container:holder,renderer:'svg',loop:true,autoplay:true,path:f.animUrl}); }
+      catch(e){ console.warn('[bloom] lottie load', e); }
+    }).catch(()=>{});
+  }
+  return wrap;
+}
+function overlayItem(i,f){
+  const layer=ensureOverlayLayer(); if(!layer) return null;
+  let it=_ovl.items[i];
+  if(it && it.__flower!==f.id){ try{ it.__anim&&it.__anim.destroy(); }catch(_){}; it.remove(); it=null; }
+  if(!it){ it=makeOverlayItem(f); it.__flower=f.id; layer.appendChild(it); _ovl.items[i]=it; }
+  return it;
+}
+function hideOverlay(i){ const it=_ovl.items[i]; if(it) it.style.display='none'; }
+// Position + show/hide the overlay for spot i based on the plant's growth.
+function positionOverlay(i,p){
+  const spot=SPOTS[i]; const f=p.f; const g=p.gfx;
+  if(!spot || !isCustomFlower(f) || !bedSVG){ hideOverlay(i); return; }
+  const it=overlayItem(i,f); if(!it) return;
+  const q=g.t, op=(g.op==null?1:g.op);
+  if(g.gone||g.dud||op<=0.02||q<0.5){ it.style.display='none'; return; }
+  const layer=_ovl.layer;
+  const grow=Math.max(0,Math.min(1,(q-0.5)/(1.30-0.5)));       // 0 at sprout … 1 at super
+  const base=layer.clientWidth||240;
+  const size=base*0.16*(0.62+0.55*grow);                        // px, grows into super bloom
+  const pt=bedSVG.createSVGPoint(); pt.x=spot.x; pt.y=spot.y;      // the divot (plant base)
+  const ctm=bedSVG.getScreenCTM(); if(!ctm){ it.style.display='none'; return; }
+  const lr=layer.getBoundingClientRect();
+  const sp=pt.matrixTransform(ctm);
+  const x=sp.x-lr.left, y=sp.y-lr.top;
+  it.style.display='block';
+  it.style.width=size+'px'; it.style.height=size+'px';
+  it.style.left=(x-size/2)+'px'; it.style.top=(y-size*0.88)+'px';  // base sits ~at the divot
+  it.style.opacity=op.toFixed(2);
+}
+
 function paintSpot(p,i){
   const spot=SPOTS[i]; if(!spot||!spotG[i]) return;
   const g=p.gfx;
@@ -2220,6 +2310,12 @@ function paintSpot(p,i){
   positionLabel(i,p);                       // keep the tag riding the crown as it grows
 
   if(!pg) return;
+  // Custom flowers (admin-uploaded animation) render as an HTML overlay, not SVG.
+  if(isCustomFlower(p.f)){
+    if(pg.__key!=='custom'){ pg.__key='custom'; pg.innerHTML=''; }
+    positionOverlay(i,p);
+    return;
+  }
   if(g.gone || g.dud){
     if(pg.__key!=='empty'){ pg.__key='empty'; pg.innerHTML=''; }
     return;
@@ -2238,6 +2334,7 @@ function paintLabels(plants){
 }
 function paintBed(plants){
   if(!bedSVG) return;
+  _ovl.lastPlants=plants;
   plants.forEach((p,i)=>paintSpot(p,i));
   paintLabels(plants);
 }
@@ -2246,6 +2343,7 @@ function paintBed(plants){
 const FADE_MS=320;
 function animateBed(plants){
   if(bedRAF) cancelAnimationFrame(bedRAF);
+  _ovl.lastPlants=plants;
   paintLabels(plants);
   const step=()=>{
     const now=performance.now();
@@ -2482,6 +2580,10 @@ let openStat=null;
 const FLOWER_ICON_SET = new Set(['lotus','cactus','hydrangea','snapdragon','wisteria','tulip','daisy','sunflower','poppy','orchid']);
 const FLOWER_ICON_VER = '20260716b';
 function flowerIcon(f, cls){
+  // Admin-uploaded icon (custom flowers) wins over the bundled art sheet.
+  if(f && f.iconUrl)
+    return `<img class="${cls} ficon" src="${f.iconUrl}" alt=""`
+      + ` onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'${cls}',textContent:'${(f.emoji||'').replace(/'/g,'')}'}))">`;
   if(f && FLOWER_ICON_SET.has(f.id))
     // if the icon file is missing, fall back to the emoji instead of a broken-image box
     return `<img class="${cls} ficon" src="bloom-icons/${f.id}.png?v=${FLOWER_ICON_VER}" alt=""`
@@ -3390,7 +3492,11 @@ function bloomPostSettled(){
 function bloomApplyDeck(deck){
   if(!deck) return;
   if(Array.isArray(deck.flowers) && deck.flowers.length){
-    state.flowers = deck.flowers.map(r=>({
+    // In the live game only ACTIVE flowers appear; the deck-admin sees them all
+    // (so inactive ones can still be edited/re-activated).
+    let rows = deck.flowers;
+    if(!DECK_ADMIN) rows = rows.filter(r => r.active !== false);
+    state.flowers = rows.map(r=>({
       id:   r.flower,
       name: r.display_name,
       sp:   CODEX[r.art_species] ? r.art_species : (CODEX[r.flower] ? r.flower : SPECIES_KEYS[0]),  // "Drawn as" art
@@ -3399,7 +3505,10 @@ function bloomApplyDeck(deck){
       take: Number(r.take_pct)||0,
       pay:  Number(r.bloom_pay)||0,
       superMult: Number(r.super_mult)||DEFAULT_SUPER_MULT,
-      resp: r.weather_odds || {}
+      resp: r.weather_odds || {},
+      iconUrl: r.icon_url || null,           // admin-uploaded satchel icon
+      animUrl: r.animation_url || null,       // admin-uploaded bed animation
+      animKind: r.animation_kind || null      // 'lottie' | 'video' | 'gif'
     }));
   }
   if(Array.isArray(deck.weather) && deck.weather.length){

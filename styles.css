@@ -31451,3 +31451,122 @@ body[data-ui="new"] .profile-input-group input:-webkit-autofill:active {
   font-size: 0.74rem;
   white-space: nowrap;
 }
+
+/* Profile: static details card + edit modal */
+.profile-details-card {
+  background: var(--betting-panel-bg);
+  border: 1px solid var(--betting-panel-border);
+  border-radius: 12px;
+  padding: 1.75rem 2rem;
+  box-shadow: var(--betting-panel-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.profile-details-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.profile-details-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--neon-cyan);
+}
+.profile-details-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.profile-details-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 1rem;
+  align-items: start;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--betting-panel-border) 70%, transparent);
+}
+.profile-details-row:last-child { border-bottom: none; padding-bottom: 0; }
+.profile-details-row dt {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #9aa);
+}
+.profile-details-row dd {
+  margin: 0;
+  color: var(--text-light);
+  font-size: 1rem;
+  word-break: break-word;
+}
+.profile-details-address { white-space: pre-line; line-height: 1.5; }
+.profile-details-row dd.is-empty { color: var(--muted, #9aa); font-style: italic; }
+@media (max-width: 520px) {
+  .profile-details-row { grid-template-columns: 1fr; gap: 0.25rem; }
+}
+
+.profile-edit-modal-content {
+  width: min(500px, 94vw);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.profile-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+.profile-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+/* Keep the details-card Edit button compact instead of stretching. */
+.profile-details-header .profile-btn {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  padding-left: 1.6rem;
+  padding-right: 1.6rem;
+}
+
+/* BLOOM admin — flowers management list */
+.admin-bloom-flower-list { display: flex; flex-direction: column; gap: 0.6rem; }
+.admin-bloom-flower-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.admin-bloom-flower-thumb {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent, #8f7bd6) 18%, #0a0a08);
+  border: 1px solid color-mix(in srgb, var(--accent, #8f7bd6) 45%, transparent);
+  overflow: hidden;
+}
+.admin-bloom-flower-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.admin-bloom-flower-info { flex: 1 1 180px; min-width: 0; }
+.admin-bloom-flower-name { font-weight: 700; color: var(--text-light); }
+.admin-bloom-flower-meta { font-size: 0.78rem; color: var(--muted, #9aa); margin-top: 0.2rem; }
+.admin-bloom-flower-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.admin-bloom-flower-buttons { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.admin-bloom-flower-buttons .secondary { padding: 0.4rem 0.7rem; font-size: 0.75rem; }

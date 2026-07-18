@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260717-prizes3" />
+    <link rel="stylesheet" href="styles.css?v=20260718a-profilebloom" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -3796,6 +3796,15 @@
             </section>
             <section class="admin-tab-content" id="admin-bloom-content" hidden>
               <section class="route-section admin-list-section">
+                <div class="admin-listing-header">
+                  <h2>BLOOM — Flowers</h2>
+                  <button type="button" class="primary" id="admin-bloom-flower-add">Add flower</button>
+                </div>
+                <p class="admin-cs-hint">Toggle which flowers are <strong>active</strong> — only active flowers appear in the game. Upload a custom <strong>icon</strong> (shown in the satchel) and a <strong>Lottie / video / GIF animation</strong> (played in the bed when the flower blooms) so new flowers render without hand-coded art. Files upload to the <code>bloom-assets</code> bucket; URLs save on the flower in <code>bloom_flowers</code>. Tune bloom/wilt odds in the Deck Builder below.</p>
+                <div id="admin-bloom-flower-status" class="admin-fof-status"></div>
+                <ul id="admin-bloom-flower-list" class="admin-prize-list admin-bloom-flower-list" aria-live="polite"></ul>
+              </section>
+              <section class="route-section admin-list-section">
                 <div class="admin-listing-header"><h2>BLOOM — Deck Builder</h2></div>
                 <p class="admin-cs-hint">The full deck builder: edit each flower's stats and per-weather bloom/wilt odds, tune the weather <strong>deck composition</strong> (counts + the 🦋 butterfly wild), and <strong>Sim every flower</strong> to check RTP. Loads the live deck from <code>bloom_flowers</code> / <code>bloom_weather</code>; press <strong>💾 Save deck to DB</strong> (top-left of the Deck Builder) to persist — the game re-pulls it on next load.</p>
                 <div id="admin-bloom-status" class="admin-fof-status"></div>
@@ -3868,58 +3877,33 @@
               </div>
             </div>
 
-            <form id="profile-form" class="profile-form-card">
-              <div class="profile-input-group">
-                <label for="profile-first-name">First Name</label>
-                <input type="text" id="profile-first-name" name="firstName" autocomplete="given-name" disabled required />
+            <section class="profile-details-card">
+              <div class="profile-details-header">
+                <h2>Account Details</h2>
+                <button type="button" id="profile-edit-open" class="profile-btn profile-btn-primary">Edit</button>
               </div>
-
-              <div class="profile-input-group">
-                <label for="profile-last-name">Last Name</label>
-                <input type="text" id="profile-last-name" name="lastName" autocomplete="family-name" disabled required />
-              </div>
-
-              <div class="profile-input-group">
-                <label for="profile-email">Username or Email</label>
-                <input type="text" id="profile-email" name="email" autocomplete="username" disabled readonly />
-              </div>
-
-              <fieldset class="profile-address-fieldset">
-                <legend>Shipping Address</legend>
-                <p class="profile-address-hint">Saved for prize redemptions. We'll confirm this at checkout.</p>
-                <div class="profile-input-group">
-                  <label for="profile-address-line1">Street Address</label>
-                  <input type="text" id="profile-address-line1" name="addressLine1" autocomplete="address-line1" disabled />
+              <dl class="profile-details-list">
+                <div class="profile-details-row">
+                  <dt>First Name</dt>
+                  <dd id="pd-first-name">—</dd>
                 </div>
-                <div class="profile-input-group">
-                  <label for="profile-address-line2">Apartment, suite, etc. (optional)</label>
-                  <input type="text" id="profile-address-line2" name="addressLine2" autocomplete="address-line2" disabled />
+                <div class="profile-details-row">
+                  <dt>Last Name</dt>
+                  <dd id="pd-last-name">—</dd>
                 </div>
-                <div class="profile-address-row">
-                  <div class="profile-input-group">
-                    <label for="profile-address-city">City</label>
-                    <input type="text" id="profile-address-city" name="city" autocomplete="address-level2" disabled />
-                  </div>
-                  <div class="profile-input-group">
-                    <label for="profile-address-state">State / Region</label>
-                    <input type="text" id="profile-address-state" name="state" autocomplete="address-level1" disabled />
-                  </div>
+                <div class="profile-details-row">
+                  <dt>Username / Email</dt>
+                  <dd id="pd-email">—</dd>
                 </div>
-                <div class="profile-address-row">
-                  <div class="profile-input-group">
-                    <label for="profile-address-postal">Postal Code</label>
-                    <input type="text" id="profile-address-postal" name="postalCode" autocomplete="postal-code" disabled />
-                  </div>
-                  <div class="profile-input-group">
-                    <label for="profile-address-country">Country</label>
-                    <input type="text" id="profile-address-country" name="country" autocomplete="country-name" disabled />
-                  </div>
+                <div class="profile-details-row profile-details-row--address">
+                  <dt>Shipping Address</dt>
+                  <dd id="pd-address" class="profile-details-address">Not set</dd>
                 </div>
-                <div class="profile-input-group">
-                  <label for="profile-address-phone">Contact Phone (optional)</label>
-                  <input type="tel" id="profile-address-phone" name="shippingPhone" autocomplete="tel" disabled />
+                <div class="profile-details-row">
+                  <dt>Contact Phone</dt>
+                  <dd id="pd-phone">—</dd>
                 </div>
-              </fieldset>
+              </dl>
 
               <div class="profile-reset-panel">
                 <p class="profile-reset-copy">Need to change your password?</p>
@@ -3927,15 +3911,7 @@
                   Reset Password
                 </button>
               </div>
-
-              <div id="profile-message" class="profile-status-message"></div>
-
-              <div class="profile-actions">
-                <button type="button" id="profile-edit-button" class="profile-btn profile-btn-primary">Edit</button>
-                <button type="button" id="profile-cancel-button" class="profile-btn profile-btn-secondary" hidden>Cancel</button>
-                <button type="submit" id="profile-save-button" class="profile-btn profile-btn-primary" hidden>Save</button>
-              </div>
-            </form>
+            </section>
 
             <section class="profile-redemption-card" aria-labelledby="profile-redemption-title">
               <div class="profile-redemption-header">
@@ -3964,6 +3940,73 @@
             </section>
           </div>
         </section>
+
+        <div class="modal" id="profile-edit-modal" role="dialog" aria-modal="true" aria-labelledby="profile-edit-title" hidden>
+          <div class="modal-content profile-edit-modal-content">
+            <div class="modal-header">
+              <h2 id="profile-edit-title">Edit Profile</h2>
+              <button type="button" class="modal-close" id="profile-edit-close" aria-label="Close edit form">×</button>
+            </div>
+            <form id="profile-form" class="profile-edit-form">
+              <div class="profile-input-group">
+                <label for="profile-first-name">First Name</label>
+                <input type="text" id="profile-first-name" name="firstName" autocomplete="given-name" required />
+              </div>
+              <div class="profile-input-group">
+                <label for="profile-last-name">Last Name</label>
+                <input type="text" id="profile-last-name" name="lastName" autocomplete="family-name" required />
+              </div>
+              <div class="profile-input-group">
+                <label for="profile-email">Username or Email</label>
+                <input type="text" id="profile-email" name="email" autocomplete="username" disabled readonly />
+              </div>
+
+              <fieldset class="profile-address-fieldset">
+                <legend>Shipping Address</legend>
+                <p class="profile-address-hint">Saved for prize redemptions. We'll confirm this at checkout.</p>
+                <div class="profile-input-group">
+                  <label for="profile-address-line1">Street Address</label>
+                  <input type="text" id="profile-address-line1" name="addressLine1" autocomplete="address-line1" />
+                </div>
+                <div class="profile-input-group">
+                  <label for="profile-address-line2">Apartment, suite, etc. (optional)</label>
+                  <input type="text" id="profile-address-line2" name="addressLine2" autocomplete="address-line2" />
+                </div>
+                <div class="profile-address-row">
+                  <div class="profile-input-group">
+                    <label for="profile-address-city">City</label>
+                    <input type="text" id="profile-address-city" name="city" autocomplete="address-level2" />
+                  </div>
+                  <div class="profile-input-group">
+                    <label for="profile-address-state">State / Region</label>
+                    <input type="text" id="profile-address-state" name="state" autocomplete="address-level1" />
+                  </div>
+                </div>
+                <div class="profile-address-row">
+                  <div class="profile-input-group">
+                    <label for="profile-address-postal">Postal Code</label>
+                    <input type="text" id="profile-address-postal" name="postalCode" autocomplete="postal-code" />
+                  </div>
+                  <div class="profile-input-group">
+                    <label for="profile-address-country">Country</label>
+                    <input type="text" id="profile-address-country" name="country" autocomplete="country-name" />
+                  </div>
+                </div>
+                <div class="profile-input-group">
+                  <label for="profile-address-phone">Contact Phone (optional)</label>
+                  <input type="tel" id="profile-address-phone" name="shippingPhone" autocomplete="tel" />
+                </div>
+              </fieldset>
+
+              <div id="profile-message" class="profile-status-message"></div>
+
+              <div class="modal-actions profile-edit-actions">
+                <button type="button" id="profile-cancel-button" class="profile-btn profile-btn-secondary">Cancel</button>
+                <button type="submit" id="profile-save-button" class="profile-btn profile-btn-primary">Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
 
         <section id="fate-or-fortune-view" class="route-view app-page fof-view" hidden aria-labelledby="fof-view-title">
           <h1 id="fof-view-title" class="sr-only">Fate or Fortune</h1>
@@ -5378,7 +5421,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260717f-prizes3"></script>
+    <script type="module" src="script.js?v=20260718a-profilebloom"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

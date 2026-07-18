@@ -1513,6 +1513,33 @@ async function uploadGameLogo(file) {
   return uploadPrizeImage(file);
 }
 
+const BLOOM_ASSETS_BUCKET = "bloom-assets";
+
+// Upload a Bloom flower asset (icon image or animation) and return its public URL.
+async function uploadBloomAsset(file, subdir = "asset") {
+  if (!file) {
+    throw new Error("No file selected");
+  }
+  const safeSub = String(subdir).replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "asset";
+  const path = `${safeSub}/${createPrizeImagePath(file.name)}`;
+  const { error } = await supabase.storage
+    .from(BLOOM_ASSETS_BUCKET)
+    .upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type || "application/octet-stream"
+    });
+  if (error) {
+    throw error;
+  }
+  const { data: publicData } = supabase.storage.from(BLOOM_ASSETS_BUCKET).getPublicUrl(path);
+  const publicUrl = publicData?.publicUrl;
+  if (!publicUrl) {
+    throw new Error("Unable to resolve uploaded asset URL");
+  }
+  return publicUrl;
+}
+
 function slugifyThemeKey(value) {
   return String(value || "")
     .trim()
@@ -10670,7 +10697,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260717c-bloomroute");
+      frame.setAttribute("src", "games/bloom.html?v=20260718a-customflowers");
     }
     installBloomBridge();   // idempotent: seed the in-memory balance + admin flag
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -18095,96 +18122,70 @@ async function loadProfile() {
     await refreshCurrentRankState();
     void refreshPrizeRedemptionStatus();
 
-    // Reset to view mode
-    setProfileEditMode(false);
-    
+    // Render the read-only details card; the modal stays closed.
+    renderProfileDetails();
+    closeProfileEditModal();
+
   } catch (error) {
     console.error("[RTN] loadProfile error", error);
     showToast("Unable to load profile", "error");
   }
 }
 
-function setProfileEditMode(editing) {
-  console.info(`[RTN] setProfileEditMode called with editing=${editing}`);
-  profileEditMode = editing;
-
-  if (editing) {
-    console.info("[RTN] setProfileEditMode: entering edit mode");
-    // Save original values
-    profileOriginalData = {
-      firstName: profileFirstNameInput?.value || "",
-      lastName: profileLastNameInput?.value || "",
-      password: "",
-      address: readProfileAddressInputs()
-    };
-    profileAddressInputs.forEach((input) => {
-      if (input) input.disabled = false;
-    });
-
-    // Enable fields (except email)
-    if (profileFirstNameInput) {
-      profileFirstNameInput.disabled = false;
-      console.info("[RTN] setProfileEditMode: first name input enabled, disabled=", profileFirstNameInput.disabled);
+// Render the read-only details card from the currently loaded values.
+function renderProfileDetails() {
+  const dash = (v) => (v && String(v).trim() ? String(v).trim() : "—");
+  if (pdFirstNameEl) pdFirstNameEl.textContent = dash(profileFirstNameInput?.value);
+  if (pdLastNameEl) pdLastNameEl.textContent = dash(profileLastNameInput?.value);
+  if (pdEmailEl) pdEmailEl.textContent = dash(profileEmailInput?.value);
+  const addr = readProfileAddressInputs();
+  if (pdAddressEl) {
+    if (isShippingAddressComplete(addr)) {
+      const cityState = [addr.shipping_city, addr.shipping_state].filter(Boolean).join(", ");
+      pdAddressEl.textContent = [
+        addr.shipping_address_line1,
+        addr.shipping_address_line2,
+        cityState,
+        addr.shipping_postal_code,
+        addr.shipping_country
+      ]
+        .filter(Boolean)
+        .join("\n");
+      pdAddressEl.classList.remove("is-empty");
     } else {
-      console.error("[RTN] setProfileEditMode: profileFirstNameInput is NULL!");
+      pdAddressEl.textContent = "Not set — add one to redeem prizes";
+      pdAddressEl.classList.add("is-empty");
     }
-    if (profileLastNameInput) {
-      profileLastNameInput.disabled = false;
-      console.info("[RTN] setProfileEditMode: last name input enabled, disabled=", profileLastNameInput.disabled);
-    } else {
-      console.error("[RTN] setProfileEditMode: profileLastNameInput is NULL!");
-    }
-    if (profilePasswordInput) {
-      profilePasswordInput.disabled = false;
-      profilePasswordInput.value = "";
-      profilePasswordInput.placeholder = "Leave blank to keep current password";
-      console.info("[RTN] setProfileEditMode: password input enabled");
-    }
-    if (profilePasswordToggle) {
-      profilePasswordToggle.disabled = false;
-    }
+  }
+  if (pdPhoneEl) pdPhoneEl.textContent = dash(addr.shipping_phone);
+}
 
-    // Update buttons
-    if (profileEditButton) {
-      profileEditButton.hidden = true;
-      console.info("[RTN] setProfileEditMode: Edit button hidden");
-    }
-    if (profileCancelButton) {
-      profileCancelButton.hidden = false;
-      console.info("[RTN] setProfileEditMode: Cancel button shown");
-    }
-    if (profileSaveButton) {
-      profileSaveButton.hidden = false;
-      console.info("[RTN] setProfileEditMode: Save button shown");
-    }
-    
-    // Clear message
-    if (profileMessage) {
-      profileMessage.textContent = "";
-      profileMessage.className = "profile-status-message";
-    }
-  } else {
-    // Disable fields
-    if (profileFirstNameInput) profileFirstNameInput.disabled = true;
-    if (profileLastNameInput) profileLastNameInput.disabled = true;
-    profileAddressInputs.forEach((input) => {
-      if (input) input.disabled = true;
-    });
-    if (profilePasswordInput) {
-      profilePasswordInput.disabled = true;
-      profilePasswordInput.value = "";
-      profilePasswordInput.type = "password";
-      profilePasswordInput.placeholder = "••••••••";
-    }
-    if (profilePasswordToggle) {
-      profilePasswordToggle.disabled = true;
-      updatePasswordToggleIcon(false);
-    }
+function openProfileEditModal() {
+  if (!profileEditModal) return;
+  // Re-fill the modal inputs from the last-saved state before showing.
+  if (profileFirstNameInput) profileFirstNameInput.value = currentProfile?.first_name || profileFirstNameInput.value || "";
+  if (profileLastNameInput) profileLastNameInput.value = currentProfile?.last_name || profileLastNameInput.value || "";
+  if (profileMessage) {
+    profileMessage.textContent = "";
+    profileMessage.className = "profile-status-message";
+  }
+  profileEditModal.hidden = false;
+  profileEditModal.classList.add("is-open");
+  profileEditModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  profileFirstNameInput?.focus();
+}
 
-    // Update buttons
-    if (profileEditButton) profileEditButton.hidden = false;
-    if (profileCancelButton) profileCancelButton.hidden = true;
-    if (profileSaveButton) profileSaveButton.hidden = true;
+function closeProfileEditModal() {
+  if (!profileEditModal) return;
+  profileEditModal.classList.remove("is-open");
+  profileEditModal.setAttribute("aria-hidden", "true");
+  profileEditModal.hidden = true;
+  if (
+    (!resetModal || resetModal.hidden) &&
+    (!redeemModal || !redeemModal.classList.contains("is-open"))
+  ) {
+    document.body.classList.remove("modal-open");
   }
 }
 
@@ -18199,21 +18200,11 @@ function updatePasswordToggleIcon(isVisible) {
 }
 
 function cancelProfileEdit() {
-  // Restore original values
-  if (profileFirstNameInput) {
-    profileFirstNameInput.value = profileOriginalData.firstName || "";
-  }
-  if (profileLastNameInput) {
-    profileLastNameInput.value = profileOriginalData.lastName || "";
-  }
-  if (profilePasswordInput) {
-    profilePasswordInput.value = "";
-  }
-  if (profileOriginalData.address) {
-    populateProfileAddressFields(profileOriginalData.address);
-  }
-
-  setProfileEditMode(false);
+  // Discard unsaved edits: restore modal inputs from the last-saved profile.
+  if (profileFirstNameInput) profileFirstNameInput.value = currentProfile?.first_name || "";
+  if (profileLastNameInput) profileLastNameInput.value = currentProfile?.last_name || "";
+  populateProfileAddressFields(currentProfile || {});
+  closeProfileEditModal();
 }
 
 // -- Profile shipping address helpers ---------------------------------------
@@ -18533,17 +18524,11 @@ async function saveProfile(event) {
       profileMessage.className = "profile-status-message success";
     }
     showToast("Profile updated successfully", "success");
-    
-    setProfileEditMode(false);
-    
-    // Clear message after 3 seconds
-    setTimeout(() => {
-      if (profileMessage) {
-        profileMessage.textContent = "";
-        profileMessage.className = "profile-status-message";
-      }
-    }, 3000);
-    
+
+    // Refresh the static details card and close the modal.
+    renderProfileDetails();
+    closeProfileEditModal();
+
   } catch (error) {
     console.error("[RTN] saveProfile error", error);
     if (profileMessage) {
@@ -20309,7 +20294,7 @@ async function bloomFetchDeck() {
   try {
     const [f, w] = await Promise.all([
       supabase.from("bloom_flowers")
-        .select("flower,display_name,emoji,accent_color,archetype,take_pct,bloom_pay,super_mult,weather_odds,sort_order")
+        .select("flower,display_name,emoji,accent_color,art_species,archetype,take_pct,bloom_pay,super_mult,weather_odds,sort_order,active,icon_url,animation_url,animation_kind")
         .order("sort_order"),
       supabase.from("bloom_weather")
         .select("weather,display_name,icon,accent_color,kind,deck_count,sort_order")
@@ -20492,9 +20477,17 @@ const profileEmailInput = document.getElementById("profile-email");
 const profilePasswordInput = document.getElementById("profile-password");
 const profilePasswordToggle = document.getElementById("profile-password-toggle");
 const profileResetPasswordButton = document.getElementById("profile-reset-password-button");
-const profileEditButton = document.getElementById("profile-edit-button");
+const profileEditModal = document.getElementById("profile-edit-modal");
+const profileEditOpenButton = document.getElementById("profile-edit-open");
+const profileEditCloseButton = document.getElementById("profile-edit-close");
 const profileCancelButton = document.getElementById("profile-cancel-button");
 const profileSaveButton = document.getElementById("profile-save-button");
+// Static details view elements
+const pdFirstNameEl = document.getElementById("pd-first-name");
+const pdLastNameEl = document.getElementById("pd-last-name");
+const pdEmailEl = document.getElementById("pd-email");
+const pdAddressEl = document.getElementById("pd-address");
+const pdPhoneEl = document.getElementById("pd-phone");
 const profileAddressLine1Input = document.getElementById("profile-address-line1");
 const profileAddressLine2Input = document.getElementById("profile-address-line2");
 const profileAddressCityInput = document.getElementById("profile-address-city");
@@ -32136,37 +32129,23 @@ if (adminThemeClearOverrideButton) {
   });
 }
 
-// Debug: Log button state at initialization
-console.info("[RTN] Profile Edit Button Check:", {
-  exists: !!profileEditButton,
-  element: profileEditButton,
-  hidden: profileEditButton?.hidden,
-  disabled: profileEditButton?.disabled,
-  style: profileEditButton?.style.cssText,
-  computedDisplay: profileEditButton ? window.getComputedStyle(profileEditButton).display : null,
-  computedPointerEvents: profileEditButton ? window.getComputedStyle(profileEditButton).pointerEvents : null
-});
+if (profileEditOpenButton) {
+  profileEditOpenButton.addEventListener("click", openProfileEditModal);
+}
 
-// Global test function for debugging
-window.testEditClick = function() {
-  console.info("[RTN] testEditClick called from inline onclick!");
-  setProfileEditMode(true);
-};
-
-if (profileEditButton) {
-  profileEditButton.addEventListener("click", (e) => {
-    console.info("[RTN] Profile edit button CLICKED!", e);
-    console.info("[RTN] Event target:", e.target);
-    console.info("[RTN] Current target:", e.currentTarget);
-    setProfileEditMode(true);
-    profileFirstNameInput?.focus();
-  });
-} else {
-  console.warn("[RTN] profileEditButton not found during event listener setup");
+if (profileEditCloseButton) {
+  profileEditCloseButton.addEventListener("click", cancelProfileEdit);
 }
 
 if (profileCancelButton) {
   profileCancelButton.addEventListener("click", cancelProfileEdit);
+}
+
+// Close the edit modal when clicking the dimmed backdrop (outside the panel).
+if (profileEditModal) {
+  profileEditModal.addEventListener("click", (e) => {
+    if (e.target === profileEditModal) cancelProfileEdit();
+  });
 }
 
 if (profileResetPasswordButton) {
@@ -32848,6 +32827,11 @@ if (adminPurchasesRefreshBtn) {
   adminPurchasesRefreshBtn.addEventListener("click", () => loadAdminPurchases(true));
 }
 
+const adminBloomFlowerAddBtn = document.getElementById("admin-bloom-flower-add");
+if (adminBloomFlowerAddBtn) {
+  adminBloomFlowerAddBtn.addEventListener("click", () => handleAdminBloomFlowerAdd());
+}
+
 function formatPurchaseCost(row) {
   const parts = [];
   const credits = Math.max(0, Math.round(Number(row?.cost_credits ?? 0)));
@@ -33011,10 +32995,244 @@ function bloomStatus(msg){ const el = document.getElementById('admin-bloom-statu
 async function bloomAdminInit(){
   const frame = document.getElementById('admin-bloom-frame');
   if (frame && !frame.getAttribute('src')){
-    frame.setAttribute('src', 'games/bloom.html?deckadmin=1&v=20260717c-deckadmin');
+    frame.setAttribute('src', 'games/bloom.html?deckadmin=1&v=20260718a-customflowers');
   }
   installBloomBridge();                 // shared handler: replies init to whichever iframe is ready
   bloomSendInit('admin-bloom-frame');   // refresh the deck on re-open (first open waits for the iframe's ready)
+  loadAdminBloomFlowers();              // active toggles + custom art uploads
+}
+
+// ── BLOOM Flowers admin: active toggle + custom icon/animation uploads ──────
+let _adminBloomFlowers = [];
+
+function bloomFlowerStatus(msg){
+  const el = document.getElementById('admin-bloom-flower-status');
+  if (el) el.textContent = msg || '';
+}
+
+async function loadAdminBloomFlowers(){
+  const list = document.getElementById('admin-bloom-flower-list');
+  if (!list) return;
+  if (!isAdmin(currentUser)) { list.innerHTML = ''; return; }
+  list.innerHTML = '<li class="admin-prize-empty">Loading flowers…</li>';
+  try {
+    const { data, error } = await supabase
+      .from('bloom_flowers')
+      .select('flower, display_name, emoji, accent_color, active, icon_url, animation_url, animation_kind, sort_order')
+      .order('sort_order', { ascending: true });
+    if (error) throw error;
+    _adminBloomFlowers = Array.isArray(data) ? data : [];
+    list.innerHTML = '';
+    if (!_adminBloomFlowers.length){
+      list.innerHTML = '<li class="admin-prize-empty">No flowers yet. Add one, or build the deck below.</li>';
+      return;
+    }
+    _adminBloomFlowers.forEach((f) => list.appendChild(renderAdminBloomFlowerRow(f)));
+  } catch (e){
+    console.error('[bloom] load flowers', e);
+    list.innerHTML = '<li class="admin-prize-empty">Unable to load flowers.</li>';
+    bloomFlowerStatus('Load error: ' + (e?.message || e));
+  }
+}
+
+function renderAdminBloomFlowerRow(f){
+  const li = document.createElement('li');
+  li.className = 'admin-prize-item admin-bloom-flower-item';
+  li.dataset.flower = f.flower;
+
+  // Thumb: uploaded icon, else emoji
+  const thumb = document.createElement('div');
+  thumb.className = 'admin-bloom-flower-thumb';
+  thumb.style.setProperty('--accent', f.accent_color || '#8f7bd6');
+  if (f.icon_url){
+    const img = document.createElement('img');
+    img.src = f.icon_url; img.alt = '';
+    thumb.appendChild(img);
+  } else {
+    thumb.textContent = f.emoji || '🌱';
+  }
+
+  const info = document.createElement('div');
+  info.className = 'admin-bloom-flower-info';
+  const name = document.createElement('div');
+  name.className = 'admin-bloom-flower-name';
+  name.textContent = f.display_name || f.flower;
+  const meta = document.createElement('div');
+  meta.className = 'admin-bloom-flower-meta';
+  const bits = [f.flower];
+  bits.push(f.animation_url ? `animation: ${f.animation_kind || 'file'} ✓` : 'animation: none (drawn art)');
+  bits.push(f.icon_url ? 'icon ✓' : 'icon: emoji');
+  meta.textContent = bits.join(' · ');
+  info.append(name, meta);
+
+  const controls = document.createElement('div');
+  controls.className = 'admin-bloom-flower-controls';
+
+  // Active toggle
+  const toggleWrap = document.createElement('label');
+  toggleWrap.className = 'admin-status-toggle';
+  const toggle = document.createElement('input');
+  toggle.type = 'checkbox';
+  toggle.className = 'admin-status-input';
+  toggle.checked = f.active !== false;
+  const toggleLbl = document.createElement('span');
+  toggleLbl.className = 'admin-status-label';
+  setAdminStatusLabel(toggleLbl, toggle.checked);
+  toggle.addEventListener('change', () => handleBloomFlowerActive(f, toggle, toggleLbl));
+  toggleWrap.append(toggle, toggleLbl);
+
+  // Upload icon
+  const iconBtn = document.createElement('button');
+  iconBtn.type = 'button'; iconBtn.className = 'secondary';
+  iconBtn.textContent = f.icon_url ? 'Replace icon' : 'Upload icon';
+  const iconInput = document.createElement('input');
+  iconInput.type = 'file'; iconInput.accept = 'image/*'; iconInput.hidden = true;
+  iconBtn.addEventListener('click', () => iconInput.click());
+  iconInput.addEventListener('change', () => handleBloomFlowerUpload(f, iconInput, 'icon'));
+
+  // Upload animation
+  const animBtn = document.createElement('button');
+  animBtn.type = 'button'; animBtn.className = 'secondary';
+  animBtn.textContent = f.animation_url ? 'Replace animation' : 'Upload animation';
+  const animInput = document.createElement('input');
+  animInput.type = 'file';
+  animInput.accept = '.json,application/json,video/mp4,video/webm,image/gif';
+  animInput.hidden = true;
+  animBtn.addEventListener('click', () => animInput.click());
+  animInput.addEventListener('change', () => handleBloomFlowerUpload(f, animInput, 'animation'));
+
+  const btnRow = document.createElement('div');
+  btnRow.className = 'admin-bloom-flower-buttons';
+  btnRow.append(iconBtn, iconInput, animBtn, animInput);
+  if (f.animation_url){
+    const clearAnim = document.createElement('button');
+    clearAnim.type = 'button'; clearAnim.className = 'secondary';
+    clearAnim.textContent = 'Clear animation';
+    clearAnim.addEventListener('click', () => handleBloomFlowerClearAnimation(f));
+    btnRow.appendChild(clearAnim);
+  }
+
+  controls.append(toggleWrap, btnRow);
+  li.append(thumb, info, controls);
+  return li;
+}
+
+async function handleBloomFlowerActive(f, toggle, label){
+  const desired = toggle.checked;
+  toggle.disabled = true;
+  try {
+    const { error } = await supabase
+      .from('bloom_flowers')
+      .update({ active: desired, updated_at: new Date().toISOString() })
+      .eq('flower', f.flower);
+    if (error) throw error;
+    f.active = desired;
+    setAdminStatusLabel(label, desired);
+    bloomInvalidateDeck();
+    bloomFlowerStatus(`${f.display_name || f.flower} is now ${desired ? 'active' : 'inactive'}.`);
+  } catch (e){
+    console.error('[bloom] toggle active', e);
+    toggle.checked = !desired;
+    setAdminStatusLabel(label, toggle.checked);
+    bloomFlowerStatus('Update error: ' + (e?.message || e));
+  } finally {
+    toggle.disabled = false;
+  }
+}
+
+function bloomAnimationKind(file){
+  const name = (file?.name || '').toLowerCase();
+  const type = (file?.type || '').toLowerCase();
+  if (type.includes('json') || name.endsWith('.json')) return 'lottie';
+  if (type.startsWith('video/') || name.endsWith('.mp4') || name.endsWith('.webm')) return 'video';
+  if (type === 'image/gif' || name.endsWith('.gif')) return 'gif';
+  return null;
+}
+
+async function handleBloomFlowerUpload(f, input, which){
+  const file = input.files?.[0];
+  if (!file) return;
+  input.disabled = true;
+  bloomFlowerStatus(`Uploading ${which} for ${f.display_name || f.flower}…`);
+  try {
+    let patch = { updated_at: new Date().toISOString() };
+    if (which === 'icon'){
+      const url = await uploadBloomAsset(file, `icons/${f.flower}`);
+      patch.icon_url = url;
+    } else {
+      const kind = bloomAnimationKind(file);
+      if (!kind){
+        throw new Error('Use a Lottie .json, an .mp4/.webm video, or a .gif.');
+      }
+      const url = await uploadBloomAsset(file, `anim/${f.flower}`);
+      patch.animation_url = url;
+      patch.animation_kind = kind;
+    }
+    const { error } = await supabase.from('bloom_flowers').update(patch).eq('flower', f.flower);
+    if (error) throw error;
+    Object.assign(f, patch);
+    bloomInvalidateDeck();
+    bloomFlowerStatus(`${which === 'icon' ? 'Icon' : 'Animation'} saved for ${f.display_name || f.flower}.`);
+    loadAdminBloomFlowers();
+  } catch (e){
+    console.error('[bloom] upload asset', e);
+    bloomFlowerStatus('Upload error: ' + (e?.message || e));
+  } finally {
+    input.disabled = false;
+    input.value = '';
+  }
+}
+
+async function handleBloomFlowerClearAnimation(f){
+  bloomFlowerStatus(`Clearing animation for ${f.display_name || f.flower}…`);
+  try {
+    const { error } = await supabase
+      .from('bloom_flowers')
+      .update({ animation_url: null, animation_kind: null, updated_at: new Date().toISOString() })
+      .eq('flower', f.flower);
+    if (error) throw error;
+    f.animation_url = null; f.animation_kind = null;
+    bloomInvalidateDeck();
+    bloomFlowerStatus(`Animation cleared for ${f.display_name || f.flower} (reverts to drawn art).`);
+    loadAdminBloomFlowers();
+  } catch (e){
+    console.error('[bloom] clear animation', e);
+    bloomFlowerStatus('Update error: ' + (e?.message || e));
+  }
+}
+
+async function handleAdminBloomFlowerAdd(){
+  if (!isAdmin(currentUser)){ showToast('Admin access only', 'error'); return; }
+  const name = (typeof window !== 'undefined' && window.prompt) ? window.prompt('New flower name (e.g. Marigold):') : '';
+  if (!name || !name.trim()) return;
+  const display = name.trim();
+  const slug = display.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  if (!slug){ showToast('Enter a valid name', 'error'); return; }
+  bloomFlowerStatus(`Adding ${display}…`);
+  try {
+    const maxSort = _adminBloomFlowers.reduce((m, f) => Math.max(m, Number(f.sort_order) || 0), 0);
+    const { error } = await supabase.from('bloom_flowers').insert({
+      flower: slug,
+      display_name: display,
+      emoji: '🌱',
+      accent_color: '#8f7bd6',
+      art_species: 'wisteria',        // fallback drawn art until an animation is uploaded
+      archetype: 'balanced',
+      take_pct: 90,
+      bloom_pay: 0,
+      super_mult: 2,
+      weather_odds: {},
+      active: true,
+      sort_order: maxSort + 1
+    });
+    if (error) throw error;
+    bloomInvalidateDeck();
+    bloomFlowerStatus(`Added ${display}. Upload art here, then tune its odds in the Deck Builder.`);
+    await loadAdminBloomFlowers();
+  } catch (e){
+    console.error('[bloom] add flower', e);
+    bloomFlowerStatus('Add error: ' + (e?.message || e));
+  }
 }
 
 // Persist a full deck posted from the deck-builder iframe: upsert every flower +
