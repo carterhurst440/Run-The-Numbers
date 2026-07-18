@@ -415,15 +415,20 @@
   .garden-card{min-height:300px;padding:0;overflow:hidden;
     background:#d3e8f2 url("https://jfqdjqhqumoqcoivjwbi.supabase.co/storage/v1/object/public/bloom-assets/bg/garden-landscape.png") center bottom / cover no-repeat}
   /* satchel: one horizontal row */
-  .kiiro-satchel{display:flex;align-items:center;gap:14px;padding:8px 16px}
-  .kiiro-satchel .satchel-head-col{display:flex;flex-direction:column;gap:4px;flex:none}
+  /* header row (SATCHEL + MAX WIN on the left, EDIT on the right) sits above a
+     single full-width row of all ten seed slots */
+  .kiiro-satchel{display:flex;flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:8px;padding:8px 16px}
+  .kiiro-satchel .satchel-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .kiiro-satchel .satchel-head-col{display:flex;flex-direction:column;gap:3px;flex:none}
   .kiiro-satchel .satchel-bar-label{font-size:12px;font-weight:700;letter-spacing:.22em;color:var(--muted);flex:none}
   /* satchel's max-win potential (moved off the top card) */
   .kiiro-satchel .satchel-maxwin{font-size:10px;font-weight:700;letter-spacing:.03em;color:var(--muted);white-space:nowrap;line-height:1.1}
   .kiiro-satchel .satchel-maxwin b{color:var(--text);font-size:13px}
-  /* ten fixed squares in a 5×2 grid, centred */
-  .kiiro-satchel .satchel-strip{display:grid;grid-template-columns:repeat(5,44px);grid-auto-rows:44px;gap:7px;
-    justify-content:center;flex:1 1 auto;margin:0}
+  /* all ten slots on ONE row — 1fr columns shrink the squares to fit any width.
+     min-width:0 lets each square shrink below its icon's intrinsic size (else the
+     grid overflows the card). */
+  .kiiro-satchel .satchel-strip{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;flex:none;margin:0}
+  .kiiro-satchel .satchel-strip .slot{min-width:0}
   .kiiro-satchel .satchel-bar-edit{flex:none;background:transparent;border:2px solid var(--line);border-radius:2px;
     color:var(--text);font-weight:700;letter-spacing:.12em;font-size:12px;padding:9px 16px;text-transform:uppercase}
   .kiiro-satchel .satchel-bar-edit:hover{background:var(--line);color:var(--btn-ink)}
@@ -469,8 +474,6 @@
   @media (max-width:560px){
     .reelwrap.kiiro-stack,.kiiro-header{max-width:100%}
     .kiiro-header h1{font-size:22px;letter-spacing:.2em}
-    .kiiro-satchel{flex-wrap:wrap}
-    .kiiro-satchel .satchel-strip{order:3;flex-basis:100%}
   }
   /* ── Kiiro: SATCHEL edit modal — solid-yellow ticket, gold labels ── */
   .sat-modal-card{background:#f6e400;border:2px solid var(--line);border-radius:2px;
@@ -523,12 +526,14 @@
 
       <!-- SATCHEL (single horizontal row) -->
       <div class="satchel-bar kiiro-satchel card">
-        <div class="satchel-head-col">
-          <span class="satchel-bar-label">SATCHEL</span>
-          <span class="satchel-maxwin" id="satMaxWin">FILL SATCHEL</span>
+        <div class="satchel-top">
+          <div class="satchel-head-col">
+            <span class="satchel-bar-label">SATCHEL</span>
+            <span class="satchel-maxwin" id="satMaxWin">FILL SATCHEL</span>
+          </div>
+          <button type="button" class="satchel-bar-edit" id="satchelHead">EDIT</button>
         </div>
         <div class="satchel-strip" id="slots5"></div>
-        <button type="button" class="satchel-bar-edit" id="satchelHead">EDIT</button>
       </div>
 
       <!-- WEATHER REELS -->
