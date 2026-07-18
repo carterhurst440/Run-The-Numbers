@@ -405,17 +405,22 @@
   .kiiro-header .header-balance .hud-val{font-size:22px;font-weight:800}
   /* generic Kiiro card fill */
   .kiiro-stack .card{background:var(--panel);border:2px solid var(--line);border-radius:2px}
-  /* max-win banner (compact) */
+  /* live round-win banner (compact) */
   .maxwin-card{text-align:center;padding:8px 16px}
   .maxwin-num{font-size:25px;font-weight:800;line-height:1;color:var(--text)}
   .maxwin-cap{margin-top:2px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  .maxwin-card.pulse{animation:sbpulse .4s ease}
   /* garden: illustrated landscape background (sky/hills/fence); flowers plant on
      the fence "dirt" section. bottom-anchored so the fence stays at the base. */
   .garden-card{min-height:300px;padding:0;overflow:hidden;
     background:#d3e8f2 url("https://jfqdjqhqumoqcoivjwbi.supabase.co/storage/v1/object/public/bloom-assets/bg/garden-landscape.png") center bottom / cover no-repeat}
   /* satchel: one horizontal row */
   .kiiro-satchel{display:flex;align-items:center;gap:14px;padding:8px 16px}
+  .kiiro-satchel .satchel-head-col{display:flex;flex-direction:column;gap:4px;flex:none}
   .kiiro-satchel .satchel-bar-label{font-size:12px;font-weight:700;letter-spacing:.22em;color:var(--muted);flex:none}
+  /* satchel's max-win potential (moved off the top card) */
+  .kiiro-satchel .satchel-maxwin{font-size:10px;font-weight:700;letter-spacing:.03em;color:var(--muted);white-space:nowrap;line-height:1.1}
+  .kiiro-satchel .satchel-maxwin b{color:var(--text);font-size:13px}
   /* fixed small squares, centred — the slots no longer stretch to fill the row,
      so the satchel stays short vertically */
   .kiiro-satchel .satchel-strip{display:grid;grid-template-columns:repeat(5,50px);gap:8px;
@@ -505,25 +510,24 @@
   <div class="stage stage-play">
     <div class="reelwrap kiiro-stack">
 
-      <!-- MAX WIN -->
-      <div class="maxwin-card card">
-        <div class="maxwin-num" id="maxWinNum">—</div>
-        <div class="maxwin-cap" id="maxWinCap">FILL SATCHEL</div>
+      <!-- LIVE ROUND WIN (updates in real time as reels reveal) -->
+      <div class="maxwin-card card" id="roundWinCard">
+        <div class="maxwin-num" id="roundWinNum">0</div>
+        <div class="maxwin-cap" id="roundWinCap">WIN</div>
       </div>
 
       <!-- GARDEN (blue sky + dirt) -->
       <div class="dirt dirt-stacked garden-card" id="dirt">
         <div class="bed-layer" id="bedLayer"></div>
         <div class="muted dirt-hint" id="dirtHint">cast your seeds →</div>
-        <div class="scoreboard" id="scoreboard">
-          <div class="sb-row"><span class="sb-label">BET</span><span class="sb-val" id="sbBet">100</span></div>
-          <div class="sb-row"><span class="sb-label">WIN</span><span class="sb-val sb-win" id="sbWin">0</span></div>
-        </div>
       </div>
 
       <!-- SATCHEL (single horizontal row) -->
       <div class="satchel-bar kiiro-satchel card">
-        <span class="satchel-bar-label">SATCHEL</span>
+        <div class="satchel-head-col">
+          <span class="satchel-bar-label">SATCHEL</span>
+          <span class="satchel-maxwin" id="satMaxWin">FILL SATCHEL</span>
+        </div>
         <div class="satchel-strip" id="slots5"></div>
         <button type="button" class="satchel-bar-edit" id="satchelHead">EDIT</button>
       </div>
@@ -3530,11 +3534,12 @@ function updateMax(){
   // modal "max this satchel" line
   const elx=$('#perCol');
   if(elx) elx.textContent = full ? (board.toFixed(1)+'× bet  ·  ×'+MATCH_MULT+' on a 3-match = '+(board*MATCH_MULT).toFixed(0)+'× bet') : 'fill satchel';
-  // play-view Kiiro max-win card (top potential = base board win)
-  const mw=$('#maxWinNum'), mc=$('#maxWinCap'), bet=state.config.bet||0;
-  if(mw&&mc){
-    if(full){ mw.textContent=Math.round(board*bet).toLocaleString(); mc.textContent='MAX WIN · '+board.toFixed(2)+'× BET'; }
-    else { mw.textContent='—'; mc.textContent='FILL SATCHEL'; }
+  // satchel-area MAX WIN potential — the TRUE ceiling: every seed super-blooms AND
+  // the reels 3-match (×MATCH_MULT the whole board), so the live round win can
+  // never exceed it.
+  const sm=$('#satMaxWin'), bet=state.config.bet||0, top=board*MATCH_MULT;
+  if(sm){
+    sm.innerHTML = full ? ('MAX WIN <b>'+Math.round(top*bet).toLocaleString()+'</b> · '+top.toFixed(2)+'×') : 'FILL SATCHEL';
   }
 }
 $('#drawsPerRound').oninput=e=>{state.config.drawsPerRound=Math.max(1,Math.min(8,+e.target.value||1));save();resetPlayArea();};
@@ -3616,13 +3621,18 @@ function roundReturnUpTo(k){
   return base*mult;
 }
 let _sbTween=null;
+// The top card is the live round WIN — it counts up as each reel reveals and
+// settles on the final payout. Its caption shows the running × of the bet.
 function setScoreWin(target, pulse){
-  const el=$('#sbWin'); if(!el) return;
+  const el=$('#roundWinNum'); if(!el) return;
   target=Math.round(target||0);
   const from=parseInt((el.textContent||'0').replace(/[^0-9-]/g,''),10)||0;
   if(_sbTween) cancelAnimationFrame(_sbTween);
-  const sb=$('#scoreboard');
-  if(pulse && sb){ sb.classList.remove('pulse'); void sb.offsetWidth; sb.classList.add('pulse'); }
+  const bet=(round&&round.bet!=null)?round.bet:(state.config.bet||0);
+  const cap=$('#roundWinCap');
+  if(cap) cap.textContent = (target>0 && bet>0) ? ('WIN · '+(target/bet).toFixed(2)+'× BET') : 'WIN';
+  const card=$('#roundWinCard');
+  if(pulse && card){ card.classList.remove('pulse'); void card.offsetWidth; card.classList.add('pulse'); }
   const dur=420, t0=performance.now();
   const step=(now)=>{
     const p=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-p,3);
