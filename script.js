@@ -10809,7 +10809,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260718j-landscapebg");
+      frame.setAttribute("src", "games/bloom.html?v=20260718k-neonreels");
     }
     installBloomBridge();   // idempotent: seed the in-memory balance + admin flag
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -33344,15 +33344,37 @@ const BloomAdmin = {
   async uploadAsset(f, file, which, card, idx){
     this.status(`Uploading ${which} for ${f.display_name}…`);
     try {
+      let patch;
       if (which === 'icon'){
         f.icon_url = await uploadBloomAsset(file, `icons/${f.flower}`);
+        patch = { icon_url: f.icon_url };
       } else {
         const kind = bloomAnimationKind(file);
         if (!kind) throw new Error('Use a Lottie .json, an .mp4/.webm video, or a .gif.');
         f.animation_url = await uploadBloomAsset(file, `anim/${f.flower}`);
         f.animation_kind = kind;
+        patch = { animation_url: f.animation_url, animation_kind: f.animation_kind };
       }
-      this.status(`${which === 'icon' ? 'Icon' : 'Animation'} uploaded for ${f.display_name} — remember to Save to DB.`);
+      // Persist just this asset column immediately so a freshly cropped/uploaded
+      // image can't be silently lost by forgetting to hit "Save to DB". This is a
+      // surgical update — it won't touch the flower's other (possibly unsaved)
+      // edits, and is a no-op for a brand-new flower not yet in the DB (its row
+      // gets inserted, icon and all, on the next full Save to DB).
+      let persisted = false;
+      try {
+        const { data, error } = await supabase.from('bloom_flowers')
+          .update({ ...patch, updated_at: new Date().toISOString() })
+          .eq('flower', f.flower)
+          .select('flower');
+        if (error) throw error;
+        persisted = Array.isArray(data) && data.length > 0;
+      } catch (persistErr){
+        console.warn('[bloom] asset auto-persist failed', persistErr);
+      }
+      const label = which === 'icon' ? 'Icon' : 'Animation';
+      this.status(persisted
+        ? `${label} uploaded + saved for ${f.display_name}.`
+        : `${label} uploaded for ${f.display_name} — click Save to DB to finish.`);
       this.renderFlowers();
     } catch (e){
       console.error('[bloom] upload', e);
