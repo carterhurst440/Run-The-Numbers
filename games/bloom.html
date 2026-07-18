@@ -366,12 +366,77 @@
   /* ── Kiiro reskin: crisp 2px ink frames + block buttons ── */
   .card,.dirt,.satchel-bar,.sat-modal-card{border-width:2px}
   button.primary,button.gold{border-radius:2px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+
+  /* ══════ Kiiro LAYOUT — stacked ticket cards on a dotted yellow field ══════ */
+  body{background:#f6e400;
+    background-image:radial-gradient(rgba(0,0,0,.09) 1.1px, transparent 1.6px);
+    background-size:9px 9px;}
+  main{padding:0}
+  .stage-play{padding:0}
+  /* the whole play view is one centred column of cards */
+  .reelwrap.kiiro-stack{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:16px;
+    padding:22px 22px 26px;flex:none}
+  /* header: BLOOM wordmark + BALANCE, ruled underline */
+  .kiiro-header{max-width:520px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;
+    gap:16px;padding:20px 22px 14px;border-bottom:2px solid var(--line)}
+  .kiiro-header .goddess{display:none}
+  .kiiro-header .tabs{display:none}
+  .kiiro-header h1{font-family:var(--ui);font-weight:800;font-size:26px;letter-spacing:.28em;color:var(--text);margin:0}
+  .kiiro-header .header-balance{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+  .kiiro-header .header-balance .hud-label{font-size:10px;letter-spacing:.2em}
+  .kiiro-header .header-balance .hud-val{font-size:22px;font-weight:800}
+  /* generic Kiiro card fill */
+  .kiiro-stack .card{background:var(--panel);border:2px solid var(--line);border-radius:2px}
+  /* max-win banner */
+  .maxwin-card{text-align:center;padding:16px 18px}
+  .maxwin-num{font-size:34px;font-weight:800;line-height:1;color:var(--text)}
+  .maxwin-cap{margin-top:6px;font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+  /* garden: light-blue sky behind the dirt SVG */
+  .garden-card{background:#d3e8f2;min-height:360px;padding:0;overflow:hidden}
+  /* satchel: one horizontal row */
+  .kiiro-satchel{display:flex;align-items:center;gap:14px;padding:14px 16px}
+  .kiiro-satchel .satchel-bar-label{font-size:12px;font-weight:700;letter-spacing:.22em;color:var(--muted);flex:none}
+  .kiiro-satchel .satchel-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;flex:1 1 auto;margin:0}
+  .kiiro-satchel .satchel-bar-edit{flex:none;background:transparent;border:2px solid var(--line);border-radius:2px;
+    color:var(--text);font-weight:700;letter-spacing:.12em;font-size:12px;padding:9px 16px;text-transform:uppercase}
+  .kiiro-satchel .satchel-bar-edit:hover{background:var(--line);color:var(--btn-ink)}
+  /* weather reels card */
+  .wreel-card{padding:14px 16px 16px}
+  .wreel-head{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:12px;
+    font-size:11px;font-weight:700;letter-spacing:.24em;color:var(--muted);text-transform:uppercase}
+  .wreel-head::before,.wreel-head::after{content:"";flex:1;height:0;border-top:1.5px dotted var(--muted);opacity:.7}
+  .wreel-head span{display:flex;align-items:center;gap:10px}
+  .wreel-head span::before,.wreel-head span::after{content:"";width:5px;height:5px;border-radius:50%;background:var(--text)}
+  .wreel-card .wreel{margin:0;max-width:none}
+  .wreel-card .wcell{--wh:96px}
+  .wreel-card .multi{text-align:center;margin-top:10px;font-weight:700}
+  /* bottom bar: big action + bet stepper */
+  .bottom-bar{display:flex;align-items:stretch;gap:12px}
+  .bottom-bar .main-action{flex:1 1 auto;background:var(--accent);color:var(--btn-ink);border:2px solid var(--accent);
+    border-radius:2px;font-size:17px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;padding:0 20px;min-height:62px}
+  .bet-stepper{display:flex;align-items:center;gap:12px;padding:0 14px;flex:none}
+  .bet-step{width:32px;height:32px;flex:none;display:flex;align-items:center;justify-content:center;
+    background:transparent;border:2px solid var(--line);border-radius:2px;color:var(--text);font-size:18px;font-weight:800;line-height:1}
+  .bet-step:hover{background:var(--line);color:var(--btn-ink)}
+  .bet-field{display:flex;flex-direction:column;align-items:center;gap:1px;margin:0}
+  .bet-field .hud-label{font-size:9px;letter-spacing:.16em}
+  .bet-field input{width:70px;text-align:center;background:transparent;border:none;color:var(--text);
+    font-family:var(--ui);font-size:20px;font-weight:800;padding:0;margin:0}
+  .bet-field input:focus{outline:none}
+  /* the play winbanner reads as quiet status text */
+  .kiiro-stack .winbanner{text-align:center;font-weight:700;background:transparent;border:none;padding:2px 0;margin:0}
+  @media (max-width:560px){
+    .reelwrap.kiiro-stack,.kiiro-header{max-width:100%}
+    .kiiro-header h1{font-size:22px;letter-spacing:.2em}
+    .kiiro-satchel{flex-wrap:wrap}
+    .kiiro-satchel .satchel-strip{order:3;flex-basis:100%}
+  }
 </style>
 </head>
 <body>
-<header>
-  <span class="goddess">🧚‍♀️</span>
+<header class="kiiro-header">
   <h1>BLOOM</h1>
+  <div class="hud-stat header-balance"><span class="hud-label">BALANCE</span><b class="hud-val" id="balVal">—</b></div>
   <div class="tabs">
     <div class="tab active" data-view="play">PLAY</div>
     <div class="tab" data-view="deck">🪴 DECK BUILDER</div>
@@ -383,24 +448,16 @@
 <!-- ============ PLAY ============ -->
 <section class="view active" id="view-play">
   <div class="stage stage-play">
-    <div class="reelwrap">
-      <div class="row playtop" style="margin-bottom:8px;align-items:center">
-        <label class="fld" style="margin:0">Bet <input id="bet" type="number" value="100" style="width:82px;display:inline-block"></label>
-        <div class="playtop-hud">
-          <div class="hud-stat"><span class="hud-label">BALANCE</span><b class="hud-val" id="balVal">—</b></div>
-        </div>
+    <div class="reelwrap kiiro-stack">
+
+      <!-- MAX WIN -->
+      <div class="maxwin-card card">
+        <div class="maxwin-num" id="maxWinNum">—</div>
+        <div class="maxwin-cap" id="maxWinCap">FILL SATCHEL</div>
       </div>
 
-      <!-- Satchel bar stacked flush on the planter: SATCHEL + EDIT on top, all ten
-           seeds as a 5x2 grid below. Tap any seed (or EDIT) to change the satchel. -->
-      <div class="satchel-bar">
-        <div class="satchel-bar-top">
-          <span class="satchel-bar-label">SATCHEL</span>
-          <button type="button" class="satchel-bar-edit" id="satchelHead">EDIT</button>
-        </div>
-        <div class="satchel-strip" id="slots5"></div>
-      </div>
-      <div class="dirt dirt-stacked" id="dirt">
+      <!-- GARDEN (blue sky + dirt) -->
+      <div class="dirt dirt-stacked garden-card" id="dirt">
         <div class="bed-layer" id="bedLayer"></div>
         <div class="muted dirt-hint" id="dirtHint">cast your seeds →</div>
         <div class="scoreboard" id="scoreboard">
@@ -409,12 +466,32 @@
         </div>
       </div>
 
-      <div class="winbanner lose" id="winBanner">fill your satchel & cast</div>
-      <div class="wreel" id="weatherReel"></div>
-      <div class="multi" id="multi"></div>
-      <div class="row">
-        <button class="gold" style="flex:1;font-size:16px;padding:14px" id="spinBtn">CAST SEEDS</button>
+      <!-- SATCHEL (single horizontal row) -->
+      <div class="satchel-bar kiiro-satchel card">
+        <span class="satchel-bar-label">SATCHEL</span>
+        <div class="satchel-strip" id="slots5"></div>
+        <button type="button" class="satchel-bar-edit" id="satchelHead">EDIT</button>
       </div>
+
+      <!-- WEATHER REELS -->
+      <div class="wreel-card card">
+        <div class="wreel-head"><span>WEATHER REELS</span></div>
+        <div class="wreel" id="weatherReel"></div>
+        <div class="multi" id="multi"></div>
+      </div>
+
+      <div class="winbanner lose" id="winBanner">fill your satchel &amp; cast</div>
+
+      <!-- BOTTOM BAR: primary action + bet stepper -->
+      <div class="bottom-bar">
+        <button class="gold main-action" id="spinBtn">CAST SEEDS</button>
+        <div class="bet-stepper card">
+          <button type="button" class="bet-step" id="betMinus" aria-label="Lower bet">−</button>
+          <label class="bet-field"><span class="hud-label">BET</span><input id="bet" type="number" value="100"></label>
+          <button type="button" class="bet-step" id="betPlus" aria-label="Raise bet">+</button>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -3351,13 +3428,28 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   if(t.dataset.view==='weather')renderWeatherTab();
 });
 $('#bet').oninput=e=>{state.config.bet=+e.target.value||0;updateMax();updateScoreBet();save();};
+// Kiiro bet stepper: − / + adjust the bet in fixed steps, then re-run the bet handler.
+const BET_STEP=50, BET_MIN=10;
+function nudgeBet(dir){
+  const inp=$('#bet'); if(!inp) return;
+  const next=Math.max(BET_MIN,(+inp.value||0)+dir*BET_STEP);
+  inp.value=next; inp.dispatchEvent(new Event('input',{bubbles:true}));
+}
+$('#betMinus')?.addEventListener('click',()=>nudgeBet(-1));
+$('#betPlus')?.addEventListener('click',()=>nudgeBet(1));
 function updateMax(){
+  const full=state.satchel.length>=SATCHEL_SIZE;
+  let board=0;
+  if(full){ let sumPct=0; state.satchel.forEach(fid=>{sumPct+=topPay(flower(fid));}); board=sumPct/100*payScale(); }
+  // modal "max this satchel" line
   const elx=$('#perCol');
-  if(state.satchel.length<SATCHEL_SIZE){elx.textContent='fill satchel';return;}
-  let sumPct=0;
-  state.satchel.forEach(fid=>{sumPct+=topPay(flower(fid));});
-  const board=sumPct/100*payScale();
-  elx.textContent=board.toFixed(1)+'× bet  ·  ×'+MATCH_MULT+' on a 3-match = '+(board*MATCH_MULT).toFixed(0)+'× bet';
+  if(elx) elx.textContent = full ? (board.toFixed(1)+'× bet  ·  ×'+MATCH_MULT+' on a 3-match = '+(board*MATCH_MULT).toFixed(0)+'× bet') : 'fill satchel';
+  // play-view Kiiro max-win card (top potential = base board win)
+  const mw=$('#maxWinNum'), mc=$('#maxWinCap'), bet=state.config.bet||0;
+  if(mw&&mc){
+    if(full){ mw.textContent=Math.round(board*bet).toLocaleString(); mc.textContent='WIN · '+board.toFixed(2)+'× BET'; }
+    else { mw.textContent='—'; mc.textContent='FILL SATCHEL'; }
+  }
 }
 $('#drawsPerRound').oninput=e=>{state.config.drawsPerRound=Math.max(1,Math.min(8,+e.target.value||1));save();resetPlayArea();};
 $('#targetRtp').oninput=e=>{state.config.targetRTP=Math.max(50,Math.min(120,+e.target.value||99));save();renderWeatherTab();updateMax();};
@@ -3471,7 +3563,7 @@ function bloomApplyMode(){
     const btn=$('#saveDeckDbBtn'); if(btn) btn.style.display='';
     const st=$('#saveDeckDbStatus'); if(st) st.textContent='Edits save to the DB when you press Save.';
   } else {
-    if(hdr) hdr.style.display='none';           // play game: drop the BLOOM/PLAY strip entirely
+    if(hdr) hdr.style.display='';               // Kiiro play header: BLOOM wordmark + BALANCE (tabs hidden via CSS)
     show('play',true); show('deck',false); show('weather',false);
     const active=document.querySelector('.tab.active');
     if(!active || active.dataset.view!=='play') activate('play');
