@@ -392,11 +392,11 @@
   main{padding:0}
   .stage-play{padding:0}
   /* the whole play view is one centred column of cards */
-  .reelwrap.kiiro-stack{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:16px;
-    padding:22px 22px 26px;flex:none}
+  .reelwrap.kiiro-stack{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:10px;
+    padding:12px 22px 16px;flex:none}
   /* header: BLOOM wordmark + BALANCE, ruled underline */
   .kiiro-header{max-width:520px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;
-    gap:16px;padding:20px 22px 14px;border-bottom:2px solid var(--line)}
+    gap:16px;padding:11px 22px 9px;border-bottom:2px solid var(--line)}
   .kiiro-header .goddess{display:none}
   .kiiro-header .tabs{display:none}
   .kiiro-header h1{font-family:var(--ui);font-weight:800;font-size:26px;letter-spacing:.28em;color:var(--text);margin:0}
@@ -405,30 +405,30 @@
   .kiiro-header .header-balance .hud-val{font-size:22px;font-weight:800}
   /* generic Kiiro card fill */
   .kiiro-stack .card{background:var(--panel);border:2px solid var(--line);border-radius:2px}
-  /* max-win banner */
-  .maxwin-card{text-align:center;padding:16px 18px}
-  .maxwin-num{font-size:34px;font-weight:800;line-height:1;color:var(--text)}
-  .maxwin-cap{margin-top:6px;font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+  /* max-win banner (compact) */
+  .maxwin-card{text-align:center;padding:8px 16px}
+  .maxwin-num{font-size:25px;font-weight:800;line-height:1;color:var(--text)}
+  .maxwin-cap{margin-top:2px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
   /* garden: illustrated landscape background (sky/hills/fence); flowers plant on
      the fence "dirt" section. bottom-anchored so the fence stays at the base. */
-  .garden-card{min-height:360px;padding:0;overflow:hidden;
+  .garden-card{min-height:300px;padding:0;overflow:hidden;
     background:#d3e8f2 url("https://jfqdjqhqumoqcoivjwbi.supabase.co/storage/v1/object/public/bloom-assets/bg/garden-landscape.png") center bottom / cover no-repeat}
   /* satchel: one horizontal row */
-  .kiiro-satchel{display:flex;align-items:center;gap:14px;padding:14px 16px}
+  .kiiro-satchel{display:flex;align-items:center;gap:14px;padding:9px 16px}
   .kiiro-satchel .satchel-bar-label{font-size:12px;font-weight:700;letter-spacing:.22em;color:var(--muted);flex:none}
   .kiiro-satchel .satchel-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;flex:1 1 auto;margin:0}
   .kiiro-satchel .satchel-bar-edit{flex:none;background:transparent;border:2px solid var(--line);border-radius:2px;
     color:var(--text);font-weight:700;letter-spacing:.12em;font-size:12px;padding:9px 16px;text-transform:uppercase}
   .kiiro-satchel .satchel-bar-edit:hover{background:var(--line);color:var(--btn-ink)}
   /* weather reels card */
-  .wreel-card{padding:14px 16px 16px}
-  .wreel-head{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:12px;
+  .wreel-card{padding:11px 16px 12px}
+  .wreel-head{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:8px;
     font-size:11px;font-weight:700;letter-spacing:.24em;color:var(--muted);text-transform:uppercase}
   .wreel-head::before,.wreel-head::after{content:"";flex:1;height:0;border-top:1.5px dotted var(--muted);opacity:.7}
   .wreel-head span{display:flex;align-items:center;gap:10px}
   .wreel-head span::before,.wreel-head span::after{content:"";width:5px;height:5px;border-radius:50%;background:var(--text)}
   .wreel-card .wreel{margin:0;max-width:none}
-  .wreel-card .wcell{--wh:96px}
+  .wreel-card .wcell{--wh:82px}
   /* Match banner sits collapsed (no reserved space) and slides down when a 3-match
      lands. #multi is set to '' when there's no match, so :empty drives it. */
   .wreel-card .multi{text-align:center;font-weight:800;min-height:0;margin-top:0;
@@ -438,7 +438,7 @@
   /* bottom bar: big action + bet stepper */
   .bottom-bar{display:flex;align-items:stretch;gap:12px}
   .bottom-bar .main-action{flex:1 1 auto;background:var(--accent);color:var(--btn-ink);border:2px solid var(--accent);
-    border-radius:2px;font-size:17px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;padding:0 20px;min-height:62px}
+    border-radius:2px;font-size:17px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;padding:0 20px;min-height:54px}
   .bet-stepper{display:flex;align-items:center;gap:12px;padding:0 14px;flex:none}
   .bet-step{width:32px;height:32px;flex:none;display:flex;align-items:center;justify-content:center;
     background:transparent;border:2px solid var(--line);border-radius:2px;color:var(--text);font-size:18px;font-weight:800;line-height:1}
@@ -448,8 +448,13 @@
   .bet-field input{width:70px;text-align:center;background:transparent;border:none;color:var(--text);
     font-family:var(--ui);font-size:20px;font-weight:800;padding:0;margin:0}
   .bet-field input:focus{outline:none}
-  /* the play winbanner reads as quiet status text */
-  .kiiro-stack .winbanner{text-align:center;font-weight:700;background:transparent;border:none;padding:2px 0;margin:0}
+  /* the play winbanner is quiet status text that only appears for transient
+     prompts/errors — it collapses to zero height when empty so it never adds a
+     gap between the reels and the action button. */
+  .kiiro-stack .winbanner{text-align:center;font-weight:700;background:transparent;border:none;
+    margin:0;padding:0;min-height:0;max-height:0;opacity:0;overflow:hidden;
+    transition:max-height .3s ease,opacity .25s ease,margin .3s ease,padding .3s ease}
+  .kiiro-stack .winbanner:not(:empty){max-height:40px;opacity:1;margin:2px 0 0;padding:2px 0}
   @media (max-width:560px){
     .reelwrap.kiiro-stack,.kiiro-header{max-width:100%}
     .kiiro-header h1{font-size:22px;letter-spacing:.2em}
@@ -523,7 +528,7 @@
         <div class="multi" id="multi"></div>
       </div>
 
-      <div class="winbanner lose" id="winBanner">fill your satchel &amp; cast</div>
+      <div class="winbanner" id="winBanner"></div>
 
       <!-- BOTTOM BAR: primary action + bet stepper -->
       <div class="bottom-bar">
@@ -3094,10 +3099,10 @@ function finalizeRound(){
   bloomPostSettled();                 // let the shell mirror the new balance (in-memory pass)
   round.phase='done';round.done=true;
   // a WIN means more back than you staked. Anything under the bet is a softened loss.
-  const mtxt = mult>1 ? (wild ? `  ·  WILD ${len}-in-a-row ×${mult} board` : `  ·  all ${len} match ×${mult} board`) : '';
-  if(total>=bet) banner('win',`Win ${total.toFixed(0)} (${(total/bet).toFixed(2)}× bet)${mtxt}`);
-  else if(total>0) banner('lose',`${total.toFixed(0)} back (${(total/bet).toFixed(2)}× bet) — under your stake${mtxt}`);
-  else banner('lose','No bloom this round');
+  // The in-garden scoreboard (BET / WIN) already reports the round result, and a
+  // 3-match shows in the reels' own banner — so we no longer duplicate a win/lose
+  // line here (keeps the button snug under the reels).
+  banner('','');
 }
 // Casino reel spin: stack N random tiles above the landing tile, then scroll the
 // strip up past all of them with an ease-out so it flies then decelerates into
@@ -3143,7 +3148,7 @@ function spinButtonClick(){
   if(!round) castSeeds();                          // CAST SEEDS -> roll + reveal
   else if(round.phase==='cast') revealNextReel();  // SPIN REEL x/3
   else {                                           // NEW ROUND -> clear the board, back to CAST SEEDS
-    resetPlayArea(); setScoreWin(0); banner('lose','fill your satchel & cast'); updateSpinButton();
+    resetPlayArea(); setScoreWin(0); banner('',''); updateSpinButton();
   }
 }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -3521,7 +3526,7 @@ function updateMax(){
   // play-view Kiiro max-win card (top potential = base board win)
   const mw=$('#maxWinNum'), mc=$('#maxWinCap'), bet=state.config.bet||0;
   if(mw&&mc){
-    if(full){ mw.textContent=Math.round(board*bet).toLocaleString(); mc.textContent='WIN · '+board.toFixed(2)+'× BET'; }
+    if(full){ mw.textContent=Math.round(board*bet).toLocaleString(); mc.textContent='MAX WIN · '+board.toFixed(2)+'× BET'; }
     else { mw.textContent='—'; mc.textContent='FILL SATCHEL'; }
   }
 }
