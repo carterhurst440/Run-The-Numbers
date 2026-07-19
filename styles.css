@@ -20828,6 +20828,15 @@ body.state-open .auth-vault-grant .gline::after {
   font-style: italic;
 }
 
+/* "use it or lose it" — CC is wiped monthly, so call it out rather than bury it */
+.cc-tooltip-rule-reset {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  color: #c8ff00;
+  font-weight: 700;
+}
+
 .notification-toggle,
 .menu-toggle {
   width: 32px;
