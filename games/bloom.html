@@ -150,6 +150,8 @@
   .sat-modal .pick{padding:5px 9px;border-radius:2px}
   .sat-modal .pick img.pe{width:26px;height:26px}
   .sat-modal .pick .pe{font-size:18px}
+  .sat-col-current .satchel-strip{margin-bottom:18px}
+  .satmax{font-size:12px;text-align:center;margin-top:12px}
   @media (max-width:600px){ .sat-modal-body{grid-template-columns:1fr} }
   /* weather reel — clean neon line-icon symbols (no labels) */
   .wreel{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px auto 6px;max-width:337px}
@@ -527,6 +529,44 @@
     font-weight:700;padding:8px 14px}
   .sat-modal button.mini:hover{background:var(--line);color:var(--btn-ink)}
   .sat-modal .tinylbl{color:var(--muted)}
+
+  /* ── phones: SATCHEL modal must fit the screen (nothing clipped off the bottom).
+     Kept LAST in the sheet so it wins over the Kiiro modal overrides above (media
+     queries add no specificity, so source order decides). The card becomes a flex
+     column capped to the viewport; the top block is compacted, all ten picks sit
+     on one row, and "Add seeds" gets its OWN panel + scroll so the card itself
+     never scrolls. 100dvh (not vh) so mobile browser chrome can't cut it off. */
+  @media (max-width:600px){
+    .sat-modal{padding:8px;align-items:flex-start}
+    .sat-modal-card{width:100%;padding:12px 13px;
+      max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px);
+      display:flex;flex-direction:column;overflow:hidden}
+    .sat-modal-head{gap:8px}
+    .sat-modal-title{font-size:15px}
+    .sat-modal-close{width:32px;height:32px;font-size:16px}
+    .sat-modal-sub{font-size:11px;margin:2px 0 8px;line-height:1.3}
+    .sat-modal .sectlbl{margin:8px 0 5px;font-size:10px;letter-spacing:.12em}
+    /* all ten picks on ONE row — min-width:0 lets them shrink; the names would be
+       illegible that small, so hide them (the icon identifies the seed) */
+    .sat-col-current .satchel-strip{grid-template-columns:repeat(10,1fr);gap:3px;margin-bottom:0}
+    .sat-col-current .satchel-strip .slot{min-width:0}
+    .sat-col-current .satchel-strip .slot small{display:none}
+    .sat-col-current .satchel-strip .slot .sicon{height:74%}
+    /* compact controls */
+    .sat-modal button.mini{padding:5px 10px;font-size:11px;letter-spacing:.06em}
+    .sat-modal .voltrack{margin-top:4px}
+    .satmax{margin-top:8px;font-size:11px}
+    /* body: picks block sizes to content, the seed list fills the rest + scrolls.
+       align-items must be stretch (the base rule sets `start`, which would size the
+       panel to its content and overflow the card instead of scrolling). */
+    .sat-modal-body{grid-template-columns:1fr;grid-template-rows:auto 1fr;gap:10px;
+      align-items:stretch;flex:1 1 auto;min-height:0}
+    .sat-col-current{min-height:0}
+    .sat-col-add{min-height:0;display:flex;flex-direction:column;
+      border:2px solid var(--line);border-radius:2px;padding:8px 9px;background:rgba(255,255,255,.3)}
+    .sat-col-add .sectlbl{margin:0 0 6px}
+    .sat-modal .picker{flex:1 1 auto;min-height:0;overflow-y:auto;max-height:none;padding-right:4px}
+  }
 </style>
 </head>
 <body>
@@ -604,7 +644,7 @@
       <div class="sat-modal-body">
         <div class="sat-col-current">
           <div class="sectlbl" style="margin-top:0;border-top:0;padding-top:0">Your picks</div>
-          <div class="satchel-strip" id="satModalSlots" style="margin-bottom:18px"></div>
+          <div class="satchel-strip" id="satModalSlots"></div>
           <div class="sectlbl">Volatility</div>
           <div class="row" style="justify-content:space-between;margin-top:8px">
             <span class="tinylbl">Diversify</span><span class="tinylbl">All-in</span>
@@ -615,7 +655,7 @@
             <button class="mini ghost" id="clearSatchel">Clear</button>
             <button class="mini ghost" id="randomSatchel">Random 10</button>
           </div>
-          <div class="muted" style="font-size:12px;text-align:center;margin-top:12px">Max this satchel: <b id="perCol">—</b></div>
+          <div class="muted satmax">Max this satchel: <b id="perCol">—</b></div>
         </div>
         <div class="sat-col-add">
           <div class="sectlbl">Add seeds</div>
