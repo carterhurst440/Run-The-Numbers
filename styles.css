@@ -31071,6 +31071,9 @@ body[data-ui="new"] .alr-col-date {
 @media (max-width: 560px) {
   .monkey-moonshine-frame { min-height: calc(100dvh - 88px); border-radius: 0; }
 }
+/* BLOOM fills its frame edge-to-edge with its own flat yellow field, so the 16px
+   radius just clipped notches out of the corners. Square it off. */
+#bloom-frame { border-radius: 0; background: #f6e400; }
 
 /* ── MONKEY MOONSHINE admin tab — deck editor + sim tables ── */
 .admin-mm-tbl-wrap { overflow-x: auto; margin-top: 8px; }
