@@ -567,9 +567,11 @@
      on one row, and "Add seeds" gets its OWN panel + scroll so the card itself
      never scrolls. 100dvh (not vh) so mobile browser chrome can't cut it off. */
   @media (max-width:600px){
-    .sat-modal{padding:8px;align-items:flex-start}
+    /* pad for the iOS home-bar so the card's bottom edge isn't sat under it */
+    .sat-modal{padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));align-items:flex-start}
     .sat-modal-card{width:100%;padding:12px 13px;
-      max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px);
+      max-height:calc(100vh - 16px);
+      max-height:calc(100dvh - 16px - env(safe-area-inset-bottom,0px));
       display:flex;flex-direction:column;overflow:hidden}
     .sat-modal-head{gap:8px}
     .sat-modal-title{font-size:15px}

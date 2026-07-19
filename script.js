@@ -10819,10 +10819,11 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260718z-satdesktop");
+      frame.setAttribute("src", "games/bloom.html?v=20260719a-framefit");
     }
     installBloomBridge();   // idempotent: seed the in-memory balance + admin flag
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
+    sizeGameFrames();
   }
 
   if (resolvedRoute === "monkey-moonshine") {
@@ -10834,6 +10835,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     }
     installMonkeyMoonshineBridge();   // idempotent: broker spins + push the wallet balance
     mmSendInit();                     // refresh balance on re-open (first open waits for mm:ready)
+    sizeGameFrames();
   }
 
   // Keep Monkey Moonshine audio scoped to its own route. The iframe stays mounted
@@ -20402,6 +20404,29 @@ function installMonkeyMoonshineBridge() {
 // each cast and mirroring the settled balance into the header) is the later
 // pass — this postMessage seam is exactly where that wiring goes.
 let _bloomBridgeInstalled = false;
+// Game iframes host their own position:fixed overlays (e.g. BLOOM's satchel modal),
+// which anchor to the IFRAME's viewport — so the frame must end exactly at the
+// bottom of the visible screen. The CSS only guesses the app-header height
+// (min-height: calc(100dvh - 88px)); when that guess overshoots, the frame runs
+// under the browser's bottom toolbar and anything fixed inside it gets clipped with
+// no way to scroll to it. Measure the frame's real offset and size it to fit.
+function sizeGameFrames() {
+  document.querySelectorAll(".monkey-moonshine-frame").forEach((frame) => {
+    const rect = frame.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;          // hidden route
+    // clamp: if the page happens to be scrolled, rect.top can go negative
+    const available = Math.min(window.innerHeight, window.innerHeight - rect.top - 2);
+    if (!Number.isFinite(available)) return;
+    frame.style.minHeight = "0";
+    frame.style.height = `${Math.max(320, Math.floor(available))}px`;
+  });
+}
+if (typeof window !== "undefined") {
+  window.addEventListener("resize", sizeGameFrames);
+  // iOS collapses/expands its toolbars on rotate — remeasure after it settles
+  window.addEventListener("orientationchange", () => setTimeout(sizeGameFrames, 150));
+}
+
 let _bloomDeckCache = null;   // { flowers:[…], weather:[…] } from bloom_flowers / bloom_weather
 function bloomFrameWindow(frameId) {
   const f = document.getElementById(frameId || "bloom-frame");
