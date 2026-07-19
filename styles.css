@@ -31738,6 +31738,10 @@ select.bloom-in { cursor: pointer; }
   flex-direction: column;
   gap: 0.9rem;
 }
+/* wide variant — landscape crops (e.g. the garden background) get a roomier
+   panel + full-width stage; the stage's aspect-ratio is set inline in JS. */
+.img-cropper.is-wide .cropper-panel { width: min(560px, 94vw); }
+.img-cropper.is-wide .cropper-stage { width: 100%; }
 .img-cropper .cropper-panel h2 { margin: 0; font-size: 1.15rem; color: #f4f4e0; }
 .img-cropper .cropper-hint { margin: 0; font-size: 0.78rem; color: var(--muted, #8a8a72); }
 .img-cropper .cropper-stage {

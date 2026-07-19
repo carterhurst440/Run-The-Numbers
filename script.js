@@ -1544,8 +1544,15 @@ async function uploadBloomAsset(file, subdir = "asset") {
 // Opens a modal with a fixed square viewport; the user pans (drag) and zooms
 // (slider / wheel) to frame the image, then it's rendered to a transparent PNG
 // at `output` px and passed back as a File to `onCropped`. Transparency is kept.
-function openImageCropper(file, { output = 256, name = "icon.png" } = {}, onCropped) {
+function openImageCropper(file, opts = {}, onCropped) {
   if (!file) return;
+  const { output = 256, name = "icon.png", aspectW = 1, aspectH = 1,
+          title = "Crop icon", hint = "Drag to reposition · slider or scroll to zoom.",
+          wide = false } = opts;
+  // Output canvas: `output` is the width; the height follows the crop aspect
+  // (square by default, so the flower-icon cropper is unchanged).
+  const outW = Math.round(opts.outW || output);
+  const outH = Math.round(opts.outH || (output * aspectH / aspectW));
   const url = URL.createObjectURL(file);
   const img = new Image();
   img.onload = () => build();
@@ -1554,12 +1561,12 @@ function openImageCropper(file, { output = 256, name = "icon.png" } = {}, onCrop
 
   function build() {
     const modal = document.createElement("div");
-    modal.className = "img-cropper modal is-open";
+    modal.className = "img-cropper modal is-open" + (wide ? " is-wide" : "");
     modal.innerHTML = `
       <div class="modal-backdrop"></div>
       <div class="cropper-panel">
-        <h2>Crop icon</h2>
-        <p class="cropper-hint">Drag to reposition · slider or scroll to zoom.</p>
+        <h2>${title}</h2>
+        <p class="cropper-hint">${hint}</p>
         <div class="cropper-stage"><img class="cropper-img" alt=""></div>
         <label class="cropper-zoom">Zoom<input type="range" min="1" max="5" step="0.01" value="1"></label>
         <div class="modal-actions">
@@ -1574,17 +1581,21 @@ function openImageCropper(file, { output = 256, name = "icon.png" } = {}, onCrop
     const imgEl = modal.querySelector(".cropper-img");
     const zoom = modal.querySelector("input[type=range]");
     imgEl.src = url;
+    // shape the crop viewport to the target aspect (height follows width)
+    stage.style.aspectRatio = aspectW + " / " + aspectH;
+    stage.style.height = "auto";
 
     const natW = img.naturalWidth, natH = img.naturalHeight;
-    const V = () => stage.clientWidth || 300;      // square viewport size (px)
-    const minScale = () => Math.max(V() / natW, V() / natH);
+    const Vw = () => stage.clientWidth || 300;                 // viewport width (px)
+    const Vh = () => stage.clientHeight || Math.round(Vw() * aspectH / aspectW); // viewport height
+    const minScale = () => Math.max(Vw() / natW, Vh() / natH); // cover both dims
     let scale = minScale(), tx = 0, ty = 0;
 
     function clamp() {
-      const v = V(), w = natW * scale, h = natH * scale;
+      const vw = Vw(), vh = Vh(), w = natW * scale, h = natH * scale;
       // image must fully cover the viewport
-      tx = Math.min(0, Math.max(v - w, tx));
-      ty = Math.min(0, Math.max(v - h, ty));
+      tx = Math.min(0, Math.max(vw - w, tx));
+      ty = Math.min(0, Math.max(vh - h, ty));
     }
     function apply() {
       clamp();
@@ -1593,19 +1604,18 @@ function openImageCropper(file, { output = 256, name = "icon.png" } = {}, onCrop
     }
     function centerFit() {
       scale = minScale();
-      const v = V();
-      tx = (v - natW * scale) / 2;
-      ty = (v - natH * scale) / 2;
+      tx = (Vw() - natW * scale) / 2;
+      ty = (Vh() - natH * scale) / 2;
       zoom.min = "1"; zoom.max = "5"; zoom.value = "1";
       apply();
     }
     function setZoom(mult) {
-      const v = V(), s0 = scale, s1 = minScale() * mult;
+      const vw = Vw(), vh = Vh(), s0 = scale, s1 = minScale() * mult;
       // keep the viewport centre pinned to the same image point
-      const cx = (v / 2 - tx) / s0, cy = (v / 2 - ty) / s0;
+      const cx = (vw / 2 - tx) / s0, cy = (vh / 2 - ty) / s0;
       scale = s1;
-      tx = v / 2 - cx * scale;
-      ty = v / 2 - cy * scale;
+      tx = vw / 2 - cx * scale;
+      ty = vh / 2 - cy * scale;
       apply();
     }
     // wait a frame so the stage has a measured size
@@ -1635,13 +1645,13 @@ function openImageCropper(file, { output = 256, name = "icon.png" } = {}, onCrop
     modal.querySelector(".modal-backdrop").addEventListener("click", close);
 
     modal.querySelector(".cropper-save").addEventListener("click", () => {
-      const v = V();
       const canvas = document.createElement("canvas");
-      canvas.width = output; canvas.height = output;
+      canvas.width = outW; canvas.height = outH;
       const ctx = canvas.getContext("2d");
-      // source rect (in natural image px) that currently fills the viewport square
-      const sx = (0 - tx) / scale, sy = (0 - ty) / scale, sSize = v / scale;
-      ctx.drawImage(img, sx, sy, sSize, sSize, 0, 0, output, output);
+      // source rect (natural image px) that currently fills the viewport
+      const sx = (0 - tx) / scale, sy = (0 - ty) / scale;
+      const sW = Vw() / scale, sH = Vh() / scale;
+      ctx.drawImage(img, sx, sy, sW, sH, 0, 0, outW, outH);
       canvas.toBlob((blob) => {
         if (!blob) { showToast("Crop failed.", "error"); return; }
         const cropped = new File([blob], name.replace(/\.[^.]+$/, "") + ".png", { type: "image/png" });
@@ -32951,7 +32961,15 @@ document.getElementById("bloom-export")?.addEventListener("click", () => BloomAd
 document.getElementById("bloom-import")?.addEventListener("click", () => document.getElementById("bloom-import-file")?.click());
 document.getElementById("bloom-import-file")?.addEventListener("change", (e) => { const f = e.target.files?.[0]; if (f) BloomAdmin.importJson(f); e.target.value = ""; });
 document.getElementById("bloom-bg-upload")?.addEventListener("click", () => document.getElementById("bloom-bg-file")?.click());
-document.getElementById("bloom-bg-file")?.addEventListener("change", (e) => { const f = e.target.files?.[0]; if (f) BloomAdmin.uploadBackground(f); e.target.value = ""; });
+document.getElementById("bloom-bg-file")?.addEventListener("change", (e) => {
+  const f = e.target.files?.[0];
+  if (f) openImageCropper(f, {
+    aspectW: 16, aspectH: 10, output: 1280, name: "garden.png", wide: true,
+    title: "Frame the garden background",
+    hint: "Drag / zoom to choose what shows in the flower panel — keep the dirt across the lower portion (that's where the plants sit)."
+  }, cropped => BloomAdmin.uploadBackground(cropped));
+  e.target.value = "";
+});
 
 function formatPurchaseCost(row) {
   const parts = [];
