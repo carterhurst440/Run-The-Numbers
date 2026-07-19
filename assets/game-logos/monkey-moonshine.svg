@@ -1,12 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 58 58">
-  <path d="M40 34.5A15 15 0 1 1 24.5 12a11.6 11.6 0 0 0 15.5 22.5Z" fill="none" stroke="#ffffff" stroke-width="1.9" stroke-linejoin="round"></path>
-  <g fill="#ffffff">
-    <circle cx="21" cy="24" r="1.05"></circle>
-    <circle cx="27" cy="19.5" r="0.8"></circle>
-    <circle cx="24" cy="31" r="0.8"></circle>
+<!-- Monkey Moonshine logo: the coconut drink from the game's floor tile.
+     Rendered as a ~20px drawer icon via CSS mask-image, so only alpha matters —
+     solid white strokes. The tile's fine detail (straw corrugation, liquid line,
+     umbrella ribs) is dropped and strokes are much heavier than the tile's 3px,
+     because none of it survives at that size. The umbrella is lifted clear of the
+     bowl rim so the three shapes stay readable instead of blobbing together. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 100 100">
+  <g fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <!-- coconut bowl, cut open at the top -->
+    <path d="M22 50 A28 28 0 1 0 78 50"></path>
+    <path d="M22 50 Q50 38 78 50"></path>
+    <!-- paper umbrella, sitting clear above the rim -->
+    <path d="M25 17 L12 33 L40 25 Z"></path>
+    <path d="M30 30 L35 44"></path>
+    <!-- bent straw -->
+    <path d="M60 54 L68 26"></path>
+    <path d="M68 26 Q70 17 79 16 L88 14"></path>
   </g>
-  <g stroke="#ffffff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.85">
-    <path d="M35 47 L41 33"></path>
-    <path d="M41 33 Q43 27 49 26 L54 25"></path>
-  </g>
+  <!-- umbrella finial -->
+  <circle cx="25" cy="15" r="4.2" fill="#ffffff"></circle>
 </svg>
