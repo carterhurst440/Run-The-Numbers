@@ -417,15 +417,10 @@
   .kiiro-header .hud-label{font-size:9px;letter-spacing:.14em;white-space:nowrap;color:var(--muted)}
   .kiiro-header .hud-val{font-size:19px;font-weight:800;line-height:1.05}
   .kiiro-header .header-balance{align-items:flex-end}
-  /* BET: compact ± stepper (moved up out of the bottom bar) */
-  .kiiro-header .bet-mini{display:flex;align-items:center;gap:5px}
-  .kiiro-header .bet-mini .bet-step{width:21px;height:21px;font-size:14px;border-width:2px;flex:none}
-  .kiiro-header .bet-mini input{width:46px;text-align:center;background:transparent;border:none;padding:0;margin:0;
-    font-family:var(--ui);font-size:17px;font-weight:800;color:var(--text);line-height:1}
-  .kiiro-header .bet-mini input:focus{outline:none}
-  .kiiro-header .bet-mini input[type=number]{-moz-appearance:textfield;appearance:textfield}
-  .kiiro-header .bet-mini input::-webkit-outer-spin-button,
-  .kiiro-header .bet-mini input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  /* BET here is READ-ONLY — the bet locked in for the round (the ± stepper lives
+     in the bottom bar). Dim until a round is actually staked. */
+  .kiiro-header .header-bet .hud-val{font-variant-numeric:tabular-nums}
+  .kiiro-header .header-bet.is-idle .hud-val{color:var(--muted);opacity:.55}
   /* WIN: a little neon scoreboard — dark box so the neon reads on the yellow field.
      min-width keeps the row steady as the label picks up its × multiple. */
   .kiiro-header .header-win{background:#141414;border:2px solid #141414;border-radius:3px;
@@ -440,9 +435,6 @@
     .kiiro-header .hud-row{gap:6px}
     .kiiro-header .hud-label{font-size:8px;letter-spacing:.1em}
     .kiiro-header .hud-val{font-size:15px}
-    .kiiro-header .bet-mini{gap:2px}
-    .kiiro-header .bet-mini .bet-step{width:18px;height:18px;font-size:12px;border-width:1px}
-    .kiiro-header .bet-mini input{width:32px;font-size:14px}
     .kiiro-header .header-win{min-width:60px;padding:2px 5px 3px}
     .kiiro-header .header-win .hud-label{font-size:7.5px}
     .kiiro-header .header-win .hud-val{font-size:14px}
@@ -523,10 +515,27 @@
      15px by an id rule in a max-width:820px block, so this needs id specificity. */
   @media (max-width:430px){
     .bottom-bar #spinBtn{font-size:12.5px;letter-spacing:.04em;padding:0 10px}
+    .bottom-bar .bet-stepper{gap:7px;padding:0 8px}
+    .bottom-bar .bet-step{width:28px;height:28px;font-size:16px}
+    .bottom-bar .bet-field input{width:46px;font-size:18px}
   }
-  /* .bet-step is shared by the title-row bet stepper (.bet-mini). padding:0 +
-     border-box so the declared width/height is the actual box (a <button>'s
-     default horizontal padding was inflating these into wide rectangles). */
+  .bet-stepper{display:flex;align-items:center;gap:12px;padding:0 14px;flex:none}
+  .bet-field{display:flex;flex-direction:column;align-items:center;gap:1px;margin:0}
+  .bet-field .hud-label{font-size:9px;letter-spacing:.16em}
+  .bet-field input{width:70px;text-align:center;background:transparent;border:none;color:var(--text);
+    font-family:var(--ui);font-size:20px;font-weight:800;padding:0;margin:0}
+  .bet-field input:focus{outline:none}
+  /* kill the number-input spinner so the digits sit centred under "BET" */
+  .bet-field input[type=number]{-moz-appearance:textfield;appearance:textfield}
+  .bet-field input::-webkit-outer-spin-button,
+  .bet-field input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  /* LOCKED: the bet is fixed for the duration of a round (locks at cast) */
+  .bet-stepper.is-locked{opacity:.42}
+  .bet-stepper.is-locked .bet-step{pointer-events:none}
+  .bet-stepper.is-locked .bet-field input{color:var(--muted)}
+  .bet-step:disabled{pointer-events:none}
+  /* padding:0 + border-box so the declared width/height is the actual box (a
+     <button>'s default horizontal padding inflated these into wide rectangles). */
   .bet-step{width:32px;height:32px;flex:none;display:flex;align-items:center;justify-content:center;
     padding:0;box-sizing:border-box;
     background:transparent;border:2px solid var(--line);border-radius:2px;color:var(--text);font-size:18px;font-weight:800;line-height:1}
@@ -634,14 +643,8 @@
   <h1>BLOOM</h1>
   <!-- BET / WIN / BALANCE all live in the title row; BET is centred between the
        wordmark and the WIN+BALANCE pair; WIN is a mini neon scoreboard -->
-  <div class="hud-stat header-bet">
-    <span class="hud-label">BET</span>
-    <div class="bet-mini">
-      <button type="button" class="bet-step" id="betMinus" aria-label="Lower bet">−</button>
-      <input id="bet" type="number" value="100">
-      <button type="button" class="bet-step" id="betPlus" aria-label="Raise bet">+</button>
-    </div>
-  </div>
+  <!-- read-only: the bet LOCKED for this round. Blank until CAST SEEDS. -->
+  <div class="hud-stat header-bet"><span class="hud-label">BET</span><b class="hud-val" id="lockedBet">—</b></div>
   <div class="hud-row">
     <div class="hud-stat header-win" id="roundWinCard"><span class="hud-label" id="roundWinCap">WIN</span><b class="hud-val" id="roundWinNum">0</b></div>
     <div class="hud-stat header-balance"><span class="hud-label">BALANCE</span><b class="hud-val" id="balVal">—</b></div>
@@ -686,9 +689,15 @@
 
       <div class="winbanner" id="winBanner"></div>
 
-      <!-- BOTTOM BAR: just the primary action now (bet moved into the title row) -->
+      <!-- BOTTOM BAR: primary action + bet stepper. The stepper is DISABLED for the
+           duration of a round (bet locks at cast) and re-enables on NEW ROUND. -->
       <div class="bottom-bar">
         <button class="gold main-action" id="spinBtn">CAST SEEDS</button>
+        <div class="bet-stepper card" id="betStepper">
+          <button type="button" class="bet-step" id="betMinus" aria-label="Lower bet">−</button>
+          <label class="bet-field"><span class="hud-label">BET</span><input id="bet" type="number" value="100"></label>
+          <button type="button" class="bet-step" id="betPlus" aria-label="Raise bet">+</button>
+        </div>
       </div>
 
     </div>
@@ -3201,7 +3210,7 @@ function castSeeds(){
   plants.forEach(p=>growPlant(p,draws));      // outcome fixed at cast, revealed reel-by-reel
   round={plants,draws,step:0,phase:'cast',done:false,bet};   // remember the staked bet
   const hint=$('#dirtHint');if(hint)hint.style.display='none';
-  updateScoreBet(); setScoreWin(0);             // scoreboard: lock in the bet, reset the win
+  setBetLocked(true, bet); setScoreWin(0);      // bet is locked for the round; reset the win
   setSatchelOpen(false);                        // collapse the satchel so the plants are clear
   buildWeatherReel();$('#multi').textContent='';applyWeatherTheme(null);banner('','');
   renderPlants(plants);
@@ -3301,6 +3310,7 @@ function spinButtonClick(){
   else if(round.phase==='cast') revealNextReel();  // SPIN REEL x/3
   else {                                           // NEW ROUND -> clear the board, back to CAST SEEDS
     resetPlayArea(); setScoreWin(0); banner('',''); updateSpinButton();
+    setBetLocked(false);                           // round over: bet is editable again
   }
 }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -3658,7 +3668,7 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   if(t.dataset.view==='deck')renderDeck();
   if(t.dataset.view==='weather')renderWeatherTab();
 });
-$('#bet').oninput=e=>{state.config.bet=+e.target.value||0;updateMax();updateScoreBet();save();};
+$('#bet').oninput=e=>{state.config.bet=+e.target.value||0;updateMax();save();};
 // Kiiro bet stepper: − / + adjust the bet in fixed steps, then re-run the bet handler.
 const BET_STEP=50, BET_MIN=10;
 function nudgeBet(dir){
@@ -3718,7 +3728,7 @@ function initAll(){
   buildWeatherReel();renderPicker();renderSlots();updateMax();renderDeck();renderWeatherTab();
   resetPlayArea();                 // draw the empty plot up front so the dirt is always in view
   bloomRenderBalance();
-  updateScoreBet(); setScoreWin(0);
+  setBetLocked(false); setScoreWin(0);   // no round staked yet: bet editable, readout idle
 }
 
 /* ===================== CASINO SHELL BRIDGE =====================
@@ -3739,7 +3749,17 @@ function bloomRenderBalance(){
 // ── Round scoreboard (neon box, top-right of the planter) ──────────────
 // BET mirrors the current bet; WIN tracks where the round's return currently
 // sits — it moves as each reel is revealed and settles on the final payout.
-function updateScoreBet(){ const el=$('#sbBet'); if(el) el.textContent=Math.round(Number(state.config.bet)||0).toLocaleString(); }
+// The bet LOCKS for the duration of a round. At cast the bottom-bar stepper is
+// disabled and the title row shows the staked amount; NEW ROUND clears the readout
+// and re-enables the stepper. Before the first cast the readout sits idle at "—".
+function setBetLocked(locked, amount){
+  const wrap=$('#betStepper'), inp=$('#bet'), minus=$('#betMinus'), plus=$('#betPlus');
+  if(wrap) wrap.classList.toggle('is-locked', !!locked);
+  [inp,minus,plus].forEach(el=>{ if(el) el.disabled = !!locked; });
+  const box=document.querySelector('.header-bet'), val=$('#lockedBet');
+  if(box) box.classList.toggle('is-idle', !locked);
+  if(val) val.textContent = locked ? Math.round(Number(amount)||0).toLocaleString() : '—';
+}
 // The round outcome is fixed at cast; replay each plant's events up to `k` reels
 // to get its live phase, then value the living board (board ×mult only once all
 // reels are in).
