@@ -390,10 +390,13 @@
     background-image:radial-gradient(rgba(0,0,0,.09) 1.1px, transparent 1.6px);
     background-size:9px 9px;}
   main{padding:0}
-  .stage-play{padding:0}
+  /* play view is a plain centred block — NOT a flex row (that's only for the
+     deck-builder's two panels). Keeps the column a consistent width, aligned
+     with the header, at any container width. */
+  .stage-play{padding:0;display:block}
   /* the whole play view is one centred column of cards */
-  .reelwrap.kiiro-stack{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:10px;
-    padding:12px 22px 16px;flex:none}
+  .reelwrap.kiiro-stack{max-width:520px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:10px;
+    padding:12px 22px 16px;box-sizing:border-box}
   /* header: BLOOM wordmark + BALANCE, ruled underline */
   .kiiro-header{max-width:520px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;
     gap:16px;padding:11px 22px 9px;border-bottom:2px solid var(--line)}
