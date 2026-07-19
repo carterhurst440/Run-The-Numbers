@@ -136,8 +136,11 @@
   .sat-modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
   .sat-modal-title{font-size:18px;font-weight:800}
   .sat-modal-title b{color:var(--accent)}
+  /* flex-centre the ✕ with no padding / line-height:1 — otherwise the button's
+     default padding and line box push the glyph off-centre in its square */
   .sat-modal-close{width:34px;height:34px;border-radius:2px;border:1px solid var(--line);background:rgba(255,255,255,.42);
-    color:var(--fg);font-size:15px;cursor:pointer;flex:0 0 auto}
+    color:var(--fg);font-size:15px;cursor:pointer;flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;padding:0;line-height:1}
   .sat-modal-close:hover{border-color:var(--danger);color:var(--danger)}
   .sat-modal-sub{color:var(--muted);font-size:12px;margin:4px 0 16px}
   .sat-modal-body{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
