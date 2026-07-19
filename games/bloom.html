@@ -533,6 +533,33 @@
   .sat-modal button.mini:hover{background:var(--line);color:var(--btn-ink)}
   .sat-modal .tinylbl{color:var(--muted)}
 
+  /* ── SATCHEL modal, all sizes: card is a flex column and "Add seeds" is its own
+     panel that scrolls internally — so expanding a STATS block scrolls inside that
+     panel instead of growing the whole modal's height. */
+  .sat-modal-card{display:flex;flex-direction:column;overflow:hidden}
+  .sat-modal-body{align-items:stretch;flex:1 1 auto;min-height:0}
+  .sat-col-current{min-height:0;overflow-y:auto}
+  .sat-col-add{min-height:0;display:flex;flex-direction:column;
+    border:2px solid var(--line);border-radius:2px;padding:10px 12px;background:rgba(255,255,255,.3)}
+  .sat-col-add .sectlbl{margin-top:0}
+  .sat-modal .picker{flex:1 1 auto;min-height:0;overflow-y:auto;max-height:none;padding-right:6px}
+  /* payout cards were inheriting the deck-builder's 4-column .statgrid, so the two
+     cards sat in quarter-width columns and wrapped tall. Two wide cards instead. */
+  .pickstats .statgrid{grid-template-columns:repeat(2,1fr);gap:8px;margin-top:6px}
+  .pickstats .statpay{padding:6px 9px}
+  .pickstats .statpay b{font-size:15px}
+  /* desktop: wider card (600 was cramped for two columns + stats) so the payout
+     cards can go wide instead of tall. Capping the seed LIST (rather than fixing
+     the card height) keeps the modal sized to its content — no dead space under
+     the left column — while making expanding a STATS block scroll that list
+     instead of resizing the modal. */
+  @media (min-width:601px){
+    .sat-modal-card{width:min(820px,100%)}
+    /* fixed (min == max) so the list height — and therefore the modal — never
+       changes as STATS blocks open and close */
+    .sat-modal .picker{min-height:min(56vh,460px);max-height:min(56vh,460px)}
+  }
+
   /* ── phones: SATCHEL modal must fit the screen (nothing clipped off the bottom).
      Kept LAST in the sheet so it wins over the Kiiro modal overrides above (media
      queries add no specificity, so source order decides). The card becomes a flex
