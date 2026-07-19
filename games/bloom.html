@@ -407,17 +407,20 @@
     gap:16px;padding:11px 22px 9px;border-bottom:2px solid var(--line)}
   .kiiro-header .goddess{display:none}
   .kiiro-header .tabs{display:none}
-  .kiiro-header h1{font-family:var(--ui);font-weight:800;font-size:26px;letter-spacing:.28em;color:var(--text);margin:0}
-  .kiiro-header .header-balance{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
-  .kiiro-header .header-balance .hud-label{font-size:10px;letter-spacing:.2em}
-  .kiiro-header .header-balance .hud-val{font-size:22px;font-weight:800}
+  /* title row holds three things on ONE line: BLOOM · live WIN · BALANCE */
+  .kiiro-header h1{font-family:var(--ui);font-weight:800;font-size:21px;letter-spacing:.2em;color:var(--text);margin:0;flex:none}
+  .kiiro-header .header-balance,
+  .kiiro-header .header-win{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex:none}
+  .kiiro-header .header-balance .hud-label,
+  .kiiro-header .header-win .hud-label{font-size:10px;letter-spacing:.16em;white-space:nowrap}
+  .kiiro-header .header-balance .hud-val,
+  .kiiro-header .header-win .hud-val{font-size:21px;font-weight:800;line-height:1.05}
+  /* min-width keeps the row from shifting as the WIN label picks up its × multiple */
+  .kiiro-header .header-win{min-width:112px}
+  .kiiro-header .header-win.pulse{animation:sbpulse .4s ease}
   /* generic Kiiro card fill */
   .kiiro-stack .card{background:var(--panel);border:2px solid var(--line);border-radius:2px}
-  /* live round-win banner (compact) */
-  .maxwin-card{text-align:center;padding:8px 16px}
-  .maxwin-num{font-size:25px;font-weight:800;line-height:1;color:var(--text)}
-  .maxwin-cap{margin-top:2px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
-  .maxwin-card.pulse{animation:sbpulse .4s ease}
+  /* (the live round-win card moved into the title row — see .header-win) */
   /* garden: illustrated landscape background (sky/hills/fence); flowers plant on
      the fence "dirt" section. bottom-anchored so the fence stays at the base. */
   /* garden background: a CSS var so the admin can swap the image (bloom_settings
@@ -608,6 +611,8 @@
 <body>
 <header class="kiiro-header">
   <h1>BLOOM</h1>
+  <!-- live round WIN sits inline in the title row (used to be its own card below) -->
+  <div class="hud-stat header-win" id="roundWinCard"><span class="hud-label" id="roundWinCap">WIN</span><b class="hud-val" id="roundWinNum">0</b></div>
   <div class="hud-stat header-balance"><span class="hud-label">BALANCE</span><b class="hud-val" id="balVal">—</b></div>
   <div class="tabs">
     <div class="tab active" data-view="play">PLAY</div>
@@ -621,12 +626,6 @@
 <section class="view active" id="view-play">
   <div class="stage stage-play">
     <div class="reelwrap kiiro-stack">
-
-      <!-- LIVE ROUND WIN (updates in real time as reels reveal) -->
-      <div class="maxwin-card card" id="roundWinCard">
-        <div class="maxwin-num" id="roundWinNum">0</div>
-        <div class="maxwin-cap" id="roundWinCap">WIN</div>
-      </div>
 
       <!-- GARDEN (blue sky + dirt) -->
       <div class="dirt dirt-stacked garden-card" id="dirt">
