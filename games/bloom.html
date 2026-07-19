@@ -432,23 +432,27 @@
     background-image:var(--garden-bg, url("https://jfqdjqhqumoqcoivjwbi.supabase.co/storage/v1/object/public/bloom-assets/bg/garden-16x10-v1.png"));
     background-position:center bottom;background-size:cover;background-repeat:no-repeat}
   /* satchel: one horizontal row */
-  /* header row (SATCHEL + MAX WIN on the left, EDIT on the right) sits above a
-     single full-width row of all ten seed slots */
-  .kiiro-satchel{display:flex;flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:8px;padding:8px 16px}
-  .kiiro-satchel .satchel-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
-  .kiiro-satchel .satchel-head-col{display:flex;flex-direction:column;gap:3px;flex:none}
-  .kiiro-satchel .satchel-bar-label{font-size:12px;font-weight:700;letter-spacing:.22em;color:var(--muted);flex:none}
-  /* satchel's max-win potential (moved off the top card) */
-  .kiiro-satchel .satchel-maxwin{font-size:10px;font-weight:700;letter-spacing:.03em;color:var(--muted);white-space:nowrap;line-height:1.1}
-  .kiiro-satchel .satchel-maxwin b{color:var(--text);font-size:13px}
+  /* Header is ONE compact line — SATCHEL + MAX WIN inline on the left, a plain
+     text EDIT on the right — so it takes ~a quarter of the bar instead of half. */
+  .kiiro-satchel{display:flex;flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:6px;padding:7px 16px 9px}
+  .kiiro-satchel .satchel-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .kiiro-satchel .satchel-head-col{display:flex;flex-direction:row;align-items:baseline;gap:9px;
+    flex:1 1 auto;min-width:0}
+  .kiiro-satchel .satchel-bar-label{font-size:11px;font-weight:700;letter-spacing:.2em;color:var(--muted);flex:none}
+  /* satchel's max-win potential (moved off the top card) — truncates if tight */
+  .kiiro-satchel .satchel-maxwin{font-size:10px;font-weight:700;letter-spacing:.03em;color:var(--muted);
+    white-space:nowrap;line-height:1;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .kiiro-satchel .satchel-maxwin b{color:var(--text);font-size:12px}
   /* all ten slots on ONE row — 1fr columns shrink the squares to fit any width.
      min-width:0 lets each square shrink below its icon's intrinsic size (else the
      grid overflows the card). */
   .kiiro-satchel .satchel-strip{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;flex:none;margin:0}
   .kiiro-satchel .satchel-strip .slot{min-width:0}
-  .kiiro-satchel .satchel-bar-edit{flex:none;background:transparent;border:2px solid var(--line);border-radius:2px;
-    color:var(--text);font-weight:700;letter-spacing:.12em;font-size:12px;padding:9px 16px;text-transform:uppercase}
-  .kiiro-satchel .satchel-bar-edit:hover{background:var(--line);color:var(--btn-ink)}
+  /* plain text button — no box, so it doesn't drive the header's height */
+  .kiiro-satchel .satchel-bar-edit{flex:none;background:transparent;border:none;border-radius:0;padding:0;
+    color:var(--text);font-weight:800;letter-spacing:.14em;font-size:11px;text-transform:uppercase;
+    text-decoration:underline;text-underline-offset:3px;cursor:pointer;line-height:1}
+  .kiiro-satchel .satchel-bar-edit:hover{background:transparent;color:#a8791f}
   /* weather reels card */
   .wreel-card{padding:11px 16px 12px}
   .wreel-head{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:8px;
