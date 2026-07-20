@@ -20440,21 +20440,53 @@ let _bloomBridgeInstalled = false;
 // (min-height: calc(100dvh - 88px)); when that guess overshoots, the frame runs
 // under the browser's bottom toolbar and anything fixed inside it gets clipped with
 // no way to scroll to it. Measure the frame's real offset and size it to fit.
+// Size the game iframes to the space actually visible below the header.
+//
+// This matters more than it looks: a game's modals are position:fixed INSIDE the
+// iframe, so they anchor to the iframe's own viewport. If the frame is even 20px
+// taller than what the user can see, the bottom of a full-height modal sits below
+// the fold with no way to scroll to it. Too short is harmless; too tall is a bug.
+//
+// The CSS fallback used to hardcode the header height, which drifted from the real
+// one. It now reads --game-frame-top, which this function measures and publishes,
+// so the two can no longer disagree.
+let _sizeFramesRetry = 0;
 function sizeGameFrames() {
+  let measuredAny = false;
   document.querySelectorAll(".monkey-moonshine-frame").forEach((frame) => {
     const rect = frame.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) return;          // hidden route
+    measuredAny = true;
+    // prefer the visual viewport: on mobile it shrinks as the URL bar shows,
+    // while innerHeight can keep reporting the full height
+    const vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
     // clamp: if the page happens to be scrolled, rect.top can go negative
-    const available = Math.min(window.innerHeight, window.innerHeight - rect.top - 2);
+    const available = Math.min(vh, vh - rect.top - 2);
     if (!Number.isFinite(available)) return;
+    document.documentElement.style.setProperty("--game-frame-top", `${Math.max(0, Math.round(rect.top))}px`);
     frame.style.minHeight = "0";
     frame.style.height = `${Math.max(320, Math.floor(available))}px`;
   });
+  // The route handler calls this the moment it switches routes, which can land
+  // before the section is laid out — the frame then measures 0 and we would leave
+  // it on the CSS fallback forever. Retry on the next frame a couple of times.
+  if (!measuredAny && _sizeFramesRetry < 3) {
+    _sizeFramesRetry++;
+    requestAnimationFrame(sizeGameFrames);
+  } else if (measuredAny) {
+    _sizeFramesRetry = 0;
+  }
 }
 if (typeof window !== "undefined") {
   window.addEventListener("resize", sizeGameFrames);
   // iOS collapses/expands its toolbars on rotate — remeasure after it settles
   window.addEventListener("orientationchange", () => setTimeout(sizeGameFrames, 150));
+  // and as the toolbar slides away mid-scroll, which changes the visible height
+  // without firing a window resize
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", sizeGameFrames);
+    window.visualViewport.addEventListener("scroll", sizeGameFrames);
+  }
 }
 
 let _bloomDeckCache = null;   // { flowers:[…], weather:[…] } from bloom_flowers / bloom_weather

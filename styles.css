@@ -31073,13 +31073,17 @@ body[data-ui="new"] .alr-col-date {
   display: block;
   width: 100%;
   flex: 1 1 auto;
-  min-height: calc(100dvh - 120px);
+  min-height: calc(100dvh - var(--game-frame-top, 120px));
   border: 0;
   border-radius: 16px;
   background: #16101d;
 }
 @media (max-width: 560px) {
-  .monkey-moonshine-frame { min-height: calc(100dvh - 88px); border-radius: 0; }
+  /* --game-frame-top is measured and published by sizeGameFrames(); the 120px
+     fallback only applies before that runs and is deliberately generous, because a
+     frame that is too TALL pushes the bottom of an in-game modal below the fold,
+     while one that is slightly short costs nothing. */
+  .monkey-moonshine-frame { min-height: calc(100dvh - var(--game-frame-top, 120px)); border-radius: 0; }
 }
 /* BLOOM fills its frame edge-to-edge with its own flat yellow field, so the 16px
    radius just clipped notches out of the corners. Square it off. */
