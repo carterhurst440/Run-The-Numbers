@@ -133,11 +133,13 @@
   .sat-modal[hidden]{display:none}
   .sat-modal{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
   .sat-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
-  /* dvh, not vh: inside the game iframe on mobile these differ, and vh can exceed
-     what is actually visible. The 40px is the modal's own 20px padding either side. */
+  /* --shell-vh is the visible height the parent measured for this iframe; it wins
+     over 100dvh because dvh is the FRAME's height, which can be taller than what
+     the player sees. Falls back to dvh, then vh, when running standalone. */
   .sat-modal-card{position:relative;z-index:1;width:min(760px,100%);overflow:auto;
     max-height:calc(100vh - 40px);
     max-height:calc(100dvh - 40px);
+    max-height:calc(var(--shell-vh, 100dvh) - 40px);
     background:rgba(255,255,255,.42);border:1px solid var(--line);border-radius:2px;padding:18px 20px;
     box-shadow:0 22px 60px rgba(0,0,0,.6)}
   .sat-modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -792,6 +794,7 @@
     .sat-modal-card{width:100%;padding:12px 13px;
       max-height:calc(100vh - 16px);
       max-height:calc(100dvh - 16px - env(safe-area-inset-bottom,0px));
+      max-height:calc(var(--shell-vh, 100dvh) - 16px - env(safe-area-inset-bottom,0px));
       display:flex;flex-direction:column;overflow:hidden}
     .sat-modal-head{gap:8px}
     .sat-modal-title{font-size:15px}
@@ -4592,6 +4595,13 @@ window.addEventListener('message',(e)=>{
     if(m.deck) bloomApplyDeck(m.deck);   // load the DB deck (rebuilds + re-inits the UI)
     bloomApplyMode();
     bloomRenderBalance();
+  } else if(m.type==='viewport'){
+    // How much of this iframe the player can actually see. Modals are fixed to the
+    // iframe, so when the frame is left taller than the visible area — a cached
+    // stylesheet, iOS mid-toolbar-animation — a full-height modal would run under
+    // the browser chrome. Cap against this instead of trusting 100dvh.
+    if(typeof m.height==='number' && isFinite(m.height) && m.height>200)
+      document.documentElement.style.setProperty('--shell-vh', m.height+'px');
   } else if(m.type==='save-ack'){
     const st=$('#saveDeckDbStatus');
     if(st) st.textContent = m.ok ? ('Saved to DB ✓  ' + (m.msg||'')) : ('Save failed: ' + (m.msg||''));

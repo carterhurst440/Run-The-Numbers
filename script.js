@@ -10832,7 +10832,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260720d-multiline");
+      frame.setAttribute("src", "games/bloom.html?v=20260720e-shellvh");
     }
     installBloomBridge();   // idempotent: seed the in-memory balance + admin flag
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -20465,7 +20465,18 @@ function sizeGameFrames() {
     if (!Number.isFinite(available)) return;
     document.documentElement.style.setProperty("--game-frame-top", `${Math.max(0, Math.round(rect.top))}px`);
     frame.style.minHeight = "0";
-    frame.style.height = `${Math.max(320, Math.floor(available))}px`;
+    const h = Math.max(320, Math.floor(available));
+    frame.style.height = `${h}px`;
+    // Tell the game how much of it the player can actually SEE. Its modals are
+    // position:fixed against the iframe, so if anything ever leaves the frame
+    // taller than the visible area — a stale cached stylesheet, iOS reporting a
+    // height mid-toolbar-animation — a modal would still grow past the fold. With
+    // this the game caps its own modals to the visible height regardless.
+    try {
+      if (frame.contentWindow) {
+        frame.contentWindow.postMessage({ source: "bloom-shell", type: "viewport", height: h }, "*");
+      }
+    } catch (e) { /* cross-origin or not yet loaded — the frame height alone still applies */ }
   });
   // The route handler calls this the moment it switches routes, which can land
   // before the section is laid out — the frame then measures 0 and we would leave
