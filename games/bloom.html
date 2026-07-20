@@ -354,6 +354,24 @@
     background:#fff;clip-path:polygon(50% 0,58% 42%,100% 50%,58% 58%,50% 100%,42% 58%,0 50%,42% 42%);
     animation:polSpark 1.25s ease-in-out infinite;animation-delay:var(--d,0s)}
   @keyframes polSpark{0%,100%{transform:scale(0);opacity:0}45%{transform:scale(1);opacity:1}}
+  /* ALREADY pollinated: a slower, calmer version that stays for the round so the
+     finished blooms keep reading as worked while the bees move on. */
+  .pol-done{position:absolute;inset:0;pointer-events:none}
+  .pol-spark.twinkle{width:7px;height:7px;margin:-3.5px 0 0 -3.5px;
+    animation:polSpark 2.6s ease-in-out infinite}
+  .pol-glow{position:absolute;border-radius:50%;pointer-events:none;
+    background:radial-gradient(circle,rgba(255,241,150,.5),rgba(255,241,150,0) 70%);
+    animation:polGlow 2.2s ease-in-out infinite}
+  .pol-glow.big{background:radial-gradient(circle,rgba(246,196,0,.6),rgba(246,196,0,0) 70%)}
+  .pol-glow.huge{background:radial-gradient(circle,rgba(255,26,140,.6),rgba(255,26,140,0) 70%)}
+  @keyframes polGlow{0%,100%{transform:scale(.88);opacity:.4}50%{transform:scale(1.14);opacity:.85}}
+  /* the plant art itself pulses via drop-shadow — it carries its own translate/scale
+     transform, so animating transform here would wipe the plant off its spot */
+  .pol-lit{animation:polLit 2.2s ease-in-out infinite}
+  @keyframes polLit{
+    0%,100%{filter:drop-shadow(0 0 1px rgba(255,241,150,.55))}
+    50%{filter:drop-shadow(0 0 5px rgba(255,241,150,.95))}
+  }
   @media(max-width:430px){
     .pol-reel{gap:10px}
     .pol-wheelwrap{width:86px;height:86px}
@@ -821,7 +839,10 @@
         <div class="muted dirt-hint" id="dirtHint">cast your seeds →</div>
         <!-- POLLINATE: bees swarm the flower being pollinated, and the wheel that
              sets ITS multiplier sits over the bed. One click + spin per flower. -->
-        <div class="pol" id="polLayer" hidden><div class="pol-swarm" id="polSwarm"></div></div>
+        <div class="pol" id="polLayer" hidden>
+          <div class="pol-done" id="polDone"></div>
+          <div class="pol-swarm" id="polSwarm"></div>
+        </div>
       </div>
 
       <!-- SATCHEL (single horizontal row) -->
@@ -3226,7 +3247,9 @@ function resetPlayArea(){
   }
   const hint=$('#dirtHint'); if(hint) hint.style.display='';   // "cast your seeds" back on an empty bed
   // tear down any half-finished POLLINATE run so its wheel cannot pay into a new round
-  pol=null; polSpinning=false; polTeardown();
+  pol=null; polSpinning=false;
+  const pd=$('#polDone'); if(pd) pd.innerHTML='';        // new round: clear last round's pulses
+  polTeardown();
   buildWeatherReel();$('#multi').textContent='';applyWeatherTheme(null);
   if(typeof updateSpinButton==='function')updateSpinButton();
 }
@@ -3636,28 +3659,34 @@ function polWheelSVG(){
 
 // Park the swarm over the flower currently being pollinated. SPOTS is in the bed
 // SVG's viewBox space, so map through the rendered <svg> box to get pixels.
-function polMoveSwarm(plantIndex){
-  const swarm=$('#polSwarm'), bed=$('#bed'), layer=$('#polLayer'), spot=SPOTS[plantIndex];
-  if(!swarm||!bed||!layer||!spot) return;
+// Where a plant's BLOOM sits, in overlay-layer pixels. SPOTS is where the plant is
+// ROOTED, so measure the rendered art instead — the head is at the top of that box.
+// Falls back to the root spot if the art group is not measurable yet.
+function polBloomXY(plantIndex){
+  const bed=$('#bed'), layer=$('#polLayer'), spot=SPOTS[plantIndex];
+  if(!bed||!layer||!spot) return null;
   const vb=BED_VB.trim().split(/\s+/).map(Number);          // [minX minY w h]
   const br=bed.getBoundingClientRect(), hr=layer.getBoundingClientRect();
   // preserveAspectRatio="xMidYMax meet" — uniform scale, centred in x, flush to bottom
   const s=Math.min(br.width/vb[2], br.height/vb[3]);
-  // Circle the BLOOM, not the seed base. SPOTS is where the plant is rooted, so
-  // measure the rendered art instead: the head sits at the top of that box. Falls
-  // back to the root spot if the art group is missing (bed not built yet).
-  let x, y, halo;
   const art = (typeof spotPlant!=='undefined' && spotPlant) ? spotPlant[plantIndex] : null;
   const ar = art ? art.getBoundingClientRect() : null;
-  if(ar && ar.height>4){
-    x = ar.left + ar.width/2 - hr.left;
-    y = ar.top  + ar.height*0.20 - hr.top;       // head centre, a fifth down from the top
-    halo = Math.max(40, Math.min(ar.width, ar.height*0.55)*1.25);
-  } else {
-    x = br.left + (br.width - vb[2]*s)/2 + (spot.x - vb[0])*s - hr.left;
-    y = br.top  + (br.height - vb[3]*s)  + (spot.y - vb[1])*s - hr.top;
-    halo = Math.max(46, 64*s);
-  }
+  if(ar && ar.height>4) return {
+    x: ar.left + ar.width/2 - hr.left,
+    y: ar.top  + ar.height*0.20 - hr.top,        // head centre, a fifth down from the top
+    halo: Math.max(40, Math.min(ar.width, ar.height*0.55)*1.25)
+  };
+  return {
+    x: br.left + (br.width - vb[2]*s)/2 + (spot.x - vb[0])*s - hr.left,
+    y: br.top  + (br.height - vb[3]*s)  + (spot.y - vb[1])*s - hr.top,
+    halo: Math.max(46, 64*s)
+  };
+}
+
+function polMoveSwarm(plantIndex){
+  const swarm=$('#polSwarm'), p=polBloomXY(plantIndex);
+  if(!swarm||!p) return;
+  const {x,y,halo}=p;
   swarm.innerHTML=
      `<span class="pol-halo" style="left:${x-halo/2}px;top:${y-halo/2}px;width:${halo}px;height:${halo}px"></span>`
     + [0,1,2,3,4].map(i=>{
@@ -3669,9 +3698,30 @@ function polMoveSwarm(plantIndex){
       ).join('');
 }
 
+// Once a flower's wheel has landed it keeps a gentle pulse and twinkle for the rest
+// of the round, so a finished board shows at a glance which blooms were worked and
+// the bonus does not read as if only the current flower ever lit up. The pulse on
+// the art is a drop-shadow, NOT a transform — the plant group carries its own
+// translate/scale and a CSS transform would wipe it out.
+function polMarkDone(plantIndex, mult){
+  const done=$('#polDone'), p=polBloomXY(plantIndex);
+  if(!done||!p) return;
+  const {x,y,halo}=p;
+  const tier = mult>=10 ? 'huge' : (mult>=5 ? 'big' : '');
+  done.insertAdjacentHTML('beforeend',
+     `<span class="pol-glow ${tier}" style="left:${x-halo/2}px;top:${y-halo/2}px;width:${halo}px;height:${halo}px"></span>`
+    + [0,1,2].map(i=>{
+        const a=((i+0.5)/3)*Math.PI*2, r=halo*0.4;
+        return `<span class="pol-spark twinkle" style="left:${x+r*Math.cos(a)}px;top:${y+r*Math.sin(a)}px;--d:${i*0.5}s"></span>`;
+      }).join(''));
+  const art = (typeof spotPlant!=='undefined' && spotPlant) ? spotPlant[plantIndex] : null;
+  if(art) art.classList.add('pol-lit');
+}
+
 function beginPollinate(payers, bet){
   round.phase='pollinate';
   pol={ payers, bet, idx:0, total:0, mults:[] };
+  const done=$('#polDone'); if(done) done.innerHTML='';
   const layer=$('#polLayer'); if(layer) layer.hidden=false;
   // the wheel stands in for the reels in the same card
   const reels=$('#weatherReel'), panel=$('#polReel'), title=$('#wreelTitle');
@@ -3692,8 +3742,11 @@ function polTeardown(){
   if(reels) reels.hidden=false;
   if(panel) panel.hidden=true;
   if(title) title.textContent='WEATHER REELS';
-  if(layer) layer.hidden=true;
-  const sw=$('#polSwarm'); if(sw) sw.innerHTML='';
+  const sw=$('#polSwarm'); if(sw) sw.innerHTML='';       // bees stop; the bonus is over
+  // the pollinated flowers keep pulsing on the settled board, so the layer only
+  // hides once there is nothing left to show (cleared by resetPlayArea)
+  const done=$('#polDone');
+  if(layer) layer.hidden = !(done && done.children.length);
 }
 
 // Set the UI up for the flower at pol.idx and wait for the press.
@@ -3725,6 +3778,7 @@ async function polSpin(){
   pol.total+=won; pol.mults.push(mult);
   // stamp the result on the plant itself so the bed shows the whole sum
   if(cur.p.gfx){ cur.p.gfx.pol={m:mult, base, won}; paintLabels(round.plants); }
+  polMarkDone(cur.i, mult);                    // leave it pulsing for the rest of the round
   $('#polResult').innerHTML=`×${mult} → <b>${Math.round(won).toLocaleString()}</b>`;
   const tally=$('#polTally');
   if(tally) tally.insertAdjacentHTML('beforeend',
