@@ -10832,7 +10832,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260720e-shellvh");
+      frame.setAttribute("src", "games/bloom.html?v=20260720f-vhrace");
     }
     installBloomBridge();   // idempotent: seed the in-memory balance + admin flag
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -20450,6 +20450,37 @@ let _bloomBridgeInstalled = false;
 // The CSS fallback used to hardcode the header height, which drifted from the real
 // one. It now reads --game-frame-top, which this function measures and publishes,
 // so the two can no longer disagree.
+// How much of a game iframe the player can actually see, in px.
+function gameVisibleHeight(frame) {
+  const rect = frame.getBoundingClientRect();
+  const vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+  return Math.max(320, Math.floor(Math.min(vh, vh - rect.top - 2)));
+}
+// Tell a game how much of it is visible, so it can cap its own modals. Its modals
+// are position:fixed against the IFRAME, so if the frame is ever left taller than
+// the visible area a modal grows past the fold no matter what the frame height is.
+//
+// This is posted from two places on purpose. Sending it only when the route opens
+// raced the iframe's own load: contentWindow exists well before the game installs
+// its message listener, so on a cold open the post landed nowhere, --shell-vh
+// stayed unset, and the modal fell back to 100dvh — the FRAME's height. Re-opening
+// the route posted into a live game and worked, which is why it failed
+// intermittently. The game now also asks on "ready" and before opening a modal.
+function postGameViewport(frame) {
+  if (!frame) return;
+  try {
+    if (frame.contentWindow) {
+      frame.contentWindow.postMessage(
+        { source: "bloom-shell", type: "viewport", height: gameVisibleHeight(frame) }, "*");
+    }
+  } catch (e) { /* not yet loaded / cross-origin — the frame height alone still applies */ }
+}
+// Find the frame a message came from, so a reply goes to the right game.
+function frameForWindow(win) {
+  return [...document.querySelectorAll("iframe")].find((f) => {
+    try { return f.contentWindow === win; } catch (e) { return false; }
+  }) || null;
+}
 let _sizeFramesRetry = 0;
 function sizeGameFrames() {
   let measuredAny = false;
@@ -20467,16 +20498,7 @@ function sizeGameFrames() {
     frame.style.minHeight = "0";
     const h = Math.max(320, Math.floor(available));
     frame.style.height = `${h}px`;
-    // Tell the game how much of it the player can actually SEE. Its modals are
-    // position:fixed against the iframe, so if anything ever leaves the frame
-    // taller than the visible area — a stale cached stylesheet, iOS reporting a
-    // height mid-toolbar-animation — a modal would still grow past the fold. With
-    // this the game caps its own modals to the visible height regardless.
-    try {
-      if (frame.contentWindow) {
-        frame.contentWindow.postMessage({ source: "bloom-shell", type: "viewport", height: h }, "*");
-      }
-    } catch (e) { /* cross-origin or not yet loaded — the frame height alone still applies */ }
+    postGameViewport(frame);
   });
   // The route handler calls this the moment it switches routes, which can land
   // before the section is laid out — the frame then measures 0 and we would leave
@@ -20566,6 +20588,12 @@ function installBloomBridge() {
       // Reply to whichever iframe just loaded (play or deck-admin).
       const deck = await bloomFetchDeck();
       if (e.source) e.source.postMessage(bloomInitPayload(deck), "*");
+      // and answer the sizing question now that we KNOW it is listening — the
+      // route-open post may have arrived before this game existed
+      postGameViewport(frameForWindow(e.source));
+    } else if (m.type === "need-viewport") {
+      // the game asks directly (e.g. it is about to open a modal and has no height)
+      postGameViewport(frameForWindow(e.source));
     } else if (m.type === "save-deck") {
       await bloomSaveDeck(m.deck, e.source);
     }

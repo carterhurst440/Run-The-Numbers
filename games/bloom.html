@@ -3239,7 +3239,20 @@ function renderModalSlots(){
   }
 }
 // The satchel pill opens a large editor modal.
-function openSatModal(){ const m=$('#satModal'); if(m){ m.hidden=false; renderModalSlots(); updateVolatility(); } }
+// Ask the shell how tall the visible area is. Cheap and idempotent: the reply just
+// refreshes --shell-vh, and CSS picks the new cap up live even mid-modal.
+function requestShellViewport(){
+  try{ if(window.parent&&window.parent!==window)
+    window.parent.postMessage({source:'bloom',type:'need-viewport'},'*'); }catch(_){}
+}
+function openSatModal(){
+  const m=$('#satModal'); if(!m) return;
+  // Belt and braces against the load race: if the shell's height never landed, the
+  // card would size to 100dvh — the FRAME's height — and run under the browser
+  // chrome. Ask again on the way in.
+  requestShellViewport();
+  m.hidden=false; renderModalSlots(); updateVolatility();
+}
 function closeSatModal(){ const m=$('#satModal'); if(m) m.hidden=true; }
 function setSatchelOpen(open){ open ? openSatModal() : closeSatModal(); }   // castSeeds calls setSatchelOpen(false)
 function openSatchelEdit(){ openSatModal(); }
