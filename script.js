@@ -33501,7 +33501,20 @@ const BloomAdmin = {
       this.wheel = parsed;
       this.renderWheel();
       bloomInvalidateDeck();
-      this.wheelStatus(`Saved — mean ×${bloomWheelMean(parsed).toFixed(4)}. Reopen the game to see it.`);
+      const mean = bloomWheelMean(parsed).toFixed(4);
+      this.wheelStatus(`Saved — mean ×${mean}. Reopen the game to see it. Measuring RTP…`);
+      // A whole-satchel run is the point of the panel, but it takes a moment — save
+      // is already committed above, so this only refines the message.
+      setTimeout(() => {
+        const ROUNDS = 200000;                 // enough to resolve a wheel change; see the panel note
+        const rtp = this.simulateSatchel(ROUNDS);
+        if (rtp == null){ this.wheelStatus(`Saved — mean ×${mean}. Reopen the game to see it.`); return; }
+        this.wheelStatus(
+          `Saved — mean ×${mean} · overall RTP ${(rtp*100).toFixed(2)}% `
+          // ±0.3, not ±0.1: a balanced satchel carries Orchid at 192% with a 3x super,
+          // so the tail is fat and repeated runs at 200k spread about 0.6 apart
+          + `(balanced satchel, ${ROUNDS.toLocaleString()} rounds, ±0.3). Reopen the game to see it.`);
+      }, 30);
     } catch (e){
       console.error('[bloom] wheel save', e);
       this.wheelStatus('Save error: ' + (e?.message || e));
@@ -33930,6 +33943,31 @@ const BloomAdmin = {
     if (!draws.length) return false;
     const reals = draws.filter(x => !this._isButterfly(x));
     return reals.every(x => x === reals[0]);
+  },
+  // Whole-game RTP: a balanced satchel — one of each ACTIVE flower, repeated to
+  // fill the ten seats — played under the configured wheel. This is the number the
+  // wheel is really being tuned against; a per-flower figure only shows that
+  // flower's share. Plants share one weather line per round, exactly as in play.
+  simulateSatchel(rounds){
+    const roster = this.flowers.filter(f => f.active !== false);
+    if (!roster.length) return null;
+    const sat = [];
+    while (sat.length < BLOOM_SATCHEL_SIZE) sat.push(roster[sat.length % roster.length]);
+    const deck = this._weatherDeck(), dl = deck.length;
+    const wheel = bloomWheelSegments(this.wheel);
+    let sum = 0;
+    for (let r = 0; r < rounds; r++){
+      const draws = [deck[(Math.random()*dl)|0], deck[(Math.random()*dl)|0], deck[(Math.random()*dl)|0]];
+      const line = this._isLine(draws);
+      for (const f of sat){
+        const g = this._growPlant(f, Math.random()*100 < f.take_pct, draws);
+        if (!g.alive) continue;
+        const base = this._phasePay(f, g.phase) / 100;
+        if (base <= 0) continue;
+        sum += line ? base * wheel[(Math.random()*wheel.length)|0] : base;
+      }
+    }
+    return sum / rounds;            // x bet == RTP
   },
   simulateFlower(f, rounds){
     const deck = this._weatherDeck(), dl = deck.length;

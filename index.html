@@ -3888,7 +3888,7 @@
                   <button type="button" class="primary" id="bloom-save">Save to DB</button>
                 </div>
                 <p class="admin-cs-hint">Sim runs each flower as its own all-in satchel (10 seeds) and compares its RTP contribution to the fair share (<strong>9.9% per seed</strong>). Anything off by more than ±0.25% is flagged. Same rules the live game runs, including the POLLINATE wheel above.
-                <br><strong>On reading a wheel change here:</strong> the wheel only pays on a 3-in-a-row (~10% of rounds), so even a big change to its mean moves per-seed RTP by a fraction of that — retuning ×2/×5/×10 to 7/2/1 shifts a flower about +0.3%. At 50k rounds the run-to-run noise is ±0.25%, which hides it; that is why this defaults to 200k. If two runs disagree by less than ~0.1%, that is noise, not your edit.</p>
+                <br><strong>On reading a wheel change here:</strong> the wheel only pays on a 3-in-a-row (~10% of rounds), so a change to its mean reaches these per-flower numbers heavily damped — retuning 9/2/1 to 7/2/1 moves a flower about <strong>+0.2 points</strong> (10.0% → 10.2% per seed). At 50k rounds the run-to-run noise was ±0.25, wide enough to hide that, which is why this defaults to 200k. For the number that actually matters, press <strong>Save wheel</strong> — it reports whole-game RTP for a balanced satchel.</p>
                 <div id="bloom-editor-status" class="admin-fof-status"></div>
                 <div id="bloom-flower-editor" class="bloom-flower-editor"></div>
               </section>
@@ -5510,7 +5510,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260720w-savefix"></script>
+    <script type="module" src="script.js?v=20260720y-wheelrtp2"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
