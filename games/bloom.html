@@ -407,37 +407,38 @@
     gap:16px;padding:11px 22px 9px;border-bottom:2px solid var(--line)}
   .kiiro-header .goddess{display:none}
   .kiiro-header .tabs{display:none}
-  /* title row in three zones so BET sits dead-centre: the wordmark and the
-     WIN+BALANCE pair each take an equal flexible side, BET is the fixed middle */
+  /* title row in three zones so the scoreboard sits dead-centre: the wordmark and
+     BALANCE each take an equal flexible side, the board is the fixed middle */
   .kiiro-header h1{font-family:var(--ui);font-weight:800;font-size:19px;letter-spacing:.16em;color:var(--text);margin:0;
     flex:1 1 0;min-width:0}
-  .kiiro-header .header-bet{flex:none}
   .kiiro-header .hud-row{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex:1 1 0;min-width:0}
   .kiiro-header .hud-stat{display:flex;flex-direction:column;align-items:center;gap:1px;flex:none}
   .kiiro-header .hud-label{font-size:9px;letter-spacing:.14em;white-space:nowrap;color:var(--muted)}
   .kiiro-header .hud-val{font-size:19px;font-weight:800;line-height:1.05}
   .kiiro-header .header-balance{align-items:flex-end}
-  /* BET here is READ-ONLY — the bet locked in for the round (the ± stepper lives
-     in the bottom bar). Dim until a round is actually staked. */
-  .kiiro-header .header-bet .hud-val{font-variant-numeric:tabular-nums}
-  .kiiro-header .header-bet.is-idle .hud-val{color:var(--muted);opacity:.55}
-  /* WIN: a little neon scoreboard — dark box so the neon reads on the yellow field.
-     min-width keeps the row steady as the label picks up its × multiple. */
-  .kiiro-header .header-win{background:#141414;border:2px solid #141414;border-radius:3px;
-    padding:3px 9px 4px;min-width:92px;gap:0}
-  .kiiro-header .header-win .hud-label{color:rgba(246,228,0,.72);font-size:8.5px;letter-spacing:.12em}
-  .kiiro-header .header-win .hud-val{color:#c8ff00;text-shadow:0 0 7px rgba(200,255,0,.75);font-size:18px}
-  .kiiro-header .header-win.pulse{animation:sbpulse .4s ease}
-  /* phones: keep all four on ONE row (the header wraps below ~430 otherwise) */
+  /* ONE scoreboard holding BET + WIN — a dark panel so the neon reads against the
+     yellow field. Each cell has a min-width so the row doesn't shift as the numbers
+     grow or the WIN label picks up its × multiple. */
+  .kiiro-header .hud-board{display:flex;align-items:stretch;flex:none;
+    background:#141414;border:2px solid #141414;border-radius:3px;padding:3px 2px 4px}
+  .kiiro-header .board-cell{display:flex;flex-direction:column;align-items:center;gap:0;
+    padding:0 11px;min-width:76px}
+  .kiiro-header .board-div{width:1px;background:rgba(246,228,0,.22);margin:1px 0}
+  .kiiro-header .hud-board .hud-label{color:rgba(246,228,0,.7);font-size:8.5px;letter-spacing:.12em}
+  .kiiro-header .hud-board .hud-val{font-size:18px;font-variant-numeric:tabular-nums}
+  .kiiro-header .board-bet .hud-val{color:#f6e400}
+  .kiiro-header .board-bet.is-idle .hud-val{color:rgba(246,228,0,.32)}   /* no round staked yet */
+  .kiiro-header .board-win .hud-val{color:#c8ff00;text-shadow:0 0 7px rgba(200,255,0,.75)}
+  .kiiro-header .hud-board.pulse{animation:sbpulse .4s ease}
+  /* phones: keep the wordmark + board + balance on ONE row */
   @media (max-width:430px){
-    .kiiro-header{gap:8px;padding:9px 12px 8px}
+    .kiiro-header{gap:8px;padding:9px 10px 8px}
     .kiiro-header h1{font-size:13px;letter-spacing:.06em}
-    .kiiro-header .hud-row{gap:6px}
     .kiiro-header .hud-label{font-size:8px;letter-spacing:.1em}
     .kiiro-header .hud-val{font-size:15px}
-    .kiiro-header .header-win{min-width:60px;padding:2px 5px 3px}
-    .kiiro-header .header-win .hud-label{font-size:7.5px}
-    .kiiro-header .header-win .hud-val{font-size:14px}
+    .kiiro-header .board-cell{padding:0 6px;min-width:52px}
+    .kiiro-header .hud-board .hud-label{font-size:7.5px}
+    .kiiro-header .hud-board .hud-val{font-size:14px}
   }
   /* generic Kiiro card fill */
   .kiiro-stack .card{background:var(--panel);border:2px solid var(--line);border-radius:2px}
@@ -643,10 +644,14 @@
   <h1>BLOOM</h1>
   <!-- BET / WIN / BALANCE all live in the title row; BET is centred between the
        wordmark and the WIN+BALANCE pair; WIN is a mini neon scoreboard -->
-  <!-- read-only: the bet LOCKED for this round. Blank until CAST SEEDS. -->
-  <div class="hud-stat header-bet"><span class="hud-label">BET</span><b class="hud-val" id="lockedBet">—</b></div>
+  <!-- ONE scoreboard, centred: the round's locked BET + the live WIN. BET is
+       read-only and stays "—" until CAST SEEDS (the stepper lives in the bottom bar). -->
+  <div class="hud-board" id="roundWinCard">
+    <div class="board-cell board-bet"><span class="hud-label">BET</span><b class="hud-val" id="lockedBet">—</b></div>
+    <span class="board-div" aria-hidden="true"></span>
+    <div class="board-cell board-win"><span class="hud-label" id="roundWinCap">WIN</span><b class="hud-val" id="roundWinNum">0</b></div>
+  </div>
   <div class="hud-row">
-    <div class="hud-stat header-win" id="roundWinCard"><span class="hud-label" id="roundWinCap">WIN</span><b class="hud-val" id="roundWinNum">0</b></div>
     <div class="hud-stat header-balance"><span class="hud-label">BALANCE</span><b class="hud-val" id="balVal">—</b></div>
   </div>
   <div class="tabs">
@@ -3756,7 +3761,7 @@ function setBetLocked(locked, amount){
   const wrap=$('#betStepper'), inp=$('#bet'), minus=$('#betMinus'), plus=$('#betPlus');
   if(wrap) wrap.classList.toggle('is-locked', !!locked);
   [inp,minus,plus].forEach(el=>{ if(el) el.disabled = !!locked; });
-  const box=document.querySelector('.header-bet'), val=$('#lockedBet');
+  const box=document.querySelector('.board-bet'), val=$('#lockedBet');
   if(box) box.classList.toggle('is-idle', !locked);
   if(val) val.textContent = locked ? Math.round(Number(amount)||0).toLocaleString() : '—';
 }
