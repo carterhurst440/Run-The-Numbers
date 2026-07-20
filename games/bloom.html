@@ -471,9 +471,16 @@
   .kiiro-header .tabs{display:none}
   /* title row in three zones so the scoreboard sits dead-centre: the wordmark and
      BALANCE each take an equal flexible side, the board is the fixed middle */
+  /* flex-basis 0 keeps the two sides equal so the board sits dead-centre, but the
+     floor is min-content, NOT 0: with min-width:0 the wordmark's box could shrink
+     narrower than the word itself and — since the text still renders at full width —
+     BLOOM spilled rightwards underneath the scoreboard. Flooring at min-content
+     means the sides give up their equal share before the wordmark is ever covered. */
   .kiiro-header h1{font-family:var(--ui);font-weight:800;font-size:19px;letter-spacing:.16em;color:var(--text);margin:0;
-    flex:1 1 0;min-width:0}
-  .kiiro-header .hud-row{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex:1 1 0;min-width:0}
+    flex:1 1 0;min-width:min-content;white-space:nowrap}
+  /* same floor on the BALANCE side: it is right-aligned, so shrinking below its
+     content would spill the figure leftwards under the board. */
+  .kiiro-header .hud-row{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex:1 1 0;min-width:min-content}
   .kiiro-header .hud-stat{display:flex;flex-direction:column;align-items:center;gap:1px;flex:none}
   .kiiro-header .hud-label{font-size:9px;letter-spacing:.14em;white-space:nowrap;color:var(--muted)}
   .kiiro-header .hud-val{font-size:19px;font-weight:800;line-height:1.05}
