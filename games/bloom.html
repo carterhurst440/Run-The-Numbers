@@ -171,8 +171,12 @@
   .wcell.hot .payline{opacity:.85}
   .wstrip{position:absolute;left:0;right:0;top:0;will-change:transform}
   .wstrip.spinning{filter:blur(.6px)}
-  .wtile{height:var(--wh);display:flex;align-items:center;justify-content:center}
-  .wtile .wi{display:flex;align-items:center;justify-content:center;width:100%;height:100%}
+  /* symbol stacked over its short name; .wi must not claim the full height or it
+     would push the label out of the tile */
+  .wtile{height:var(--wh);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+  .wtile .wi{display:flex;align-items:center;justify-content:center;width:100%;flex:0 1 auto;min-height:0}
+  .wtile .wlabel{font-family:var(--ui);font-size:10px;font-weight:800;letter-spacing:.14em;line-height:1;
+    max-width:92%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
   /* flat colour-filled icon; a hair of shadow lifts it off the tinted cell */
   .wtile .wglyph{width:52px;height:52px;display:block;filter:drop-shadow(0 1px 1px rgba(20,20,20,.12))}
   .wtile .wemoji{font-size:33px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
@@ -2984,17 +2988,17 @@ function flowerIcon(f, cls){
 // custom falls back to its accent colour, then to its emoji.
 const WEATHER_ART = {
   // sun — rays slowly turn, disc gently pulses
-  w_heat:{main:'#ff7a00',tint:'#ffdb96',svg:'<g class="wx-rays" stroke="#ff7a00" stroke-width="3" stroke-linecap="round"><line x1="24" y1="7" x2="24" y2="11.5"/><line x1="24" y1="36.5" x2="24" y2="41"/><line x1="7" y1="24" x2="11.5" y2="24"/><line x1="36.5" y1="24" x2="41" y2="24"/><line x1="11.6" y1="11.6" x2="15.1" y2="15.1"/><line x1="32.9" y1="32.9" x2="36.4" y2="36.4"/><line x1="11.6" y1="36.4" x2="15.1" y2="32.9"/><line x1="32.9" y1="15.1" x2="36.4" y2="11.6"/></g><circle class="wx-disc" cx="24" cy="24" r="8.5" fill="#ffd23f" stroke="#ff7a00" stroke-width="2.4"/>'},
+  w_heat:{label:"HEAT",main:'#ff7a00',tint:'#ffdb96',svg:'<g class="wx-rays" stroke="#ff7a00" stroke-width="3" stroke-linecap="round"><line x1="24" y1="7" x2="24" y2="11.5"/><line x1="24" y1="36.5" x2="24" y2="41"/><line x1="7" y1="24" x2="11.5" y2="24"/><line x1="36.5" y1="24" x2="41" y2="24"/><line x1="11.6" y1="11.6" x2="15.1" y2="15.1"/><line x1="32.9" y1="32.9" x2="36.4" y2="36.4"/><line x1="11.6" y1="36.4" x2="15.1" y2="32.9"/><line x1="32.9" y1="15.1" x2="36.4" y2="11.6"/></g><circle class="wx-disc" cx="24" cy="24" r="8.5" fill="#ffd23f" stroke="#ff7a00" stroke-width="2.4"/>'},
   // rain — drops fall on a loop
-  w_rain:{main:'#1a3ec8',tint:'#c2ccf7',svg:'<path d="M15.5 30 a6.3 6.3 0 0 1 0.4 -12.55 a8 8 0 0 1 15.2 -0.7 a5.9 5.9 0 0 1 0.9 13.25 Z" fill="#e6ebff" stroke="#1a3ec8" stroke-width="2.2" stroke-linejoin="round"/><g class="wx-rain" stroke="#1a3ec8" stroke-width="2.8" stroke-linecap="round"><line class="wx-d1" x1="18" y1="33.5" x2="16.2" y2="39"/><line class="wx-d2" x1="24" y1="33.5" x2="22.2" y2="39"/><line class="wx-d3" x1="30" y1="33.5" x2="28.2" y2="39"/></g>'},
+  w_rain:{label:"RAIN",main:'#1a3ec8',tint:'#c2ccf7',svg:'<path d="M15.5 30 a6.3 6.3 0 0 1 0.4 -12.55 a8 8 0 0 1 15.2 -0.7 a5.9 5.9 0 0 1 0.9 13.25 Z" fill="#e6ebff" stroke="#1a3ec8" stroke-width="2.2" stroke-linejoin="round"/><g class="wx-rain" stroke="#1a3ec8" stroke-width="2.8" stroke-linecap="round"><line class="wx-d1" x1="18" y1="33.5" x2="16.2" y2="39"/><line class="wx-d2" x1="24" y1="33.5" x2="22.2" y2="39"/><line class="wx-d3" x1="30" y1="33.5" x2="28.2" y2="39"/></g>'},
   // snowflake — turns very slowly
-  w_frz:{main:'#4fb8e0',tint:'#e9f7ff',svg:'<g class="wx-flake" stroke="#4fb8e0" stroke-width="3.1" stroke-linecap="round" stroke-linejoin="round"><line x1="24" y1="8.5" x2="24" y2="39.5"/><line x1="10.6" y1="16.25" x2="37.4" y2="31.75"/><line x1="37.4" y1="16.25" x2="10.6" y2="31.75"/><path d="M20.8 11.7 L24 8.5 L27.2 11.7"/><path d="M20.8 36.3 L24 39.5 L27.2 36.3"/><path d="M11.3 20.6 L10.6 16.25 L14.95 15.55"/><path d="M36.7 27.4 L37.4 31.75 L33.05 32.45"/><path d="M33.05 15.55 L37.4 16.25 L36.7 20.6"/><path d="M14.95 32.45 L10.6 31.75 L11.3 27.4"/></g><circle cx="24" cy="24" r="2.6" fill="#4fb8e0"/>'},
+  w_frz:{label:"FROST",main:'#4fb8e0',tint:'#e9f7ff',svg:'<g class="wx-flake" stroke="#4fb8e0" stroke-width="3.1" stroke-linecap="round" stroke-linejoin="round"><line x1="24" y1="8.5" x2="24" y2="39.5"/><line x1="10.6" y1="16.25" x2="37.4" y2="31.75"/><line x1="37.4" y1="16.25" x2="10.6" y2="31.75"/><path d="M20.8 11.7 L24 8.5 L27.2 11.7"/><path d="M20.8 36.3 L24 39.5 L27.2 36.3"/><path d="M11.3 20.6 L10.6 16.25 L14.95 15.55"/><path d="M36.7 27.4 L37.4 31.75 L33.05 32.45"/><path d="M33.05 15.55 L37.4 16.25 L36.7 20.6"/><path d="M14.95 32.45 L10.6 31.75 L11.3 27.4"/></g><circle cx="24" cy="24" r="2.6" fill="#4fb8e0"/>'},
   // dew — drop bobs softly
-  w_dew:{main:'#2fa84a',tint:'#c6efc2',svg:'<g class="wx-drop"><path d="M24 10.5 C 31.5 21, 33 27, 24 34 C 15 27, 16.5 21, 24 10.5 Z" fill="#3cbf55" stroke="#1f7a33" stroke-width="2" stroke-linejoin="round"/><path d="M19.8 26.6 a4.4 4.4 0 0 0 2.6 4.4" fill="none" stroke="#dcf7d8" stroke-width="2.2" stroke-linecap="round"/></g>'},
+  w_dew:{label:"DEW",main:'#2fa84a',tint:'#c6efc2',svg:'<g class="wx-drop"><path d="M24 10.5 C 31.5 21, 33 27, 24 34 C 15 27, 16.5 21, 24 10.5 Z" fill="#3cbf55" stroke="#1f7a33" stroke-width="2" stroke-linejoin="round"/><path d="M19.8 26.6 a4.4 4.4 0 0 0 2.6 4.4" fill="none" stroke="#dcf7d8" stroke-width="2.2" stroke-linecap="round"/></g>'},
   // autumn leaf — sways in the wind
-  w_wind:{main:'#8a5a2b',tint:'#e7d3b3',svg:'<g class="wx-leaf"><path d="M24 9 C 33 13, 34.5 27, 24 38 C 13.5 27, 15 13, 24 9 Z" fill="#a4682f" stroke="#5e3a18" stroke-width="2" stroke-linejoin="round"/><g stroke="#5e3a18" stroke-width="1.8" stroke-linecap="round"><line x1="24" y1="12" x2="24" y2="35.5"/><line x1="24" y1="20" x2="18.5" y2="16.8"/><line x1="24" y1="20" x2="29.5" y2="16.8"/><line x1="24" y1="26" x2="18.8" y2="23.4"/><line x1="24" y1="26" x2="29.2" y2="23.4"/></g></g>'},
+  w_wind:{label:"WIND",main:'#8a5a2b',tint:'#e7d3b3',svg:'<g class="wx-leaf"><path d="M24 9 C 33 13, 34.5 27, 24 38 C 13.5 27, 15 13, 24 9 Z" fill="#a4682f" stroke="#5e3a18" stroke-width="2" stroke-linejoin="round"/><g stroke="#5e3a18" stroke-width="1.8" stroke-linecap="round"><line x1="24" y1="12" x2="24" y2="35.5"/><line x1="24" y1="20" x2="18.5" y2="16.8"/><line x1="24" y1="20" x2="29.5" y2="16.8"/><line x1="24" y1="26" x2="18.8" y2="23.4"/><line x1="24" y1="26" x2="29.2" y2="23.4"/></g></g>'},
   // butterfly (WILD) — wings flutter
-  butterfly:{main:'#ff1a8c',tint:'#ffc0e0',svg:'<g class="wx-wingL"><path d="M24 20 C 17 12, 9 14, 11 21.5 C 12 26.5, 19 27, 24 22 Z" fill="#ff4dab" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/><path d="M24 24 C 19.5 26.5, 14 28.5, 15 33.5 C 16 37.5, 22 35.5, 24 30 Z" fill="#ffa3d6" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/></g><g class="wx-wingR"><path d="M24 20 C 31 12, 39 14, 37 21.5 C 36 26.5, 29 27, 24 22 Z" fill="#ff4dab" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/><path d="M24 24 C 28.5 26.5, 34 28.5, 33 33.5 C 32 37.5, 26 35.5, 24 30 Z" fill="#ffa3d6" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/></g><line x1="24" y1="15" x2="24" y2="33.5" stroke="#c8811a" stroke-width="2.6" stroke-linecap="round"/><path d="M24 15 q-2.5 -4.5 -5.5 -4.5" fill="none" stroke="#c8811a" stroke-width="1.8" stroke-linecap="round"/><path d="M24 15 q2.5 -4.5 5.5 -4.5" fill="none" stroke="#c8811a" stroke-width="1.8" stroke-linecap="round"/>'}
+  butterfly:{label:"WILD",main:'#ff1a8c',tint:'#ffc0e0',svg:'<g class="wx-wingL"><path d="M24 20 C 17 12, 9 14, 11 21.5 C 12 26.5, 19 27, 24 22 Z" fill="#ff4dab" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/><path d="M24 24 C 19.5 26.5, 14 28.5, 15 33.5 C 16 37.5, 22 35.5, 24 30 Z" fill="#ffa3d6" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/></g><g class="wx-wingR"><path d="M24 20 C 31 12, 39 14, 37 21.5 C 36 26.5, 29 27, 24 22 Z" fill="#ff4dab" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/><path d="M24 24 C 28.5 26.5, 34 28.5, 33 33.5 C 32 37.5, 26 35.5, 24 30 Z" fill="#ffa3d6" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/></g><line x1="24" y1="15" x2="24" y2="33.5" stroke="#c8811a" stroke-width="2.6" stroke-linecap="round"/><path d="M24 15 q-2.5 -4.5 -5.5 -4.5" fill="none" stroke="#c8811a" stroke-width="1.8" stroke-linecap="round"/><path d="M24 15 q2.5 -4.5 5.5 -4.5" fill="none" stroke="#c8811a" stroke-width="1.8" stroke-linecap="round"/>'}
 };
 function glyphKey(w){ return (w && w.kind==='butterfly') ? 'butterfly' : (w && w.id); }
 function weatherArt(w){ return WEATHER_ART[glyphKey(w)] || null; }
@@ -3110,7 +3114,22 @@ function syncSatchel(){resetPlayArea();renderSlots();renderModalSlots();updateMa
 
 /* weather reel — vertical casino reels: a viewport (.wcell) over a scrolling
    strip (.wstrip) of symbol tiles (.wtile). */
-function wtileHTML(w){ return `<div class="wtile"><div class="wi">${weatherIcon(w,'')}</div></div>`; }
+// Short name under the symbol. WEATHER_ART carries the tight label (HEAT, FROST…);
+// a custom weather with no art falls back to its own name, which the CSS ellipsises.
+function weatherLabel(w){
+  const a=weatherArt(w);
+  if(a && a.label) return a.label;
+  return (w && w.name) ? String(w.name).toUpperCase() : '';
+}
+function wtileHTML(w){
+  const a=weatherArt(w), label=weatherLabel(w);
+  // colour it inline, not from --wmain: the cell only gets that variable once the
+  // reel LANDS, so tiles blurring past mid-spin would otherwise be uncoloured.
+  const col=a ? a.main : 'var(--text)';
+  return `<div class="wtile"><div class="wi">${weatherIcon(w,'')}</div>`
+       + (label ? `<span class="wlabel" style="color:${col}">${label}</span>` : '')
+       + `</div>`;
+}
 function buildWeatherReel(){
   const r=$('#weatherReel');r.innerHTML='';
   const n=state.config.drawsPerRound;
