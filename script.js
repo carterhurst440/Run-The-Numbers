@@ -18468,33 +18468,50 @@ async function openGameActivityChart(gameId) {
     const cutoff = thirtyDaysAgo.toISOString();
     let rows = [];
 
-    if (gameId === "game_001") {
-      const { data, error } = await supabase.from("rtn_live_hands").select("started_at").eq("user_id", currentUser.id).neq("status", "active").gte("started_at", cutoff);
-      if (error) console.error("[RTN] activity chart query error (game_001):", error.message, error);
-      console.log(`[RTN] activity chart game_001 rows returned: ${(data||[]).length}`);
-      rows = (data || []).map(r => r.started_at);
-    } else if (gameId === "game_002") {
-      const { data, error } = await supabase.from("guess10_live_hands").select("started_at").eq("user_id", currentUser.id).neq("status", "active").gte("started_at", cutoff);
-      if (error) console.error("[RTN] activity chart query error (game_002):", error.message, error);
-      console.log(`[RTN] activity chart game_002 rows returned: ${(data||[]).length}`);
-      rows = (data || []).map(r => r.started_at);
-    } else if (gameId === "game_003") {
-      const { data, error } = await supabase.from("shape_trader_trades").select("executed_at").eq("user_id", currentUser.id).gte("executed_at", cutoff);
-      if (error) console.error("[RTN] activity chart query error (game_003):", error.message, error);
-      console.log(`[RTN] activity chart game_003 rows returned: ${(data||[]).length}`);
-      rows = (data || []).map(r => r.executed_at);
-    } else if (gameId === "game_004") {
-      // Broadest possible filter — count every round that exists for this user,
-      // regardless of status. roll_1 is NOT filtered on because cs_perform_roll
-      // may not write that column, which would silently return zero rows.
-      const { data: csData, error: csError } = await supabase
-        .from("color_scheme_rounds")
-        .select("created_at, status")
-        .eq("user_id", currentUser.id)
-        .gte("created_at", cutoff);
-      if (csError) console.error("[RTN] activity chart query error (game_004):", csError.message, csError);
-      console.log(`[RTN] activity chart game_004 rows returned: ${(csData||[]).length}`, (csData||[]).slice(0,3));
-      rows = (csData || []).map(r => r.created_at);
+    // Where each game records one round, keyed by game id. This used to be an
+    // if/else chain that named game_001..game_004 and left `rows` empty for
+    // anything else, so every game added after Color Scheme drew a blank chart.
+    // Adding a game here is now the only step needed.
+    //
+    // Status is deliberately NOT filtered except where a row is created up front
+    // and only later resolved (rtn/guess10 write an "active" row at deal time);
+    // filtering on a column a writer may not populate silently returns nothing.
+    const ACTIVITY_SOURCES = {
+      game_001: { table: "rtn_live_hands",         ts: "started_at",  excludeActive: true },
+      game_002: { table: "guess10_live_hands",     ts: "started_at",  excludeActive: true },
+      game_003: { table: "shape_trader_trades",    ts: "executed_at" },
+      game_004: { table: "color_scheme_rounds",    ts: "created_at" },
+      game_005: { table: "fate_or_fortune_rounds", ts: "created_at" },
+      game_006: { table: "mm_spins",               ts: "created_at" }
+    };
+
+    const source = ACTIVITY_SOURCES[gameId];
+    if (!source) {
+      console.warn(`[RTN] activity chart: no round source mapped for ${gameId} — chart will be empty`);
+    } else {
+      // A month of play can exceed PostgREST's max-rows cap (Monkey Moonshine
+      // alone logs >1000 spins a month), and a capped fetch would undercount the
+      // chart with no error, so page through until the source is exhausted.
+      const PAGE_SIZE = 1000;
+      const MAX_PAGES = 25;                       // backstop; 25k rounds/30d is well past real play
+      for (let page = 0; page < MAX_PAGES; page++) {
+        let query = supabase
+          .from(source.table)
+          .select(source.ts)
+          .eq("user_id", currentUser.id)
+          .gte(source.ts, cutoff)
+          .order(source.ts, { ascending: true })
+          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+        if (source.excludeActive) query = query.neq("status", "active");
+        const { data, error } = await query;
+        if (error) {
+          console.error(`[RTN] activity chart query error (${gameId}):`, error.message, error);
+          break;
+        }
+        rows.push(...(data || []).map(r => r[source.ts]));
+        if (!data || data.length < PAGE_SIZE) break;
+      }
+      console.log(`[RTN] activity chart ${gameId} rows returned: ${rows.length}`);
     }
 
     // Use LOCAL dates so "today" matches the player's clock, not UTC.
