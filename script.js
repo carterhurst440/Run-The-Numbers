@@ -33344,6 +33344,12 @@ async function bloomAdminInit(){
 // ═══════════════════════════════════════════════════════════════════════════
 const BLOOM_CODEX_SPECIES = ['lotus','poppy','sunflower','orchid','wisteria','daisy','tulip','hydrangea','cactus','snapdragon'];
 const BLOOM_MATCH_MULT = 5, BLOOM_BUTTERFLY_MULT = 2, BLOOM_DEFAULT_SUPER_MULT = 2;
+// POLLINATE wheel — must mirror POLLINATE_WHEEL in games/bloom.html. A line no
+// longer scales the board by a flat number: every BLOOMED plant spins this for
+// itself. 9x X2 / 2x X5 / 1x X10, mean x3.1667.
+const BLOOM_POLLINATE_WHEEL = [2,2,5,2,2,2,10,2,2,5,2,2];
+const BLOOM_POLLINATE_EV =
+  BLOOM_POLLINATE_WHEEL.reduce((a,b) => a+b, 0) / BLOOM_POLLINATE_WHEEL.length;
 const BLOOM_SATCHEL_SIZE = 10;                         // two rows of 5 plants per round
 const BLOOM_TARGET_PER_SEED = 99 / BLOOM_SATCHEL_SIZE; // 9.9% (99% target RTP / 10 seeds)
 
@@ -33800,13 +33806,12 @@ const BloomAdmin = {
     }
     return { alive, phase };
   },
-  _lineMultiplier(draws){
-    if (!draws.length) return 1;
+  // Is this a 3-in-a-row? Natural or butterfly-completed both trigger POLLINATE,
+  // so the old x5 / x2 split no longer means anything to the payout.
+  _isLine(draws){
+    if (!draws.length) return false;
     const reals = draws.filter(x => !this._isButterfly(x));
-    const line = reals.every(x => x === reals[0]);
-    if (!line) return 1;
-    const wild = reals.length < draws.length;
-    return wild ? BLOOM_BUTTERFLY_MULT : BLOOM_MATCH_MULT;
+    return reals.every(x => x === reals[0]);
   },
   simulateFlower(f, rounds){
     const deck = this._weatherDeck(), dl = deck.length;
@@ -33814,14 +33819,20 @@ const BloomAdmin = {
     const seeds = rounds * BLOOM_SATCHEL_SIZE;
     for (let r = 0; r < rounds; r++){
       const draws = [deck[(Math.random()*dl)|0], deck[(Math.random()*dl)|0], deck[(Math.random()*dl)|0]];
-      const mult = this._lineMultiplier(draws);
+      const line = this._isLine(draws);
       let win = 0;
       for (let i = 0; i < BLOOM_SATCHEL_SIZE; i++){
         const took = Math.random() * 100 < f.take_pct;
         const g = this._growPlant(f, took, draws);
-        if (g.alive){ if (g.phase === 2) topEnd++; win += this._phasePay(f, g.phase) / 100; }
+        if (!g.alive) continue;
+        if (g.phase === 2) topEnd++;
+        const base = this._phasePay(f, g.phase) / 100;
+        if (base <= 0) continue;                 // a seed pays nothing, so it gets no spin
+        // POLLINATE: on a line each BLOOMED plant spins its own wheel
+        win += line
+          ? base * BLOOM_POLLINATE_WHEEL[(Math.random()*BLOOM_POLLINATE_WHEEL.length)|0]
+          : base;
       }
-      win *= mult;
       winSum += win; winSq += win * win; if (win > winMax) winMax = win; if (win > 0) hits++;
     }
     const allIn = winSum / rounds;
@@ -33843,7 +33854,7 @@ const BloomAdmin = {
       const s = this.simulateFlower(f, this.simRounds());
       const v = this.verdict(s.perSeed * 100);
       outEl.className = `bloom-fcard-simout ${v.cls}`;
-      outEl.textContent = `${v.text} · all-in ×5 = ${(s.allIn*100).toFixed(1)}% RTP · super ${(s.top*100).toFixed(1)}%`;
+      outEl.textContent = `${v.text} · all-in = ${(s.allIn*100).toFixed(1)}% RTP · super ${(s.top*100).toFixed(1)}%`;
     }, 20);
   },
   simAll(){
@@ -33857,7 +33868,7 @@ const BloomAdmin = {
         const s = this.simulateFlower(f, rounds);
         const v = this.verdict(s.perSeed * 100);
         if (v.cls !== 'ok') flagged++;
-        if (out){ out.className = `bloom-fcard-simout ${v.cls}`; out.textContent = `${v.text} · all-in ×5 = ${(s.allIn*100).toFixed(1)}% RTP`; }
+        if (out){ out.className = `bloom-fcard-simout ${v.cls}`; out.textContent = `${v.text} · all-in = ${(s.allIn*100).toFixed(1)}% RTP`; }
       });
       this.status(flagged ? `Sim done — ${flagged} flower(s) off target (>±0.25%).` : `Sim done — all ${this.flowers.length} flowers on target.`);
     }, 20);
