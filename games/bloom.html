@@ -661,10 +661,14 @@
   .wreel-card .wcell{--wh:82px}
   /* Match banner sits collapsed (no reserved space) and slides down when a 3-match
      lands. #multi is set to '' when there's no match, so :empty drives it. */
+  /* one line, always: it sits under the reels where vertical space is scarce, and a
+     wrap used to push the action button down. Ellipsised rather than wrapped. */
   .wreel-card .multi{text-align:center;font-weight:800;min-height:0;margin-top:0;
+    font-size:12.5px;letter-spacing:.04em;line-height:1.25;
+    white-space:nowrap;text-overflow:ellipsis;
     max-height:0;opacity:0;overflow:hidden;transform:translateY(-6px);
     transition:max-height .4s cubic-bezier(.2,1.1,.3,1),opacity .3s ease,margin-top .4s ease,transform .4s ease}
-  .wreel-card .multi:not(:empty){max-height:48px;opacity:1;margin-top:12px;transform:translateY(0)}
+  .wreel-card .multi:not(:empty){max-height:20px;opacity:1;margin-top:8px;transform:translateY(0)}
   /* bottom bar: big action + bet stepper */
   .bottom-bar{display:flex;align-items:stretch;gap:12px}
   .bottom-bar .main-action{position:relative;overflow:hidden;flex:1 1 auto;
@@ -3470,10 +3474,11 @@ function highlightRun(start,len,mult,wild,payers){
   const cells=[...$('#weatherReel').children];
   if(mult>1){
     cells.forEach(c=>c.classList.add('hot'));
-    const lead = wild ? `🦋 WILD ${len}-IN-A-ROW` : `ALL ${len} MATCH`;
+    const lead = wild ? `WILD ${len} MATCH` : `${len} MATCH`;   // short: this line never wraps
+    // measured at 320px: "BLOOMS" on the end pushes the wild variant past the line
     $('#multi').textContent = payers>0
-      ? `${lead}  →  🐝 POLLINATE ${payers} BLOOM${payers>1?'S':''}`
-      : `${lead}  →  no blooms to pollinate`;
+      ? `${lead} → POLLINATE ${payers}`
+      : `${lead} → no blooms`;
   } else $('#multi').textContent='';
 }
 
@@ -3753,7 +3758,7 @@ function beginPollinate(payers, bet){
   const tally=$('#polTally'); if(tally) tally.innerHTML='';
   const wheel=$('#polWheel');
   if(wheel){ wheel.innerHTML=polWheelSVG(); wheel.style.transition='none'; wheel.style.transform='rotate(0deg)'; }
-  $('#multi').textContent='🐝 the bees are out — how will you spin?';
+  $('#multi').textContent='the bees are out — how will you spin?';
   // One flower means the two modes are identical, so don't ask.
   if(payers.length<2){ polChoose('each'); return; }
   const ch=$('#polChoose'); if(ch) ch.hidden=false;
@@ -3773,11 +3778,11 @@ function polChoose(mode){
     $('#polProg').textContent='one spin';
     $('#polResult').textContent='';
     polMoveSwarm(pol.payers[0].i);
-    $('#multi').textContent='🐝 one spin — it rides on every bloom';
+    $('#multi').textContent='one spin — it rides on every bloom';
     setScoreWin(0, true);
     updateSpinButton();
   } else {
-    $('#multi').textContent='🐝 the bees are out — spin every bloom';
+    $('#multi').textContent='the bees are out — spin every bloom';
     polStep();
   }
 }
@@ -3837,7 +3842,7 @@ async function polSpin(){
     wheel.style.transition='none'; wheel.style.transform=`rotate(${target%360}deg)`;
     await sleep(550);
     polTeardown();
-    $('#multi').textContent=`🐝 POLLINATED — ×${mult} on all ${pol.payers.length}`;
+    $('#multi').textContent=`POLLINATED — ×${mult} on all ${pol.payers.length}`;
     const totalAll=pol.total, betAll=pol.bet;
     pol=null; polSpinning=false;
     settleRound(totalAll, betAll);
@@ -3862,7 +3867,9 @@ async function polSpin(){
   } else {
     await sleep(550);
     polTeardown();
-    $('#multi').textContent=`🐝 POLLINATED — ${pol.mults.map(m=>'×'+m).join(' ')}`;
+    // a compact summary, not every multiplier: ten of them overflowed the one-line
+    // banner and got ellipsised. The per-flower results are on the bed labels.
+    $('#multi').textContent=`POLLINATED — ${pol.mults.length} blooms · best ×${Math.max(...pol.mults)}`;
     const total=pol.total, bet=pol.bet;
     pol=null; polSpinning=false;
     settleRound(total, bet);                     // only the pollinated flowers pay
