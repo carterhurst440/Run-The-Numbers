@@ -20545,7 +20545,9 @@ body.state-open .auth-vault-grant .gline::after {
 .drawer-link-game[data-route-target="shape-traders"]    { --game-accent: #c8ff3a; }
 .drawer-link-game[data-route-target="color-scheme"]     { --game-accent: #ff2d4a; }
 .drawer-link-game[data-route-target="fate-or-fortune"]  { --game-accent: #b07bff; }
-.drawer-link-game[data-route-target="monkey-moonshine"] { --game-accent: #2fd06e; }
+/* white rather than a neon: the drawer icon is a CSS mask, so it takes this colour
+   and ignores the SVG's own. Note the other five each carry their own accent. */
+.drawer-link-game[data-route-target="monkey-moonshine"] { --game-accent: #ffffff; }
 
 .utility-panel .drawer-link-meta {
   color: #686850;

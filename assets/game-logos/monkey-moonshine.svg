@@ -1,39 +1,36 @@
 <!-- Monkey Moonshine logo: the coconut drink from the home-screen floor tile.
-     These are the TILE's own paths and colours, copied verbatim from the
-     .mm-tile-coconut markup in index.html, so the drawer icon and the tile are
-     the same drawing rather than a lookalike. The previous version here was a
-     redraw with different geometry, which is why the two never quite matched.
+     Geometry is the TILE's own, copied verbatim from the .mm-tile-coconut markup
+     in index.html, so the drawer icon and the tile are the same drawing rather
+     than a lookalike. Keep the two in step if the tile art changes.
 
-     The one deliberate difference is stroke-width, lifted from the tile's 3 to
-     4.2: this also renders at ~20px in the drawer, where hairlines vanish. Keep
-     the two in step if the tile art ever changes.
+     Two deliberate differences from the tile:
+       - all white, like every other file in this folder. The tile's four neons
+         (green bowl, cyan umbrella, pink pole, orange straw) are a tile-only
+         treatment; the drawer dims each logo with grayscale + brightness and is
+         built around flat white art.
+       - stroke-width 3 -> 4.2, because this also renders at about 20px in the
+         drawer, where the tile's hairlines disappear.
 
-     Used two ways: as an <img> in the drawer (greyscale at rest, full colour on
-     hover) and as a CSS mask elsewhere, where only the alpha matters and the
-     colours are ignored in favour of the game accent. -->
+     Used as an <img> in the drawer and as a CSS mask elsewhere, where only the
+     alpha matters. -->
 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 100 100"
-     fill="none" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round">
-  <!-- coconut (green): round bowl cut open at the top, liquid line, drips -->
-  <g stroke="#7ff03a">
-    <path d="M26 44 A28 28 0 1 0 74 44"></path>
-    <path d="M26 44 Q50 33 74 44"></path>
-    <path d="M31 47 Q50 55 69 47"></path>
-    <path d="M41 49 l-1.4 4.6 l-1.5 -3"></path>
-    <path d="M50 50 l-1.4 4.6 l-1.5 -3"></path>
-    <path d="M59 49 l-1.4 4.6 l-1.5 -3"></path>
-  </g>
-  <!-- paper umbrella (cyan): canopy, ribs, finial -->
-  <g stroke="#35e0e0">
-    <circle cx="31" cy="23" r="2.3" fill="#35e0e0" stroke="none"></circle>
-    <path d="M31 25.3 L18 41 L50 32 Z"></path>
-    <path d="M31 25.3 L25 40 M31 25.3 L37.5 36.5 M31 25.3 L44 33.5"></path>
-  </g>
-  <!-- umbrella pole (pink) -->
-  <path stroke="#ff44cc" d="M34.5 39 L43 51"></path>
-  <!-- bent straw with corrugated elbow (orange) -->
-  <g stroke="#ffa81f">
-    <path d="M56 49 L63 26"></path>
-    <path d="M63 26 Q65 19 73 18 L82 16"></path>
-    <path d="M60.3 31 l4.7 -1.3 M61.5 27.3 l4.7 -1.3 M62.7 23.6 l4.7 -1.3"></path>
-  </g>
+     fill="none" stroke="#ffffff" stroke-width="4.2"
+     stroke-linecap="round" stroke-linejoin="round">
+  <!-- coconut: round bowl cut open at the top, liquid line, drips -->
+  <path d="M26 44 A28 28 0 1 0 74 44"></path>
+  <path d="M26 44 Q50 33 74 44"></path>
+  <path d="M31 47 Q50 55 69 47"></path>
+  <path d="M41 49 l-1.4 4.6 l-1.5 -3"></path>
+  <path d="M50 50 l-1.4 4.6 l-1.5 -3"></path>
+  <path d="M59 49 l-1.4 4.6 l-1.5 -3"></path>
+  <!-- paper umbrella: canopy, ribs, finial -->
+  <circle cx="31" cy="23" r="2.3" fill="#ffffff" stroke="none"></circle>
+  <path d="M31 25.3 L18 41 L50 32 Z"></path>
+  <path d="M31 25.3 L25 40 M31 25.3 L37.5 36.5 M31 25.3 L44 33.5"></path>
+  <!-- umbrella pole -->
+  <path d="M34.5 39 L43 51"></path>
+  <!-- bent straw with corrugated elbow -->
+  <path d="M56 49 L63 26"></path>
+  <path d="M63 26 Q65 19 73 18 L82 16"></path>
+  <path d="M60.3 31 l4.7 -1.3 M61.5 27.3 l4.7 -1.3 M62.7 23.6 l4.7 -1.3"></path>
 </svg>
