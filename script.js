@@ -20511,8 +20511,15 @@ function sizeGameFrames() {
     if (!Number.isFinite(available)) return;
     document.documentElement.style.setProperty("--game-frame-top", `${Math.max(0, Math.round(rect.top))}px`);
     frame.style.minHeight = "0";
-    const h = Math.max(320, Math.floor(available));
-    frame.style.height = `${h}px`;
+    // On a game route the layout owns the height: the body is pinned to the
+    // viewport and the frame flexes into what is left, which is exact by
+    // construction and immune to when this runs. An inline height would override
+    // that with a measured guess, so clear it and let the CSS win.
+    if (document.body.classList.contains("game-route")) {
+      frame.style.height = "";
+    } else {
+      frame.style.height = `${Math.max(320, Math.floor(available))}px`;
+    }
     postGameViewport(frame);
   });
   // The route handler calls this the moment it switches routes, which can land

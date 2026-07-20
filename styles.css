@@ -15344,6 +15344,24 @@ body.game-route {
   overflow: hidden;
   overscroll-behavior: none;   /* no rubber-band handing the scroll to the page */
 }
+/* With the page pinned, the frame must end exactly where the screen does. If it
+   runs longer, the game does not overflow, so it has no scrollbar of its own and
+   the page has none either — the tail of a long panel (an expanded ROUND LOG) is
+   then stranded with no scroller anywhere. Sizing it in JS leaves that to timing,
+   so make the layout do it: the route fills the pinned body, the frame takes the
+   remainder, and the game scrolls its own content inside. min-height:0 is required
+   or the frame's own min-height would floor it and push the bottom off again. */
+body.game-route .monkey-moonshine-frame {
+  /* the viewport MINUS whatever sits above the frame. --game-frame-top is the
+     frame's measured offset; the 120px fallback is deliberately generous, since a
+     short frame merely leaves a gap (the game scrolls its own content) while a tall
+     one hangs off the bottom of a page that can no longer scroll. Not flex/100%:
+     those measure against the body, which starts above the header, and overshoot
+     by exactly the header's height. */
+  height: calc(100dvh - var(--game-frame-top, 120px));
+  min-height: 0;
+  flex: none;
+}
 
 .how-to-list {
   margin: 0;
