@@ -2627,17 +2627,24 @@ function emptyDivot(){
    belonging to the plant under it instead of floating in the dirt. */
 const TAG_COLOR={'BLOOM':'#8fe89a','SUPER BLOOM':'#ffd24a','WILT':'#ff8a8a','REVIVED':'#7fe0c0'};
 const VB_TOP = -22;
-function labelH(tag){ return tag?13:7; }
+function labelH(tag, pol){ return (tag||pol)?13:7; }   // pol result takes the second line too
 /* Clean, boxless label: outlined text so it reads over any flower/dirt without a
    background plate. Just the flower NAME (+ pay% once it is worth something). The
    seed/dud/killed states are shown by the plant art itself, so no text for them. */
-function spotLabelInner(name, pay, dead, tag){
+function spotLabelInner(name, pay, dead, tag, pol){
   const nameFill = dead ? '#b6a6a6' : '#f2ede1';
+  // A pollinated plant carries its own multiplier on the pay line and what that
+  // multiplier actually paid on the line below, so the whole sum reads on the bed.
+  const multCol = pol ? (pol.m>=10 ? '#ff6fc0' : (pol.m>=5 ? '#ffd24a' : '#bff0c8')) : null;
   let s = '<text x="0" y="4.4" text-anchor="middle" font-size="5" font-weight="800"'
     + ' paint-order="stroke" stroke="#08130a" stroke-width="1.3" stroke-linejoin="round" fill="'+nameFill+'">'
     + name + (pay>0 ? ('<tspan dx="1.8" fill="#ffd24a">+'+pay+'%</tspan>') : '')
+    + (pol ? ('<tspan dx="1.8" fill="'+multCol+'">×'+pol.m+'</tspan>') : '')
     + '</text>';
-  if(tag) s += '<text x="0" y="11" text-anchor="middle" font-size="4.4" font-weight="800" letter-spacing=".5"'
+  if(pol) s += '<text x="0" y="11" text-anchor="middle" font-size="5" font-weight="800"'
+    + ' paint-order="stroke" stroke="#08130a" stroke-width="1.3" stroke-linejoin="round" fill="'+multCol+'">'
+    + Math.round(pol.won).toLocaleString() + '</text>';
+  else if(tag) s += '<text x="0" y="11" text-anchor="middle" font-size="4.4" font-weight="800" letter-spacing=".5"'
     + ' paint-order="stroke" stroke="#08130a" stroke-width="1.2" stroke-linejoin="round" fill="'+(TAG_COLOR[tag]||'#eafff2')+'">'+tag+'</text>';
   return s;
 }
@@ -2651,7 +2658,7 @@ function positionLabel(i, p){
   const g=p.gfx, back = spot.y < 92;        // back row sits higher up the bed
   const t = (g.gone||g.dud) ? T_STATE[0] : snap(g.t);     // gone/dud: hover over the divot
   const crown = headBedY(spot, p.f.sp, t);
-  const h = labelH(g.tag);
+  const h = labelH(g.tag, g.pol);
   // Back (top) row labels ABOVE the crown; front (bottom) row labels BELOW, at
   // the base — so the two rows' labels sit on opposite sides and never overlap.
   let y = back ? Math.max(VB_TOP+1, crown - 3 - h) : (spot.y - 1);
@@ -2805,7 +2812,7 @@ function paintSpot(p,i){
 function paintLabels(plants){
   if(!labelG) return;
   plants.forEach((p,i)=>{ if(!spotLbl[i]) return;
-    spotLbl[i].innerHTML = spotLabelInner(p.f.name, p.gfx.pay, p.gfx.dead, p.gfx.tag);
+    spotLbl[i].innerHTML = spotLabelInner(p.f.name, p.gfx.pay, p.gfx.dead, p.gfx.tag, p.gfx.pol);
     positionLabel(i,p);
   });
 }
@@ -3694,6 +3701,8 @@ async function polSpin(){
   const cur=pol.payers[pol.idx];
   const won=plantPay(cur.p,pol.bet)*mult;
   pol.total+=won; pol.mults.push(mult);
+  // stamp the result on the plant itself so the bed shows the whole sum
+  if(cur.p.gfx){ cur.p.gfx.pol={m:mult, won}; paintLabels(round.plants); }
   $('#polResult').innerHTML=`×${mult} → <b>${Math.round(won).toLocaleString()}</b>`;
   const tally=$('#polTally');
   if(tally) tally.insertAdjacentHTML('beforeend',
