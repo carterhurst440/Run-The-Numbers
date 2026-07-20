@@ -17,6 +17,9 @@
     --disp:'Zen Kaku Gothic New',system-ui,-apple-system,sans-serif;
     --ui:'Zen Kaku Gothic New',system-ui,-apple-system,sans-serif;
     --radius:2px; --radius-sm:2px;
+    /* horizontal inset of the play-column cards; the header rule matches it so the
+       two never drift apart. */
+    --card-gutter:22px;
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:var(--ui);background:#f6e400;color:var(--text);min-height:100vh}
@@ -452,10 +455,18 @@
   .stage-play{padding:0;display:block}
   /* the whole play view is one centred column of cards */
   .reelwrap.kiiro-stack{max-width:520px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:10px;
-    padding:12px 22px 16px;box-sizing:border-box}
-  /* header: BLOOM wordmark + BALANCE, ruled underline */
+    padding:12px var(--card-gutter) 16px;box-sizing:border-box}
+  /* header: BLOOM wordmark + BALANCE, ruled underline.
+     The rule is drawn as an inset pseudo-element rather than a border-bottom so it
+     stops at the card gutter and lines up with the panels below — a border would
+     span the header's whole padded box and overhang them. It tracks the CARD
+     gutter, not the header's own padding, because that padding tightens on phones
+     to keep the wordmark, board and balance on one row while the cards stay put. */
   .kiiro-header{max-width:520px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;
-    gap:16px;padding:11px 22px 9px;border-bottom:2px solid var(--line)}
+    gap:16px;padding:11px 22px 9px;position:relative;
+    border-bottom:none}   /* the base header{} rule sets a full-width 1px border; ::after replaces it */
+  .kiiro-header::after{content:'';position:absolute;bottom:0;height:2px;background:var(--line);
+    left:var(--card-gutter);right:var(--card-gutter)}
   .kiiro-header .goddess{display:none}
   .kiiro-header .tabs{display:none}
   /* title row in three zones so the scoreboard sits dead-centre: the wordmark and
