@@ -1033,7 +1033,10 @@
 
   <div class="card" style="margin-top:18px">
     <h3 style="margin-top:0">📊 Balance Simulator</h3>
-    <div class="muted simbox">Runs many rounds on your <b>current satchel</b> to estimate return. Set the satchel on the PLAY tab first.</div>
+    <div class="muted simbox">Runs many rounds on your <b>current satchel</b> to estimate return. Set the satchel on the PLAY tab first.
+      Models <b>POLLINATE</b> as the game plays it — any 3-in-a-row sends every <b>bloomed</b> plant to its own wheel
+      (<b>×2</b>/<b>×5</b>/<b>×10</b>), and plants that pay nothing are skipped. RTP is the same whichever spin method
+      the player picks; <b>VOLATILITY</b> is the SPIN EACH figure, the lower of the two.</div>
     <div class="row" style="margin:10px 0">
       <label class="fld" style="margin:0">Rounds <input id="simRounds" type="number" value="20000" style="width:110px;display:inline-block"></label>
       <button class="gold" id="simBtn">Run simulation</button>
@@ -4235,6 +4238,23 @@ function renderWeatherTab(){
 }
 
 /* ===================== SIMULATOR ===================== */
+/* Settle one simulated round the way the live game does. A line no longer scales
+   the board by a flat number — it sends every BLOOMED plant to its own wheel, and
+   plants that pay nothing are skipped, exactly as finalizeRound does.
+
+   Modelled as SPIN EACH. One-spin-for-all has the same expectation (one draw times
+   the sum equals the sum of independent draws) so RTP here is right for both; only
+   the volatility figure is the per-flower one, which is the lower of the two. */
+function simRoundWin(plants, unit, sc, line){
+  let win=0;
+  plants.forEach(p=>{
+    if(!p.alive) return;
+    const base = unit*(phasePay(p.f,p.phase)/100)*sc;
+    if(base<=0) return;                              // a seed pays nothing, so no spin
+    win += line ? base*POLLINATE_WHEEL[(Math.random()*POLLINATE_WHEEL.length)|0] : base;
+  });
+  return win;
+}
 function simulate(rounds){
   if(state.satchel.length<SATCHEL_SIZE)return null;
   const bet=state.config.bet, sc=payScale();
@@ -4243,10 +4263,7 @@ function simulate(rounds){
   for(let r=0;r<rounds;r++){
     const draws=drawWeather();
     const plants=playRound(sat,draws);
-    const {mult}=lineMultiplier(draws);
-    let win=0;
-    plants.forEach(p=>{if(p.alive)win+=bet*(phasePay(p.f,p.phase)/100)*sc;});
-    win*=mult;
+    const win=simRoundWin(plants, bet, sc, lineMultiplier(draws).mult>1);
     totalWin+=win;if(win>0)hits++;if(win>maxWin)maxWin=win;
     sumSq+=(win/bet)*(win/bet);
   }
@@ -4270,17 +4287,17 @@ function simulateFlower(f,rounds){
   let took=0,killed=0,saved=0,aliveEnd=0,topEnd=0,phaseSum=0;
   for(let r=0;r<rounds;r++){
     const draws=drawWeather();
-    const {mult}=lineMultiplier(draws);
-    let win=0;
+    const line=lineMultiplier(draws).mult>1;
+    const plants=[];
     for(let i=0;i<SATCHEL_SIZE;i++){              // a full all-in satchel of this flower, one shared weather line
       const p={f,_took:Math.random()*100<f.take};
       growPlant(p,draws);
+      plants.push(p);
       if(p._took)took++;
       if(p.events.includes('wilt'))killed++;
-      if(p.alive){aliveEnd++;phaseSum+=p.phase;if(p.phase===last)topEnd++;
-        win+=(phasePay(f,p.phase)/100)*sc;}
+      if(p.alive){aliveEnd++;phaseSum+=p.phase;if(p.phase===last)topEnd++;}
     }
-    win*=mult;
+    const win=simRoundWin(plants, 1, sc, line);   // ×bet units; POLLINATE per bloom
     winSum+=win;winSq+=win*win;if(win>winMax)winMax=win;if(win>0)hits++;
   }
   const seeds=rounds*SATCHEL_SIZE;
