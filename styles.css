@@ -22378,10 +22378,11 @@ body.state-open .auth-vault-grant .gline::after {
   padding: 12px 50px 12px 18px; /* right gutter clears the toggle */
 }
 
-.home-affiliate-banner.is-collapsed .hab-toggle {
-  top: 50%;
-  transform: translateY(-50%);
-}
+/* The toggle stays anchored to the banner's top edge in BOTH states. It used to
+   re-anchor to top:50%/translateY(-50%) when collapsed, which moved it ~40px the
+   instant you clicked — and with no transition on top/transform it snapped. The
+   banner grows downward from a fixed top edge, so a top-anchored button holds
+   still and the chevron rotation is the only movement. */
 
 /* smooth expand / collapse of the detail rows (no display:none) */
 .hab-copy,
