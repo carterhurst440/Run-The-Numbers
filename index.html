@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260720z-mmlogo" />
+    <link rel="stylesheet" href="styles.css?v=20260721b-prizevault" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -1017,6 +1017,17 @@
                 <p class="home-quote-attr">— CARTER HURST, FOUNDER &amp; THE HOUSE</p>
                 <button type="button" id="home-about-read-more" class="home-quote-read-more">READ MORE</button>
               </div>
+
+              <!-- PRIZE VAULT — a taste of the shop, above the contest spotlight.
+                   Hidden until there is at least one active prize, same as the
+                   spotlight below, so an empty shop leaves no gap on the page. -->
+              <section id="home-prizes" class="home-prizes-panel" hidden aria-labelledby="home-prizes-title">
+                <div class="home-section-hdr">
+                  <h2 id="home-prizes-title" class="home-section-label">// PRIZE VAULT</h2>
+                  <button type="button" class="home-section-link" data-route-target="store">SEE ALL</button>
+                </div>
+                <ul id="home-prize-list" class="home-prize-list" aria-live="polite"></ul>
+              </section>
 
               <!-- CONTEST SPOTLIGHT -->
               <section id="home-live-contests" class="home-contests-panel" hidden aria-labelledby="home-live-contests-title">
@@ -5510,7 +5521,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260720y-wheelrtp2"></script>
+    <script type="module" src="script.js?v=20260721a-prizevault"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

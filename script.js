@@ -3246,6 +3246,7 @@ async function refreshCurrentRankState({ force = false } = {}) {
   void refreshRankPlayerCounts();
   void renderRankLadderModal();
   await renderHomeContestPromos();
+  void renderHomePrizes();
   if (playerLiveContestListEl && playerEndedContestListEl) {
     await loadPlayerContestList(false);
   }
@@ -17104,6 +17105,7 @@ async function syncContestState({ force = false } = {}) {
   renderContestEmailPreference();
   refreshContestNotifications(contestCache);
   await renderHomeContestPromos();
+  void renderHomePrizes();
   syncActiveAccountMode({ forceApply: true, resetHistory: !bankrollInitialized });
 }
 
@@ -17765,6 +17767,72 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
   }
   item.append(top, hero, actions);
   return item;
+}
+
+// PRIZE VAULT (home) — a short strip of what the shop is offering, sitting above
+// the contest spotlight. Reuses the shop's own availability and cost helpers so the
+// two can never disagree about what is buyable or what it costs. Hidden whenever
+// there is nothing to show, exactly like the spotlight, so an empty shop leaves no
+// hole in the page — which is the current state, since `prizes` is empty.
+const HOME_PRIZE_LIMIT = 4;
+async function renderHomePrizes() {
+  const section = document.getElementById("home-prizes");
+  const list = document.getElementById("home-prize-list");
+  if (!section || !list) return;
+
+  const hide = () => { section.hidden = true; list.innerHTML = ""; };
+  if (!supabase || !currentUser?.id || currentUser.id === GUEST_USER.id) return hide();
+
+  let prizes = [];
+  try {
+    const { data, error } = await supabase
+      .from("prizes")
+      .select("id, name, description, image_url, cost_credits, cost_carter_cash, quantity, active")
+      .eq("active", true)
+      .order("cost_credits", { ascending: true, nullsFirst: false });
+    if (error) throw error;
+    prizes = (data || []).filter(isPrizeAvailable).slice(0, HOME_PRIZE_LIMIT);
+  } catch (e) {
+    console.error("[RTN] home prizes", e);
+    return hide();                        // a failed fetch shows nothing, never a broken strip
+  }
+  if (!prizes.length) return hide();
+
+  list.innerHTML = "";
+  prizes.forEach((prize) => {
+    const li = document.createElement("li");
+    li.className = "home-prize-card";
+
+    const thumb = document.createElement("div");
+    thumb.className = "home-prize-thumb";
+    const img = String(prize.image_url || "").trim();
+    if (img) {
+      const el = document.createElement("img");
+      el.src = img; el.alt = ""; el.loading = "lazy";
+      thumb.appendChild(el);
+    } else {
+      thumb.classList.add("is-empty");
+    }
+
+    const name = document.createElement("span");
+    name.className = "home-prize-name";
+    name.textContent = prize.name || "Prize";
+
+    const cost = document.createElement("span");
+    cost.className = "home-prize-cost";
+    cost.textContent = formatPrizeCostLabel(prize);
+
+    const stock = getPrizeStock(prize);
+    const left = document.createElement("span");
+    left.className = "home-prize-stock";
+    left.textContent = stock <= 5 ? `only ${stock} left` : `${stock} available`;
+    if (stock <= 5) left.classList.add("is-low");
+
+    li.append(thumb, name, cost, left);
+    li.addEventListener("click", () => { void setRoute("store"); });
+    list.appendChild(li);
+  });
+  section.hidden = false;
 }
 
 async function renderHomeContestPromos() {
