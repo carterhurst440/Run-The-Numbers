@@ -20351,6 +20351,27 @@ function mmSendInit() {
 // of what the player is watching. Rounds can be player-paced (extra shakes), so
 // we do NOT use a timer; if the player leaves MM before a round settles, we flush
 // the pending value on route-leave (mmFlushPendingBalance).
+//
+// The SPIN ITSELF is never at risk from a client abort: mm_play_spin debits, plays
+// the board, credits and writes the mm_spins row in one transaction, so by the time
+// the client has a result the account is already final. Aborting can only cost the
+// animation, never the money — and a reload re-reads the wallet.
+//
+// What an abort CAN leave stale is this deferred header value, when the player stays
+// on the route and the game never reports "settled" (an animation that throws, a
+// frame that dies). Route-leave covers navigating away; this watchdog covers staying
+// put. Generous, because a moonshine raid with extra rows is a long animation — it
+// exists to catch a dead round, not to race a live one.
+const MM_SETTLE_WATCHDOG_MS = 60000;
+let _mmSettleWatchdog = null;
+function mmArmSettleWatchdog() {
+  clearTimeout(_mmSettleWatchdog);
+  _mmSettleWatchdog = setTimeout(() => {
+    if (_mmPendingBalance === null) return;
+    console.warn("[RTN] MM round never reported settled — syncing the header to the server value");
+    mmFlushPendingBalance();
+  }, MM_SETTLE_WATCHDOG_MS);
+}
 let _mmPendingBalance = null;
 function mmApplyBalance(newVal) {
   if (typeof newVal !== "number" || !Number.isFinite(newVal) || !currentProfile) return;
@@ -20365,12 +20386,14 @@ function mmApplyBalance(newVal) {
   try { updateDashboardCreditsDisplay(currentProfile.credits); } catch (e) {}
 }
 function mmSettleBalance(newVal) {
+  clearTimeout(_mmSettleWatchdog);
   const val = (typeof newVal === "number" && Number.isFinite(newVal)) ? newVal : _mmPendingBalance;
   _mmPendingBalance = null;
   mmApplyBalance(val);
 }
 // Apply any not-yet-animated spin result (e.g. player navigated away mid-round).
 function mmFlushPendingBalance() {
+  clearTimeout(_mmSettleWatchdog);
   if (_mmPendingBalance === null) return;
   const val = _mmPendingBalance;
   _mmPendingBalance = null;
@@ -20420,6 +20443,7 @@ async function mmHandleSpin(bet, wild) {
     // instead of jumping ahead before the player sees the outcome.
     if (data && typeof data.new_account_value === "number") {
       _mmPendingBalance = data.new_account_value;
+      mmArmSettleWatchdog();   // the server has already banked this; don't let the header lag forever
     }
     mmApplyCarterCash(data);   // wager → Carter Cash progress (applied now, not deferred)
     w.postMessage({ source: "mm-shell", type: "result", payload: data }, "*");
