@@ -2836,7 +2836,7 @@ function playerStats(f){
   else if(bloom>=0.55)   style='Steady — blooms often, pays small';
   else if(bloomers.length===1) style='Specialist — needs its weather';
   else                   style='Balanced';
-  return {bloom,sup,wilt,loves,dangers,style,pay:f.pay,superPay:topPay(f),superMult:superMult(f)};
+  return {take,bloom,sup,wilt,loves,dangers,style,pay:f.pay,superPay:topPay(f),superMult:superMult(f)};
 }
 function statPanelHTML(f){
   const s=playerStats(f);
@@ -2864,6 +2864,7 @@ function statPanelHTML(f){
     </div>
     <div class="pslbl">Per round</div>
     <div class="statbars">
+      ${bar('🌱 takes seed', s.take, 'var(--grow)', 'chance the seed takes at all — a seed that fails to take cannot bloom or wilt')}
       ${bar('🌸 blooms', s.bloom, 'var(--accent)', 'chance this seed reaches bloom or super in a round')}
       ${bar('🌟 super bloom', s.sup, 'var(--gold)', 'chance it reaches super bloom')}
       ${bar('🥀 wilts', s.wilt, 'var(--danger)', 'chance weather kills it')}
