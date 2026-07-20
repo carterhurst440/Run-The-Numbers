@@ -10832,7 +10832,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260719af-polpct");
+      frame.setAttribute("src", "games/bloom.html?v=20260719ag-bugart");
     }
     installBloomBridge();   // idempotent: seed the in-memory balance + admin flag
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -20481,7 +20481,12 @@ async function bloomFetchDeck() {
     if (f.error || w.error) { console.error("[bloom] deck fetch", f.error || w.error); return null; }
     const settings = {};
     (s && s.data || []).forEach(r => { settings[r.key] = r.value; });
-    _bloomDeckCache = { flowers: f.data || [], weather: w.data || [], background_url: settings.background_url || null };
+    _bloomDeckCache = {
+      flowers: f.data || [], weather: w.data || [],
+      background_url: settings.background_url || null,
+      bee_url: settings.bee_url || null,               // POLLINATE swarm art; null => emoji
+      butterfly_url: settings.butterfly_url || null
+    };
     return _bloomDeckCache;
   } catch (e) { console.error("[bloom] deck fetch", e); return null; }
 }
@@ -33026,6 +33031,28 @@ document.getElementById("bloom-bg-file")?.addEventListener("change", (e) => {
   e.target.value = "";
 });
 
+// POLLINATE pollinators. Square crop — they render as a small square sprite orbiting
+// the bloom. No cropper for SVG: rasterising it through the canvas would throw away
+// the vector and its transparency handling.
+["bee", "butterfly"].forEach((kind) => {
+  document.getElementById(`bloom-${kind}-upload`)?.addEventListener("click",
+    () => document.getElementById(`bloom-${kind}-file`)?.click());
+  document.getElementById(`bloom-${kind}-clear`)?.addEventListener("click",
+    () => BloomAdmin.clearBug(kind));
+  document.getElementById(`bloom-${kind}-file`)?.addEventListener("change", (e) => {
+    const f = e.target.files?.[0];
+    if (f) {
+      if (/svg/i.test(f.type)) BloomAdmin.uploadBug(kind, f);
+      else openImageCropper(f, {
+        aspectW: 1, aspectH: 1, output: 256, name: `${kind}.png`,
+        title: `Frame the ${kind}`,
+        hint: "Square crop. Keep the background transparent — it renders about 22px over the flowers."
+      }, cropped => BloomAdmin.uploadBug(kind, cropped));
+    }
+    e.target.value = "";
+  });
+});
+
 function formatPurchaseCost(row) {
   const parts = [];
   const credits = Math.max(0, Math.round(Number(row?.cost_credits ?? 0)));
@@ -33207,6 +33234,8 @@ const BloomAdmin = {
   flowers: [],
   weather: [],
   backgroundUrl: null,
+  beeUrl: null,
+  butterflyUrl: null,
 
   status(msg){ const el = document.getElementById('bloom-editor-status'); if (el) el.textContent = msg || ''; },
 
@@ -33240,6 +33269,59 @@ const BloomAdmin = {
     }
   },
 
+  // ── POLLINATE pollinators (bee / butterfly) ───────────────────────────────
+  // Both live in bloom_settings alongside background_url — a k/v table, so no
+  // schema change. A null value means the game falls back to its emoji.
+  renderBugs(){
+    [['bee', this.beeUrl], ['butterfly', this.butterflyUrl]].forEach(([k, url]) => {
+      const prev = document.getElementById(`bloom-${k}-preview`);
+      const btn  = document.getElementById(`bloom-${k}-upload`);
+      const clr  = document.getElementById(`bloom-${k}-clear`);
+      if (prev){
+        prev.style.backgroundImage = url ? `url("${url}")` : '';
+        prev.classList.toggle('is-empty', !url);
+      }
+      if (btn) btn.textContent = url ? `Replace ${k}` : `Upload ${k}`;
+      if (clr) clr.hidden = !url;
+    });
+  },
+  bugStatus(msg){ const el = document.getElementById('bloom-bug-status'); if (el) el.textContent = msg || ''; },
+  async uploadBug(kind, file){
+    if (!isAdmin(currentUser)){ this.bugStatus('Admin access only'); return; }
+    if (!file) return;
+    this.bugStatus(`Uploading ${kind}…`);
+    try {
+      const url = await uploadBloomAsset(file, 'bugs');
+      const up = await supabase.from('bloom_settings')
+        .upsert({ key: `${kind}_url`, value: url, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (up.error) throw up.error;
+      if (kind === 'bee') this.beeUrl = url; else this.butterflyUrl = url;
+      this.renderBugs();
+      bloomInvalidateDeck();          // so the game re-pulls the new art next open
+      this.bugStatus(`${kind[0].toUpperCase()}${kind.slice(1)} saved — reopen the game to see it.`);
+    } catch (e){
+      console.error('[bloom] pollinator upload', e);
+      this.bugStatus('Upload error: ' + (e?.message || e));
+    }
+  },
+  async clearBug(kind){
+    if (!isAdmin(currentUser)){ this.bugStatus('Admin access only'); return; }
+    this.bugStatus(`Clearing ${kind}…`);
+    try {
+      // blank rather than delete: the row keeps its place and the game reads '' as "use the emoji"
+      const up = await supabase.from('bloom_settings')
+        .upsert({ key: `${kind}_url`, value: '', updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (up.error) throw up.error;
+      if (kind === 'bee') this.beeUrl = null; else this.butterflyUrl = null;
+      this.renderBugs();
+      bloomInvalidateDeck();
+      this.bugStatus(`${kind[0].toUpperCase()}${kind.slice(1)} cleared — back to the emoji.`);
+    } catch (e){
+      console.error('[bloom] pollinator clear', e);
+      this.bugStatus('Clear error: ' + (e?.message || e));
+    }
+  },
+
   slugify(name){
     return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   },
@@ -33262,6 +33344,8 @@ const BloomAdmin = {
       const settings = {};
       (s && s.data || []).forEach(r => { settings[r.key] = r.value; });
       this.backgroundUrl = settings.background_url || null;
+      this.beeUrl = settings.bee_url || null;
+      this.butterflyUrl = settings.butterfly_url || null;
       this.flowers = (f.data || []).map(r => ({
         flower: r.flower,
         display_name: r.display_name || r.flower,
@@ -33289,6 +33373,7 @@ const BloomAdmin = {
       this.renderWeather();
       this.renderFlowers();
       this.renderBackground();
+      this.renderBugs();
       this.status('');
     } catch (e){
       console.error('[bloom] load', e);

@@ -3815,6 +3815,35 @@
               <section class="route-section admin-list-section">
                 <div class="admin-listing-header">
                   <div>
+                    <h2>BLOOM — Pollinators</h2>
+                    <p class="route-subheading">The bee and butterfly that swarm each flower during the <strong>POLLINATE</strong> bonus. Upload a small square image with a <strong>transparent background</strong> (PNG or SVG) — they render about 22px, so keep the shape simple and bold. Leave one empty to keep its emoji. Saves immediately; the game re-pulls on next open.</p>
+                  </div>
+                </div>
+                <div class="bloom-bug-row">
+                  <div class="bloom-bug-slot">
+                    <div class="bloom-bug-preview is-empty" id="bloom-bee-preview"></div>
+                    <div class="bloom-bug-actions">
+                      <span class="bloom-bug-label">Bee</span>
+                      <button type="button" class="secondary" id="bloom-bee-upload">Upload bee</button>
+                      <button type="button" class="secondary bloom-bug-clear" id="bloom-bee-clear" hidden>Clear</button>
+                      <input type="file" id="bloom-bee-file" accept="image/*" hidden />
+                    </div>
+                  </div>
+                  <div class="bloom-bug-slot">
+                    <div class="bloom-bug-preview is-empty" id="bloom-butterfly-preview"></div>
+                    <div class="bloom-bug-actions">
+                      <span class="bloom-bug-label">Butterfly</span>
+                      <button type="button" class="secondary" id="bloom-butterfly-upload">Upload butterfly</button>
+                      <button type="button" class="secondary bloom-bug-clear" id="bloom-butterfly-clear" hidden>Clear</button>
+                      <input type="file" id="bloom-butterfly-file" accept="image/*" hidden />
+                    </div>
+                  </div>
+                  <span class="admin-fof-status" id="bloom-bug-status"></span>
+                </div>
+              </section>
+              <section class="route-section admin-list-section">
+                <div class="admin-listing-header">
+                  <div>
                     <h2>BLOOM — Flowers</h2>
                     <p class="route-subheading">One master editor: stats, per-weather bloom/wilt odds, active toggle, and custom icon / animation uploads. Only <strong>active</strong> flowers appear in the game. Loads from <code>bloom_flowers</code>; press <strong>Save to DB</strong> to persist (the game re-pulls on next load).</p>
                   </div>
@@ -5453,7 +5482,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260719s-bankrollpage"></script>
+    <script type="module" src="script.js?v=20260719t-bugart"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

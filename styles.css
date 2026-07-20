@@ -31674,6 +31674,22 @@ body[data-ui="new"] .profile-input-group input:-webkit-autofill:active {
   background-size: 20px 20px;
 }
 .bloom-bg-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+/* POLLINATE bee / butterfly art. The checker under an empty slot doubles as the
+   transparency backdrop, so an uploaded PNG's alpha is visible at a glance. */
+.bloom-bug-row { display: flex; align-items: flex-start; gap: 1.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+.bloom-bug-slot { display: flex; align-items: center; gap: 0.75rem; }
+.bloom-bug-preview {
+  width: 84px; height: 84px; flex: none; border-radius: 8px; border: 1px solid #2a2a22;
+  background-size: contain; background-position: center; background-repeat: no-repeat;
+  background-color: #11110f;
+}
+.bloom-bug-preview.is-empty {
+  background-image: repeating-conic-gradient(#151513 0% 25%, #0a0a08 0% 50%);
+  background-size: 16px 16px;
+}
+.bloom-bug-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+.bloom-bug-label { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted, #9aa); }
+.bloom-bug-clear { font-size: 0.72rem; padding: 0.25rem 0.6rem; }
 .admin-bloom-toolbar-spacer { flex: 1 1 auto; }
 .admin-bloom-rounds { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted, #9aa); }
 .admin-bloom-rounds input { width: 96px; }

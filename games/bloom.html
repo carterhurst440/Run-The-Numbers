@@ -319,6 +319,7 @@
   .pol-bug{position:absolute;width:22px;height:22px;margin:-11px 0 0 -11px;font-size:17px;
     line-height:22px;text-align:center;animation:polOrbit 2.4s linear infinite;
     animation-delay:var(--d,0s);will-change:transform}
+  .pol-bug img{width:100%;height:100%;object-fit:contain;display:block}
   @keyframes polOrbit{
     from{transform:rotate(0deg) translateX(var(--r,26px)) rotate(0deg)}
     to  {transform:rotate(360deg) translateX(var(--r,26px)) rotate(-360deg)}
@@ -3597,6 +3598,16 @@ function polTestBar(){
    when the last wheel lands. Nothing is credited until then, so an interrupted
    sequence cannot pay out twice. */
 let pol=null;                                  // null unless a sequence is running
+// Swarm art: admin uploads land here (bloom_settings.bee_url / butterfly_url) and
+// each falls back to its emoji independently, so one can be custom and one not.
+const POL_ART={bee:null, butterfly:null};
+function polBugHTML(kind, style){
+  const url=POL_ART[kind];
+  return url
+    ? `<span class="pol-bug" style="${style}"><img src="${url}" alt=""`
+      + ` onerror="this.replaceWith(document.createTextNode('${kind==='bee'?'🐝':'🦋'}'))"></span>`
+    : `<span class="pol-bug" style="${style}">${kind==='bee'?'🐝':'🦋'}</span>`;
+}
 
 function polWheelSVG(){
   const n=POLLINATE_WHEEL.length, R=100, C=110, step=360/n;
@@ -3648,8 +3659,8 @@ function polMoveSwarm(plantIndex){
         const a=(i/5)*Math.PI*2, r=halo*0.45;
         return `<span class="pol-spark" style="left:${x+r*Math.cos(a)}px;top:${y+r*Math.sin(a)}px;--d:${i*0.22}s"></span>`;
       }).join('')
-    + ['🐝','🦋','🐝','🦋'].map((b,i)=>
-        `<span class="pol-bug" style="left:${x}px;top:${y}px;--r:${22+(i%2)*11}px;--d:${-i*0.6}s">${b}</span>`
+    + ['bee','butterfly','bee','butterfly'].map((kind,i)=>
+        polBugHTML(kind, `left:${x}px;top:${y}px;--r:${22+(i%2)*11}px;--d:${-i*0.6}s`)
       ).join('');
 }
 
@@ -4374,6 +4385,9 @@ function applyGardenBg(url){
 function bloomApplyDeck(deck){
   if(!deck) return;
   if(typeof deck.background_url==='string') applyGardenBg(deck.background_url);
+  // admin-uploaded POLLINATE swarm art; blank/absent keeps the emoji
+  if('bee_url' in deck) POL_ART.bee = deck.bee_url || null;
+  if('butterfly_url' in deck) POL_ART.butterfly = deck.butterfly_url || null;
   if(Array.isArray(deck.flowers) && deck.flowers.length){
     // In the live game only ACTIVE flowers appear; the deck-admin sees them all
     // (so inactive ones can still be edited/re-activated).
