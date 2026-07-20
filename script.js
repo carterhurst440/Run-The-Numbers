@@ -10832,7 +10832,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260719ai-polpulse");
+      frame.setAttribute("src", "games/bloom.html?v=20260720b-modalfit");
     }
     installBloomBridge();   // idempotent: seed the in-memory balance + admin flag
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)

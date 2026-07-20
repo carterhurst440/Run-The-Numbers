@@ -133,7 +133,11 @@
   .sat-modal[hidden]{display:none}
   .sat-modal{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
   .sat-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
-  .sat-modal-card{position:relative;z-index:1;width:min(760px,100%);max-height:90vh;overflow:auto;
+  /* dvh, not vh: inside the game iframe on mobile these differ, and vh can exceed
+     what is actually visible. The 40px is the modal's own 20px padding either side. */
+  .sat-modal-card{position:relative;z-index:1;width:min(760px,100%);overflow:auto;
+    max-height:calc(100vh - 40px);
+    max-height:calc(100dvh - 40px);
     background:rgba(255,255,255,.42);border:1px solid var(--line);border-radius:2px;padding:18px 20px;
     box-shadow:0 22px 60px rgba(0,0,0,.6)}
   .sat-modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -759,9 +763,12 @@
      instead of resizing the modal. */
   @media (min-width:601px){
     .sat-modal-card{width:min(820px,100%)}
-    /* fixed (min == max) so the list height — and therefore the modal — never
-       changes as STATS blocks open and close */
-    .sat-modal .picker{min-height:min(56vh,460px);max-height:min(56vh,460px)}
+    /* A flex BASIS, not a min-height. The list still holds one size as STATS blocks
+       open and close (it neither grows nor is content-sized), but min-height would
+       refuse to shrink — and on a short screen, such as a phone in landscape at
+       844x390, that pushed the card past its cap. The card clips rather than
+       scrolls, so those pixels were unreachable, not merely off-screen. */
+    .sat-modal .picker{flex:0 1 min(56vh,460px);min-height:0;max-height:min(56vh,460px)}
   }
 
   /* ── phones: SATCHEL modal must fit the screen (nothing clipped off the bottom).
