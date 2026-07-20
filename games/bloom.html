@@ -294,6 +294,18 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.2px}
   .win{color:var(--coral)} .lose{color:var(--muted)}
 
+  /* admin test rig — only ever in the DOM behind ?poltest=1 */
+  .poltest{position:fixed;left:8px;bottom:8px;z-index:60;display:flex;align-items:center;gap:8px;
+    flex-wrap:wrap;max-width:calc(100vw - 16px);background:#141414;color:#f6e400;
+    border:2px solid #f6e400;border-radius:2px;padding:6px 9px;font-family:var(--ui);font-size:10.5px}
+  .poltest-tag{font-weight:800;letter-spacing:.14em;font-size:8.5px;background:#f6e400;color:#141414;padding:2px 5px}
+  .poltest label{display:flex;align-items:center;gap:4px;font-weight:700;letter-spacing:.04em}
+  .poltest select{font-family:var(--ui);font-size:10.5px;padding:2px 4px;border:1px solid #f6e400;
+    background:#141414;color:#f6e400;border-radius:2px}
+  .poltest button{font-family:var(--ui);font-size:10px;font-weight:800;letter-spacing:.1em;
+    padding:4px 9px;background:#f6e400;color:#141414;border:none;border-radius:2px;cursor:pointer}
+  .poltest-say:not(:empty){flex-basis:100%;color:#ff8a3d;font-weight:700}
+
   /* ---- POLLINATE --------------------------------------------------------- */
   /* sits along the BOTTOM of the bed so the flowers being pollinated, and the bugs
      orbiting them, stay visible above it */
@@ -3413,8 +3425,9 @@ function castSeeds(){
   SHELL.balance-=bet;                 // debit the stake at cast (outcome is fixed here)
   bloomRenderBalance();
   const plants=state.satchel.map(fid=>{const f=flower(fid);return{f,_took:Math.random()*100<f.take};});
-  const draws=drawWeather();
+  const draws=polTestDraws(drawWeather());    // admin rig only; a no-op without ?poltest=1
   plants.forEach(p=>growPlant(p,draws));      // outcome fixed at cast, revealed reel-by-reel
+  polTestForceBlooms(plants);                 // ditto
   round={plants,draws,step:0,phase:'cast',done:false,bet};   // remember the staked bet
   const hint=$('#dirtHint');if(hint)hint.style.display='none';
   setBetLocked(true, bet); setScoreWin(0);      // bet is locked for the round; reset the win
@@ -3486,6 +3499,69 @@ function settleRound(total, bet){
   // line here (keeps the button snug under the reels).
   banner('','');
 }
+/* ---- ADMIN: POLLINATE test rig ------------------------------------------
+   ?poltest=1 keeps the normal Play view and adds a small bar for forcing the
+   bonus, so the sequence can be exercised on demand instead of waiting out the
+   ~9.8% line rate. Both hooks are no-ops without the flag, and they only bias
+   the DRAW and the growth — the payout math and the wheel are untouched, so
+   what you see paid here is what a real line pays. */
+const POL_TEST = /[?&]poltest=1/.test(location.search);
+const polTest = { line:'off', blooms:false };      // line: off | natural | wild
+
+// Force the three reels into a line so POLLINATE triggers.
+function polTestDraws(draws){
+  if(!POL_TEST || polTest.line==='off') return draws;
+  const reals=state.weather.filter(w=>w.kind!=='butterfly');
+  const bf=state.weather.find(w=>w.kind==='butterfly');
+  if(!reals.length) return draws;
+  const pick=reals[(Math.random()*reals.length)|0].id;
+  if(polTest.line==='wild'){
+    // Say so rather than quietly handing back a natural line — a deck with no
+    // butterfly cannot produce a wild-completed one, and silently substituting
+    // would make the rig look like it works while testing the wrong path.
+    if(!bf){ polTestSay('deck has no butterfly — forced a natural line instead'); return [pick,pick,pick]; }
+    return [pick, bf.id, pick];                                 // butterfly-completed
+  }
+  return [pick, pick, pick];                                    // natural 3-of-a-kind
+}
+function polTestSay(msg){ const s=$('#ptSay'); if(s) s.textContent=msg||''; }
+
+// Force every seed to take and reach bloom, to exercise a full 10-flower run.
+// The event list is rewritten to match, so the reel-by-reel running total still
+// replays to the same figure the round settles on.
+function polTestForceBlooms(plants){
+  if(!POL_TEST || !polTest.blooms) return;
+  plants.forEach(p=>{
+    p._took=true; p.alive=true; p.phase=BLOOM;
+    p.events=['bloom','none','none'];
+  });
+}
+
+function polTestBar(){
+  if(!POL_TEST) return;
+  const bar=el('div','poltest');
+  bar.innerHTML=
+     `<span class="poltest-tag">ADMIN</span>`
+    +`<label>force line`
+    +`<select id="ptLine"><option value="off">off</option>`
+    +`<option value="natural">natural 3-match</option>`
+    +`<option value="wild">butterfly line</option></select></label>`
+    +`<label><input type="checkbox" id="ptBlooms"> all 10 bloom</label>`
+    +`<button type="button" id="ptRun">CAST + FORCE</button>`
+    +`<span id="ptSay" class="poltest-say"></span>`;
+  document.body.appendChild(bar);
+  $('#ptLine').onchange=e=>{ polTest.line=e.target.value; polTestSay(''); };
+  $('#ptBlooms').onchange=e=>{ polTest.blooms=e.target.checked; };
+  // one press: clear any finished round, force a line, then reveal all three reels
+  $('#ptRun').onclick=async()=>{
+    if(polTest.line==='off'){ polTest.line='natural'; $('#ptLine').value='natural'; }
+    if(round){ resetPlayArea(); setScoreWin(0); banner('',''); setBetLocked(false); }
+    castSeeds();
+    if(!round) return;                       // castSeeds refused (empty satchel / bad bet)
+    while(round && round.phase==='cast' && !busy) await revealNextReel();
+  };
+}
+
 /* ---- POLLINATE ----------------------------------------------------------
    A 3-in-a-row sends the bees out. Each BLOOMED flower gets one button press and
    one wheel spin, and the result multiplies THAT flower alone; the round settles
@@ -3638,6 +3714,7 @@ function renderRoundLog(){
 (function wirePollinate(){
   const btn=$('#polBtn');
   if(btn) btn.addEventListener('click', polSpin);
+  polTestBar();                                // renders nothing without ?poltest=1
 })();
 
 (function wireRoundLog(){
