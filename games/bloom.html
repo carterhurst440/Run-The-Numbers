@@ -287,6 +287,45 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.2px}
   .win{color:var(--coral)} .lose{color:var(--muted)}
 
+  /* ---- ROUND LOG ---------------------------------------------------------
+     Session-only history of settled rounds, mirroring Monkey Moonshine's spin
+     log. Collapses by toggling .open on the panel; the body is height-animated
+     rather than display:none so the chevron has something to ease into. */
+  .rlog{margin-top:10px;padding:0;overflow:hidden}
+  .rlog-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:9px 12px;cursor:pointer;font-size:11.5px;font-weight:700;letter-spacing:.06em;
+    color:var(--text);user-select:none}
+  .rlog-head:hover{background:rgba(255,255,255,.28)}
+  #rlogSummary{color:var(--gold);font-variant-numeric:tabular-nums}
+  .rlog-chevron{transition:transform .2s ease;font-size:12px;color:var(--muted)}
+  .rlog:not(.open) .rlog-chevron{transform:rotate(-90deg)}
+  .rlog-body{max-height:420px;transition:max-height .22s ease,opacity .18s ease;opacity:1}
+  .rlog:not(.open) .rlog-body{max-height:0;opacity:0}
+  .rlog-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 12px 8px}
+  .rlog-stat{background:rgba(255,255,255,.42);border:1px solid var(--line);border-radius:2px;
+    padding:5px 7px;min-width:0}
+  .rlog-stat .k{display:block;font-size:8.5px;letter-spacing:.1em;color:var(--muted);
+    text-transform:uppercase;font-weight:700}
+  .rlog-stat .v{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
+  .rlog-scroll{max-height:210px;overflow-y:auto;padding:0 12px}
+  .rlog-tbl{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}
+  .rlog-tbl th{position:sticky;top:0;background:var(--bg1);text-align:right;font-size:8.5px;
+    letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:4px 5px;
+    border-bottom:1px solid var(--line)}
+  .rlog-tbl th:first-child,.rlog-tbl td:first-child{text-align:left}
+  .rlog-tbl td{text-align:right;padding:4px 5px;border-bottom:1px solid rgba(20,20,20,.12)}
+  .rlog-tbl tr:last-child td{border-bottom:none}
+  .rlog-empty{text-align:center!important;color:var(--muted);padding:12px 0}
+  .rlog .pos{color:var(--grow);font-weight:800}
+  .rlog .neg{color:var(--danger);font-weight:800}
+  .rlog-clear{display:block;margin:8px auto 10px;font-size:10px;letter-spacing:.1em;
+    padding:5px 12px;background:transparent;border:1px solid var(--line);color:var(--muted)}
+  .rlog-clear:hover{color:var(--danger);border-color:var(--danger)}
+  @media(max-width:520px){
+    .rlog-stats{grid-template-columns:repeat(2,1fr)}
+    .rlog-scroll{max-height:170px}
+  }
+
   /* DECK */
   .flowergrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(330px,100%),1fr));gap:14px}
   .fcard h3{margin:0 0 2px}
@@ -714,6 +753,26 @@
           <button type="button" class="bet-step" id="betMinus" aria-label="Lower bet">−</button>
           <label class="bet-field"><span class="hud-label">BET</span><input id="bet" type="number" value="100"></label>
           <button type="button" class="bet-step" id="betPlus" aria-label="Raise bet">+</button>
+        </div>
+      </div>
+
+      <!-- ROUND LOG — same shape as Monkey Moonshine's spin log: collapsible head
+           carrying the session net, a stat strip, then the per-round table. Session
+           only; nothing is persisted, so a reload starts a fresh log. -->
+      <div class="rlog card open" id="rlogPanel">
+        <div class="rlog-head" id="rlogHead">
+          <span>🌱 ROUND LOG · <span id="rlogSummary">session ±0</span></span>
+          <span class="rlog-chevron" id="rlogChevron">▾</span>
+        </div>
+        <div class="rlog-body">
+          <div class="rlog-stats" id="rlogStats"></div>
+          <div class="rlog-scroll">
+            <table class="rlog-tbl" id="rlogTbl">
+              <thead><tr><th>#</th><th>bloomed</th><th>bet</th><th>won</th><th>net</th></tr></thead>
+              <tbody id="rlogBody"><tr><td colspan="5" class="rlog-empty">No rounds yet — cast your seeds!</td></tr></tbody>
+            </table>
+          </div>
+          <button type="button" class="rlog-clear" id="rlogClear">Clear log</button>
         </div>
       </div>
 
@@ -3277,6 +3336,7 @@ function finalizeRound(){
   bloomRenderBalance();
   setScoreWin(total, true);           // scoreboard settles on the final round return
   bloomPostSettled();                 // let the shell mirror the new balance (in-memory pass)
+  recordRound(bet, total, round.plants);   // same bet/total the payout above used
   round.phase='done';round.done=true;
   // a WIN means more back than you staked. Anything under the bet is a softened loss.
   // The in-garden scoreboard (BET / WIN) already reports the round result, and a
@@ -3284,6 +3344,67 @@ function finalizeRound(){
   // line here (keeps the button snug under the reels).
   banner('','');
 }
+/* ---- ROUND LOG ---------------------------------------------------------
+   Session-only history of settled rounds, same shape as Monkey Moonshine's spin
+   log. Nothing is persisted: a reload starts a fresh log, and the numbers here
+   are a play aid, not an accounting record (the shell's activity log is that). */
+const RLOG_MAX = 200;                          // matches MM; keeps the DOM small
+let rlog = [], rlogRoundNo = 0;
+const rlogSign = v => (v>0?'+':(v<0?'−':'±')) + Math.abs(Math.round(v)).toLocaleString();
+const rlogCls  = v => v>0?'pos':(v<0?'neg':'');
+
+// Called at settle with the SAME bet finalizeRound paid against, so the log can
+// never disagree with what the round actually credited.
+function recordRound(bet, won, plants){
+  const bloomed = plants.filter(p=>p.alive && p.phase>=BLOOM).length;
+  const supers  = plants.filter(p=>p.alive && p.phase>=SUPER).length;
+  rlog.unshift({ n:++rlogRoundNo, bloomed, supers, total:plants.length, bet, won, net:won-bet });
+  if(rlog.length>RLOG_MAX) rlog.pop();
+  renderRoundLog();
+}
+
+function renderRoundLog(){
+  const body=$('#rlogBody'), stats=$('#rlogStats'), sum=$('#rlogSummary');
+  if(!body) return;
+  if(!rlog.length){
+    body.innerHTML='<tr><td colspan="5" class="rlog-empty">No rounds yet — cast your seeds!</td></tr>';
+    if(stats) stats.innerHTML='';
+    if(sum){ sum.textContent='session ±0'; sum.style.color=''; }
+    return;
+  }
+  // A "win" is a round that came out AHEAD, not merely one that returned something.
+  // MM can test payout>0 because a losing spin pays zero, but BLOOM almost always
+  // returns part of the stake, so payout>0 would read as a 100% win rate.
+  let net=0, wager=0, wins=0;
+  rlog.forEach(e=>{ net+=e.net; wager+=e.bet; if(e.net>0) wins++; });
+  if(sum){
+    sum.textContent='session '+rlogSign(net);
+    sum.style.color = net>0?'var(--grow)':(net<0?'var(--danger)':'');
+  }
+  if(stats) stats.innerHTML=
+     `<div class="rlog-stat"><span class="k">rounds</span><span class="v">${rlog.length}</span></div>`
+    +`<div class="rlog-stat"><span class="k">net P/L</span><span class="v ${rlogCls(net)}">${rlogSign(net)}</span></div>`
+    +`<div class="rlog-stat"><span class="k">win rate</span><span class="v">${Math.round(100*wins/rlog.length)}%</span></div>`
+    +`<div class="rlog-stat"><span class="k">wagered</span><span class="v">${Math.round(wager).toLocaleString()}</span></div>`;
+  body.innerHTML=rlog.map(e=>
+     `<tr><td>${e.n}</td>`
+    +`<td>${e.bloomed}/${e.total}${e.supers?` <span title="${e.supers} super bloom${e.supers>1?'s':''}">🌟${e.supers}</span>`:''}</td>`
+    +`<td>${Math.round(e.bet).toLocaleString()}</td>`
+    +`<td>${e.won>0?Math.round(e.won).toLocaleString():'—'}</td>`
+    +`<td class="${rlogCls(e.net)}">${rlogSign(e.net)}</td></tr>`
+  ).join('');
+}
+
+(function wireRoundLog(){
+  const head=$('#rlogHead'), panel=$('#rlogPanel'), clear=$('#rlogClear');
+  if(head&&panel) head.addEventListener('click',()=>panel.classList.toggle('open'));
+  if(clear) clear.addEventListener('click',e=>{
+    e.stopPropagation();                       // the head is the toggle; don't collapse on clear
+    rlog=[]; rlogRoundNo=0; renderRoundLog();
+  });
+  renderRoundLog();                            // paint the empty state on load
+})();
+
 // Casino reel spin: stack N random tiles above the landing tile, then scroll the
 // strip up past all of them with an ease-out so it flies then decelerates into
 // place, with a little settle bounce.
