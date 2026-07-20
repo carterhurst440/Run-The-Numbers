@@ -2631,19 +2631,23 @@ function labelH(tag, pol){ return (tag||pol)?13:7; }   // pol result takes the s
 /* Clean, boxless label: outlined text so it reads over any flower/dirt without a
    background plate. Just the flower NAME (+ pay% once it is worth something). The
    seed/dud/killed states are shown by the plant art itself, so no text for them. */
-function spotLabelInner(name, pay, dead, tag, pol){
+function spotLabelInner(name, pay, dead, tag, pol, sup){
   const nameFill = dead ? '#b6a6a6' : '#f2ede1';
-  // A pollinated plant carries its own multiplier on the pay line and what that
-  // multiplier actually paid on the line below, so the whole sum reads on the bed.
+  // A pollinated plant shows its full working — base credits x multiplier = payout.
+  // Just the payout was ambiguous: a SUPER bloom pays double its species' bloom %,
+  // so two of the same flower can carry different %, and a x2 on the doubled one
+  // reads as a x4 against its neighbour. The star marks the super, and spelling out
+  // the base makes the arithmetic self-evident either way.
   const multCol = pol ? (pol.m>=10 ? '#ff6fc0' : (pol.m>=5 ? '#ffd24a' : '#bff0c8')) : null;
   let s = '<text x="0" y="4.4" text-anchor="middle" font-size="5" font-weight="800"'
     + ' paint-order="stroke" stroke="#08130a" stroke-width="1.3" stroke-linejoin="round" fill="'+nameFill+'">'
-    + name + (pay>0 ? ('<tspan dx="1.8" fill="#ffd24a">+'+pay+'%</tspan>') : '')
-    + (pol ? ('<tspan dx="1.8" fill="'+multCol+'">×'+pol.m+'</tspan>') : '')
+    + name
+    + (pay>0 ? ('<tspan dx="1.8" fill="#ffd24a">'+(sup?'★':'')+'+'+pay+'%</tspan>') : '')
     + '</text>';
-  if(pol) s += '<text x="0" y="11" text-anchor="middle" font-size="5" font-weight="800"'
+  if(pol) s += '<text x="0" y="11" text-anchor="middle" font-size="4.8" font-weight="800"'
     + ' paint-order="stroke" stroke="#08130a" stroke-width="1.3" stroke-linejoin="round" fill="'+multCol+'">'
-    + Math.round(pol.won).toLocaleString() + '</text>';
+    + Math.round(pol.base).toLocaleString() + '×' + pol.m + '=' + Math.round(pol.won).toLocaleString()
+    + '</text>';
   else if(tag) s += '<text x="0" y="11" text-anchor="middle" font-size="4.4" font-weight="800" letter-spacing=".5"'
     + ' paint-order="stroke" stroke="#08130a" stroke-width="1.2" stroke-linejoin="round" fill="'+(TAG_COLOR[tag]||'#eafff2')+'">'+tag+'</text>';
   return s;
@@ -2812,7 +2816,8 @@ function paintSpot(p,i){
 function paintLabels(plants){
   if(!labelG) return;
   plants.forEach((p,i)=>{ if(!spotLbl[i]) return;
-    spotLbl[i].innerHTML = spotLabelInner(p.f.name, p.gfx.pay, p.gfx.dead, p.gfx.tag, p.gfx.pol);
+    spotLbl[i].innerHTML = spotLabelInner(p.f.name, p.gfx.pay, p.gfx.dead, p.gfx.tag, p.gfx.pol,
+                                          p.alive && p.phase>=SUPER);
     positionLabel(i,p);
   });
 }
@@ -3699,10 +3704,10 @@ async function polSpin(){
   wheel.style.transform=`rotate(${target}deg)`;
   await sleep(2650);                             // matches the 2.6s transition
   const cur=pol.payers[pol.idx];
-  const won=plantPay(cur.p,pol.bet)*mult;
+  const base=plantPay(cur.p,pol.bet), won=base*mult;
   pol.total+=won; pol.mults.push(mult);
   // stamp the result on the plant itself so the bed shows the whole sum
-  if(cur.p.gfx){ cur.p.gfx.pol={m:mult, won}; paintLabels(round.plants); }
+  if(cur.p.gfx){ cur.p.gfx.pol={m:mult, base, won}; paintLabels(round.plants); }
   $('#polResult').innerHTML=`×${mult} → <b>${Math.round(won).toLocaleString()}</b>`;
   const tally=$('#polTally');
   if(tally) tally.insertAdjacentHTML('beforeend',
