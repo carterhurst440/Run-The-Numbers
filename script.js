@@ -3574,11 +3574,29 @@ function filterDownsampleSeries(series, period) {
 // Fetch a user's bankroll series into [{time, value, source}] (ascending).
 // `source` is the move that produced each balance: game_001..game_006, or an
 // account-event type (rank_up_bonus / affiliate_signup / admin_grant / era_start).
+// get_bankroll_series returns one point per settled round, which for an active
+// player runs well past PostgREST's max-rows cap (1000). The RPC orders
+// occurred_at ASC, so a capped response silently drops the NEWEST points — the
+// series just stops mid-history and every recent range reads as empty. Page
+// through until the RPC is exhausted rather than trusting a single response.
 async function fetchBankrollSeries(userId) {
   if (!supabase || !userId) return [];
-  const { data, error } = await supabase.rpc("get_bankroll_series", { p_user_id: userId });
-  if (error || !Array.isArray(data)) return [];
-  return data
+  const PAGE_SIZE = 1000;
+  const MAX_PAGES = 50;                      // backstop; 50k points is far past real play
+  const rows = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const { data, error } = await supabase
+      .rpc("get_bankroll_series", { p_user_id: userId })
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    if (error) {
+      console.error("[RTN] bankroll series fetch error:", error.message, error);
+      break;
+    }
+    if (!Array.isArray(data)) break;
+    rows.push(...data);
+    if (data.length < PAGE_SIZE) break;
+  }
+  return rows
     .map((row) => ({ time: new Date(row.occurred_at), value: Number(row.balance) || 0, source: row.source }))
     .filter((p) => !Number.isNaN(p.time.getTime()))
     .sort((a, b) => a.time - b.time);
@@ -3625,16 +3643,11 @@ async function openBankrollHistoryModal(userId, username) {
   const token = ++bankrollHistoryFetchToken;
   drawBankrollHistoryChart(); // shows Loading via empty state
   if (!supabase) return;
-  const { data, error } = await supabase.rpc("get_bankroll_series", { p_user_id: userId });
+  // Shares the paged fetch — a direct single-shot rpc() here would truncate at
+  // max-rows and lose this player's most recent history.
+  const series = await fetchBankrollSeries(userId);
   if (token !== bankrollHistoryFetchToken) return; // superseded by a newer open
-  if (error || !Array.isArray(data)) {
-    bankrollHistorySeries = [];
-  } else {
-    bankrollHistorySeries = data
-      .map((row) => ({ time: new Date(row.occurred_at), value: Number(row.balance) || 0, source: row.source }))
-      .filter((p) => !Number.isNaN(p.time.getTime()))
-      .sort((a, b) => a.time - b.time);
-  }
+  bankrollHistorySeries = series;
   if (bankrollHistoryView === "value") drawBankrollHistoryChart();
 }
 
