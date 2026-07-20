@@ -33987,7 +33987,14 @@ const BloomAdmin = {
         if (v.cls !== 'ok') flagged++;
         if (out){ out.className = `bloom-fcard-simout ${v.cls}`; out.textContent = `${v.text} · all-in = ${(s.allIn*100).toFixed(1)}% RTP`; }
       });
-      this.status(flagged ? `Sim done — ${flagged} flower(s) off target (>±0.25%).` : `Sim done — all ${this.flowers.length} flowers on target.`);
+      // name the wheel the run used — a wheel edit moves these numbers only
+      // slightly, so it must be obvious which mix produced them
+      const wheelNote = `wheel ×${bloomWheelMean(this.wheel).toFixed(4)} over `
+        + `${bloomWheelSegments(this.wheel).length} positions · ${rounds.toLocaleString()} rounds`;
+      this.status(
+        (flagged ? `Sim done — ${flagged} flower(s) off target (>±0.25%).`
+                 : `Sim done — all ${this.flowers.length} flowers on target.`)
+        + `  [${wheelNote}]`);
     }, 20);
   },
 
@@ -34021,7 +34028,9 @@ const BloomAdmin = {
         icon_url: f.icon_url || null,
         animation_url: f.animation_url || null,
         animation_kind: f.animation_kind || null,
-        cost: 0, cost_currency: 'units',
+        // no cost / cost_currency: bloom_flowers has no such columns, so sending
+        // them made PostgREST reject the whole upsert ("could not find the 'cost'
+        // column"). They were hardcoded 0/'units' and nothing ever read them.
         sort_order: i,
         updated_at: nowIso
       }));
