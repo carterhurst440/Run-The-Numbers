@@ -13349,11 +13349,31 @@ async function handlePrizeImageSelection(event) {
     return;
   }
 
+  // Crop before upload. Prize thumbs are square everywhere they appear — 82px in
+  // the shop list, and object-fit:cover in the homepage vault — so an uncropped
+  // photo gets centre-cropped by the browser with no say in what survives. This
+  // hands that choice to whoever lists the prize. SVGs skip it: rasterising one
+  // through the canvas would throw the vector away.
+  if (!/svg/i.test(file.type)) {
+    input.value = "";                      // let the same file be re-picked after a cancel
+    openImageCropper(file, {
+      aspectW: 1, aspectH: 1, output: 800, name: "prize.png",
+      title: "Frame the prize image",
+      hint: "Square crop — this is how it appears in the shop and on the homepage."
+    }, (cropped) => { void uploadPrizeImageAndFill(cropped); });
+    return;
+  }
+  await uploadPrizeImageAndFill(file, input);
+}
+
+// Shared tail of the prize-image flow: upload, drop the URL into the form field,
+// and report. Used by both the cropped path and the SVG passthrough.
+async function uploadPrizeImageAndFill(file, input) {
   if (adminPrizeMessage) {
     adminPrizeMessage.textContent = "Uploading image...";
   }
 
-  input.disabled = true;
+  if (input) input.disabled = true;
 
   try {
     const publicUrl = await uploadPrizeImage(file);
@@ -13373,8 +13393,9 @@ async function handlePrizeImageSelection(event) {
       adminPrizeMessage.textContent = `Image upload failed: ${message}`;
     }
   } finally {
-    input.disabled = false;
-    input.value = "";
+    // the cropped path already cleared and never disabled the input, so it is
+    // absent here — only the SVG passthrough passes one in
+    if (input) { input.disabled = false; input.value = ""; }
   }
 }
 
@@ -17774,7 +17795,7 @@ function renderHomeContestPromoCard(contest, participantStats = 0) {
 // two can never disagree about what is buyable or what it costs. Hidden whenever
 // there is nothing to show, exactly like the spotlight, so an empty shop leaves no
 // hole in the page — which is the current state, since `prizes` is empty.
-const HOME_PRIZE_LIMIT = 4;
+const HOME_PRIZE_LIMIT = 3;
 async function renderHomePrizes() {
   const section = document.getElementById("home-prizes");
   const list = document.getElementById("home-prize-list");
@@ -17787,9 +17808,9 @@ async function renderHomePrizes() {
   try {
     const { data, error } = await supabase
       .from("prizes")
-      .select("id, name, description, image_url, cost_credits, cost_carter_cash, quantity, active")
+      .select("id, name, description, image_url, cost_credits, cost_carter_cash, quantity, active, created_at")
       .eq("active", true)
-      .order("cost_credits", { ascending: true, nullsFirst: false });
+      .order("created_at", { ascending: false });   // newest listings first
     if (error) throw error;
     prizes = (data || []).filter(isPrizeAvailable).slice(0, HOME_PRIZE_LIMIT);
   } catch (e) {

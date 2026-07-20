@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260721b-prizevault" />
+    <link rel="stylesheet" href="styles.css?v=20260721e-aboutmove" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -1006,18 +1006,6 @@
                 </button>
               </div>
 
-              <!-- QUOTE BLOCK -->
-              <div class="home-quote-block">
-                <p class="home-quote-text">Hi, I'm Carter—the mind behind the madness.</p>
-                <div class="home-quote-expanded" id="home-about-expanded" hidden>
-                  <p>After years of struggling with crippling gambling addiction I realized there was only one way out for me, BECOME THE HOUSE.</p>
-                  <p>That's what this is, my attempt to flip the cosmic fortunes in my favor, unfortunately that comes at your expense, and I do genuinely apologize for that. But it's dogs eating dogs out there, and I'm sick of being munched.</p>
-                  <p>I've created a collection of completely original games, invented by me, offering a full range of dynamic outcomes. This isn't a place where the odds are handed to you—it's a place where you shape them.</p>
-                </div>
-                <p class="home-quote-attr">— CARTER HURST, FOUNDER &amp; THE HOUSE</p>
-                <button type="button" id="home-about-read-more" class="home-quote-read-more">READ MORE</button>
-              </div>
-
               <!-- PRIZE VAULT — a taste of the shop, above the contest spotlight.
                    Hidden until there is at least one active prize, same as the
                    spotlight below, so an empty shop leaves no gap on the page. -->
@@ -1042,6 +1030,24 @@
 
             <!-- SIDEBAR -->
             <aside class="home-sidebar">
+
+              <!-- ABOUT US — heads the sidebar on desktop. Note the consequence on
+                   mobile: at <=900px the layout collapses to one column and the whole
+                   sidebar stacks under the main column, so this reads after the games
+                   and prizes rather than between them as it used to. -->
+              <div class="home-sb-block home-sb-about" data-home-section="about">
+                <div class="home-sb-label">// ABOUT US</div>
+                <div class="home-quote-block">
+                  <p class="home-quote-text">Hi, I'm Carter—the mind behind the madness.</p>
+                  <div class="home-quote-expanded" id="home-about-expanded" hidden>
+                    <p>After years of struggling with crippling gambling addiction I realized there was only one way out for me, BECOME THE HOUSE.</p>
+                    <p>That's what this is, my attempt to flip the cosmic fortunes in my favor, unfortunately that comes at your expense, and I do genuinely apologize for that. But it's dogs eating dogs out there, and I'm sick of being munched.</p>
+                    <p>I've created a collection of completely original games, invented by me, offering a full range of dynamic outcomes. This isn't a place where the odds are handed to you—it's a place where you shape them.</p>
+                  </div>
+                  <p class="home-quote-attr">— CARTER HURST, FOUNDER &amp; THE HOUSE</p>
+                  <button type="button" id="home-about-read-more" class="home-quote-read-more">READ MORE</button>
+                </div>
+              </div>
 
               <!-- LEADERBOARD -->
               <div class="home-sb-block" data-home-section="leaderboard">
@@ -5521,7 +5527,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260721a-prizevault"></script>
+    <script type="module" src="script.js?v=20260721c-aboutmove"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

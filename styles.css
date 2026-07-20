@@ -22243,6 +22243,20 @@ body.state-open .auth-vault-grant .gline::after {
   font-style: italic;
 }
 
+/* ABOUT US in the sidebar: the collapsed quote truncates to one line with an
+   ellipsis, which read fine across the wide main column but cut mid-word at the
+   sidebar's 280px. Let it wrap to a few lines instead, still clamped so the block
+   stays short until READ MORE is pressed. */
+.home-sb-about .home-quote-text {
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: clip;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
 /* ---- PRIZE VAULT (home) ----
    Sits directly above the contest spotlight and borrows its header treatment, so
    the two read as one column rather than two designs. A scrolling row on narrow
@@ -22251,7 +22265,9 @@ body.state-open .auth-vault-grant .gline::after {
   background: transparent;
   border: 0;
   padding: 0;
-  margin: 0 0 24px;
+  /* 24px sides to line up with the other main-column sections; width:auto so the
+     base width:100% does not eat the margin (same trick as the contest panel) */
+  margin: 0 24px 24px;
   width: auto;
 }
 #home-view .home-prizes-panel[hidden] { display: none; }
@@ -22261,7 +22277,8 @@ body.state-open .auth-vault-grant .gline::after {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* three, matching HOME_PRIZE_LIMIT — a four-track grid left an empty column */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
