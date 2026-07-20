@@ -3614,9 +3614,21 @@ function polMoveSwarm(plantIndex){
   const br=bed.getBoundingClientRect(), hr=layer.getBoundingClientRect();
   // preserveAspectRatio="xMidYMax meet" — uniform scale, centred in x, flush to bottom
   const s=Math.min(br.width/vb[2], br.height/vb[3]);
-  const x=br.left + (br.width - vb[2]*s)/2 + (spot.x - vb[0])*s - hr.left;
-  const y=br.top  + (br.height - vb[3]*s)  + (spot.y - vb[1])*s - hr.top;
-  const halo=Math.max(46, 64*s);                 // scales with the bed so it hugs the plant
+  // Circle the BLOOM, not the seed base. SPOTS is where the plant is rooted, so
+  // measure the rendered art instead: the head sits at the top of that box. Falls
+  // back to the root spot if the art group is missing (bed not built yet).
+  let x, y, halo;
+  const art = (typeof spotPlant!=='undefined' && spotPlant) ? spotPlant[plantIndex] : null;
+  const ar = art ? art.getBoundingClientRect() : null;
+  if(ar && ar.height>4){
+    x = ar.left + ar.width/2 - hr.left;
+    y = ar.top  + ar.height*0.20 - hr.top;       // head centre, a fifth down from the top
+    halo = Math.max(40, Math.min(ar.width, ar.height*0.55)*1.25);
+  } else {
+    x = br.left + (br.width - vb[2]*s)/2 + (spot.x - vb[0])*s - hr.left;
+    y = br.top  + (br.height - vb[3]*s)  + (spot.y - vb[1])*s - hr.top;
+    halo = Math.max(46, 64*s);
+  }
   swarm.innerHTML=
      `<span class="pol-halo" style="left:${x-halo/2}px;top:${y-halo/2}px;width:${halo}px;height:${halo}px"></span>`
     + [0,1,2,3,4].map(i=>{
