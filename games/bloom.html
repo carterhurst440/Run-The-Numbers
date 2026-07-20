@@ -163,6 +163,7 @@
   @media (max-width:600px){ .sat-modal-body{grid-template-columns:1fr} }
   /* weather reel — clean neon line-icon symbols (no labels) */
   .wreel{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px auto 6px;max-width:337px}
+  .wreel[hidden]{display:none}   /* display:grid above beats the hidden attribute on its own */
   .wcell{--wh:107px;height:var(--wh);border-radius:8px;position:relative;overflow:hidden;background:var(--panel2);
     border:2px solid rgba(20,20,20,.14);
     transition:border-color .35s, box-shadow .35s}
@@ -322,10 +323,16 @@
     from{transform:rotate(0deg) translateX(var(--r,26px)) rotate(0deg)}
     to  {transform:rotate(360deg) translateX(var(--r,26px)) rotate(-360deg)}
   }
-  .pol-panel{position:relative;display:flex;align-items:center;gap:12px;
-    background:rgba(246,228,0,.95);border:2px solid var(--line);border-radius:2px;
-    padding:8px 12px;box-shadow:0 5px 0 rgba(20,20,20,.18)}
-  .pol-side{display:flex;flex-direction:column;align-items:stretch;gap:4px;min-width:116px}
+  /* the wheel standing in for the reels inside .wreel-card */
+  .pol-reel{display:flex;align-items:center;justify-content:center;gap:16px;padding:4px 0 2px}
+  .pol-reel[hidden]{display:none}
+  .pol-side{display:flex;flex-direction:column;align-items:stretch;gap:4px;min-width:126px}
+  /* one chip per flower already spun, so the run reads back at a glance */
+  .pol-tally{display:flex;flex-wrap:wrap;gap:3px;margin-top:2px}
+  .pol-chip{font-size:9px;font-weight:800;letter-spacing:.04em;border:1px solid var(--line);
+    border-radius:2px;padding:1px 4px;background:rgba(255,255,255,.5)}
+  .pol-chip.big{background:#f6c400}
+  .pol-chip.huge{background:#ff1a8c;color:#fff;border-color:#ff1a8c}
   .pol-head{display:flex;align-items:baseline;justify-content:space-between;gap:7px}
   .pol-head b{font-size:12.5px;font-weight:800;letter-spacing:.05em}
   .pol-prog{font-size:9.5px;font-weight:700;letter-spacing:.12em;color:var(--muted)}
@@ -336,13 +343,20 @@
   .pol-needle{position:absolute;top:-7px;left:50%;transform:translateX(-50%);z-index:2;
     width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;
     border-top:14px solid var(--line)}
-  .pol-result{min-height:16px;font-size:12.5px;font-weight:800;letter-spacing:.03em;text-align:center}
-  .pol-btn{width:100%;font-size:12px;letter-spacing:.12em;padding:7px 10px}
-  .pol-btn:disabled{opacity:.45;pointer-events:none}
+  .pol-result{min-height:16px;font-size:12.5px;font-weight:800;letter-spacing:.03em}
+  /* the flower being pollinated: a soft halo plus sparkles, so the eye goes to it */
+  .pol-halo{position:absolute;border-radius:50%;pointer-events:none;
+    background:radial-gradient(circle,rgba(246,228,0,.55),rgba(246,228,0,0) 68%);
+    animation:polHalo 1.5s ease-in-out infinite}
+  @keyframes polHalo{0%,100%{transform:scale(.85);opacity:.55}50%{transform:scale(1.12);opacity:.95}}
+  .pol-spark{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;pointer-events:none;
+    background:#fff;clip-path:polygon(50% 0,58% 42%,100% 50%,58% 58%,50% 100%,42% 58%,0 50%,42% 42%);
+    animation:polSpark 1.25s ease-in-out infinite;animation-delay:var(--d,0s)}
+  @keyframes polSpark{0%,100%{transform:scale(0);opacity:0}45%{transform:scale(1);opacity:1}}
   @media(max-width:430px){
-    .pol-wheelwrap{width:88px;height:88px}
-    .pol-panel{padding:7px 9px;gap:9px}
-    .pol-side{min-width:98px}
+    .pol-reel{gap:10px}
+    .pol-wheelwrap{width:86px;height:86px}
+    .pol-side{min-width:104px}
     .pol-head b{font-size:11.5px}
   }
 
@@ -806,20 +820,7 @@
         <div class="muted dirt-hint" id="dirtHint">cast your seeds →</div>
         <!-- POLLINATE: bees swarm the flower being pollinated, and the wheel that
              sets ITS multiplier sits over the bed. One click + spin per flower. -->
-        <div class="pol" id="polLayer" hidden>
-          <div class="pol-swarm" id="polSwarm"></div>
-          <div class="pol-panel">
-            <div class="pol-wheelwrap">
-              <div class="pol-needle" aria-hidden="true"></div>
-              <div class="pol-wheel" id="polWheel"></div>
-            </div>
-            <div class="pol-side">
-              <div class="pol-head"><b id="polFlower">—</b><span id="polProg" class="pol-prog"></span></div>
-              <div class="pol-result" id="polResult"></div>
-              <button type="button" class="gold pol-btn" id="polBtn">POLLINATE</button>
-            </div>
-          </div>
-        </div>
+        <div class="pol" id="polLayer" hidden><div class="pol-swarm" id="polSwarm"></div></div>
       </div>
 
       <!-- SATCHEL (single horizontal row) -->
@@ -836,8 +837,21 @@
 
       <!-- WEATHER REELS -->
       <div class="wreel-card card">
-        <div class="wreel-head"><span>WEATHER REELS</span></div>
+        <div class="wreel-head"><span id="wreelTitle">WEATHER REELS</span></div>
         <div class="wreel" id="weatherReel"></div>
+        <!-- POLLINATE takes over this same card: the wheel stands in for the reels
+             while the bonus runs, so the bed below stays clear to watch. -->
+        <div class="pol-reel" id="polReel" hidden>
+          <div class="pol-wheelwrap">
+            <div class="pol-needle" aria-hidden="true"></div>
+            <div class="pol-wheel" id="polWheel"></div>
+          </div>
+          <div class="pol-side">
+            <div class="pol-head"><b id="polFlower">—</b><span id="polProg" class="pol-prog"></span></div>
+            <div class="pol-result" id="polResult"></div>
+            <div class="pol-tally" id="polTally"></div>
+          </div>
+        </div>
         <div class="multi" id="multi"></div>
       </div>
 
@@ -3197,8 +3211,7 @@ function resetPlayArea(){
   }
   const hint=$('#dirtHint'); if(hint) hint.style.display='';   // "cast your seeds" back on an empty bed
   // tear down any half-finished POLLINATE run so its wheel cannot pay into a new round
-  pol=null; polSpinning=false;
-  const pl=$('#polLayer'); if(pl){ pl.hidden=true; const sw=$('#polSwarm'); if(sw) sw.innerHTML=''; }
+  pol=null; polSpinning=false; polTeardown();
   buildWeatherReel();$('#multi').textContent='';applyWeatherTheme(null);
   if(typeof updateSpinButton==='function')updateSpinButton();
 }
@@ -3410,9 +3423,12 @@ function updateSpinButton(){
   const btn=$('#spinBtn'); if(!btn) return;
   if(!round){ btn.innerHTML='CAST SEEDS'; }
   else if(round.phase==='cast'){ btn.innerHTML=`SPIN REEL ${round.step+1} / ${round.draws.length}`; }
-  else if(round.phase==='pollinate'){          // the POLLINATE button on the bed drives it now
-    btn.innerHTML='POLLINATING…'; btn.style.display=''; btn.disabled=true;
-    btn.classList.remove('shine'); return;
+  else if(round.phase==='pollinate'){          // same button, now driving the bonus
+    btn.style.display='';
+    if(polSpinning){ btn.innerHTML='POLLINATING…'; btn.disabled=true; btn.classList.remove('shine'); }
+    else { btn.innerHTML=`POLLINATE ${pol?pol.idx+1:1} / ${pol?pol.payers.length:1}`;
+           btn.disabled=false; btn.classList.add('shine'); }
+    return;
   }
   else { btn.innerHTML='NEW ROUND'; }         // done -> clears the board, then it becomes CAST SEEDS
   btn.style.display=''; btn.disabled=false; btn.classList.add('shine');
@@ -3600,20 +3616,43 @@ function polMoveSwarm(plantIndex){
   const s=Math.min(br.width/vb[2], br.height/vb[3]);
   const x=br.left + (br.width - vb[2]*s)/2 + (spot.x - vb[0])*s - hr.left;
   const y=br.top  + (br.height - vb[3]*s)  + (spot.y - vb[1])*s - hr.top;
-  swarm.innerHTML=['🐝','🦋','🐝','🦋'].map((b,i)=>
-    `<span class="pol-bug" style="left:${x}px;top:${y}px;--r:${22+(i%2)*11}px;--d:${-i*0.6}s">${b}</span>`
-  ).join('');
+  const halo=Math.max(46, 64*s);                 // scales with the bed so it hugs the plant
+  swarm.innerHTML=
+     `<span class="pol-halo" style="left:${x-halo/2}px;top:${y-halo/2}px;width:${halo}px;height:${halo}px"></span>`
+    + [0,1,2,3,4].map(i=>{
+        const a=(i/5)*Math.PI*2, r=halo*0.45;
+        return `<span class="pol-spark" style="left:${x+r*Math.cos(a)}px;top:${y+r*Math.sin(a)}px;--d:${i*0.22}s"></span>`;
+      }).join('')
+    + ['🐝','🦋','🐝','🦋'].map((b,i)=>
+        `<span class="pol-bug" style="left:${x}px;top:${y}px;--r:${22+(i%2)*11}px;--d:${-i*0.6}s">${b}</span>`
+      ).join('');
 }
 
 function beginPollinate(payers, bet){
   round.phase='pollinate';
   pol={ payers, bet, idx:0, total:0, mults:[] };
   const layer=$('#polLayer'); if(layer) layer.hidden=false;
+  // the wheel stands in for the reels in the same card
+  const reels=$('#weatherReel'), panel=$('#polReel'), title=$('#wreelTitle');
+  if(reels) reels.hidden=true;
+  if(panel) panel.hidden=false;
+  if(title) title.textContent='POLLINATE';
+  const tally=$('#polTally'); if(tally) tally.innerHTML='';
   const wheel=$('#polWheel');
   if(wheel){ wheel.innerHTML=polWheelSVG(); wheel.style.transition='none'; wheel.style.transform='rotate(0deg)'; }
-  $('#multi').textContent='🐝 POLLINATE — spin every bloom';
+  $('#multi').textContent='🐝 the bees are out — spin every bloom';
   polStep();
   updateSpinButton();
+}
+// Put the reels back and drop the bonus UI. Shared by the natural end of a run
+// and by resetPlayArea, so an abandoned run cannot strand the card in wheel mode.
+function polTeardown(){
+  const reels=$('#weatherReel'), panel=$('#polReel'), title=$('#wreelTitle'), layer=$('#polLayer');
+  if(reels) reels.hidden=false;
+  if(panel) panel.hidden=true;
+  if(title) title.textContent='WEATHER REELS';
+  if(layer) layer.hidden=true;
+  const sw=$('#polSwarm'); if(sw) sw.innerHTML='';
 }
 
 // Set the UI up for the flower at pol.idx and wait for the press.
@@ -3622,8 +3661,8 @@ function polStep(){
   $('#polFlower').textContent=cur.p.f.name;
   $('#polProg').textContent=`${pol.idx+1} / ${pol.payers.length}`;
   $('#polResult').textContent='';
-  const btn=$('#polBtn'); btn.disabled=false; btn.textContent='POLLINATE';
   polMoveSwarm(cur.i);
+  updateSpinButton();                            // the main action button is the POLLINATE button
   setScoreWin(pol.total, true);                  // running total of what is banked so far
 }
 
@@ -3631,7 +3670,7 @@ let polSpinning=false;
 async function polSpin(){
   if(!pol||polSpinning) return;
   polSpinning=true;
-  $('#polBtn').disabled=true;
+  const main=$('#spinBtn'); if(main){ main.disabled=true; main.classList.remove('shine'); }
   const wheel=$('#polWheel'), n=POLLINATE_WHEEL.length, step=360/n;
   const seg=(Math.random()*n)|0;                 // the outcome — uniform over segments
   const mult=POLLINATE_WHEEL[seg];
@@ -3644,6 +3683,9 @@ async function polSpin(){
   const won=plantPay(cur.p,pol.bet)*mult;
   pol.total+=won; pol.mults.push(mult);
   $('#polResult').innerHTML=`×${mult} → <b>${Math.round(won).toLocaleString()}</b>`;
+  const tally=$('#polTally');
+  if(tally) tally.insertAdjacentHTML('beforeend',
+    `<span class="pol-chip ${mult>=10?'huge':(mult>=5?'big':'')}">×${mult}</span>`);
   setScoreWin(pol.total, true);
   wheel.style.transition='none';                 // normalise so the next spin starts level
   wheel.style.transform=`rotate(${target%360}deg)`;
@@ -3652,7 +3694,7 @@ async function polSpin(){
     await sleep(750); polSpinning=false; polStep();
   } else {
     await sleep(550);
-    const layer=$('#polLayer'); if(layer) layer.hidden=true;
+    polTeardown();
     $('#multi').textContent=`🐝 POLLINATED — ${pol.mults.map(m=>'×'+m).join(' ')}`;
     const total=pol.total, bet=pol.bet;
     pol=null; polSpinning=false;
@@ -3712,10 +3754,8 @@ function renderRoundLog(){
 }
 
 (function wirePollinate(){
-  const btn=$('#polBtn');
-  if(btn) btn.addEventListener('click', polSpin);
   polTestBar();                                // renders nothing without ?poltest=1
-})();
+})();                                          // the bonus rides the main action button
 
 (function wireRoundLog(){
   const head=$('#rlogHead'), panel=$('#rlogPanel'), clear=$('#rlogClear');
@@ -3769,6 +3809,7 @@ function spinOneCell(cell,finalW){
 function spinButtonClick(){
   if(busy)return;
   if(!round) castSeeds();                          // CAST SEEDS -> roll + reveal
+  else if(round.phase==='pollinate') polSpin();    // POLLINATE x/n -> spin this flower's wheel
   else if(round.phase==='cast') revealNextReel();  // SPIN REEL x/3
   else {                                           // NEW ROUND -> clear the board, back to CAST SEEDS
     resetPlayArea(); setScoreWin(0); banner('',''); updateSpinButton();
