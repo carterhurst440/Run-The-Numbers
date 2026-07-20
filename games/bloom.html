@@ -3801,7 +3801,7 @@ function polMarkDone(plantIndex, mult){
 
 function beginPollinate(payers, bet){
   round.phase='pollinate';
-  pol={ payers, bet, idx:0, total:0, mults:[], mode:null };
+  pol={ payers, bet, idx:0, total:0, mults:[], mode:null, locked:false };
   // clear last bonus's selection so a new one starts with neither method marked
   ['#polModeEach','#polModeAll'].forEach(s=>{ const b=$(s); if(b) b.classList.remove('is-active'); });
   const done=$('#polDone'); if(done) done.innerHTML='';
@@ -3825,14 +3825,12 @@ function beginPollinate(payers, bet){
 }
 // SPIN EACH  — a wheel per flower, each multiplying only itself (lower variance).
 // ONE SPIN   — a single wheel multiplying every bloom (same average, ~2.6x swingier).
-// Switchable at ANY point in the run, including between spins. It cannot be
-// exploited: every remaining flower is worth the wheel's mean whichever way it is
-// taken, so switching — even switching on what has already landed — leaves the
-// expected payout untouched and only changes the spread. Simulated at 200k runs
-// against two adaptive strategies (switch after a big hit; save the fat flowers
-// for the single spin) and both matched theory to within 0.07%.
+// Picked BEFORE the first spin, then committed for the rest of the bonus. Both
+// methods pay the same on average, so this is not an odds guard — it keeps the run
+// coherent, so a bonus is either "a wheel each" or "one wheel for the lot" rather
+// than a mix of the two.
 function polChoose(mode){
-  if(!pol || polSpinning) return;       // not mid-wheel; otherwise always allowed
+  if(!pol || pol.locked || polSpinning) return;   // committed at the first spin
   pol.mode = (mode==='all') ? 'all' : 'each';
   const each=$('#polModeEach'), all=$('#polModeAll');
   if(each) each.classList.toggle('is-active', pol.mode==='each');
@@ -3884,7 +3882,12 @@ let polSpinning=false;
 async function polSpin(){
   if(!pol||polSpinning) return;
   if(!pol.mode) return;                        // nothing chosen yet
-  polSpinning=true;                            // blocks switching mid-wheel only
+  polSpinning=true;
+  // the first spin commits the method: the chooser goes for the rest of the bonus
+  if(!pol.locked){
+    pol.locked=true;
+    const ch=$('#polChoose'); if(ch) ch.hidden=true;
+  }
   const main=$('#spinBtn'); if(main){ main.disabled=true; main.classList.remove('shine'); }
   const wheel=$('#polWheel'), n=POLLINATE_WHEEL.length, step=360/n;
   const seg=(Math.random()*n)|0;                 // the outcome — uniform over segments
