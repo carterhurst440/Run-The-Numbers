@@ -294,6 +294,46 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.2px}
   .win{color:var(--coral)} .lose{color:var(--muted)}
 
+  /* ---- POLLINATE --------------------------------------------------------- */
+  /* sits along the BOTTOM of the bed so the flowers being pollinated, and the bugs
+     orbiting them, stay visible above it */
+  .pol{position:absolute;inset:0;z-index:6;display:flex;align-items:flex-end;justify-content:center;
+    padding:0 0 9px}
+  .pol[hidden]{display:none}
+  .pol-swarm{position:absolute;inset:0;pointer-events:none}
+  /* one bug orbiting the flower it is pollinating; --r is the orbit radius and
+     --d the phase offset so they do not fly in lockstep */
+  .pol-bug{position:absolute;width:22px;height:22px;margin:-11px 0 0 -11px;font-size:17px;
+    line-height:22px;text-align:center;animation:polOrbit 2.4s linear infinite;
+    animation-delay:var(--d,0s);will-change:transform}
+  @keyframes polOrbit{
+    from{transform:rotate(0deg) translateX(var(--r,26px)) rotate(0deg)}
+    to  {transform:rotate(360deg) translateX(var(--r,26px)) rotate(-360deg)}
+  }
+  .pol-panel{position:relative;display:flex;align-items:center;gap:12px;
+    background:rgba(246,228,0,.95);border:2px solid var(--line);border-radius:2px;
+    padding:8px 12px;box-shadow:0 5px 0 rgba(20,20,20,.18)}
+  .pol-side{display:flex;flex-direction:column;align-items:stretch;gap:4px;min-width:116px}
+  .pol-head{display:flex;align-items:baseline;justify-content:space-between;gap:7px}
+  .pol-head b{font-size:12.5px;font-weight:800;letter-spacing:.05em}
+  .pol-prog{font-size:9.5px;font-weight:700;letter-spacing:.12em;color:var(--muted)}
+  .pol-wheelwrap{position:relative;width:104px;height:104px;flex:none}
+  .pol-wheel{width:100%;height:100%;transition:transform 2.6s cubic-bezier(.12,.72,.16,1)}
+  .pol-wheel svg{display:block;width:100%;height:100%}
+  /* needle points DOWN into the wheel from 12 o'clock — the landing position */
+  .pol-needle{position:absolute;top:-7px;left:50%;transform:translateX(-50%);z-index:2;
+    width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;
+    border-top:14px solid var(--line)}
+  .pol-result{min-height:16px;font-size:12.5px;font-weight:800;letter-spacing:.03em;text-align:center}
+  .pol-btn{width:100%;font-size:12px;letter-spacing:.12em;padding:7px 10px}
+  .pol-btn:disabled{opacity:.45;pointer-events:none}
+  @media(max-width:430px){
+    .pol-wheelwrap{width:88px;height:88px}
+    .pol-panel{padding:7px 9px;gap:9px}
+    .pol-side{min-width:98px}
+    .pol-head b{font-size:11.5px}
+  }
+
   /* ---- ROUND LOG ---------------------------------------------------------
      Session-only history of settled rounds, mirroring Monkey Moonshine's spin
      log. Collapses by toggling .open on the panel; the body is height-animated
@@ -752,6 +792,22 @@
       <div class="dirt dirt-stacked garden-card" id="dirt">
         <div class="bed-layer" id="bedLayer"></div>
         <div class="muted dirt-hint" id="dirtHint">cast your seeds →</div>
+        <!-- POLLINATE: bees swarm the flower being pollinated, and the wheel that
+             sets ITS multiplier sits over the bed. One click + spin per flower. -->
+        <div class="pol" id="polLayer" hidden>
+          <div class="pol-swarm" id="polSwarm"></div>
+          <div class="pol-panel">
+            <div class="pol-wheelwrap">
+              <div class="pol-needle" aria-hidden="true"></div>
+              <div class="pol-wheel" id="polWheel"></div>
+            </div>
+            <div class="pol-side">
+              <div class="pol-head"><b id="polFlower">—</b><span id="polProg" class="pol-prog"></span></div>
+              <div class="pol-result" id="polResult"></div>
+              <button type="button" class="gold pol-btn" id="polBtn">POLLINATE</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- SATCHEL (single horizontal row) -->
@@ -2792,7 +2848,28 @@ const genId=()=>'x'+Math.random().toString(36).slice(2,8);
 --------------------------------------------------------------------------- */
 const SEED=0, BLOOM=1, SUPER=2;
 const DEFAULT_SUPER_MULT = 2;               // a flower's super = superMult × its bloom pay
-const MATCH_MULT = 5;                       // natural 3-of-a-kind weather = x5 the board
+/* POLLINATE — any 3-in-a-row (natural OR butterfly-completed) sends the bees out and
+   each BLOOMED flower spins its own wheel. A wilted or unsprouted seed pays nothing,
+   so multiplying it is a guaranteed-nothing spin; those are skipped.
+
+   The segment mix sets the whole feature's cost. Under the old rule a natural line
+   paid x5 and a butterfly line only x2, so a flat wheel across both is a giveaway
+   unless tuned. The tuning target is NOT the probability-weighted average of 5 and
+   2: it has to be weighted by PAYOUT, because the two line types do not pay alike.
+   A natural line is the same weather three times, which blooms plants repeatedly;
+   a butterfly line spends draws on wilds, which only revive. Measured over the live
+   deck a natural line averages 90.3 base vs 60.7 on a butterfly line — 1.49x — and
+   the old x5 sat on the richer half. Probability weighting says x2.916 and is 1.9%
+   light; payout weighting says x3.185.
+
+   Retuning this array is the single lever on POLLINATE's RTP (live-deck deltas):
+      9x X2 / 2x X5 / 1x X10  -> avg x3.167  ->  RTP -0.6%   (shipped)
+      7x X2 / 2x X5 / 1x X10  -> avg x3.400  ->  RTP +6.7%
+     10x X2 / 1x X5 / 1x X10  -> avg x2.917  ->  RTP -8.4%
+   Re-measure after any change to the deck counts or to bloom_pay. */
+const POLLINATE_WHEEL = [2,2,5,2,2,2,10,2,2,5,2,2];   // 9x X2, 2x X5, 1x X10 — big prizes spread apart
+const MATCH_MULT = 5;                       // legacy flat 3-match multiplier — kept for the deck sim's baseline
+
 const BUTTERFLY_MULT = 2;                   // a butterfly-completed 3-in-a-row = x2 (doubles the round)
 const PHASE_NAME = ['Seed','Bloom','Super Bloom'];
 const superMult = f => (f && f.superMult>0) ? f.superMult : DEFAULT_SUPER_MULT;
@@ -2998,7 +3075,7 @@ const WEATHER_ART = {
   // autumn leaf — sways in the wind
   w_wind:{label:"WIND",main:'#8a5a2b',tint:'#e7d3b3',svg:'<g class="wx-leaf"><path d="M24 9 C 33 13, 34.5 27, 24 38 C 13.5 27, 15 13, 24 9 Z" fill="#a4682f" stroke="#5e3a18" stroke-width="2" stroke-linejoin="round"/><g stroke="#5e3a18" stroke-width="1.8" stroke-linecap="round"><line x1="24" y1="12" x2="24" y2="35.5"/><line x1="24" y1="20" x2="18.5" y2="16.8"/><line x1="24" y1="20" x2="29.5" y2="16.8"/><line x1="24" y1="26" x2="18.8" y2="23.4"/><line x1="24" y1="26" x2="29.2" y2="23.4"/></g></g>'},
   // butterfly (WILD) — wings flutter
-  butterfly:{label:"WILD",main:'#ff1a8c',tint:'#ffc0e0',svg:'<g class="wx-wingL"><path d="M24 20 C 17 12, 9 14, 11 21.5 C 12 26.5, 19 27, 24 22 Z" fill="#ff4dab" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/><path d="M24 24 C 19.5 26.5, 14 28.5, 15 33.5 C 16 37.5, 22 35.5, 24 30 Z" fill="#ffa3d6" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/></g><g class="wx-wingR"><path d="M24 20 C 31 12, 39 14, 37 21.5 C 36 26.5, 29 27, 24 22 Z" fill="#ff4dab" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/><path d="M24 24 C 28.5 26.5, 34 28.5, 33 33.5 C 32 37.5, 26 35.5, 24 30 Z" fill="#ffa3d6" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/></g><line x1="24" y1="15" x2="24" y2="33.5" stroke="#c8811a" stroke-width="2.6" stroke-linecap="round"/><path d="M24 15 q-2.5 -4.5 -5.5 -4.5" fill="none" stroke="#c8811a" stroke-width="1.8" stroke-linecap="round"/><path d="M24 15 q2.5 -4.5 5.5 -4.5" fill="none" stroke="#c8811a" stroke-width="1.8" stroke-linecap="round"/>'}
+  butterfly:{label:"BUTTERFLY",main:'#ff1a8c',tint:'#ffc0e0',svg:'<g class="wx-wingL"><path d="M24 20 C 17 12, 9 14, 11 21.5 C 12 26.5, 19 27, 24 22 Z" fill="#ff4dab" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/><path d="M24 24 C 19.5 26.5, 14 28.5, 15 33.5 C 16 37.5, 22 35.5, 24 30 Z" fill="#ffa3d6" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/></g><g class="wx-wingR"><path d="M24 20 C 31 12, 39 14, 37 21.5 C 36 26.5, 29 27, 24 22 Z" fill="#ff4dab" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/><path d="M24 24 C 28.5 26.5, 34 28.5, 33 33.5 C 32 37.5, 26 35.5, 24 30 Z" fill="#ffa3d6" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/></g><line x1="24" y1="15" x2="24" y2="33.5" stroke="#c8811a" stroke-width="2.6" stroke-linecap="round"/><path d="M24 15 q-2.5 -4.5 -5.5 -4.5" fill="none" stroke="#c8811a" stroke-width="1.8" stroke-linecap="round"/><path d="M24 15 q2.5 -4.5 5.5 -4.5" fill="none" stroke="#c8811a" stroke-width="1.8" stroke-linecap="round"/>'}
 };
 function glyphKey(w){ return (w && w.kind==='butterfly') ? 'butterfly' : (w && w.id); }
 function weatherArt(w){ return WEATHER_ART[glyphKey(w)] || null; }
@@ -3107,6 +3184,9 @@ function resetPlayArea(){
     bedSVG=null;
   }
   const hint=$('#dirtHint'); if(hint) hint.style.display='';   // "cast your seeds" back on an empty bed
+  // tear down any half-finished POLLINATE run so its wheel cannot pay into a new round
+  pol=null; polSpinning=false;
+  const pl=$('#polLayer'); if(pl){ pl.hidden=true; const sw=$('#polSwarm'); if(sw) sw.innerHTML=''; }
   buildWeatherReel();$('#multi').textContent='';applyWeatherTheme(null);
   if(typeof updateSpinButton==='function')updateSpinButton();
 }
@@ -3318,6 +3398,10 @@ function updateSpinButton(){
   const btn=$('#spinBtn'); if(!btn) return;
   if(!round){ btn.innerHTML='CAST SEEDS'; }
   else if(round.phase==='cast'){ btn.innerHTML=`SPIN REEL ${round.step+1} / ${round.draws.length}`; }
+  else if(round.phase==='pollinate'){          // the POLLINATE button on the bed drives it now
+    btn.innerHTML='POLLINATING…'; btn.style.display=''; btn.disabled=true;
+    btn.classList.remove('shine'); return;
+  }
   else { btn.innerHTML='NEW ROUND'; }         // done -> clears the board, then it becomes CAST SEEDS
   btn.style.display=''; btn.disabled=false; btn.classList.add('shine');
 }
@@ -3371,24 +3455,135 @@ async function revealNextReel(){
   if(round.step>=round.draws.length)finalizeRound();
   busy=false;$('#spinBtn').disabled=false;updateSpinButton();
 }
+// What one plant pays before any pollination multiplier.
+function plantPay(p, bet){
+  return p.alive ? bet*(phasePay(p.f,p.phase)/100)*payScale() : 0;
+}
 function finalizeRound(){
   const {mult,start,len,wild}=lineMultiplier(round.draws);
   highlightRun(start,len,mult,wild);
-  const bet=state.config.bet;let base=0;
-  round.plants.forEach(p=>{if(p.alive)base+=bet*(phasePay(p.f,p.phase)/100)*payScale();});
-  const total=base*mult;
+  const bet=round.bet!=null?round.bet:state.config.bet;
+  // A line sends the bees out instead of paying a flat board multiplier. Only
+  // flowers that actually pay are worth a spin, and with none the bonus is a no-op,
+  // so the round settles normally.
+  const payers = (mult>1) ? round.plants.map((p,i)=>({p,i})).filter(x=>plantPay(x.p,bet)>0) : [];
+  if(payers.length){ beginPollinate(payers, bet); return; }   // settles when the last wheel lands
+  settleRound(round.plants.reduce((s,p)=>s+plantPay(p,bet),0), bet);
+}
+// Credits the round, updates the readouts and logs it. Shared by the plain path
+// and the end of a POLLINATE run so the two can never drift.
+function settleRound(total, bet){
   SHELL.balance+=total;               // credit the round payout at settle
   bloomRenderBalance();
   setScoreWin(total, true);           // scoreboard settles on the final round return
   bloomPostSettled();                 // let the shell mirror the new balance (in-memory pass)
   recordRound(bet, total, round.plants);   // same bet/total the payout above used
   round.phase='done';round.done=true;
+  updateSpinButton();
   // a WIN means more back than you staked. Anything under the bet is a softened loss.
   // The in-garden scoreboard (BET / WIN) already reports the round result, and a
   // 3-match shows in the reels' own banner — so we no longer duplicate a win/lose
   // line here (keeps the button snug under the reels).
   banner('','');
 }
+/* ---- POLLINATE ----------------------------------------------------------
+   A 3-in-a-row sends the bees out. Each BLOOMED flower gets one button press and
+   one wheel spin, and the result multiplies THAT flower alone; the round settles
+   when the last wheel lands. Nothing is credited until then, so an interrupted
+   sequence cannot pay out twice. */
+let pol=null;                                  // null unless a sequence is running
+
+function polWheelSVG(){
+  const n=POLLINATE_WHEEL.length, R=100, C=110, step=360/n;
+  let out='';
+  POLLINATE_WHEEL.forEach((m,i)=>{
+    const a0=(i*step-90)*Math.PI/180, a1=((i+1)*step-90)*Math.PI/180;
+    const fill = m>=10 ? '#ff1a8c' : (m>=5 ? '#f6c400' : 'rgba(255,255,255,.62)');
+    out+=`<path d="M${C} ${C} L${C+R*Math.cos(a0)} ${C+R*Math.sin(a0)}`
+       + ` A${R} ${R} 0 0 1 ${C+R*Math.cos(a1)} ${C+R*Math.sin(a1)} Z"`
+       + ` fill="${fill}" stroke="#141414" stroke-width="2"/>`;
+    const am=((i+0.5)*step-90)*Math.PI/180, tr=R*0.68;
+    const tx=C+tr*Math.cos(am), ty=C+tr*Math.sin(am);
+    out+=`<text x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="central"`
+       + ` font-size="${m>=10?21:17}" font-weight="800" fill="#141414"`
+       + ` transform="rotate(${(i+0.5)*step} ${tx} ${ty})">×${m}</text>`;
+  });
+  return `<svg viewBox="0 0 220 220" aria-hidden="true">${out}`
+       + `<circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="#141414" stroke-width="3"/>`
+       + `<circle cx="${C}" cy="${C}" r="12" fill="#141414"/></svg>`;
+}
+
+// Park the swarm over the flower currently being pollinated. SPOTS is in the bed
+// SVG's viewBox space, so map through the rendered <svg> box to get pixels.
+function polMoveSwarm(plantIndex){
+  const swarm=$('#polSwarm'), bed=$('#bed'), layer=$('#polLayer'), spot=SPOTS[plantIndex];
+  if(!swarm||!bed||!layer||!spot) return;
+  const vb=BED_VB.trim().split(/\s+/).map(Number);          // [minX minY w h]
+  const br=bed.getBoundingClientRect(), hr=layer.getBoundingClientRect();
+  // preserveAspectRatio="xMidYMax meet" — uniform scale, centred in x, flush to bottom
+  const s=Math.min(br.width/vb[2], br.height/vb[3]);
+  const x=br.left + (br.width - vb[2]*s)/2 + (spot.x - vb[0])*s - hr.left;
+  const y=br.top  + (br.height - vb[3]*s)  + (spot.y - vb[1])*s - hr.top;
+  swarm.innerHTML=['🐝','🦋','🐝','🦋'].map((b,i)=>
+    `<span class="pol-bug" style="left:${x}px;top:${y}px;--r:${22+(i%2)*11}px;--d:${-i*0.6}s">${b}</span>`
+  ).join('');
+}
+
+function beginPollinate(payers, bet){
+  round.phase='pollinate';
+  pol={ payers, bet, idx:0, total:0, mults:[] };
+  const layer=$('#polLayer'); if(layer) layer.hidden=false;
+  const wheel=$('#polWheel');
+  if(wheel){ wheel.innerHTML=polWheelSVG(); wheel.style.transition='none'; wheel.style.transform='rotate(0deg)'; }
+  $('#multi').textContent='🐝 POLLINATE — spin every bloom';
+  polStep();
+  updateSpinButton();
+}
+
+// Set the UI up for the flower at pol.idx and wait for the press.
+function polStep(){
+  const cur=pol.payers[pol.idx];
+  $('#polFlower').textContent=cur.p.f.name;
+  $('#polProg').textContent=`${pol.idx+1} / ${pol.payers.length}`;
+  $('#polResult').textContent='';
+  const btn=$('#polBtn'); btn.disabled=false; btn.textContent='POLLINATE';
+  polMoveSwarm(cur.i);
+  setScoreWin(pol.total, true);                  // running total of what is banked so far
+}
+
+let polSpinning=false;
+async function polSpin(){
+  if(!pol||polSpinning) return;
+  polSpinning=true;
+  $('#polBtn').disabled=true;
+  const wheel=$('#polWheel'), n=POLLINATE_WHEEL.length, step=360/n;
+  const seg=(Math.random()*n)|0;                 // the outcome — uniform over segments
+  const mult=POLLINATE_WHEEL[seg];
+  const target=360*4 + (360 - (seg+0.5)*step);   // land that segment under the 12 o'clock needle
+  wheel.style.transition='';                     // restore the CSS easing
+  void wheel.offsetHeight;
+  wheel.style.transform=`rotate(${target}deg)`;
+  await sleep(2650);                             // matches the 2.6s transition
+  const cur=pol.payers[pol.idx];
+  const won=plantPay(cur.p,pol.bet)*mult;
+  pol.total+=won; pol.mults.push(mult);
+  $('#polResult').innerHTML=`×${mult} → <b>${Math.round(won).toLocaleString()}</b>`;
+  setScoreWin(pol.total, true);
+  wheel.style.transition='none';                 // normalise so the next spin starts level
+  wheel.style.transform=`rotate(${target%360}deg)`;
+  pol.idx++;
+  if(pol.idx<pol.payers.length){
+    await sleep(750); polSpinning=false; polStep();
+  } else {
+    await sleep(550);
+    const layer=$('#polLayer'); if(layer) layer.hidden=true;
+    $('#multi').textContent=`🐝 POLLINATED — ${pol.mults.map(m=>'×'+m).join(' ')}`;
+    const total=pol.total, bet=pol.bet;
+    pol=null; polSpinning=false;
+    settleRound(total, bet);                     // only the pollinated flowers pay
+  }
+}
+
 /* ---- ROUND LOG ---------------------------------------------------------
    Session-only history of settled rounds, same shape as Monkey Moonshine's spin
    log. Nothing is persisted: a reload starts a fresh log, and the numbers here
@@ -3439,6 +3634,11 @@ function renderRoundLog(){
     +`<td class="${rlogCls(e.net)}">${rlogSign(e.net)}</td></tr>`
   ).join('');
 }
+
+(function wirePollinate(){
+  const btn=$('#polBtn');
+  if(btn) btn.addEventListener('click', polSpin);
+})();
 
 (function wireRoundLog(){
   const head=$('#rlogHead'), panel=$('#rlogPanel'), clear=$('#rlogClear');
