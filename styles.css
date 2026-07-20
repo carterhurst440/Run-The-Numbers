@@ -15330,6 +15330,21 @@ body.modal-open {
   overflow: hidden;
 }
 
+/* Iframe game routes: the page itself must not scroll.
+   A game's modals are position:fixed against the IFRAME, so any page scroll drags
+   the whole frame — modal and all — across the screen: the modal's bottom becomes
+   reachable only from the bottom of the page, its top only from the top. Pinning
+   the shell to the viewport leaves the frame exactly the visible area, so a fixed
+   modal stays put. The game scrolls its own content inside the frame.
+   100dvh, not vh, so a mobile toolbar sliding in cannot push the frame off. */
+html.game-route,
+body.game-route {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;   /* no rubber-band handing the scroll to the page */
+}
+
 .how-to-list {
   margin: 0;
   padding-left: 1.2rem;

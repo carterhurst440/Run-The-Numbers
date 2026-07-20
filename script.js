@@ -10824,6 +10824,21 @@ async function setRoute(route, { replaceHash = false } = {}) {
     destroyColorSchemeGame();
   }
 
+  // Iframe games: pin the shell to the viewport so the PAGE cannot scroll.
+  //
+  // Their modals are position:fixed against the IFRAME, not the window. While the
+  // page scrolls, scrolling slides the whole iframe — modal included — past the
+  // screen, so the modal's bottom is reachable from the bottom of the page and its
+  // top from the top, and it never sits still. Sizing the frame only narrowed the
+  // window for that; removing the page scroll removes it. The game does its own
+  // scrolling inside the frame.
+  // set on BOTH: which element owns the viewport scroll varies by engine, and
+  // relying on :has() to reach <html> from <body> would drop older Safari
+  const onGameRoute = (resolvedRoute === "bloom" || resolvedRoute === "monkey-moonshine");
+  document.documentElement.classList.toggle("game-route", onGameRoute);
+  document.body.classList.toggle("game-route", onGameRoute);
+  if (onGameRoute) window.scrollTo(0, 0);   // leave no scroll offset behind on entry
+
   if (resolvedRoute === "fate-or-fortune") {
     fofRouteOpen();
   }
@@ -10832,7 +10847,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260720f-vhrace");
+      frame.setAttribute("src", "games/bloom.html?v=20260720g-gameroute");
     }
     installBloomBridge();   // idempotent: seed the in-memory balance + admin flag
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
