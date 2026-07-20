@@ -349,6 +349,11 @@
     width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;
     border-top:14px solid var(--line)}
   .pol-result{min-height:16px;font-size:12.5px;font-weight:800;letter-spacing:.03em}
+  .pol-choose{display:flex;flex-direction:column;gap:4px}
+  .pol-choose button{font-family:var(--ui);font-size:10.5px;font-weight:800;letter-spacing:.08em;
+    padding:6px 8px;border:2px solid var(--line);border-radius:2px;background:rgba(255,255,255,.55);
+    color:var(--text);cursor:pointer;white-space:nowrap}
+  .pol-choose button:hover{background:var(--line);color:var(--btn-ink)}
   /* the flower being pollinated: a soft halo plus sparkles, so the eye goes to it */
   .pol-halo{position:absolute;border-radius:50%;pointer-events:none;
     background:radial-gradient(circle,rgba(246,228,0,.55),rgba(246,228,0,0) 68%);
@@ -877,6 +882,12 @@
           </div>
           <div class="pol-side">
             <div class="pol-head"><b id="polFlower">—</b><span id="polProg" class="pol-prog"></span></div>
+            <!-- risk choice, offered once per bonus. Both pay the same on average;
+                 one spin for all is simply the swingier way to take it. -->
+            <div class="pol-choose" id="polChoose" hidden>
+              <button type="button" id="polModeEach">SPIN EACH</button>
+              <button type="button" id="polModeAll">ONE SPIN · ALL</button>
+            </div>
             <div class="pol-result" id="polResult"></div>
             <div class="pol-tally" id="polTally"></div>
           </div>
@@ -3475,6 +3486,10 @@ function updateSpinButton(){
   else if(round.phase==='pollinate'){          // same button, now driving the bonus
     btn.style.display='';
     if(polSpinning){ btn.innerHTML='POLLINATING…'; btn.disabled=true; btn.classList.remove('shine'); }
+    else if(pol && !pol.mode){                 // waiting on the spin-mode choice
+      btn.innerHTML='CHOOSE HOW TO SPIN'; btn.disabled=true; btn.classList.remove('shine'); }
+    else if(pol && pol.mode==='all'){
+      btn.innerHTML=`POLLINATE ALL ${pol.payers.length}`; btn.disabled=false; btn.classList.add('shine'); }
     else { btn.innerHTML=`POLLINATE ${pol?pol.idx+1:1} / ${pol?pol.payers.length:1}`;
            btn.disabled=false; btn.classList.add('shine'); }
     return;
@@ -3738,9 +3753,33 @@ function beginPollinate(payers, bet){
   const tally=$('#polTally'); if(tally) tally.innerHTML='';
   const wheel=$('#polWheel');
   if(wheel){ wheel.innerHTML=polWheelSVG(); wheel.style.transition='none'; wheel.style.transform='rotate(0deg)'; }
-  $('#multi').textContent='🐝 the bees are out — spin every bloom';
-  polStep();
+  $('#multi').textContent='🐝 the bees are out — how will you spin?';
+  // One flower means the two modes are identical, so don't ask.
+  if(payers.length<2){ polChoose('each'); return; }
+  const ch=$('#polChoose'); if(ch) ch.hidden=false;
+  $('#polFlower').textContent=`${payers.length} BLOOMS`;
+  $('#polProg').textContent='';
+  $('#polResult').textContent='';
   updateSpinButton();
+}
+// SPIN EACH  — a wheel per flower, each multiplying only itself (lower variance).
+// ONE SPIN   — a single wheel multiplying every bloom (same average, ~2.6x swingier).
+function polChoose(mode){
+  if(!pol) return;
+  pol.mode = (mode==='all') ? 'all' : 'each';
+  const ch=$('#polChoose'); if(ch) ch.hidden=true;
+  if(pol.mode==='all'){
+    $('#polFlower').textContent=`ALL ${pol.payers.length}`;
+    $('#polProg').textContent='one spin';
+    $('#polResult').textContent='';
+    polMoveSwarm(pol.payers[0].i);
+    $('#multi').textContent='🐝 one spin — it rides on every bloom';
+    setScoreWin(0, true);
+    updateSpinButton();
+  } else {
+    $('#multi').textContent='🐝 the bees are out — spin every bloom';
+    polStep();
+  }
 }
 // Put the reels back and drop the bonus UI. Shared by the natural end of a run
 // and by resetPlayArea, so an abandoned run cannot strand the card in wheel mode.
@@ -3780,6 +3819,30 @@ async function polSpin(){
   void wheel.offsetHeight;
   wheel.style.transform=`rotate(${target}deg)`;
   await sleep(2650);                             // matches the 2.6s transition
+  // ONE SPIN mode: this single result rides on every bloom, then the round settles.
+  if(pol.mode==='all'){
+    pol.payers.forEach(({p,i})=>{
+      const b=plantPay(p,pol.bet), w=b*mult;
+      pol.total+=w;
+      if(p.gfx) p.gfx.pol={m:mult, base:b, won:w};
+      polMarkDone(i, mult);
+    });
+    pol.mults.push(mult);
+    paintLabels(round.plants);
+    $('#polResult').innerHTML=`×${mult} → <b>${Math.round(pol.total).toLocaleString()}</b>`;
+    const tallyAll=$('#polTally');
+    if(tallyAll) tallyAll.insertAdjacentHTML('beforeend',
+      `<span class="pol-chip ${mult>=10?'huge':(mult>=5?'big':'')}">×${mult} ALL</span>`);
+    setScoreWin(pol.total, true);
+    wheel.style.transition='none'; wheel.style.transform=`rotate(${target%360}deg)`;
+    await sleep(550);
+    polTeardown();
+    $('#multi').textContent=`🐝 POLLINATED — ×${mult} on all ${pol.payers.length}`;
+    const totalAll=pol.total, betAll=pol.bet;
+    pol=null; polSpinning=false;
+    settleRound(totalAll, betAll);
+    return;
+  }
   const cur=pol.payers[pol.idx];
   const base=plantPay(cur.p,pol.bet), won=base*mult;
   pol.total+=won; pol.mults.push(mult);
@@ -3858,8 +3921,11 @@ function renderRoundLog(){
 }
 
 (function wirePollinate(){
+  const each=$('#polModeEach'), all=$('#polModeAll');
+  if(each) each.addEventListener('click', ()=>polChoose('each'));
+  if(all)  all.addEventListener('click', ()=>polChoose('all'));
   polTestBar();                                // renders nothing without ?poltest=1
-})();                                          // the bonus rides the main action button
+})();                                          // the spinning rides the main action button
 
 (function wireRoundLog(){
   const head=$('#rlogHead'), panel=$('#rlogPanel'), clear=$('#rlogClear');
