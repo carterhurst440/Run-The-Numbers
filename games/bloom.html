@@ -959,7 +959,7 @@
     <div class="row">
       <label class="fld" style="margin:0">Weather reels
         <input id="drawsPerRound" type="number" min="3" max="3" value="3" disabled style="width:80px;display:inline-block"></label>
-      <div class="muted">Three reels a round. Each plant rolls once per reel. If <b style="color:var(--gold)">all three land on the same pattern</b>, the <b>whole board pays ×5</b>. A <b style="color:#c9a0ff">🦋 butterfly</b> is wild: it completes a 3-in-a-row (which <b>doubles</b> the round) and revives every wilted/dud plant back to seed.</div>
+      <div class="muted">Three reels a round. Each plant rolls once per reel. If <b style="color:var(--gold)">all three land on the same pattern</b>, the bees come out: every flower in <b>bloom</b> spins its own <b>POLLINATE</b> wheel for <b>×2</b>, <b>×5</b> or <b>×10</b> on that flower alone. A <b style="color:#c9a0ff">🦋 butterfly</b> is wild: it completes a 3-in-a-row just like a natural match, and revives every wilted/dud plant back to seed.</div>
     </div>
     <div class="row" style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px">
       <label class="fld" style="margin:0">🏠 Target RTP %
@@ -2908,6 +2908,7 @@ const DEFAULT_SUPER_MULT = 2;               // a flower's super = superMult × i
      10x X2 / 1x X5 / 1x X10  -> avg x2.917  ->  RTP -8.4%
    Re-measure after any change to the deck counts or to bloom_pay. */
 const POLLINATE_WHEEL = [2,2,5,2,2,2,10,2,2,5,2,2];   // 9x X2, 2x X5, 1x X10 — big prizes spread apart
+const POLLINATE_TOP = Math.max(...POLLINATE_WHEEL);   // best segment — sets the true MAX WIN ceiling
 const MATCH_MULT = 5;                       // legacy flat 3-match multiplier — kept for the deck sim's baseline
 
 const BUTTERFLY_MULT = 2;                   // a butterfly-completed 3-in-a-row = x2 (doubles the round)
@@ -3421,13 +3422,17 @@ function lineMultiplier(draws){
   const wild=reals.length<draws.length;               // at least one butterfly helped
   return {mult: wild?BUTTERFLY_MULT:MATCH_MULT, start:0, len:draws.length, all:true, wild};
 }
-function highlightRun(start,len,mult,wild){
+// A line no longer multiplies the board — it sends the bees out. `payers` is how
+// many blooms will actually get a wheel, so a line with nothing in flower says so
+// instead of promising a bonus that cannot pay.
+function highlightRun(start,len,mult,wild,payers){
   const cells=[...$('#weatherReel').children];
   if(mult>1){
     cells.forEach(c=>c.classList.add('hot'));
-    $('#multi').textContent = wild
-      ? `🦋 WILD ${len}-IN-A-ROW  →  ×${mult} WHOLE BOARD`
-      : `ALL ${len} MATCH  →  ×${mult} WHOLE BOARD`;
+    const lead = wild ? `🦋 WILD ${len}-IN-A-ROW` : `ALL ${len} MATCH`;
+    $('#multi').textContent = payers>0
+      ? `${lead}  →  🐝 POLLINATE ${payers} BLOOM${payers>1?'S':''}`
+      : `${lead}  →  no blooms to pollinate`;
   } else $('#multi').textContent='';
 }
 
@@ -3504,12 +3509,12 @@ function plantPay(p, bet){
 }
 function finalizeRound(){
   const {mult,start,len,wild}=lineMultiplier(round.draws);
-  highlightRun(start,len,mult,wild);
   const bet=round.bet!=null?round.bet:state.config.bet;
   // A line sends the bees out instead of paying a flat board multiplier. Only
   // flowers that actually pay are worth a spin, and with none the bonus is a no-op,
   // so the round settles normally.
   const payers = (mult>1) ? round.plants.map((p,i)=>({p,i})).filter(x=>plantPay(x.p,bet)>0) : [];
+  highlightRun(start,len,mult,wild,payers.length);
   if(payers.length){ beginPollinate(payers, bet); return; }   // settles when the last wheel lands
   settleRound(round.plants.reduce((s,p)=>s+plantPay(p,bet),0), bet);
 }
@@ -3960,8 +3965,9 @@ const clamp=v=>Math.max(0,Math.min(100,v||0));
 /* ===================== WEATHER TAB ===================== */
 // Deck math for the WEIGHTED, butterfly-wild deck. Each reel is an independent
 // weighted pull; a line matches if every non-butterfly reel is the same pattern
-// (butterfly is wild). Natural 3-of-a-kind pays ×MATCH_MULT; a butterfly-completed
-// line pays ×BUTTERFLY_MULT.
+// (butterfly is wild). Either kind of line now triggers POLLINATE — the old flat
+// ×MATCH_MULT / ×BUTTERFLY_MULT split no longer pays; those constants survive only
+// as the >1 signal lineMultiplier returns to say "a line landed".
 function deckStats(){
   const W=state.weather;
   const cnt=w=>Math.max(0,Math.round(w.count==null?1:w.count));
@@ -3973,15 +3979,22 @@ function deckStats(){
   const R=reals.length;
   const pLine = Math.max(0, lineSum - (R>0?R-1:0)*Math.pow(B,3));   // all-butterfly counted once
   const pWild = Math.max(0, pLine - pNat);
-  const avgMult = 1 + (MATCH_MULT-1)*pNat + (BUTTERFLY_MULT-1)*pWild;
-  return {total,B,pNat,pWild,avgMult,cnt};
+  // Natural and butterfly lines now pay the same way — both send every bloom to the
+  // wheel — so the board average is the line rate times the wheel's mean. This is
+  // the PROBABILITY-weighted figure; true RTP also depends on how much each line
+  // type pays (a natural line blooms plants harder than a butterfly one), so treat
+  // it as a deck-shape readout, not an RTP number.
+  const wheelEV = POLLINATE_WHEEL.reduce((a,b)=>a+b,0)/POLLINATE_WHEEL.length;
+  const avgMult = 1 + (wheelEV-1)*pLine;
+  return {total,B,pNat,pWild,pLine,wheelEV,avgMult,cnt};
 }
 function refreshDeckStats(){
-  const {total,pNat,pWild,avgMult,cnt}=deckStats();
+  const {total,pNat,pWild,pLine,wheelEV,avgMult,cnt}=deckStats();
   const di=$('#deckInfo');
   if(di)di.innerHTML=`${total} cards &nbsp;·&nbsp; `
-    +`<b style="color:var(--gold)">natural 3-match ${(pNat*100).toFixed(1)}%</b> → ×${MATCH_MULT}`
-    +` &nbsp;·&nbsp; <b style="color:#c9a0ff">🦋 wild match ${(pWild*100).toFixed(1)}%</b> → ×${BUTTERFLY_MULT}`
+    +`<b style="color:var(--gold)">natural 3-match ${(pNat*100).toFixed(1)}%</b>`
+    +` &nbsp;·&nbsp; <b style="color:#c9a0ff">🦋 wild match ${(pWild*100).toFixed(1)}%</b>`
+    +` &nbsp;·&nbsp; <b>🐝 pollinate ${(pLine*100).toFixed(1)}%</b> → avg ×${wheelEV.toFixed(2)} per bloom`
     +` &nbsp;·&nbsp; avg board <b>×${avgMult.toFixed(3)}</b>`;
   const dc=$('#deckContents');
   if(dc){
@@ -3993,7 +4006,8 @@ function refreshDeckStats(){
     const cards=state.weather.flatMap(w=>Array.from({length:cnt(w)},()=>w.icon||'▫')).join(' ');
     dc.innerHTML=`<div class="deckchips">${chips}</div><div class="deckcards" title="every card in the reel deck">${cards}</div>`
       +`<div class="muted" style="font-size:11px;margin-top:8px">Independent weighted pull per reel. `
-      +`Natural 3-match ${(pNat*100).toFixed(2)}% (×${MATCH_MULT}) · 🦋 wild match ${(pWild*100).toFixed(2)}% (×${BUTTERFLY_MULT}) · average board multiplier ×${avgMult.toFixed(3)}.</div>`;
+      +`Any 3-in-a-row triggers POLLINATE — natural ${(pNat*100).toFixed(2)}% + 🦋 wild ${(pWild*100).toFixed(2)}% = ${(pLine*100).toFixed(2)}%. `
+      +`Each bloom spins its own wheel (avg ×${wheelEV.toFixed(3)}); average board multiplier ×${avgMult.toFixed(3)} by probability alone.</div>`;
   }
 }
 function weatherCard(w){
@@ -4225,11 +4239,11 @@ function updateMax(){
   if(full){ let sumPct=0; state.satchel.forEach(fid=>{sumPct+=topPay(flower(fid));}); board=sumPct/100*payScale(); }
   // modal "max this satchel" line
   const elx=$('#perCol');
-  if(elx) elx.textContent = full ? (board.toFixed(1)+'× bet  ·  ×'+MATCH_MULT+' on a 3-match = '+(board*MATCH_MULT).toFixed(0)+'× bet') : 'fill satchel';
+  if(elx) elx.textContent = full ? (board.toFixed(1)+'× bet  ·  ×'+POLLINATE_TOP+' top pollinate = '+(board*POLLINATE_TOP).toFixed(0)+'× bet') : 'fill satchel';
   // satchel-area MAX WIN potential — the TRUE ceiling: every seed super-blooms AND
-  // the reels 3-match (×MATCH_MULT the whole board), so the live round win can
-  // never exceed it.
-  const sm=$('#satMaxWin'), bet=state.config.bet||0, top=board*MATCH_MULT;
+  // the reels 3-match AND every bloom lands the wheel's best segment, so the live
+  // round win can never exceed it.
+  const sm=$('#satMaxWin'), bet=state.config.bet||0, top=board*POLLINATE_TOP;
   if(sm){
     sm.innerHTML = full ? ('MAX WIN <b>'+Math.round(top*bet).toLocaleString()+'</b> · '+top.toFixed(2)+'×') : 'FILL SATCHEL';
   }
