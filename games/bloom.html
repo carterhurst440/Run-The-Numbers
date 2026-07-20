@@ -352,14 +352,12 @@
     border-top:14px solid var(--line)}
   .pol-result{min-height:16px;font-size:12.5px;font-weight:800;letter-spacing:.03em}
   .pol-choose{display:flex;flex-direction:column;gap:4px}
+  .pol-choose[hidden]{display:none}   /* display:flex above beats the hidden attribute */
   .pol-choose button{font-family:var(--ui);font-size:10.5px;font-weight:800;letter-spacing:.08em;
     padding:6px 8px;border:2px solid var(--line);border-radius:2px;background:rgba(255,255,255,.55);
     color:var(--text);cursor:pointer;white-space:nowrap}
   .pol-choose button:hover{background:var(--line);color:var(--btn-ink)}
-  /* the picked method, held until the first spin commits it */
-  .pol-choose button.is-active{background:var(--line);color:var(--btn-ink);
-    box-shadow:0 0 0 2px var(--line)}
-  .pol-choose button.is-active::after{content:' ✓'}
+  /* no selected state: picking hides the buttons, so it would never be seen */
   /* the flower being pollinated: a soft halo plus sparkles, so the eye goes to it */
   .pol-halo{position:absolute;border-radius:50%;pointer-events:none;
     background:radial-gradient(circle,rgba(246,228,0,.55),rgba(246,228,0,0) 68%);
@@ -3802,8 +3800,6 @@ function polMarkDone(plantIndex, mult){
 function beginPollinate(payers, bet){
   round.phase='pollinate';
   pol={ payers, bet, idx:0, total:0, mults:[], mode:null, locked:false };
-  // clear last bonus's selection so a new one starts with neither method marked
-  ['#polModeEach','#polModeAll'].forEach(s=>{ const b=$(s); if(b) b.classList.remove('is-active'); });
   const done=$('#polDone'); if(done) done.innerHTML='';
   const layer=$('#polLayer'); if(layer) layer.hidden=false;
   // the wheel stands in for the reels in the same card
@@ -3825,16 +3821,15 @@ function beginPollinate(payers, bet){
 }
 // SPIN EACH  — a wheel per flower, each multiplying only itself (lower variance).
 // ONE SPIN   — a single wheel multiplying every bloom (same average, ~2.6x swingier).
-// Picked BEFORE the first spin, then committed for the rest of the bonus. Both
-// methods pay the same on average, so this is not an odds guard — it keeps the run
-// coherent, so a bonus is either "a wheel each" or "one wheel for the lot" rather
-// than a mix of the two.
+// Picking commits the method and clears the buttons — they have nothing left to say
+// once chosen, and the panel is narrow, so the space goes to the running results
+// instead. Both methods pay the same on average, so this is not an odds guard; it
+// keeps a run coherent rather than half per-flower and half all-at-once.
 function polChoose(mode){
-  if(!pol || pol.locked || polSpinning) return;   // committed at the first spin
+  if(!pol || pol.locked || polSpinning) return;
   pol.mode = (mode==='all') ? 'all' : 'each';
-  const each=$('#polModeEach'), all=$('#polModeAll');
-  if(each) each.classList.toggle('is-active', pol.mode==='each');
-  if(all)  all.classList.toggle('is-active', pol.mode==='all');
+  pol.locked = true;
+  const ch=$('#polChoose'); if(ch) ch.hidden=true;
   if(pol.mode==='all'){
     // counts and positions are relative to what is LEFT — switching part-way
     // through must not re-offer flowers that have already paid
@@ -3882,12 +3877,7 @@ let polSpinning=false;
 async function polSpin(){
   if(!pol||polSpinning) return;
   if(!pol.mode) return;                        // nothing chosen yet
-  polSpinning=true;
-  // the first spin commits the method: the chooser goes for the rest of the bonus
-  if(!pol.locked){
-    pol.locked=true;
-    const ch=$('#polChoose'); if(ch) ch.hidden=true;
-  }
+  polSpinning=true;                            // polChoose already committed the method
   const main=$('#spinBtn'); if(main){ main.disabled=true; main.classList.remove('shine'); }
   const wheel=$('#polWheel'), n=POLLINATE_WHEEL.length, step=360/n;
   const seg=(Math.random()*n)|0;                 // the outcome — uniform over segments
