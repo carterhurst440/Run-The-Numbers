@@ -2960,8 +2960,38 @@ const DEFAULT_SUPER_MULT = 2;               // a flower's super = superMult × i
       7x X2 / 2x X5 / 1x X10  -> avg x3.400  ->  RTP +6.7%
      10x X2 / 1x X5 / 1x X10  -> avg x2.917  ->  RTP -8.4%
    Re-measure after any change to the deck counts or to bloom_pay. */
-const POLLINATE_WHEEL = [2,2,5,2,2,2,10,2,2,5,2,2];   // 9x X2, 2x X5, 1x X10 — big prizes spread apart
-const POLLINATE_TOP = Math.max(...POLLINATE_WHEEL);   // best segment — sets the true MAX WIN ceiling
+// The default mix, used until the DB deck arrives (bloom_settings.pollinate_wheel).
+// Editable in the admin BLOOM tab: 9x X2, 2x X5, 1x X10, mean x3.1667.
+let POLLINATE_WHEEL = [2,2,5,2,2,2,10,2,2,5,2,2];
+let POLLINATE_TOP = 10;                               // best segment — sets the MAX WIN ceiling
+
+// Turn the admin's [{m,n}] mix into the segment ring the wheel spins, spacing the
+// scarcer (bigger) prizes out so they don't sit adjacent on the face.
+function setPollinateWheel(spec){
+  if(!Array.isArray(spec) || !spec.length) return false;
+  const rows = spec
+    .map(r => ({ m: Number(r.m), n: Math.max(0, Math.round(Number(r.n)||0)) }))
+    .filter(r => isFinite(r.m) && r.m > 0 && r.n > 0);
+  if(!rows.length) return false;
+  const total = rows.reduce((s,r)=>s+r.n, 0);
+  if(total < 2) return false;
+  // most common first, then deal the rest into the widest gaps
+  rows.sort((a,b)=>b.n-a.n);
+  const ring = new Array(total).fill(null);
+  let i = 0;
+  for(const seg of rows.slice(1)){                    // rarer prizes claim spread slots
+    for(let k=0;k<seg.n;k++){
+      const at = Math.round(((i + 0.5) / (total - rows[0].n || 1)) * total) % total;
+      let slot = at;
+      while(ring[slot] !== null) slot = (slot + 1) % total;
+      ring[slot] = seg.m; i++;
+    }
+  }
+  for(let s=0;s<total;s++) if(ring[s] === null) ring[s] = rows[0].m;
+  POLLINATE_WHEEL = ring;
+  POLLINATE_TOP = Math.max(...ring);
+  return true;
+}
 const MATCH_MULT = 5;                       // legacy flat 3-match multiplier — kept for the deck sim's baseline
 
 const BUTTERFLY_MULT = 2;                   // a butterfly-completed 3-in-a-row = x2 (doubles the round)
@@ -4598,6 +4628,9 @@ function bloomApplyDeck(deck){
   // admin-uploaded POLLINATE swarm art; blank/absent keeps the emoji
   if('bee_url' in deck) POL_ART.bee = deck.bee_url || null;
   if('butterfly_url' in deck) POL_ART.butterfly = deck.butterfly_url || null;
+  // admin-configured wheel; a bad or empty spec leaves the built-in mix alone
+  // rather than letting the bonus pay nothing
+  if(deck.pollinate_wheel) setPollinateWheel(deck.pollinate_wheel);
   if(Array.isArray(deck.flowers) && deck.flowers.length){
     // In the live game only ACTIVE flowers appear; the deck-admin sees them all
     // (so inactive ones can still be edited/re-activated).

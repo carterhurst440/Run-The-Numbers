@@ -31729,6 +31729,27 @@ body[data-ui="new"] .profile-input-group input:-webkit-autofill:active {
 .bloom-bug-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
 .bloom-bug-label { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted, #9aa); }
 .bloom-bug-clear { font-size: 0.72rem; padding: 0.25rem 0.6rem; }
+
+/* POLLINATE wheel editor */
+.bloom-wheel-panel { margin-top: 0.75rem; max-width: 520px; }
+.bloom-wheel-tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.bloom-wheel-tbl th {
+  text-align: left; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted, #9aa); padding: 0.25rem 0.5rem 0.4rem; border-bottom: 1px solid #2a2a22;
+}
+.bloom-wheel-tbl td { padding: 0.3rem 0.5rem; border-bottom: 1px solid #1a1a16; }
+.bloom-wheel-inp { width: 74px; }
+.bloom-wheel-pct { color: var(--muted, #9aa); font-variant-numeric: tabular-nums; }
+.bloom-wheel-del { padding: 0.15rem 0.5rem; font-size: 0.75rem; }
+.bloom-wheel-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.75rem 0 0.6rem; }
+.bloom-wheel-summary {
+  display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem; font-size: 0.82rem;
+  color: var(--muted, #9aa); font-variant-numeric: tabular-nums;
+}
+.bloom-wheel-summary b { color: var(--text-light, #e8e8d8); }
+.bloom-wheel-up b { color: #ff8a3d; }      /* looser than default = costs the house */
+.bloom-wheel-down b { color: #6bd39a; }
+.bloom-wheel-bad { color: #ff8095; }
 .admin-bloom-toolbar-spacer { flex: 1 1 auto; }
 .admin-bloom-rounds { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted, #9aa); }
 .admin-bloom-rounds input { width: 96px; }

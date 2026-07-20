@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260720q-pageframe4" />
+    <link rel="stylesheet" href="styles.css?v=20260720s-wheeladmin" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -3850,6 +3850,27 @@
               <section class="route-section admin-list-section">
                 <div class="admin-listing-header">
                   <div>
+                    <h2>BLOOM — Pollinate Wheel</h2>
+                    <p class="route-subheading">The wheel each <strong>bloomed</strong> flower spins when the reels land 3-in-a-row. Set how many positions carry each multiplier — the <strong>mean</strong> is what drives RTP, so a change here moves the whole game's return by roughly the same proportion. Saves immediately; the game re-pulls on next open.</p>
+                  </div>
+                </div>
+                <div class="bloom-wheel-panel">
+                  <table class="bloom-wheel-tbl">
+                    <thead><tr><th>multiplier</th><th>positions</th><th>chance</th><th></th></tr></thead>
+                    <tbody id="bloom-wheel-rows"></tbody>
+                  </table>
+                  <div class="bloom-wheel-actions">
+                    <button type="button" class="secondary" id="bloom-wheel-add">+ Add multiplier</button>
+                    <button type="button" class="primary" id="bloom-wheel-save">Save wheel</button>
+                    <button type="button" class="secondary" id="bloom-wheel-reset">Reset to default</button>
+                  </div>
+                  <div class="bloom-wheel-summary" id="bloom-wheel-summary"></div>
+                  <span class="admin-fof-status" id="bloom-wheel-status"></span>
+                </div>
+              </section>
+              <section class="route-section admin-list-section">
+                <div class="admin-listing-header">
+                  <div>
                     <h2>BLOOM — Flowers</h2>
                     <p class="route-subheading">One master editor: stats, per-weather bloom/wilt odds, active toggle, and custom icon / animation uploads. Only <strong>active</strong> flowers appear in the game. Loads from <code>bloom_flowers</code>; press <strong>Save to DB</strong> to persist (the game re-pulls on next load).</p>
                   </div>
@@ -5488,7 +5509,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260720r-adminsim"></script>
+    <script type="module" src="script.js?v=20260720s-wheeladmin"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

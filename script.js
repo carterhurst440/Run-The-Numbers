@@ -20596,7 +20596,8 @@ async function bloomFetchDeck() {
       flowers: f.data || [], weather: w.data || [],
       background_url: settings.background_url || null,
       bee_url: settings.bee_url || null,               // POLLINATE swarm art; null => emoji
-      butterfly_url: settings.butterfly_url || null
+      butterfly_url: settings.butterfly_url || null,
+      pollinate_wheel: bloomParseWheel(settings.pollinate_wheel)
     };
     return _bloomDeckCache;
   } catch (e) { console.error("[bloom] deck fetch", e); return null; }
@@ -33148,6 +33149,18 @@ document.getElementById("bloom-bg-file")?.addEventListener("change", (e) => {
   e.target.value = "";
 });
 
+// POLLINATE wheel editor
+document.getElementById("bloom-wheel-add")?.addEventListener("click", () => {
+  BloomAdmin.wheel.push({ m: 2, n: 1 });
+  BloomAdmin.renderWheel();
+});
+document.getElementById("bloom-wheel-save")?.addEventListener("click", () => BloomAdmin.saveWheel());
+document.getElementById("bloom-wheel-reset")?.addEventListener("click", () => {
+  BloomAdmin.wheel = BLOOM_WHEEL_DEFAULT.map(r => ({ ...r }));
+  BloomAdmin.renderWheel();
+  BloomAdmin.wheelStatus('Reset to the default mix — press Save wheel to store it.');
+});
+
 // POLLINATE pollinators. Square crop — they render as a small square sprite orbiting
 // the bloom. No cropper for SVG: rasterising it through the canvas would throw away
 // the vector and its transparency handling.
@@ -33347,9 +33360,32 @@ const BLOOM_MATCH_MULT = 5, BLOOM_BUTTERFLY_MULT = 2, BLOOM_DEFAULT_SUPER_MULT =
 // POLLINATE wheel — must mirror POLLINATE_WHEEL in games/bloom.html. A line no
 // longer scales the board by a flat number: every BLOOMED plant spins this for
 // itself. 9x X2 / 2x X5 / 1x X10, mean x3.1667.
-const BLOOM_POLLINATE_WHEEL = [2,2,5,2,2,2,10,2,2,5,2,2];
-const BLOOM_POLLINATE_EV =
-  BLOOM_POLLINATE_WHEEL.reduce((a,b) => a+b, 0) / BLOOM_POLLINATE_WHEEL.length;
+const BLOOM_WHEEL_DEFAULT = [{ m:2, n:9 }, { m:5, n:2 }, { m:10, n:1 }];
+// Parse the stored [{m,n}] spec. Returns null for anything unusable so callers
+// fall back to the default rather than shipping a wheel that pays nothing.
+function bloomParseWheel(raw){
+  if (!raw) return null;
+  let spec = raw;
+  if (typeof spec === "string") { try { spec = JSON.parse(spec); } catch (e) { return null; } }
+  if (!Array.isArray(spec)) return null;
+  const rows = spec
+    .map(r => ({ m: Number(r && r.m), n: Math.round(Number(r && r.n) || 0) }))
+    .filter(r => Number.isFinite(r.m) && r.m > 0 && r.n > 0);
+  if (!rows.length) return null;
+  if (rows.reduce((s, r) => s + r.n, 0) < 2) return null;   // a 1-slot wheel is not a wheel
+  return rows;
+}
+// Flatten a spec to the segment list the sims draw from.
+function bloomWheelSegments(spec){
+  const rows = bloomParseWheel(spec) || BLOOM_WHEEL_DEFAULT;
+  const out = [];
+  rows.forEach(r => { for (let i = 0; i < r.n; i++) out.push(r.m); });
+  return out;
+}
+function bloomWheelMean(spec){
+  const segs = bloomWheelSegments(spec);
+  return segs.reduce((a, b) => a + b, 0) / segs.length;
+}
 const BLOOM_SATCHEL_SIZE = 10;                         // two rows of 5 plants per round
 const BLOOM_TARGET_PER_SEED = 99 / BLOOM_SATCHEL_SIZE; // 9.9% (99% target RTP / 10 seeds)
 
@@ -33359,6 +33395,7 @@ const BloomAdmin = {
   backgroundUrl: null,
   beeUrl: null,
   butterflyUrl: null,
+  wheel: BLOOM_WHEEL_DEFAULT.map(r => ({ ...r })),   // POLLINATE mix, [{m,n}]
 
   status(msg){ const el = document.getElementById('bloom-editor-status'); if (el) el.textContent = msg || ''; },
 
@@ -33389,6 +33426,85 @@ const BloomAdmin = {
     } catch (e){
       console.error('[bloom] background upload', e);
       this.bgStatus('Upload error: ' + (e?.message || e));
+    }
+  },
+
+  // ── POLLINATE wheel ───────────────────────────────────────────────────────
+  // Held as [{m,n}] — multiplier and how many positions carry it — because that is
+  // what an editor wants; the game flattens it to a ring. The mean is the whole
+  // point of the panel: it multiplies every pollinated payout, so it scales the
+  // game's RTP almost one-for-one and is worth seeing while you type.
+  wheelStatus(msg){ const el = document.getElementById('bloom-wheel-status'); if (el) el.textContent = msg || ''; },
+  renderWheel(){
+    const body = document.getElementById('bloom-wheel-rows');
+    if (!body) return;
+    const rows = this.wheel && this.wheel.length ? this.wheel : BLOOM_WHEEL_DEFAULT;
+    const total = rows.reduce((s, r) => s + r.n, 0) || 1;
+    body.innerHTML = '';
+    rows.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        `<td>×<input type="number" min="1" step="1" value="${r.m}" data-wheel-m="${i}" class="bloom-wheel-inp"></td>`
+      + `<td><input type="number" min="0" step="1" value="${r.n}" data-wheel-n="${i}" class="bloom-wheel-inp"></td>`
+      + `<td class="bloom-wheel-pct">${((r.n / total) * 100).toFixed(1)}%</td>`
+      + `<td><button type="button" class="secondary bloom-wheel-del" data-wheel-del="${i}">✕</button></td>`;
+      body.appendChild(tr);
+    });
+    body.querySelectorAll('[data-wheel-m],[data-wheel-n]').forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const t = e.target;
+        const i = Number(t.dataset.wheelM ?? t.dataset.wheelN);
+        const key = t.dataset.wheelM !== undefined ? 'm' : 'n';
+        this.wheel[i][key] = Number(t.value);
+        this.renderWheelSummary();          // live, without redrawing the inputs mid-type
+      });
+    });
+    body.querySelectorAll('[data-wheel-del]').forEach(b => {
+      b.addEventListener('click', () => {
+        this.wheel.splice(Number(b.dataset.wheelDel), 1);
+        if (!this.wheel.length) this.wheel = BLOOM_WHEEL_DEFAULT.map(r => ({ ...r }));
+        this.renderWheel();
+      });
+    });
+    this.renderWheelSummary();
+  },
+  renderWheelSummary(){
+    const el = document.getElementById('bloom-wheel-summary');
+    if (!el) return;
+    const parsed = bloomParseWheel(this.wheel);
+    if (!parsed) {
+      el.innerHTML = `<b class="bloom-wheel-bad">Unusable — needs at least two positions with a multiplier above zero.</b>`;
+      return;
+    }
+    const mean = bloomWheelMean(parsed);
+    const segs = parsed.reduce((s, r) => s + r.n, 0);
+    const top = Math.max(...parsed.map(r => r.m));
+    const baseMean = bloomWheelMean(BLOOM_WHEEL_DEFAULT);
+    const delta = ((mean / baseMean) - 1) * 100;
+    el.innerHTML =
+        `<span><b>${segs}</b> positions</span>`
+      + `<span>mean <b>×${mean.toFixed(4)}</b></span>`
+      + `<span>top <b>×${top}</b></span>`
+      + `<span class="${Math.abs(delta) < 0.05 ? '' : (delta > 0 ? 'bloom-wheel-up' : 'bloom-wheel-down')}">`
+      + `vs default ×${baseMean.toFixed(4)}: <b>${delta >= 0 ? '+' : ''}${delta.toFixed(1)}%</b> on pollinated pay</span>`;
+  },
+  async saveWheel(){
+    if (!isAdmin(currentUser)){ this.wheelStatus('Admin access only'); return; }
+    const parsed = bloomParseWheel(this.wheel);
+    if (!parsed){ this.wheelStatus('Not saved — the wheel needs at least two positions.'); return; }
+    this.wheelStatus('Saving wheel…');
+    try {
+      const up = await supabase.from('bloom_settings').upsert(
+        { key: 'pollinate_wheel', value: JSON.stringify(parsed), updated_at: new Date().toISOString() },
+        { onConflict: 'key' });
+      if (up.error) throw up.error;
+      this.wheel = parsed;
+      this.renderWheel();
+      bloomInvalidateDeck();
+      this.wheelStatus(`Saved — mean ×${bloomWheelMean(parsed).toFixed(4)}. Reopen the game to see it.`);
+    } catch (e){
+      console.error('[bloom] wheel save', e);
+      this.wheelStatus('Save error: ' + (e?.message || e));
     }
   },
 
@@ -33469,6 +33585,7 @@ const BloomAdmin = {
       this.backgroundUrl = settings.background_url || null;
       this.beeUrl = settings.bee_url || null;
       this.butterflyUrl = settings.butterfly_url || null;
+      this.wheel = bloomParseWheel(settings.pollinate_wheel) || BLOOM_WHEEL_DEFAULT.map(r => ({ ...r }));
       this.flowers = (f.data || []).map(r => ({
         flower: r.flower,
         display_name: r.display_name || r.flower,
@@ -33497,6 +33614,7 @@ const BloomAdmin = {
       this.renderFlowers();
       this.renderBackground();
       this.renderBugs();
+      this.renderWheel();
       this.status('');
     } catch (e){
       console.error('[bloom] load', e);
@@ -33815,6 +33933,7 @@ const BloomAdmin = {
   },
   simulateFlower(f, rounds){
     const deck = this._weatherDeck(), dl = deck.length;
+    const wheel = bloomWheelSegments(this.wheel);   // whatever the admin has configured
     let winSum = 0, winSq = 0, winMax = 0, hits = 0, topEnd = 0;
     const seeds = rounds * BLOOM_SATCHEL_SIZE;
     for (let r = 0; r < rounds; r++){
@@ -33829,9 +33948,7 @@ const BloomAdmin = {
         const base = this._phasePay(f, g.phase) / 100;
         if (base <= 0) continue;                 // a seed pays nothing, so it gets no spin
         // POLLINATE: on a line each BLOOMED plant spins its own wheel
-        win += line
-          ? base * BLOOM_POLLINATE_WHEEL[(Math.random()*BLOOM_POLLINATE_WHEEL.length)|0]
-          : base;
+        win += line ? base * wheel[(Math.random()*wheel.length)|0] : base;
       }
       winSum += win; winSq += win * win; if (win > winMax) winMax = win; if (win > 0) hits++;
     }
