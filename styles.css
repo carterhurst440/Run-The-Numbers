@@ -6886,19 +6886,18 @@ body[data-ui="new"] .str-rule-example {
 }
 
 .store-content {
-  width: min(1120px, 100%);
+  width: min(var(--page-width), 100%);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: clamp(1.5rem, 3vw, 2rem);
-  padding: clamp(1.75rem, 4vw, 3rem) clamp(1.25rem, 4vw, 2.5rem) clamp(3rem, 6vw, 4.5rem);
+  padding: var(--page-pad-top) var(--page-pad-x) var(--page-pad-bottom);
 }
 
+/* layout comes from .route-header now (top-aligned, heading left, actions right) so
+   the title lands level with every other page; only the gap is store-specific */
 .store-header {
-  display: flex;
-  align-items: center;
   gap: clamp(0.75rem, 2vw, 1.5rem);
-  flex-wrap: wrap;
 }
 
 .store-heading {
@@ -6931,8 +6930,8 @@ body[data-ui="new"] .str-rule-example {
 
 .store-title {
   font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
-  font-size: clamp(1.7rem, 4.5vw, 2.4rem);
-  letter-spacing: 0.12em;
+  font-size: var(--page-title-size);
+  letter-spacing: var(--page-title-tracking);
   text-transform: uppercase;
   color: var(--text-light);
   text-shadow: 0 0 18px rgba(200, 255, 0, 0.25);
@@ -15455,15 +15454,12 @@ body.game-route .monkey-moonshine-frame {
   outline: none;
 }
 
+/* was overriding .route-shell to 1360px, which is why Logs sat wider than every
+   other page and its title started further left */
 .activity-log-shell {
-  width: min(100%, 1360px);
   max-width: 100%;
   display: grid;
   gap: 1rem;
-}
-
-.route-shell.activity-log-shell {
-  width: min(100%, 1360px);
 }
 
 .account-chart-route-section {
@@ -17192,10 +17188,29 @@ body.state-open .auth-vault-grant .gline::after {
 
 /* ── END VAULT LOGIN ───────────────────────────────────────── */
 
+/* ── Shared page frame ────────────────────────────────────────────────────
+   Account Chart & Logs, Store, Admin and Profile each grew their own shell:
+   four different widths (1360 / 1120 / 960 / 700), three different side
+   paddings, and Profile with none at all and a centred title. Moving between
+   them made the heading jump. These tokens are the single definition of a
+   page's width, gutters and title, and all four shells now read from them, so
+   the title lands in the same place on every route. */
+:root {
+  --page-width: 1120px;
+  --page-pad-x: clamp(1.5rem, 5vw, 3rem);
+  --page-pad-top: clamp(2rem, 4vw, 3.5rem);
+  --page-pad-bottom: clamp(3rem, 6vw, 5rem);
+  /* the live (data-ui="new") heading: Logs and Contests already shared this, so
+     it is the house style — Admin and Store were double the size, Profile half it */
+  --page-title-size: clamp(1.2rem, 3vw, 1.6rem);
+  --page-title-tracking: 0.14em;
+  --page-title-color: #c8c8a0;
+}
+
 .route-shell {
-  width: min(960px, 100%);
+  width: min(var(--page-width), 100%);
   margin: 0 auto;
-  padding: clamp(2rem, 4vw, 3.5rem) clamp(1.5rem, 5vw, 3rem) clamp(3rem, 6vw, 5rem);
+  padding: var(--page-pad-top) var(--page-pad-x) var(--page-pad-bottom);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: clamp(1.75rem, 4vw, 2.5rem);
@@ -17212,8 +17227,8 @@ body.state-open .auth-vault-grant .gline::after {
 .route-header h1 {
   margin: 0;
   font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
-  font-size: clamp(1.8rem, 5vw, 2.4rem);
-  letter-spacing: 0.08em;
+  font-size: var(--page-title-size);
+  letter-spacing: var(--page-title-tracking);
   text-transform: uppercase;
 }
 
@@ -17505,9 +17520,8 @@ body.state-open .auth-vault-grant .gline::after {
   flex-wrap: wrap;
 }
 
-.admin-view .route-shell {
-  width: min(1360px, 100%);
-}
+/* Admin was widened to 1360px while every other page sat narrower, which pushed
+   its title further left than the rest. It uses the shared page width now. */
 
 .admin-prize-list {
   list-style: none;
@@ -18813,10 +18827,6 @@ body.state-open .auth-vault-grant .gline::after {
 }
 
 @media (max-width: 768px) {
-  .admin-view .route-shell {
-    padding-inline: 1rem;
-  }
-
   .admin-tabs {
     overflow-x: auto;
     overflow-y: hidden;
@@ -19055,10 +19065,6 @@ body.state-open .auth-vault-grant .gline::after {
 }
 
 @media (max-width: 560px) {
-  .admin-view .route-shell {
-    padding-inline: 0.75rem;
-  }
-
   .admin-tab {
     padding: 0.58rem 0.9rem;
     font-size: 0.82rem;
@@ -19562,7 +19568,10 @@ body.state-open .auth-vault-grant .gline::after {
    =========================== */
 
 .profile-view {
-  padding: 2rem 1rem;
+  /* No padding here: the shell inside already carries the shared page gutter, and
+     the two stacked put Profile's title 16px right of every other page's. The
+     other three route views pad on their shell only. */
+  padding: 0;
   min-height: calc(100vh - 120px); /* Account for header and chip bar */
   display: flex;
   flex-direction: column;
@@ -19572,22 +19581,23 @@ body.state-open .auth-vault-grant .gline::after {
 }
 
 .profile-page-wrapper {
-  width: 100%;
-  max-width: 700px;
+  width: min(var(--page-width), 100%);
   margin: 0 auto;
-  padding-bottom: 2rem;
+  padding: var(--page-pad-top) var(--page-pad-x) var(--page-pad-bottom);
 }
 
+/* left, like every other page — this header was centred, which was the most
+   obvious part of the title jumping between routes */
 .profile-header {
-  text-align: center;
+  text-align: left;
   margin-bottom: 2rem;
 }
 
 .profile-header h1 {
   margin: 0 0 0.5rem 0;
   font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
-  font-size: 2rem;
-  letter-spacing: 0.08em;
+  font-size: var(--page-title-size);
+  letter-spacing: var(--page-title-tracking);
   text-transform: uppercase;
   color: var(--accent);
 }
@@ -20310,14 +20320,11 @@ body.state-open .auth-vault-grant .gline::after {
 }
 
 @media (max-width: 768px) {
-  .profile-view {
-    padding: 1rem;
-  }
-  
-  .profile-header h1 {
-    font-size: 1.5rem;
-  }
-  
+  /* .profile-view padding and a bespoke h1 size used to live here. Both fought the
+     shared page frame — the padding stacked on the shell's gutter and pushed the
+     title 16px right of every other page on exactly the widths phones use, and the
+     1.5rem size broke the common heading. The shared tokens cover both. */
+
   .profile-form-card {
     padding: 1.5rem;
   }
@@ -25601,19 +25608,8 @@ body[data-ui="new"] .profile-view {
   background: transparent;
 }
 
-body[data-ui="new"] .profile-page-wrapper {
-  padding: 1.5rem clamp(1rem, 4vw, 2rem);
-  max-width: 640px;
-}
-
-body[data-ui="new"] .profile-header h1 {
-  font-family: inherit;
-  font-size: clamp(1rem, 2.5vw, 1.2rem);
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #d8d8b0;
-}
+/* width/padding now come from the shared page tokens; the title is covered by the
+   single page-title rule above */
 
 body[data-ui="new"] .profile-header .profile-subtitle {
   color: #686850;
@@ -26066,10 +26062,19 @@ body[data-ui="new"] .log-section-label {
 }
 
 /* Route header */
-body[data-ui="new"] .activity-log-shell .route-header h1 {
-  font-size: clamp(1.2rem, 3vw, 1.6rem);
-  letter-spacing: 0.14em;
-  color: #c8c8a0;
+/* ONE definition of a page title for the live UI. Each page used to bring its
+   own — Logs and Contests here, Profile at half the size in its own block, Admin
+   and Store falling through to the much larger base rule — so the heading changed
+   size and colour as you moved between them. */
+body[data-ui="new"] .route-header h1,
+body[data-ui="new"] .store-title,
+body[data-ui="new"] .profile-header h1 {
+  font-family: inherit;
+  font-size: var(--page-title-size);
+  letter-spacing: var(--page-title-tracking);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--page-title-color);
 }
 
 body[data-ui="new"] .activity-log-shell .link-button {
@@ -26487,11 +26492,8 @@ body[data-ui="new"] .contest-wins-modal .modal-actions .primary:hover:not(:disab
 /* ── Contests Page — new UI ─────────────────────────────────────────── */
 
 /* Route chrome */
-body[data-ui="new"] .contests-shell .route-header h1 {
-  font-size: clamp(1.2rem, 3vw, 1.6rem);
-  letter-spacing: 0.14em;
-  color: #c8c8a0;
-}
+/* Contests already matched the house style; it now takes it from the shared rule
+   rather than restating it, so it cannot drift if the token changes. */
 
 body[data-ui="new"] .contests-shell .link-button {
   border-color: #2a2a22;

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260720h-framefill" />
+    <link rel="stylesheet" href="styles.css?v=20260720q-pageframe4" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -2914,18 +2914,24 @@
 
         <section id="store-view" class="route-view app-page store-view" hidden aria-labelledby="store-title">
           <div class="store-content">
-            <header class="store-header">
-              <button
-                type="button"
-                class="store-back"
-                data-route-target="home"
-                aria-label="Back to home"
-              >
-                ← Back
-              </button>
+            <!-- Same shape as .route-header on the other pages: heading first, actions
+                 to the right. The Back button used to sit BEFORE the title in the same
+                 row, so it pushed the title right on wide screens and — once the row
+                 wrapped — 42px down on narrow ones. -->
+            <header class="store-header route-header">
               <div class="store-heading">
                 <h2 id="store-title" class="store-title">Prize Shop</h2>
                 <p class="store-subtitle">Redeem Units or Carter Cash for limited rewards.</p>
+              </div>
+              <div class="route-actions">
+                <button
+                  type="button"
+                  class="store-back"
+                  data-route-target="home"
+                  aria-label="Back to home"
+                >
+                  ← Back
+                </button>
               </div>
             </header>
             <div id="prize-redemption-banner" class="prize-redemption-banner" role="status" aria-live="polite" hidden>
