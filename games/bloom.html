@@ -149,7 +149,7 @@
   .sat-col-current .satchel-strip .slot .sicon{height:64%}
   .sat-col-current .satchel-strip .slot small{display:block;font-size:8px;line-height:1;margin-top:1px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
   /* ADD SEEDS: show all ten at once, no inner scroll, compact rows */
-  .sat-modal .picker{grid-template-columns:1fr;max-height:none;overflow:visible;padding-right:0;gap:6px}
+  .sat-modal .picker{grid-template-columns:1fr;max-height:none;overflow:visible;padding-right:0;--picker-gap:6px}
   .sat-modal .pick{padding:5px 9px;border-radius:2px}
   .sat-modal .pick img.pe{width:26px;height:26px}
   .sat-modal .pick .pe{font-size:18px}
@@ -211,7 +211,8 @@
   .wchip .wi{font-size:26px} .wchip .wn{font-size:11px;letter-spacing:.5px;margin-top:3px}
 
   .satchel{flex:1 1 300px;max-width:340px;min-width:0}
-  .picker{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;max-height:300px;overflow:auto;padding-right:4px}
+  .picker{display:grid;grid-template-columns:repeat(2,1fr);--picker-gap:7px;gap:var(--picker-gap);
+    max-height:300px;overflow:auto;padding-right:4px}
   .pick{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.42);border:1px solid var(--line);
     border-radius:2px;padding:6px 8px;cursor:pointer}
   .pick:hover{border-color:var(--accent)}
@@ -231,8 +232,15 @@
   .statbtn{font-size:9px;font-weight:800;letter-spacing:.5px;color:var(--muted);
     background:transparent;border:1px solid var(--line);border-radius:2px;padding:3px 6px;cursor:pointer}
   .statbtn:hover{color:var(--gold);border-color:var(--gold)}
-  .pickstats{grid-column:1/-1;background:rgba(255,255,255,.42);border:1px solid var(--line);
-    border-radius:2px;padding:11px 13px 12px;margin:-2px 0 3px;font-size:11px;animation:statin .14s ease}
+  /* An open stat panel and its flower read as ONE card. The tile takes the whole
+     row and becomes the card header — its own bottom border doubles as the rule
+     under the header — and the panel hangs flush off that edge: no gap, no top
+     border of its own, matching wash, and only the outer corners rounded. */
+  .pick.is-open{grid-column:1/-1;background:rgba(255,255,255,.6);border-radius:2px 2px 0 0}
+  .pick.is-open .statbtn{color:var(--gold);border-color:var(--gold)}
+  .pickstats{grid-column:1/-1;background:rgba(255,255,255,.6);border:1px solid var(--line);border-top:none;
+    border-radius:0 0 2px 2px;padding:11px 13px 12px;font-size:11px;animation:statin .14s ease;
+    margin:calc(-1 * var(--picker-gap,7px)) 0 3px}   /* swallow the grid row-gap so it butts the tile */
   @keyframes statin{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
   .pslbl{font-size:10px;letter-spacing:1px;color:var(--accent);text-transform:uppercase;
     margin:11px 0 6px;border-top:1px solid var(--line);padding-top:8px;font-weight:700}
@@ -2934,14 +2942,15 @@ function renderPicker(){
     d.querySelector('.statbtn').onclick=(e)=>{
       e.stopPropagation();
       const isOpen = panel.style.display!=='none';
-      // close any other open panel
+      // close any other open panel, and drop the header styling off its tile
       p.querySelectorAll('.pickstats').forEach(n=>n.style.display='none');
-      if(!isOpen){ panel.innerHTML=statPanelHTML(f); panel.style.display=''; openStat=f.id; }
+      p.querySelectorAll('.pick.is-open').forEach(n=>n.classList.remove('is-open'));
+      if(!isOpen){ panel.innerHTML=statPanelHTML(f); panel.style.display=''; d.classList.add('is-open'); openStat=f.id; }
       else openStat=null;
     };
     p.appendChild(d);
     p.appendChild(panel);
-    if(openStat===f.id){ panel.innerHTML=statPanelHTML(f); panel.style.display=''; }
+    if(openStat===f.id){ panel.innerHTML=statPanelHTML(f); panel.style.display=''; d.classList.add('is-open'); }
   });
 }
 function renderSlots(){
