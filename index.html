@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260721g-gardenfx" />
+    <link rel="stylesheet" href="styles.css?v=20260721h-sounds" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -3888,6 +3888,16 @@
               <section class="route-section admin-list-section">
                 <div class="admin-listing-header">
                   <div>
+                    <h2>BLOOM — Sounds</h2>
+                    <p class="route-subheading">Sound effects and music for the game. Upload an audio file (mp3 / wav / ogg / m4a) per slot — leave a slot empty for silence. <strong>Background ambient</strong> and <strong>Pollination special music</strong> loop; everything else is a one-shot fired by its event. Weather sounds play when that reel lands. Saves immediately; the game re-pulls on next open, and players get a mute toggle in the garden corner.</p>
+                  </div>
+                </div>
+                <div id="bloom-sounds-editor" class="bloom-sounds-editor"></div>
+                <span class="admin-fof-status" id="bloom-sound-status"></span>
+              </section>
+              <section class="route-section admin-list-section">
+                <div class="admin-listing-header">
+                  <div>
                     <h2>BLOOM — Flowers</h2>
                     <p class="route-subheading">One master editor: stats, per-weather bloom/wilt odds, active toggle, and custom icon / animation uploads. Only <strong>active</strong> flowers appear in the game. Loads from <code>bloom_flowers</code>; press <strong>Save to DB</strong> to persist (the game re-pulls on next load).</p>
                   </div>
@@ -5527,7 +5537,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260721j-fx-onepass"></script>
+    <script type="module" src="script.js?v=20260721k-sounds"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

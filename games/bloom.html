@@ -642,6 +642,14 @@
     background-repeat:no-repeat;background-position:center;background-size:100% 100%;
     opacity:0;transition:opacity .3s ease}                          /* fade-OUT (matches FX_FADE_OUT_MS); normal blend (gifs are coloured, not white) */
   .garden-fx.on{opacity:.9;transition:opacity .12s ease}           /* quick fade-IN so a short pass isn't faint */
+  /* sound on/off toggle — sits in the garden's top-left over empty sky (z5: above
+     the weather fx, below the POLLINATE swarm) */
+  .snd-toggle{position:absolute;top:6px;left:6px;z-index:5;width:30px;height:30px;padding:0;
+    display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;cursor:pointer;
+    border:1.5px solid rgba(20,20,20,.18);border-radius:8px;background:rgba(255,255,255,.62);
+    -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+  .snd-toggle:hover{background:rgba(255,255,255,.9)}
+  .snd-toggle[aria-pressed="true"]{opacity:.72}
   /* satchel: one horizontal row */
   /* Header is ONE compact line — SATCHEL + MAX WIN inline on the left, a plain
      text EDIT on the right — so it takes ~a quarter of the bar instead of half. */
@@ -870,6 +878,8 @@
         <!-- animated weather effect washing over the whole garden (rain, heat
              shimmer, snow…); driven by applyWeatherTheme with the drawn weather -->
         <div class="garden-fx" id="gardenFx"></div>
+        <!-- sound on/off; hidden until the admin has uploaded at least one sound -->
+        <button type="button" class="snd-toggle" id="sndToggle" title="Sound on / off" aria-label="Sound on / off" aria-pressed="false" style="display:none">🔊</button>
         <div class="muted dirt-hint" id="dirtHint">cast your seeds →</div>
         <!-- POLLINATE: bees swarm the flower being pollinated, and the wheel that
              sets ITS multiplier sits over the bed. One click + spin per flower. -->
@@ -3284,7 +3294,7 @@ function renderPicker(){
     const d=el('div','pick',`${flowerIcon(f,'pe')}<span class="pn">${f.name}</span>`
       +`<span class="muted" style="font-size:10px" title="bloom pay / super bloom pay">+${f.pay}% / +${topPay(f)}%</span>`
       +`<button class="statbtn" title="Player stats">STATS</button>`);
-    d.onclick=()=>{if(state.satchel.length<SATCHEL_SIZE){state.satchel.push(f.id);syncSatchel();scrollSatchelEnd();}};
+    d.onclick=()=>{if(state.satchel.length<SATCHEL_SIZE){state.satchel.push(f.id);sfx('satchel_add');syncSatchel();scrollSatchelEnd();}};
     const panel=el('div','pickstats');
     panel.style.display='none';
     d.querySelector('.statbtn').onclick=(e)=>{
@@ -3323,10 +3333,10 @@ function renderModalSlots(){
     if(fid){const f=flower(fid);
       slot.innerHTML=`<div class="sicon">${flowerIcon(f,'')}</div><small>${f.name}</small>`;
       const rm=el('button','rm','×');
-      rm.onclick=(e)=>{e.stopPropagation();state.satchel.splice(i,1);syncSatchel();};
+      rm.onclick=(e)=>{e.stopPropagation();state.satchel.splice(i,1);sfx('satchel_remove');syncSatchel();};
       slot.appendChild(rm);
       slot.title='Remove '+f.name;
-      slot.onclick=()=>{state.satchel.splice(i,1);syncSatchel();};
+      slot.onclick=()=>{state.satchel.splice(i,1);sfx('satchel_remove');syncSatchel();};
     } else {slot.innerHTML='<span class="muted">+</span>';slot.style.opacity=.5;}
     s.appendChild(slot);
   }
@@ -3344,6 +3354,7 @@ function openSatModal(){
   // card would size to 100dvh — the FRAME's height — and run under the browser
   // chrome. Ask again on the way in.
   requestShellViewport();
+  sfx('satchel_edit');
   m.hidden=false; renderModalSlots(); updateVolatility();
 }
 function closeSatModal(){ const m=$('#satModal'); if(m) m.hidden=true; }
@@ -3564,6 +3575,13 @@ function growReplay(plants,upto){
     paintPlant(p,phase,alive,cause);
     if(upto>0) popPlant(p, p.events[upto-1]);
   });
+  // One sound per revealed draw: growth wins if ANY flower grew/bloomed this step
+  // (even alongside wilts); wilt only when nothing grew but at least one wilted.
+  if(upto>0){
+    const evs=plants.map(p=>p.events[upto-1]);
+    if(evs.some(e=>e==='bloom'||e==='super')) sfx('flower_growth');
+    else if(evs.some(e=>e==='wilt')) sfx('flower_wilt');
+  }
 }
 /* A 3-in-a-row on the weather reels multiplies the WHOLE BOARD. Butterflies are
    WILD: a line counts as a match if every non-butterfly reel is the same pattern.
@@ -3620,6 +3638,7 @@ function castSeeds(){
   if(bet>SHELL.balance){banner('lose','Not enough credits for that bet');return;}
   SHELL.balance-=bet;                 // debit the stake at cast (outcome is fixed here)
   bloomRenderBalance();
+  sfx('seed_cast');
   const plants=state.satchel.map(fid=>{const f=flower(fid);return{f,_took:Math.random()*100<f.take};});
   const draws=polTestDraws(drawWeather());    // admin rig only; a no-op without ?poltest=1
   plants.forEach(p=>growPlant(p,draws));      // outcome fixed at cast, revealed reel-by-reel
@@ -3655,9 +3674,11 @@ async function revealNextReel(){
   busy=true;$('#spinBtn').disabled=true;$('#spinBtn').classList.remove('shine');
   const w=wxById(round.draws[s]);
   const cell=$('#weatherReel').children[s];
+  sfx('spin_reel');
   await spinOneCell(cell,w);          // this reel position spins, then locks
+  sfx((w&&w.kind==='butterfly') ? 'butterfly' : (w&&w.id));   // the landed weather's own sound
   applyWeatherTheme(w);
-  growReplay(round.plants,s+1);
+  growReplay(round.plants,s+1);       // growth / wilt sound fires from inside growReplay
   round.step++;
   if(round.step<round.draws.length) setScoreWin(roundReturnUpTo(round.step), true);  // running return
   await sleep2(340);
@@ -3767,6 +3788,60 @@ let pol=null;                                  // null unless a sequence is runn
 // Swarm art: admin uploads land here (bloom_settings.bee_url / butterfly_url) and
 // each falls back to its emoji independently, so one can be custom and one not.
 const POL_ART={bee:null, butterfly:null};
+
+/* ── Sound engine ──────────────────────────────────────────────────────────
+   URLs arrive from the DB (bloom_settings sound_* keys) via the deck. One-shots
+   make a fresh Audio each fire so rapid repeats overlap; `background` and
+   `pollination_music` are looping tracks (the bonus track replaces the ambient
+   bed while it runs). Browsers block audio until a user gesture, so we unlock on
+   the first pointerdown and start the ambient bed then. A mute toggle in the
+   garden corner silences everything and is remembered across sessions. */
+const SND={ urls:{}, music:{}, muted:false, unlocked:false, inPollinate:false };
+try{ SND.muted = localStorage.getItem('bloom_muted')==='1'; }catch(_){}
+function sndSet(map){
+  SND.urls = map || {};
+  if(SND.unlocked && !SND.muted) musicPlay(SND.inPollinate ? 'pollination_music' : 'background');
+  renderSndToggle();
+}
+function sfx(key){
+  if(SND.muted) return;
+  const url=SND.urls[key]; if(!url) return;
+  try{ const a=new Audio(url); a.play().catch(()=>{}); }catch(_){}
+}
+function musicPlay(key){
+  const url=SND.urls[key]; if(!url || SND.muted) return;
+  let a=SND.music[key];
+  if(!a){ a=new Audio(url); a.loop=true; a.volume=0.55; SND.music[key]=a; }
+  else if(a.src!==url){ a.src=url; }
+  a.play().catch(()=>{});
+}
+function musicStop(key){ const a=SND.music[key]; if(a){ a.pause(); try{a.currentTime=0;}catch(_){} } }
+// Enter/leave the POLLINATE bonus: its own loop replaces the ambient bed.
+function sndPollinate(on){
+  const was=SND.inPollinate; SND.inPollinate=!!on;
+  if(on){ musicStop('background'); musicPlay('pollination_music'); }
+  else if(was){ musicStop('pollination_music'); if(SND.unlocked) musicPlay('background'); }
+}
+function sndUnlock(){
+  if(SND.unlocked) return; SND.unlocked=true;
+  if(!SND.muted) musicPlay(SND.inPollinate ? 'pollination_music' : 'background');
+}
+document.addEventListener('pointerdown', sndUnlock);
+function sndToggleMute(){
+  SND.muted=!SND.muted;
+  try{ localStorage.setItem('bloom_muted', SND.muted?'1':'0'); }catch(_){}
+  if(SND.muted) Object.keys(SND.music).forEach(musicStop);
+  else { SND.unlocked=true; musicPlay(SND.inPollinate ? 'pollination_music' : 'background'); }
+  renderSndToggle();
+}
+function renderSndToggle(){
+  const b=$('#sndToggle'); if(!b) return;
+  const has=Object.values(SND.urls).some(Boolean);
+  b.style.display = has ? '' : 'none';        // no sounds configured yet -> hide the control
+  b.textContent = SND.muted ? '🔇' : '🔊';
+  b.setAttribute('aria-pressed', SND.muted ? 'true' : 'false');
+}
+
 function polBugHTML(kind, style){
   const url=POL_ART[kind];
   return url
@@ -3858,6 +3933,7 @@ function polMarkDone(plantIndex, mult){
 
 function beginPollinate(payers, bet){
   round.phase='pollinate';
+  sndPollinate(true);                          // bees out — swap ambient bed for the bonus track
   pol={ payers, bet, idx:0, total:0, mults:[], mode:null, locked:false };
   const done=$('#polDone'); if(done) done.innerHTML='';
   const layer=$('#polLayer'); if(layer) layer.hidden=false;
@@ -3910,6 +3986,7 @@ function polChoose(mode){
 // Put the reels back and drop the bonus UI. Shared by the natural end of a run
 // and by resetPlayArea, so an abandoned run cannot strand the card in wheel mode.
 function polTeardown(){
+  sndPollinate(false);                                   // bonus over — back to the ambient bed
   const reels=$('#weatherReel'), panel=$('#polReel'), title=$('#wreelTitle'), layer=$('#polLayer');
   if(reels) reels.hidden=false;
   if(panel) panel.hidden=true;
@@ -3937,6 +4014,7 @@ async function polSpin(){
   if(!pol||polSpinning) return;
   if(!pol.mode) return;                        // nothing chosen yet
   polSpinning=true;
+  sfx('spin_wheel');
   // The first POLLINATE press commits the method: the buttons go and polChoose
   // refuses further changes, so a run cannot end up half per-flower and half
   // all-at-once. The freed row then carries the running results.
@@ -3953,6 +4031,7 @@ async function polSpin(){
   void wheel.offsetHeight;
   wheel.style.transform=`rotate(${target}deg)`;
   await sleep(2650);                             // matches the 2.6s transition
+  sfx('bonus_awarded');                          // the wheel has settled on its multiplier
   // ONE SPIN mode: this single result rides on every bloom, then the round settles.
   if(pol.mode==='all'){
     // ONLY the flowers that have not spun yet. Anyone switching part-way through
@@ -3975,6 +4054,7 @@ async function polSpin(){
     setScoreWin(pol.total, true);
     wheel.style.transition='none'; wheel.style.transform=`rotate(${target%360}deg)`;
     await sleep(550);
+    sfx('bonus_end');                            // last (and only) award in ONE SPIN mode
     polTeardown();
     // a run that switched part-way is a mix, so report the whole thing honestly
     $('#multi').textContent = pol.mults.length>1
@@ -4003,6 +4083,7 @@ async function polSpin(){
     await sleep(750); polSpinning=false; polStep();
   } else {
     await sleep(550);
+    sfx('bonus_end');                            // fired after the final per-flower award
     polTeardown();
     // a compact summary, not every multiplier: ten of them overflowed the one-line
     // banner and got ellipsised. The per-flower results are on the bed labels.
@@ -4514,10 +4595,12 @@ const BET_STEP=50, BET_MIN=10;
 function nudgeBet(dir){
   const inp=$('#bet'); if(!inp) return;
   const next=Math.max(BET_MIN,(+inp.value||0)+dir*BET_STEP);
+  if(next!==(+inp.value||0)) sfx('bet_change');
   inp.value=next; inp.dispatchEvent(new Event('input',{bubbles:true}));
 }
 $('#betMinus')?.addEventListener('click',()=>nudgeBet(-1));
 $('#betPlus')?.addEventListener('click',()=>nudgeBet(1));
+$('#sndToggle')?.addEventListener('click', sndToggleMute);
 function updateMax(){
   const full=state.satchel.length>=SATCHEL_SIZE;
   let board=0;
@@ -4690,6 +4773,7 @@ function bloomApplyDeck(deck){
   // admin-configured wheel; a bad or empty spec leaves the built-in mix alone
   // rather than letting the bonus pay nothing
   if(deck.pollinate_wheel) setPollinateWheel(deck.pollinate_wheel);
+  if(deck.sounds) sndSet(deck.sounds);         // admin-uploaded sound effects (bloom_settings sound_*)
   if(Array.isArray(deck.flowers) && deck.flowers.length){
     // In the live game only ACTIVE flowers appear; the deck-admin sees them all
     // (so inactive ones can still be edited/re-activated).

@@ -10848,7 +10848,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260721m-fx-onepass");
+      frame.setAttribute("src", "games/bloom.html?v=20260721n-sounds");
     }
     installBloomBridge();   // idempotent: seed the in-memory balance + admin flag
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -20681,12 +20681,18 @@ async function bloomFetchDeck() {
     if (f.error || w.error) { console.error("[bloom] deck fetch", f.error || w.error); return null; }
     const settings = {};
     (s && s.data || []).forEach(r => { settings[r.key] = r.value; });
+    // sound_* keys -> { <slot>: url } for the game's audio engine (empty/blank skipped)
+    const sounds = {};
+    Object.keys(settings).forEach(k => {
+      if (k.startsWith("sound_") && settings[k]) sounds[k.slice(6)] = settings[k];
+    });
     _bloomDeckCache = {
       flowers: f.data || [], weather: w.data || [],
       background_url: settings.background_url || null,
       bee_url: settings.bee_url || null,               // POLLINATE swarm art; null => emoji
       butterfly_url: settings.butterfly_url || null,
-      pollinate_wheel: bloomParseWheel(settings.pollinate_wheel)
+      pollinate_wheel: bloomParseWheel(settings.pollinate_wheel),
+      sounds
     };
     return _bloomDeckCache;
   } catch (e) { console.error("[bloom] deck fetch", e); return null; }
@@ -33478,12 +33484,39 @@ function bloomWheelMean(spec){
 const BLOOM_SATCHEL_SIZE = 10;                         // two rows of 5 plants per round
 const BLOOM_TARGET_PER_SEED = 99 / BLOOM_SATCHEL_SIZE; // 9.9% (99% target RTP / 10 seeds)
 
+// BLOOM sound slots. Each stored in bloom_settings as `sound_<key>`; the game
+// reads them (prefix stripped) and plays them at the matching event. Weather keys
+// match the weather ids so a landed reel finds its own sound. `loop:true` marks
+// the two music beds.
+const BLOOM_SOUND_SLOTS = [
+  { group: 'Music', key: 'background', label: 'Background ambient', loop: true, hint: 'Loops during play' },
+  { group: 'Music', key: 'pollination_music', label: 'Pollination special music', loop: true, hint: 'Loops during the POLLINATE bonus (replaces the ambient bed)' },
+  { group: 'Weather', key: 'w_heat', label: 'Sun' },
+  { group: 'Weather', key: 'w_frz', label: 'Frost' },
+  { group: 'Weather', key: 'w_wind', label: 'Wind' },
+  { group: 'Weather', key: 'w_dew', label: 'Dew' },
+  { group: 'Weather', key: 'w_rain', label: 'Rain' },
+  { group: 'Weather', key: 'butterfly', label: 'Butterfly' },
+  { group: 'Flowers', key: 'flower_growth', label: 'Flower growth', hint: 'Any sequence where a flower grows / blooms (even if others wilt that sequence)' },
+  { group: 'Flowers', key: 'flower_wilt', label: 'Flower wilt', hint: 'Only when nothing grows but at least one wilts' },
+  { group: 'Actions', key: 'seed_cast', label: 'Seed cast' },
+  { group: 'Actions', key: 'satchel_edit', label: 'Edit satchel click' },
+  { group: 'Actions', key: 'satchel_add', label: 'Add flower to satchel' },
+  { group: 'Actions', key: 'satchel_remove', label: 'Remove flower from satchel' },
+  { group: 'Actions', key: 'bet_change', label: 'Increase / decrease bet' },
+  { group: 'Reels', key: 'spin_reel', label: 'Spin reel' },
+  { group: 'Reels', key: 'spin_wheel', label: 'Spin wheel' },
+  { group: 'Bonus', key: 'bonus_awarded', label: 'Bonus awarded', hint: 'Each time the pollination wheel settles on a multiplier' },
+  { group: 'Bonus', key: 'bonus_end', label: 'End of bonus', hint: 'After the last award in the pollination sequence' }
+];
+
 const BloomAdmin = {
   flowers: [],
   weather: [],
   backgroundUrl: null,
   beeUrl: null,
   butterflyUrl: null,
+  sounds: {},                                        // slot key -> url
   wheel: BLOOM_WHEEL_DEFAULT.map(r => ({ ...r })),   // POLLINATE mix, [{m,n}]
 
   status(msg){ const el = document.getElementById('bloom-editor-status'); if (el) el.textContent = msg || ''; },
@@ -33663,6 +33696,85 @@ const BloomAdmin = {
     }
   },
 
+  // ── Sound effects ─────────────────────────────────────────────────────────
+  // Every slot lives in bloom_settings as `sound_<key>`; a blank value means "no
+  // sound" (the game simply skips it). Uploads auto-persist so they survive without
+  // a full Save to DB. The game re-pulls on next open.
+  soundStatus(msg){ const el = document.getElementById('bloom-sound-status'); if (el) el.textContent = msg || ''; },
+  renderSounds(){
+    const host = document.getElementById('bloom-sounds-editor');
+    if (!host) return;
+    host.innerHTML = '';
+    let group = null;
+    BLOOM_SOUND_SLOTS.forEach(slot => {
+      if (slot.group !== group){
+        group = slot.group;
+        const h = document.createElement('div'); h.className = 'bloom-sound-group'; h.textContent = group;
+        host.appendChild(h);
+      }
+      const url = this.sounds[slot.key] || '';
+      const row = document.createElement('div'); row.className = 'bloom-sound-row';
+
+      const label = document.createElement('div'); label.className = 'bloom-sound-label';
+      label.innerHTML = `<span class="bloom-sound-name">${slot.label}${slot.loop ? ' <em>(loops)</em>' : ''}</span>`
+        + (slot.hint ? `<span class="bloom-sound-hint">${slot.hint}</span>` : '');
+
+      const ctrls = document.createElement('div'); ctrls.className = 'bloom-sound-ctrls';
+      ctrls.appendChild(
+        this.uploadBtn(url ? 'Replace' : 'Upload', 'audio/*', file => this.uploadSound(slot.key, file))
+      );
+      if (url){
+        const audio = document.createElement('audio'); audio.controls = true; audio.preload = 'none';
+        audio.src = url; audio.className = 'bloom-sound-audio';
+        ctrls.appendChild(audio);
+        const clr = document.createElement('button'); clr.type = 'button'; clr.className = 'secondary'; clr.textContent = 'Clear';
+        clr.addEventListener('click', () => this.clearSound(slot.key));
+        ctrls.appendChild(clr);
+      } else {
+        const none = document.createElement('span'); none.className = 'bloom-sound-none'; none.textContent = 'none';
+        ctrls.appendChild(none);
+      }
+      row.append(label, ctrls);
+      host.appendChild(row);
+    });
+  },
+  async uploadSound(key, file){
+    if (!isAdmin(currentUser)){ this.soundStatus('Admin access only'); return; }
+    if (!file) return;
+    if (!/^audio\//i.test(file.type || '')){ this.soundStatus('Please choose an audio file (mp3, wav, ogg, m4a).'); return; }
+    this.soundStatus(`Uploading ${key}…`);
+    try {
+      const url = await uploadBloomAsset(file, `sounds/${key}`);
+      const up = await supabase.from('bloom_settings')
+        .upsert({ key: `sound_${key}`, value: url, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (up.error) throw up.error;
+      this.sounds[key] = url;
+      this.renderSounds();
+      bloomInvalidateDeck();
+      this.soundStatus(`${key} saved — reopen the game to hear it.`);
+    } catch (e){
+      console.error('[bloom] sound upload', e);
+      this.soundStatus('Upload error: ' + (e?.message || e));
+    }
+  },
+  async clearSound(key){
+    if (!isAdmin(currentUser)){ this.soundStatus('Admin access only'); return; }
+    this.soundStatus(`Clearing ${key}…`);
+    try {
+      // blank rather than delete: keeps the row, and the game reads '' as "no sound"
+      const up = await supabase.from('bloom_settings')
+        .upsert({ key: `sound_${key}`, value: '', updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (up.error) throw up.error;
+      delete this.sounds[key];
+      this.renderSounds();
+      bloomInvalidateDeck();
+      this.soundStatus(`${key} cleared.`);
+    } catch (e){
+      console.error('[bloom] sound clear', e);
+      this.soundStatus('Clear error: ' + (e?.message || e));
+    }
+  },
+
   slugify(name){
     return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   },
@@ -33687,6 +33799,8 @@ const BloomAdmin = {
       this.backgroundUrl = settings.background_url || null;
       this.beeUrl = settings.bee_url || null;
       this.butterflyUrl = settings.butterfly_url || null;
+      this.sounds = {};
+      Object.keys(settings).forEach(k => { if (k.startsWith('sound_') && settings[k]) this.sounds[k.slice(6)] = settings[k]; });
       this.wheel = bloomParseWheel(settings.pollinate_wheel) || BLOOM_WHEEL_DEFAULT.map(r => ({ ...r }));
       this.flowers = (f.data || []).map(r => ({
         flower: r.flower,
@@ -33718,6 +33832,7 @@ const BloomAdmin = {
       this.renderBackground();
       this.renderBugs();
       this.renderWheel();
+      this.renderSounds();
       this.status('');
     } catch (e){
       console.error('[bloom] load', e);
