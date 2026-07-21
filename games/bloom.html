@@ -610,7 +610,8 @@
      yellow field. Each cell has a min-width so the row doesn't shift as the numbers
      grow or the WIN label picks up its × multiple. */
   .kiiro-header .hud-board{display:flex;align-items:stretch;flex:none;
-    background:#141414;border:2px solid #141414;border-radius:3px;padding:3px 2px 4px}
+    background:#141414;border:2px solid #141414;border-radius:3px;padding:3px 2px 4px;
+    transition:background .5s ease,border-color .5s ease,box-shadow .5s ease,transform .5s ease}
   .kiiro-header .board-cell{display:flex;flex-direction:column;align-items:center;gap:0;
     padding:0 11px;min-width:76px}
   .kiiro-header .board-div{width:1px;background:rgba(246,228,0,.22);margin:1px 0}
@@ -630,6 +631,19 @@
      soft drop shadow so it reads over the pink field and the bouquet behind it */
   body.pollinating .kiiro-header h1{color:#ffffff;font-weight:900;font-size:24px;
     text-shadow:0 2px 7px rgba(150,20,85,.55),0 1px 2px rgba(0,0,0,.3)}
+  /* pink pollination theme: the whole scoreboard goes special — deep magenta-black
+     panel ringed in pulsing pink neon, every accent shifted from yellow/green to
+     pink. Reads as a powered-up "bonus" readout for the duration of the phase. */
+  body.pollinating .kiiro-header .hud-board{background:#1a0812;border-color:#ff2d9b;transform:scale(1.05);
+    box-shadow:0 0 0 1px rgba(255,45,155,.55),0 0 14px rgba(255,45,155,.7),0 0 34px rgba(255,45,155,.42),inset 0 0 12px rgba(255,45,155,.28);
+    animation:sbNeon 1.7s ease-in-out infinite}
+  @keyframes sbNeon{0%,100%{box-shadow:0 0 0 1px rgba(255,45,155,.5),0 0 12px rgba(255,45,155,.6),0 0 28px rgba(255,45,155,.35),inset 0 0 10px rgba(255,45,155,.22)}
+    50%{box-shadow:0 0 0 1.5px rgba(255,90,190,.85),0 0 20px rgba(255,45,155,.95),0 0 46px rgba(255,45,155,.6),inset 0 0 16px rgba(255,45,155,.4)}}
+  body.pollinating .kiiro-header .board-div{background:rgba(255,90,190,.6);box-shadow:0 0 7px rgba(255,45,155,.8)}
+  body.pollinating .kiiro-header .hud-board .hud-label{color:#ff9fd0;text-shadow:0 0 7px rgba(255,45,155,.7);letter-spacing:.16em}
+  body.pollinating .kiiro-header .board-bet .hud-val{color:#ff8ac8;text-shadow:0 0 9px rgba(255,45,155,.75)}
+  body.pollinating .kiiro-header .board-win .hud-val{color:#ff5fb0;
+    text-shadow:0 0 9px rgba(255,45,155,.9),0 0 20px rgba(255,45,155,.55)}
   /* phones: keep the wordmark + board + balance on ONE row */
   @media (max-width:430px){
     /* only the vertical padding and gap tighten here — the horizontal gutter stays
