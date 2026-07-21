@@ -27528,29 +27528,22 @@ body[data-ui="new"] .home-game-card-bloom.is-locked { opacity: 0.9; }
   color: #ff2d9b;
   filter: drop-shadow(0 0 6px color-mix(in oklab, #ff2d9b 70%, transparent));
 }
-/* Zone 2 — bouncing flower row */
-.bloom-tile-sprites {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 6px;
-  padding: 0 6px;
-  min-height: 46px;
+/* Zone 2 — procedural flower cluster (the game's title-bloom effect, ported).
+   Grows once (JS rAF) then holds static; the idle sway is a cheap GPU transform. */
+.bloom-tile-bouquet {
   width: 100%;
-}
-.bloom-tile-sprite {
+  height: 72px;
+  padding: 0 6px;
   display: block;
-  width: 44px;
-  height: 44px;
-  background-repeat: no-repeat;
-  background-size: contain;
-  background-position: center;
-  animation: mm-tile-bounce 1.9s ease-in-out infinite;
+  opacity: 0;
+  transition: opacity 0.4s ease;
 }
-.bloom-tile-sprite:nth-child(2) { animation-delay: 0.24s; }
-.bloom-tile-sprite:nth-child(3) { animation-delay: 0.48s; }
-.bloom-tile-sprite:nth-child(4) { animation-delay: 0.72s; }
-.bloom-tile-sprite:nth-child(5) { animation-delay: 0.96s; }
+.bloom-tile-bouquet.on { opacity: 1; }
+.bloom-tile-bouquet svg { overflow: visible; }
+@media (prefers-reduced-motion: no-preference) {
+  .bloom-tile-bouquet.on svg { transform-origin: 50% 100%; animation: blmSway 5.5s ease-in-out infinite; }
+  @keyframes blmSway { 0%, 100% { transform: rotate(-0.8deg); } 50% { transform: rotate(0.8deg); } }
+}
 /* Zone 3 — wordmark */
 .bloom-tile-wordmark {
   font-family: "JetBrains Mono", monospace;
@@ -27562,12 +27555,10 @@ body[data-ui="new"] .home-game-card-bloom.is-locked { opacity: 0.9; }
   padding: 4px 0 8px;
   text-shadow: 0 0 10px color-mix(in oklab, #ff2d9b 55%, transparent), 0 0 2px #ff2d9b;
 }
-@media (prefers-reduced-motion: reduce) { .bloom-tile-sprite { animation: none; } }
 /* keep BLOOM beside / same row-drop behaviour as MM + FOF when the grid narrows */
 @media (max-width: 720px) {
   body[data-ui="new"] .home-game-card-bloom { grid-column: span 1; }
-  .bloom-tile-sprite { width: 34px; height: 34px; }
-  .bloom-tile-sprites { gap: 4px; min-height: 40px; }
+  .bloom-tile-bouquet { height: 60px; }
 }
 
 /* Keep Fate or Fortune + Monkey Moonshine side by side when the game grid
