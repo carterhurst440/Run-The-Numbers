@@ -3639,7 +3639,7 @@ function growPlant(p,draws){
     else p.events.push('none');                       // weather did nothing to it
   });
 }
-function growReplay(plants,upto){
+function growReplay(plants,upto,silent){
   plants.forEach(p=>{
     let phase=SEED, alive=p._took, cause=p._took?null:'dud';
     for(let s=0;s<upto;s++){
@@ -3654,7 +3654,7 @@ function growReplay(plants,upto){
   });
   // One sound per revealed draw: growth wins if ANY flower grew/bloomed this step
   // (even alongside wilts); wilt only when nothing grew but at least one wilted.
-  if(upto>0){
+  if(!silent && upto>0){
     const evs=plants.map(p=>p.events[upto-1]);
     if(evs.some(e=>e==='bloom'||e==='super')) sfx('flower_growth');
     else if(evs.some(e=>e==='wilt')) sfx('flower_wilt');
@@ -3692,6 +3692,7 @@ let round=null, busy=false;
 function updateSpinButton(){
   const btn=$('#spinBtn'); if(!btn) return;
   if(!round){ btn.innerHTML='CAST SEEDS'; }
+  else if(round.awaitingCast){ btn.innerHTML='CASTING…'; btn.disabled=true; btn.classList.remove('shine'); return; }
   else if(round.phase==='cast'){ btn.innerHTML=`SPIN REEL ${round.step+1} / ${round.draws.length}`; }
   else if(round.phase==='pollinate'){          // same button, now driving the bonus
     btn.style.display='';
@@ -3720,7 +3721,11 @@ function castSeeds(){
   const draws=polTestDraws(drawWeather());    // admin rig only; a no-op without ?poltest=1
   plants.forEach(p=>growPlant(p,draws));      // outcome fixed at cast, revealed reel-by-reel
   polTestForceBlooms(plants);                 // ditto
-  round={plants,draws,step:0,phase:'cast',done:false,bet};   // remember the staked bet
+  round={plants,draws,step:0,phase:'cast',done:false,bet,id:null,number:null};   // remember the staked bet
+  // Server wallet: broker the stake through the shell. We debited #balVal optimistically
+  // above for snappiness; the shell replies cast-ok (with the authoritative balance +
+  // round_id) or cast-fail (refund + tear down). Reels stay locked until cast-ok lands.
+  if(bloomServerWallet()){ round.awaitingCast=true; bloomPost('cast', {bet, round: bloomRoundSnapshot(round)}); }
   const hint=$('#dirtHint');if(hint)hint.style.display='none';
   setBetLocked(true, bet); setScoreWin(0);      // bet is locked for the round; reset the win
   setSatchelOpen(false);                        // collapse the satchel so the plants are clear
@@ -3747,6 +3752,7 @@ function tossSeedsAnim(){
 }
 async function revealNextReel(){
   if(busy||!round||round.phase!=='cast')return;
+  if(round.awaitingCast)return;                 // wait for the shell to confirm the stake
   const s=round.step;if(s>=round.draws.length)return;
   busy=true;$('#spinBtn').disabled=true;$('#spinBtn').classList.remove('shine');
   const w=wxById(round.draws[s]);
@@ -3757,6 +3763,7 @@ async function revealNextReel(){
   applyWeatherTheme(w);
   growReplay(round.plants,s+1);       // growth / wilt sound fires from inside growReplay
   round.step++;
+  if(bloomServerWallet()&&round.id) bloomPost('progress', {round_id:round.id, reels_revealed:round.step});  // persist resume point
   if(round.step<round.draws.length) setScoreWin(roundReturnUpTo(round.step), true);  // running return
   await sleep2(340);
   if(round.step>=round.draws.length)finalizeRound();
@@ -3788,7 +3795,7 @@ function settleRound(total, bet){
   if(document.body.classList.contains('pollinating')){
     const wn=$('#roundWinNum'); if(wn) wn.classList.toggle('win-final', total>0);
   }
-  bloomPostSettled();                 // let the shell mirror the new balance (in-memory pass)
+  bloomPostSettled(total);            // server credits the win via bloom_settle_round + mirrors the balance
   recordRound(bet, total, round.plants);   // same bet/total the payout above used
   round.phase='done';round.done=true;
   updateSpinButton();
@@ -5089,9 +5096,86 @@ function bloomApplyMode(){
     if(!active || active.dataset.view!=='play') activate('play');
   }
 }
-function bloomPostSettled(){
+// ── Wallet brokering: cast / settle / resume through the shell ───────────
+// When embedded (SHELL.connected) the shell owns the real account credits: it
+// debits the stake through bloom_start_round at cast and credits the win through
+// bloom_settle_round at settle, then mirrors the authoritative balance back. The
+// game keeps its snappy local #balVal but always reconciles to the shell's value.
+// A deck-admin frame (?deckadmin=1) never plays rounds, so it never brokers.
+function bloomServerWallet(){ return !!SHELL.connected && !DECK_ADMIN; }
+function bloomPost(type, extra){
   if(!SHELL.connected||!window.parent||window.parent===window)return;
-  window.parent.postMessage({source:'bloom',type:'settled',balance:Math.round(SHELL.balance)},'*');
+  window.parent.postMessage(Object.assign({source:'bloom',type},extra||{}),'*');
+}
+// Final per-plant state derived from its fixed events (mirrors growReplay's end state).
+function plantFinal(p){
+  let alive=!!p._took, phase=SEED, everWilt=false;
+  (p.events||[]).forEach(ev=>{
+    if(ev==='revive'){ alive=true; phase=SEED; return; }
+    if(!alive) return;
+    if(ev==='bloom'||ev==='super') phase=Math.min(SUPER,phase+1);
+    else if(ev==='wilt'){ alive=false; phase=SEED; everWilt=true; }
+  });
+  return {alive,phase,everWilt};
+}
+// A compact, fully-replayable snapshot of the round outcome (fixed at cast). The
+// shell persists this on the pending row; on resume it comes back verbatim and
+// bloomResumeRound rebuilds the exact same board.
+function bloomRoundSnapshot(round){
+  const lm=lineMultiplier(round.draws);
+  let sprouted=0,living=0,bloom=0,sup=0,wilt=0;
+  round.plants.forEach(p=>{ const f=plantFinal(p);
+    if(p._took)sprouted++;
+    if(f.alive)living++;
+    if(f.alive&&f.phase===BLOOM)bloom++;
+    if(f.alive&&f.phase===SUPER)sup++;
+    if(f.everWilt&&!f.alive)wilt++;
+  });
+  return {
+    round_number: round.number||null,
+    satchel: state.satchel.slice(),
+    weather: {reels: round.draws.slice(), match: !!lm.all, board_mult: lm.mult},
+    outcomes: round.plants.map(p=>({fid:p.f.id, took:!!p._took, events:(p.events||[]).slice()})),
+    board_mult: lm.mult, all_match: !!lm.all,
+    seeds_sprouted: sprouted, living_count: living, bloom_count: bloom, super_count: sup, wilt_count: wilt,
+    pay_scale: payScale(), reels_revealed: round.step||0
+  };
+}
+function bloomPostSettled(total){
+  bloomPost('settled', {
+    round_id: round?round.id:null,
+    ret: Math.max(0, Math.round(total||0)),
+    round: round?bloomRoundSnapshot(round):null
+  });
+}
+// Reboot a pending round the player left mid-way: restore the satchel + board to
+// the reels-revealed-so-far state (no animation, no re-roll, no double sound) and
+// hand control back so the same round finishes and settles.
+function bloomResumeRound(snap){
+  if(!snap) return;
+  // If a round is still live in memory (player just navigated away and back this
+  // session — the iframe stayed mounted), keep it; only reboot when we're idle.
+  if(round && !round.done) return;
+  try{
+    if(Array.isArray(snap.satchel)) state.satchel = snap.satchel.slice();
+    const draws=(snap.weather&&Array.isArray(snap.weather.reels))?snap.weather.reels.slice():[];
+    const plants=(snap.outcomes||[]).map(o=>({f:flower(o.fid), _took:!!o.took, events:(o.events||[]).slice()})).filter(p=>p.f);
+    if(!plants.length||!draws.length) return;
+    const revealed=Math.max(0, Math.min(draws.length, snap.reels_revealed||0));
+    const bet=Math.round(Number(snap.total_wagered!=null?snap.total_wagered:(snap.bet||0))||0);
+    round={id: snap.round_id||snap.id||null, plants, draws, step:revealed, phase:'cast', done:false, bet, number:snap.round_number||null};
+    const hint=$('#dirtHint'); if(hint) hint.style.display='none';
+    setBetLocked(true, bet); setSatchelOpen(false);
+    renderSlots(); renderModalSlots();
+    buildWeatherReel();
+    renderPlants(plants);
+    const cells=$('#weatherReel').children;
+    for(let s=0;s<revealed;s++){ if(cells[s]) setWCell(cells[s], wxById(draws[s]), false); }
+    if(revealed>0){ applyWeatherTheme(wxById(draws[revealed-1])); growReplay(plants, revealed, true); setScoreWin(roundReturnUpTo(revealed), true); }
+    if(revealed>=draws.length){ finalizeRound(); }        // reels were done but never settled → settle now
+    else banner('', 'Resuming your round — spin to continue');
+    updateSpinButton();
+  }catch(e){ console.warn('[bloom] resume failed', e); }
 }
 // Rebuild the deck (flowers + weather) from the DB rows the shell fetched, so the
 // game plays the authoritative bloom_flowers / bloom_weather config instead of the
@@ -5177,6 +5261,22 @@ window.addEventListener('message',(e)=>{
     // the browser chrome. Cap against this instead of trusting 100dvh.
     if(typeof m.height==='number' && isFinite(m.height) && m.height>200)
       document.documentElement.style.setProperty('--shell-vh', m.height+'px');
+  } else if(m.type==='cast-ok'){
+    // the shell debited the stake + opened the pending round — attach its id and
+    // reconcile #balVal to the authoritative post-debit balance, then unlock the reels
+    if(round){ round.id=m.round_id||null; round.awaitingCast=false; }
+    if(typeof m.balance==='number'&&isFinite(m.balance)){ SHELL.balance=m.balance; bloomRenderBalance(); }
+    updateSpinButton();
+  } else if(m.type==='cast-fail'){
+    // server refused (insufficient funds / error) — undo the optimistic cast entirely
+    if(round){ SHELL.balance += (round.bet||0); }
+    resetPlayArea(); setBetLocked(false); setScoreWin(0); bloomRenderBalance();
+    banner('lose', m.reason==='insufficient_funds' ? 'Not enough credits for that bet' : 'Could not start the round');
+    updateSpinButton();
+  } else if(m.type==='settle-ok'){
+    if(typeof m.balance==='number'&&isFinite(m.balance)){ SHELL.balance=m.balance; bloomRenderBalance(); }
+  } else if(m.type==='resume'){
+    bloomResumeRound(m.round);          // reboot an interrupted round exactly where it stopped
   } else if(m.type==='save-ack'){
     const st=$('#saveDeckDbStatus');
     if(st) st.textContent = m.ok ? ('Saved to DB ✓  ' + (m.msg||'')) : ('Save failed: ' + (m.msg||''));
