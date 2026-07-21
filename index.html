@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260721l-tilebloom" />
+    <link rel="stylesheet" href="styles.css?v=20260721m-dummytile" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -1009,7 +1009,6 @@
                      pink neon accent, five flower stickers from the roster art. -->
                 <button type="button" class="home-game-card home-game-card-bloom bloom-floor-tile" data-route-target="bloom" aria-label="Bloom" hidden>
                   <div class="bloom-tile-logo" aria-hidden="true">
-                    <span class="bloom-tile-logo-letter">B</span>
                     <svg class="bloom-tile-flower" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round" aria-hidden="true">
                       <ellipse cx="50" cy="26" rx="14" ry="20"></ellipse>
                       <g transform="rotate(72 50 50)"><ellipse cx="50" cy="26" rx="14" ry="20"></ellipse></g>
@@ -1018,11 +1017,15 @@
                       <g transform="rotate(288 50 50)"><ellipse cx="50" cy="26" rx="14" ry="20"></ellipse></g>
                       <circle cx="50" cy="50" r="8.5" fill="currentColor" stroke="none"></circle>
                     </svg>
-                    <span class="bloom-tile-logo-letter">B</span>
                   </div>
                   <div class="bloom-tile-bouquet" aria-hidden="true"></div>
                   <div class="bloom-tile-wordmark" aria-hidden="true">BLOOM</div>
                 </button>
+                <!-- Dummy tile: fills the empty half beside BLOOM on the bottom row.
+                     Admin-only + non-interactive; shown alongside the BLOOM tile. -->
+                <div class="home-game-card-dummy" aria-hidden="true" hidden>
+                  <span class="home-game-card-dummy-label">COMING SOON</span>
+                </div>
               </div>
 
               <!-- PRIZE VAULT — a taste of the shop, above the contest spotlight.
@@ -5556,7 +5559,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260721w-tilebloom"></script>
+    <script type="module" src="script.js?v=20260721x-dummytile"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

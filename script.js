@@ -10537,6 +10537,8 @@ function updateAdminVisibility(user = currentUser) {
   // BLOOM home tile: admin-only game, so its tile follows admin visibility (same
   // gate as the drawer link). Never tier-locked. Grow the procedural bouquet once
   // it is first shown, and re-grow on hover (pointer devices).
+  const bloomDummyTile = document.querySelector(".home-game-card-dummy");
+  if (bloomDummyTile) bloomDummyTile.hidden = !adminVisible;   // fills the gap beside BLOOM
   const bloomHomeTile = document.querySelector(".home-game-card-bloom");
   if (bloomHomeTile) {
     bloomHomeTile.hidden = !adminVisible;

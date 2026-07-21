@@ -27523,10 +27523,10 @@ body[data-ui="new"] .home-game-card-bloom.is-locked { opacity: 0.9; }
 }
 .bloom-tile-flower {
   display: block;
-  width: 17px;
-  height: 17px;
+  width: 21px;
+  height: 21px;
   color: #ff2d9b;
-  filter: drop-shadow(0 0 6px color-mix(in oklab, #ff2d9b 70%, transparent));
+  filter: drop-shadow(0 0 7px color-mix(in oklab, #ff2d9b 75%, transparent));
 }
 /* Zone 2 — procedural flower cluster (the game's title-bloom effect, ported).
    Grows once (JS rAF) then holds static; the idle sway is a cheap GPU transform. */
@@ -27555,9 +27555,32 @@ body[data-ui="new"] .home-game-card-bloom.is-locked { opacity: 0.9; }
   padding: 4px 0 8px;
   text-shadow: 0 0 10px color-mix(in oklab, #ff2d9b 55%, transparent), 0 0 2px #ff2d9b;
 }
+/* Dummy tile — fills the empty half beside BLOOM on the bottom row. Muted, static,
+   non-interactive; matches the tile footprint (span 2). */
+body[data-ui="new"] .home-game-card-dummy {
+  grid-column: span 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 0;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(255, 255, 255, 0.02) 3px 4px),
+    #0c0c0b;
+  pointer-events: none;
+  min-height: 0;
+}
+.home-game-card-dummy-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: rgba(255, 255, 255, 0.28);
+}
 /* keep BLOOM beside / same row-drop behaviour as MM + FOF when the grid narrows */
 @media (max-width: 720px) {
   body[data-ui="new"] .home-game-card-bloom { grid-column: span 1; }
+  body[data-ui="new"] .home-game-card-dummy { grid-column: span 1; }
   .bloom-tile-bouquet { height: 60px; }
 }
 
