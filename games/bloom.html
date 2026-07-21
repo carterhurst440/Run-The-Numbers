@@ -196,6 +196,15 @@
      brighter than the flat pastel without changing its hue. */
   .wcell.lit{background:radial-gradient(125% 95% at 50% 12%,rgba(255,255,255,.72),rgba(255,255,255,0) 64%),var(--wtint);border-color:var(--wmain)}
   .wcell.hot{border-color:var(--wmain,#141414);box-shadow:0 0 0 2px var(--wmain,#141414)}
+  /* animated weather-effect overlay: the landed cell's gif (rain, heat shimmer,
+     snow…) plays over the glyph. A soft inner scrim darkens the pale tint just
+     enough that the light particles read; the gif paints above it. */
+  .wcell.fxon::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(125% 110% at 50% 46%,transparent 34%,rgba(20,20,20,.26) 100%)}
+  .wfx{position:absolute;inset:0;z-index:1;pointer-events:none;
+    background-repeat:no-repeat;background-position:center;background-size:cover;
+    opacity:0;transition:opacity .35s}
+  .wcell.fxon .wfx{opacity:.95}
   .wcell.landed{animation:wland .34s cubic-bezier(.2,1.4,.35,1)}
   @keyframes wland{0%{transform:translateY(-5px)}60%{transform:translateY(2px)}100%{transform:translateY(0)}}
 
@@ -3193,15 +3202,15 @@ function flowerIcon(f, cls){
 // custom falls back to its accent colour, then to its emoji.
 const WEATHER_ART = {
   // sun — rays slowly turn, disc gently pulses
-  w_heat:{label:"HEAT",main:'#ff7a00',tint:'#ffdb96',svg:'<g class="wx-rays" stroke="#ff7a00" stroke-width="3" stroke-linecap="round"><line x1="24" y1="7" x2="24" y2="11.5"/><line x1="24" y1="36.5" x2="24" y2="41"/><line x1="7" y1="24" x2="11.5" y2="24"/><line x1="36.5" y1="24" x2="41" y2="24"/><line x1="11.6" y1="11.6" x2="15.1" y2="15.1"/><line x1="32.9" y1="32.9" x2="36.4" y2="36.4"/><line x1="11.6" y1="36.4" x2="15.1" y2="32.9"/><line x1="32.9" y1="15.1" x2="36.4" y2="11.6"/></g><circle class="wx-disc" cx="24" cy="24" r="8.5" fill="#ffd23f" stroke="#ff7a00" stroke-width="2.4"/>'},
+  w_heat:{label:"HEAT",main:'#ff7a00',tint:'#ffdb96',fx:'weather-fx/w_heat.gif',svg:'<g class="wx-rays" stroke="#ff7a00" stroke-width="3" stroke-linecap="round"><line x1="24" y1="7" x2="24" y2="11.5"/><line x1="24" y1="36.5" x2="24" y2="41"/><line x1="7" y1="24" x2="11.5" y2="24"/><line x1="36.5" y1="24" x2="41" y2="24"/><line x1="11.6" y1="11.6" x2="15.1" y2="15.1"/><line x1="32.9" y1="32.9" x2="36.4" y2="36.4"/><line x1="11.6" y1="36.4" x2="15.1" y2="32.9"/><line x1="32.9" y1="15.1" x2="36.4" y2="11.6"/></g><circle class="wx-disc" cx="24" cy="24" r="8.5" fill="#ffd23f" stroke="#ff7a00" stroke-width="2.4"/>'},
   // rain — drops fall on a loop
-  w_rain:{label:"RAIN",main:'#1a3ec8',tint:'#c2ccf7',svg:'<path d="M15.5 30 a6.3 6.3 0 0 1 0.4 -12.55 a8 8 0 0 1 15.2 -0.7 a5.9 5.9 0 0 1 0.9 13.25 Z" fill="#e6ebff" stroke="#1a3ec8" stroke-width="2.2" stroke-linejoin="round"/><g class="wx-rain" stroke="#1a3ec8" stroke-width="2.8" stroke-linecap="round"><line class="wx-d1" x1="18" y1="33.5" x2="16.2" y2="39"/><line class="wx-d2" x1="24" y1="33.5" x2="22.2" y2="39"/><line class="wx-d3" x1="30" y1="33.5" x2="28.2" y2="39"/></g>'},
+  w_rain:{label:"RAIN",main:'#1a3ec8',tint:'#c2ccf7',fx:'weather-fx/w_rain.gif',svg:'<path d="M15.5 30 a6.3 6.3 0 0 1 0.4 -12.55 a8 8 0 0 1 15.2 -0.7 a5.9 5.9 0 0 1 0.9 13.25 Z" fill="#e6ebff" stroke="#1a3ec8" stroke-width="2.2" stroke-linejoin="round"/><g class="wx-rain" stroke="#1a3ec8" stroke-width="2.8" stroke-linecap="round"><line class="wx-d1" x1="18" y1="33.5" x2="16.2" y2="39"/><line class="wx-d2" x1="24" y1="33.5" x2="22.2" y2="39"/><line class="wx-d3" x1="30" y1="33.5" x2="28.2" y2="39"/></g>'},
   // snowflake — turns very slowly
-  w_frz:{label:"FROST",main:'#4fb8e0',tint:'#e9f7ff',svg:'<g class="wx-flake" stroke="#4fb8e0" stroke-width="3.1" stroke-linecap="round" stroke-linejoin="round"><line x1="24" y1="8.5" x2="24" y2="39.5"/><line x1="10.6" y1="16.25" x2="37.4" y2="31.75"/><line x1="37.4" y1="16.25" x2="10.6" y2="31.75"/><path d="M20.8 11.7 L24 8.5 L27.2 11.7"/><path d="M20.8 36.3 L24 39.5 L27.2 36.3"/><path d="M11.3 20.6 L10.6 16.25 L14.95 15.55"/><path d="M36.7 27.4 L37.4 31.75 L33.05 32.45"/><path d="M33.05 15.55 L37.4 16.25 L36.7 20.6"/><path d="M14.95 32.45 L10.6 31.75 L11.3 27.4"/></g><circle cx="24" cy="24" r="2.6" fill="#4fb8e0"/>'},
+  w_frz:{label:"FROST",main:'#4fb8e0',tint:'#e9f7ff',fx:'weather-fx/w_frz.gif',svg:'<g class="wx-flake" stroke="#4fb8e0" stroke-width="3.1" stroke-linecap="round" stroke-linejoin="round"><line x1="24" y1="8.5" x2="24" y2="39.5"/><line x1="10.6" y1="16.25" x2="37.4" y2="31.75"/><line x1="37.4" y1="16.25" x2="10.6" y2="31.75"/><path d="M20.8 11.7 L24 8.5 L27.2 11.7"/><path d="M20.8 36.3 L24 39.5 L27.2 36.3"/><path d="M11.3 20.6 L10.6 16.25 L14.95 15.55"/><path d="M36.7 27.4 L37.4 31.75 L33.05 32.45"/><path d="M33.05 15.55 L37.4 16.25 L36.7 20.6"/><path d="M14.95 32.45 L10.6 31.75 L11.3 27.4"/></g><circle cx="24" cy="24" r="2.6" fill="#4fb8e0"/>'},
   // dew — drop bobs softly
-  w_dew:{label:"DEW",main:'#2fa84a',tint:'#c6efc2',svg:'<g class="wx-drop"><path d="M24 10.5 C 31.5 21, 33 27, 24 34 C 15 27, 16.5 21, 24 10.5 Z" fill="#3cbf55" stroke="#1f7a33" stroke-width="2" stroke-linejoin="round"/><path d="M19.8 26.6 a4.4 4.4 0 0 0 2.6 4.4" fill="none" stroke="#dcf7d8" stroke-width="2.2" stroke-linecap="round"/></g>'},
+  w_dew:{label:"DEW",main:'#2fa84a',tint:'#c6efc2',fx:'weather-fx/w_dew.gif',svg:'<g class="wx-drop"><path d="M24 10.5 C 31.5 21, 33 27, 24 34 C 15 27, 16.5 21, 24 10.5 Z" fill="#3cbf55" stroke="#1f7a33" stroke-width="2" stroke-linejoin="round"/><path d="M19.8 26.6 a4.4 4.4 0 0 0 2.6 4.4" fill="none" stroke="#dcf7d8" stroke-width="2.2" stroke-linecap="round"/></g>'},
   // autumn leaf — sways in the wind
-  w_wind:{label:"WIND",main:'#8a5a2b',tint:'#e7d3b3',svg:'<g class="wx-leaf"><path d="M24 9 C 33 13, 34.5 27, 24 38 C 13.5 27, 15 13, 24 9 Z" fill="#a4682f" stroke="#5e3a18" stroke-width="2" stroke-linejoin="round"/><g stroke="#5e3a18" stroke-width="1.8" stroke-linecap="round"><line x1="24" y1="12" x2="24" y2="35.5"/><line x1="24" y1="20" x2="18.5" y2="16.8"/><line x1="24" y1="20" x2="29.5" y2="16.8"/><line x1="24" y1="26" x2="18.8" y2="23.4"/><line x1="24" y1="26" x2="29.2" y2="23.4"/></g></g>'},
+  w_wind:{label:"WIND",main:'#8a5a2b',tint:'#e7d3b3',fx:'weather-fx/w_wind.gif',svg:'<g class="wx-leaf"><path d="M24 9 C 33 13, 34.5 27, 24 38 C 13.5 27, 15 13, 24 9 Z" fill="#a4682f" stroke="#5e3a18" stroke-width="2" stroke-linejoin="round"/><g stroke="#5e3a18" stroke-width="1.8" stroke-linecap="round"><line x1="24" y1="12" x2="24" y2="35.5"/><line x1="24" y1="20" x2="18.5" y2="16.8"/><line x1="24" y1="20" x2="29.5" y2="16.8"/><line x1="24" y1="26" x2="18.8" y2="23.4"/><line x1="24" y1="26" x2="29.2" y2="23.4"/></g></g>'},
   // butterfly (WILD) — wings flutter
   butterfly:{label:"BUTTERFLY",main:'#ff1a8c',tint:'#ffc0e0',svg:'<g class="wx-wingL"><path d="M24 20 C 17 12, 9 14, 11 21.5 C 12 26.5, 19 27, 24 22 Z" fill="#ff4dab" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/><path d="M24 24 C 19.5 26.5, 14 28.5, 15 33.5 C 16 37.5, 22 35.5, 24 30 Z" fill="#ffa3d6" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/></g><g class="wx-wingR"><path d="M24 20 C 31 12, 39 14, 37 21.5 C 36 26.5, 29 27, 24 22 Z" fill="#ff4dab" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/><path d="M24 24 C 28.5 26.5, 34 28.5, 33 33.5 C 32 37.5, 26 35.5, 24 30 Z" fill="#ffa3d6" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/></g><line x1="24" y1="15" x2="24" y2="33.5" stroke="#c8811a" stroke-width="2.6" stroke-linecap="round"/><path d="M24 15 q-2.5 -4.5 -5.5 -4.5" fill="none" stroke="#c8811a" stroke-width="1.8" stroke-linecap="round"/><path d="M24 15 q2.5 -4.5 5.5 -4.5" fill="none" stroke="#c8811a" stroke-width="1.8" stroke-linecap="round"/>'}
 };
@@ -3218,6 +3227,22 @@ function cellNeon(cell, w){
   const a=weatherArt(w);
   if(w && a){ cell.style.setProperty('--wmain', a.main); cell.style.setProperty('--wtint', a.tint); cell.classList.add('lit'); }
   else { cell.style.removeProperty('--wmain'); cell.style.removeProperty('--wtint'); cell.classList.remove('lit'); }
+}
+// Animated weather effect overlay for a landed cell. The DB fx_url (carried on the
+// state.weather item as w.fx) wins; otherwise the bundled default from WEATHER_ART.
+function weatherFx(w){
+  if(w && typeof w.fx==='string' && w.fx) return w.fx;
+  const a=weatherArt(w);
+  return (a && a.fx) || null;
+}
+// Drop the gif into (or clear it from) a cell's .wfx layer. Re-setting the src each
+// land restarts the loop so the effect visibly bursts when the reel settles.
+function paintCellFx(cell, w){
+  if(!cell) return;
+  const fx=cell.querySelector('.wfx'); if(!fx) return;
+  const url=weatherFx(w);
+  if(url){ fx.style.backgroundImage='url("'+url+'")'; cell.classList.add('fxon'); }
+  else { fx.style.backgroundImage=''; cell.classList.remove('fxon'); }
 }
 function weatherIcon(w, cls){
   if(weatherArt(w)) return weatherGlyph(w, cls);
@@ -3357,7 +3382,7 @@ function buildWeatherReel(){
   const n=state.config.drawsPerRound;
   r.style.gridTemplateColumns='repeat('+n+',1fr)';
   for(let i=0;i<n;i++){
-    const c=el('div','wcell',`<div class="payline"></div><div class="wstrip">${wtileHTML(null)}</div>`);
+    const c=el('div','wcell',`<div class="payline"></div><div class="wstrip">${wtileHTML(null)}</div><div class="wfx"></div>`);
     r.appendChild(c);
   }
 }
@@ -3367,6 +3392,7 @@ function setWCell(cell,w,hot){
   if(strip){ strip.classList.remove('spinning'); strip.style.transition='none'; strip.style.transform='translateY(0)'; strip.innerHTML=wtileHTML(w); }
   cell.classList.toggle('hot',!!hot);
   cellNeon(cell,w);
+  paintCellFx(cell,w);
 }
 
 /* ---- ten seeds land in one bed ---- */
@@ -4057,6 +4083,7 @@ function spinOneCell(cell,finalW){
       strip.innerHTML=wtileHTML(finalW);         // snap to the clean locked tile
       cell.classList.add('landed');
       cellNeon(cell,finalW);                     // light the border/glow to its neon
+      paintCellFx(cell,finalW);                  // burst the animated weather effect
       res();
     };
     strip.addEventListener('transitionend',finish,{once:true});
@@ -4664,7 +4691,8 @@ function bloomApplyDeck(deck){
       icon: r.icon,
       color:r.accent_color,
       kind: r.kind || 'weather',
-      count:(r.deck_count==null?1:Number(r.deck_count))
+      count:(r.deck_count==null?1:Number(r.deck_count)),
+      fx:   r.fx_url || null                     // admin-uploaded weather effect gif (overrides default)
     }));
   }
   // drop any satchel seeds whose flower no longer exists

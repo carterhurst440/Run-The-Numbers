@@ -10848,7 +10848,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260721f-poldefault");
+      frame.setAttribute("src", "games/bloom.html?v=20260721g-weatherfx");
     }
     installBloomBridge();   // idempotent: seed the in-memory balance + admin flag
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -20674,7 +20674,7 @@ async function bloomFetchDeck() {
         .select("flower,display_name,emoji,accent_color,art_species,archetype,take_pct,bloom_pay,super_mult,weather_odds,sort_order,active,icon_url,animation_url,animation_kind")
         .order("sort_order"),
       supabase.from("bloom_weather")
-        .select("weather,display_name,icon,accent_color,kind,deck_count,sort_order")
+        .select("weather,display_name,icon,accent_color,kind,deck_count,fx_url,sort_order")
         .order("sort_order"),
       supabase.from("bloom_settings").select("key,value")   // background_url + future tunables
     ]);
@@ -33676,7 +33676,7 @@ const BloomAdmin = {
           .select('flower,display_name,emoji,accent_color,art_species,archetype,take_pct,bloom_pay,super_mult,weather_odds,sort_order,active,icon_url,animation_url,animation_kind')
           .order('sort_order'),
         supabase.from('bloom_weather')
-          .select('weather,display_name,icon,accent_color,kind,deck_count,sort_order')
+          .select('weather,display_name,icon,accent_color,kind,deck_count,fx_url,sort_order')
           .order('sort_order'),
         supabase.from('bloom_settings').select('key,value')
       ]);
@@ -33710,7 +33710,8 @@ const BloomAdmin = {
         icon: r.icon || '',
         accent_color: r.accent_color || '#88aacc',
         kind: r.kind === 'butterfly' ? 'butterfly' : 'weather',
-        deck_count: r.deck_count == null ? 1 : Math.max(0, Math.round(r.deck_count))
+        deck_count: r.deck_count == null ? 1 : Math.max(0, Math.round(r.deck_count)),
+        fx_url: r.fx_url || null
       }));
       this.renderWeather();
       this.renderFlowers();
@@ -33988,7 +33989,73 @@ const BloomAdmin = {
     });
 
     row.append(icon, name, kindSel, countWrap, del);
+
+    // FX overlay upload — the animated gif that plays over a landed reel cell.
+    // Blank keeps the bundled default effect; butterfly (the wild) has no reel fx.
+    const fxWrap = document.createElement('div'); fxWrap.className = 'bloom-wfx';
+    if (w.kind === 'butterfly'){
+      const note = document.createElement('span'); note.className = 'bloom-wfx-note';
+      note.textContent = 'reel FX: n/a (wild)';
+      fxWrap.appendChild(note);
+    } else {
+      fxWrap.appendChild(
+        this.uploadBtn(w.fx_url ? 'Replace reel FX' : 'Upload reel FX', 'image/gif,video/mp4,video/webm,image/png',
+          file => this.uploadWeatherFx(w, file))
+      );
+      const note = document.createElement('span'); note.className = 'bloom-wfx-note';
+      note.textContent = w.fx_url ? 'reel FX: custom ✓' : 'reel FX: bundled default';
+      fxWrap.appendChild(note);
+      if (w.fx_url){
+        const preview = document.createElement('img'); preview.className='bloom-wfx-prev'; preview.src = w.fx_url; preview.alt='';
+        fxWrap.appendChild(preview);
+        const clr = document.createElement('button'); clr.type='button'; clr.className='secondary'; clr.textContent='Reset to default';
+        clr.addEventListener('click', () => this.clearWeatherFx(w));
+        fxWrap.appendChild(clr);
+      }
+    }
+    row.appendChild(fxWrap);
     return row;
+  },
+
+  async uploadWeatherFx(w, file){
+    this.status(`Uploading FX for ${w.display_name}…`);
+    try {
+      const t = (file.type || '').toLowerCase();
+      if (!/^(image\/gif|image\/png|video\/mp4|video\/webm)$/.test(t))
+        throw new Error('Use a .gif (or .png / .mp4 / .webm).');
+      w.fx_url = await uploadBloomAsset(file, `fx/${w.weather}`);
+      // Surgical persist so a fresh upload survives even without a full Save to DB.
+      // No-op for a brand-new weather not yet in the table (its row lands on Save).
+      let persisted = false;
+      try {
+        const { data, error } = await supabase.from('bloom_weather')
+          .update({ fx_url: w.fx_url, updated_at: new Date().toISOString() })
+          .eq('weather', w.weather)
+          .select('weather');
+        if (error) throw error;
+        persisted = Array.isArray(data) && data.length > 0;
+      } catch (persistErr){ console.warn('[bloom] fx auto-persist failed', persistErr); }
+      bloomInvalidateDeck();
+      this.status(persisted
+        ? `Reel FX uploaded + saved for ${w.display_name}.`
+        : `Reel FX uploaded for ${w.display_name} — click Save to DB to finish.`);
+      this.renderWeather();
+    } catch (e){
+      console.error('[bloom] weather fx upload', e);
+      this.status('Upload error: ' + (e?.message || e));
+    }
+  },
+
+  async clearWeatherFx(w){
+    w.fx_url = null;
+    try {
+      await supabase.from('bloom_weather')
+        .update({ fx_url: null, updated_at: new Date().toISOString() })
+        .eq('weather', w.weather);
+      bloomInvalidateDeck();
+    } catch (e){ console.warn('[bloom] fx clear failed', e); }
+    this.status(`Reel FX reset to the bundled default for ${w.display_name}.`);
+    this.renderWeather();
   },
 
   addWeather(){
@@ -34168,6 +34235,7 @@ const BloomAdmin = {
         accent_color: w.accent_color || null,
         kind: w.kind === 'butterfly' ? 'butterfly' : 'weather',
         deck_count: Math.max(0, Math.round(w.deck_count == null ? 1 : w.deck_count)),
+        fx_url: w.fx_url || null,
         sort_order: i,
         updated_at: nowIso
       }));

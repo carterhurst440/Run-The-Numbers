@@ -31914,6 +31914,13 @@ select.bloom-in { cursor: pointer; }
 .bloom-wcount { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted, #9aa); }
 .bloom-wcount input { width: 64px; }
 .bloom-wrow .danger { padding: 0.35rem 0.6rem; font-size: 0.72rem; }
+/* reel-FX upload: sits on its own line, spanning the full row width */
+.bloom-wfx { flex: 1 0 100%; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  margin-top: 0.15rem; padding-top: 0.5rem; border-top: 1px dashed var(--betting-panel-border); }
+.bloom-wfx .secondary { padding: 0.35rem 0.7rem; font-size: 0.74rem; }
+.bloom-wfx-note { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted, #9aa); }
+.bloom-wfx-prev { width: 34px; height: 34px; border-radius: 6px; object-fit: cover;
+  border: 1px solid var(--betting-panel-border); background: #0a0a08; }
 @media (max-width: 560px){ .bloom-fcard-stats { grid-template-columns: 1fr; } }
 
 /* Image cropper modal (flower icon upload) */
