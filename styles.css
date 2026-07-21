@@ -20545,9 +20545,21 @@ body.state-open .auth-vault-grant .gline::after {
 .drawer-link-game[data-route-target="shape-traders"]    { --game-accent: #c8ff3a; }
 .drawer-link-game[data-route-target="color-scheme"]     { --game-accent: #ff2d4a; }
 .drawer-link-game[data-route-target="fate-or-fortune"]  { --game-accent: #b07bff; }
-/* white rather than a neon: the drawer icon is a CSS mask, so it takes this colour
-   and ignores the SVG's own. Note the other five each carry their own accent. */
-.drawer-link-game[data-route-target="monkey-moonshine"] { --game-accent: #ffffff; }
+.drawer-link-game[data-route-target="monkey-moonshine"] { --game-accent: #2fd06e; }  /* matches the MM tile border */
+.drawer-link-game[data-route-target="bloom"]            { --game-accent: #ff2d9b; }  /* matches the BLOOM tile border */
+/* Bloom uses an inline flower SVG (not a mask): colour it via currentColor, size + hover
+   to match the masked .drawer-game-ico icons. */
+.drawer-bloom-ico {
+  display: block;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  color: var(--game-accent, #ff2d9b);
+  opacity: 0.92;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.utility-panel .drawer-games-sub .drawer-link-game[data-route-target="bloom"]:hover .drawer-bloom-ico,
+.utility-panel .drawer-games-sub .drawer-link-game[data-route-target="bloom"]:focus-visible .drawer-bloom-ico { opacity: 1; transform: scale(1.08); }
 
 .utility-panel .drawer-link-meta {
   color: #686850;
