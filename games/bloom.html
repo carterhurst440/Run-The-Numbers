@@ -585,6 +585,12 @@
   .blm-fx-back{z-index:1}
   .blm-fx-front{z-index:1}   /* all flowers sit BEHIND the wordmark (h1 is z2) */
   .blm-fx svg{overflow:visible}
+  /* idle sway once bloomed — a GPU transform on the whole cluster instead of the JS
+     per-frame rebuild (which is stopped after grow-in for performance) */
+  @media (prefers-reduced-motion:no-preference){
+    .blm-fx.on svg{transform-origin:50% 100%;animation:blmSway 5.5s ease-in-out infinite}
+    @keyframes blmSway{0%,100%{transform:rotate(-0.7deg)}50%{transform:rotate(0.7deg)}}
+  }
   .kiiro-header h1{position:relative;z-index:2}
   .kiiro-header .hud-board,.kiiro-header .hud-row{position:relative;z-index:2}
   .kiiro-header .goddess{display:none}
@@ -4107,7 +4113,13 @@ const TitleBloom = (function(){
     const clk=now/1000; let p=0;
     if(start>-9e8){ const el=(now-start)/1000; p=easeGrow(clamp(el/DUR,0,1)); }
     render(p, clk);
-    if(active) raf=requestAnimationFrame(frame);
+    // Rebuilding the whole ~860-path cluster via innerHTML is only needed WHILE it
+    // grows. Once fully bloomed we stop the rAF and hold the final frame static — a
+    // cheap CSS transform (.blm-fx svg) carries the idle sway from there. Without this
+    // the loop ran at 60fps until NEW ROUND (the pink theme now holds), a heavy
+    // sustained churn that could starve the mobile renderer into a force-reload.
+    if(active && p<1){ raf=requestAnimationFrame(frame); }
+    else { active=false; raf=0; }
   }
   function trigger(){
     hosts().forEach(h=>{ if(h) h.classList.add('on'); });
