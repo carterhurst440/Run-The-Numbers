@@ -27567,6 +27567,18 @@ body[data-ui="new"] .home-game-card-bloom.is-locked { opacity: 0.9; }
   padding: 4px 0 8px;
   text-shadow: 0 0 10px color-mix(in oklab, #ff2d9b 55%, transparent), 0 0 2px #ff2d9b;
 }
+/* The tiles' decorative inner content is non-interactive: a tap/click must always
+   land on the button itself. Otherwise a moving child (the bouncing sprites, the
+   swaying bloom bouquet) can be under the finger at touch-start but gone by
+   touch-end, and the browser cancels the click — so the tile "didn't open". */
+body[data-ui="new"] .home-game-card-bloom > *,
+body[data-ui="new"] .home-game-card-mm > *,
+body[data-ui="new"] .home-game-card-fof > *,
+body[data-ui="new"] .home-game-card-bloom .bloom-tile-bouquet svg,
+body[data-ui="new"] .home-game-card-mm .mm-tile-sprite,
+body[data-ui="new"] .home-game-card-fof .fof-tile-sprite {
+  pointer-events: none;
+}
 /* Dummy tile — fills the empty half beside BLOOM on the bottom row. Muted, static,
    non-interactive; matches the tile footprint (span 2). */
 body[data-ui="new"] .home-game-card-dummy {
