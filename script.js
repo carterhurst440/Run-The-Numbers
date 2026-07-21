@@ -17,7 +17,8 @@ const GAME_KEYS = {
   SHAPE_TRADERS: "game_003",
   COLOR_SCHEME: "game_004",
   FATE_OR_FORTUNE: "game_005",
-  MONKEY_MOONSHINE: "game_006"
+  MONKEY_MOONSHINE: "game_006",
+  BLOOM: "game_007"
 };
 
 const CONTEST_GAME_KEYS = [GAME_KEYS.RUN_THE_NUMBERS, GAME_KEYS.GUESS_10, GAME_KEYS.SHAPE_TRADERS, GAME_KEYS.COLOR_SCHEME, GAME_KEYS.FATE_OR_FORTUNE];
@@ -28,7 +29,8 @@ const GAME_LABELS = {
   [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders",
   [GAME_KEYS.COLOR_SCHEME]: "Color Scheme",
   [GAME_KEYS.FATE_OR_FORTUNE]: "Fate or Fortune",
-  [GAME_KEYS.MONKEY_MOONSHINE]: "Monkey Moonshine"
+  [GAME_KEYS.MONKEY_MOONSHINE]: "Monkey Moonshine",
+  [GAME_KEYS.BLOOM]: "Bloom"
 };
 
 const GAME_ASSET_STORAGE_KEY = "rtn:game-assets";
@@ -208,6 +210,12 @@ function normalizeGameKey(value) {
     normalized === "mm"
   ) {
     return GAME_KEYS.MONKEY_MOONSHINE;
+  }
+  if (
+    normalized === GAME_KEYS.BLOOM ||
+    normalized === "bloom"
+  ) {
+    return GAME_KEYS.BLOOM;
   }
   return null;
 }
@@ -3617,6 +3625,7 @@ const BANKROLL_SOURCE_COLORS = {
   game_004: "#ff4444", // Color Scheme
   game_005: "#b07bff", // Fate or Fortune
   game_006: "#3fd07a", // Monkey Moonshine
+  game_007: "#ff5db1", // Bloom (pink)
 };
 // Account events (rank-ups, affiliate, admin grants) and anything unmapped → orange.
 function bankrollSourceColor(source) {
@@ -3711,6 +3720,7 @@ const ACTIVITY_GAME_SERIES = [
   { key: "ryb", label: "RYB",  color: "#ff4444" },
   { key: "fof", label: "FOF",  color: "#b07bff" },
   { key: "mm",  label: "MM",   color: "#3fd07a" },
+  { key: "bloom", label: "BLM", color: "#ff5db1" },
 ];
 
 // Collapse daily rows into day / week / month display buckets.
@@ -3731,10 +3741,10 @@ function bucketActivityRows(rows, mode) {
       const wk = Math.floor((cur - first) / (7 * 86400000));
       key = String(wk);
     }
-    if (!groups.has(key)) { groups.set(key, { label: null, rtn: 0, g10: 0, st: 0, ryb: 0, fof: 0, mm: 0, firstDay: r.d }); order.push(key); }
+    if (!groups.has(key)) { groups.set(key, { label: null, rtn: 0, g10: 0, st: 0, ryb: 0, fof: 0, mm: 0, bloom: 0, firstDay: r.d }); order.push(key); }
     const g = groups.get(key);
     g.rtn += Number(r.rtn || 0); g.g10 += Number(r.g10 || 0); g.st += Number(r.st || 0);
-    g.ryb += Number(r.ryb || 0); g.fof += Number(r.fof || 0); g.mm += Number(r.mm || 0);
+    g.ryb += Number(r.ryb || 0); g.fof += Number(r.fof || 0); g.mm += Number(r.mm || 0); g.bloom += Number(r.bloom || 0);
   }
   return order.map((key) => {
     const g = groups.get(key);
@@ -3746,7 +3756,7 @@ function bucketActivityRows(rows, mode) {
 function pickGameCounts(r) {
   return {
     rtn: Number(r.rtn || 0), g10: Number(r.g10 || 0), st: Number(r.st || 0),
-    ryb: Number(r.ryb || 0), fof: Number(r.fof || 0), mm: Number(r.mm || 0),
+    ryb: Number(r.ryb || 0), fof: Number(r.fof || 0), mm: Number(r.mm || 0), bloom: Number(r.bloom || 0),
   };
 }
 
@@ -3765,7 +3775,7 @@ async function drawActivityHistoryChart() {
   activityHistoryRows = Array.isArray(data) ? data : [];
 
   const display = bucketActivityRows(activityHistoryRows, bucket);
-  const total = display.reduce((s, b) => s + b.rtn + b.g10 + b.st + b.ryb + b.fof + b.mm, 0);
+  const total = display.reduce((s, b) => s + b.rtn + b.g10 + b.st + b.ryb + b.fof + b.mm + b.bloom, 0);
 
   if (activityHistoryChart) { activityHistoryChart.destroy(); activityHistoryChart = null; }
   const ctx = bankrollActivityCanvas.getContext("2d");
@@ -18622,7 +18632,8 @@ async function openGameActivityChart(gameId) {
       game_003: { table: "shape_trader_trades",    ts: "executed_at" },
       game_004: { table: "color_scheme_rounds",    ts: "created_at" },
       game_005: { table: "fate_or_fortune_rounds", ts: "created_at" },
-      game_006: { table: "mm_spins",               ts: "created_at" }
+      game_006: { table: "mm_spins",               ts: "created_at" },
+      game_007: { table: "bloom_rounds",            ts: "created_at" }
     };
 
     const source = ACTIVITY_SOURCES[gameId];
@@ -21896,7 +21907,8 @@ let activityLogSelectedGames = new Set([
   GAME_KEYS.SHAPE_TRADERS,
   GAME_KEYS.COLOR_SCHEME,
   GAME_KEYS.FATE_OR_FORTUNE,
-  GAME_KEYS.MONKEY_MOONSHINE
+  GAME_KEYS.MONKEY_MOONSHINE,
+  GAME_KEYS.BLOOM
 ]);
 let activityLogTradeFilter = "all";
 let playerActivityLogEntries = [];
@@ -21912,7 +21924,8 @@ let playerActivityLogSelectedGames = new Set([
   GAME_KEYS.SHAPE_TRADERS,
   GAME_KEYS.COLOR_SCHEME,
   GAME_KEYS.FATE_OR_FORTUNE,
-  GAME_KEYS.MONKEY_MOONSHINE
+  GAME_KEYS.MONKEY_MOONSHINE,
+  GAME_KEYS.BLOOM
 ]);
 let playerActivityLogTradeFilter = "all";
 let handReviewModalTrigger = null;
@@ -24679,14 +24692,62 @@ async function fetchGameHandsRecords({
     return mmRecords;
   };
 
-  const [rtnRecords, g10Records, csRecords, fofRecords, mmRecords] = await Promise.all([
+  const fetchBloomRoundsRecords = async () => {
+    if (!supabase) return [];
+    const bloomRecords = [];
+    const pageSize = 1000;
+    let page = 0;
+    let hasMore = true;
+    while (hasMore) {
+      let query = supabase
+        .from("bloom_rounds")
+        .select("id, user_id, created_at, contest_id, status, all_match, board_mult, bloom_count, super_count, total_wagered, total_returned, net_profit, new_account_value")
+        .in("status", ["resolved", "aborted"])   // pending rounds are in-flight; only closed ones show
+        .order("created_at", { ascending: true })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      if (startAt) query = query.gte("created_at", startAt.toISOString());
+      if (endAt) query = query.lte("created_at", endAt.toISOString());
+      if (Array.isArray(userIds) && userIds.length > 0) query = query.in("user_id", userIds);
+      const { data, error } = await query;
+      if (error) {
+        if (isMissingRelationError(error, "bloom_rounds")) return [];
+        throw error;
+      }
+      const rows = Array.isArray(data) ? data : [];
+      rows.forEach(row => {
+        bloomRecords.push({
+          id: row.id,
+          user_id: row.user_id,
+          created_at: row.created_at,
+          game_id: GAME_KEYS.BLOOM,
+          mode_type: row.contest_id ? "contest" : "normal",
+          contest_id: row.contest_id || null,
+          total_cards: 0,
+          stopper_label: row.all_match ? "match" : null,
+          stopper_suit: row.status === "aborted" ? "aborted" : null,
+          total_wager: row.total_wagered || 0,
+          total_paid: row.total_returned || 0,
+          net: row.net_profit || 0,
+          commission_kept: 0,
+          new_account_value: row.new_account_value || 0,
+          drawn_cards: []
+        });
+      });
+      hasMore = rows.length === pageSize;
+      page += 1;
+    }
+    return bloomRecords;
+  };
+
+  const [rtnRecords, g10Records, csRecords, fofRecords, mmRecords, bloomRecords] = await Promise.all([
     fetchRtnLiveHandRecords(),
     fetchGuess10LiveHandsRecords(),
     fetchColorSchemeRoundsRecords(),
     fetchFateOrFortuneRoundsRecords(),
-    fetchMonkeyMoonshineSpinsRecords()
+    fetchMonkeyMoonshineSpinsRecords(),
+    fetchBloomRoundsRecords()
   ]);
-  return [...allRecords, ...rtnRecords, ...g10Records, ...csRecords, ...fofRecords, ...mmRecords]
+  return [...allRecords, ...rtnRecords, ...g10Records, ...csRecords, ...fofRecords, ...mmRecords, ...bloomRecords]
     .sort((left, right) => new Date(left?.created_at || 0).getTime() - new Date(right?.created_at || 0).getTime());
 }
 
@@ -24882,7 +24943,7 @@ async function fetchDailyProfitLossRows(userId) {
   while (hasMore) {
     const { data, error } = await supabase
       .from("daily_profit_loss")
-      .select("profit_date, mode, pnl_total, pnl_rtn, pnl_g10, pnl_shape_traders, pnl_ryb, pnl_fof, pnl_mm")
+      .select("profit_date, mode, pnl_total, pnl_rtn, pnl_g10, pnl_shape_traders, pnl_ryb, pnl_fof, pnl_mm, pnl_bloom")
       .eq("user_id", userId)
       .order("profit_date", { ascending: true })
       .range(page * pageSize, (page + 1) * pageSize - 1);
@@ -24907,9 +24968,9 @@ async function fetchDailyProfitLossRows(userId) {
     if (!agg[key]) {
       agg[key] = {
         profit_date: key,
-        pnl_total: 0, pnl_rtn: 0, pnl_g10: 0, pnl_shape_traders: 0, pnl_ryb: 0, pnl_fof: 0, pnl_mm: 0,
-        normal_pnl_total: 0, normal_pnl_rtn: 0, normal_pnl_g10: 0, normal_pnl_shape_traders: 0, normal_pnl_ryb: 0, normal_pnl_fof: 0, normal_pnl_mm: 0,
-        contest_pnl_total: 0, contest_pnl_rtn: 0, contest_pnl_g10: 0, contest_pnl_shape_traders: 0, contest_pnl_ryb: 0, contest_pnl_fof: 0, contest_pnl_mm: 0
+        pnl_total: 0, pnl_rtn: 0, pnl_g10: 0, pnl_shape_traders: 0, pnl_ryb: 0, pnl_fof: 0, pnl_mm: 0, pnl_bloom: 0,
+        normal_pnl_total: 0, normal_pnl_rtn: 0, normal_pnl_g10: 0, normal_pnl_shape_traders: 0, normal_pnl_ryb: 0, normal_pnl_fof: 0, normal_pnl_mm: 0, normal_pnl_bloom: 0,
+        contest_pnl_total: 0, contest_pnl_rtn: 0, contest_pnl_g10: 0, contest_pnl_shape_traders: 0, contest_pnl_ryb: 0, contest_pnl_fof: 0, contest_pnl_mm: 0, contest_pnl_bloom: 0
       };
     }
     const d = agg[key];
@@ -24921,6 +24982,7 @@ async function fetchDailyProfitLossRows(userId) {
     d.pnl_ryb           += Number(row.pnl_ryb           || 0);
     d.pnl_fof           += Number(row.pnl_fof           || 0);
     d.pnl_mm            += Number(row.pnl_mm            || 0);
+    d.pnl_bloom         += Number(row.pnl_bloom         || 0);
     if (isContest) {
       d.contest_pnl_total         += Number(row.pnl_total         || 0);
       d.contest_pnl_rtn           += Number(row.pnl_rtn           || 0);
@@ -24929,6 +24991,7 @@ async function fetchDailyProfitLossRows(userId) {
       d.contest_pnl_ryb           += Number(row.pnl_ryb           || 0);
       d.contest_pnl_fof           += Number(row.pnl_fof           || 0);
       d.contest_pnl_mm            += Number(row.pnl_mm            || 0);
+      d.contest_pnl_bloom         += Number(row.pnl_bloom         || 0);
     } else {
       d.normal_pnl_total         += Number(row.pnl_total         || 0);
       d.normal_pnl_rtn           += Number(row.pnl_rtn           || 0);
@@ -24937,6 +25000,7 @@ async function fetchDailyProfitLossRows(userId) {
       d.normal_pnl_ryb           += Number(row.pnl_ryb           || 0);
       d.normal_pnl_fof           += Number(row.pnl_fof           || 0);
       d.normal_pnl_mm            += Number(row.pnl_mm            || 0);
+      d.normal_pnl_bloom         += Number(row.pnl_bloom         || 0);
     }
   });
   return Object.values(agg).sort((a, b) => a.profit_date.localeCompare(b.profit_date));
@@ -25234,6 +25298,9 @@ function getBankrollChartGameValue(point) {
   if (bankrollChartGameFilter === GAME_KEYS.MONKEY_MOONSHINE) {
     return roundCurrencyValue(Number(point[modeKey("pnlMm")] || 0));
   }
+  if (bankrollChartGameFilter === GAME_KEYS.BLOOM) {
+    return roundCurrencyValue(Number(point[modeKey("pnlBloom")] || 0));
+  }
   return roundCurrencyValue(Number(point[modeKey("pnlTotal")] || 0));
 }
 
@@ -25343,7 +25410,11 @@ function updateBankrollChartFilterUI() {
     all: "all games",
     [GAME_KEYS.RUN_THE_NUMBERS]: "Run The Numbers",
     [GAME_KEYS.GUESS_10]: "Guess 10",
-    [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders"
+    [GAME_KEYS.SHAPE_TRADERS]: "Shape Traders",
+    [GAME_KEYS.COLOR_SCHEME]: "Color Scheme",
+    [GAME_KEYS.FATE_OR_FORTUNE]: "Fate or Fortune",
+    [GAME_KEYS.MONKEY_MOONSHINE]: "Monkey Moonshine",
+    [GAME_KEYS.BLOOM]: "Bloom"
   };
 
   bankrollChartSubhead.textContent = `${gameLabels[bankrollChartGameFilter] || gameLabels.all} · ${periodLabels[bankrollChartPeriod] || periodLabels.year} · daily realized P&L`;
@@ -25564,7 +25635,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
       // Fetch all sources for today's live data.
       // NOTE: todayRtnLive already covers rtn_live_hands, so we do NOT also
       // pull RTN hands separately here.
-      const [todayRtnLive, todayG10Live, todayTrades, todayCsRounds, todayFofRounds, todayMmSpins] = await Promise.all([
+      const [todayRtnLive, todayG10Live, todayTrades, todayCsRounds, todayFofRounds, todayMmSpins, todayBloomRounds] = await Promise.all([
         (async () => {
           const { data } = await supabase
             .from("rtn_live_hands")
@@ -25621,13 +25692,23 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
             .gte("created_at", liveTodayStart.toISOString())
             .lte("created_at", liveTodayEnd.toISOString());
           return Array.isArray(data) ? data : [];
+        })(),
+        (async () => {
+          const { data } = await supabase
+            .from("bloom_rounds")
+            .select("created_at, net_profit, contest_id")
+            .eq("user_id", currentUser.id)
+            .in("status", ["resolved", "aborted"])
+            .gte("created_at", liveTodayStart.toISOString())
+            .lte("created_at", liveTodayEnd.toISOString());
+          return Array.isArray(data) ? data : [];
         })()
       ]);
 
       const liveToday = {
-        pnlTotal: 0, pnlRtn: 0, pnlG10: 0, pnlShapeTraders: 0, pnlRyb: 0, pnlFof: 0, pnlMm: 0,
-        normalPnlTotal: 0, normalPnlRtn: 0, normalPnlG10: 0, normalPnlShapeTraders: 0, normalPnlRyb: 0, normalPnlFof: 0, normalPnlMm: 0,
-        contestPnlTotal: 0, contestPnlRtn: 0, contestPnlG10: 0, contestPnlShapeTraders: 0, contestPnlRyb: 0, contestPnlFof: 0, contestPnlMm: 0
+        pnlTotal: 0, pnlRtn: 0, pnlG10: 0, pnlShapeTraders: 0, pnlRyb: 0, pnlFof: 0, pnlMm: 0, pnlBloom: 0,
+        normalPnlTotal: 0, normalPnlRtn: 0, normalPnlG10: 0, normalPnlShapeTraders: 0, normalPnlRyb: 0, normalPnlFof: 0, normalPnlMm: 0, normalPnlBloom: 0,
+        contestPnlTotal: 0, contestPnlRtn: 0, contestPnlG10: 0, contestPnlShapeTraders: 0, contestPnlRyb: 0, contestPnlFof: 0, contestPnlMm: 0, contestPnlBloom: 0
       };
 
       // All hands — split by contest_id for mode tracking
@@ -25698,14 +25779,25 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
         else liveToday.normalPnlMm = roundCurrencyValue(liveToday.normalPnlMm + net);
       });
 
+      // Bloom rounds — resolved credits the win, aborted forfeits the stake; both split by contest_id
+      todayBloomRounds.forEach((row) => {
+        const dayKey = formatAnalyticsDateKey(row?.created_at);
+        if (dayKey !== todayKey) return;
+        const net = roundCurrencyValue(Number(row?.net_profit || 0));
+        const isContest = !!row?.contest_id;
+        liveToday.pnlBloom = roundCurrencyValue(liveToday.pnlBloom + net);
+        if (isContest) liveToday.contestPnlBloom = roundCurrencyValue(liveToday.contestPnlBloom + net);
+        else liveToday.normalPnlBloom = roundCurrencyValue(liveToday.normalPnlBloom + net);
+      });
+
       liveToday.pnlTotal = roundCurrencyValue(
-        liveToday.pnlRtn + liveToday.pnlG10 + liveToday.pnlShapeTraders + liveToday.pnlRyb + liveToday.pnlFof + liveToday.pnlMm
+        liveToday.pnlRtn + liveToday.pnlG10 + liveToday.pnlShapeTraders + liveToday.pnlRyb + liveToday.pnlFof + liveToday.pnlMm + liveToday.pnlBloom
       );
       liveToday.normalPnlTotal = roundCurrencyValue(
-        liveToday.normalPnlRtn + liveToday.normalPnlG10 + liveToday.normalPnlShapeTraders + liveToday.normalPnlRyb + liveToday.normalPnlFof + liveToday.normalPnlMm
+        liveToday.normalPnlRtn + liveToday.normalPnlG10 + liveToday.normalPnlShapeTraders + liveToday.normalPnlRyb + liveToday.normalPnlFof + liveToday.normalPnlMm + liveToday.normalPnlBloom
       );
       liveToday.contestPnlTotal = roundCurrencyValue(
-        liveToday.contestPnlRtn + liveToday.contestPnlG10 + liveToday.contestPnlShapeTraders + liveToday.contestPnlRyb + liveToday.contestPnlFof + liveToday.contestPnlMm
+        liveToday.contestPnlRtn + liveToday.contestPnlG10 + liveToday.contestPnlShapeTraders + liveToday.contestPnlRyb + liveToday.contestPnlFof + liveToday.contestPnlMm + liveToday.contestPnlBloom
       );
 
       const historicalRows = snapshotRows
@@ -25720,6 +25812,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
           pnlRyb: roundCurrencyValue(Number(row?.pnl_ryb || 0)),
           pnlFof: roundCurrencyValue(Number(row?.pnl_fof || 0)),
           pnlMm: roundCurrencyValue(Number(row?.pnl_mm || 0)),
+          pnlBloom: roundCurrencyValue(Number(row?.pnl_bloom || 0)),
           normalPnlTotal: roundCurrencyValue(Number(row?.normal_pnl_total || 0)),
           normalPnlRtn: roundCurrencyValue(Number(row?.normal_pnl_rtn || 0)),
           normalPnlG10: roundCurrencyValue(Number(row?.normal_pnl_g10 || 0)),
@@ -25727,6 +25820,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
           normalPnlRyb: roundCurrencyValue(Number(row?.normal_pnl_ryb || 0)),
           normalPnlFof: roundCurrencyValue(Number(row?.normal_pnl_fof || 0)),
           normalPnlMm: roundCurrencyValue(Number(row?.normal_pnl_mm || 0)),
+          normalPnlBloom: roundCurrencyValue(Number(row?.normal_pnl_bloom || 0)),
           contestPnlTotal: roundCurrencyValue(Number(row?.contest_pnl_total || 0)),
           contestPnlRtn: roundCurrencyValue(Number(row?.contest_pnl_rtn || 0)),
           contestPnlG10: roundCurrencyValue(Number(row?.contest_pnl_g10 || 0)),
@@ -25734,6 +25828,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
           contestPnlRyb: roundCurrencyValue(Number(row?.contest_pnl_ryb || 0)),
           contestPnlFof: roundCurrencyValue(Number(row?.contest_pnl_fof || 0)),
           contestPnlMm: roundCurrencyValue(Number(row?.contest_pnl_mm || 0)),
+          contestPnlBloom: roundCurrencyValue(Number(row?.contest_pnl_bloom || 0)),
           fallbackIndex: index
         }))
         .filter((row) => row.dayKey);
@@ -25751,7 +25846,7 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
       // No snapshots — build from raw records.
       // NOTE: allRtnLive already covers rtn_live_hands, so we do NOT also
       // pull RTN hands separately here.
-      const [allRtnLive, allG10Live, allTrades, allCsRounds, allFofRounds, allMmSpins] = await Promise.all([
+      const [allRtnLive, allG10Live, allTrades, allCsRounds, allFofRounds, allMmSpins, allBloomRounds] = await Promise.all([
         (async () => {
           const { data } = await supabase
             .from("rtn_live_hands")
@@ -25801,6 +25896,15 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
             .eq("status", "resolved")
             .order("created_at", { ascending: true });
           return Array.isArray(data) ? data : [];
+        })(),
+        (async () => {
+          const { data } = await supabase
+            .from("bloom_rounds")
+            .select("created_at, net_profit, contest_id")
+            .eq("user_id", currentUser.id)
+            .in("status", ["resolved", "aborted"])
+            .order("created_at", { ascending: true });
+          return Array.isArray(data) ? data : [];
         })()
       ]);
 
@@ -25811,9 +25915,9 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
         if (!dailyTotals.has(dayKey)) {
           dailyTotals.set(dayKey, {
             dayKey, created_at: createdAt,
-            pnlTotal: 0, pnlRtn: 0, pnlG10: 0, pnlShapeTraders: 0, pnlRyb: 0, pnlFof: 0, pnlMm: 0,
-            normalPnlTotal: 0, normalPnlRtn: 0, normalPnlG10: 0, normalPnlShapeTraders: 0, normalPnlRyb: 0, normalPnlFof: 0, normalPnlMm: 0,
-            contestPnlTotal: 0, contestPnlRtn: 0, contestPnlG10: 0, contestPnlShapeTraders: 0, contestPnlRyb: 0, contestPnlFof: 0, contestPnlMm: 0
+            pnlTotal: 0, pnlRtn: 0, pnlG10: 0, pnlShapeTraders: 0, pnlRyb: 0, pnlFof: 0, pnlMm: 0, pnlBloom: 0,
+            normalPnlTotal: 0, normalPnlRtn: 0, normalPnlG10: 0, normalPnlShapeTraders: 0, normalPnlRyb: 0, normalPnlFof: 0, normalPnlMm: 0, normalPnlBloom: 0,
+            contestPnlTotal: 0, contestPnlRtn: 0, contestPnlG10: 0, contestPnlShapeTraders: 0, contestPnlRyb: 0, contestPnlFof: 0, contestPnlMm: 0, contestPnlBloom: 0
           });
         }
         return dailyTotals.get(dayKey);
@@ -25889,12 +25993,24 @@ async function loadPersistentBankrollHistory({ force = false } = {}) {
         else bucket.normalPnlMm = roundCurrencyValue(bucket.normalPnlMm + net);
       });
 
+      // Bloom rounds — resolved credits the win, aborted forfeits the stake; split by contest_id
+      allBloomRounds.forEach((row) => {
+        const dayKey = formatAnalyticsDateKey(row?.created_at);
+        if (!dayKey) return;
+        const bucket = ensureDay(dayKey, row?.created_at || `${dayKey}T12:00:00`);
+        const net = roundCurrencyValue(Number(row?.net_profit || 0));
+        const isContest = !!row?.contest_id;
+        bucket.pnlBloom = roundCurrencyValue(bucket.pnlBloom + net);
+        if (isContest) bucket.contestPnlBloom = roundCurrencyValue(bucket.contestPnlBloom + net);
+        else bucket.normalPnlBloom = roundCurrencyValue(bucket.normalPnlBloom + net);
+      });
+
       persistentBankrollHistory = Array.from(dailyTotals.values())
         .map((row, index) => ({
           ...row,
-          pnlTotal: roundCurrencyValue(row.pnlRtn + row.pnlG10 + row.pnlShapeTraders + row.pnlRyb + row.pnlFof + row.pnlMm),
-          normalPnlTotal: roundCurrencyValue(row.normalPnlRtn + row.normalPnlG10 + row.normalPnlShapeTraders + row.normalPnlRyb + row.normalPnlFof + row.normalPnlMm),
-          contestPnlTotal: roundCurrencyValue(row.contestPnlRtn + row.contestPnlG10 + row.contestPnlShapeTraders + row.contestPnlRyb + row.contestPnlFof + row.contestPnlMm),
+          pnlTotal: roundCurrencyValue(row.pnlRtn + row.pnlG10 + row.pnlShapeTraders + row.pnlRyb + row.pnlFof + row.pnlMm + row.pnlBloom),
+          normalPnlTotal: roundCurrencyValue(row.normalPnlRtn + row.normalPnlG10 + row.normalPnlShapeTraders + row.normalPnlRyb + row.normalPnlFof + row.normalPnlMm + row.normalPnlBloom),
+          contestPnlTotal: roundCurrencyValue(row.contestPnlRtn + row.contestPnlG10 + row.contestPnlShapeTraders + row.contestPnlRyb + row.contestPnlFof + row.contestPnlMm + row.contestPnlBloom),
           fallbackIndex: index
         }))
         .sort((left, right) => String(left.dayKey).localeCompare(String(right.dayKey)));
@@ -29653,6 +29769,19 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
         clickAttr = ` data-fof-review-id="${escapeAssistantHtml(entry.handId)}"`;
         isClickable = true;
       }
+    } else if (entry.gameKey === GAME_KEYS.BLOOM) {
+      // Bloom rounds — click opens the garden detail modal (aborted rounds too).
+      game = "BLM";
+      shortId = entry.handNumber || entry.handId?.slice(-4) || entry.id?.split(":")[1]?.slice(-4) || "—";
+      modeLabel = (entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL";
+      net = Number(entry.net ?? 0);
+      netClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
+      netText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
+      bal = entry.newAccountValue ?? null;
+      if (showReviewButtons && entry.handId) {
+        clickAttr = ` data-bloom-review-id="${escapeAssistantHtml(entry.handId)}"`;
+        isClickable = true;
+      }
     } else {
       // RTN / G10 / COLOR_SCHEME (entryType:"hand")
       game = entry.gameKey === GAME_KEYS.GUESS_10 ? "G10"
@@ -33009,7 +33138,74 @@ async function openFofReviewModal(roundId, trigger) {
   }
 }
 
-const ACTIVITY_ROW_DETAIL_SELECTOR = "[data-hand-review-id], [data-mm-review-id], [data-fof-review-id], [data-activity-trade-entry-id]";
+// ── Bloom round detail ──────────────────────────────────────────────────
+// Deck glyph maps from the cached bloom deck (best-effort; emoji fallbacks when
+// the deck hasn't been fetched yet this session).
+function bloomDeckGlyphMaps() {
+  const d = (typeof _bloomDeckCache !== "undefined" && _bloomDeckCache) ? _bloomDeckCache : null;
+  const flowers = new Map(), weather = new Map();
+  if (d) {
+    (d.flowers || []).forEach((r) => flowers.set(r.flower, r));
+    (d.weather || []).forEach((r) => weather.set(r.weather, r));
+  }
+  return { flowers, weather };
+}
+function renderBloomDetailHtml(row) {
+  const { flowers, weather } = bloomDeckGlyphMaps();
+  const satchel = Array.isArray(row?.satchel) ? row.satchel : [];
+  const wx = row?.weather_patterns || {};
+  const reels = Array.isArray(wx.reels) ? wx.reels : [];
+  const aborted = String(row?.status || "resolved") === "aborted";
+  const wager = Number(row?.total_wagered || 0), ret = Number(row?.total_returned || 0), net = ret - wager;
+  const boardMult = Number(row?.board_mult ?? wx.board_mult ?? 1) || 1;
+  const allMatch = !!(row?.all_match ?? wx.match);
+  const flowerChip = (id) => {
+    const r = flowers.get(id);
+    return `<span class="blrv-chip" title="${escapeAssistantHtml(r?.display_name || String(id))}">${escapeAssistantHtml(r?.emoji || "🌸")}</span>`;
+  };
+  const reelChip = (id) => {
+    const r = weather.get(id);
+    return `<span class="blrv-reel">${escapeAssistantHtml(r?.icon || "·")}</span>`;
+  };
+  return `
+    <div class="blrv-head">
+      <span class="blrv-status ${aborted ? "is-aborted" : "is-resolved"}">${aborted ? "ABANDONED" : "RESOLVED"}</span>
+      ${allMatch ? `<span class="blrv-match">LINE MATCH · POLLINATE</span>` : (boardMult > 1 ? `<span class="blrv-match">×${boardMult}</span>` : "")}
+    </div>
+    <div class="blrv-sec-label">Satchel</div>
+    <div class="blrv-chips">${satchel.length ? satchel.map(flowerChip).join("") : '<span class="blrv-none">—</span>'}</div>
+    <div class="blrv-sec-label">Weather reels</div>
+    <div class="blrv-reels">${reels.length ? reels.map(reelChip).join("") : '<span class="blrv-none">—</span>'}</div>
+    <div class="blrv-stats">
+      <span>Sprouted<b>${Number(row?.seeds_sprouted || 0)}</b></span>
+      <span>Living<b>${Number(row?.living_count || 0)}</b></span>
+      <span>Blooms<b>${Number(row?.bloom_count || 0)}</b></span>
+      <span>Super<b>${Number(row?.super_count || 0)}</b></span>
+      <span>Wilt<b>${Number(row?.wilt_count || 0)}</b></span>
+    </div>
+    ${aborted ? '<p class="blrv-abort-note">Round left unfinished — the stake was forfeited and no win was paid.</p>' : ""}
+    <div class="rdrv-totals">
+      <span>Bet<b>${formatCurrency(wager)}</b></span>
+      <span>Returned<b>${formatCurrency(ret)}</b></span>
+      <span class="${net > 0 ? "is-win" : net < 0 ? "is-loss" : ""}">Net<b>${net >= 0 ? "+" : "−"}${formatCurrency(Math.abs(net))}</b></span>
+    </div>`;
+}
+async function openBloomReviewModal(roundId, trigger) {
+  if (!roundId || !supabase) return;
+  openRoundDetailModal("Bloom · Round", '<p class="rdrv-loading">Loading…</p>', trigger);
+  try {
+    const { data, error } = await supabase.from("bloom_rounds")
+      .select("satchel, weather_patterns, board_mult, all_match, seeds_sprouted, living_count, bloom_count, super_count, wilt_count, total_wagered, total_returned, status")
+      .eq("id", roundId).maybeSingle();
+    if (error || !data) { if (roundDetailBodyEl) roundDetailBodyEl.innerHTML = '<p class="rdrv-loading">Round detail unavailable.</p>'; return; }
+    if (roundDetailBodyEl) roundDetailBodyEl.innerHTML = renderBloomDetailHtml(data);
+  } catch (e) {
+    console.error("[RTN] openBloomReviewModal error", e);
+    if (roundDetailBodyEl) roundDetailBodyEl.innerHTML = '<p class="rdrv-loading">Round detail unavailable.</p>';
+  }
+}
+
+const ACTIVITY_ROW_DETAIL_SELECTOR = "[data-hand-review-id], [data-mm-review-id], [data-fof-review-id], [data-bloom-review-id], [data-activity-trade-entry-id]";
 function dispatchActivityRowDetail(row) {
   if (!(row instanceof HTMLElement)) return;
   if (row.dataset.handReviewId) {
@@ -33018,6 +33214,8 @@ function dispatchActivityRowDetail(row) {
     void openMmReviewModal(row.dataset.mmReviewId, row);
   } else if (row.dataset.fofReviewId) {
     void openFofReviewModal(row.dataset.fofReviewId, row);
+  } else if (row.dataset.bloomReviewId) {
+    void openBloomReviewModal(row.dataset.bloomReviewId, row);
   } else if (row.dataset.activityTradeEntryId) {
     const entry = activityLogEntries.find((e) => e.id === row.dataset.activityTradeEntryId);
     if (entry) openHomeTradeDetailModal(entry);
@@ -42080,7 +42278,9 @@ async function openPlayerActivityLogModal(userId, playerName) {
     GAME_KEYS.GUESS_10,
     GAME_KEYS.SHAPE_TRADERS,
     GAME_KEYS.COLOR_SCHEME,
-    GAME_KEYS.FATE_OR_FORTUNE
+    GAME_KEYS.FATE_OR_FORTUNE,
+    GAME_KEYS.MONKEY_MOONSHINE,
+    GAME_KEYS.BLOOM
   ]);
   playerActivityLogTradeFilter = "all";
   playerActivityLogEntries = [];
@@ -44229,6 +44429,7 @@ function renderHomeSidebarActivity() {
 
     let mmReviewId = null;
     let fofReviewId = null;
+    let bloomReviewId = null;
     if (entry.gameKey === GAME_KEYS.MONKEY_MOONSHINE) {
       mmReviewId = entry.handId || null;
       const handNum = entry.handNumber || entry.handId?.slice(-4) || entry.id?.split(":")[1]?.slice(-4) || "—";
@@ -44240,6 +44441,13 @@ function renderHomeSidebarActivity() {
       fofReviewId = entry.handId || null;
       const handNum = entry.handNumber || entry.handId?.slice(-4) || "—";
       label = `FOF · <b>#${escapeAssistantHtml(String(handNum))}</b>`;
+      const net = Number(entry.net ?? 0);
+      resultClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
+      resultText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
+    } else if (entry.gameKey === GAME_KEYS.BLOOM) {
+      bloomReviewId = entry.handId || null;
+      const handNum = entry.handNumber || entry.handId?.slice(-4) || entry.id?.split(":")[1]?.slice(-4) || "—";
+      label = `BLM · <b>#${escapeAssistantHtml(String(handNum))}</b>`;
       const net = Number(entry.net ?? 0);
       resultClass = net > 0 ? "is-win" : net < 0 ? "is-loss" : "is-neutral";
       resultText = net >= 0 ? `+${formatCurrency(net)}` : `-${formatCurrency(Math.abs(net))}`;
@@ -44263,16 +44471,18 @@ function renderHomeSidebarActivity() {
       resultClass = "is-neutral";
     }
 
-    const handId = (entry.handId && !suppressReview && !mmReviewId && !fofReviewId) ? entry.handId : null;
+    const handId = (entry.handId && !suppressReview && !mmReviewId && !fofReviewId && !bloomReviewId) ? entry.handId : null;
     const ts = formatHomeSidebarTimestamp(entry.createdAt);
-    const isClickable = handId || mmReviewId || fofReviewId || isTrade;
+    const isClickable = handId || mmReviewId || fofReviewId || bloomReviewId || isTrade;
     const dataAttrs = handId
       ? ` data-hand-review-id="${escapeAssistantHtml(handId)}"`
       : mmReviewId
         ? ` data-mm-review-id="${escapeAssistantHtml(mmReviewId)}"`
         : fofReviewId
           ? ` data-fof-review-id="${escapeAssistantHtml(fofReviewId)}"`
-          : "";
+          : bloomReviewId
+            ? ` data-bloom-review-id="${escapeAssistantHtml(bloomReviewId)}"`
+            : "";
     const tradeAttr = isTrade ? ` data-activity-idx="${idx}"` : "";
     const modeLabel = entry.entryType !== "account"
       ? ((entry.contestId || entry.modeType === "contest") ? "CONTEST" : "NORMAL")
@@ -44309,6 +44519,15 @@ function renderHomeSidebarActivity() {
     const activate = () => {
       const roundId = item.dataset.fofReviewId;
       if (roundId && typeof openFofReviewModal === "function") openFofReviewModal(roundId, item);
+    };
+    item.addEventListener("click", activate);
+    item.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } });
+  });
+
+  homeSidebarActivityEl.querySelectorAll("[data-bloom-review-id]").forEach((item) => {
+    const activate = () => {
+      const roundId = item.dataset.bloomReviewId;
+      if (roundId && typeof openBloomReviewModal === "function") openBloomReviewModal(roundId, item);
     };
     item.addEventListener("click", activate);
     item.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } });
