@@ -196,15 +196,6 @@
      brighter than the flat pastel without changing its hue. */
   .wcell.lit{background:radial-gradient(125% 95% at 50% 12%,rgba(255,255,255,.72),rgba(255,255,255,0) 64%),var(--wtint);border-color:var(--wmain)}
   .wcell.hot{border-color:var(--wmain,#141414);box-shadow:0 0 0 2px var(--wmain,#141414)}
-  /* animated weather-effect overlay: the landed cell's gif (rain, heat shimmer,
-     snow…) plays over the glyph. A soft inner scrim darkens the pale tint just
-     enough that the light particles read; the gif paints above it. */
-  .wcell.fxon::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
-    background:radial-gradient(125% 110% at 50% 46%,transparent 34%,rgba(20,20,20,.26) 100%)}
-  .wfx{position:absolute;inset:0;z-index:1;pointer-events:none;
-    background-repeat:no-repeat;background-position:center;background-size:cover;
-    opacity:0;transition:opacity .35s}
-  .wcell.fxon .wfx{opacity:.95}
   .wcell.landed{animation:wland .34s cubic-bezier(.2,1.4,.35,1)}
   @keyframes wland{0%{transform:translateY(-5px)}60%{transform:translateY(2px)}100%{transform:translateY(0)}}
 
@@ -644,6 +635,13 @@
     background-color:#d3e8f2;
     background-image:var(--garden-bg, url("https://jfqdjqhqumoqcoivjwbi.supabase.co/storage/v1/object/public/bloom-assets/bg/garden-16x10-v1.png"));
     background-position:center bottom;background-size:cover;background-repeat:no-repeat}
+  /* animated weather effect over the garden. The 200px gif tiles into a field of
+     particles across the whole plot, above the flowers (rain/snow fall in front)
+     but below the POLLINATE swarm (z6). Fades in when a weather lands. */
+  .garden-fx{position:absolute;inset:0;z-index:2;pointer-events:none;
+    background-repeat:repeat;background-position:center top;background-size:150px 150px;
+    opacity:0;transition:opacity .5s;mix-blend-mode:screen}
+  .garden-fx.on{opacity:.7}
   /* satchel: one horizontal row */
   /* Header is ONE compact line — SATCHEL + MAX WIN inline on the left, a plain
      text EDIT on the right — so it takes ~a quarter of the bar instead of half. */
@@ -869,6 +867,9 @@
       <!-- GARDEN (blue sky + dirt) -->
       <div class="dirt dirt-stacked garden-card" id="dirt">
         <div class="bed-layer" id="bedLayer"></div>
+        <!-- animated weather effect washing over the whole garden (rain, heat
+             shimmer, snow…); driven by applyWeatherTheme with the drawn weather -->
+        <div class="garden-fx" id="gardenFx"></div>
         <div class="muted dirt-hint" id="dirtHint">cast your seeds →</div>
         <!-- POLLINATE: bees swarm the flower being pollinated, and the wheel that
              sets ITS multiplier sits over the bed. One click + spin per flower. -->
@@ -3235,14 +3236,14 @@ function weatherFx(w){
   const a=weatherArt(w);
   return (a && a.fx) || null;
 }
-// Drop the gif into (or clear it from) a cell's .wfx layer. Re-setting the src each
-// land restarts the loop so the effect visibly bursts when the reel settles.
-function paintCellFx(cell, w){
-  if(!cell) return;
-  const fx=cell.querySelector('.wfx'); if(!fx) return;
+// Wash the whole garden panel in the drawn weather's animated effect (rain, heat
+// shimmer, snow…). The DB fx_url wins; otherwise the bundled default. Passing no
+// weather (or one with no effect, e.g. the butterfly wild) clears it.
+function paintGardenFx(w){
+  const fx=$('#gardenFx'); if(!fx) return;
   const url=weatherFx(w);
-  if(url){ fx.style.backgroundImage='url("'+url+'")'; cell.classList.add('fxon'); }
-  else { fx.style.backgroundImage=''; cell.classList.remove('fxon'); }
+  if(url){ fx.style.backgroundImage='url("'+url+'")'; fx.classList.add('on'); }
+  else { fx.style.backgroundImage=''; fx.classList.remove('on'); }
 }
 function weatherIcon(w, cls){
   if(weatherArt(w)) return weatherGlyph(w, cls);
@@ -3382,7 +3383,7 @@ function buildWeatherReel(){
   const n=state.config.drawsPerRound;
   r.style.gridTemplateColumns='repeat('+n+',1fr)';
   for(let i=0;i<n;i++){
-    const c=el('div','wcell',`<div class="payline"></div><div class="wstrip">${wtileHTML(null)}</div><div class="wfx"></div>`);
+    const c=el('div','wcell',`<div class="payline"></div><div class="wstrip">${wtileHTML(null)}</div>`);
     r.appendChild(c);
   }
 }
@@ -3392,7 +3393,6 @@ function setWCell(cell,w,hot){
   if(strip){ strip.classList.remove('spinning'); strip.style.transition='none'; strip.style.transform='translateY(0)'; strip.innerHTML=wtileHTML(w); }
   cell.classList.toggle('hot',!!hot);
   cellNeon(cell,w);
-  paintCellFx(cell,w);
 }
 
 /* ---- ten seeds land in one bed ---- */
@@ -3489,6 +3489,7 @@ function hexA(hex,a){const n=(hex||'#88aa88').replace('#','');
   return `rgba(${r},${g},${b},${a})`;}
 function applyWeatherTheme(w){
   const dirt=$('#dirt');
+  paintGardenFx(w);                              // animated weather effect over the garden
   if(!w){dirt.style.boxShadow='';dirt.style.filter='';return;}
   const c=w.color||'#88aa88';
   dirt.style.boxShadow=`inset 0 0 90px ${hexA(c,.5)}`;
@@ -4083,7 +4084,6 @@ function spinOneCell(cell,finalW){
       strip.innerHTML=wtileHTML(finalW);         // snap to the clean locked tile
       cell.classList.add('landed');
       cellNeon(cell,finalW);                     // light the border/glow to its neon
-      paintCellFx(cell,finalW);                  // burst the animated weather effect
       res();
     };
     strip.addEventListener('transitionend',finish,{once:true});

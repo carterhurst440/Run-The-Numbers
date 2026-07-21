@@ -10848,7 +10848,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260721g-weatherfx");
+      frame.setAttribute("src", "games/bloom.html?v=20260721h-gardenfx");
     }
     installBloomBridge();   // idempotent: seed the in-memory balance + admin flag
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -33990,20 +33990,21 @@ const BloomAdmin = {
 
     row.append(icon, name, kindSel, countWrap, del);
 
-    // FX overlay upload — the animated gif that plays over a landed reel cell.
-    // Blank keeps the bundled default effect; butterfly (the wild) has no reel fx.
+    // FX overlay upload — the animated gif that washes over the garden panel when
+    // this weather is drawn. Blank keeps the bundled default; the butterfly (wild)
+    // draws no weather over the garden, so it has no FX.
     const fxWrap = document.createElement('div'); fxWrap.className = 'bloom-wfx';
     if (w.kind === 'butterfly'){
       const note = document.createElement('span'); note.className = 'bloom-wfx-note';
-      note.textContent = 'reel FX: n/a (wild)';
+      note.textContent = 'garden FX: n/a (wild)';
       fxWrap.appendChild(note);
     } else {
       fxWrap.appendChild(
-        this.uploadBtn(w.fx_url ? 'Replace reel FX' : 'Upload reel FX', 'image/gif,video/mp4,video/webm,image/png',
+        this.uploadBtn(w.fx_url ? 'Replace garden FX' : 'Upload garden FX', 'image/gif,video/mp4,video/webm,image/png',
           file => this.uploadWeatherFx(w, file))
       );
       const note = document.createElement('span'); note.className = 'bloom-wfx-note';
-      note.textContent = w.fx_url ? 'reel FX: custom ✓' : 'reel FX: bundled default';
+      note.textContent = w.fx_url ? 'garden FX: custom ✓' : 'garden FX: bundled default';
       fxWrap.appendChild(note);
       if (w.fx_url){
         const preview = document.createElement('img'); preview.className='bloom-wfx-prev'; preview.src = w.fx_url; preview.alt='';
@@ -34018,7 +34019,7 @@ const BloomAdmin = {
   },
 
   async uploadWeatherFx(w, file){
-    this.status(`Uploading FX for ${w.display_name}…`);
+    this.status(`Uploading garden FX for ${w.display_name}…`);
     try {
       const t = (file.type || '').toLowerCase();
       if (!/^(image\/gif|image\/png|video\/mp4|video\/webm)$/.test(t))
@@ -34037,8 +34038,8 @@ const BloomAdmin = {
       } catch (persistErr){ console.warn('[bloom] fx auto-persist failed', persistErr); }
       bloomInvalidateDeck();
       this.status(persisted
-        ? `Reel FX uploaded + saved for ${w.display_name}.`
-        : `Reel FX uploaded for ${w.display_name} — click Save to DB to finish.`);
+        ? `Garden FX uploaded + saved for ${w.display_name}.`
+        : `Garden FX uploaded for ${w.display_name} — click Save to DB to finish.`);
       this.renderWeather();
     } catch (e){
       console.error('[bloom] weather fx upload', e);
@@ -34054,7 +34055,7 @@ const BloomAdmin = {
         .eq('weather', w.weather);
       bloomInvalidateDeck();
     } catch (e){ console.warn('[bloom] fx clear failed', e); }
-    this.status(`Reel FX reset to the bundled default for ${w.display_name}.`);
+    this.status(`Garden FX reset to the bundled default for ${w.display_name}.`);
     this.renderWeather();
   },
 
