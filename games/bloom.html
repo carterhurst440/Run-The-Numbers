@@ -23,6 +23,10 @@
     --card-gutter:22px;
   }
   *{box-sizing:border-box}
+  /* html carries the field colour too, so the overscroll / rubber-band canvas is the
+     same colour as the page (else scrolling up past the top exposed the yellow root
+     even mid-pollination) */
+  html{background-color:var(--page-bg);transition:background-color .6s ease}
   body{margin:0;font-family:var(--ui);background:var(--page-bg);color:var(--text);min-height:100vh}
   header{padding:14px 22px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--line)}
   header h1{margin:0;font-family:var(--disp);font-size:27px;letter-spacing:.2em;font-weight:800;color:var(--text)}
@@ -229,7 +233,16 @@
 
   .satchel{flex:1 1 300px;max-width:340px;min-width:0}
   .picker{display:grid;grid-template-columns:repeat(2,1fr);--picker-gap:7px;gap:var(--picker-gap);
-    max-height:300px;overflow:auto;padding-right:4px}
+    max-height:300px;overflow:auto;padding-right:4px;
+    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  /* make it obvious the flower list scrolls: an always-visible thumb, plus the list
+     fades at whichever edge has more content (sc-up / sc-down toggled from JS) */
+  .picker::-webkit-scrollbar{width:9px}
+  .picker::-webkit-scrollbar-thumb{background:var(--line);border-radius:20px;border:2px solid transparent;background-clip:content-box}
+  .picker::-webkit-scrollbar-track{background:rgba(20,20,20,.08);border-radius:20px}
+  .picker.sc-down{-webkit-mask-image:linear-gradient(to bottom,#000 80%,transparent);mask-image:linear-gradient(to bottom,#000 80%,transparent)}
+  .picker.sc-up{-webkit-mask-image:linear-gradient(to bottom,transparent,#000 16%);mask-image:linear-gradient(to bottom,transparent,#000 16%)}
+  .picker.sc-up.sc-down{-webkit-mask-image:linear-gradient(to bottom,transparent,#000 13%,#000 83%,transparent);mask-image:linear-gradient(to bottom,transparent,#000 13%,#000 83%,transparent)}
   .pick{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.42);border:1px solid var(--line);
     border-radius:2px;padding:6px 8px;cursor:pointer}
   .pick:hover{border-color:var(--accent)}
@@ -556,7 +569,7 @@
     background-size:9px 9px;
     transition:background-color .6s ease;}
   /* POLLINATE bonus: the whole game field fades yellow -> light pink and back */
-  body.pollinating{--page-bg:#ffd6ea;}
+  html.pollinating,body.pollinating{--page-bg:#ffd6ea;}
   main{padding:0}
   /* play view is a plain centred block — NOT a flex row (that's only for the
      deck-builder's two panels). Keeps the column a consistent width, aligned
@@ -3358,6 +3371,15 @@ function renderPicker(){
     p.appendChild(panel);
     if(openStat===f.id){ panel.innerHTML=statPanelHTML(f); panel.style.display=''; d.classList.add('is-open'); }
   });
+  p.onscroll=updatePickerScrollHint;               // edge-fade follows the scroll
+  requestAnimationFrame(updatePickerScrollHint);
+}
+// Toggle the "more above / more below" edge fades on the flower picker so it reads
+// as a scrollable list rather than a clipped one.
+function updatePickerScrollHint(){
+  const p=$('#picker'); if(!p) return;
+  p.classList.toggle('sc-up',   p.scrollTop > 2);
+  p.classList.toggle('sc-down', p.scrollTop + p.clientHeight < p.scrollHeight - 2);
 }
 function renderSlots(){
   const s=$('#slots5');s.innerHTML='';
@@ -3404,6 +3426,7 @@ function openSatModal(){
   requestShellViewport();
   sfx('satchel_edit');
   m.hidden=false; renderModalSlots(); updateVolatility();
+  requestAnimationFrame(updatePickerScrollHint);   // picker height is known once the modal is shown
 }
 function closeSatModal(){ const m=$('#satModal'); if(m) m.hidden=true; }
 function setSatchelOpen(open){ open ? openSatModal() : closeSatModal(); }   // castSeeds calls setSatchelOpen(false)
@@ -3442,6 +3465,7 @@ function resetPlayArea(){
   polTeardown();
   // NEW ROUND clears the held pollination afterglow: field back to yellow, title
   // bouquet wilts away, and the pink win-glow drops off the scoreboard
+  document.documentElement.classList.remove('pollinating');
   document.body.classList.remove('pollinating');
   TitleBloom.stop();
   const wn=$('#roundWinNum'); if(wn) wn.classList.remove('win-final');
@@ -4239,6 +4263,7 @@ function polMarkDone(plantIndex, mult){
 
 function beginPollinate(payers, bet){
   round.phase='pollinate';
+  document.documentElement.classList.add('pollinating');   // root too, so overscroll is pink
   document.body.classList.add('pollinating');  // fade the whole game field yellow -> pink
   TitleBloom.trigger();                        // grow the flower cluster behind the BLOOM title
   sndPollinate(true);                          // bees out — swap ambient bed for the bonus track
