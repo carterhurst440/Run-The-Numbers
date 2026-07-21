@@ -579,9 +579,9 @@
   /* POLLINATE title flourish: two flower-cluster layers anchored top-left, framing
      the wordmark (back z1 behind it, front z3 over it). Authored in a 545x300 box;
      ~0.5 scale here. Hidden until the bonus, then fades in. pointer-events:none. */
-  .blm-fx{position:absolute;left:-10px;top:-10px;width:min(290px,62vw);aspect-ratio:29/16;pointer-events:none;
+  .blm-fx{position:absolute;left:-8px;top:-8px;width:min(210px,46vw);aspect-ratio:29/16;pointer-events:none;
     overflow:visible;opacity:0;transition:opacity .45s ease}
-  .blm-fx.on{opacity:1}
+  .blm-fx.on{opacity:.8}   /* smaller + a touch translucent so it stays a subtle accent */
   .blm-fx-back{z-index:1}
   .blm-fx-front{z-index:1}   /* all flowers sit BEHIND the wordmark (h1 is z2) */
   .blm-fx svg{overflow:visible}
@@ -4143,6 +4143,20 @@ function polBloomXY(plantIndex){
   };
 }
 
+// Re-place an already-built swarm's halo/sparks/bugs in place (no innerHTML rebuild,
+// so the orbit animation keeps running). Used to track a bloom that is still growing
+// when the bonus opens — the swarm is first placed before the art finishes its tween.
+function polPlaceSwarm(plantIndex){
+  const swarm=$('#polSwarm'), p=polBloomXY(plantIndex); if(!swarm||!p) return false;
+  const halo=swarm.querySelector('.pol-halo'), bugs=swarm.querySelectorAll('.pol-bug');
+  if(!halo || !bugs.length) return false;                 // not built yet
+  const {x,y,halo:h}=p;
+  halo.style.left=(x-h/2)+'px'; halo.style.top=(y-h/2)+'px'; halo.style.width=h+'px'; halo.style.height=h+'px';
+  swarm.querySelectorAll('.pol-spark').forEach((s,i)=>{ const a=(i/5)*Math.PI*2, r=h*0.45;
+    s.style.left=(x+r*Math.cos(a))+'px'; s.style.top=(y+r*Math.sin(a))+'px'; });
+  bugs.forEach(b=>{ b.style.left=x+'px'; b.style.top=y+'px'; });
+  return true;
+}
 function polMoveSwarm(plantIndex){
   const swarm=$('#polSwarm'), p=polBloomXY(plantIndex);
   if(!swarm||!p) return;
@@ -4184,6 +4198,10 @@ function beginPollinate(payers, bet){
   TitleBloom.trigger();                        // grow the flower cluster behind the BLOOM title
   sndPollinate(true);                          // bees out — swap ambient bed for the bonus track
   pol={ payers, bet, idx:0, total:0, mults:[], mode:null, locked:false };
+  // The bloomed flowers are still finishing their grow-in as the bonus opens, so the
+  // first swarm placement lands low (on the seedling). Re-place it in step with the
+  // settling art so the bugs end up circling the bloom, not the base.
+  [250,550,900,1350].forEach(ms=>setTimeout(()=>{ if(pol && pol.payers[pol.idx]) polPlaceSwarm(pol.payers[pol.idx].i); }, ms));
   const done=$('#polDone'); if(done) done.innerHTML='';
   const layer=$('#polLayer'); if(layer) layer.hidden=false;
   // the wheel stands in for the reels in the same card
