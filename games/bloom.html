@@ -11,6 +11,7 @@
   :root{
     /* Kiiro — yellow riso / zine theme: black ink on bright yellow */
     --bg1:#f6e400; --bg2:#f6e400; --panel:rgba(255,255,255,.42); --panel2:rgba(255,255,255,.3);
+    --page-bg:#f6e400;   /* the game's field colour; POLLINATE swaps it to pink (see body.pollinating) */
     --line:#141414; --text:#141414; --muted:#6b6220; --accent:#141414;
     --accent2:#3a3410; --coral:#141414; --btn-ink:#f6e400;
     --gold:#8a6d00; --soil:#5a4632; --danger:#c0402e; --grow:#3a7a34; --wilt:#a85f27;
@@ -22,7 +23,7 @@
     --card-gutter:22px;
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:var(--ui);background:#f6e400;color:var(--text);min-height:100vh}
+  body{margin:0;font-family:var(--ui);background:var(--page-bg);color:var(--text);min-height:100vh}
   header{padding:14px 22px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--line)}
   header h1{margin:0;font-family:var(--disp);font-size:27px;letter-spacing:.2em;font-weight:800;color:var(--text)}
   header .goddess{font-size:26px}
@@ -550,9 +551,12 @@
   button.primary,button.gold{border-radius:2px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
 
   /* ══════ Kiiro LAYOUT — stacked ticket cards on a dotted yellow field ══════ */
-  body{background:#f6e400;
+  body{background-color:var(--page-bg);
     background-image:radial-gradient(rgba(0,0,0,.09) 1.1px, transparent 1.6px);
-    background-size:9px 9px;}
+    background-size:9px 9px;
+    transition:background-color .6s ease;}
+  /* POLLINATE bonus: the whole game field fades yellow -> light pink and back */
+  body.pollinating{--page-bg:#ffd6ea;}
   main{padding:0}
   /* play view is a plain centred block — NOT a flex row (that's only for the
      deck-builder's two panels). Keeps the column a consistent width, aligned
@@ -3933,6 +3937,7 @@ function polMarkDone(plantIndex, mult){
 
 function beginPollinate(payers, bet){
   round.phase='pollinate';
+  document.body.classList.add('pollinating');  // fade the whole game field yellow -> pink
   sndPollinate(true);                          // bees out — swap ambient bed for the bonus track
   pol={ payers, bet, idx:0, total:0, mults:[], mode:null, locked:false };
   const done=$('#polDone'); if(done) done.innerHTML='';
@@ -3986,6 +3991,7 @@ function polChoose(mode){
 // Put the reels back and drop the bonus UI. Shared by the natural end of a run
 // and by resetPlayArea, so an abandoned run cannot strand the card in wheel mode.
 function polTeardown(){
+  document.body.classList.remove('pollinating');         // fade the field back yellow
   sndPollinate(false);                                   // bonus over — back to the ambient bed
   const reels=$('#weatherReel'), panel=$('#polReel'), title=$('#wreelTitle'), layer=$('#polLayer');
   if(reels) reels.hidden=false;
