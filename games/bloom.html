@@ -640,7 +640,7 @@
      swarm (z6). Fades in when a weather lands. */
   .garden-fx{position:absolute;inset:0;z-index:2;pointer-events:none;
     background-repeat:no-repeat;background-position:center;background-size:100% 100%;
-    opacity:0;transition:opacity .5s ease}                          /* slow fade-OUT; normal blend (gifs are coloured, not white) */
+    opacity:0;transition:opacity .3s ease}                          /* fade-OUT (matches FX_FADE_OUT_MS); normal blend (gifs are coloured, not white) */
   .garden-fx.on{opacity:.9;transition:opacity .12s ease}           /* quick fade-IN so a short pass isn't faint */
   /* satchel: one horizontal row */
   /* Header is ONE compact line — SATCHEL + MAX WIN inline on the left, a plain
@@ -3245,6 +3245,7 @@ function fxDurationFor(url){
   const m=/([a-z_]+)\.gif/i.exec(url||'');
   return (m && FX_DURATION[m[1]]) || 1600;
 }
+const FX_FADE_OUT_MS=300;   // must match the .garden-fx fade-out transition (below)
 let fxTimer=null;
 // Wash the whole garden panel in the drawn weather's animated effect (rain, heat
 // shimmer, snow…) for a SINGLE pass, then fade it back out — it does not loop.
@@ -3261,8 +3262,13 @@ function paintGardenFx(w){
   requestAnimationFrame(()=>{
     fx.style.backgroundImage='url("'+url+'")';
     fx.classList.add('on');
-    // hold for one pass, then fade the overlay away (CSS opacity transition)
-    fxTimer=setTimeout(()=>{ fx.classList.remove('on'); fxTimer=null; }, fxDurationFor(url));
+    // The gifs loop forever at the file level, so we cannot rely on the file to
+    // stop. Instead we make the WHOLE overlay (fade-in, hold, fade-out) finish
+    // within one loop: start the fade-out early enough that opacity hits 0 exactly
+    // at the loop boundary — so a second loop is never shown at any opacity.
+    const dur=fxDurationFor(url);
+    const hold=Math.max(0, dur - FX_FADE_OUT_MS);
+    fxTimer=setTimeout(()=>{ fx.classList.remove('on'); fxTimer=null; }, hold);
   });
 }
 function weatherIcon(w, cls){
