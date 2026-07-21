@@ -27204,7 +27204,7 @@ body[data-ui="new"] .home-game-card-color .cc-label {
 body[data-ui="new"] .home-game-card-fof {
   --hgc-accent: #b07bff;
   --hgc-accent-rgb: 176, 123, 255;
-  grid-column: span 2;   /* half-row so FOF + Monkey Moonshine sit side by side */
+  grid-column: span 1;
   aspect-ratio: auto;
   height: auto;
   display: flex;
@@ -27387,7 +27387,7 @@ body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked) .fof-tile-wordmark
 body[data-ui="new"] .home-game-card-mm {
   --hgc-accent: #2fd06e;
   --hgc-accent-rgb: 47, 208, 110;
-  grid-column: span 2;   /* half-row so FOF + Monkey Moonshine sit side by side */
+  grid-column: span 1;
   aspect-ratio: auto;
   height: auto;
   display: flex;
@@ -27482,7 +27482,7 @@ body[data-ui="new"] .home-game-card-mm.is-locked { opacity: 0.9; }
 body[data-ui="new"] .home-game-card-bloom {
   --hgc-accent: #ff2d9b;
   --hgc-accent-rgb: 255, 45, 155;
-  grid-column: span 2;   /* half-row, same footprint as Monkey Moonshine */
+  grid-column: span 1;
   aspect-ratio: auto;
   height: auto;
   display: flex;
@@ -27558,7 +27558,7 @@ body[data-ui="new"] .home-game-card-bloom.is-locked { opacity: 0.9; }
 /* Dummy tile — fills the empty half beside BLOOM on the bottom row. Muted, static,
    non-interactive; matches the tile footprint (span 2). */
 body[data-ui="new"] .home-game-card-dummy {
-  grid-column: span 2;
+  grid-column: span 1;
   display: flex;
   align-items: center;
   justify-content: center;
