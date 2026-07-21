@@ -583,7 +583,7 @@
     overflow:visible;opacity:0;transition:opacity .45s ease}
   .blm-fx.on{opacity:1}
   .blm-fx-back{z-index:1}
-  .blm-fx-front{z-index:3}
+  .blm-fx-front{z-index:1}   /* all flowers sit BEHIND the wordmark (h1 is z2) */
   .blm-fx svg{overflow:visible}
   .kiiro-header h1{position:relative;z-index:2}
   .kiiro-header .hud-board,.kiiro-header .hud-row{position:relative;z-index:2}
@@ -3869,15 +3869,17 @@ function renderSndToggle(){
    no game logic. Honours prefers-reduced-motion by snapping to the bloomed hold. */
 const TitleBloom = (function(){
   const DUR=2.2, HOLD=2.8;
+  // All shades of pink and white: deep rose + candy pink + blush + white-petal
+  // blooms, each keeping a light->dark structure so the petal shading still reads.
   const PAL={
-    POP:{ base:'#e8431f', mid:'#f26a34', tip:'#f8a068', center:'#f6c23a', core:'#2a1508', anther:'#3a2410', fila:'#caa22a', sh:'#a82810' },
-    ANB:{ base:'#3a5bd0', mid:'#5c7ce6', tip:'#aabcf5', center:'#1a1024', core:'#160b1e', anther:'#0e0716', fila:'#5a4a6a', sh:'#26397e' },
-    ANV:{ base:'#7b3fc4', mid:'#9b63dc', tip:'#cbb0ee', center:'#1c0f28', core:'#1c0f28', anther:'#120a1c', fila:'#4a3a5a', sh:'#4c1f86' },
-    SUN:{ base:'#f7b910', mid:'#facf3f', tip:'#ffe98a', center:'#7a4a12', core:'#6a3d0e', anther:'#4a2a0a', fila:'#c98a2a', sh:'#c07d08' },
-    ROSE:{ base:'#d21f7a', mid:'#e8579f', tip:'#f6a8cd', center:'#b01565', anther:'#8a1050', fila:'#e07aae', sh:'#8a0f4c' },
-    DIAN:{ base:'#ee5aa0', mid:'#f487bb', tip:'#ffc4e0', center:'#d43a80', anther:'#b02866', fila:'#f6a8cd', sh:'#c23a72' },
-    CORN:{ base:'#2f6fd6', mid:'#5a92e8', tip:'#aac6f5', center:'#16306a', core:'#16306a', anther:'#0e2050', fila:'#3a5a9a', sh:'#1c4a9a' },
-    FUX:{ base:'#e0348a', mid:'#ef62a8', tip:'#f8a8cf', center:'#7b2fc4', anther:'#5a1f94', fila:'#c86ad0', sh:'#a81f64' }
+    POP:{ base:'#e34b9c', mid:'#f06fb2', tip:'#ffc2e0', center:'#ffe3f1', core:'#c02878', anther:'#a81f66', fila:'#f4a8d0', sh:'#b81f6e' },
+    ANB:{ base:'#f7a8cd', mid:'#fcc4de', tip:'#ffe6f2', center:'#fff2f8', core:'#d64f92', anther:'#c23a7e', fila:'#f8cfe2', sh:'#e07aae' },
+    ANV:{ base:'#ef62a8', mid:'#f487bb', tip:'#ffcae2', center:'#ffe9f3', core:'#c22878', anther:'#a81f66', fila:'#f0a8cd', sh:'#c23a80' },
+    SUN:{ base:'#ffffff', mid:'#fff4f9', tip:'#ffffff', center:'#ffd3e8', core:'#ec5fa2', anther:'#d43a80', fila:'#f6a8cd', sh:'#f2d4e4' },
+    ROSE:{ base:'#d21f7a', mid:'#e8579f', tip:'#f6a8cd', center:'#f8c4de', core:'#a41560', anther:'#971458', fila:'#e07aae', sh:'#a8155c' },
+    DIAN:{ base:'#ee5aa0', mid:'#f487bb', tip:'#ffc9e1', center:'#ffe0ee', core:'#d43a80', anther:'#b02866', fila:'#f6a8cd', sh:'#c73a76' },
+    CORN:{ base:'#f9bcd8', mid:'#ffd6e8', tip:'#ffffff', center:'#ffffff', core:'#e78ab6', anther:'#d76aa0', fila:'#f4c8de', sh:'#ea9cc2' },
+    FUX:{ base:'#e0348a', mid:'#ef62a8', tip:'#f8b0d4', center:'#fff0f6', core:'#b81f64', anther:'#9c1560', fila:'#f0a8cd', sh:'#a81f64' }
   };
   const BACK=[
     {cx:64, cy:34, sc:2.0, body:'poppy',    pal:'POP', d:0.00},
