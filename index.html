@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260721h-sounds" />
+    <link rel="stylesheet" href="styles.css?v=20260721i-bloomtile" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -1003,6 +1003,12 @@
                     <span class="mm-tile-sprite" style="background-image:url('/assets/mm/dragonfruit.png')"></span>
                   </div>
                   <div class="mm-tile-wordmark" aria-hidden="true">MONKEY MOONSHINE</div>
+                </button>
+                <!-- BLOOM — admin-only game tile; JS unhides it for admins. Full-width
+                     banner featuring the flower roster art, pink neon border. -->
+                <button type="button" class="home-game-card home-game-card-bloom bloom-floor-tile" data-route-target="bloom" aria-label="Bloom" hidden>
+                  <div class="bloom-tile-art" aria-hidden="true"></div>
+                  <div class="bloom-tile-wordmark" aria-hidden="true">BLOOM</div>
                 </button>
               </div>
 
@@ -5537,7 +5543,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260721t-pinkroot-scroll"></script>
+    <script type="module" src="script.js?v=20260721u-bloomtile"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

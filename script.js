@@ -526,11 +526,12 @@ function initHomeGameCardGlitch() {
     "home-game-card-color": { hex: "#ff2d4a", r: 255, g: 45,  b: 74 },
     "home-game-card-fof":   { hex: "#b07bff", r: 176, g: 123, b: 255 },
     "home-game-card-mm":    { hex: "#2fd06e", r: 47,  g: 208, b: 110 },
+    "home-game-card-bloom": { hex: "#ff2d9b", r: 255, g: 45,  b: 155 },
   };
 
   document.querySelectorAll(".home-game-card").forEach((card) => {
     const glyphEl = card.querySelector(".cc-glyph");
-    const nameEl  = card.querySelector(".cc-label, .fof-tile-wordmark, .mm-tile-wordmark");
+    const nameEl  = card.querySelector(".cc-label, .fof-tile-wordmark, .mm-tile-wordmark, .bloom-tile-wordmark");
     if (!nameEl) return;
 
     const glyphTarget = glyphEl ? glyphEl.textContent : null;
@@ -10528,6 +10529,10 @@ function updateAdminVisibility(user = currentUser) {
       mmLockLabel.textContent = mmTier ? `UNLOCKS AT TIER ${mmTier}` : "LOCKED";
     }
   }
+  // BLOOM home tile: admin-only game, so its tile follows admin visibility (same
+  // gate as the drawer link). Never tier-locked.
+  const bloomHomeTile = document.querySelector(".home-game-card-bloom");
+  if (bloomHomeTile) bloomHomeTile.hidden = !adminVisible;
   // Show/hide the Admin Tools trigger button (controls now live in modal)
   if (stAdminToolsOpenBtn) {
     stAdminToolsOpenBtn.hidden = !adminVisible;
