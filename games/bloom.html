@@ -635,11 +635,11 @@
     background-color:#d3e8f2;
     background-image:var(--garden-bg, url("https://jfqdjqhqumoqcoivjwbi.supabase.co/storage/v1/object/public/bloom-assets/bg/garden-16x10-v1.png"));
     background-position:center bottom;background-size:cover;background-repeat:no-repeat}
-  /* animated weather effect over the garden. The 200px gif tiles into a field of
-     particles across the whole plot, above the flowers (rain/snow fall in front)
-     but below the POLLINATE swarm (z6). Fades in when a weather lands. */
+  /* animated weather effect over the garden: one gif stretched to fill the whole
+     plot, above the flowers (rain/snow fall in front) but below the POLLINATE
+     swarm (z6). Fades in when a weather lands. */
   .garden-fx{position:absolute;inset:0;z-index:2;pointer-events:none;
-    background-repeat:repeat;background-position:center top;background-size:150px 150px;
+    background-repeat:no-repeat;background-position:center;background-size:100% 100%;
     opacity:0;transition:opacity .5s;mix-blend-mode:screen}
   .garden-fx.on{opacity:.7}
   /* satchel: one horizontal row */
