@@ -597,7 +597,8 @@
      BLOOM spilled rightwards underneath the scoreboard. Flooring at min-content
      means the sides give up their equal share before the wordmark is ever covered. */
   .kiiro-header h1{font-family:var(--ui);font-weight:800;font-size:19px;letter-spacing:.16em;color:var(--text);margin:0;
-    flex:1 1 0;min-width:min-content;white-space:nowrap}
+    flex:1 1 0;min-width:min-content;white-space:nowrap;
+    transition:color .5s ease,font-size .5s ease,text-shadow .5s ease}
   /* same floor on the BALANCE side: it is right-aligned, so shrinking below its
      content would spill the figure leftwards under the board. */
   .kiiro-header .hud-row{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex:1 1 0;min-width:min-content}
@@ -617,8 +618,18 @@
   .kiiro-header .hud-board .hud-val{font-size:18px;font-variant-numeric:tabular-nums}
   .kiiro-header .board-bet .hud-val{color:#f6e400}
   .kiiro-header .board-bet.is-idle .hud-val{color:rgba(246,228,0,.32)}   /* no round staked yet */
-  .kiiro-header .board-win .hud-val{color:#c8ff00;text-shadow:0 0 7px rgba(200,255,0,.75)}
+  .kiiro-header .board-win .hud-val{color:#c8ff00;text-shadow:0 0 7px rgba(200,255,0,.75);transition:color .4s,text-shadow .4s}
   .kiiro-header .hud-board.pulse{animation:sbpulse .4s ease}
+  /* final pollination total: glowing pink, pulsing, held until NEW ROUND */
+  .kiiro-header .board-win .hud-val.win-final{color:#ff5fb0;
+    text-shadow:0 0 8px rgba(255,45,155,.95),0 0 18px rgba(255,45,155,.6),0 0 30px rgba(255,45,155,.35);
+    animation:winFinalGlow 1.6s ease-in-out infinite}
+  @keyframes winFinalGlow{0%,100%{text-shadow:0 0 8px rgba(255,45,155,.9),0 0 18px rgba(255,45,155,.55),0 0 30px rgba(255,45,155,.3)}
+    50%{text-shadow:0 0 12px rgba(255,80,180,1),0 0 26px rgba(255,45,155,.8),0 0 44px rgba(255,45,155,.5)}}
+  /* pink pollination theme: the BLOOM wordmark turns white, bigger + bolder, with a
+     soft drop shadow so it reads over the pink field and the bouquet behind it */
+  body.pollinating .kiiro-header h1{color:#ffffff;font-weight:900;font-size:24px;
+    text-shadow:0 2px 7px rgba(150,20,85,.55),0 1px 2px rgba(0,0,0,.3)}
   /* phones: keep the wordmark + board + balance on ONE row */
   @media (max-width:430px){
     /* only the vertical padding and gap tighten here — the horizontal gutter stays
@@ -3411,6 +3422,11 @@ function resetPlayArea(){
   pol=null; polSpinning=false;
   const pd=$('#polDone'); if(pd) pd.innerHTML='';        // new round: clear last round's pulses
   polTeardown();
+  // NEW ROUND clears the held pollination afterglow: field back to yellow, title
+  // bouquet wilts away, and the pink win-glow drops off the scoreboard
+  document.body.classList.remove('pollinating');
+  TitleBloom.stop();
+  const wn=$('#roundWinNum'); if(wn) wn.classList.remove('win-final');
   buildWeatherReel();$('#multi').textContent='';applyWeatherTheme(null);
   if(typeof updateSpinButton==='function')updateSpinButton();
 }
@@ -3725,6 +3741,11 @@ function settleRound(total, bet){
   SHELL.balance+=total;               // credit the round payout at settle
   bloomRenderBalance();
   setScoreWin(total, true);           // scoreboard settles on the final round return
+  // a pollination win settles under the pink theme — glow its final total pink,
+  // held (with the theme) until NEW ROUND
+  if(document.body.classList.contains('pollinating')){
+    const wn=$('#roundWinNum'); if(wn) wn.classList.toggle('win-final', total>0);
+  }
   bloomPostSettled();                 // let the shell mirror the new balance (in-memory pass)
   recordRound(bet, total, round.plants);   // same bet/total the payout above used
   round.phase='done';round.done=true;
@@ -4253,8 +4274,8 @@ function polChoose(mode){
 // Put the reels back and drop the bonus UI. Shared by the natural end of a run
 // and by resetPlayArea, so an abandoned run cannot strand the card in wheel mode.
 function polTeardown(){
-  document.body.classList.remove('pollinating');         // fade the field back yellow
-  TitleBloom.stop();                                     // wilt away the title flower cluster
+  // NOTE: the pink field + title bouquet are NOT cleared here — they hold as a win
+  // afterglow until the player starts a NEW ROUND (resetPlayArea clears them).
   sndPollinate(false);                                   // bonus over — back to the ambient bed
   const reels=$('#weatherReel'), panel=$('#polReel'), title=$('#wreelTitle'), layer=$('#polLayer');
   if(reels) reels.hidden=false;
