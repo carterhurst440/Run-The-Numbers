@@ -679,9 +679,11 @@
      plot, above the flowers (rain/snow fall in front) but below the POLLINATE
      swarm (z6). Fades in when a weather lands. */
   .garden-fx{position:absolute;inset:0;z-index:2;pointer-events:none;
-    background-repeat:no-repeat;background-position:center;background-size:100% 100%;
-    opacity:0;transition:opacity .3s ease}                          /* fade-OUT (matches FX_FADE_OUT_MS); normal blend (gifs are coloured, not white) */
+    opacity:0;transition:opacity .3s ease}                          /* fade-OUT (matches FX_FADE_OUT_MS) */
   .garden-fx.on{opacity:.9;transition:opacity .12s ease}           /* quick fade-IN so a short pass isn't faint */
+  /* a fresh <img> is created per land (see paintGardenFx) so the gif always animates
+     from frame 0; stretched to fill the plot like the old background-size:100% 100% */
+  .garden-fx img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:block}
   /* sound on/off toggle — sits in the garden's top-left over empty sky (z5: above
      the weather fx, below the POLLINATE swarm) */
   .snd-toggle{position:absolute;top:6px;left:6px;z-index:5;width:30px;height:30px;padding:0;
@@ -3308,22 +3310,18 @@ function paintGardenFx(w){
   const fx=$('#gardenFx'); if(!fx) return;
   if(fxTimer){ clearTimeout(fxTimer); fxTimer=null; }
   const url=weatherFx(w);
-  if(!url){ fx.style.backgroundImage=''; fx.classList.remove('on'); return; }
-  // restart from frame 0 so every land plays the effect from the top: clear the
-  // image, force a reflow, then set it on the next frame
-  fx.style.backgroundImage=''; fx.classList.remove('on');
-  void fx.offsetWidth;
-  requestAnimationFrame(()=>{
-    fx.style.backgroundImage='url("'+url+'")';
-    fx.classList.add('on');
-    // The gifs loop forever at the file level, so we cannot rely on the file to
-    // stop. Instead we make the WHOLE overlay (fade-in, hold, fade-out) finish
-    // within one loop: start the fade-out early enough that opacity hits 0 exactly
-    // at the loop boundary — so a second loop is never shown at any opacity.
-    const dur=fxDurationFor(url);
-    const hold=Math.max(0, dur - FX_FADE_OUT_MS);
-    fxTimer=setTimeout(()=>{ fx.classList.remove('on'); fxTimer=null; }, hold);
-  });
+  if(!url){ fx.replaceChildren(); fx.classList.remove('on'); return; }
+  // A FRESH <img> each land guarantees the gif animates from frame 0. A background-
+  // image reflow re-attaches the same decoded gif mid-loop, so it does NOT rewind —
+  // and frost in particular has a start->end sequence that must play from the top.
+  // The bytes come from cache, so this is not a network refetch.
+  const img=document.createElement('img'); img.alt=''; img.decoding='async'; img.src=url;
+  fx.replaceChildren(img);
+  fx.classList.add('on');
+  // Hold the FULL sequence at full opacity (start -> end), then fade out. The gif
+  // loops at the file level, so the .3s fade tail shows a sliver of the next loop's
+  // start at falling opacity — negligible, and worth it to never clip the ending.
+  fxTimer=setTimeout(()=>{ fx.classList.remove('on'); fxTimer=null; }, fxDurationFor(url));
 }
 function weatherIcon(w, cls){
   if(weatherArt(w)) return weatherGlyph(w, cls);
