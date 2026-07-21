@@ -27469,65 +27469,97 @@ body[data-ui="new"] .home-game-card-mm.is-locked { opacity: 0.9; }
   .mm-tile-sprite, .fof-tile-sprite { animation: none; }
 }
 
-/* ---- BLOOM feature tile: full-width flower banner, pink neon border ---- */
+/* ---- BLOOM feature tile: mirrors the Monkey Moonshine floor tile, pink accent,
+        five glowing flower stickers as the bouncing sprite row ---- */
 body[data-ui="new"] .home-game-card-bloom {
   --hgc-accent: #ff2d9b;
   --hgc-accent-rgb: 255, 45, 155;
-  grid-column: 1 / -1;   /* admin-only tile sits on its own full-width row */
+  grid-column: span 2;   /* half-row, same footprint as Monkey Moonshine */
   aspect-ratio: auto;
   height: auto;
-  min-height: 104px;
-  position: relative;
-  overflow: hidden;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--hgc-accent);
-  background: #0d0710;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 3px,
+      color-mix(in oklab, var(--hgc-accent) 8%, transparent) 3px 4px
+    ),
+    #120610;
   box-shadow:
     inset 0 0 0 1px var(--hgc-accent),
     0 0 0 2px color-mix(in oklab, var(--hgc-accent) 35%, transparent),
-    0 0 22px -2px color-mix(in oklab, var(--hgc-accent) 55%, transparent),
+    0 0 22px -2px color-mix(in oklab, var(--hgc-accent) 50%, transparent),
     0 18px 40px -18px color-mix(in oklab, var(--hgc-accent) 55%, transparent);
 }
 body[data-ui="new"] .home-game-card-bloom.is-locked { opacity: 0.9; }
-.bloom-tile-art {
-  position: absolute;
-  inset: 0;
-  background: url('/assets/bloom/flower-grid.png') center/cover no-repeat;
-  opacity: 0.92;
+/* Zone 1 — B · flower · B logo */
+.bloom-tile-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 9px 0 2px;
 }
-/* scrim: darken the sides + a touch overall so the wordmark reads over the flowers */
-.bloom-tile-art::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(120% 90% at 50% 50%, transparent 30%, rgba(13,7,16,0.72) 100%),
-    linear-gradient(0deg, rgba(13,7,16,0.55), rgba(13,7,16,0.12) 55%);
-}
-.bloom-tile-wordmark {
-  position: relative;
-  z-index: 1;
+.bloom-tile-logo-letter {
   font-family: "JetBrains Mono", monospace;
-  font-size: clamp(22px, 5.2vw, 34px);
+  font-size: 14px;
   font-weight: 800;
-  letter-spacing: 0.26em;
-  color: #ffffff;
-  text-align: center;
-  text-shadow:
-    0 0 4px rgba(255, 45, 155, 1),
-    0 0 16px rgba(255, 45, 155, 0.9),
-    0 0 30px rgba(255, 45, 155, 0.5),
-    0 2px 6px rgba(0, 0, 0, 0.55);
+  letter-spacing: 0.02em;
+  color: #ff2d9b;
+  line-height: 1;
+  text-shadow: 0 0 9px color-mix(in oklab, #ff2d9b 50%, transparent), 0 0 2px #ff2d9b;
 }
-body[data-ui="new"] .home-game-card-bloom:hover:not(.is-locked) .bloom-tile-art { opacity: 1; }
-body[data-ui="new"] .home-game-card-bloom:hover:not(.is-locked) {
-  box-shadow:
-    inset 0 0 0 1px var(--hgc-accent),
-    0 0 0 2px color-mix(in oklab, var(--hgc-accent) 55%, transparent),
-    0 0 30px -1px color-mix(in oklab, var(--hgc-accent) 70%, transparent),
-    0 20px 46px -16px color-mix(in oklab, var(--hgc-accent) 65%, transparent);
+.bloom-tile-flower {
+  display: block;
+  width: 17px;
+  height: 17px;
+  color: #ff2d9b;
+  filter: drop-shadow(0 0 6px color-mix(in oklab, #ff2d9b 70%, transparent));
+}
+/* Zone 2 — bouncing flower row */
+.bloom-tile-sprites {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 6px;
+  min-height: 46px;
+  width: 100%;
+}
+.bloom-tile-sprite {
+  display: block;
+  width: 44px;
+  height: 44px;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  animation: mm-tile-bounce 1.9s ease-in-out infinite;
+}
+.bloom-tile-sprite:nth-child(2) { animation-delay: 0.24s; }
+.bloom-tile-sprite:nth-child(3) { animation-delay: 0.48s; }
+.bloom-tile-sprite:nth-child(4) { animation-delay: 0.72s; }
+.bloom-tile-sprite:nth-child(5) { animation-delay: 0.96s; }
+/* Zone 3 — wordmark */
+.bloom-tile-wordmark {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  color: #ff2d9b;
+  text-align: center;
+  padding: 4px 0 8px;
+  text-shadow: 0 0 10px color-mix(in oklab, #ff2d9b 55%, transparent), 0 0 2px #ff2d9b;
+}
+@media (prefers-reduced-motion: reduce) { .bloom-tile-sprite { animation: none; } }
+/* keep BLOOM beside / same row-drop behaviour as MM + FOF when the grid narrows */
+@media (max-width: 720px) {
+  body[data-ui="new"] .home-game-card-bloom { grid-column: span 1; }
+  .bloom-tile-sprite { width: 34px; height: 34px; }
+  .bloom-tile-sprites { gap: 4px; min-height: 40px; }
 }
 
 /* Keep Fate or Fortune + Monkey Moonshine side by side when the game grid
