@@ -640,8 +640,8 @@
      swarm (z6). Fades in when a weather lands. */
   .garden-fx{position:absolute;inset:0;z-index:2;pointer-events:none;
     background-repeat:no-repeat;background-position:center;background-size:100% 100%;
-    opacity:0;transition:opacity .5s ease;mix-blend-mode:screen}   /* slow fade-OUT */
-  .garden-fx.on{opacity:.7;transition:opacity .12s ease}           /* quick fade-IN so a short pass isn't faint */
+    opacity:0;transition:opacity .5s ease}                          /* slow fade-OUT; normal blend (gifs are coloured, not white) */
+  .garden-fx.on{opacity:.9;transition:opacity .12s ease}           /* quick fade-IN so a short pass isn't faint */
   /* satchel: one horizontal row */
   /* Header is ONE compact line — SATCHEL + MAX WIN inline on the left, a plain
      text EDIT on the right — so it takes ~a quarter of the bar instead of half. */
@@ -3236,14 +3236,14 @@ function weatherFx(w){
   const a=weatherArt(w);
   // bundled default: version-stamp so a re-exported gif at the same path isn't
   // served stale from the browser cache
-  return (a && a.fx) ? a.fx+'?v=2' : null;
+  return (a && a.fx) ? a.fx+'?v=3' : null;
 }
 // One full pass of each bundled effect, in ms (measured from the gif frame
 // delays). Custom uploads of unknown length fall back to the longest.
-const FX_DURATION={ w_rain:640, w_wind:800, w_heat:1200, w_dew:1200, w_frz:1200, butterfly:1200 };
+const FX_DURATION={ w_rain:2100, w_wind:1120, w_heat:1400, w_dew:1400, w_frz:1600, butterfly:1400 };
 function fxDurationFor(url){
   const m=/([a-z_]+)\.gif/i.exec(url||'');
-  return (m && FX_DURATION[m[1]]) || 1200;
+  return (m && FX_DURATION[m[1]]) || 1600;
 }
 let fxTimer=null;
 // Wash the whole garden panel in the drawn weather's animated effect (rain, heat
