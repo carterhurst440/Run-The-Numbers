@@ -10848,7 +10848,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260721i-gardenfx-stretch");
+      frame.setAttribute("src", "games/bloom.html?v=20260721j-fx-fullframe");
     }
     installBloomBridge();   // idempotent: seed the in-memory balance + admin flag
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -33991,28 +33991,21 @@ const BloomAdmin = {
     row.append(icon, name, kindSel, countWrap, del);
 
     // FX overlay upload — the animated gif that washes over the garden panel when
-    // this weather is drawn. Blank keeps the bundled default; the butterfly (wild)
-    // draws no weather over the garden, so it has no FX.
+    // this weather (or the butterfly wild) is drawn. Blank keeps the bundled default.
     const fxWrap = document.createElement('div'); fxWrap.className = 'bloom-wfx';
-    if (w.kind === 'butterfly'){
-      const note = document.createElement('span'); note.className = 'bloom-wfx-note';
-      note.textContent = 'garden FX: n/a (wild)';
-      fxWrap.appendChild(note);
-    } else {
-      fxWrap.appendChild(
-        this.uploadBtn(w.fx_url ? 'Replace garden FX' : 'Upload garden FX', 'image/gif,video/mp4,video/webm,image/png',
-          file => this.uploadWeatherFx(w, file))
-      );
-      const note = document.createElement('span'); note.className = 'bloom-wfx-note';
-      note.textContent = w.fx_url ? 'garden FX: custom ✓' : 'garden FX: bundled default';
-      fxWrap.appendChild(note);
-      if (w.fx_url){
-        const preview = document.createElement('img'); preview.className='bloom-wfx-prev'; preview.src = w.fx_url; preview.alt='';
-        fxWrap.appendChild(preview);
-        const clr = document.createElement('button'); clr.type='button'; clr.className='secondary'; clr.textContent='Reset to default';
-        clr.addEventListener('click', () => this.clearWeatherFx(w));
-        fxWrap.appendChild(clr);
-      }
+    fxWrap.appendChild(
+      this.uploadBtn(w.fx_url ? 'Replace garden FX' : 'Upload garden FX', 'image/gif,video/mp4,video/webm,image/png',
+        file => this.uploadWeatherFx(w, file))
+    );
+    const note = document.createElement('span'); note.className = 'bloom-wfx-note';
+    note.textContent = w.fx_url ? 'garden FX: custom ✓' : 'garden FX: bundled default';
+    fxWrap.appendChild(note);
+    if (w.fx_url){
+      const preview = document.createElement('img'); preview.className='bloom-wfx-prev'; preview.src = w.fx_url; preview.alt='';
+      fxWrap.appendChild(preview);
+      const clr = document.createElement('button'); clr.type='button'; clr.className='secondary'; clr.textContent='Reset to default';
+      clr.addEventListener('click', () => this.clearWeatherFx(w));
+      fxWrap.appendChild(clr);
     }
     row.appendChild(fxWrap);
     return row;

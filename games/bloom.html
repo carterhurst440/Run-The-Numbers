@@ -3213,7 +3213,7 @@ const WEATHER_ART = {
   // autumn leaf — sways in the wind
   w_wind:{label:"WIND",main:'#8a5a2b',tint:'#e7d3b3',fx:'weather-fx/w_wind.gif',svg:'<g class="wx-leaf"><path d="M24 9 C 33 13, 34.5 27, 24 38 C 13.5 27, 15 13, 24 9 Z" fill="#a4682f" stroke="#5e3a18" stroke-width="2" stroke-linejoin="round"/><g stroke="#5e3a18" stroke-width="1.8" stroke-linecap="round"><line x1="24" y1="12" x2="24" y2="35.5"/><line x1="24" y1="20" x2="18.5" y2="16.8"/><line x1="24" y1="20" x2="29.5" y2="16.8"/><line x1="24" y1="26" x2="18.8" y2="23.4"/><line x1="24" y1="26" x2="29.2" y2="23.4"/></g></g>'},
   // butterfly (WILD) — wings flutter
-  butterfly:{label:"BUTTERFLY",main:'#ff1a8c',tint:'#ffc0e0',svg:'<g class="wx-wingL"><path d="M24 20 C 17 12, 9 14, 11 21.5 C 12 26.5, 19 27, 24 22 Z" fill="#ff4dab" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/><path d="M24 24 C 19.5 26.5, 14 28.5, 15 33.5 C 16 37.5, 22 35.5, 24 30 Z" fill="#ffa3d6" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/></g><g class="wx-wingR"><path d="M24 20 C 31 12, 39 14, 37 21.5 C 36 26.5, 29 27, 24 22 Z" fill="#ff4dab" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/><path d="M24 24 C 28.5 26.5, 34 28.5, 33 33.5 C 32 37.5, 26 35.5, 24 30 Z" fill="#ffa3d6" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/></g><line x1="24" y1="15" x2="24" y2="33.5" stroke="#c8811a" stroke-width="2.6" stroke-linecap="round"/><path d="M24 15 q-2.5 -4.5 -5.5 -4.5" fill="none" stroke="#c8811a" stroke-width="1.8" stroke-linecap="round"/><path d="M24 15 q2.5 -4.5 5.5 -4.5" fill="none" stroke="#c8811a" stroke-width="1.8" stroke-linecap="round"/>'}
+  butterfly:{label:"BUTTERFLY",main:'#ff1a8c',tint:'#ffc0e0',fx:'weather-fx/butterfly.gif',svg:'<g class="wx-wingL"><path d="M24 20 C 17 12, 9 14, 11 21.5 C 12 26.5, 19 27, 24 22 Z" fill="#ff4dab" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/><path d="M24 24 C 19.5 26.5, 14 28.5, 15 33.5 C 16 37.5, 22 35.5, 24 30 Z" fill="#ffa3d6" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/></g><g class="wx-wingR"><path d="M24 20 C 31 12, 39 14, 37 21.5 C 36 26.5, 29 27, 24 22 Z" fill="#ff4dab" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/><path d="M24 24 C 28.5 26.5, 34 28.5, 33 33.5 C 32 37.5, 26 35.5, 24 30 Z" fill="#ffa3d6" stroke="#e02f92" stroke-width="1.7" stroke-linejoin="round"/></g><line x1="24" y1="15" x2="24" y2="33.5" stroke="#c8811a" stroke-width="2.6" stroke-linecap="round"/><path d="M24 15 q-2.5 -4.5 -5.5 -4.5" fill="none" stroke="#c8811a" stroke-width="1.8" stroke-linecap="round"/><path d="M24 15 q2.5 -4.5 5.5 -4.5" fill="none" stroke="#c8811a" stroke-width="1.8" stroke-linecap="round"/>'}
 };
 function glyphKey(w){ return (w && w.kind==='butterfly') ? 'butterfly' : (w && w.id); }
 function weatherArt(w){ return WEATHER_ART[glyphKey(w)] || null; }
@@ -3232,9 +3232,11 @@ function cellNeon(cell, w){
 // Animated weather effect overlay for a landed cell. The DB fx_url (carried on the
 // state.weather item as w.fx) wins; otherwise the bundled default from WEATHER_ART.
 function weatherFx(w){
-  if(w && typeof w.fx==='string' && w.fx) return w.fx;
+  if(w && typeof w.fx==='string' && w.fx) return w.fx;   // admin-uploaded (DB) url
   const a=weatherArt(w);
-  return (a && a.fx) || null;
+  // bundled default: version-stamp so a re-exported gif at the same path isn't
+  // served stale from the browser cache
+  return (a && a.fx) ? a.fx+'?v=2' : null;
 }
 // Wash the whole garden panel in the drawn weather's animated effect (rain, heat
 // shimmer, snow…). The DB fx_url wins; otherwise the bundled default. Passing no
