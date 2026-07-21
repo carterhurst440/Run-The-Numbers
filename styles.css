@@ -27099,24 +27099,30 @@ body[data-ui="new"] .home-game-card::before {
   100% { background-position: 0 24px; }
 }
 
-body[data-ui="new"] .home-game-card:hover:not(.is-locked) {
-  transform: scale(1.03);
-  background:
-    repeating-linear-gradient(
-      0deg,
-      transparent 0 3px,
-      color-mix(in oklab, var(--hgc-accent) 18%, transparent) 3px 4px
-    ),
-    #0f0f0d;
-  animation: cc-tile-shimmer 0.9s linear infinite;
-  box-shadow:
-    inset 0 0 0 1px var(--hgc-accent),
-    0 0 0 2px color-mix(in oklab, var(--hgc-accent) 60%, transparent),
-    0 0 38px -2px color-mix(in oklab, var(--hgc-accent) 90%, transparent),
-    0 26px 56px -16px color-mix(in oklab, var(--hgc-accent) 75%, transparent);
-}
-body[data-ui="new"] .home-game-card:hover:not(.is-locked)::before {
-  opacity: 0.28;
+/* Hover effects are gated to pointer devices only. On touch there is no hover, so
+   a first tap would otherwise land the tile in this "emphasized" state and swallow
+   the tap (the click only fires on the SECOND tap) — gating it lets a tap navigate
+   straight into the game. */
+@media (hover: hover) {
+  body[data-ui="new"] .home-game-card:hover:not(.is-locked) {
+    transform: scale(1.03);
+    background:
+      repeating-linear-gradient(
+        0deg,
+        transparent 0 3px,
+        color-mix(in oklab, var(--hgc-accent) 18%, transparent) 3px 4px
+      ),
+      #0f0f0d;
+    animation: cc-tile-shimmer 0.9s linear infinite;
+    box-shadow:
+      inset 0 0 0 1px var(--hgc-accent),
+      0 0 0 2px color-mix(in oklab, var(--hgc-accent) 60%, transparent),
+      0 0 38px -2px color-mix(in oklab, var(--hgc-accent) 90%, transparent),
+      0 26px 56px -16px color-mix(in oklab, var(--hgc-accent) 75%, transparent);
+  }
+  body[data-ui="new"] .home-game-card:hover:not(.is-locked)::before {
+    opacity: 0.28;
+  }
 }
 
 /* Glyph — absolute top-center */
@@ -27238,13 +27244,14 @@ body[data-ui="new"] .home-game-card-fof::before {
   z-index: 2;
   pointer-events: none;
 }
-body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked)::before { opacity: 0.18; }
+@media (hover: hover) { body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked)::before { opacity: 0.18; } }
 body[data-ui="new"] .home-game-card-fof .fof-tile-logo,
 body[data-ui="new"] .home-game-card-fof .fof-tile-sprites,
 body[data-ui="new"] .home-game-card-fof .fof-tile-wordmark {
   position: relative;
   z-index: 3;
 }
+@media (hover: hover) {
 body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked) {
   transform: translateY(-3px);
   background:
@@ -27260,6 +27267,7 @@ body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked) {
     0 0 0 2px color-mix(in oklab, var(--hgc-accent) 60%, transparent),
     0 0 38px -2px color-mix(in oklab, var(--hgc-accent) 90%, transparent),
     0 26px 56px -16px color-mix(in oklab, var(--hgc-accent) 75%, transparent);
+}
 }
 
 /* Glitch — brief horizontal jitter + RGB text-shadow split that punches in

@@ -643,15 +643,20 @@ function initHomeGameCardGlitch() {
       }
     }, 180);
 
-    card.addEventListener("mouseenter", () => {
-      isHovered = true;
-      startBoot();
-    });
-    card.addEventListener("mouseleave", () => {
-      isHovered = false;
-      clearInterval(bootId);
-      fields.forEach((f) => { f.el.textContent = f.target; f.el.style.transform = ""; });
-    });
+    // Only bind the hover "boot" scramble on pointer devices. On touch, the emulated
+    // mouseenter would fire on the first tap and leave the tile in this emphasized
+    // state instead of navigating — the tap should click straight into the game.
+    if (!window.matchMedia || window.matchMedia("(hover: hover)").matches) {
+      card.addEventListener("mouseenter", () => {
+        isHovered = true;
+        startBoot();
+      });
+      card.addEventListener("mouseleave", () => {
+        isHovered = false;
+        clearInterval(bootId);
+        fields.forEach((f) => { f.el.textContent = f.target; f.el.style.transform = ""; });
+      });
+    }
 
     const io = new IntersectionObserver((entries) => {
       entries.forEach((e) => { if (e.isIntersecting) startAmbient(); else clearInterval(ambientId); });
