@@ -625,6 +625,24 @@
   .kiiro-header .hud-label{font-size:9px;letter-spacing:.14em;white-space:nowrap;color:var(--muted)}
   .kiiro-header .hud-val{font-size:19px;font-weight:800;line-height:1.05}
   .kiiro-header .header-balance{align-items:flex-end}
+  /* Volume control by the balance — mirrors Monkey Moonshine (icon + MUSIC/SFX sliders) */
+  .kiiro-header .hud-row .snd-ctrl{position:relative;display:flex;align-items:center;flex:none}
+  .snd-btn{width:30px;height:30px;flex:none;border-radius:8px;border:1.5px solid rgba(20,20,20,.20);
+    background:rgba(255,255,255,.35);color:var(--muted);display:flex;align-items:center;justify-content:center;
+    cursor:pointer;padding:0;transition:transform .08s ease,border-color .15s,color .15s,background .15s}
+  .snd-btn:hover{border-color:var(--text);color:var(--text);background:rgba(255,255,255,.6)}
+  .snd-btn:active{transform:scale(.94)}
+  .snd-btn .snd-x{display:none}
+  .snd-btn.muted .snd-waves{display:none}
+  .snd-btn.muted .snd-x{display:block}
+  .snd-btn.muted{color:var(--danger)}
+  .snd-pop{position:absolute;top:calc(100% + 8px);right:0;z-index:60;display:flex;flex-direction:column;gap:11px;
+    padding:12px 13px;min-width:182px;border-radius:10px;border:1px solid rgba(20,20,20,.16);
+    background:#fffdf3;box-shadow:0 12px 30px -10px rgba(0,0,0,.4)}
+  .snd-pop[hidden]{display:none}
+  .snd-row{display:flex;flex-direction:column;gap:5px}
+  .snd-lbl{font-size:9px;letter-spacing:.14em;color:var(--muted);font-family:var(--ui)}
+  .snd-slider{width:100%;height:4px;accent-color:#e0447f;cursor:pointer}
   /* ONE scoreboard holding BET + WIN — a dark panel so the neon reads against the
      yellow field. Each cell has a min-width so the row doesn't shift as the numbers
      grow or the WIN label picks up its × multiple. */
@@ -922,6 +940,20 @@
     <div class="board-cell board-win"><span class="hud-label" id="roundWinCap">WIN</span><b class="hud-val" id="roundWinNum">0</b></div>
   </div>
   <div class="hud-row">
+    <!-- Volume control (mirrors Monkey Moonshine): speaker icon opens MUSIC + SFX sliders -->
+    <div class="snd-ctrl" id="bloomSndCtrl">
+      <button class="snd-btn" id="bloomSndBtn" type="button" aria-label="Sound settings" aria-haspopup="true" aria-expanded="false">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 9.5v5h3.4L12 18.5v-13L7.4 9.5H4z" fill="currentColor" stroke="none"/>
+          <g class="snd-waves"><path d="M15.6 9.3a4 4 0 0 1 0 5.4"/><path d="M18.3 6.7a7.4 7.4 0 0 1 0 10.6"/></g>
+          <path class="snd-x" d="M16.5 9.7l5 4.6M21.5 9.7l-5 4.6"/>
+        </svg>
+      </button>
+      <div class="snd-pop" id="bloomSndPop" hidden>
+        <div class="snd-row"><span class="snd-lbl">MUSIC</span><input class="snd-slider" id="bloomMusSlider" type="range" min="0" max="100" value="70" aria-label="Music volume"></div>
+        <div class="snd-row"><span class="snd-lbl">SOUND EFFECTS</span><input class="snd-slider" id="bloomSfxSlider" type="range" min="0" max="100" value="85" aria-label="Sound effects volume"></div>
+      </div>
+    </div>
     <div class="hud-stat header-balance"><span class="hud-label">BALANCE</span><b class="hud-val" id="balVal">—</b></div>
   </div>
   <div class="tabs">
@@ -943,8 +975,6 @@
         <!-- animated weather effect washing over the whole garden (rain, heat
              shimmer, snow…); driven by applyWeatherTheme with the drawn weather -->
         <div class="garden-fx" id="gardenFx"></div>
-        <!-- sound on/off; hidden until the admin has uploaded at least one sound -->
-        <button type="button" class="snd-toggle" id="sndToggle" title="Sound on / off" aria-label="Sound on / off" aria-pressed="false" style="display:none">🔊</button>
         <div class="muted dirt-hint" id="dirtHint">cast your seeds →</div>
         <!-- POLLINATE: bees swarm the flower being pollinated, and the wheel that
              sets ITS multiplier sits over the bed. One click + spin per flower. -->
@@ -3881,16 +3911,24 @@ const POL_ART={bee:null, butterfly:null};
    bed while it runs). Browsers block audio until a user gesture, so we unlock on
    the first pointerdown and start the ambient bed then. A mute toggle in the
    garden corner silences everything and is remembered across sessions. */
-const SND={ urls:{}, music:{}, muted:false, unlocked:false, inPollinate:false };
-try{ SND.muted = localStorage.getItem('bloom_muted')==='1'; }catch(_){}
+// Separate MUSIC / SOUND EFFECTS volumes (0..1), same model as Monkey Moonshine's
+// sound control. Muted = both at 0. Persisted across sessions; the old single mute
+// flag migrates to volumes 0.
+const SND={ urls:{}, music:{}, musVol:0.7, sfxVol:0.85, unlocked:false, inPollinate:false };
+(function(){
+  try{ const v=localStorage.getItem('bloom_musVol'); if(v!=null) SND.musVol=Math.max(0,Math.min(1,parseFloat(v)||0)); }catch(_){}
+  try{ const v=localStorage.getItem('bloom_sfxVol'); if(v!=null) SND.sfxVol=Math.max(0,Math.min(1,parseFloat(v)||0)); }catch(_){}
+  try{ if(localStorage.getItem('bloom_muted')==='1'){ SND.musVol=0; SND.sfxVol=0; } }catch(_){}
+})();
+function sndAllMuted(){ return SND.musVol<=0 && SND.sfxVol<=0; }
 function sndSet(map){
   SND.urls = map || {};
-  if(SND.unlocked && !SND.muted) musicPlay(SND.inPollinate ? 'pollination_music' : 'background');
-  renderSndToggle();
+  if(SND.unlocked && SND.musVol>0) musicPlay(SND.inPollinate ? 'pollination_music' : 'background');
+  renderSndCtrl();
 }
-// Built-in WebAudio synth for a couple of UI one-shots that have no uploaded
-// file. bet_change reproduces the exact "coin" ching Monkey Moonshine plays on
-// its bet +/- (ported from MM's synth), so BLOOM matches MM out of the box.
+// Built-in WebAudio synth for UI one-shots with no uploaded file. bet_change
+// reproduces the exact "coin" ching Monkey Moonshine plays on its bet +/- (ported
+// from MM's synth). Peaks scale with the SFX volume.
 let _synthCtx=null;
 function synthCtx(){
   if(_synthCtx) return _synthCtx;
@@ -3900,11 +3938,12 @@ function synthCtx(){
 function synthBeep(freq,{type='sine',t=0,dur=0.2,peak=0.3,a=0.005}={}){
   const c=synthCtx(); if(!c) return;
   if(c.state==='suspended'){ try{ c.resume(); }catch(_){} }
+  const pk=Math.max(0.0002, peak*(SND.sfxVol||0));
   const o=c.createOscillator(), g=c.createGain(); o.type=type;
   const st=c.currentTime+t;
   o.frequency.setValueAtTime(freq,st);
   g.gain.setValueAtTime(0.0001,st);
-  g.gain.linearRampToValueAtTime(peak,st+a);
+  g.gain.linearRampToValueAtTime(pk,st+a);
   g.gain.exponentialRampToValueAtTime(0.0001,st+dur);
   o.connect(g); g.connect(c.destination);
   o.start(st); o.stop(st+dur+0.03);
@@ -3916,16 +3955,17 @@ function synthCoin(){
   synthBeep(2637,  {type:'sine',  t:0.06,dur:0.14,peak:0.05});
 }
 function sfx(key){
-  if(SND.muted) return;
+  if(SND.sfxVol<=0) return;
   const url=SND.urls[key];
-  if(url){ try{ const a=new Audio(url); a.play().catch(()=>{}); }catch(_){} return; }
+  if(url){ try{ const a=new Audio(url); a.volume=SND.sfxVol; a.play().catch(()=>{}); }catch(_){} return; }
   if(key==='bet_change') synthCoin();     // built-in default (MM coin) when no file is uploaded
 }
 function musicPlay(key){
-  const url=SND.urls[key]; if(!url || SND.muted) return;
+  const url=SND.urls[key]; if(!url || SND.musVol<=0) return;
   let a=SND.music[key];
-  if(!a){ a=new Audio(url); a.loop=true; a.volume=0.55; SND.music[key]=a; }
+  if(!a){ a=new Audio(url); a.loop=true; SND.music[key]=a; }
   else if(a.src!==url){ a.src=url; }
+  a.volume=SND.musVol;
   a.play().catch(()=>{});
 }
 function musicStop(key){ const a=SND.music[key]; if(a){ a.pause(); try{a.currentTime=0;}catch(_){} } }
@@ -3938,23 +3978,45 @@ function sndPollinate(on){
 function sndUnlock(){
   const c=synthCtx(); if(c && c.state==='suspended'){ try{ c.resume(); }catch(_){} }   // unlock the coin synth
   if(SND.unlocked) return; SND.unlocked=true;
-  if(!SND.muted) musicPlay(SND.inPollinate ? 'pollination_music' : 'background');
+  if(SND.musVol>0) musicPlay(SND.inPollinate ? 'pollination_music' : 'background');
 }
 document.addEventListener('pointerdown', sndUnlock);
-function sndToggleMute(){
-  SND.muted=!SND.muted;
-  try{ localStorage.setItem('bloom_muted', SND.muted?'1':'0'); }catch(_){}
-  if(SND.muted) Object.keys(SND.music).forEach(musicStop);
-  else { SND.unlocked=true; musicPlay(SND.inPollinate ? 'pollination_music' : 'background'); }
-  renderSndToggle();
+function setMusicVolume(v){
+  SND.musVol=Math.max(0,Math.min(1,v));
+  try{ localStorage.setItem('bloom_musVol', SND.musVol.toFixed(3)); }catch(_){}
+  Object.values(SND.music).forEach(a=>{ if(a) a.volume=SND.musVol; });
+  if(SND.musVol>0){ if(SND.unlocked) musicPlay(SND.inPollinate?'pollination_music':'background'); }
+  else Object.keys(SND.music).forEach(musicStop);
+  renderSndCtrl();
 }
-function renderSndToggle(){
-  const b=$('#sndToggle'); if(!b) return;
-  const has=Object.values(SND.urls).some(Boolean) || true;   // always: the built-in coin (bet +/-) is always available
-  b.style.display = has ? '' : 'none';
-  b.textContent = SND.muted ? '🔇' : '🔊';
-  b.setAttribute('aria-pressed', SND.muted ? 'true' : 'false');
+function setSfxVolume(v){
+  SND.sfxVol=Math.max(0,Math.min(1,v));
+  try{ localStorage.setItem('bloom_sfxVol', SND.sfxVol.toFixed(3)); }catch(_){}
+  renderSndCtrl();
 }
+function renderSndCtrl(){
+  const btn=$('#bloomSndBtn'); if(btn) btn.classList.toggle('muted', sndAllMuted());
+  const m=$('#bloomMusSlider'); if(m) m.value=Math.round(SND.musVol*100);
+  const s=$('#bloomSfxSlider'); if(s) s.value=Math.round(SND.sfxVol*100);
+}
+// Wire the MM-style sound control (speaker icon by the balance → music/sfx sliders).
+(function wireBloomSndCtrl(){
+  const btn=$('#bloomSndBtn'), pop=$('#bloomSndPop'), mus=$('#bloomMusSlider'), sfxS=$('#bloomSfxSlider');
+  if(!btn||!pop) return;
+  renderSndCtrl();
+  const close=()=>{ if(!pop.hasAttribute('hidden')){ pop.setAttribute('hidden',''); btn.setAttribute('aria-expanded','false'); } };
+  btn.addEventListener('click',(e)=>{
+    e.stopPropagation();
+    const open=pop.hasAttribute('hidden');
+    if(open) pop.removeAttribute('hidden'); else pop.setAttribute('hidden','');
+    btn.setAttribute('aria-expanded',open?'true':'false');
+  });
+  pop.addEventListener('click',(e)=>e.stopPropagation());
+  document.addEventListener('click',close);
+  mus&&mus.addEventListener('input',()=>setMusicVolume(mus.value/100));
+  sfxS&&sfxS.addEventListener('input',()=>setSfxVolume(sfxS.value/100));
+  sfxS&&sfxS.addEventListener('change',()=>sfx('bet_change'));   // preview the sfx level with the coin
+})();
 
 /* ── Title bloom effect ────────────────────────────────────────────────────
    A cluster of procedural SVG flowers that grows behind (and 2 over) the BLOOM
@@ -4938,7 +5000,6 @@ function nudgeBet(dir){
 }
 $('#betMinus')?.addEventListener('click',()=>nudgeBet(-1));
 $('#betPlus')?.addEventListener('click',()=>nudgeBet(1));
-$('#sndToggle')?.addEventListener('click', sndToggleMute);
 function updateMax(){
   const full=state.satchel.length>=SATCHEL_SIZE;
   let board=0;
