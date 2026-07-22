@@ -3914,7 +3914,7 @@ const POL_ART={bee:null, butterfly:null};
 // Separate MUSIC / SOUND EFFECTS volumes (0..1), same model as Monkey Moonshine's
 // sound control. Muted = both at 0. Persisted across sessions; the old single mute
 // flag migrates to volumes 0.
-const SND={ urls:{}, music:{}, musVol:0.7, sfxVol:0.85, unlocked:false, inPollinate:false };
+const SND={ urls:{}, music:{}, musVol:0.7, sfxVol:0.85, unlocked:false, inPollinate:false, suspended:false };
 (function(){
   try{ const v=localStorage.getItem('bloom_musVol'); if(v!=null) SND.musVol=Math.max(0,Math.min(1,parseFloat(v)||0)); }catch(_){}
   try{ const v=localStorage.getItem('bloom_sfxVol'); if(v!=null) SND.sfxVol=Math.max(0,Math.min(1,parseFloat(v)||0)); }catch(_){}
@@ -3961,7 +3961,9 @@ function sfx(key){
   if(key==='bet_change') synthCoin();     // built-in default (MM coin) when no file is uploaded
 }
 function musicPlay(key){
-  const url=SND.urls[key]; if(!url || SND.musVol<=0) return;
+  // Audio is contained to the bloom route AND the foreground tab: never start it
+  // while suspended (off-route, driven by the shell) or the tab/app is hidden.
+  const url=SND.urls[key]; if(!url || SND.musVol<=0 || SND.suspended || document.hidden) return;
   let a=SND.music[key];
   if(!a){ a=new Audio(url); a.loop=true; SND.music[key]=a; }
   else if(a.src!==url){ a.src=url; }
@@ -3969,6 +3971,22 @@ function musicPlay(key){
   a.play().catch(()=>{});
 }
 function musicStop(key){ const a=SND.music[key]; if(a){ a.pause(); try{a.currentTime=0;}catch(_){} } }
+// Pause the beds without resetting position (for a smooth resume). Also parks the
+// synth AudioContext so no one-shot can sneak through while backgrounded.
+function musicPauseAll(){ Object.values(SND.music).forEach(a=>{ if(a) a.pause(); }); if(_synthCtx && _synthCtx.state==='running'){ try{ _synthCtx.suspend(); }catch(_){} } }
+// Current bed for wherever we are (bonus track during POLLINATE, else ambient).
+function musicResumeCurrent(){ if(SND.unlocked) musicPlay(SND.inPollinate ? 'pollination_music' : 'background'); }
+// Off-route (shell suspend) / back-on-route (shell resume).
+function sndSetSuspended(on){
+  SND.suspended=!!on;
+  if(on) musicPauseAll();
+  else if(!document.hidden){ if(_synthCtx && _synthCtx.state==='suspended'){ try{ _synthCtx.resume(); }catch(_){} } musicResumeCurrent(); }
+}
+// Tab/app backgrounded or restored (fires inside the iframe on real tab blur).
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden) musicPauseAll();
+  else if(!SND.suspended){ if(_synthCtx && _synthCtx.state==='suspended'){ try{ _synthCtx.resume(); }catch(_){} } musicResumeCurrent(); }
+});
 // Enter/leave the POLLINATE bonus: its own loop replaces the ambient bed.
 function sndPollinate(on){
   const was=SND.inPollinate; SND.inPollinate=!!on;
@@ -5328,6 +5346,10 @@ window.addEventListener('message',(e)=>{
     updateSpinButton();
   } else if(m.type==='settle-ok'){
     if(typeof m.balance==='number'&&isFinite(m.balance)){ SHELL.balance=m.balance; bloomRenderBalance(); }
+  } else if(m.type==='suspend'){
+    sndSetSuspended(true);              // navigated away from the bloom route — cut audio
+  } else if(m.type==='resume' && !m.round){
+    sndSetSuspended(false);             // back on the bloom route — resume audio (bare resume, no round payload)
   } else if(m.type==='resume'){
     bloomResumeRound(m.round);          // reboot an interrupted round exactly where it stopped
   } else if(m.type==='save-ack'){

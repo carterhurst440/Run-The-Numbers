@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js?v=20260722q-mmtrim";
+import { supabase } from "./supabaseClient.js?v=20260722r-tiletaps";
 
 console.info("[RTN] main script loaded");
 
@@ -10889,7 +10889,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260722k-volctrl");
+      frame.setAttribute("src", "games/bloom.html?v=20260722r-audiocontain");
     }
     installBloomBridge();   // idempotent: broker rounds + push the wallet balance
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -10924,6 +10924,19 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // Leaving MM before a round finished animating: apply the pending spin result
     // now so the header is correct on the page they land on.
     if (resolvedRoute !== "monkey-moonshine") mmFlushPendingBalance();
+  }
+
+  // Same for BLOOM: its iframe stays mounted when hidden, so CSS-hiding it doesn't
+  // fire visibilitychange inside it. Tell it to suspend audio off-route and resume
+  // when back on the bloom route (the game also self-suspends on tab/app blur).
+  {
+    const bloomWin = bloomFrameWindow("bloom-frame");
+    if (bloomWin) {
+      bloomWin.postMessage(
+        { source: "bloom-shell", type: resolvedRoute === "bloom" ? "resume" : "suspend" },
+        "*"
+      );
+    }
   }
 
   if (PLAY_ASSISTANT_ROUTES.has(resolvedRoute)) {
@@ -43399,6 +43412,30 @@ routeButtons.forEach((button) => {
 // hash instead — no tap is ever lost. Press feedback is pure CSS (:active), so it
 // is instant and independent of when this bundle finishes loading.
 try { window.__RTN_ROUTER_READY = true; } catch (e) {}
+
+// Robust tap handling for the home game tiles. A tap right after a scroll — common
+// when reaching the lower tiles like BLOOM — often has its click swallowed by the
+// browser as it stops scroll momentum, so the tile "doesn't respond." Navigate on
+// pointerup for a clean tap (little movement, short press), which fires even when
+// the click is dropped, and swallow the trailing click so it can't double-navigate.
+(function wireTileTaps(){
+  document.querySelectorAll(".home-game-cards .home-game-card[data-route-target]").forEach((tile) => {
+    let sx = 0, sy = 0, st = 0, moved = false, tappedAt = 0;
+    tile.addEventListener("pointerdown", (e) => { sx = e.clientX; sy = e.clientY; st = Date.now(); moved = false; }, { passive: true });
+    tile.addEventListener("pointermove", (e) => { if (Math.abs(e.clientX - sx) > 10 || Math.abs(e.clientY - sy) > 10) moved = true; }, { passive: true });
+    tile.addEventListener("pointercancel", () => { moved = true; });
+    tile.addEventListener("pointerup", () => {
+      if (moved || Date.now() - st > 700) return;                       // a scroll/drag, not a tap
+      if (tile.classList.contains("is-locked") || tile.disabled) return;
+      tappedAt = Date.now();
+      closeActiveDrawer();
+      void setRoute(tile.dataset.routeTarget);
+    });
+    tile.addEventListener("click", (e) => {
+      if (tappedAt && Date.now() - tappedAt < 700) { e.stopImmediatePropagation(); e.preventDefault(); }  // pointerup already navigated
+    }, true);
+  });
+})();
 
 // Drawer GAMES accordion toggle.
 (function wireDrawerGames() {
