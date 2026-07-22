@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js?v=20260722h-notifharden";
+import { supabase } from "./supabaseClient.js?v=20260722i-contestnotif";
 
 console.info("[RTN] main script loaded");
 
@@ -17175,8 +17175,16 @@ async function syncContestState({ force = false } = {}) {
   }
 
   contestCache = Array.isArray(contests) ? contests : [];
-  const seededLiveNotifications = await seedLiveContestNotifications();
-  await dispatchContestStartEmails(seededLiveNotifications);
+
+  // Side-effect seeding + email dispatch must never block the UI: an earlier
+  // version let a failure here (e.g. an edge function being unreachable) throw and
+  // abort the whole sync, which blanked the contest notifications even though all
+  // the data they need had loaded. Best-effort only.
+  try {
+    const seededLiveNotifications = await seedLiveContestNotifications();
+    await dispatchContestStartEmails(seededLiveNotifications);
+  } catch (e) { console.warn("[RTN] contest seed/email step skipped", e); }
+
   currentContest = chooseCurrentContest(contestCache);
   contestLeaderboard = [];
   userContestEntries = [];
@@ -17194,28 +17202,37 @@ async function syncContestState({ force = false } = {}) {
     contestEntryMap = new Map(userContestEntries.map((entry) => [entry.contest_id, entry]));
   }
 
-  await loadContestStartNotifications();
-  await loadContestParticipantCounts(contestCache);
+  try {
+    await loadContestStartNotifications();
+    await loadContestParticipantCounts(contestCache);
+  } catch (e) { console.warn("[RTN] contest start-notif/counts load issue", e); }
 
+  // Render the notifications the moment their data is ready — BEFORE the heavier,
+  // optional work below (leaderboard, admin list, player list, promos, prizes).
+  // None of those may be allowed to stop the notifications from appearing.
   currentContestEntry = currentContest ? getContestEntryById(currentContest.id) : null;
-
-  if (currentContest) {
-    contestLeaderboard = await buildContestLeaderboard(currentContest);
-  }
-
-  renderContestChip();
-  renderContestModal();
-  updateAdminContestCreateState(contestCache);
-  if (isAdmin()) {
-    adminContestsLoaded = false;
-    await loadAdminContestList(true);
-  }
-  await loadPlayerContestList(currentRoute === "contests");
-  renderContestEmailPreference();
   refreshContestNotifications(contestCache);
-  await renderHomeContestPromos();
-  void renderHomePrizes();
-  syncActiveAccountMode({ forceApply: true, resetHistory: !bankrollInitialized });
+
+  try {
+    if (currentContest) {
+      contestLeaderboard = await buildContestLeaderboard(currentContest);
+    }
+    renderContestChip();
+    renderContestModal();
+    updateAdminContestCreateState(contestCache);
+    if (isAdmin()) {
+      adminContestsLoaded = false;
+      await loadAdminContestList(true);
+    }
+    await loadPlayerContestList(currentRoute === "contests");
+    renderContestEmailPreference();
+    refreshContestNotifications(contestCache);   // re-render in case counts/headlines filled in
+    await renderHomeContestPromos();
+    void renderHomePrizes();
+    syncActiveAccountMode({ forceApply: true, resetHistory: !bankrollInitialized });
+  } catch (e) {
+    console.error("[RTN] syncContestState post-notification step failed (notifications already rendered)", e);
+  }
 }
 
 async function optIntoContest(contest = currentContest) {
