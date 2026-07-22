@@ -32100,6 +32100,17 @@ select.bloom-in { cursor: pointer; }
 .bloom-sound-group { margin-top: 0.6rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--accent, #88aacc); }
 .bloom-sound-group:first-child { margin-top: 0; }
+
+/* BLOOM admin subtabs — one section at a time behind a tab bar */
+.bloom-admin-subtabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 18px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--betting-panel-border, rgba(255,255,255,.1)); }
+.bloom-subtab { appearance: none; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700;
+  letter-spacing: .04em; padding: 7px 14px; border-radius: 999px; color: var(--muted, #9aa);
+  border: 1px solid var(--betting-panel-border, rgba(255,255,255,.14)); background: rgba(255,255,255,.03);
+  transition: color .15s, border-color .15s, background .15s; }
+.bloom-subtab:hover { color: #fff; border-color: rgba(255,93,177,.5); }
+.bloom-subtab.is-active { color: #fff; background: rgba(255,45,155,.16);
+  border-color: #ff2d9b; box-shadow: 0 0 0 1px rgba(255,45,155,.3), 0 0 14px -4px rgba(255,45,155,.6); }
 .bloom-sound-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;
   border: 1px solid var(--betting-panel-border); border-radius: 8px; padding: 0.55rem 0.75rem; background: #0e0e0c; }
 .bloom-sound-label { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; flex: 1 1 220px; }

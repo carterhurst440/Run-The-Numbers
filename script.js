@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js?v=20260722i-contestnotif";
+import { supabase } from "./supabaseClient.js?v=20260722l-bloomadmin";
 
 console.info("[RTN] main script loaded");
 
@@ -34002,6 +34002,25 @@ const BLOOM_SOUND_SLOTS = [
   { group: 'Bonus', key: 'bonus_end', label: 'End of bonus', hint: 'After the last award in the pollination sequence' }
 ];
 
+// The BLOOM admin has six sections (Background, Pollinators, Wheel, Sounds,
+// Flowers, Weather); show them one at a time behind a subtab bar instead of one
+// long scroll. Idempotent — safe to call whenever the panel is opened.
+function wireBloomAdminSubtabs(){
+  const bar = document.getElementById('bloom-admin-subtabs');
+  if (!bar || bar._wired) return;
+  bar._wired = true;
+  const panels = () => Array.from(document.querySelectorAll('#admin-bloom-content .bloom-admin-panel'));
+  const show = (name) => {
+    panels().forEach(p => { p.hidden = p.dataset.bloomPanel !== name; });
+    bar.querySelectorAll('.bloom-subtab').forEach(b => b.classList.toggle('is-active', b.dataset.bloomTab === name));
+  };
+  bar.addEventListener('click', (e) => {
+    const btn = e.target.closest('.bloom-subtab'); if (!btn) return;
+    show(btn.dataset.bloomTab);
+  });
+  show('background');   // default panel
+}
+
 const BloomAdmin = {
   flowers: [],
   weather: [],
@@ -34205,30 +34224,58 @@ const BloomAdmin = {
         host.appendChild(h);
       }
       const url = this.sounds[slot.key] || '';
-      const row = document.createElement('div'); row.className = 'bloom-sound-row';
-
-      const label = document.createElement('div'); label.className = 'bloom-sound-label';
-      label.innerHTML = `<span class="bloom-sound-name">${slot.label}${slot.loop ? ' <em>(loops)</em>' : ''}</span>`
-        + (slot.hint ? `<span class="bloom-sound-hint">${slot.hint}</span>` : '');
-
-      const ctrls = document.createElement('div'); ctrls.className = 'bloom-sound-ctrls';
-      ctrls.appendChild(
-        this.uploadBtn(url ? 'Replace' : 'Upload', 'audio/*', file => this.uploadSound(slot.key, file))
-      );
-      if (url){
-        const audio = document.createElement('audio'); audio.controls = true; audio.preload = 'none';
-        audio.src = url; audio.className = 'bloom-sound-audio';
-        ctrls.appendChild(audio);
-        const clr = document.createElement('button'); clr.type = 'button'; clr.className = 'secondary'; clr.textContent = 'Clear';
-        clr.addEventListener('click', () => this.clearSound(slot.key));
-        ctrls.appendChild(clr);
-      } else {
-        const none = document.createElement('span'); none.className = 'bloom-sound-none'; none.textContent = 'none';
-        ctrls.appendChild(none);
-      }
-      row.append(label, ctrls);
+      const builtin = slot.key === 'bet_change';   // only BLOOM slot with a built-in default (the MM coin)
+      const tag = url ? 'custom file' : (builtin ? 'built-in coin' : 'empty');
+      const row = document.createElement('div');
+      row.className = 'admin-mm-snd-row'; row.dataset.key = slot.key;
+      row.innerHTML = `
+        <div class="admin-mm-snd-info">
+          <span class="admin-mm-snd-name">${slot.label}${slot.loop ? ' <em>(loops)</em>' : ''}</span>
+          <span class="admin-mm-snd-key">${slot.key}${slot.hint ? ' — ' + slot.hint : ''}</span>
+        </div>
+        <span class="admin-mm-snd-tag ${url ? 'is-file' : 'is-synth'}">${tag}</span>
+        <div class="admin-mm-snd-actions">
+          <button type="button" class="admin-mm-snd-btn" data-act="preview" ${(url || builtin) ? '' : 'disabled'}>▶ Preview</button>
+          <label class="admin-mm-snd-btn admin-mm-snd-upload">⤴ ${url ? 'Replace' : 'Upload'}<input type="file" accept="audio/*" data-act="upload" hidden></label>
+          <button type="button" class="admin-mm-snd-btn admin-mm-snd-clear" data-act="clear" ${url ? '' : 'disabled'}>Clear</button>
+        </div>`;
       host.appendChild(row);
     });
+    if (!host._bloomSndWired){
+      host._bloomSndWired = true;
+      host.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-act]'); const row = e.target.closest('.admin-mm-snd-row');
+        if (!btn || !row) return;
+        if (btn.dataset.act === 'preview') this.previewSound(row.dataset.key);
+        else if (btn.dataset.act === 'clear') this.clearSound(row.dataset.key);
+      });
+      host.addEventListener('change', (e) => {
+        const inp = e.target.closest('input[data-act="upload"]'); const row = e.target.closest('.admin-mm-snd-row');
+        if (!inp || !row) return;
+        const file = inp.files && inp.files[0]; if (file) this.uploadSound(row.dataset.key, file);
+        inp.value = '';
+      });
+    }
+  },
+  // Preview plays the uploaded file; the bet 'coin' slot with no file previews the
+  // built-in synth (same three beeps the game plays on bet +/-).
+  previewSound(key){
+    const url = this.sounds[key] || '';
+    if (url){
+      try { if (this._prevAudio) this._prevAudio.pause(); this._prevAudio = new Audio(url); this._prevAudio.play().catch(()=>{}); } catch(_){}
+      return;
+    }
+    if (key === 'bet_change') this._coinPreview();
+  },
+  _coinPreview(){
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      const c = this._ac || (this._ac = new AC()); if (c.state === 'suspended') c.resume();
+      const beep = (f,type,t,dur,peak)=>{ const o=c.createOscillator(), g=c.createGain(); o.type=type; const st=c.currentTime+t;
+        o.frequency.setValueAtTime(f,st); g.gain.setValueAtTime(0.0001,st); g.gain.linearRampToValueAtTime(peak,st+0.005);
+        g.gain.exponentialRampToValueAtTime(0.0001,st+dur); o.connect(g); g.connect(c.destination); o.start(st); o.stop(st+dur+0.03); };
+      beep(1318.5,'square',0,0.08,0.11); beep(1975.5,'square',0.06,0.17,0.10); beep(2637,'sine',0.06,0.14,0.05);
+    } catch(_){}
   },
   async uploadSound(key, file){
     if (!isAdmin(currentUser)){ this.soundStatus('Admin access only'); return; }
@@ -34273,6 +34320,7 @@ const BloomAdmin = {
 
   async load(){
     if (!isAdmin(currentUser)) return;
+    wireBloomAdminSubtabs();
     this.status('Loading…');
     try {
       const [f, w, s] = await Promise.all([

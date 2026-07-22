@@ -26,7 +26,7 @@
         }, true);
       })();
     </script>
-    <link rel="stylesheet" href="styles.css?v=20260722g-taps" />
+    <link rel="stylesheet" href="styles.css?v=20260722l-bloomadmin" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -3873,7 +3873,15 @@
               </div>
             </section>
             <section class="admin-tab-content" id="admin-bloom-content" hidden>
-              <section class="route-section admin-list-section">
+              <div class="bloom-admin-subtabs" role="tablist" id="bloom-admin-subtabs">
+                <button type="button" class="bloom-subtab is-active" role="tab" data-bloom-tab="background">Background</button>
+                <button type="button" class="bloom-subtab" role="tab" data-bloom-tab="pollinators">Pollinators</button>
+                <button type="button" class="bloom-subtab" role="tab" data-bloom-tab="wheel">Pollinate Wheel</button>
+                <button type="button" class="bloom-subtab" role="tab" data-bloom-tab="sounds">Sounds</button>
+                <button type="button" class="bloom-subtab" role="tab" data-bloom-tab="flowers">Flowers</button>
+                <button type="button" class="bloom-subtab" role="tab" data-bloom-tab="weather">Weather</button>
+              </div>
+              <section class="route-section admin-list-section bloom-admin-panel" data-bloom-panel="background">
                 <div class="admin-listing-header">
                   <div>
                     <h2>BLOOM — Background</h2>
@@ -3889,7 +3897,7 @@
                   </div>
                 </div>
               </section>
-              <section class="route-section admin-list-section">
+              <section class="route-section admin-list-section bloom-admin-panel" data-bloom-panel="pollinators" hidden>
                 <div class="admin-listing-header">
                   <div>
                     <h2>BLOOM — Pollinators</h2>
@@ -3918,7 +3926,7 @@
                   <span class="admin-fof-status" id="bloom-bug-status"></span>
                 </div>
               </section>
-              <section class="route-section admin-list-section">
+              <section class="route-section admin-list-section bloom-admin-panel" data-bloom-panel="wheel" hidden>
                 <div class="admin-listing-header">
                   <div>
                     <h2>BLOOM — Pollinate Wheel</h2>
@@ -3939,7 +3947,7 @@
                   <span class="admin-fof-status" id="bloom-wheel-status"></span>
                 </div>
               </section>
-              <section class="route-section admin-list-section">
+              <section class="route-section admin-list-section bloom-admin-panel" data-bloom-panel="sounds" hidden>
                 <div class="admin-listing-header">
                   <div>
                     <h2>BLOOM — Sounds</h2>
@@ -3949,7 +3957,7 @@
                 <div id="bloom-sounds-editor" class="bloom-sounds-editor"></div>
                 <span class="admin-fof-status" id="bloom-sound-status"></span>
               </section>
-              <section class="route-section admin-list-section">
+              <section class="route-section admin-list-section bloom-admin-panel" data-bloom-panel="flowers" hidden>
                 <div class="admin-listing-header">
                   <div>
                     <h2>BLOOM — Flowers</h2>
@@ -3973,7 +3981,7 @@
                 <div id="bloom-editor-status" class="admin-fof-status"></div>
                 <div id="bloom-flower-editor" class="bloom-flower-editor"></div>
               </section>
-              <section class="route-section admin-list-section">
+              <section class="route-section admin-list-section bloom-admin-panel" data-bloom-panel="weather" hidden>
                 <div class="admin-listing-header">
                   <div>
                     <h2>BLOOM — Weather</h2>
@@ -5602,7 +5610,7 @@
     <script defer src="vendor/supabase-js.umd.min.js?v=2"></script>
     <script defer src="vendor/chart.umd.min.js?v=4.4.1"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260722i-contestnotif"></script>
+    <script type="module" src="script.js?v=20260722l-bloomadmin"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
