@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js?v=20260722n-markerpersist";
+import { supabase } from "./supabaseClient.js?v=20260722o-bellseen";
 
 console.info("[RTN] main script loaded");
 
@@ -15051,7 +15051,7 @@ async function markContestStartNotificationSeen(contestId) {
   }
 }
 
-async function markAllContestNotificationsSeen() {
+async function markAllContestNotificationsSeen({ silent = false } = {}) {
   if (!currentUser?.id || currentUser.id === GUEST_USER.id) {
     return;
   }
@@ -15127,7 +15127,7 @@ async function markAllContestNotificationsSeen() {
     }
 
     refreshContestNotifications(contestCache);
-    showToast("Notifications cleared", "success");
+    if (!silent) showToast("Notifications cleared", "success");
   } catch (error) {
     console.error("[RTN] markAllContestNotificationsSeen error", error);
     showToast("Unable to clear notifications", "error");
@@ -31998,7 +31998,12 @@ if (notificationToggle && notificationsPanel && notificationsClose) {
       closeDrawer(notificationsPanel, notificationToggle);
     } else {
       openDrawer(notificationsPanel, notificationToggle);
+      // Opening the bell = viewing: mark BOTH affiliate and contest notifications
+      // seen (server-side), silently, so the unread badge clears and stays cleared
+      // across browsers / fresh incognito sign-ins. They remain in the list as
+      // "Viewed"; only the unread flag changes.
       markAffiliateNotificationsSeen();
+      void markAllContestNotificationsSeen({ silent: true });
     }
   });
 
