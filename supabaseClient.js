@@ -29,6 +29,20 @@ async function createRealClient(url, key) {
     }
   };
   
+  // Preferred path: the self-hosted UMD build (vendor/supabase-js.umd.min.js) is
+  // loaded from our own origin in index.html and attaches window.supabase. No
+  // network request, no third-party CDN — so use it whenever it's present.
+  try {
+    const localCreate = (typeof window !== "undefined") &&
+      (window.supabase?.createClient || window.createClient);
+    if (typeof localCreate === "function") {
+      return localCreate(url, key, authOptions);
+    }
+  } catch (err) {
+    console.warn("[RTN] Supabase local (vendored) client unavailable, falling back to CDN", err);
+  }
+
+  // Fallbacks (only if the vendored build somehow didn't load): CDN ESM, then CDN UMD.
   const tryEsmUrls = [
     "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm",
     "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/module/index.mjs"

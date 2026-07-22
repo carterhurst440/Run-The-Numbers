@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js";
+import { supabase } from "./supabaseClient.js?v=20260722e-selfhost";
 
 console.info("[RTN] main script loaded");
 
@@ -46822,13 +46822,13 @@ function csLoadLibraries(callback) {
     document.head.appendChild(s);
   };
   if (!window.THREE) {
-    loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', ()=>{
+    loadScript('vendor/three.min.js?v=r128', ()=>{
       if (!window.CANNON) {
-        loadScript('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js', callback);
+        loadScript('vendor/cannon.min.js?v=0.6.2', callback);
       } else { callback(); }
     });
   } else if (!window.CANNON) {
-    loadScript('https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js', callback);
+    loadScript('vendor/cannon.min.js?v=0.6.2', callback);
   }
 }
 

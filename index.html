@@ -5574,9 +5574,14 @@
       </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Vendored (self-hosted) libraries — no third-party CDN at runtime, so first
+         paint isn't blocked on jsdelivr and Safari's privacy protections don't flag
+         cross-origin scripts. defer keeps them off the parser's critical path while
+         still running (in order) before the app modules below. -->
+    <script defer src="vendor/supabase-js.umd.min.js?v=2"></script>
+    <script defer src="vendor/chart.umd.min.js?v=4.4.1"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260722d-lightertap"></script>
+    <script type="module" src="script.js?v=20260722e-selfhost"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">
