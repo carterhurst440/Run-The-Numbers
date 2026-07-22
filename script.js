@@ -34083,8 +34083,9 @@ const BLOOM_SYNTH_DEFS = {
 };
 function bloomKeyHasSynth(key){ return Object.prototype.hasOwnProperty.call(BLOOM_SYNTH_DEFS, key); }
 let _bloomSynthAC = null;
-function bloomAdminSynth(key){
+function bloomAdminSynth(key, mul){
   const def = BLOOM_SYNTH_DEFS[key]; if (!def) return;
+  const m = (mul == null || isNaN(mul)) ? 1 : Math.max(0, Math.min(1.5, mul));   // per-clip trim preview
   try {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     const c = _bloomSynthAC || (_bloomSynthAC = new AC()); if (c.state === 'suspended') c.resume();
@@ -34092,13 +34093,15 @@ function bloomAdminSynth(key){
     const beep = (freq,{type='sine',t=0,dur=0.2,peak=0.3,a=0.005,to=null}={})=>{
       const o=c.createOscillator(),g=c.createGain(); o.type=type; const st=c.currentTime+t;
       o.frequency.setValueAtTime(freq,st); if(to)o.frequency.exponentialRampToValueAtTime(Math.max(1,to),st+dur);
-      g.gain.setValueAtTime(0.0001,st); g.gain.linearRampToValueAtTime(peak,st+a); g.gain.exponentialRampToValueAtTime(0.0001,st+dur);
+      const pk=Math.max(0.0001,peak*m);
+      g.gain.setValueAtTime(0.0001,st); g.gain.linearRampToValueAtTime(pk,st+a); g.gain.exponentialRampToValueAtTime(0.0001,st+dur);
       o.connect(g); g.connect(c.destination); o.start(st); o.stop(st+dur+0.05);
     };
     const hit = ({t=0,dur=0.2,peak=0.3,type='lowpass',freq=800,q=1,to=null}={})=>{
       const src=c.createBufferSource(); src.buffer=nb; const f=c.createBiquadFilter(); f.type=type; f.frequency.value=freq; f.Q.value=q; const g=c.createGain();
       const st=c.currentTime+t; if(to)f.frequency.exponentialRampToValueAtTime(Math.max(20,to),st+dur);
-      g.gain.setValueAtTime(0.0001,st); g.gain.linearRampToValueAtTime(peak,st+0.004); g.gain.exponentialRampToValueAtTime(0.0001,st+dur);
+      const pk=Math.max(0.0001,peak*m);
+      g.gain.setValueAtTime(0.0001,st); g.gain.linearRampToValueAtTime(pk,st+0.004); g.gain.exponentialRampToValueAtTime(0.0001,st+dur);
       src.connect(f); f.connect(g); g.connect(c.destination); src.start(st); src.stop(st+dur+0.05);
     };
     def({ beep, hit });
@@ -34131,6 +34134,7 @@ const BloomAdmin = {
   beeUrl: null,
   butterflyUrl: null,
   sounds: {},                                        // slot key -> url
+  soundGains: {},                                    // slot key -> per-clip volume percent (0-100, default 100)
   wheel: BLOOM_WHEEL_DEFAULT.map(r => ({ ...r })),   // POLLINATE mix, [{m,n}]
 
   status(msg){ const el = document.getElementById('bloom-editor-status'); if (el) el.textContent = msg || ''; },
@@ -34329,6 +34333,7 @@ const BloomAdmin = {
       const url = this.sounds[slot.key] || '';
       const hasSynth = bloomKeyHasSynth(slot.key);   // built-in procedural synth for this slot?
       const tag = url ? 'custom file' : (hasSynth ? 'synth' : 'empty');
+      const gainPct = this.soundGainPct(slot.key);   // per-clip trim, 0-100 (100 = full)
       const row = document.createElement('div');
       row.className = 'admin-mm-snd-row'; row.dataset.key = slot.key;
       row.innerHTML = `
@@ -34337,6 +34342,10 @@ const BloomAdmin = {
           <span class="admin-mm-snd-key">${slot.key}${slot.hint ? ' — ' + slot.hint : ''}</span>
         </div>
         <span class="admin-mm-snd-tag ${url ? 'is-file' : 'is-synth'}">${tag}</span>
+        <label class="admin-mm-snd-vol" title="Playback volume for this clip — turn down one that is too loud relative to the others">
+          <input type="range" min="0" max="100" step="5" value="${gainPct}" data-act="gain" aria-label="${slot.label} volume">
+          <span class="admin-mm-snd-vol-val">${gainPct}%</span>
+        </label>
         <div class="admin-mm-snd-actions">
           <button type="button" class="admin-mm-snd-btn" data-act="preview" ${(url || hasSynth) ? '' : 'disabled'}>▶ Preview</button>
           <label class="admin-mm-snd-btn admin-mm-snd-upload">⤴ ${url ? 'Replace' : 'Upload'}<input type="file" accept="audio/*" data-act="upload" hidden></label>
@@ -34347,27 +34356,59 @@ const BloomAdmin = {
     if (!host._bloomSndWired){
       host._bloomSndWired = true;
       host.addEventListener('click', (e) => {
-        const btn = e.target.closest('[data-act]'); const row = e.target.closest('.admin-mm-snd-row');
+        const btn = e.target.closest('button[data-act]'); const row = e.target.closest('.admin-mm-snd-row');
         if (!btn || !row) return;
         if (btn.dataset.act === 'preview') this.previewSound(row.dataset.key);
         else if (btn.dataset.act === 'clear') this.clearSound(row.dataset.key);
       });
+      // Live % label while dragging a volume slider (no save until release).
+      host.addEventListener('input', (e) => {
+        const sl = e.target.closest('input[data-act="gain"]'); const row = e.target.closest('.admin-mm-snd-row');
+        if (!sl || !row) return;
+        const pct = parseInt(sl.value, 10) || 0;
+        this.soundGains[row.dataset.key] = pct;   // in-memory so Preview auditions the new level
+        const lbl = row.querySelector('.admin-mm-snd-vol-val'); if (lbl) lbl.textContent = pct + '%';
+      });
       host.addEventListener('change', (e) => {
-        const inp = e.target.closest('input[data-act="upload"]'); const row = e.target.closest('.admin-mm-snd-row');
-        if (!inp || !row) return;
+        const row = e.target.closest('.admin-mm-snd-row'); if (!row) return;
+        const sl = e.target.closest('input[data-act="gain"]');
+        if (sl){ this.saveGain(row.dataset.key, parseInt(sl.value, 10) || 0); return; }
+        const inp = e.target.closest('input[data-act="upload"]'); if (!inp) return;
         const file = inp.files && inp.files[0]; if (file) this.openSoundTrim(row.dataset.key, file);
         inp.value = '';
       });
     }
   },
-  // Preview plays the uploaded file if present, otherwise the slot's built-in synth.
+  // Per-clip trim as a 0-100 percent (100 = full volume, the default when unset).
+  soundGainPct(key){ const v = this.soundGains[key]; return (v == null || isNaN(v)) ? 100 : Math.max(0, Math.min(100, Math.round(v))); },
+  // Preview plays the uploaded file (or the built-in synth) at this slot's current
+  // trim, so the admin auditions the real balance before / after saving.
   previewSound(key){
+    const mul = this.soundGainPct(key) / 100;
     const url = this.sounds[key] || '';
     if (url){
-      try { if (this._prevAudio) this._prevAudio.pause(); this._prevAudio = new Audio(url); this._prevAudio.play().catch(()=>{}); } catch(_){}
+      try { if (this._prevAudio) this._prevAudio.pause(); this._prevAudio = new Audio(url); this._prevAudio.volume = Math.max(0, Math.min(1, mul)); this._prevAudio.play().catch(()=>{}); } catch(_){}
       return;
     }
-    bloomAdminSynth(key);
+    bloomAdminSynth(key, mul);
+  },
+  // Persist a per-clip trim to bloom_settings (soundgain_<key>, 0-100). The game
+  // re-reads it from the deck on next open; bloomInvalidateDeck forces a fresh pull.
+  async saveGain(key, pct){
+    if (!isAdmin(currentUser)){ this.soundStatus('Admin access only'); return; }
+    pct = Math.max(0, Math.min(100, Math.round(pct)));
+    this.soundGains[key] = pct;
+    this.soundStatus(`Saving ${key} volume…`);
+    try {
+      const up = await supabase.from('bloom_settings')
+        .upsert({ key: `soundgain_${key}`, value: String(pct), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (up.error) throw up.error;
+      bloomInvalidateDeck();
+      this.soundStatus(`${key} volume set to ${pct}% — reopen the game to hear it.`);
+    } catch (e){
+      console.error('[bloom] sound gain', e);
+      this.soundStatus('Volume save error: ' + (e?.message || e));
+    }
   },
   // ── Clip trimmer (ported from Monkey Moonshine) ───────────────────────────
   // On upload, open a waveform with draggable start/end handles + shades; drag to
@@ -34600,6 +34641,8 @@ const BloomAdmin = {
       this.butterflyUrl = settings.butterfly_url || null;
       this.sounds = {};
       Object.keys(settings).forEach(k => { if (k.startsWith('sound_') && settings[k]) this.sounds[k.slice(6)] = settings[k]; });
+      this.soundGains = {};
+      Object.keys(settings).forEach(k => { if (k.startsWith('soundgain_')) { const v = parseInt(settings[k], 10); if (!isNaN(v)) this.soundGains[k.slice(10)] = v; } });
       this.wheel = bloomParseWheel(settings.pollinate_wheel) || BLOOM_WHEEL_DEFAULT.map(r => ({ ...r }));
       this.flowers = (f.data || []).map(r => ({
         flower: r.flower,

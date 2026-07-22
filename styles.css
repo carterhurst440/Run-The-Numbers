@@ -31428,6 +31428,9 @@ body[data-ui="new"] .alr-date-short { display: none; }
   padding: 3px 8px; border-radius: 999px; border: 1px solid transparent; }
 .admin-mm-snd-tag.is-file { color: #4ad07a; border-color: rgba(74,208,122,.4); background: rgba(74,208,122,.12); }
 .admin-mm-snd-tag.is-synth { color: #8a97a0; border-color: rgba(255,255,255,.14); background: rgba(255,255,255,.04); }
+.admin-mm-snd-vol { flex: none; display: flex; align-items: center; gap: 6px; }
+.admin-mm-snd-vol input[type="range"] { width: 84px; accent-color: #2fd06e; cursor: pointer; }
+.admin-mm-snd-vol-val { font-family: "JetBrains Mono", monospace; font-size: 10px; color: #9fb2ab; min-width: 30px; text-align: right; }
 .admin-mm-snd-actions { display: flex; align-items: center; gap: 6px; flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; }
 .admin-mm-snd-prompt { flex: 1 1 200px; min-width: 150px; font: inherit; font-size: 11px; color: #eafff2;
   background: rgba(0,0,0,.34); border: 1px solid rgba(255,255,255,.16); border-radius: 7px; padding: 5px 10px; }
