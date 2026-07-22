@@ -31314,6 +31314,28 @@ body[data-ui="new"] .alr-col-date {
   text-align: right;
   letter-spacing: 0.04em;
 }
+/* Desktop shows the full "Jul 22, 3:45 PM"; the compact time-only stamp is mobile-only. */
+body[data-ui="new"] .alr-date-short { display: none; }
+
+/* Narrow phones: the six fixed columns overran the row and NET (the 1fr column,
+   overflow:hidden) collapsed to nothing. Reflow so NET always has room, trim the
+   other columns, and swap the timestamp to the compact time-only form. */
+@media (max-width: 600px) {
+  body[data-ui="new"] .alr-row {
+    grid-template-columns:
+      26px            /* GAME */
+      32px            /* #ID  */
+      46px            /* MODE */
+      minmax(58px, 1fr) /* NET — guaranteed a share */
+      54px            /* BAL  */
+      38px;           /* TIME */
+    gap: 0 5px;
+    padding: 7px 2px;
+  }
+  body[data-ui="new"] .alr-date-full { display: none; }
+  body[data-ui="new"] .alr-date-short { display: inline; }
+  body[data-ui="new"] .alr-col-bal { font-size: 8px; }
+}
 
 /* ── Admin User Lookup card ──────────────────────────────────────── */
 .admin-user-lookup-card {

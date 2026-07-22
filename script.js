@@ -10906,7 +10906,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260722v-sfxpreload");
+      frame.setAttribute("src", "games/bloom.html?v=20260722x-volplumb");
     }
     installBloomBridge();   // idempotent: broker rounds + push the wallet balance
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -20932,13 +20932,21 @@ async function bloomFetchDeck() {
     Object.keys(settings).forEach(k => {
       if (k.startsWith("sound_") && settings[k]) sounds[k.slice(6)] = settings[k];
     });
+    // soundgain_* keys -> { <slot>: 0..1 } per-clip trim (stored 0-100, default 100)
+    const soundGains = {};
+    Object.keys(settings).forEach(k => {
+      if (k.startsWith("soundgain_")) {
+        const v = parseFloat(settings[k]);
+        if (!isNaN(v)) soundGains[k.slice(10)] = Math.max(0, Math.min(1.5, v / 100));
+      }
+    });
     _bloomDeckCache = {
       flowers: f.data || [], weather: w.data || [],
       background_url: settings.background_url || null,
       bee_url: settings.bee_url || null,               // POLLINATE swarm art; null => emoji
       butterfly_url: settings.butterfly_url || null,
       pollinate_wheel: bloomParseWheel(settings.pollinate_wheel),
-      sounds
+      sounds, soundGains
     };
     return _bloomDeckCache;
   } catch (e) { console.error("[bloom] deck fetch", e); return null; }
@@ -29638,6 +29646,13 @@ function formatActivityLogTimestamp(value) {
     minute: "2-digit"
   });
 }
+// Compact time-only stamp for the narrow mobile activity rows ("3:45p"), so NET —
+// the outcome that matters most — keeps its space. Shown via CSS under 600px.
+function formatActivityLogTimestampShort(value) {
+  if (!value) return "";
+  const t = formatAnalyticsDate(value, { hour: "numeric", minute: "2-digit" });
+  return t.replace(/\s*AM$/i, "a").replace(/\s*PM$/i, "p");
+}
 
 function mapGameHandRowToActivityEntry(row) {
   const gameKey = resolveGameKey(row?.game_id);
@@ -29912,6 +29927,7 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
 
     const balText = bal && Number(bal) > 0 ? formatCurrency(Number(bal)) : "—";
     const ts = formatActivityLogTimestamp(entry.createdAt);
+    const tsShort = formatActivityLogTimestampShort(entry.createdAt);
     const clickableClass = isClickable ? " alr-row-clickable" : "";
 
     const accountClass = entry.entryType === "account" ? " alr-row-account" : "";
@@ -29921,7 +29937,7 @@ function buildActivityLogEntriesMarkup(entries = [], { showReviewButtons = true 
       <span class="alr-col alr-col-mode">${escapeAssistantHtml(modeLabel)}</span>
       <span class="alr-col alr-col-net ${netClass}">${escapeAssistantHtml(netText)}</span>
       <span class="alr-col alr-col-bal">${escapeAssistantHtml(balText)}</span>
-      <span class="alr-col alr-col-date">${escapeAssistantHtml(ts)}</span>
+      <span class="alr-col alr-col-date"><span class="alr-date-full">${escapeAssistantHtml(ts)}</span><span class="alr-date-short">${escapeAssistantHtml(tsShort)}</span></span>
     </li>`;
   }).join("");
 }
@@ -33310,6 +33326,10 @@ async function openBloomReviewModal(roundId, trigger) {
   if (!roundId || !supabase) return;
   openRoundDetailModal("Bloom · Round", '<p class="rdrv-loading">Loading…</p>', trigger);
   try {
+    // Warm the deck so flower emojis + weather icons resolve to their real glyphs.
+    // Without this the maps are empty unless the game was opened this session, and
+    // every flower falls back to 🌸 / every reel to "·".
+    await bloomFetchDeck().catch(() => {});
     const { data, error } = await supabase.from("bloom_rounds")
       .select("satchel, weather_patterns, board_mult, all_match, seeds_sprouted, living_count, bloom_count, super_count, wilt_count, total_wagered, total_returned, status")
       .eq("id", roundId).maybeSingle();
