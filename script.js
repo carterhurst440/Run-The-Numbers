@@ -10906,11 +10906,10 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260722y-resumepay");
+      frame.setAttribute("src", "games/bloom.html?v=20260722z-serverauth");
     }
     installBloomBridge();   // idempotent: broker rounds + push the wallet balance
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
-    bloomPostResume("bloom-frame");   // reboot any interrupted round (guarded game-side if one is live)
     sizeGameFrames();
   }
 
@@ -10954,6 +10953,9 @@ async function setRoute(route, { replaceHash = false } = {}) {
         "*"
       );
     }
+    // Leaving BLOOM before a round finished animating: the server already banked
+    // it, so apply the pending result now (mirror of MM).
+    if (resolvedRoute !== "bloom") bloomFlushPendingBalance();
   }
 
   if (PLAY_ASSISTANT_ROUTES.has(resolvedRoute)) {
@@ -20952,10 +20954,11 @@ async function bloomFetchDeck() {
   } catch (e) { console.error("[bloom] deck fetch", e); return null; }
 }
 function bloomInvalidateDeck() { _bloomDeckCache = null; }
-// BLOOM now plays on the REAL wallet: the shell brokers every round through the
-// bloom_start_round / bloom_settle_round RPCs (server-authoritative, same as MM),
-// debiting the stake at cast and crediting the win at settle. The game's #balVal is
-// only a mirror — the shell always reconciles it to the value the server returns.
+// BLOOM plays on the REAL wallet, fully server-authoritative like Monkey Moonshine:
+// the shell brokers each round through ONE atomic bloom_play_round RPC that resolves
+// the entire outcome (draws, growth, line, pollination + wheel) and pays under a
+// wallet lock. The game only animates the returned result. The game's #balVal is a
+// mirror — the shell reconciles it to the server value.
 function bloomInitPayload(deck) {
   return {
     source: "bloom-shell",
@@ -20988,73 +20991,66 @@ function bloomApplyCarterCash(data) {
   if (currentProfile) { currentProfile.carter_cash = nextCC; currentProfile.carter_cash_progress = nextProg; }
   try { handleCarterCashChanged(); } catch (e) {}
 }
-// Cast: debit the stake + open a pending round. Replies cast-ok (round_id + balance)
-// or cast-fail (reason) so the game can attach the id or roll back its optimistic debit.
-async function bloomHandleCast(bet, roundSnap, replyWin) {
+// The round resolves + pays in one server call, so the account is final the instant
+// bloom_play_round returns. Hold the shell header at the pre-cast value until the game
+// finishes animating (it posts "bloom:settled") so the number never jumps ahead of the
+// reveal; aborting mid-animation only costs the show. Flush on route-leave / watchdog.
+const BLOOM_SETTLE_WATCHDOG_MS = 60000;
+let _bloomSettleWatchdog = null;
+let _bloomPendingBalance = null;
+function bloomArmSettleWatchdog() {
+  clearTimeout(_bloomSettleWatchdog);
+  _bloomSettleWatchdog = setTimeout(() => {
+    if (_bloomPendingBalance === null) return;
+    console.warn("[RTN] BLOOM round never reported settled — syncing header to server value");
+    bloomFlushPendingBalance();
+  }, BLOOM_SETTLE_WATCHDOG_MS);
+}
+function bloomSettleBalance(newVal) {
+  clearTimeout(_bloomSettleWatchdog);
+  const val = (typeof newVal === "number" && Number.isFinite(newVal)) ? newVal : _bloomPendingBalance;
+  _bloomPendingBalance = null;
+  bloomApplyBalance(val);
+}
+function bloomFlushPendingBalance() {
+  clearTimeout(_bloomSettleWatchdog);
+  if (_bloomPendingBalance === null) return;
+  const val = _bloomPendingBalance;
+  _bloomPendingBalance = null;
+  bloomApplyBalance(val);
+}
+// Play a whole round server-side. bloom_play_round resolves draws + growth + line +
+// pollination/wheel and pays under a wallet lock, returning the full outcome for the
+// client to animate. Replies "result" (payload) or "play-fail" (reason).
+async function bloomHandlePlay(bet, satchel, contestId, roundNumber, replyWin) {
   const reply = (msg) => { try { (replyWin || bloomFrameWindow("bloom-frame"))?.postMessage(msg, "*"); } catch (e) {} };
-  if (!supabase || !currentUser?.id) { reply({ source: "bloom-shell", type: "cast-fail", reason: "not_authenticated" }); return; }
+  if (!supabase || !currentUser?.id) { reply({ source: "bloom-shell", type: "play-fail", reason: "not_authenticated" }); return; }
   try {
-    const { data, error } = await supabase.rpc("bloom_start_round", {
+    const { data, error } = await supabase.rpc("bloom_play_round", {
       p_bet: Math.round(Number(bet) || 0),
-      p_round: roundSnap || {}
+      p_satchel: Array.isArray(satchel) ? satchel : [],
+      p_contest_id: contestId || null,
+      p_round_number: (roundNumber == null ? null : Math.round(Number(roundNumber) || 0))
     });
     if (error) {
       const msg = String(error.message || "");
       const reason = msg.includes("insufficient_funds") ? "insufficient_funds"
-                   : msg.includes("invalid_bet") ? "invalid_bet" : "start_failed";
-      reply({ source: "bloom-shell", type: "cast-fail", reason });
+                   : msg.includes("invalid_bet") ? "invalid_bet"
+                   : msg.includes("invalid_satchel") ? "invalid_satchel" : "play_failed";
+      reply({ source: "bloom-shell", type: "play-fail", reason });
       return;
     }
-    if (data && typeof data.new_account_value === "number") bloomApplyBalance(data.new_account_value);
-    bloomApplyCarterCash(data);
-    reply({ source: "bloom-shell", type: "cast-ok", round_id: data?.round_id || null, balance: data?.new_account_value });
-  } catch (e) {
-    reply({ source: "bloom-shell", type: "cast-fail", reason: "start_failed" });
-  }
-}
-// Persist the reels-revealed resume point on the pending row (fire-and-forget).
-async function bloomHandleProgress(roundId, reels) {
-  if (!supabase || !roundId) return;
-  try {
-    await supabase.from("bloom_rounds")
-      .update({ reels_revealed: Math.max(0, Math.round(Number(reels) || 0)) })
-      .eq("id", roundId).eq("status", "pending");
-  } catch (e) {}
-}
-// Settle: credit the win + resolve the round, then mirror the final balance in.
-async function bloomHandleSettle(roundId, ret, roundSnap, replyWin) {
-  const reply = (msg) => { try { (replyWin || bloomFrameWindow("bloom-frame"))?.postMessage(msg, "*"); } catch (e) {} };
-  if (!supabase || !roundId) return;
-  try {
-    const { data, error } = await supabase.rpc("bloom_settle_round", {
-      p_round_id: roundId,
-      p_return: Math.max(0, Number(ret) || 0),
-      p_round: roundSnap || {}
-    });
-    if (error) { console.warn("[bloom] settle failed", error.message); return; }
+    // Defer the header to the end of the animation (game posts "settled"); Carter
+    // Cash from the wager applies immediately, same as MM.
     if (data && typeof data.new_account_value === "number") {
-      bloomApplyBalance(data.new_account_value);
-      reply({ source: "bloom-shell", type: "settle-ok", balance: data.new_account_value });
+      _bloomPendingBalance = data.new_account_value;
+      bloomArmSettleWatchdog();
     }
-  } catch (e) { console.warn("[bloom] settle error", e); }
-}
-// On (re)entering BLOOM, hand the game any still-open round so it reboots exactly
-// where the player left it. Nothing was credited yet, so this cannot double-pay.
-async function bloomPostResume(frameId) {
-  const w = bloomFrameWindow(frameId);
-  if (!w || !supabase || !currentUser?.id) return;
-  try {
-    const { data, error } = await supabase.from("bloom_rounds")
-      .select("id,total_wagered,satchel,outcomes,weather_patterns,reels_revealed,round_number")
-      .eq("user_id", currentUser.id).eq("status", "pending")
-      .order("created_at", { ascending: false }).limit(1).maybeSingle();
-    if (error || !data) return;
-    w.postMessage({ source: "bloom-shell", type: "resume", round: {
-      round_id: data.id, id: data.id, total_wagered: data.total_wagered,
-      satchel: data.satchel, outcomes: data.outcomes, weather: data.weather_patterns,
-      reels_revealed: data.reels_revealed, round_number: data.round_number
-    } }, "*");
-  } catch (e) {}
+    bloomApplyCarterCash(data);
+    reply({ source: "bloom-shell", type: "result", payload: data });
+  } catch (e) {
+    reply({ source: "bloom-shell", type: "play-fail", reason: "play_failed" });
+  }
 }
 // Refresh a specific iframe (play = "bloom-frame", deck admin = "admin-bloom-frame")
 // on re-open; the very first open is handled by the iframe's own "ready" message.
@@ -21077,18 +21073,13 @@ function installBloomBridge() {
       // and answer the sizing question now that we KNOW it is listening — the
       // route-open post may have arrived before this game existed
       postGameViewport(frameForWindow(e.source));
-      // hand the play frame any interrupted round to reboot (deck-admin frame has none)
-      const fr = frameForWindow(e.source);
-      if (fr && fr.id === "bloom-frame") bloomPostResume("bloom-frame");
     } else if (m.type === "need-viewport") {
       // the game asks directly (e.g. it is about to open a modal and has no height)
       postGameViewport(frameForWindow(e.source));
-    } else if (m.type === "cast") {
-      await bloomHandleCast(m.bet, m.round, e.source);        // debit + open pending round
-    } else if (m.type === "progress") {
-      bloomHandleProgress(m.round_id, m.reels_revealed);      // save the resume point
+    } else if (m.type === "play") {
+      await bloomHandlePlay(m.bet, m.satchel, m.contest_id, m.round_number, e.source);  // resolve + pay the whole round
     } else if (m.type === "settled") {
-      await bloomHandleSettle(m.round_id, m.ret, m.round, e.source);  // credit win + resolve
+      bloomSettleBalance(m.balance);   // the game finished animating — apply the deferred header
     } else if (m.type === "save-deck") {
       await bloomSaveDeck(m.deck, e.source);
     }

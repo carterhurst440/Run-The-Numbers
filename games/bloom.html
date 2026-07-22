@@ -3744,25 +3744,55 @@ function castSeeds(){
   const bet=Math.round(Number(state.config.bet)||0);
   if(bet<=0){banner('lose','Set a bet first');return;}
   if(bet>SHELL.balance){banner('lose','Not enough credits for that bet');return;}
-  SHELL.balance-=bet;                 // debit the stake at cast (outcome is fixed here)
+  SHELL.balance-=bet;                 // optimistic debit for snappiness (server reconciles)
   bloomRenderBalance();
   sfx('seed_cast');
-  const plants=state.satchel.map(fid=>{const f=flower(fid);return{f,_took:Math.random()*100<f.take};});
-  const draws=polTestDraws(drawWeather());    // admin rig only; a no-op without ?poltest=1
-  plants.forEach(p=>growPlant(p,draws));      // outcome fixed at cast, revealed reel-by-reel
-  polTestForceBlooms(plants);                 // ditto
-  round={plants,draws,step:0,phase:'cast',done:false,bet,id:null,number:null};   // remember the staked bet
-  // Server wallet: broker the stake through the shell. We debited #balVal optimistically
-  // above for snappiness; the shell replies cast-ok (with the authoritative balance +
-  // round_id) or cast-fail (refund + tear down). Reels stay locked until cast-ok lands.
-  if(bloomServerWallet()){ round.awaitingCast=true; bloomPost('cast', {bet, round: bloomRoundSnapshot(round)}); }
   const hint=$('#dirtHint');if(hint)hint.style.display='none';
   setBetLocked(true, bet); setScoreWin(0);      // bet is locked for the round; reset the win
   setSatchelOpen(false);                        // collapse the satchel so the plants are clear
   buildWeatherReel();$('#multi').textContent='';applyWeatherTheme(null);banner('','');
+  if(bloomServerWallet()){
+    // Server-authoritative: the WHOLE round (draws, growth, line, pollination + wheel)
+    // is resolved + paid by bloom_play_round. Post the request and lock the reels; the
+    // bed is laid out when the result lands (onServerResult), so no outcome is known
+    // client-side until the server sends it.
+    round={plants:[], draws:[], step:0, phase:'cast', done:false, bet, id:null, number:null, awaitingCast:true, server:true};
+    bloomPost('play', {bet, satchel: state.satchel.slice(), round_number:null});
+    updateSpinButton();
+    return;
+  }
+  // Standalone (no shell): roll the whole outcome locally, fixed at cast.
+  const plants=state.satchel.map(fid=>{const f=flower(fid);return{f,_took:Math.random()*100<f.take};});
+  const draws=polTestDraws(drawWeather());    // admin rig only; a no-op without ?poltest=1
+  plants.forEach(p=>growPlant(p,draws));      // outcome fixed at cast, revealed reel-by-reel
+  polTestForceBlooms(plants);                 // ditto
+  round={plants,draws,step:0,phase:'cast',done:false,bet,id:null,number:null};
   renderPlants(plants);
   tossSeedsAnim();                              // little flurry of seeds tossed onto the bed
   updateSpinButton();
+}
+// Server-authoritative round result → lay out the bed from the server outcome and
+// hand control back for the (player-paced) reveal. Mirrors MM's onServerResult:
+// the client re-plays the server's decision, it does not decide anything itself.
+function onServerResult(payload){
+  if(!round || !round.server || !round.awaitingCast) return;   // stale / not waiting
+  const outs = Array.isArray(payload && payload.outcomes) ? payload.outcomes : [];
+  const plants = outs.map(o=>{
+    const f=flower(o.fid); if(!f) return null;
+    const p={ f, _took:!!o.took, events:Array.isArray(o.events)?o.events.slice():[],
+              _srvWheel:(o.wheel!=null?Number(o.wheel):null) };
+    const fin=plantFinal(p); p.alive=fin.alive; p.phase=fin.phase;   // final state, like growPlant leaves it
+    return p;
+  }).filter(Boolean);
+  round.plants   = plants;
+  round.draws    = Array.isArray(payload.draws) ? payload.draws.slice() : [];
+  round.id       = payload.round_id || null;
+  round.srvTotal = Number(payload.total_returned || 0);
+  round.srvBalance = (typeof payload.new_account_value==='number') ? payload.new_account_value : null;
+  round.awaitingCast = false;
+  renderPlants(plants);
+  tossSeedsAnim();
+  updateSpinButton();                            // reels unlock — player spins to reveal
 }
 // Cast flourish: scatter a handful of seed dots that arc down onto the divots.
 function tossSeedsAnim(){
@@ -3793,7 +3823,6 @@ async function revealNextReel(){
   applyWeatherTheme(w);
   growReplay(round.plants,s+1);       // growth / wilt sound fires from inside growReplay
   round.step++;
-  if(bloomServerWallet()&&round.id) bloomPost('progress', {round_id:round.id, reels_revealed:round.step});  // persist resume point
   if(round.step<round.draws.length) setScoreWin(roundReturnUpTo(round.step), true);  // running return
   await sleep2(340);
   if(round.step>=round.draws.length)finalizeRound();
@@ -3817,7 +3846,24 @@ function finalizeRound(){
 // Credits the round, updates the readouts and logs it. Shared by the plain path
 // and the end of a POLLINATE run so the two can never drift.
 function settleRound(total, bet){
-  SHELL.balance+=total;               // credit the round payout at settle
+  if(round && round.server){
+    // Server already resolved + banked this round; the server total/balance are
+    // authoritative (the client sum matches, but never let it override the wallet).
+    if(typeof round.srvTotal==='number') total=round.srvTotal;
+    SHELL.balance = (round.srvBalance!=null) ? round.srvBalance : (SHELL.balance+total);
+    bloomRenderBalance();
+    setScoreWin(total, true);
+    if(document.body.classList.contains('pollinating')){
+      const wn=$('#roundWinNum'); if(wn) wn.classList.toggle('win-final', total>0);
+    }
+    bloomPost('settled', {balance: SHELL.balance});   // animation done → shell applies the deferred header
+    recordRound(bet, total, round.plants);
+    round.phase='done';round.done=true;
+    updateSpinButton();
+    banner('','');
+    return;
+  }
+  SHELL.balance+=total;               // standalone: credit locally
   bloomRenderBalance();
   setScoreWin(total, true);           // scoreboard settles on the final round return
   // a pollination win settles under the pink theme — glow its final total pink,
@@ -3825,7 +3871,6 @@ function settleRound(total, bet){
   if(document.body.classList.contains('pollinating')){
     const wn=$('#roundWinNum'); if(wn) wn.classList.toggle('win-final', total>0);
   }
-  bloomPostSettled(total);            // server credits the win via bloom_settle_round + mirrors the balance
   recordRound(bet, total, round.plants);   // same bet/total the payout above used
   round.phase='done';round.done=true;
   updateSpinButton();
@@ -4568,8 +4613,18 @@ async function polSpin(){
   }
   const main=$('#spinBtn'); if(main){ main.disabled=true; main.classList.remove('shine'); }
   const wheel=$('#polWheel'), n=POLLINATE_WHEEL.length, step=360/n;
-  const seg=(Math.random()*n)|0;                 // the outcome — uniform over segments
-  const mult=POLLINATE_WHEEL[seg];
+  const cur0=pol.payers[pol.idx];
+  let seg, mult;
+  if(round && round.server && cur0 && cur0.p && cur0.p._srvWheel!=null){
+    // Server decided this flower's multiplier; land on a segment that shows it
+    // (segment pick is animation-only — the multiplier is authoritative).
+    mult=cur0.p._srvWheel;
+    const matches=[]; for(let k=0;k<n;k++) if(POLLINATE_WHEEL[k]===mult) matches.push(k);
+    seg=matches.length ? matches[(Math.random()*matches.length)|0] : (Math.random()*n)|0;
+  } else {
+    seg=(Math.random()*n)|0;                       // standalone: uniform over segments
+    mult=POLLINATE_WHEEL[seg];
+  }
   const target=360*4 + (360 - (seg+0.5)*step);   // land that segment under the 12 o'clock needle
   wheel.style.transition='';                     // restore the CSS easing
   void wheel.offsetHeight;
@@ -5430,26 +5485,21 @@ window.addEventListener('message',(e)=>{
     // the browser chrome. Cap against this instead of trusting 100dvh.
     if(typeof m.height==='number' && isFinite(m.height) && m.height>200)
       document.documentElement.style.setProperty('--shell-vh', m.height+'px');
-  } else if(m.type==='cast-ok'){
-    // the shell debited the stake + opened the pending round — attach its id and
-    // reconcile #balVal to the authoritative post-debit balance, then unlock the reels
-    if(round){ round.id=m.round_id||null; round.awaitingCast=false; }
-    if(typeof m.balance==='number'&&isFinite(m.balance)){ SHELL.balance=m.balance; bloomRenderBalance(); }
-    updateSpinButton();
-  } else if(m.type==='cast-fail'){
-    // server refused (insufficient funds / error) — undo the optimistic cast entirely
-    if(round){ SHELL.balance += (round.bet||0); }
+  } else if(m.type==='result'){
+    // the whole round was resolved + paid server-side — lay out the bed and let the
+    // player reveal it (the reels/growth/wheel are all a replay of m.payload)
+    onServerResult(m.payload);
+  } else if(m.type==='play-fail'){
+    // server refused (insufficient funds / bad satchel / error) — undo the optimistic cast
+    if(round){ SHELL.balance += (round.bet||0); round=null; }
     resetPlayArea(); setBetLocked(false); setScoreWin(0); bloomRenderBalance();
-    banner('lose', m.reason==='insufficient_funds' ? 'Not enough credits for that bet' : 'Could not start the round');
+    banner('lose', m.reason==='insufficient_funds' ? 'Not enough credits for that bet'
+                 : m.reason==='invalid_satchel' ? 'That satchel is not valid' : 'Could not start the round');
     updateSpinButton();
-  } else if(m.type==='settle-ok'){
-    if(typeof m.balance==='number'&&isFinite(m.balance)){ SHELL.balance=m.balance; bloomRenderBalance(); }
   } else if(m.type==='suspend'){
     sndSetSuspended(true);              // navigated away from the bloom route — cut audio
-  } else if(m.type==='resume' && !m.round){
-    sndSetSuspended(false);             // back on the bloom route — resume audio (bare resume, no round payload)
   } else if(m.type==='resume'){
-    bloomResumeRound(m.round);          // reboot an interrupted round exactly where it stopped
+    sndSetSuspended(false);             // back on the bloom route — resume audio
   } else if(m.type==='save-ack'){
     const st=$('#saveDeckDbStatus');
     if(st) st.textContent = m.ok ? ('Saved to DB ✓  ' + (m.msg||'')) : ('Save failed: ' + (m.msg||''));
