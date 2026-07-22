@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js?v=20260722e-selfhost";
+import { supabase } from "./supabaseClient.js?v=20260722f-affiliatenotif";
 
 console.info("[RTN] main script loaded");
 
@@ -11131,7 +11131,7 @@ async function fetchProfileWithRetries(
     try {
       const fetchPromise = supabase
         .from("profiles")
-        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, receive_prize_notifications, receive_promo_notifications, referral_code, updated_at")
+        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, receive_prize_notifications, receive_promo_notifications, referral_code, affiliate_notif_toasted_at, affiliate_notif_seen_at, updated_at")
         .eq("id", userId)
         .maybeSingle();
 
@@ -15397,10 +15397,31 @@ function getStoredTs(key) {
 function setStoredTs(key, iso) {
   try { window.localStorage.setItem(key, iso); } catch { /* ignore */ }
 }
+// The affiliate toast/seen markers are mirrored onto the profiles row so they
+// survive browsers where localStorage is blocked or ephemeral (Safari Private
+// Browsing / incognito) — otherwise the write is silently dropped and the toast
+// + unread badge re-fire on every refresh and realtime push. Read = the newer of
+// localStorage and the server value; write = both.
+function markerTs(localKey, profileCol) {
+  const local = getStoredTs(localKey);
+  const serverIso = currentProfile ? currentProfile[profileCol] : null;
+  const server = serverIso ? new Date(serverIso).getTime() : 0;
+  return Math.max(local, server);
+}
+function persistMarker(localKey, profileCol, iso) {
+  setStoredTs(localKey, iso);
+  if (currentProfile) currentProfile[profileCol] = iso;   // keep the in-memory copy in step
+  try {
+    if (supabase && currentUser?.id && currentUser.id !== GUEST_USER.id) {
+      // fire-and-forget; the durable state is what matters, not the round-trip
+      void supabase.from("profiles").update({ [profileCol]: iso }).eq("id", currentUser.id);
+    }
+  } catch { /* best-effort */ }
+}
 
 function maybeToastNewAffiliate(rows) {
   if (!Array.isArray(rows) || !rows.length) return;
-  const toastAt = getStoredTs(affiliateNotifToastKey());
+  const toastAt = markerTs(affiliateNotifToastKey(), "affiliate_notif_toasted_at");
   const newer = rows.filter((r) => (r.created_at ? new Date(r.created_at).getTime() : 0) > toastAt);
   if (!newer.length) return;
   const newest = newer[0]; // rows are sorted desc
@@ -15411,7 +15432,7 @@ function maybeToastNewAffiliate(rows) {
     ? `🎉 ${newer.length} new players joined with your code — +${total} credits!`
     : `🎉 ${name} joined with your code — +${amount} credits!`;
   showToast(msg, "success");
-  if (newest.created_at) setStoredTs(affiliateNotifToastKey(), newest.created_at);
+  if (newest.created_at) persistMarker(affiliateNotifToastKey(), "affiliate_notif_toasted_at", newest.created_at);
 }
 
 async function refreshAffiliateNotifications() {
@@ -15431,7 +15452,7 @@ async function refreshAffiliateNotifications() {
     console.warn("[RTN] refreshAffiliateNotifications error", error);
     return;
   }
-  const seenMs = getStoredTs(affiliateNotifSeenKey());
+  const seenMs = markerTs(affiliateNotifSeenKey(), "affiliate_notif_seen_at");
   affiliateNotifications = (Array.isArray(data) ? data : []).map((row) => {
     const name = row.referred_username && row.referred_username.trim() ? row.referred_username : "A new player";
     const amount = Math.round(Number(row.amount_credited || 0)).toLocaleString();
@@ -15456,7 +15477,7 @@ function markAffiliateNotificationsSeen() {
     const t = i.createdAt ? new Date(i.createdAt).getTime() : 0;
     return t > max ? t : max;
   }, 0);
-  if (newest > 0) setStoredTs(affiliateNotifSeenKey(), new Date(newest).toISOString());
+  if (newest > 0) persistMarker(affiliateNotifSeenKey(), "affiliate_notif_seen_at", new Date(newest).toISOString());
   affiliateNotifications = affiliateNotifications.map((i) => ({ ...i, unread: false }));
   renderContestNotifications();
 }
@@ -17244,7 +17265,7 @@ async function optIntoContest(contest = currentContest) {
         }
 
         const { data: deductedProfile, error: deductError } = await deductQuery
-          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, receive_prize_notifications, receive_promo_notifications, referral_code, updated_at")
+          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, receive_prize_notifications, receive_promo_notifications, referral_code, affiliate_notif_toasted_at, affiliate_notif_seen_at, updated_at")
           .maybeSingle();
 
         if (deductError) throw deductError;
@@ -17296,7 +17317,7 @@ async function optIntoContest(contest = currentContest) {
             .update({ carter_cash: refundedAmount })
             .eq("id", currentUser.id)
             .eq("updated_at", chargedProfile.updated_at ?? null)
-            .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, receive_prize_notifications, receive_promo_notifications, referral_code, updated_at")
+            .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, receive_prize_notifications, receive_promo_notifications, referral_code, affiliate_notif_toasted_at, affiliate_notif_seen_at, updated_at")
             .maybeSingle();
           if (refundedProfile) {
             currentProfile = {
