@@ -3888,10 +3888,38 @@ function sndSet(map){
   if(SND.unlocked && !SND.muted) musicPlay(SND.inPollinate ? 'pollination_music' : 'background');
   renderSndToggle();
 }
+// Built-in WebAudio synth for a couple of UI one-shots that have no uploaded
+// file. bet_change reproduces the exact "coin" ching Monkey Moonshine plays on
+// its bet +/- (ported from MM's synth), so BLOOM matches MM out of the box.
+let _synthCtx=null;
+function synthCtx(){
+  if(_synthCtx) return _synthCtx;
+  try{ _synthCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(_){ return null; }
+  return _synthCtx;
+}
+function synthBeep(freq,{type='sine',t=0,dur=0.2,peak=0.3,a=0.005}={}){
+  const c=synthCtx(); if(!c) return;
+  if(c.state==='suspended'){ try{ c.resume(); }catch(_){} }
+  const o=c.createOscillator(), g=c.createGain(); o.type=type;
+  const st=c.currentTime+t;
+  o.frequency.setValueAtTime(freq,st);
+  g.gain.setValueAtTime(0.0001,st);
+  g.gain.linearRampToValueAtTime(peak,st+a);
+  g.gain.exponentialRampToValueAtTime(0.0001,st+dur);
+  o.connect(g); g.connect(c.destination);
+  o.start(st); o.stop(st+dur+0.03);
+}
+// MM's coin(): three quick square/sine beeps — E6, B6, E7.
+function synthCoin(){
+  synthBeep(1318.5,{type:'square',dur:0.08,peak:0.11});
+  synthBeep(1975.5,{type:'square',t:0.06,dur:0.17,peak:0.10});
+  synthBeep(2637,  {type:'sine',  t:0.06,dur:0.14,peak:0.05});
+}
 function sfx(key){
   if(SND.muted) return;
-  const url=SND.urls[key]; if(!url) return;
-  try{ const a=new Audio(url); a.play().catch(()=>{}); }catch(_){}
+  const url=SND.urls[key];
+  if(url){ try{ const a=new Audio(url); a.play().catch(()=>{}); }catch(_){} return; }
+  if(key==='bet_change') synthCoin();     // built-in default (MM coin) when no file is uploaded
 }
 function musicPlay(key){
   const url=SND.urls[key]; if(!url || SND.muted) return;
@@ -3908,6 +3936,7 @@ function sndPollinate(on){
   else if(was){ musicStop('pollination_music'); if(SND.unlocked) musicPlay('background'); }
 }
 function sndUnlock(){
+  const c=synthCtx(); if(c && c.state==='suspended'){ try{ c.resume(); }catch(_){} }   // unlock the coin synth
   if(SND.unlocked) return; SND.unlocked=true;
   if(!SND.muted) musicPlay(SND.inPollinate ? 'pollination_music' : 'background');
 }
@@ -3921,8 +3950,8 @@ function sndToggleMute(){
 }
 function renderSndToggle(){
   const b=$('#sndToggle'); if(!b) return;
-  const has=Object.values(SND.urls).some(Boolean);
-  b.style.display = has ? '' : 'none';        // no sounds configured yet -> hide the control
+  const has=Object.values(SND.urls).some(Boolean) || true;   // always: the built-in coin (bet +/-) is always available
+  b.style.display = has ? '' : 'none';
   b.textContent = SND.muted ? '🔇' : '🔊';
   b.setAttribute('aria-pressed', SND.muted ? 'true' : 'false');
 }
