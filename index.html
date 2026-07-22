@@ -5,7 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0b0e" />
     <title>Run the Numbers Simulator</title>
-    <link rel="stylesheet" href="styles.css?v=20260722d-lightertap" />
+    <!-- Early tap-catcher: the main bundle is large, so until it wires its route
+         handlers (window.__RTN_ROUTER_READY) a tap on a home game tile would land
+         on nothing. This runs during parse and routes such taps via the URL hash,
+         which the app consumes on boot (getRouteFromHash) or via its hashchange
+         listener — so an early tap is never lost. Once the app is ready this
+         no-ops and the app's own handler takes over. Press feedback is pure CSS. -->
+    <script>
+      (function () {
+        document.addEventListener("click", function (e) {
+          if (window.__RTN_ROUTER_READY) return;            // app is live → its handler navigates
+          var t = e.target;
+          var tile = t && t.closest ? t.closest(".home-game-cards .home-game-card[data-route-target]") : null;
+          if (!tile || tile.classList.contains("is-locked") || tile.disabled) return;
+          var route = tile.getAttribute("data-route-target");
+          if (!route) return;
+          tile.classList.add("tile-tap-press");            // instant visual ack
+          setTimeout(function () { tile.classList.remove("tile-tap-press"); }, 300);
+          try { window.location.hash = "#/" + route; } catch (_) {}
+        }, true);
+      })();
+    </script>
+    <link rel="stylesheet" href="styles.css?v=20260722g-taps" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -5581,7 +5602,7 @@
     <script defer src="vendor/supabase-js.umd.min.js?v=2"></script>
     <script defer src="vendor/chart.umd.min.js?v=4.4.1"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260722f-affiliatenotif"></script>
+    <script type="module" src="script.js?v=20260722g-taps"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

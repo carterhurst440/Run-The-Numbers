@@ -27138,16 +27138,18 @@ body[data-ui="new"] .home-game-card::before {
   }
 }
 
-/* ── Mobile tap feedback ─────────────────────────────────────────────
-   Touch devices have no hover. On tap, JS adds .tile-tap-press for a beat
-   (then routes into the game): a quick, GPU-cheap press — transform + border
-   only, no shimmer / box-shadow / background repaint — so it feels responsive
-   without the paint cost of the old hover replay. */
+/* ── Tap responsiveness ──────────────────────────────────────────────
+   touch-action: manipulation removes the browser's tap latency (no wait for a
+   possible double-tap-zoom), so clicks dispatch immediately. The press is pure
+   CSS :active — instant tactile feedback the moment a finger lands, with zero
+   dependency on when the JS bundle finishes loading (and it can't get "stuck").
+   .tile-tap-press is the same look, set by the early inline tap-catcher for
+   pre-load taps. Placed after the hover rules so the press wins during a click. */
+body[data-ui="new"] .home-game-card { touch-action: manipulation; }
+body[data-ui="new"] .home-game-card:active:not(.is-locked),
 body[data-ui="new"] .home-game-card.tile-tap-press:not(.is-locked) {
-  transform: scale(0.97);
-  transition: transform 110ms ease, border-color 110ms ease;
-  border-color: var(--hgc-accent);
-  will-change: transform;
+  transform: scale(0.96);
+  transition: transform 80ms ease;
 }
 
 /* Glyph — absolute top-center */

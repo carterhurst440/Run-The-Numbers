@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js?v=20260722f-affiliatenotif";
+import { supabase } from "./supabaseClient.js?v=20260722g-taps";
 
 console.info("[RTN] main script loaded");
 
@@ -43122,35 +43122,12 @@ routeButtons.forEach((button) => {
     await setRoute(target);
   });
 });
-
-// On touch devices (no hover) a tap on a home game tile gives a quick, cheap press
-// (a transform-only scale — GPU-composited, no shimmer/box-shadow/SVG work) so the
-// tap feels responsive, then routes in almost immediately. Kept short on purpose:
-// the old version stalled ~680ms on a heavy hover replay, which read as lag.
-// Pointer devices keep real hover + an instant click. Capture phase so it can hold
-// the bubble-phase route-navigate above just long enough for the press to register.
-(function wireMobileTilePreview() {
-  const hoverCapable = !window.matchMedia || window.matchMedia("(hover: hover)").matches;
-  if (hoverCapable) return;
-  const TAP_MS = 130;
-  document.querySelectorAll(".home-game-cards .home-game-card[data-route-target]").forEach((tile) => {
-    tile.addEventListener("click", (e) => {
-      if (tile.classList.contains("is-locked") || tile.disabled) return;   // locked → let normal handling run
-      if (tile.dataset.tapPreviewing === "1") return;                      // already pressing; ignore repeat taps
-      e.preventDefault();
-      e.stopImmediatePropagation();          // defer the route-navigate just past the press
-      tile.dataset.tapPreviewing = "1";
-      tile.classList.add("tile-tap-press");
-      const target = tile.dataset.routeTarget;
-      window.setTimeout(() => {
-        tile.classList.remove("tile-tap-press");
-        delete tile.dataset.tapPreviewing;
-        closeActiveDrawer();
-        void setRoute(target);
-      }, TAP_MS);
-    }, true);
-  });
-})();
+// Route handlers are live now. The early inline tap-catcher in index.html checks
+// this flag: before it flips true, a tap on a game tile is a no-op here (the big
+// bundle hasn't wired these listeners yet), so the inline script routes via the
+// hash instead — no tap is ever lost. Press feedback is pure CSS (:active), so it
+// is instant and independent of when this bundle finishes loading.
+try { window.__RTN_ROUTER_READY = true; } catch (e) {}
 
 // Drawer GAMES accordion toggle.
 (function wireDrawerGames() {
