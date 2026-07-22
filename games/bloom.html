@@ -347,9 +347,12 @@
   /* the wheel standing in for the reels inside .wreel-card */
   .pol-reel{display:flex;align-items:center;justify-content:center;gap:16px;padding:4px 0 2px}
   .pol-reel[hidden]{display:none}
-  .pol-side{display:flex;flex-direction:column;align-items:stretch;gap:4px;min-width:126px}
+  .pol-side{display:flex;flex-direction:column;align-items:stretch;gap:4px;width:126px;flex:none;height:104px}
   /* one chip per flower already spun, so the run reads back at a glance */
-  .pol-tally{display:flex;flex-wrap:wrap;gap:3px;margin-top:2px}
+  /* multiplier history: wraps + scrolls inside the fixed-height side column so the
+     wheel never shifts as the list grows */
+  .pol-tally{display:flex;flex-wrap:wrap;gap:3px;margin-top:2px;flex:1 1 auto;min-height:0;
+    overflow-y:auto;align-content:flex-start;scrollbar-width:thin}
   .pol-chip{font-size:9px;font-weight:800;letter-spacing:.04em;border:1px solid var(--line);
     border-radius:2px;padding:1px 4px;background:rgba(255,255,255,.5)}
   .pol-chip.big{background:#f6c400}
@@ -405,7 +408,7 @@
   @media(max-width:430px){
     .pol-reel{gap:10px}
     .pol-wheelwrap{width:86px;height:86px}
-    .pol-side{min-width:104px}
+    .pol-side{width:104px;flex:none;height:86px}
     .pol-head b{font-size:11.5px}
   }
 
@@ -779,7 +782,8 @@
   /* moving light-sweep shimmer + a soft shine glow on the primary CTA */
   .bottom-bar .main-action::before{content:"";position:absolute;top:0;bottom:0;left:0;width:60%;
     background:linear-gradient(100deg,transparent 0%,rgba(255,255,255,.28) 40%,rgba(246,228,0,.92) 50%,rgba(255,255,255,.28) 60%,transparent 100%);
-    transform:translateX(-180%) skewX(-18deg);animation:castshimmer 3.4s ease-in-out infinite;pointer-events:none}
+    transform:translateX(-180%) skewX(-18deg);animation:castshimmer 3.4s ease-in-out infinite;pointer-events:none;
+    will-change:transform;backface-visibility:hidden}
   .bottom-bar .main-action:hover{box-shadow:0 0 0 2px var(--accent),0 0 16px -2px rgba(20,20,20,.5)}
   .bottom-bar .main-action:active{transform:translateY(1px)}
   @keyframes castshimmer{0%{transform:translateX(-180%) skewX(-18deg)}55%,100%{transform:translateX(320%) skewX(-18deg)}}

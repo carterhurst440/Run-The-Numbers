@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js?v=20260722r-tiletaps";
+import { supabase } from "./supabaseClient.js?v=20260722s-tiletaps2";
 
 console.info("[RTN] main script loaded");
 
@@ -10889,7 +10889,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260722r-audiocontain");
+      frame.setAttribute("src", "games/bloom.html?v=20260722s-poltally");
     }
     installBloomBridge();   // idempotent: broker rounds + push the wallet balance
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -43420,19 +43420,30 @@ try { window.__RTN_ROUTER_READY = true; } catch (e) {}
 // the click is dropped, and swallow the trailing click so it can't double-navigate.
 (function wireTileTaps(){
   document.querySelectorAll(".home-game-cards .home-game-card[data-route-target]").forEach((tile) => {
-    let sx = 0, sy = 0, st = 0, moved = false, tappedAt = 0;
-    tile.addEventListener("pointerdown", (e) => { sx = e.clientX; sy = e.clientY; st = Date.now(); moved = false; }, { passive: true });
-    tile.addEventListener("pointermove", (e) => { if (Math.abs(e.clientX - sx) > 10 || Math.abs(e.clientY - sy) > 10) moved = true; }, { passive: true });
-    tile.addEventListener("pointercancel", () => { moved = true; });
-    tile.addEventListener("pointerup", () => {
-      if (moved || Date.now() - st > 700) return;                       // a scroll/drag, not a tap
+    let sx = 0, sy = 0, st = 0, moved = false, done = false, navAt = 0;
+    const pt = (e) => e.touches && e.touches[0] ? e.touches[0] : (e.changedTouches && e.changedTouches[0] ? e.changedTouches[0] : e);
+    const start = (e) => { const p = pt(e); sx = p.clientX || 0; sy = p.clientY || 0; st = Date.now(); moved = false; done = false; };
+    const move = (e) => { const p = pt(e); if (Math.abs((p.clientX || 0) - sx) > 12 || Math.abs((p.clientY || 0) - sy) > 12) moved = true; };
+    // A clean, stationary, brief press = a tap → navigate. Fires on whichever of
+    // pointerup / pointercancel / touchend arrives first. pointercancel matters:
+    // tapping a tile to stop scroll momentum fires it instead of a click, which is
+    // exactly the "below-the-fold tile ignores the first tap" case.
+    const finish = () => {
+      if (done || moved || Date.now() - st > 700) return;
       if (tile.classList.contains("is-locked") || tile.disabled) return;
-      tappedAt = Date.now();
+      done = true; navAt = Date.now();
       closeActiveDrawer();
       void setRoute(tile.dataset.routeTarget);
-    });
+    };
+    tile.addEventListener("pointerdown", start, { passive: true });
+    tile.addEventListener("pointermove", move, { passive: true });
+    tile.addEventListener("pointerup", finish);
+    tile.addEventListener("pointercancel", finish);
+    tile.addEventListener("touchstart", start, { passive: true });   // fallback where pointer events are pre-empted
+    tile.addEventListener("touchmove", move, { passive: true });
+    tile.addEventListener("touchend", finish);
     tile.addEventListener("click", (e) => {
-      if (tappedAt && Date.now() - tappedAt < 700) { e.stopImmediatePropagation(); e.preventDefault(); }  // pointerup already navigated
+      if (navAt && Date.now() - navAt < 800) { e.stopImmediatePropagation(); e.preventDefault(); }  // already navigated via the tap
     }, true);
   });
 })();
