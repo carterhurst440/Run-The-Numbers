@@ -10889,7 +10889,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260722s-poltally");
+      frame.setAttribute("src", "games/bloom.html?v=20260722t-synth");
     }
     installBloomBridge();   // idempotent: broker rounds + push the wallet balance
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -34029,6 +34029,54 @@ const BLOOM_SOUND_SLOTS = [
   { group: 'Bonus', key: 'bonus_end', label: 'End of bonus', hint: 'After the last award in the pollination sequence' }
 ];
 
+// Procedural synth fallbacks for BLOOM's one-shot SFX — the admin-side twin of the
+// game's BLOOM_SYNTHS (games/bloom.html). Keep the two definition blocks in sync.
+// Lets the admin preview the built-in synth for any slot with no uploaded file, and
+// the "synth" tag comes from bloomKeyHasSynth. Music beds (background /
+// pollination_music) have no synth — they show "empty" until a file is uploaded.
+const BLOOM_SYNTH_DEFS = {
+  seed_cast:(s)=>{ s.hit({dur:0.18,peak:0.22,type:'highpass',freq:2200,q:0.6,to:900}); s.beep(320,{type:'sine',dur:0.1,peak:0.1,to:180}); },
+  satchel_add:(s)=>{ s.beep(520,{type:'triangle',dur:0.1,peak:0.16,to:780}); },
+  satchel_remove:(s)=>{ s.beep(520,{type:'triangle',dur:0.1,peak:0.16,to:300}); },
+  satchel_edit:(s)=>{ s.beep(1400,{type:'sine',dur:0.03,peak:0.08}); s.beep(820,{type:'triangle',t:0.012,dur:0.05,peak:0.06}); },
+  spin_reel:(s)=>{ s.hit({dur:0.28,peak:0.18,type:'bandpass',freq:600,q:0.7,to:2400}); s.beep(180,{dur:0.12,peak:0.08,to:120}); },
+  spin_wheel:(s)=>{ s.hit({dur:0.42,peak:0.16,type:'bandpass',freq:500,q:0.6,to:2600}); s.beep(150,{dur:0.14,peak:0.07,to:90}); },
+  flower_growth:(s)=>{ [0,4,7].forEach((n,i)=>s.beep(392*Math.pow(2,n/12),{type:'triangle',t:i*0.06,dur:0.22,peak:0.13})); },
+  flower_wilt:(s)=>{ s.beep(300,{type:'sine',dur:0.34,peak:0.14,to:120}); },
+  butterfly:(s)=>{ for(let i=0;i<4;i++) s.beep(1350+i*130,{type:'triangle',t:i*0.05,dur:0.08,peak:0.06}); },
+  w_heat:(s)=>{ s.beep(660,{type:'sine',dur:0.5,peak:0.1}); s.beep(990,{type:'sine',t:0.08,dur:0.45,peak:0.055}); },
+  w_frz:(s)=>{ [1568,2093,2637].forEach((f,i)=>s.beep(f,{type:'sine',t:i*0.05,dur:0.4,peak:0.08})); },
+  w_wind:(s)=>{ s.hit({dur:0.6,peak:0.16,type:'bandpass',freq:700,q:0.5,to:1600}); },
+  w_dew:(s)=>{ s.beep(1800,{type:'sine',dur:0.12,peak:0.12,to:2600}); s.beep(600,{type:'sine',t:0.04,dur:0.14,peak:0.06,to:300}); },
+  w_rain:(s)=>{ for(let i=0;i<6;i++) s.hit({t:i*0.05,dur:0.06,peak:0.09,type:'highpass',freq:3000}); },
+  bonus_awarded:(s)=>{ [0,4,7,12].forEach((n,i)=>s.beep(523.25*Math.pow(2,n/12),{type:'triangle',t:i*0.05,dur:0.18,peak:0.14})); },
+  bonus_end:(s)=>{ [12,7,4,0].forEach((n,i)=>s.beep(523.25*Math.pow(2,n/12),{type:'triangle',t:i*0.06,dur:0.2,peak:0.12})); },
+  bet_change:(s)=>{ s.beep(1318.5,{type:'square',dur:0.08,peak:0.11}); s.beep(1975.5,{type:'square',t:0.06,dur:0.17,peak:0.1}); s.beep(2637,{type:'sine',t:0.06,dur:0.14,peak:0.05}); }
+};
+function bloomKeyHasSynth(key){ return Object.prototype.hasOwnProperty.call(BLOOM_SYNTH_DEFS, key); }
+let _bloomSynthAC = null;
+function bloomAdminSynth(key){
+  const def = BLOOM_SYNTH_DEFS[key]; if (!def) return;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    const c = _bloomSynthAC || (_bloomSynthAC = new AC()); if (c.state === 'suspended') c.resume();
+    let nb = c._nb; if (!nb){ nb = c.createBuffer(1, c.sampleRate, c.sampleRate); const d = nb.getChannelData(0); for (let i=0;i<d.length;i++) d[i]=Math.random()*2-1; c._nb = nb; }
+    const beep = (freq,{type='sine',t=0,dur=0.2,peak=0.3,a=0.005,to=null}={})=>{
+      const o=c.createOscillator(),g=c.createGain(); o.type=type; const st=c.currentTime+t;
+      o.frequency.setValueAtTime(freq,st); if(to)o.frequency.exponentialRampToValueAtTime(Math.max(1,to),st+dur);
+      g.gain.setValueAtTime(0.0001,st); g.gain.linearRampToValueAtTime(peak,st+a); g.gain.exponentialRampToValueAtTime(0.0001,st+dur);
+      o.connect(g); g.connect(c.destination); o.start(st); o.stop(st+dur+0.05);
+    };
+    const hit = ({t=0,dur=0.2,peak=0.3,type='lowpass',freq=800,q=1,to=null}={})=>{
+      const src=c.createBufferSource(); src.buffer=nb; const f=c.createBiquadFilter(); f.type=type; f.frequency.value=freq; f.Q.value=q; const g=c.createGain();
+      const st=c.currentTime+t; if(to)f.frequency.exponentialRampToValueAtTime(Math.max(20,to),st+dur);
+      g.gain.setValueAtTime(0.0001,st); g.gain.linearRampToValueAtTime(peak,st+0.004); g.gain.exponentialRampToValueAtTime(0.0001,st+dur);
+      src.connect(f); f.connect(g); g.connect(c.destination); src.start(st); src.stop(st+dur+0.05);
+    };
+    def({ beep, hit });
+  } catch(_){}
+}
+
 // The BLOOM admin has six sections (Background, Pollinators, Wheel, Sounds,
 // Flowers, Weather); show them one at a time behind a subtab bar instead of one
 // long scroll. Idempotent — safe to call whenever the panel is opened.
@@ -34251,8 +34299,8 @@ const BloomAdmin = {
         host.appendChild(h);
       }
       const url = this.sounds[slot.key] || '';
-      const builtin = slot.key === 'bet_change';   // only BLOOM slot with a built-in default (the MM coin)
-      const tag = url ? 'custom file' : (builtin ? 'built-in coin' : 'empty');
+      const hasSynth = bloomKeyHasSynth(slot.key);   // built-in procedural synth for this slot?
+      const tag = url ? 'custom file' : (hasSynth ? 'synth' : 'empty');
       const row = document.createElement('div');
       row.className = 'admin-mm-snd-row'; row.dataset.key = slot.key;
       row.innerHTML = `
@@ -34262,7 +34310,7 @@ const BloomAdmin = {
         </div>
         <span class="admin-mm-snd-tag ${url ? 'is-file' : 'is-synth'}">${tag}</span>
         <div class="admin-mm-snd-actions">
-          <button type="button" class="admin-mm-snd-btn" data-act="preview" ${(url || builtin) ? '' : 'disabled'}>▶ Preview</button>
+          <button type="button" class="admin-mm-snd-btn" data-act="preview" ${(url || hasSynth) ? '' : 'disabled'}>▶ Preview</button>
           <label class="admin-mm-snd-btn admin-mm-snd-upload">⤴ ${url ? 'Replace' : 'Upload'}<input type="file" accept="audio/*" data-act="upload" hidden></label>
           <button type="button" class="admin-mm-snd-btn admin-mm-snd-clear" data-act="clear" ${url ? '' : 'disabled'}>Clear</button>
         </div>`;
@@ -34284,25 +34332,14 @@ const BloomAdmin = {
       });
     }
   },
-  // Preview plays the uploaded file; the bet 'coin' slot with no file previews the
-  // built-in synth (same three beeps the game plays on bet +/-).
+  // Preview plays the uploaded file if present, otherwise the slot's built-in synth.
   previewSound(key){
     const url = this.sounds[key] || '';
     if (url){
       try { if (this._prevAudio) this._prevAudio.pause(); this._prevAudio = new Audio(url); this._prevAudio.play().catch(()=>{}); } catch(_){}
       return;
     }
-    if (key === 'bet_change') this._coinPreview();
-  },
-  _coinPreview(){
-    try {
-      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
-      const c = this._ac || (this._ac = new AC()); if (c.state === 'suspended') c.resume();
-      const beep = (f,type,t,dur,peak)=>{ const o=c.createOscillator(), g=c.createGain(); o.type=type; const st=c.currentTime+t;
-        o.frequency.setValueAtTime(f,st); g.gain.setValueAtTime(0.0001,st); g.gain.linearRampToValueAtTime(peak,st+0.005);
-        g.gain.exponentialRampToValueAtTime(0.0001,st+dur); o.connect(g); g.connect(c.destination); o.start(st); o.stop(st+dur+0.03); };
-      beep(1318.5,'square',0,0.08,0.11); beep(1975.5,'square',0.06,0.17,0.10); beep(2637,'sine',0.06,0.14,0.05);
-    } catch(_){}
+    bloomAdminSynth(key);
   },
   // ── Clip trimmer (ported from Monkey Moonshine) ───────────────────────────
   // On upload, open a waveform with draggable start/end handles + shades; drag to

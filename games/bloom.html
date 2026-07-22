@@ -3939,30 +3939,57 @@ function synthCtx(){
   try{ _synthCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(_){ return null; }
   return _synthCtx;
 }
-function synthBeep(freq,{type='sine',t=0,dur=0.2,peak=0.3,a=0.005}={}){
-  const c=synthCtx(); if(!c) return;
-  if(c.state==='suspended'){ try{ c.resume(); }catch(_){} }
-  const pk=Math.max(0.0002, peak*(SND.sfxVol||0));
-  const o=c.createOscillator(), g=c.createGain(); o.type=type;
-  const st=c.currentTime+t;
-  o.frequency.setValueAtTime(freq,st);
-  g.gain.setValueAtTime(0.0001,st);
-  g.gain.linearRampToValueAtTime(pk,st+a);
-  g.gain.exponentialRampToValueAtTime(0.0001,st+dur);
-  o.connect(g); g.connect(c.destination);
-  o.start(st); o.stop(st+dur+0.03);
+// beep()/hit() primitives bound to the shared ctx; peaks scale with the SFX volume.
+function _synthSched(c){
+  if(!SND._nb){ const b=c.createBuffer(1,c.sampleRate,c.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1; SND._nb=b; }
+  const beep=(freq,{type='sine',t=0,dur=0.2,peak=0.3,a=0.005,to=null}={})=>{
+    const o=c.createOscillator(),g=c.createGain(); o.type=type; const st=c.currentTime+t;
+    o.frequency.setValueAtTime(freq,st); if(to)o.frequency.exponentialRampToValueAtTime(Math.max(1,to),st+dur);
+    const pk=Math.max(0.0002,peak*(SND.sfxVol||0));
+    g.gain.setValueAtTime(0.0001,st); g.gain.linearRampToValueAtTime(pk,st+a); g.gain.exponentialRampToValueAtTime(0.0001,st+dur);
+    o.connect(g); g.connect(c.destination); o.start(st); o.stop(st+dur+0.05);
+  };
+  const hit=({t=0,dur=0.2,peak=0.3,type='lowpass',freq=800,q=1,to=null}={})=>{
+    const src=c.createBufferSource(); src.buffer=SND._nb; const f=c.createBiquadFilter(); f.type=type; f.frequency.value=freq; f.Q.value=q; const g=c.createGain();
+    const st=c.currentTime+t; if(to)f.frequency.exponentialRampToValueAtTime(Math.max(20,to),st+dur);
+    const pk=Math.max(0.0002,peak*(SND.sfxVol||0));
+    g.gain.setValueAtTime(0.0001,st); g.gain.linearRampToValueAtTime(pk,st+0.004); g.gain.exponentialRampToValueAtTime(0.0001,st+dur);
+    src.connect(f); f.connect(g); g.connect(c.destination); src.start(st); src.stop(st+dur+0.05);
+  };
+  return {beep,hit};
 }
-// MM's coin(): three quick square/sine beeps — E6, B6, E7.
-function synthCoin(){
-  synthBeep(1318.5,{type:'square',dur:0.08,peak:0.11});
-  synthBeep(1975.5,{type:'square',t:0.06,dur:0.17,peak:0.10});
-  synthBeep(2637,  {type:'sine',  t:0.06,dur:0.14,peak:0.05});
+// One procedural synth per one-shot SFX (music beds are real files only). Kept in
+// sync with the admin copy in script.js (BLOOM_SYNTH_DEFS).
+const BLOOM_SYNTHS = {
+  seed_cast:(s)=>{ s.hit({dur:0.18,peak:0.22,type:'highpass',freq:2200,q:0.6,to:900}); s.beep(320,{type:'sine',dur:0.1,peak:0.1,to:180}); },
+  satchel_add:(s)=>{ s.beep(520,{type:'triangle',dur:0.1,peak:0.16,to:780}); },
+  satchel_remove:(s)=>{ s.beep(520,{type:'triangle',dur:0.1,peak:0.16,to:300}); },
+  satchel_edit:(s)=>{ s.beep(1400,{type:'sine',dur:0.03,peak:0.08}); s.beep(820,{type:'triangle',t:0.012,dur:0.05,peak:0.06}); },
+  spin_reel:(s)=>{ s.hit({dur:0.28,peak:0.18,type:'bandpass',freq:600,q:0.7,to:2400}); s.beep(180,{dur:0.12,peak:0.08,to:120}); },
+  spin_wheel:(s)=>{ s.hit({dur:0.42,peak:0.16,type:'bandpass',freq:500,q:0.6,to:2600}); s.beep(150,{dur:0.14,peak:0.07,to:90}); },
+  flower_growth:(s)=>{ [0,4,7].forEach((n,i)=>s.beep(392*Math.pow(2,n/12),{type:'triangle',t:i*0.06,dur:0.22,peak:0.13})); },
+  flower_wilt:(s)=>{ s.beep(300,{type:'sine',dur:0.34,peak:0.14,to:120}); },
+  butterfly:(s)=>{ for(let i=0;i<4;i++) s.beep(1350+i*130,{type:'triangle',t:i*0.05,dur:0.08,peak:0.06}); },
+  w_heat:(s)=>{ s.beep(660,{type:'sine',dur:0.5,peak:0.1}); s.beep(990,{type:'sine',t:0.08,dur:0.45,peak:0.055}); },
+  w_frz:(s)=>{ [1568,2093,2637].forEach((f,i)=>s.beep(f,{type:'sine',t:i*0.05,dur:0.4,peak:0.08})); },
+  w_wind:(s)=>{ s.hit({dur:0.6,peak:0.16,type:'bandpass',freq:700,q:0.5,to:1600}); },
+  w_dew:(s)=>{ s.beep(1800,{type:'sine',dur:0.12,peak:0.12,to:2600}); s.beep(600,{type:'sine',t:0.04,dur:0.14,peak:0.06,to:300}); },
+  w_rain:(s)=>{ for(let i=0;i<6;i++) s.hit({t:i*0.05,dur:0.06,peak:0.09,type:'highpass',freq:3000}); },
+  bonus_awarded:(s)=>{ [0,4,7,12].forEach((n,i)=>s.beep(523.25*Math.pow(2,n/12),{type:'triangle',t:i*0.05,dur:0.18,peak:0.14})); },
+  bonus_end:(s)=>{ [12,7,4,0].forEach((n,i)=>s.beep(523.25*Math.pow(2,n/12),{type:'triangle',t:i*0.06,dur:0.2,peak:0.12})); },
+  bet_change:(s)=>{ s.beep(1318.5,{type:'square',dur:0.08,peak:0.11}); s.beep(1975.5,{type:'square',t:0.06,dur:0.17,peak:0.1}); s.beep(2637,{type:'sine',t:0.06,dur:0.14,peak:0.05}); }
+};
+function bloomSynthRun(key){
+  const def=BLOOM_SYNTHS[key]; if(!def) return false;
+  const c=synthCtx(); if(!c) return false;
+  if(c.state==='suspended'){ try{ c.resume(); }catch(_){} }
+  def(_synthSched(c)); return true;
 }
 function sfx(key){
   if(SND.sfxVol<=0) return;
   const url=SND.urls[key];
   if(url){ try{ const a=new Audio(url); a.volume=SND.sfxVol; a.play().catch(()=>{}); }catch(_){} return; }
-  if(key==='bet_change') synthCoin();     // built-in default (MM coin) when no file is uploaded
+  bloomSynthRun(key);     // built-in procedural synth when no file is uploaded
 }
 function musicPlay(key){
   // Audio is contained to the bloom route AND the foreground tab: never start it
