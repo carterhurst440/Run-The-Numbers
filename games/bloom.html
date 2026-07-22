@@ -4119,24 +4119,48 @@ function sfx(key){
     if(sfxPlayBuffer(key)) return;            // preloaded buffer → zero-latency, overlappable
     try{                                       // not decoded (still loading / CORS fallback): stream it
       const kg=sndKeyGain(key);
-      const a=new Audio(url); a._keyGain=kg; a.volume=Math.min(1,SND.sfxVol*kg);
+      const a=new Audio(); a._keyGain=kg; a.crossOrigin='anonymous'; a.src=url;
       _sfxLive.add(a);
-      const drop=()=>_sfxLive.delete(a);
+      const drop=()=>{ _sfxLive.delete(a); try{ if(a._gain) a._gain.disconnect(); }catch(_){} };
       a.addEventListener('ended',drop); a.addEventListener('error',drop);
+      applyElVol(a, Math.min(1,SND.sfxVol*kg));   // gain node → volume works on iOS too
       a.play().catch(()=>{});
     }catch(_){}
     return;
   }
   bloomSynthRun(key);     // built-in procedural synth when no file is uploaded
 }
+// Route an HTMLAudioElement through WebAudio so its gain is controllable on iOS,
+// where HTMLMediaElement.volume is IGNORED (only 0 = mute worked → the "all or
+// nothing" feel). Cross-origin Supabase storage needs crossOrigin='anonymous' —
+// already CORS-enabled (the SFX decode path proves it). Returns the GainNode, or
+// null (then callers fall back to element volume, which is fine on desktop).
+function elGainNode(a){
+  if(a._gain) return a._gain;
+  if(a._gainFail) return null;
+  try{
+    const c=synthCtx(); if(!c) return null;
+    if(c.state==='suspended'){ try{ c.resume(); }catch(_){} }
+    const g=c.createGain();
+    c.createMediaElementSource(a).connect(g); g.connect(c.destination);
+    a._gain=g; return g;
+  }catch(_){ a._gainFail=true; return null; }
+}
+// Apply an effective volume to an HTMLAudio element via its gain node when wired
+// (works on iOS), else the element's own volume (desktop honours it).
+function applyElVol(a, vol){
+  const g=elGainNode(a);
+  if(g){ try{ g.gain.value=vol; }catch(_){} try{ a.volume=1; }catch(_){} }
+  else { try{ a.volume=vol; }catch(_){} }
+}
 function musicPlay(key){
   // Audio is contained to the bloom route AND the foreground tab: never start it
   // while suspended (off-route, driven by the shell) or the tab/app is hidden.
   const url=SND.urls[key]; if(!url || SND.musVol<=0 || SND.suspended || document.hidden) return;
   let a=SND.music[key];
-  if(!a){ a=new Audio(url); a.loop=true; SND.music[key]=a; }
+  if(!a){ a=new Audio(); a.loop=true; a.crossOrigin='anonymous'; a.src=url; SND.music[key]=a; }
   else if(a.src!==url){ a.src=url; }
-  a.volume=Math.min(1,SND.musVol*sndKeyGain(key));
+  applyElVol(a, Math.min(1, SND.musVol*sndKeyGain(key)));
   a.play().catch(()=>{});
 }
 function musicStop(key){ const a=SND.music[key]; if(a){ a.pause(); try{a.currentTime=0;}catch(_){} } }
@@ -4172,7 +4196,7 @@ function setMusicVolume(v){
   SND.musVolRaw=Math.max(0,Math.min(1,v));
   SND.musVol=volCurve(SND.musVolRaw);                 // slider position -> perceptual gain
   try{ localStorage.setItem('bloom_musVol', SND.musVolRaw.toFixed(3)); }catch(_){}
-  Object.keys(SND.music).forEach(k=>{ const a=SND.music[k]; if(a) a.volume=Math.min(1,SND.musVol*sndKeyGain(k)); });
+  Object.keys(SND.music).forEach(k=>{ const a=SND.music[k]; if(a) applyElVol(a, Math.min(1,SND.musVol*sndKeyGain(k))); });
   if(SND.musVolRaw>0){ if(SND.unlocked) musicPlay(SND.inPollinate?'pollination_music':'background'); }
   else Object.keys(SND.music).forEach(musicStop);
   renderSndCtrl();
@@ -4181,7 +4205,7 @@ function setSfxVolume(v){
   SND.sfxVolRaw=Math.max(0,Math.min(1,v));
   SND.sfxVol=volCurve(SND.sfxVolRaw);                 // slider position -> perceptual gain
   try{ localStorage.setItem('bloom_sfxVol', SND.sfxVolRaw.toFixed(3)); }catch(_){}
-  _sfxLive.forEach(a=>{ try{ a.volume=Math.min(1,SND.sfxVol*(a._keyGain||1)); }catch(_){} });   // pull in-flight uploaded clips to the new level (keep per-clip trim)
+  _sfxLive.forEach(a=>{ try{ applyElVol(a, Math.min(1,SND.sfxVol*(a._keyGain||1))); }catch(_){} });   // pull in-flight uploaded clips to the new level (keep per-clip trim)
   _sfxGains.forEach(g=>{ try{ g.gain.value=SND.sfxVol*(g._keyGain||1); }catch(_){} });   // and in-flight preloaded-buffer voices
   renderSndCtrl();
 }
