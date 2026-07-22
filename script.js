@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js?v=20260722o-bellseen";
+import { supabase } from "./supabaseClient.js?v=20260722p-trimtabs";
 
 console.info("[RTN] main script loaded");
 
@@ -34266,7 +34266,7 @@ const BloomAdmin = {
       host.addEventListener('change', (e) => {
         const inp = e.target.closest('input[data-act="upload"]'); const row = e.target.closest('.admin-mm-snd-row');
         if (!inp || !row) return;
-        const file = inp.files && inp.files[0]; if (file) this.uploadSound(row.dataset.key, file);
+        const file = inp.files && inp.files[0]; if (file) this.openSoundTrim(row.dataset.key, file);
         inp.value = '';
       });
     }
@@ -34290,6 +34290,107 @@ const BloomAdmin = {
         g.gain.exponentialRampToValueAtTime(0.0001,st+dur); o.connect(g); g.connect(c.destination); o.start(st); o.stop(st+dur+0.03); };
       beep(1318.5,'square',0,0.08,0.11); beep(1975.5,'square',0.06,0.17,0.10); beep(2637,'sine',0.06,0.14,0.05);
     } catch(_){}
+  },
+  // ── Clip trimmer ──────────────────────────────────────────────────────────
+  // On upload, let the admin trim the clip first (waveform + start/end handles,
+  // preview the selection), then upload just the selection as a WAV. "Upload full"
+  // skips the trim. Non-decodable files fall through to a straight upload.
+  async openSoundTrim(key, file){
+    let buf;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AC();
+      buf = await ctx.decodeAudioData(await file.arrayBuffer());
+      if (ctx.close) ctx.close();
+    } catch (e){
+      this.uploadSound(key, file);   // can't decode (odd format) — upload as-is
+      return;
+    }
+    const dur = buf.duration;
+    const overlay = document.createElement('div');
+    overlay.className = 'bloom-trim-overlay';
+    overlay.innerHTML = `
+      <div class="bloom-trim-modal" role="dialog" aria-label="Trim clip">
+        <div class="bloom-trim-title">Trim “${key}” <span>${dur.toFixed(2)}s</span></div>
+        <canvas class="bloom-trim-wave" width="560" height="88"></canvas>
+        <div class="bloom-trim-range">
+          <label>Start <b data-s>0.00</b>s<input type="range" data-start min="0" max="${dur}" step="0.01" value="0"></label>
+          <label>End <b data-e>${dur.toFixed(2)}</b>s<input type="range" data-end min="0" max="${dur}" step="0.01" value="${dur}"></label>
+        </div>
+        <div class="bloom-trim-actions">
+          <button type="button" class="admin-mm-snd-btn" data-act="preview">▶ Preview selection</button>
+          <span class="bloom-trim-spacer"></span>
+          <button type="button" class="admin-mm-snd-btn" data-act="cancel">Cancel</button>
+          <button type="button" class="admin-mm-snd-btn" data-act="full">Upload full</button>
+          <button type="button" class="admin-mm-snd-btn admin-mm-snd-save" data-act="use">Upload selection</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const cvs = overlay.querySelector('.bloom-trim-wave');
+    const startInp = overlay.querySelector('[data-start]'), endInp = overlay.querySelector('[data-end]');
+    const sLbl = overlay.querySelector('[data-s]'), eLbl = overlay.querySelector('[data-e]');
+    const sel = () => { const a=+startInp.value, b=+endInp.value; return [Math.min(a,b), Math.max(a,b)]; };
+    const redraw = () => { const [s,e]=sel(); sLbl.textContent=s.toFixed(2); eLbl.textContent=e.toFixed(2); this._drawWave(cvs, buf, s/dur, e/dur); };
+    startInp.addEventListener('input', redraw); endInp.addEventListener('input', redraw);
+    redraw();
+    let prevCtx = null;
+    const stopPreview = () => { if (prevCtx){ try{ prevCtx.close(); }catch(_){} prevCtx=null; } };
+    const close = () => { stopPreview(); overlay.remove(); };
+    overlay.addEventListener('click', (ev) => {
+      if (ev.target === overlay) return close();
+      const btn = ev.target.closest('[data-act]'); if (!btn) return;
+      const act = btn.dataset.act; const [s,e] = sel();
+      if (act === 'cancel') return close();
+      if (act === 'full'){ close(); this.uploadSound(key, file); return; }
+      if (act === 'preview'){
+        stopPreview();
+        const AC = window.AudioContext || window.webkitAudioContext; prevCtx = new AC();
+        const src = prevCtx.createBufferSource(); src.buffer = buf; src.connect(prevCtx.destination);
+        src.start(0, s, Math.max(0.02, e - s));
+        return;
+      }
+      if (act === 'use'){
+        const wav = this._sliceToWav(buf, s, e);
+        close();
+        this.uploadSound(key, new File([wav], key + '-trim.wav', { type: 'audio/wav' }));
+      }
+    });
+  },
+  _drawWave(cvs, buf, selStart = 0, selEnd = 1){
+    const ctx = cvs.getContext('2d'); if (!ctx) return;
+    const W = cvs.width, H = cvs.height, mid = H/2;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = 'rgba(255,45,155,.18)';
+    ctx.fillRect(selStart*W, 0, Math.max(1,(selEnd-selStart)*W), H);   // selection band
+    const data = buf.getChannelData(0), step = Math.max(1, Math.floor(data.length / W));
+    ctx.strokeStyle = 'rgba(224,68,127,.9)'; ctx.lineWidth = 1; ctx.beginPath();
+    for (let x=0; x<W; x++){
+      let min=1, max=-1;
+      for (let i=0;i<step;i++){ const v = data[x*step+i] || 0; if (v<min) min=v; if (v>max) max=v; }
+      ctx.moveTo(x+0.5, mid + min*mid); ctx.lineTo(x+0.5, mid + max*mid);
+    }
+    ctx.stroke();
+  },
+  // Slice [start,end] seconds of an AudioBuffer into a 16-bit PCM WAV Blob.
+  _sliceToWav(buf, start, end){
+    const sr = buf.sampleRate, ch = buf.numberOfChannels;
+    const s0 = Math.floor(start*sr), s1 = Math.floor(end*sr), len = Math.max(1, s1-s0);
+    const blockAlign = ch * 2, dataLen = len * blockAlign;
+    const ab = new ArrayBuffer(44 + dataLen), view = new DataView(ab);
+    const wr = (o,str)=>{ for (let i=0;i<str.length;i++) view.setUint8(o+i, str.charCodeAt(i)); };
+    wr(0,'RIFF'); view.setUint32(4, 36+dataLen, true); wr(8,'WAVE');
+    wr(12,'fmt '); view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,ch,true);
+    view.setUint32(24,sr,true); view.setUint32(28,sr*blockAlign,true); view.setUint16(32,blockAlign,true); view.setUint16(34,16,true);
+    wr(36,'data'); view.setUint32(40,dataLen,true);
+    const chans = []; for (let c=0;c<ch;c++) chans.push(buf.getChannelData(c));
+    let off = 44;
+    for (let i=0;i<len;i++){
+      for (let c=0;c<ch;c++){
+        let v = Math.max(-1, Math.min(1, chans[c][s0+i] || 0));
+        view.setInt16(off, v < 0 ? v*0x8000 : v*0x7FFF, true); off += 2;
+      }
+    }
+    return new Blob([ab], { type: 'audio/wav' });
   },
   async uploadSound(key, file){
     if (!isAdmin(currentUser)){ this.soundStatus('Admin access only'); return; }
