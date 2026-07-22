@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js?v=20260722p-trimtabs";
+import { supabase } from "./supabaseClient.js?v=20260722q-mmtrim";
 
 console.info("[RTN] main script loaded");
 
@@ -34291,86 +34291,152 @@ const BloomAdmin = {
       beep(1318.5,'square',0,0.08,0.11); beep(1975.5,'square',0.06,0.17,0.10); beep(2637,'sine',0.06,0.14,0.05);
     } catch(_){}
   },
-  // ── Clip trimmer ──────────────────────────────────────────────────────────
-  // On upload, let the admin trim the clip first (waveform + start/end handles,
-  // preview the selection), then upload just the selection as a WAV. "Upload full"
-  // skips the trim. Non-decodable files fall through to a straight upload.
-  async openSoundTrim(key, file){
-    let buf;
-    try {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      const ctx = new AC();
-      buf = await ctx.decodeAudioData(await file.arrayBuffer());
-      if (ctx.close) ctx.close();
-    } catch (e){
-      this.uploadSound(key, file);   // can't decode (odd format) — upload as-is
-      return;
-    }
-    const dur = buf.duration;
-    const overlay = document.createElement('div');
-    overlay.className = 'bloom-trim-overlay';
-    overlay.innerHTML = `
-      <div class="bloom-trim-modal" role="dialog" aria-label="Trim clip">
-        <div class="bloom-trim-title">Trim “${key}” <span>${dur.toFixed(2)}s</span></div>
-        <canvas class="bloom-trim-wave" width="560" height="88"></canvas>
-        <div class="bloom-trim-range">
-          <label>Start <b data-s>0.00</b>s<input type="range" data-start min="0" max="${dur}" step="0.01" value="0"></label>
-          <label>End <b data-e>${dur.toFixed(2)}</b>s<input type="range" data-end min="0" max="${dur}" step="0.01" value="${dur}"></label>
-        </div>
-        <div class="bloom-trim-actions">
-          <button type="button" class="admin-mm-snd-btn" data-act="preview">▶ Preview selection</button>
-          <span class="bloom-trim-spacer"></span>
-          <button type="button" class="admin-mm-snd-btn" data-act="cancel">Cancel</button>
-          <button type="button" class="admin-mm-snd-btn" data-act="full">Upload full</button>
-          <button type="button" class="admin-mm-snd-btn admin-mm-snd-save" data-act="use">Upload selection</button>
-        </div>
-      </div>`;
-    document.body.appendChild(overlay);
-    const cvs = overlay.querySelector('.bloom-trim-wave');
-    const startInp = overlay.querySelector('[data-start]'), endInp = overlay.querySelector('[data-end]');
-    const sLbl = overlay.querySelector('[data-s]'), eLbl = overlay.querySelector('[data-e]');
-    const sel = () => { const a=+startInp.value, b=+endInp.value; return [Math.min(a,b), Math.max(a,b)]; };
-    const redraw = () => { const [s,e]=sel(); sLbl.textContent=s.toFixed(2); eLbl.textContent=e.toFixed(2); this._drawWave(cvs, buf, s/dur, e/dur); };
-    startInp.addEventListener('input', redraw); endInp.addEventListener('input', redraw);
-    redraw();
-    let prevCtx = null;
-    const stopPreview = () => { if (prevCtx){ try{ prevCtx.close(); }catch(_){} prevCtx=null; } };
-    const close = () => { stopPreview(); overlay.remove(); };
-    overlay.addEventListener('click', (ev) => {
-      if (ev.target === overlay) return close();
-      const btn = ev.target.closest('[data-act]'); if (!btn) return;
-      const act = btn.dataset.act; const [s,e] = sel();
-      if (act === 'cancel') return close();
-      if (act === 'full'){ close(); this.uploadSound(key, file); return; }
-      if (act === 'preview'){
-        stopPreview();
-        const AC = window.AudioContext || window.webkitAudioContext; prevCtx = new AC();
-        const src = prevCtx.createBufferSource(); src.buffer = buf; src.connect(prevCtx.destination);
-        src.start(0, s, Math.max(0.02, e - s));
-        return;
-      }
-      if (act === 'use'){
-        const wav = this._sliceToWav(buf, s, e);
-        close();
-        this.uploadSound(key, new File([wav], key + '-trim.wav', { type: 'audio/wav' }));
-      }
+  // ── Clip trimmer (ported from Monkey Moonshine) ───────────────────────────
+  // On upload, open a waveform with draggable start/end handles + shades; drag to
+  // pick the section, ▶ preview just that selection, then Save clip (encodes the
+  // selection to a WAV and uploads it) or Use full file. Non-decodable files fall
+  // through to a straight upload. Reuses MM's mm-trim-* styling.
+  _trimAC(){ if (!this._trimCtx){ const AC = window.AudioContext || window.webkitAudioContext; this._trimCtx = AC ? new AC() : null; } return this._trimCtx; },
+  _fmt(sec){ sec = Math.max(0, sec || 0); const m = Math.floor(sec/60), s = sec - m*60; return m + ':' + (s < 10 ? '0' : '') + s.toFixed(2); },
+  _trimUIBuild(){
+    if (this._trimUI) return this._trimUI;
+    const ov = document.createElement('div'); ov.className = 'mm-trim-overlay';
+    ov.innerHTML =
+      '<div class="mm-trim-panel" role="dialog" aria-modal="true">' +
+        '<p class="mm-trim-title" data-el="title">Trim clip</p>' +
+        '<p class="mm-trim-sub" data-el="sub"></p>' +
+        '<div class="mm-trim-wave-wrap" data-el="wave">' +
+          '<canvas class="mm-trim-canvas" data-el="canvas"></canvas>' +
+          '<div class="mm-trim-shade left" data-el="shadeL"></div>' +
+          '<div class="mm-trim-shade right" data-el="shadeR"></div>' +
+          '<div class="mm-trim-handle" data-el="hStart"></div>' +
+          '<div class="mm-trim-handle" data-el="hEnd"></div>' +
+          '<div class="mm-trim-playhead" data-el="playhead"></div>' +
+        '</div>' +
+        '<div class="mm-trim-times"><span>Start <b data-el="tStart">0:00.00</b></span>' +
+          '<span>Length <b data-el="tLen">0:00.00</b></span>' +
+          '<span>End <b data-el="tEnd">0:00.00</b></span></div>' +
+        '<div class="mm-trim-actions"><span class="mm-trim-status" data-el="status"></span>' +
+          '<button type="button" class="admin-mm-snd-btn" data-trim="play">▶ Play selection</button>' +
+          '<button type="button" class="admin-mm-snd-btn" data-trim="full">Use full file</button>' +
+          '<button type="button" class="admin-mm-snd-btn admin-mm-snd-save" data-trim="save">✓ Save clip</button>' +
+          '<button type="button" class="admin-mm-snd-btn admin-mm-snd-clear" data-trim="cancel">Cancel</button></div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    const els = {}; ov.querySelectorAll('[data-el]').forEach(n => els[n.dataset.el] = n);
+    this._trimUI = { ov, els };
+    ov.addEventListener('click', (e) => {
+      if (e.target === ov) return this._trimClose();
+      const b = e.target.closest('[data-trim]'); if (!b) return;
+      const a = b.dataset.trim;
+      if (a === 'play') this._trimPlay();
+      else if (a === 'save') void this._trimSave();
+      else if (a === 'full'){ const t = this._trim; this._trimClose(); if (t) this.uploadSound(t.key, t.file); }
+      else if (a === 'cancel') this._trimClose();
     });
+    const wrap = els.wave;
+    const fracAt = (e) => { const r = wrap.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left)/r.width)); };
+    const setFrac = (which, f) => {
+      const t = this._trim; if (!t) return; const gap = 0.004;
+      if (which === 'start') t.startFrac = Math.max(0, Math.min(f, t.endFrac - gap));
+      else t.endFrac = Math.min(1, Math.max(f, t.startFrac + gap));
+      this._trimSync();
+    };
+    let active = null;
+    wrap.addEventListener('pointerdown', (e) => {
+      const t = this._trim; if (!t || !t.buf) return;
+      const f = fracAt(e); active = Math.abs(f - t.startFrac) <= Math.abs(f - t.endFrac) ? 'start' : 'end';
+      setFrac(active, f); try { wrap.setPointerCapture(e.pointerId); } catch(_){}
+    });
+    wrap.addEventListener('pointermove', (e) => { if (active) setFrac(active, fracAt(e)); });
+    const end = () => { active = null; };
+    wrap.addEventListener('pointerup', end); wrap.addEventListener('pointercancel', end);
+    return this._trimUI;
   },
-  _drawWave(cvs, buf, selStart = 0, selEnd = 1){
-    const ctx = cvs.getContext('2d'); if (!ctx) return;
-    const W = cvs.width, H = cvs.height, mid = H/2;
-    ctx.clearRect(0,0,W,H);
-    ctx.fillStyle = 'rgba(255,45,155,.18)';
-    ctx.fillRect(selStart*W, 0, Math.max(1,(selEnd-selStart)*W), H);   // selection band
-    const data = buf.getChannelData(0), step = Math.max(1, Math.floor(data.length / W));
-    ctx.strokeStyle = 'rgba(224,68,127,.9)'; ctx.lineWidth = 1; ctx.beginPath();
-    for (let x=0; x<W; x++){
-      let min=1, max=-1;
-      for (let i=0;i<step;i++){ const v = data[x*step+i] || 0; if (v<min) min=v; if (v>max) max=v; }
-      ctx.moveTo(x+0.5, mid + min*mid); ctx.lineTo(x+0.5, mid + max*mid);
+  async openSoundTrim(key, file){
+    const ctx = this._trimAC();
+    if (!ctx){ this.uploadSound(key, file); return; }   // no Web Audio → plain upload
+    const ui = this._trimUIBuild();
+    ui.els.title.textContent = 'Trim “' + key + '”';
+    ui.els.sub.textContent = file.name + ' — decoding…';
+    ui.els.status.textContent = '';
+    ui.ov.classList.add('is-open');
+    this._trim = { key, file, buf:null, startFrac:0, endFrac:1, src:null, raf:null };
+    try {
+      const buf = await ctx.decodeAudioData((await file.arrayBuffer()).slice(0));
+      if (!this._trim) return;   // cancelled while decoding
+      this._trim.buf = buf;
+      ui.els.sub.textContent = file.name + ' — ' + this._fmt(buf.duration) + ' · drag the handles, preview, then Save clip';
+      this._trimDraw(); this._trimSync();
+    } catch (err){
+      if (this._trim) ui.els.sub.textContent = 'Could not decode this file — use “Use full file” to upload it as-is.';
+      console.error('[bloom] trim decode', err);
+    }
+  },
+  _trimDraw(){
+    const t = this._trim; if (!t || !t.buf) return;
+    const canvas = t.els ? t.els.canvas : this._trimUI.els.canvas, wrap = this._trimUI.els.wave;
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const w = wrap.clientWidth || 600, h = wrap.clientHeight || 130;
+    canvas.width = Math.round(w*dpr); canvas.height = Math.round(h*dpr);
+    const ctx = canvas.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
+    const data = t.buf.getChannelData(0), n = data.length, mid = h/2;
+    ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(w, mid); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,93,177,.7)'; ctx.lineWidth = 1; ctx.beginPath();
+    for (let x=0;x<w;x++){
+      const from = Math.floor(x/w*n), to = Math.floor((x+1)/w*n);
+      let mn = 1, mx = -1;
+      for (let i=from;i<to;i++){ const v = data[i]; if (v<mn) mn = v; if (v>mx) mx = v; }
+      if (mn > mx){ mn = 0; mx = 0; }
+      ctx.moveTo(x+0.5, mid - mx*mid*0.92); ctx.lineTo(x+0.5, mid - mn*mid*0.92);
     }
     ctx.stroke();
   },
+  _trimSync(){
+    const t = this._trim; if (!t || !t.buf) return; const dur = t.buf.duration, el = this._trimUI.els;
+    el.shadeL.style.width = (t.startFrac*100) + '%';
+    el.shadeR.style.width = ((1 - t.endFrac)*100) + '%';
+    el.hStart.style.left = (t.startFrac*100) + '%';
+    el.hEnd.style.left = (t.endFrac*100) + '%';
+    el.tStart.textContent = this._fmt(t.startFrac*dur);
+    el.tEnd.textContent = this._fmt(t.endFrac*dur);
+    el.tLen.textContent = this._fmt((t.endFrac - t.startFrac)*dur);
+  },
+  _trimStop(){
+    const t = this._trim; if (!t) return;
+    if (t.src){ try { t.src.stop(); } catch(e){} t.src = null; }
+    if (t.raf){ cancelAnimationFrame(t.raf); t.raf = null; }
+    const ph = this._trimUI && this._trimUI.els.playhead; if (ph) ph.style.display = 'none';
+  },
+  _trimPlay(){
+    const t = this._trim, ctx = this._trimAC(); if (!t || !t.buf || !ctx) return;
+    this._trimStop(); if (ctx.state === 'suspended') ctx.resume();
+    const dur = t.buf.duration, s = t.startFrac*dur, e = t.endFrac*dur, len = Math.max(0.02, e - s);
+    const src = ctx.createBufferSource(); src.buffer = t.buf; src.connect(ctx.destination);
+    src.start(0, s, len); t.src = src;
+    const startedAt = ctx.currentTime, ph = this._trimUI.els.playhead; ph.style.display = 'block';
+    const tick = () => {
+      if (!this._trim || this._trim.src !== src) return;
+      const elapsed = ctx.currentTime - startedAt;
+      if (elapsed >= len){ this._trimStop(); return; }
+      ph.style.left = ((t.startFrac + elapsed/dur)*100) + '%';
+      t.raf = requestAnimationFrame(tick);
+    };
+    t.raf = requestAnimationFrame(tick);
+  },
+  async _trimSave(){
+    const t = this._trim; if (!t || !t.buf) return;
+    this._trimStop();
+    const dur = t.buf.duration, key = t.key;
+    this._trimUI.els.status.textContent = 'Encoding clip…';
+    try {
+      const wav = this._sliceToWav(t.buf, t.startFrac*dur, t.endFrac*dur);
+      const file = new File([wav], key + '-clip.wav', { type: 'audio/wav' });
+      this._trimClose();
+      await this.uploadSound(key, file);
+    } catch (err){ this._trimUI.els.status.textContent = 'Clip failed: ' + (err && err.message || err); console.error('[bloom] trim save', err); }
+  },
+  _trimClose(){ this._trimStop(); if (this._trimUI) this._trimUI.ov.classList.remove('is-open'); this._trim = null; },
   // Slice [start,end] seconds of an AudioBuffer into a 16-bit PCM WAV Blob.
   _sliceToWav(buf, start, end){
     const sr = buf.sampleRate, ch = buf.numberOfChannels;
