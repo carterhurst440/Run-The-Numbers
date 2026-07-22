@@ -10889,7 +10889,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260722t-synth");
+      frame.setAttribute("src", "games/bloom.html?v=20260722u-sfxvol");
     }
     installBloomBridge();   // idempotent: broker rounds + push the wallet balance
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)

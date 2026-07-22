@@ -3985,10 +3985,23 @@ function bloomSynthRun(key){
   if(c.state==='suspended'){ try{ c.resume(); }catch(_){} }
   def(_synthSched(c)); return true;
 }
+// Live handles for uploaded SFX clips still playing, so setSfxVolume can update
+// them mid-play the same way music beds update (a long weather/spin clip should
+// follow the slider, not keep the volume it launched with).
+const _sfxLive=new Set();
 function sfx(key){
   if(SND.sfxVol<=0) return;
   const url=SND.urls[key];
-  if(url){ try{ const a=new Audio(url); a.volume=SND.sfxVol; a.play().catch(()=>{}); }catch(_){} return; }
+  if(url){
+    try{
+      const a=new Audio(url); a.volume=SND.sfxVol;
+      _sfxLive.add(a);
+      const drop=()=>_sfxLive.delete(a);
+      a.addEventListener('ended',drop); a.addEventListener('error',drop);
+      a.play().catch(()=>{});
+    }catch(_){}
+    return;
+  }
   bloomSynthRun(key);     // built-in procedural synth when no file is uploaded
 }
 function musicPlay(key){
@@ -4041,6 +4054,7 @@ function setMusicVolume(v){
 function setSfxVolume(v){
   SND.sfxVol=Math.max(0,Math.min(1,v));
   try{ localStorage.setItem('bloom_sfxVol', SND.sfxVol.toFixed(3)); }catch(_){}
+  _sfxLive.forEach(a=>{ try{ a.volume=SND.sfxVol; }catch(_){} });   // pull in-flight uploaded clips to the new level
   renderSndCtrl();
 }
 function renderSndCtrl(){
