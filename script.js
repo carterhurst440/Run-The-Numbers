@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js?v=20260722m-initsession";
+import { supabase } from "./supabaseClient.js?v=20260722n-markerpersist";
 
 console.info("[RTN] main script loaded");
 
@@ -15432,15 +15432,24 @@ function markerTs(localKey, col) {
   const server = serverIso ? new Date(serverIso).getTime() : 0;
   return Math.max(local, server);
 }
-function persistMarker(localKey, col, iso) {
+async function persistMarker(localKey, col, iso) {
   setStoredTs(localKey, iso);
   if (affiliateNotifMarkers) affiliateNotifMarkers[col] = iso;   // keep the in-memory copy in step
-  try {
-    if (supabase && currentUser?.id && currentUser.id !== GUEST_USER.id) {
-      // fire-and-forget; the durable state is what matters, not the round-trip
-      void supabase.from("profiles").update({ [col]: iso }).eq("id", currentUser.id);
-    }
-  } catch { /* best-effort */ }
+  if (!supabase || !currentUser?.id || currentUser.id === GUEST_USER.id) return;
+  // A plain fire-and-forget update can race the session restore: if it goes out
+  // before the auth token is attached, RLS filters it to 0 rows silently (no
+  // error) and the marker never saves — so the toast re-fires on every fresh
+  // browser. Verify a row was actually updated (.select) and retry a couple of
+  // times while the session settles.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const { data, error } = await supabase.from("profiles")
+        .update({ [col]: iso }).eq("id", currentUser.id).select("id");
+      if (!error && Array.isArray(data) && data.length) return;   // actually persisted
+      if (error) console.warn("[RTN] affiliate marker persist error", error.message);
+    } catch (e) { console.warn("[RTN] affiliate marker persist threw", e); }
+    await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
+  }
 }
 
 function maybeToastNewAffiliate(rows) {
