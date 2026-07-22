@@ -3963,17 +3963,25 @@ const POL_ART={bee:null, butterfly:null};
 // Separate MUSIC / SOUND EFFECTS volumes (0..1), same model as Monkey Moonshine's
 // sound control. Muted = both at 0. Persisted across sessions; the old single mute
 // flag migrates to volumes 0.
-const SND={ urls:{}, music:{}, gain:{}, musVol:0.7, sfxVol:0.85, unlocked:false, inPollinate:false, suspended:false, _buf:{}, _bufBad:{} };
+// *VolRaw = the slider position (0..1, linear); *Vol = the actual gain applied to
+// audio, run through volCurve so the fader is perceptually even. Linear amplitude
+// reads as on/off to the ear (half amplitude is only ~-6 dB); the quadratic taper
+// makes mid-slider sound genuinely half as loud instead of "basically full".
+const SND={ urls:{}, music:{}, gain:{}, musVolRaw:0.7, sfxVolRaw:0.85, musVol:0.49, sfxVol:0.7225, unlocked:false, inPollinate:false, suspended:false, _buf:{}, _bufBad:{} };
 const SND_MUSIC_KEYS=new Set(['background','pollination_music']);   // streamed loops, not preloaded one-shots
+function volCurve(v){ v=Math.max(0,Math.min(1,v||0)); return v*v; }   // perceptual fader taper
 // Per-clip trim set in admin (0..1, default 1). Multiplies the global music/sfx
 // volume so one loud clip can be pulled down relative to the others.
 function sndKeyGain(key){ const g=SND.gain[key]; return (g==null||isNaN(g)) ? 1 : Math.max(0, Math.min(1.5, g)); }
 (function(){
-  try{ const v=localStorage.getItem('bloom_musVol'); if(v!=null) SND.musVol=Math.max(0,Math.min(1,parseFloat(v)||0)); }catch(_){}
-  try{ const v=localStorage.getItem('bloom_sfxVol'); if(v!=null) SND.sfxVol=Math.max(0,Math.min(1,parseFloat(v)||0)); }catch(_){}
-  try{ if(localStorage.getItem('bloom_muted')==='1'){ SND.musVol=0; SND.sfxVol=0; } }catch(_){}
+  let mr=0.7, sr=0.85;   // default slider positions
+  try{ const v=localStorage.getItem('bloom_musVol'); if(v!=null) mr=Math.max(0,Math.min(1,parseFloat(v)||0)); }catch(_){}
+  try{ const v=localStorage.getItem('bloom_sfxVol'); if(v!=null) sr=Math.max(0,Math.min(1,parseFloat(v)||0)); }catch(_){}
+  try{ if(localStorage.getItem('bloom_muted')==='1'){ mr=0; sr=0; } }catch(_){}
+  SND.musVolRaw=mr; SND.musVol=volCurve(mr);
+  SND.sfxVolRaw=sr; SND.sfxVol=volCurve(sr);
 })();
-function sndAllMuted(){ return SND.musVol<=0 && SND.sfxVol<=0; }
+function sndAllMuted(){ return SND.musVolRaw<=0 && SND.sfxVolRaw<=0; }
 function sndSet(map, gains){
   SND.urls = map || {};
   if(gains) SND.gain = gains;     // per-clip trims from admin (bloom_settings soundgain_*)
@@ -4136,24 +4144,26 @@ function sndUnlock(){
 }
 document.addEventListener('pointerdown', sndUnlock);
 function setMusicVolume(v){
-  SND.musVol=Math.max(0,Math.min(1,v));
-  try{ localStorage.setItem('bloom_musVol', SND.musVol.toFixed(3)); }catch(_){}
+  SND.musVolRaw=Math.max(0,Math.min(1,v));
+  SND.musVol=volCurve(SND.musVolRaw);                 // slider position -> perceptual gain
+  try{ localStorage.setItem('bloom_musVol', SND.musVolRaw.toFixed(3)); }catch(_){}
   Object.keys(SND.music).forEach(k=>{ const a=SND.music[k]; if(a) a.volume=Math.min(1,SND.musVol*sndKeyGain(k)); });
-  if(SND.musVol>0){ if(SND.unlocked) musicPlay(SND.inPollinate?'pollination_music':'background'); }
+  if(SND.musVolRaw>0){ if(SND.unlocked) musicPlay(SND.inPollinate?'pollination_music':'background'); }
   else Object.keys(SND.music).forEach(musicStop);
   renderSndCtrl();
 }
 function setSfxVolume(v){
-  SND.sfxVol=Math.max(0,Math.min(1,v));
-  try{ localStorage.setItem('bloom_sfxVol', SND.sfxVol.toFixed(3)); }catch(_){}
+  SND.sfxVolRaw=Math.max(0,Math.min(1,v));
+  SND.sfxVol=volCurve(SND.sfxVolRaw);                 // slider position -> perceptual gain
+  try{ localStorage.setItem('bloom_sfxVol', SND.sfxVolRaw.toFixed(3)); }catch(_){}
   _sfxLive.forEach(a=>{ try{ a.volume=Math.min(1,SND.sfxVol*(a._keyGain||1)); }catch(_){} });   // pull in-flight uploaded clips to the new level (keep per-clip trim)
   _sfxGains.forEach(g=>{ try{ g.gain.value=SND.sfxVol*(g._keyGain||1); }catch(_){} });   // and in-flight preloaded-buffer voices
   renderSndCtrl();
 }
 function renderSndCtrl(){
   const btn=$('#bloomSndBtn'); if(btn) btn.classList.toggle('muted', sndAllMuted());
-  const m=$('#bloomMusSlider'); if(m) m.value=Math.round(SND.musVol*100);
-  const s=$('#bloomSfxSlider'); if(s) s.value=Math.round(SND.sfxVol*100);
+  const m=$('#bloomMusSlider'); if(m) m.value=Math.round((SND.musVolRaw!=null?SND.musVolRaw:SND.musVol)*100);
+  const s=$('#bloomSfxSlider'); if(s) s.value=Math.round((SND.sfxVolRaw!=null?SND.sfxVolRaw:SND.sfxVol)*100);
 }
 // Wire the MM-style sound control (speaker icon by the balance → music/sfx sliders).
 (function wireBloomSndCtrl(){
