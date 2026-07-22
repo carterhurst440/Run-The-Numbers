@@ -314,6 +314,16 @@
   .winbanner{font-size:12.5px;font-weight:600;text-align:center;margin:4px 0;min-height:16px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.2px}
   .win{color:var(--coral)} .lose{color:var(--muted)}
+  /* Insufficient-funds feedback: a short screen shake + a toast. */
+  @keyframes lowfundsShake{0%,100%{transform:translateX(0)}12%{transform:translateX(-9px)}
+    26%{transform:translateX(8px)}40%{transform:translateX(-6px)}55%{transform:translateX(5px)}
+    70%{transform:translateX(-3px)}85%{transform:translateX(2px)}}
+  .lowfunds-shake{animation:lowfundsShake .45s cubic-bezier(.36,.07,.19,.97)}
+  .game-toast{position:fixed;left:50%;top:14%;transform:translateX(-50%) translateY(-8px);z-index:99999;
+    pointer-events:none;background:rgba(24,8,16,.94);color:#fff;border:1px solid #ff4d6d;border-radius:9px;
+    padding:11px 18px;font-weight:800;font-size:13px;letter-spacing:.03em;box-shadow:0 8px 26px rgba(0,0,0,.5);
+    opacity:0;transition:opacity .18s ease, transform .18s ease;white-space:nowrap}
+  .game-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
   /* admin test rig — only ever in the DOM behind ?poltest=1 */
   .poltest{position:fixed;left:8px;bottom:8px;z-index:60;display:flex;align-items:center;gap:8px;
@@ -3645,6 +3655,20 @@ function applyWeatherTheme(w){
   dirt.style.filter='saturate(1.06)';
 }
 function banner(cls,txt){const b=$('#winBanner');b.className='winbanner '+cls;b.textContent=txt;}
+// Insufficient-funds feedback: a short screen shake of the play area + a toast.
+let _gameToastT=null;
+function gameToast(msg){
+  let t=document.getElementById('gameToast');
+  if(!t){ t=document.createElement('div'); t.id='gameToast'; t.className='game-toast'; document.body.appendChild(t); }
+  t.textContent=msg; void t.offsetWidth; t.classList.add('show');
+  clearTimeout(_gameToastT); _gameToastT=setTimeout(()=>t.classList.remove('show'), 1900);
+}
+function screenShake(){
+  const el=document.querySelector('main'); if(!el) return;
+  el.classList.remove('lowfunds-shake'); void el.offsetWidth; el.classList.add('lowfunds-shake');
+  setTimeout(()=>el.classList.remove('lowfunds-shake'), 500);
+}
+function bloomLowFunds(){ screenShake(); gameToast('Account value too low'); }
 /* global house-edge scaler applied to every payout */
 function payScale(){return 1;}   // pay the EXACT saved percentage — no RTP shaving. Tune the DB percentages to set the house edge; targetRTP is now only an aiming reference.
 const sleep2=ms=>new Promise(r=>setTimeout(r,ms));
@@ -3744,7 +3768,7 @@ function castSeeds(){
   if(state.satchel.length<SATCHEL_SIZE){banner('lose','Fill all '+SATCHEL_SIZE+' satchel slots first');return;}
   const bet=Math.round(Number(state.config.bet)||0);
   if(bet<=0){banner('lose','Set a bet first');return;}
-  if(bet>SHELL.balance){banner('lose','Not enough credits for that bet');return;}
+  if(bet>SHELL.balance){bloomLowFunds();return;}
   SHELL.balance-=bet;                 // optimistic debit for snappiness (server reconciles)
   bloomRenderBalance();
   sfx('seed_cast');
@@ -5505,8 +5529,8 @@ window.addEventListener('message',(e)=>{
     // server refused (insufficient funds / bad satchel / error) — undo the optimistic cast
     if(round){ SHELL.balance += (round.bet||0); round=null; }
     resetPlayArea(); setBetLocked(false); setScoreWin(0); bloomRenderBalance();
-    banner('lose', m.reason==='insufficient_funds' ? 'Not enough credits for that bet'
-                 : m.reason==='invalid_satchel' ? 'That satchel is not valid' : 'Could not start the round');
+    if(m.reason==='insufficient_funds'){ bloomLowFunds(); }
+    else banner('lose', m.reason==='invalid_satchel' ? 'That satchel is not valid' : 'Could not start the round');
     updateSpinButton();
   } else if(m.type==='suspend'){
     sndSetSuspended(true);              // navigated away from the bloom route — cut audio
