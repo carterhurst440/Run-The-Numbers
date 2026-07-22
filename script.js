@@ -135,6 +135,18 @@ const DEFAULT_GAME_ASSET_LIBRARY = {
     card_background_color: "",
     button_color: "",
     button_text_color: ""
+  },
+  [GAME_KEYS.BLOOM]: {
+    key: GAME_KEYS.BLOOM,
+    label: GAME_LABELS[GAME_KEYS.BLOOM],
+    route: "bloom",
+    logo_url: "/assets/game-logos/bloom.svg",
+    description: "Server-authoritative garden slot",
+    status: "active",
+    card_description: "Fill the satchel, cast your seeds, and read the weather reels — matching flowers bloom into a pollination bonus where every bee spins its own multiplier.",
+    card_background_color: "",
+    button_color: "",
+    button_text_color: ""
   }
 };
 
@@ -10536,7 +10548,12 @@ function updateAdminVisibility(user = currentUser) {
     else drawerFofLink.setAttribute("hidden", "");
   }
   const drawerBloomLink = document.getElementById("drawer-bloom-link");
-  if (drawerBloomLink) drawerBloomLink.removeAttribute("hidden");   // BLOOM is public — visible to all users
+  if (drawerBloomLink) {
+    // Visibility follows the game's admin-configurable status (default "active" =
+    // everyone). Set to "Admin Only" in the Games admin to hide it again.
+    if (isGameVisibleToUser(GAME_KEYS.BLOOM, user)) drawerBloomLink.removeAttribute("hidden");
+    else drawerBloomLink.setAttribute("hidden", "");
+  }
   const drawerMonkeyMoonshineLink = document.getElementById("drawer-monkey-moonshine-link");
   if (drawerMonkeyMoonshineLink) {
     // Visibility follows the game's admin-configurable status (default "active" =
@@ -10559,14 +10576,23 @@ function updateAdminVisibility(user = currentUser) {
       mmLockLabel.textContent = mmTier ? `UNLOCKS AT TIER ${mmTier}` : "LOCKED";
     }
   }
-  // BLOOM home tile: public game, visible to everyone. Never tier-locked. Grow the
-  // procedural bouquet once it is first shown, and re-grow on hover (pointer devices).
+  // BLOOM home tile: visibility + tier lock follow the game's admin-configured status
+  // (same as the MM tile). Grow the procedural bouquet the first time it is shown.
+  const bloomVisible = isGameVisibleToUser(GAME_KEYS.BLOOM, user);
   const bloomDummyTile = document.querySelector(".home-game-card-dummy");
-  if (bloomDummyTile) bloomDummyTile.hidden = false;   // COMING SOON placeholder that balances the grid beside BLOOM
+  if (bloomDummyTile) bloomDummyTile.hidden = !bloomVisible;   // COMING SOON placeholder balances the grid beside BLOOM
   const bloomHomeTile = document.querySelector(".home-game-card-bloom");
   if (bloomHomeTile) {
-    bloomHomeTile.hidden = false;
-    if (!bloomHomeTile.dataset.bloomGrown) {
+    bloomHomeTile.hidden = !bloomVisible;
+    const bloomLocked = bloomVisible && isGameLockedForPlayer(GAME_KEYS.BLOOM, user);
+    bloomHomeTile.classList.toggle("is-locked", bloomLocked);
+    bloomHomeTile.disabled = bloomLocked;
+    const bloomLockLabel = bloomHomeTile.querySelector(".hgc-lock-label");
+    if (bloomLockLabel) {
+      const bloomTier = getGameAssetRecord(GAME_KEYS.BLOOM)?.unlock_tier;
+      bloomLockLabel.textContent = bloomTier ? `UNLOCKS AT TIER ${bloomTier}` : "LOCKED";
+    }
+    if (bloomVisible && !bloomHomeTile.dataset.bloomGrown) {
       bloomHomeTile.dataset.bloomGrown = "1";
       requestAnimationFrame(() => TileBloom.grow());
       if (!window.matchMedia || window.matchMedia("(hover: hover)").matches) {
@@ -13992,7 +14018,8 @@ async function loadAdminPrizeList(force = false) {
 const ADMIN_GAME_TOOLS = {
   [GAME_KEYS.COLOR_SCHEME]: "cs-clips",
   [GAME_KEYS.FATE_OR_FORTUNE]: "fate-or-fortune",
-  [GAME_KEYS.MONKEY_MOONSHINE]: "monkey-moonshine"
+  [GAME_KEYS.MONKEY_MOONSHINE]: "monkey-moonshine",
+  [GAME_KEYS.BLOOM]: "bloom"
 };
 
 // A tool-only hub row (no branding record), e.g. Bloom.
@@ -14336,14 +14363,9 @@ async function loadAdminGameAssets(force = false) {
       adminGameListEl.appendChild(item);
     }
   });
-  // Bloom is an admin-only lab game with no branding record — surface it as a
-  // tool-only hub row so its admin section stays reachable after the tab removal.
-  adminGameListEl.appendChild(renderAdminToolOnlyRow({
-    label: "Bloom",
-    description: "Admin-only lab • Edit flowers & weather",
-    toolTab: "bloom",
-    logoUrl: ""
-  }));
+  // BLOOM now has a full branding/status record like the other games, so it renders
+  // via renderAdminGameAssetRow above (with an "Open tools" button for its deck
+  // builder) — no separate tool-only row needed.
 }
 
 // ===========================
