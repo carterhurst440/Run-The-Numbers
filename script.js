@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js?v=20260722l-bloomadmin";
+import { supabase } from "./supabaseClient.js?v=20260722m-initsession";
 
 console.info("[RTN] main script loaded");
 
@@ -44071,7 +44071,12 @@ function setupAuthListener() {
             }
             showToast("Choose your new password.", "info");
             setRoute("reset-password").catch(() => {});
-          } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+          } else if (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+            // INITIAL_SESSION fires when the client restores a session asynchronously
+            // (common in incognito / on the slower first load after a deploy). If the
+            // initial getSession in bootstrapAuth raced and missed it, this is what
+            // sets up the authed UI — so it must run the same setup, or admin drawer
+            // items + contest notifications stay missing until the user navigates.
             const user = session?.user ?? null;
             if (user) {
               if (previousUserId && previousUserId !== user.id) {
@@ -44108,10 +44113,19 @@ function setupAuthListener() {
                 await refreshGameAssetsFromBackend().catch((err) => console.warn("[RTN] Game asset sync error:", err));
                 setRoute("home").catch(() => {});
               } else {
-                // For token refresh or other updates, just sync profile
+                // Token refresh / initial-session restore while already on a normal
+                // route: sync profile + assets, then re-assert the authed UI so a
+                // slow restore can't leave admin drawer items or the contest
+                // notifications missing (updateAdminVisibility + a contest sync are
+                // otherwise only run by a full route change).
                 await ensureProfileSynced({ force: true }).catch((err) => console.warn("[RTN] Profile sync error:", err));
                 await refreshGameAssetsFromBackend().catch((err) => console.warn("[RTN] Game asset sync error:", err));
+                updateAdminVisibility(currentUser);
+                if (currentRoute === "home") {
+                  await syncContestState({ force: !contestCache.length }).catch((err) => console.warn("[RTN] contest sync error:", err));
+                }
               }
+              updateAdminVisibility(currentUser);   // final re-assert after all async work settles
             }
           } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
             clearStoredPlayerTier();
