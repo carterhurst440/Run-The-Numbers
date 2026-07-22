@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js?v=20260722g-taps";
+import { supabase } from "./supabaseClient.js?v=20260722h-notifharden";
 
 console.info("[RTN] main script loaded");
 
@@ -11131,7 +11131,7 @@ async function fetchProfileWithRetries(
     try {
       const fetchPromise = supabase
         .from("profiles")
-        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, receive_prize_notifications, receive_promo_notifications, referral_code, affiliate_notif_toasted_at, affiliate_notif_seen_at, updated_at")
+        .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, receive_prize_notifications, receive_promo_notifications, referral_code, updated_at")
         .eq("id", userId)
         .maybeSingle();
 
@@ -15400,21 +15400,45 @@ function setStoredTs(key, iso) {
 // The affiliate toast/seen markers are mirrored onto the profiles row so they
 // survive browsers where localStorage is blocked or ephemeral (Safari Private
 // Browsing / incognito) — otherwise the write is silently dropped and the toast
-// + unread badge re-fire on every refresh and realtime push. Read = the newer of
-// localStorage and the server value; write = both.
-function markerTs(localKey, profileCol) {
+// + unread badge re-fire on every refresh and realtime push.
+//
+// IMPORTANT: these are loaded/written in ISOLATION (a tiny best-effort query of
+// their own), NOT folded into the core profile fetch. An earlier version put them
+// in the main profile SELECT, and while PostgREST's schema cache was briefly stale
+// after the columns were added, that query threw — which cascaded through
+// ensureProfileSynced and stopped syncContestState from ever running, blanking the
+// contest notifications. Keeping them separate means a hiccup here degrades only
+// the affiliate toast dedup, never profile/contest/notification loading.
+let affiliateNotifMarkers = {};                 // { affiliate_notif_toasted_at, affiliate_notif_seen_at }
+let affiliateNotifMarkersLoadedFor = null;
+async function loadAffiliateNotifMarkers() {
+  const uid = currentUser?.id;
+  if (!supabase || !uid || uid === GUEST_USER.id) { affiliateNotifMarkers = {}; return; }
+  if (affiliateNotifMarkersLoadedFor === uid) return;   // once per user/session is enough
+  try {
+    const { data } = await supabase
+      .from("profiles")
+      .select("affiliate_notif_toasted_at, affiliate_notif_seen_at")
+      .eq("id", uid)
+      .maybeSingle();
+    if (data) affiliateNotifMarkers = data;
+    affiliateNotifMarkersLoadedFor = uid;
+  } catch { /* best-effort: fall back to localStorage only */ }
+}
+// Read = the newer of localStorage and the server marker; write = both.
+function markerTs(localKey, col) {
   const local = getStoredTs(localKey);
-  const serverIso = currentProfile ? currentProfile[profileCol] : null;
+  const serverIso = affiliateNotifMarkers ? affiliateNotifMarkers[col] : null;
   const server = serverIso ? new Date(serverIso).getTime() : 0;
   return Math.max(local, server);
 }
-function persistMarker(localKey, profileCol, iso) {
+function persistMarker(localKey, col, iso) {
   setStoredTs(localKey, iso);
-  if (currentProfile) currentProfile[profileCol] = iso;   // keep the in-memory copy in step
+  if (affiliateNotifMarkers) affiliateNotifMarkers[col] = iso;   // keep the in-memory copy in step
   try {
     if (supabase && currentUser?.id && currentUser.id !== GUEST_USER.id) {
       // fire-and-forget; the durable state is what matters, not the round-trip
-      void supabase.from("profiles").update({ [profileCol]: iso }).eq("id", currentUser.id);
+      void supabase.from("profiles").update({ [col]: iso }).eq("id", currentUser.id);
     }
   } catch { /* best-effort */ }
 }
@@ -15442,6 +15466,7 @@ async function refreshAffiliateNotifications() {
     renderContestNotifications();
     return;
   }
+  await loadAffiliateNotifMarkers();   // isolated best-effort; never blocks the fetch below
   const { data, error } = await supabase
     .from("affiliate_signups")
     .select("id, referred_username, amount_credited, created_at")
@@ -17265,7 +17290,7 @@ async function optIntoContest(contest = currentContest) {
         }
 
         const { data: deductedProfile, error: deductError } = await deductQuery
-          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, receive_prize_notifications, receive_promo_notifications, referral_code, affiliate_notif_toasted_at, affiliate_notif_seen_at, updated_at")
+          .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, receive_prize_notifications, receive_promo_notifications, referral_code, updated_at")
           .maybeSingle();
 
         if (deductError) throw deductError;
@@ -17317,7 +17342,7 @@ async function optIntoContest(contest = currentContest) {
             .update({ carter_cash: refundedAmount })
             .eq("id", currentUser.id)
             .eq("updated_at", chargedProfile.updated_at ?? null)
-            .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, receive_prize_notifications, receive_promo_notifications, referral_code, affiliate_notif_toasted_at, affiliate_notif_seen_at, updated_at")
+            .select("id, username, credits, carter_cash, carter_cash_progress, first_name, last_name, run_the_numbers_hands_played_all_time, guess10_hands_played_all_time, color_scheme_rounds_played_all_time, hands_played_all_time, total_progress_events, trades_made_all_time, contest_wins, current_rank, current_rank_tier, current_rank_id, receive_contest_start_emails, receive_prize_notifications, receive_promo_notifications, referral_code, updated_at")
             .maybeSingle();
           if (refundedProfile) {
             currentProfile = {
