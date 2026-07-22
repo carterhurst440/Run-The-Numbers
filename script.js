@@ -23127,6 +23127,14 @@ function applyProfileCredits(profile, { resetHistory = false } = {}) {
       bankrollInitialized = true;
     }
   }
+  // If a game iframe is currently showing, push the freshly-synced balance to it.
+  // On a refresh straight into a game the iframe can post "ready" (and take the
+  // shell's balance) before the profile has loaded, leaving it on the game's
+  // standalone default (MM shows 1000) until the player navigates away and back.
+  // Re-seeding here the moment the real profile lands closes that race.
+  try {
+    if (currentRoute === "monkey-moonshine" && typeof mmSendInit === "function") mmSendInit();
+  } catch (_) {}
   return currentProfile;
 }
 
