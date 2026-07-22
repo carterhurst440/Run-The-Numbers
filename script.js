@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js?v=20260722s-tiletaps2";
+import { supabase } from "./supabaseClient.js?v=20260722zd-stubfix";
 
 console.info("[RTN] main script loaded");
 
@@ -44536,6 +44536,13 @@ function setupAuthListener() {
           async () => {
             try {
               console.info("[RTN] received supabase:ready, registering auth listener");
+              // The first registration may have bound to the offline stub (before
+              // the live client existed). Drop it and re-register against the live
+              // client so its real auth events (INITIAL_SESSION with the restored
+              // session, token refresh, sign-out) actually reach the app — the
+              // guard in registerAuthHandler would otherwise make this a no-op.
+              try { authSubscription?.data?.subscription?.unsubscribe?.(); } catch (_) {}
+              authSubscription = null;
               registerAuthHandler();
               
               const routeFromHash = getRouteFromHash();

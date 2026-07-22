@@ -408,7 +408,12 @@ const offlineStub = {
     onAuthStateChange(callback) {
       // Call the callback immediately with current state so UI can react.
       try {
-        const event = this._stubCurrentUser ? "SIGNED_IN" : "SIGNED_OUT";
+        // Mirror real supabase-js: with no user the initial event is
+        // INITIAL_SESSION (a harmless no-op in the app), NOT SIGNED_OUT. Firing
+        // SIGNED_OUT here made the app run applySignedOutState on load — wiping a
+        // valid session the real client had just restored (admin drawer / games /
+        // notifications vanished until a manual navigation re-asserted them).
+        const event = this._stubCurrentUser ? "SIGNED_IN" : "INITIAL_SESSION";
         const session = this._stubCurrentUser ? { user: this._stubCurrentUser } : null;
         // follow supabase-js callback shape: (event, session) => {}
         setTimeout(() => callback(event, session), 0);
