@@ -44724,16 +44724,17 @@ async function drawHomeActivityChart(force = false) {
     const cutoff = cutoffDate.toISOString();
     const uid = currentUser.id;
 
-    const [rtn, g10, st, ryb, fof, mm] = await Promise.all([
+    const [rtn, g10, st, ryb, fof, mm, bloom] = await Promise.all([
       supabase.from("rtn_live_hands").select("started_at").eq("user_id", uid).neq("status", "active").gte("started_at", cutoff),
       supabase.from("guess10_live_hands").select("started_at").eq("user_id", uid).neq("status", "active").gte("started_at", cutoff),
       supabase.from("shape_trader_trades").select("executed_at").eq("user_id", uid).gte("executed_at", cutoff),
       supabase.from("color_scheme_rounds").select("created_at").eq("user_id", uid).gte("created_at", cutoff),
       supabase.from("fate_or_fortune_rounds").select("created_at").eq("user_id", uid).eq("status", "resolved").gte("created_at", cutoff),
       supabase.from("mm_spins").select("created_at").eq("user_id", uid).eq("status", "resolved").gte("created_at", cutoff),
+      supabase.from("bloom_rounds").select("created_at").eq("user_id", uid).neq("status", "pending").gte("created_at", cutoff),
     ]);
-    [rtn, g10, st, ryb, fof, mm].forEach((r, i) => {
-      if (r?.error) console.error(`[RTN] home activity query error (${["rtn","g10","st","ryb","fof","mm"][i]}):`, r.error.message);
+    [rtn, g10, st, ryb, fof, mm, bloom].forEach((r, i) => {
+      if (r?.error) console.error(`[RTN] home activity query error (${["rtn","g10","st","ryb","fof","mm","bloom"][i]}):`, r.error.message);
     });
 
     // Bucket by LOCAL day (or hour for the 24h window) to match the player's clock.
@@ -44756,6 +44757,7 @@ async function drawHomeActivityChart(force = false) {
     const rybC = bucket(ryb?.data, "created_at");
     const fofC = bucket(fof?.data, "created_at");
     const mmC = bucket(mm?.data, "created_at");
+    const bloomC = bucket(bloom?.data, "created_at");
 
     const labels = [];
     const keys = [];
@@ -44783,6 +44785,7 @@ async function drawHomeActivityChart(force = false) {
         { label: "RYB rounds", data: keys.map((k) => rybC[k] || 0), color: "#ff4444" },
         { label: "FOF rounds", data: keys.map((k) => fofC[k] || 0), color: "#b07bff" },
         { label: "MM spins",   data: keys.map((k) => mmC[k]  || 0), color: "#3fd07a" },
+        { label: "BLM rounds", data: keys.map((k) => bloomC[k] || 0), color: "#ff5db1" },
       ],
     };
     // If the user switched while this fetch was in flight, discard the result.
