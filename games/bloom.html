@@ -5325,6 +5325,11 @@ function bloomResumeRound(snap){
     const draws=(snap.weather&&Array.isArray(snap.weather.reels))?snap.weather.reels.slice():[];
     const plants=(snap.outcomes||[]).map(o=>({f:flower(o.fid), _took:!!o.took, events:(o.events||[]).slice()})).filter(p=>p.f);
     if(!plants.length||!draws.length) return;
+    // Restore each plant's FINAL alive/phase from its fixed events, exactly as
+    // growPlant leaves them at cast. growReplay only paints (local vars) and never
+    // writes these back, so without this plantPay sees undefined→0 and the resumed
+    // round settles at 0 (the bug: RESOLVED but paid nothing).
+    plants.forEach(p=>{ const fin=plantFinal(p); p.alive=fin.alive; p.phase=fin.phase; });
     const revealed=Math.max(0, Math.min(draws.length, snap.reels_revealed||0));
     const bet=Math.round(Number(snap.total_wagered!=null?snap.total_wagered:(snap.bet||0))||0);
     round={id: snap.round_id||snap.id||null, plants, draws, step:revealed, phase:'cast', done:false, bet, number:snap.round_number||null};
