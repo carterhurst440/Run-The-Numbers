@@ -3918,7 +3918,8 @@ const POL_ART={bee:null, butterfly:null};
 // Separate MUSIC / SOUND EFFECTS volumes (0..1), same model as Monkey Moonshine's
 // sound control. Muted = both at 0. Persisted across sessions; the old single mute
 // flag migrates to volumes 0.
-const SND={ urls:{}, music:{}, musVol:0.7, sfxVol:0.85, unlocked:false, inPollinate:false, suspended:false };
+const SND={ urls:{}, music:{}, musVol:0.7, sfxVol:0.85, unlocked:false, inPollinate:false, suspended:false, _buf:{}, _bufBad:{} };
+const SND_MUSIC_KEYS=new Set(['background','pollination_music']);   // streamed loops, not preloaded one-shots
 (function(){
   try{ const v=localStorage.getItem('bloom_musVol'); if(v!=null) SND.musVol=Math.max(0,Math.min(1,parseFloat(v)||0)); }catch(_){}
   try{ const v=localStorage.getItem('bloom_sfxVol'); if(v!=null) SND.sfxVol=Math.max(0,Math.min(1,parseFloat(v)||0)); }catch(_){}
@@ -3927,8 +3928,28 @@ const SND={ urls:{}, music:{}, musVol:0.7, sfxVol:0.85, unlocked:false, inPollin
 function sndAllMuted(){ return SND.musVol<=0 && SND.sfxVol<=0; }
 function sndSet(map){
   SND.urls = map || {};
+  sndPreloadSfx();     // decode every uploaded one-shot up front so it plays with no fetch/decode lag
   if(SND.unlocked && SND.musVol>0) musicPlay(SND.inPollinate ? 'pollination_music' : 'background');
   renderSndCtrl();
+}
+// Fetch + decode each uploaded one-shot into a reusable AudioBuffer at load time.
+// Playback then spins up a BufferSource instantly (no network / no first-play
+// decode). Music beds stay HTMLAudio streams. Falls back to <audio> per key if a
+// clip can not be decoded (e.g. a CORS-less host) so nothing goes silent.
+async function sndPreloadSfx(){
+  const c=synthCtx(); if(!c) return;
+  const urls=SND.urls||{};
+  await Promise.all(Object.keys(urls).map(async key=>{
+    const url=urls[key];
+    if(!url || SND_MUSIC_KEYS.has(key)) return;
+    const have=SND._buf[key];
+    if((have && have._srcUrl===url) || SND._bufBad[key]===url) return;   // already handled this exact url
+    try{
+      const res=await fetch(url); const ab=await res.arrayBuffer();
+      const buf=await c.decodeAudioData(ab);
+      buf._srcUrl=url; SND._buf[key]=buf; delete SND._bufBad[key];
+    }catch(_){ SND._bufBad[key]=url; delete SND._buf[key]; }   // remember the failure; sfx() will stream it
+  }));
 }
 // Built-in WebAudio synth for UI one-shots with no uploaded file. bet_change
 // reproduces the exact "coin" ching Monkey Moonshine plays on its bet +/- (ported
@@ -3985,15 +4006,33 @@ function bloomSynthRun(key){
   if(c.state==='suspended'){ try{ c.resume(); }catch(_){} }
   def(_synthSched(c)); return true;
 }
-// Live handles for uploaded SFX clips still playing, so setSfxVolume can update
-// them mid-play the same way music beds update (a long weather/spin clip should
-// follow the slider, not keep the volume it launched with).
+// Live handles for uploaded SFX still playing, so setSfxVolume can update them
+// mid-play the same way music beds update: _sfxLive holds <audio> fallbacks,
+// _sfxGains holds the gain node of each preloaded-buffer voice.
 const _sfxLive=new Set();
+const _sfxGains=new Set();
+// Instant playback from a decoded buffer through a per-voice gain node (routed so
+// the SFX slider governs it live). Returns false if this key has no ready buffer.
+function sfxPlayBuffer(key){
+  const buf=SND._buf[key]; if(!buf) return false;
+  const c=synthCtx(); if(!c) return false;
+  if(c.state==='suspended'){ try{ c.resume(); }catch(_){} }
+  try{
+    const src=c.createBufferSource(); src.buffer=buf;
+    const g=c.createGain(); g.gain.value=SND.sfxVol;
+    src.connect(g); g.connect(c.destination);
+    _sfxGains.add(g);
+    src.onended=()=>{ _sfxGains.delete(g); try{ src.disconnect(); g.disconnect(); }catch(_){} };
+    src.start();
+    return true;
+  }catch(_){ return false; }
+}
 function sfx(key){
   if(SND.sfxVol<=0) return;
   const url=SND.urls[key];
   if(url){
-    try{
+    if(sfxPlayBuffer(key)) return;            // preloaded buffer → zero-latency, overlappable
+    try{                                       // not decoded (still loading / CORS fallback): stream it
       const a=new Audio(url); a.volume=SND.sfxVol;
       _sfxLive.add(a);
       const drop=()=>_sfxLive.delete(a);
@@ -4055,6 +4094,7 @@ function setSfxVolume(v){
   SND.sfxVol=Math.max(0,Math.min(1,v));
   try{ localStorage.setItem('bloom_sfxVol', SND.sfxVol.toFixed(3)); }catch(_){}
   _sfxLive.forEach(a=>{ try{ a.volume=SND.sfxVol; }catch(_){} });   // pull in-flight uploaded clips to the new level
+  _sfxGains.forEach(g=>{ try{ g.gain.value=SND.sfxVol; }catch(_){} });   // and in-flight preloaded-buffer voices
   renderSndCtrl();
 }
 function renderSndCtrl(){
