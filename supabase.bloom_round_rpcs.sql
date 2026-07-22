@@ -106,6 +106,10 @@ begin
     wilt_count = coalesce((p_round->>'wilt_count')::int, wilt_count)
   where id = p_round_id;
 
+  -- a completed round counts toward rank-qualifying progress (see migration
+  -- bloom_qualifying_events: bloom_rounds_played_all_time + reconcile + increment)
+  perform public.increment_profile_hands_played(v_uid, 1, 'game_007');
+
   return jsonb_build_object('new_account_value', v_new, 'net', round(v_ret - v_wager, 2));
 end $$;
 
