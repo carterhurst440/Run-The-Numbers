@@ -21863,6 +21863,13 @@ body.state-open .auth-vault-grant .gline::after {
   margin-left: 24px;
   margin-right: 24px;
 }
+/* ...but the About-us card lives in the SIDEBAR, so it should span the full block
+   width like the leaderboard / rank-ladder cards below it — not the 24px main-column
+   inset above. Zero the side margin at every width. */
+body[data-ui="new"] .home-sidebar .home-sb-about .home-quote-block {
+  margin-left: 0;
+  margin-right: 0;
+}
 
 .home-section-hdr {
   padding-top: 24px;
