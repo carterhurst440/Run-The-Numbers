@@ -43093,6 +43093,35 @@ routeButtons.forEach((button) => {
   });
 });
 
+// On touch devices (no hover) a tap on a home game tile first replays the desktop
+// hover animation for a beat — scale + shimmer + accent glow, plus the BLOOM
+// bouquet — then routes into the game, instead of jumping straight in with no
+// flourish. Pointer devices keep real hover + an instant click. Runs in the
+// capture phase so it can hold off the bubble-phase route-navigate above.
+(function wireMobileTilePreview() {
+  const hoverCapable = !window.matchMedia || window.matchMedia("(hover: hover)").matches;
+  if (hoverCapable) return;
+  const PREVIEW_MS = 680;
+  document.querySelectorAll(".home-game-cards .home-game-card[data-route-target]").forEach((tile) => {
+    tile.addEventListener("click", (e) => {
+      if (tile.classList.contains("is-locked") || tile.disabled) return;   // locked → let normal handling run
+      if (tile.dataset.tapPreviewing === "1") return;                      // already animating; ignore repeat taps
+      e.preventDefault();
+      e.stopImmediatePropagation();          // defer the default route-navigate until the preview plays
+      tile.dataset.tapPreviewing = "1";
+      tile.classList.add("tile-tap-preview");
+      if (tile.classList.contains("home-game-card-bloom")) { try { TileBloom.grow(); } catch (_) {} }
+      const target = tile.dataset.routeTarget;
+      window.setTimeout(() => {
+        tile.classList.remove("tile-tap-preview");
+        delete tile.dataset.tapPreviewing;
+        closeActiveDrawer();
+        void setRoute(target);
+      }, PREVIEW_MS);
+    }, true);
+  });
+})();
+
 // Drawer GAMES accordion toggle.
 (function wireDrawerGames() {
   const group = document.getElementById("drawerGames");
