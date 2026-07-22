@@ -10902,7 +10902,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260722zb-volcurve");
+      frame.setAttribute("src", "games/bloom.html?v=20260722zh-polfield");
     }
     installBloomBridge();   // idempotent: broker rounds + push the wallet balance
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -21076,6 +21076,12 @@ function installBloomBridge() {
       await bloomHandlePlay(m.bet, m.satchel, m.contest_id, m.round_number, e.source);  // resolve + pay the whole round
     } else if (m.type === "settled") {
       bloomSettleBalance(m.balance);   // the game finished animating — apply the deferred header
+    } else if (m.type === "field") {
+      // Keep the iframe's backing colour in step with the game's field so any gap
+      // between the frame and the game content stays seamless — the frame is yellow
+      // by default (#bloom-frame), but POLLINATE turns the field pink.
+      const bf = document.getElementById("bloom-frame");
+      if (bf && typeof m.color === "string" && /^#[0-9a-fA-F]{3,8}$/.test(m.color)) bf.style.background = m.color;
     } else if (m.type === "save-deck") {
       await bloomSaveDeck(m.deck, e.source);
     }

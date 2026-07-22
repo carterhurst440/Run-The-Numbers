@@ -3501,6 +3501,7 @@ function resetPlayArea(){
   // bouquet wilts away, and the pink win-glow drops off the scoreboard
   document.documentElement.classList.remove('pollinating');
   document.body.classList.remove('pollinating');
+  bloomPost('field', {color:'#f6e400'});   // shell: iframe backing colour back to the yellow field
   TitleBloom.stop();
   const wn=$('#roundWinNum'); if(wn) wn.classList.remove('win-final');
   buildWeatherReel();$('#multi').textContent='';applyWeatherTheme(null);
@@ -4525,6 +4526,7 @@ function beginPollinate(payers, bet){
   round.phase='pollinate';
   document.documentElement.classList.add('pollinating');   // root too, so overscroll is pink
   document.body.classList.add('pollinating');  // fade the whole game field yellow -> pink
+  bloomPost('field', {color:'#ffd6ea'});       // shell: iframe backing colour to the pink pollinate field
   TitleBloom.trigger();                        // grow the flower cluster behind the BLOOM title
   sndPollinate(true);                          // bees out — swap ambient bed for the bonus track
   pol={ payers, bet, idx:0, total:0, mults:[], mode:null, locked:false };

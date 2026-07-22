@@ -31414,7 +31414,7 @@ body[data-ui="new"] .alr-date-short { display: none; }
 }
 /* BLOOM fills its frame edge-to-edge with its own flat yellow field, so the 16px
    radius just clipped notches out of the corners. Square it off. */
-#bloom-frame { border-radius: 0; background: #f6e400; }
+#bloom-frame { border-radius: 0; background: #f6e400; transition: background 0.6s ease; }   /* game posts a "field" message to swap this to pink during POLLINATE */
 
 /* ── MONKEY MOONSHINE admin tab — deck editor + sim tables ── */
 .admin-mm-tbl-wrap { overflow-x: auto; margin-top: 8px; }
