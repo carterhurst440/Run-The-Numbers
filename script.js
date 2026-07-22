@@ -537,6 +537,13 @@ function initHomeGameCardGlitch() {
     "home-game-card-bloom": { hex: "#ff2d9b", r: 255, g: 45,  b: 155 },
   };
 
+  // On touch / coarse-pointer devices, skip the always-on decorative timers
+  // (text-scramble, jitter, brightness flicker). They are a desktop-hover flourish
+  // and on a phone they just churn the main thread + repaint several times a second
+  // — the biggest steady cost on the homepage. The CSS keyframe animations (bounce
+  // etc.) still run; those are GPU-composited and cheap.
+  const LITE_FX = !!(window.matchMedia && !window.matchMedia("(hover: hover)").matches);
+
   document.querySelectorAll(".home-game-card").forEach((card) => {
     const glyphEl = card.querySelector(".cc-glyph");
     const nameEl  = card.querySelector(".cc-label, .fof-tile-wordmark, .mm-tile-wordmark, .bloom-tile-wordmark");
@@ -631,7 +638,7 @@ function initHomeGameCardGlitch() {
     }
 
     // ── Horizontal jitter ────────────────────────────────────────
-    jitterId = setInterval(() => {
+    if (!LITE_FX) jitterId = setInterval(() => {
       if (isHovered) return;
       if (Math.random() < 0.35) {
         const jx = (Math.random() - 0.5) * 6 * AMP.jitter;
@@ -642,7 +649,7 @@ function initHomeGameCardGlitch() {
     }, 220);
 
     // ── Brightness flicker ───────────────────────────────────────
-    flickerId = setInterval(() => {
+    if (!LITE_FX) flickerId = setInterval(() => {
       if (isHovered) return;
       if (Math.random() < 0.25) {
         const bri = 1 - Math.random() * 0.5 * AMP.flicker;
@@ -666,15 +673,17 @@ function initHomeGameCardGlitch() {
       });
     }
 
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((e) => { if (e.isIntersecting) startAmbient(); else clearInterval(ambientId); });
-    }, { threshold: 0.1 });
-    io.observe(card);
+    if (!LITE_FX) {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((e) => { if (e.isIntersecting) startAmbient(); else clearInterval(ambientId); });
+      }, { threshold: 0.1 });
+      io.observe(card);
 
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) clearInterval(ambientId);
-      else if (!isHovered) startAmbient();
-    });
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) clearInterval(ambientId);
+        else if (!isHovered) startAmbient();
+      });
+    }
   });
 }
 
@@ -43093,31 +43102,31 @@ routeButtons.forEach((button) => {
   });
 });
 
-// On touch devices (no hover) a tap on a home game tile first replays the desktop
-// hover animation for a beat — scale + shimmer + accent glow, plus the BLOOM
-// bouquet — then routes into the game, instead of jumping straight in with no
-// flourish. Pointer devices keep real hover + an instant click. Runs in the
-// capture phase so it can hold off the bubble-phase route-navigate above.
+// On touch devices (no hover) a tap on a home game tile gives a quick, cheap press
+// (a transform-only scale — GPU-composited, no shimmer/box-shadow/SVG work) so the
+// tap feels responsive, then routes in almost immediately. Kept short on purpose:
+// the old version stalled ~680ms on a heavy hover replay, which read as lag.
+// Pointer devices keep real hover + an instant click. Capture phase so it can hold
+// the bubble-phase route-navigate above just long enough for the press to register.
 (function wireMobileTilePreview() {
   const hoverCapable = !window.matchMedia || window.matchMedia("(hover: hover)").matches;
   if (hoverCapable) return;
-  const PREVIEW_MS = 680;
+  const TAP_MS = 130;
   document.querySelectorAll(".home-game-cards .home-game-card[data-route-target]").forEach((tile) => {
     tile.addEventListener("click", (e) => {
       if (tile.classList.contains("is-locked") || tile.disabled) return;   // locked → let normal handling run
-      if (tile.dataset.tapPreviewing === "1") return;                      // already animating; ignore repeat taps
+      if (tile.dataset.tapPreviewing === "1") return;                      // already pressing; ignore repeat taps
       e.preventDefault();
-      e.stopImmediatePropagation();          // defer the default route-navigate until the preview plays
+      e.stopImmediatePropagation();          // defer the route-navigate just past the press
       tile.dataset.tapPreviewing = "1";
-      tile.classList.add("tile-tap-preview");
-      if (tile.classList.contains("home-game-card-bloom")) { try { TileBloom.grow(); } catch (_) {} }
+      tile.classList.add("tile-tap-press");
       const target = tile.dataset.routeTarget;
       window.setTimeout(() => {
-        tile.classList.remove("tile-tap-preview");
+        tile.classList.remove("tile-tap-press");
         delete tile.dataset.tapPreviewing;
         closeActiveDrawer();
         void setRoute(target);
-      }, PREVIEW_MS);
+      }, TAP_MS);
     }, true);
   });
 })();
