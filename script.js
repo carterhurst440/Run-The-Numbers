@@ -10513,7 +10513,6 @@ function hideAllRoutes() {
 
 function updateAdminVisibility(user = currentUser) {
   const adminVisible = isAdmin(user);
-  try { console.info(`[ADMINDBG] updateAdminVisibility isAdmin=${adminVisible} email=${user && user.email ? user.email : '-'} route=${currentRoute} btn=${adminNavButton ? 'y' : 'n'}`); } catch(_){}
   if (adminNavButton) {
     if (adminVisible) {
       adminNavButton.removeAttribute("hidden");
@@ -10537,10 +10536,7 @@ function updateAdminVisibility(user = currentUser) {
     else drawerFofLink.setAttribute("hidden", "");
   }
   const drawerBloomLink = document.getElementById("drawer-bloom-link");
-  if (drawerBloomLink) {
-    if (adminVisible) drawerBloomLink.removeAttribute("hidden");
-    else drawerBloomLink.setAttribute("hidden", "");
-  }
+  if (drawerBloomLink) drawerBloomLink.removeAttribute("hidden");   // BLOOM is public — visible to all users
   const drawerMonkeyMoonshineLink = document.getElementById("drawer-monkey-moonshine-link");
   if (drawerMonkeyMoonshineLink) {
     // Visibility follows the game's admin-configurable status (default "active" =
@@ -10563,15 +10559,14 @@ function updateAdminVisibility(user = currentUser) {
       mmLockLabel.textContent = mmTier ? `UNLOCKS AT TIER ${mmTier}` : "LOCKED";
     }
   }
-  // BLOOM home tile: admin-only game, so its tile follows admin visibility (same
-  // gate as the drawer link). Never tier-locked. Grow the procedural bouquet once
-  // it is first shown, and re-grow on hover (pointer devices).
+  // BLOOM home tile: public game, visible to everyone. Never tier-locked. Grow the
+  // procedural bouquet once it is first shown, and re-grow on hover (pointer devices).
   const bloomDummyTile = document.querySelector(".home-game-card-dummy");
-  if (bloomDummyTile) bloomDummyTile.hidden = !adminVisible;   // fills the gap beside BLOOM
+  if (bloomDummyTile) bloomDummyTile.hidden = false;   // COMING SOON placeholder that balances the grid beside BLOOM
   const bloomHomeTile = document.querySelector(".home-game-card-bloom");
   if (bloomHomeTile) {
-    bloomHomeTile.hidden = !adminVisible;
-    if (adminVisible && !bloomHomeTile.dataset.bloomGrown) {
+    bloomHomeTile.hidden = false;
+    if (!bloomHomeTile.dataset.bloomGrown) {
       bloomHomeTile.dataset.bloomGrown = "1";
       requestAnimationFrame(() => TileBloom.grow());
       if (!window.matchMedia || window.matchMedia("(hover: hover)").matches) {
@@ -18948,7 +18943,6 @@ async function saveProfile(event) {
 }
 
 function displayAuthScreen({ focus = true, replaceHash = false } = {}) {
-  try { console.info('[ADMINDBG] displayAuthScreen -> hiding admin, route=auth'); } catch(_){}
   currentRoute = "auth";
   applyResolvedTheme();
   showAuthView("login");
@@ -19040,7 +19034,7 @@ function forceAuth(reason, { message, tone = "warning", focus = true } = {}) {
 }
 
 function applySignedOutState(reason = "unknown", { focusInput = true } = {}) {
-    console.warn(`[RTN] [ADMINDBG] applySignedOutState invoked (reason=${reason}) -> currentUser reset to GUEST`);
+    console.warn(`[RTN] applySignedOutState invoked (reason=${reason})`);
     const clearFn = typeof window !== "undefined" ? window.clearTimeout : clearTimeout;
     lastSyncedBankroll = null;
     bankrollInitialized = false;
@@ -21094,7 +21088,7 @@ const playLayout = runTheNumbersView ? runTheNumbersView.querySelector(".layout"
 const AUTH_ROUTES = new Set(["auth", "signup", "reset-password"]);
 const TABLE_ROUTES = new Set(["home", "shape-traders", "run-the-numbers", "red-black", "activity-log", "contests", "store", "admin", "profile", "color-scheme", "fate-or-fortune", "bloom", "monkey-moonshine"]);
 // Routes only admins may reach (hidden in drawer + blocked on direct URL/hash nav).
-const ADMIN_ONLY_ROUTES = new Set(["bloom", "admin"]);
+const ADMIN_ONLY_ROUTES = new Set(["admin"]);   // BLOOM is public (server-authoritative); only the admin console is gated
 const routeButtons = Array.from(document.querySelectorAll("[data-route-target]"));
 const signOutButtons = Array.from(document.querySelectorAll('[data-action="sign-out"]'));
 const dashboardEmailEl = document.getElementById("dashboard-email");
@@ -44341,7 +44335,6 @@ function markAuthSettled() {
 
 async function bootstrapAuth(initialRoute) {
   try {
-    try { console.info(`[ADMINDBG] bootstrapAuth START route=${initialRoute}`); } catch(_){}
     // Prefer checking getSession (returns session + user) so we can detect
     // an active session restored by the Supabase client across page reloads.
     let sessionUser = null;
@@ -44368,11 +44361,9 @@ async function bootstrapAuth(initialRoute) {
     }
 
     if (!sessionUser) {
-      try { console.info('[ADMINDBG] bootstrapAuth: NO session found -> returning false'); } catch(_){}
       return false;
     }
 
-    try { console.info(`[ADMINDBG] bootstrapAuth: session applied email=${sessionUser.email}`); } catch(_){}
     currentUser = sessionUser;
     // A signed-in member no longer needs a stored affiliate code; clearing it
     // stops the signup view from flashing on future reloads.
@@ -44426,7 +44417,7 @@ function setupAuthListener() {
         if (authSubscription) return authSubscription;
 
         const sub = supabase.auth.onAuthStateChange(async (event, session) => {
-          console.info(`[RTN] [ADMINDBG] auth state changed: ${event} (hasUser=${session && session.user ? 'y' : 'n'})`);
+          console.info(`[RTN] auth state changed: ${event}`);
           const previousUserId =
             currentUser?.id && currentUser.id !== GUEST_USER.id ? currentUser.id : null;
           
@@ -44734,7 +44725,7 @@ async function initializeApp() {
       }
     } else {
       sessionApplied = await bootstrapAuth(initialRoute);
-      console.info(`[RTN] [ADMINDBG] initializeApp bootstrapAuth sessionApplied=${sessionApplied}`);
+      console.info(`[RTN] initializeApp bootstrapAuth sessionApplied=${sessionApplied}`);
 
       if (!sessionApplied) {
         console.info(`[RTN] initializeApp showing public auth page: ${initialRoute}`);
