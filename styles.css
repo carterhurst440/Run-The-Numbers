@@ -21715,7 +21715,7 @@ body.state-open .auth-vault-grant .gline::after {
   justify-content: space-between;
   gap: 10px;
   width: calc(100% - 24px);
-  margin: 0 12px 8px;
+  margin: 0 12px;
   padding: 10px 12px;
   background: #171714;
   border: 1px solid #2e2e22;
@@ -21734,17 +21734,22 @@ body.state-open .auth-vault-grant .gline::after {
 .home-stats-collapse { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.38s cubic-bezier(0.4, 0, 0.2, 1); }
 .home-stats-collapser.collapsed .home-stats-collapse { grid-template-rows: 0fr; }
 .home-stats-collapse-inner { min-height: 0; overflow: hidden; }
+/* When expanded, the toggle header and the chart read as ONE container: the header
+   rounds only its top and drops its bottom border so it sits flush on the chart
+   below (which rounds only its bottom). Collapsed, the header is a full rounded box. */
+.home-stats-collapser:not(.collapsed) .home-stats-toggle {
+  border-radius: 2px 2px 0 0;
+  border-bottom-color: transparent;
+}
 
 .home-recent-activity {
   margin: 0 12px;
   background: #171714;
   border: 1px solid #2e2e22;
+  border-radius: 0 0 2px 2px;
   padding: 14px 14px 12px;
   position: relative;
   overflow: hidden;
-}
-@media (min-width: 901px) {
-  .home-recent-activity { margin-left: 24px; margin-right: 24px; }
 }
 .hra-top-row {
   display: flex;
@@ -27698,6 +27703,13 @@ body[data-ui="new"] #home-view .home-contest-card {
   body[data-ui="new"] #home-live-contests {
     margin-left: 12px;
     margin-right: 12px;
+  }
+  /* ...but the About-us card lives in the SIDEBAR, where the cards below it
+     (leaderboard / rank ladder) span the full block width. Match them instead of
+     the 12px main-column inset so it is the same width as the containers below. */
+  body[data-ui="new"] .home-sidebar .home-sb-about .home-quote-block {
+    margin-left: 0;
+    margin-right: 0;
   }
 
   /* Section heading vertical rhythm handled in the !important block below */
