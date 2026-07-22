@@ -10513,6 +10513,7 @@ function hideAllRoutes() {
 
 function updateAdminVisibility(user = currentUser) {
   const adminVisible = isAdmin(user);
+  try { console.info(`[ADMINDBG] updateAdminVisibility isAdmin=${adminVisible} email=${user && user.email ? user.email : '-'} route=${currentRoute} btn=${adminNavButton ? 'y' : 'n'}`); } catch(_){}
   if (adminNavButton) {
     if (adminVisible) {
       adminNavButton.removeAttribute("hidden");
@@ -18947,6 +18948,7 @@ async function saveProfile(event) {
 }
 
 function displayAuthScreen({ focus = true, replaceHash = false } = {}) {
+  try { console.info('[ADMINDBG] displayAuthScreen -> hiding admin, route=auth'); } catch(_){}
   currentRoute = "auth";
   applyResolvedTheme();
   showAuthView("login");
@@ -19038,7 +19040,7 @@ function forceAuth(reason, { message, tone = "warning", focus = true } = {}) {
 }
 
 function applySignedOutState(reason = "unknown", { focusInput = true } = {}) {
-    console.warn(`[RTN] applySignedOutState invoked (reason=${reason})`);
+    console.warn(`[RTN] [ADMINDBG] applySignedOutState invoked (reason=${reason}) -> currentUser reset to GUEST`);
     const clearFn = typeof window !== "undefined" ? window.clearTimeout : clearTimeout;
     lastSyncedBankroll = null;
     bankrollInitialized = false;
@@ -44331,6 +44333,7 @@ function markAuthSettled() {
 
 async function bootstrapAuth(initialRoute) {
   try {
+    try { console.info(`[ADMINDBG] bootstrapAuth START route=${initialRoute}`); } catch(_){}
     // Prefer checking getSession (returns session + user) so we can detect
     // an active session restored by the Supabase client across page reloads.
     let sessionUser = null;
@@ -44357,9 +44360,11 @@ async function bootstrapAuth(initialRoute) {
     }
 
     if (!sessionUser) {
+      try { console.info('[ADMINDBG] bootstrapAuth: NO session found -> returning false'); } catch(_){}
       return false;
     }
 
+    try { console.info(`[ADMINDBG] bootstrapAuth: session applied email=${sessionUser.email}`); } catch(_){}
     currentUser = sessionUser;
     // A signed-in member no longer needs a stored affiliate code; clearing it
     // stops the signup view from flashing on future reloads.
@@ -44413,7 +44418,7 @@ function setupAuthListener() {
         if (authSubscription) return authSubscription;
 
         const sub = supabase.auth.onAuthStateChange(async (event, session) => {
-          console.info(`[RTN] auth state changed: ${event}`);
+          console.info(`[RTN] [ADMINDBG] auth state changed: ${event} (hasUser=${session && session.user ? 'y' : 'n'})`);
           const previousUserId =
             currentUser?.id && currentUser.id !== GUEST_USER.id ? currentUser.id : null;
           
@@ -44714,7 +44719,7 @@ async function initializeApp() {
       }
     } else {
       sessionApplied = await bootstrapAuth(initialRoute);
-      console.info(`[RTN] initializeApp bootstrapAuth sessionApplied=${sessionApplied}`);
+      console.info(`[RTN] [ADMINDBG] initializeApp bootstrapAuth sessionApplied=${sessionApplied}`);
 
       if (!sessionApplied) {
         console.info(`[RTN] initializeApp showing public auth page: ${initialRoute}`);
