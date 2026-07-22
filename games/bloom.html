@@ -3696,12 +3696,8 @@ function updateSpinButton(){
   else if(round.phase==='cast'){ btn.innerHTML=`SPIN REEL ${round.step+1} / ${round.draws.length}`; }
   else if(round.phase==='pollinate'){          // same button, now driving the bonus
     btn.style.display='';
+    // Always one spin per bloomed flower — no spin-mode choice.
     if(polSpinning){ btn.innerHTML='POLLINATING…'; btn.disabled=true; btn.classList.remove('shine'); }
-    else if(pol && !pol.mode){                 // waiting on the spin-mode choice
-      btn.innerHTML='CHOOSE HOW TO SPIN'; btn.disabled=true; btn.classList.remove('shine'); }
-    else if(pol && pol.mode==='all'){
-      const left=pol.payers.length-pol.idx;      // what this one spin will cover
-      btn.innerHTML=`POLLINATE ALL ${left}`; btn.disabled=false; btn.classList.add('shine'); }
     else { btn.innerHTML=`POLLINATE ${pol?pol.idx+1:1} / ${pol?pol.payers.length:1}`;
            btn.disabled=false; btn.classList.add('shine'); }
     return;
@@ -4289,12 +4285,12 @@ function beginPollinate(payers, bet){
   const tally=$('#polTally'); if(tally) tally.innerHTML='';
   const wheel=$('#polWheel');
   if(wheel){ wheel.innerHTML=polWheelSVG(); wheel.style.transition='none'; wheel.style.transform='rotate(0deg)'; }
-  // One flower means the two modes are identical, so don't offer the choice.
-  if(payers.length<2){ polChoose('each'); return; }
-  // Otherwise open with SPIN EACH already selected: the player can press POLLINATE
-  // straight away, or swap to ONE SPIN first. The buttons stay up until that press.
-  const ch=$('#polChoose'); if(ch) ch.hidden=false;
-  polChoose('each');
+  // No spin-mode choice — always spin each bloomed flower one at a time (more
+  // dramatic). Keep the choice UI hidden and go straight into the per-flower run.
+  const ch=$('#polChoose'); if(ch) ch.hidden=true;
+  pol.mode='each';
+  $('#multi').textContent='the bees are out — spin every bloom';
+  polStep();
 }
 // SPIN EACH  — a wheel per flower, each multiplying only itself (lower variance).
 // ONE SPIN   — a single wheel multiplying every bloom (same average, ~2.6x swingier).
@@ -4378,39 +4374,6 @@ async function polSpin(){
   wheel.style.transform=`rotate(${target}deg)`;
   await sleep(2650);                             // matches the 2.6s transition
   sfx('bonus_awarded');                          // the wheel has settled on its multiplier
-  // ONE SPIN mode: this single result rides on every bloom, then the round settles.
-  if(pol.mode==='all'){
-    // ONLY the flowers that have not spun yet. Anyone switching part-way through
-    // has already banked the earlier ones, and re-applying here would pay them a
-    // second time.
-    const rest=pol.payers.slice(pol.idx);
-    let restWon=0;
-    rest.forEach(({p,i})=>{
-      const b=plantPay(p,pol.bet), w=b*mult;
-      pol.total+=w; restWon+=w;
-      if(p.gfx) p.gfx.pol={m:mult, base:b, won:w};
-      polMarkDone(i, mult);
-    });
-    pol.mults.push(mult);
-    paintLabels(round.plants);
-    $('#polResult').innerHTML=`×${mult} → <b>${Math.round(restWon).toLocaleString()}</b>`;
-    const tallyAll=$('#polTally');
-    if(tallyAll) tallyAll.insertAdjacentHTML('beforeend',
-      `<span class="pol-chip ${mult>=10?'huge':(mult>=5?'big':'')}">×${mult} ×${rest.length}</span>`);
-    setScoreWin(pol.total, true);
-    wheel.style.transition='none'; wheel.style.transform=`rotate(${target%360}deg)`;
-    await sleep(550);
-    sfx('bonus_end');                            // last (and only) award in ONE SPIN mode
-    polTeardown();
-    // a run that switched part-way is a mix, so report the whole thing honestly
-    $('#multi').textContent = pol.mults.length>1
-      ? `POLLINATED — ${pol.payers.length} blooms · best ×${Math.max(...pol.mults)}`
-      : `POLLINATED — ×${mult} on all ${pol.payers.length}`;
-    const totalAll=pol.total, betAll=pol.bet;
-    pol=null; polSpinning=false;
-    settleRound(totalAll, betAll);
-    return;
-  }
   const cur=pol.payers[pol.idx];
   const base=plantPay(cur.p,pol.bet), won=base*mult;
   pol.total+=won; pol.mults.push(mult);
