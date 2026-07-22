@@ -10,6 +10,15 @@ if (typeof document !== "undefined" && document.body) {
 let appReady = false;
 let authBootstrapFallbackShown = false;
 let appReadyFallbackTimerId = null;
+// True once auth has been conclusively determined (a session was restored, or we
+// definitively found none). Until then the admin route guard must NOT show the
+// "Admin access only" toast or bounce — a refresh on #admin fires setRoute("admin")
+// (via hashchange normalization) before the session rehydrates, and a premature
+// denial both flashes a false toast and drops the admin drawer item.
+let authSettled = false;
+// If the admin route was requested before auth settled, remember it so we can
+// navigate back to it once we know the user is actually an admin.
+let deferredAdminRoute = null;
 
 const GAME_KEYS = {
   RUN_THE_NUMBERS: "game_001",
@@ -10732,8 +10741,16 @@ async function setRoute(route, { replaceHash = false } = {}) {
   }
 
   if (!isAuthRoute && nextRoute === "admin" && !isAdmin()) {
-    showToast("Admin access only", "error");
-    nextRoute = "home";
+    if (!authSettled) {
+      // Session hasn't rehydrated yet — don't flash a false denial. Stash the
+      // intent and quietly hold on home; onAuthSettled re-routes here once the
+      // admin session is confirmed.
+      deferredAdminRoute = "admin";
+      nextRoute = "home";
+    } else {
+      showToast("Admin access only", "error");
+      nextRoute = "home";
+    }
   }
 
   const requestedGameKey = getGameKeyForRoute(nextRoute);
@@ -44241,6 +44258,23 @@ if (typeof window !== "undefined" && window.visualViewport) {
   window.visualViewport.addEventListener("scroll", schedulePlayAreaHeightUpdate);
 }
 
+// Auth is now conclusively known. Flip the gate so the admin route guard enforces
+// for real, and if a route to #admin was deferred while we were still resolving,
+// honor it now that we can trust isAdmin().
+function markAuthSettled() {
+  authSettled = true;
+  if (deferredAdminRoute) {
+    if (isAdmin()) {
+      const r = deferredAdminRoute;
+      deferredAdminRoute = null;
+      setRoute(r, { replaceHash: true }).catch(() => {});
+    } else {
+      // Settled and not an admin — drop the intent silently (already on home).
+      deferredAdminRoute = null;
+    }
+  }
+}
+
 async function bootstrapAuth(initialRoute) {
   try {
     // Prefer checking getSession (returns session + user) so we can detect
@@ -44276,6 +44310,7 @@ async function bootstrapAuth(initialRoute) {
     // A signed-in member no longer needs a stored affiliate code; clearing it
     // stops the signup view from flashing on future reloads.
     clearStoredReferralCode();
+    authSettled = true;   // session confirmed; the setRoute below can trust isAdmin()
     updateAdminVisibility(currentUser);
     updateResetButtonVisibility(currentUser);
     markAppReady();
@@ -44352,6 +44387,7 @@ function setupAuthListener() {
                 });
               }
               currentUser = user;
+              authSettled = true;   // real user known; the admin guard can enforce/honor for real now
               updateAdminVisibility(currentUser);
               updateResetButtonVisibility(currentUser);
               await loadLoginThemeSettings(true).catch((err) => console.warn("[RTN] Login theme sync error:", err));
@@ -44392,8 +44428,13 @@ function setupAuthListener() {
                 }
               }
               updateAdminVisibility(currentUser);   // final re-assert after all async work settles
+              markAuthSettled();   // honor a #admin route that was deferred during the restore race
+            } else {
+              // INITIAL_SESSION (or a refresh) with no session — conclusively no user.
+              markAuthSettled();
             }
           } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
+            markAuthSettled();
             clearStoredPlayerTier();
             aiThemeSettingsCache = {};
             aiThemeSettingsHydrated = false;
