@@ -658,7 +658,7 @@
      means the sides give up their equal share before the wordmark is ever covered. */
   .kiiro-header h1{font-family:var(--ui);font-weight:800;font-size:19px;letter-spacing:.16em;color:var(--text);margin:0;
     flex:1 1 0;min-width:min-content;white-space:nowrap;
-    transition:color .5s ease,font-size .5s ease,text-shadow .5s ease}
+    transition:color .5s ease,font-size .5s ease,text-shadow .5s ease,background .5s ease,padding .5s ease,box-shadow .5s ease}
   /* same floor on the BALANCE side: it is right-aligned, so shrinking below its
      content would spill the figure leftwards under the board. */
   .kiiro-header .hud-row{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex:1 1 0;min-width:min-content}
@@ -708,6 +708,8 @@
   /* pink pollination theme: the BLOOM wordmark turns white, bigger + bolder, with a
      soft drop shadow so it reads over the pink field and the bouquet behind it */
   body.pollinating .kiiro-header h1{color:#ffffff;font-weight:900;font-size:24px;
+    background:linear-gradient(#3a0f28,#22071a);padding:5px 15px;border-radius:12px;
+    box-shadow:0 0 0 1px rgba(255,45,155,.5),0 0 16px rgba(255,45,155,.5),inset 0 1px 0 rgba(255,190,225,.22);
     text-shadow:0 2px 7px rgba(150,20,85,.55),0 1px 2px rgba(0,0,0,.3)}
   /* pink pollination theme: the whole scoreboard goes special — deep magenta-black
      panel ringed in pulsing pink neon, every accent shifted from yellow/green to
@@ -4298,17 +4300,18 @@ function renderSndCtrl(){
    no game logic. Honours prefers-reduced-motion by snapping to the bloomed hold. */
 const TitleBloom = (function(){
   const DUR=2.2, HOLD=2.8;
-  // All shades of pink and white: deep rose + candy pink + blush + white-petal
-  // blooms, each keeping a light->dark structure so the petal shading still reads.
+  // Varied real-flower bouquet (from the updated design handoff): warm poppy, blue +
+  // violet anemones, gold sunflower, rose, dianthus, cornflower, fuchsia star. Each
+  // keeps its light->dark structure so the petal shading still reads over the pink field.
   const PAL={
-    POP:{ base:'#e34b9c', mid:'#f06fb2', tip:'#ffc2e0', center:'#ffe3f1', core:'#c02878', anther:'#a81f66', fila:'#f4a8d0', sh:'#b81f6e' },
-    ANB:{ base:'#f7a8cd', mid:'#fcc4de', tip:'#ffe6f2', center:'#fff2f8', core:'#d64f92', anther:'#c23a7e', fila:'#f8cfe2', sh:'#e07aae' },
-    ANV:{ base:'#ef62a8', mid:'#f487bb', tip:'#ffcae2', center:'#ffe9f3', core:'#c22878', anther:'#a81f66', fila:'#f0a8cd', sh:'#c23a80' },
-    SUN:{ base:'#ffffff', mid:'#fff4f9', tip:'#ffffff', center:'#ffd3e8', core:'#ec5fa2', anther:'#d43a80', fila:'#f6a8cd', sh:'#f2d4e4' },
-    ROSE:{ base:'#d21f7a', mid:'#e8579f', tip:'#f6a8cd', center:'#f8c4de', core:'#a41560', anther:'#971458', fila:'#e07aae', sh:'#a8155c' },
-    DIAN:{ base:'#ee5aa0', mid:'#f487bb', tip:'#ffc9e1', center:'#ffe0ee', core:'#d43a80', anther:'#b02866', fila:'#f6a8cd', sh:'#c73a76' },
-    CORN:{ base:'#f9bcd8', mid:'#ffd6e8', tip:'#ffffff', center:'#ffffff', core:'#e78ab6', anther:'#d76aa0', fila:'#f4c8de', sh:'#ea9cc2' },
-    FUX:{ base:'#e0348a', mid:'#ef62a8', tip:'#f8b0d4', center:'#fff0f6', core:'#b81f64', anther:'#9c1560', fila:'#f0a8cd', sh:'#a81f64' }
+    POP:{ base:'#e8431f', mid:'#f26a34', tip:'#f8a068', center:'#f6c23a', core:'#2a1508', anther:'#3a2410', fila:'#caa22a', sh:'#a82810' },
+    ANB:{ base:'#3a5bd0', mid:'#5c7ce6', tip:'#aabcf5', center:'#1a1024', core:'#160b1e', anther:'#0e0716', fila:'#5a4a6a', sh:'#26397e' },
+    ANV:{ base:'#7b3fc4', mid:'#9b63dc', tip:'#cbb0ee', center:'#1c0f28', core:'#1c0f28', anther:'#120a1c', fila:'#4a3a5a', sh:'#4c1f86' },
+    SUN:{ base:'#f7b910', mid:'#facf3f', tip:'#ffe98a', center:'#7a4a12', core:'#6a3d0e', anther:'#4a2a0a', fila:'#c98a2a', sh:'#c07d08' },
+    ROSE:{ base:'#d21f7a', mid:'#e8579f', tip:'#f6a8cd', center:'#b01565', anther:'#8a1050', fila:'#e07aae', sh:'#8a0f4c' },
+    DIAN:{ base:'#ee5aa0', mid:'#f487bb', tip:'#ffc4e0', center:'#d43a80', anther:'#b02866', fila:'#f6a8cd', sh:'#c23a72' },
+    CORN:{ base:'#2f6fd6', mid:'#5a92e8', tip:'#aac6f5', center:'#16306a', core:'#16306a', anther:'#0e2050', fila:'#3a5a9a', sh:'#1c4a9a' },
+    FUX:{ base:'#e0348a', mid:'#ef62a8', tip:'#f8a8cf', center:'#7b2fc4', anther:'#5a1f94', fila:'#c86ad0', sh:'#a81f64' }
   };
   const BACK=[
     {cx:64, cy:34, sc:2.0, body:'poppy',    pal:'POP', d:0.00},
@@ -4330,6 +4333,15 @@ const TitleBloom = (function(){
     {cx:86, cy:150,ang:-34, sc:1.8, d:0.06},
     {cx:252,cy:150,ang:40,  sc:1.6, d:0.10},
     {cx:18, cy:40, ang:-54, sc:1.4, d:0.14}
+  ];
+  // Climbing vines (bezier stems with leaves budding along them) that grow up behind
+  // the bouquet — the "plants and vines" layer from the handoff.
+  const VINES=[
+    {pts:[[70,-10],[46,46],[100,86],[74,150]], leaves:5, d:0.00},
+    {pts:[[300,-10],[322,42],[268,78],[300,138]], leaves:5, d:0.06},
+    {pts:[[430,-10],[452,48],[404,86],[430,150]], leaves:5, d:0.12},
+    {pts:[[-10,44],[48,66],[30,120],[74,152]], leaves:4, d:0.08},
+    {pts:[[555,58],[496,82],[520,132],[476,162]], leaves:4, d:0.10}
   ];
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   const easeGrow=x=>1-Math.pow(1-x,3);
@@ -4480,8 +4492,28 @@ const TitleBloom = (function(){
     for(let k=1;k<=3;k++){ const vy=-L*(0.24*k), vw=w*(0.62-0.12*k); s+='<path d="M0 '+vy.toFixed(1)+' L'+(-vw).toFixed(1)+' '+(vy-L*0.13).toFixed(1)+' M0 '+vy.toFixed(1)+' L'+vw.toFixed(1)+' '+(vy-L*0.13).toFixed(1)+'" stroke="#22551f" stroke-width="'+(0.7*sc).toFixed(1)+'" opacity=".4" fill="none"/>'; }
     s+='</g>'; return s;
   }
-  function buildSvg(flowers, leaves, p, clk, lush){
+  function vine(v, grow, clk){
+    const g0=easeGrow(clamp(grow,0,1)); if(g0<0.01) return '';
+    const P=v.pts, steps=40, last=Math.max(1,Math.round(steps*g0));
+    const bz=(u)=>{ const m=1-u; return [
+      m*m*m*P[0][0]+3*m*m*u*P[1][0]+3*m*u*u*P[2][0]+u*u*u*P[3][0],
+      m*m*m*P[0][1]+3*m*m*u*P[1][1]+3*m*u*u*P[2][1]+u*u*u*P[3][1]]; };
+    let d='M'+P[0][0].toFixed(1)+' '+P[0][1].toFixed(1);
+    for(let k=1;k<=last;k++){ const pt=bz(k/steps); d+=' L'+pt[0].toFixed(1)+' '+pt[1].toFixed(1); }
+    let s='<path d="'+d+'" stroke="#4c8a52" stroke-width="2.4" fill="none" stroke-linecap="round"/>';
+    s+='<path d="'+d+'" stroke="#7cc07a" stroke-width="1" fill="none" stroke-linecap="round" opacity=".65"/>';
+    const nl=v.leaves||5;
+    for(let k=1;k<=nl;k++){ const frac=k/(nl+1); if(frac>g0) continue; const lr=clamp((g0-frac)*3,0,1);
+      const a=bz(frac), b=bz(Math.min(1,frac+0.02));
+      const ang=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI + (k%2?70:-70);
+      const swy=Math.sin(clk*1.1+k)*3;
+      s+=bigLeaf(a[0],a[1],ang+swy,0.34*lr,1);
+    }
+    return '<g>'+s+'</g>';
+  }
+  function buildSvg(flowers, leaves, p, clk, lush, vines){
     lush = (lush==null)?1:lush; let svg='';
+    (vines||[]).forEach((v)=>{ svg+=vine(v, (p-v.d)/0.6, clk); });   // vines grow up behind everything
     (leaves||[]).forEach((l,i)=>{ svg+=bigLeaf(l.cx,l.cy,l.ang+Math.sin(clk*1.0+i)*2, l.sc, (p-l.d)/0.5); });
     flowers.forEach((f,i)=>{
       const open=easeBack(clamp((p-f.d)/0.5,0,1)); if(open<0.03) return;
@@ -4496,7 +4528,7 @@ const TitleBloom = (function(){
   function hosts(){ return [document.getElementById('blmFxBack'), document.getElementById('blmFxFront')]; }
   function render(p, clk){
     const b=document.getElementById('blmFxBack'), f=document.getElementById('blmFxFront');
-    if(b) b.innerHTML=buildSvg(BACK, LEAVES, p, clk, 1);
+    if(b) b.innerHTML=buildSvg(BACK, LEAVES, p, clk, 1, VINES);
     if(f) f.innerHTML=buildSvg(FRONT, null, p, clk, 1);
   }
   function frame(now){
