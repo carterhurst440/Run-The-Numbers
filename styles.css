@@ -27334,6 +27334,10 @@ body[data-ui="new"] .home-game-card-fof:hover:not(.is-locked) {
   justify-content: center;
   gap: 4px;
   padding: 9px 0 2px;
+  /* The sword icon makes this logo box tall, so its centered letters landed ~12px
+     lower than the other tiles' top glyphs. Nudge it up (transform, so the flex
+     column doesn't reclaim the space) to match. */
+  transform: translateY(-11px);
 }
 .fof-tile-logo-letter {
   font-family: "JetBrains Mono", monospace;
@@ -27457,6 +27461,9 @@ body[data-ui="new"] .home-game-card-mm.is-locked { opacity: 0.9; }
   justify-content: center;
   gap: 4px;
   padding: 9px 0 2px;
+  /* Coconut icon makes this box tall; nudge the centered letters up to match the
+     other tiles' top glyphs (matches the FOF fix). */
+  transform: translateY(-12px);
 }
 .mm-tile-logo-letter {
   font-family: "JetBrains Mono", monospace;
