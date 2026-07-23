@@ -4056,10 +4056,21 @@ function polTestBar(){
     +`<option value="wild">butterfly line</option></select></label>`
     +`<label><input type="checkbox" id="ptBlooms"> all 10 bloom</label>`
     +`<button type="button" id="ptRun">CAST + FORCE</button>`
+    +`<button type="button" id="ptFx">🌸 TITLE FX</button>`
     +`<span id="ptSay" class="poltest-say"></span>`;
   document.body.appendChild(bar);
   $('#ptLine').onchange=e=>{ polTest.line=e.target.value; polTestSay(''); };
   $('#ptBlooms').onchange=e=>{ polTest.blooms=e.target.checked; };
+  // preview just the title effect (pink theme + grow-in bouquet + hummingbird),
+  // no round needed — press once to play it, again to clear
+  let fxOn=false;
+  $('#ptFx').onclick=()=>{
+    fxOn=!fxOn;
+    document.documentElement.classList.toggle('pollinating', fxOn);
+    document.body.classList.toggle('pollinating', fxOn);
+    if(fxOn){ TitleBloom.trigger(); polTestSay('title bloom preview on — press again to clear'); }
+    else   { TitleBloom.stop();    polTestSay(''); }
+  };
   // one press: clear any finished round, force a line, then reveal all three reels
   $('#ptRun').onclick=async()=>{
     if(polTest.line==='off'){ polTest.line='natural'; $('#ptLine').value='natural'; }
