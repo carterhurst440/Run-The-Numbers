@@ -456,6 +456,34 @@
   .rlog-clear{display:block;margin:8px auto 10px;font-size:10px;letter-spacing:.1em;
     padding:5px 12px;background:transparent;border:1px solid var(--line);color:var(--muted)}
   .rlog-clear:hover{color:var(--danger);border-color:var(--danger)}
+
+  /* ---- HOW TO PLAY ------------------------------------------------------
+     Player-facing rundown of the mechanics. Same collapse pattern as the
+     round log; closed by default (reference info). */
+  .htp{margin-top:10px;padding:0;overflow:hidden}
+  .htp-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:9px 12px;cursor:pointer;font-size:11.5px;font-weight:700;letter-spacing:.06em;
+    color:var(--text);user-select:none}
+  .htp-head:hover{background:rgba(255,255,255,.28)}
+  .htp-chevron{transition:transform .2s ease;font-size:12px;color:var(--muted)}
+  .htp:not(.open) .htp-chevron{transform:rotate(-90deg)}
+  .htp-body{max-height:1200px;transition:max-height .3s ease,opacity .18s ease;opacity:1}
+  .htp:not(.open) .htp-body{max-height:0;opacity:0}
+  .htp-inner{padding:2px 13px 13px}
+  .htp-p{font-size:11.5px;line-height:1.6;color:var(--text);margin:0 0 10px}
+  .htp-p b{color:var(--gold)}
+  .htp-steps{list-style:none;margin:0 0 10px;padding:0;counter-reset:htp}
+  .htp-steps li{position:relative;padding:0 0 9px 27px;font-size:11.5px;line-height:1.5;color:var(--text)}
+  .htp-steps li:last-child{padding-bottom:0}
+  .htp-steps li::before{counter-increment:htp;content:counter(htp);position:absolute;left:0;top:0;
+    width:19px;height:19px;border-radius:50%;background:var(--gold);color:var(--btn-ink);
+    font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .htp-steps li b{color:var(--gold)}
+  .htp-sub{font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);margin:2px 0 7px}
+  .htp-defs div{padding:5px 0;border-top:1px solid rgba(20,20,20,.14);font-size:11px;line-height:1.5;color:var(--text)}
+  .htp-defs div:first-child{border-top:none}
+  .htp-defs b{color:var(--gold)}
   @media(max-width:520px){
     .rlog-stats{grid-template-columns:repeat(2,1fr)}
     .rlog-scroll{max-height:170px}
@@ -1066,6 +1094,35 @@
             </table>
           </div>
           <button type="button" class="rlog-clear" id="rlogClear">Clear log</button>
+        </div>
+      </div>
+
+      <!-- HOW TO PLAY — collapsible player rundown of the mechanics (closed by
+           default), mirrors the round log's collapse pattern. -->
+      <div class="htp card" id="htpPanel">
+        <div class="htp-head" id="htpHead">
+          <span>📖 HOW TO PLAY · <span style="color:var(--gold)">THE GARDEN</span></span>
+          <span class="htp-chevron" id="htpChevron">▾</span>
+        </div>
+        <div class="htp-body">
+          <div class="htp-inner">
+            <p class="htp-p">Plant a satchel of flowers, then let the weather decide which ones <b>bloom</b> and pay — and which ones <b>wilt</b>. Match the weather reels to send the bees out for a multiplier bonus.</p>
+            <ol class="htp-steps">
+              <li>Tap <b>EDIT</b> to fill your satchel with up to <b>10 seeds</b>. Every flower has its own sprout chance, payout, and weather it loves or fears.</li>
+              <li>Set your <b>bet</b> and press <b>CAST SEEDS</b>. Your bet is staked across the whole satchel; each seed then tries to <b>sprout</b> at its flower's take rate.</li>
+              <li>Spin the <b>weather reels</b> — three draws, one at a time. Each weather pushes your sprouted flowers to <b>bloom</b> (grow &amp; pay) or <b>wilt</b> (die for the round).</li>
+              <li>Every living <b>bloom</b> pays a percentage of your bet. Bloom a flower <b>twice</b> for a <b>SUPER BLOOM</b> — a bigger multiple of that flower's pay.</li>
+              <li>A <b>butterfly</b> weather is wild — it revives a wilted or dud seed back to life and helps complete a line.</li>
+              <li>Land <b>3 matching weathers</b> (butterflies count as wild) to trigger <b>POLLINATE</b>: the bees fly out and every blooming flower spins its own wheel, multiplying its payout up to <b>×10</b>.</li>
+            </ol>
+            <div class="htp-sub">Key terms</div>
+            <div class="htp-defs">
+              <div><b>Sprout</b> — a seed that took root. Only sprouted flowers can bloom.</div>
+              <div><b>Bloom / Super Bloom</b> — one / two growth steps. Each step pays more of your bet.</div>
+              <div><b>Wilt</b> — the flower died this round and pays nothing (a butterfly can revive it).</div>
+              <div><b>Pollinate</b> — the bonus a matching 3-reel line triggers: a wheel spin per blooming flower.</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -4786,6 +4843,11 @@ function renderRoundLog(){
     rlog=[]; rlogRoundNo=0; renderRoundLog();
   });
   renderRoundLog();                            // paint the empty state on load
+})();
+
+(function wireHowToPlay(){
+  const head=$('#htpHead'), panel=$('#htpPanel');
+  if(head&&panel) head.addEventListener('click',()=>panel.classList.toggle('open'));
 })();
 
 // Casino reel spin: stack N random tiles above the landing tile, then scroll the
