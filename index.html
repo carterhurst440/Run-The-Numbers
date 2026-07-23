@@ -26,7 +26,7 @@
         }, true);
       })();
     </script>
-    <link rel="stylesheet" href="styles.css?v=20260722zn-tilelogos" />
+    <link rel="stylesheet" href="styles.css?v=20260723zt-lineodds" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -3991,6 +3991,18 @@
                   <button type="button" class="primary" id="bloom-add-weather">+ Add weather</button>
                 </div>
                 <div id="bloom-weather-editor" class="bloom-weather-editor"></div>
+
+                <div class="admin-fof-sim-panel bloom-line-sim">
+                  <h3>3-in-a-row odds — Monte Carlo</h3>
+                  <p class="admin-cs-hint">Draws three reels from the current deck above (each card weighted by its <code>deck_count</code>) and measures how often a POLLINATE line lands, split into <strong>natural</strong> (three identical real weathers) and <strong>wild</strong> (a 🦋 butterfly completes the line). Mirrors the live line rule exactly and depends only on deck composition — flowers do not change line odds. Edits above are live; press Run.</p>
+                  <div class="admin-fof-sim-controls">
+                    <label class="admin-fof-sim-pick">Rounds
+                      <input type="number" id="bloom-line-rounds" class="admin-fof-log-seed-input" value="500000" min="1000" max="5000000" step="1000">
+                    </label>
+                    <button type="button" class="primary" id="bloom-line-sim">▶ Run 3-in-a-row odds</button>
+                  </div>
+                  <div id="bloom-line-results" class="admin-fof-sim-results"></div>
+                </div>
               </section>
             </section>
 
@@ -5611,7 +5623,7 @@
     <script defer src="vendor/supabase-js.umd.min.js?v=2"></script>
     <script defer src="vendor/chart.umd.min.js?v=4.4.1"></script>
     <script type="module" src="supabase.env.js"></script>
-    <script type="module" src="script.js?v=20260722zr-titleframe"></script>
+    <script type="module" src="script.js?v=20260723zt-oldanim-hummer"></script>
 
   <div class="modal info-modal" id="game-activity-modal" role="dialog" aria-modal="true" aria-labelledby="game-activity-modal-title" hidden>
     <div class="modal-content game-activity-modal-content">

@@ -10928,7 +10928,7 @@ async function setRoute(route, { replaceHash = false } = {}) {
     // first time an admin opens the route, not on every page load.
     const frame = document.getElementById("bloom-frame");
     if (frame && !frame.getAttribute("src")) {
-      frame.setAttribute("src", "games/bloom.html?v=20260722zr-titleframe");
+      frame.setAttribute("src", "games/bloom.html?v=20260723zt-oldanim-hummer");
     }
     installBloomBridge();   // idempotent: broker rounds + push the wallet balance
     bloomSendInit();        // refresh on re-open (first open waits for bloom:ready)
@@ -33808,6 +33808,7 @@ if (adminPurchasesRefreshBtn) {
 document.getElementById("bloom-add-flower")?.addEventListener("click", () => BloomAdmin.addFlower());
 document.getElementById("bloom-add-weather")?.addEventListener("click", () => BloomAdmin.addWeather());
 document.getElementById("bloom-sim-all")?.addEventListener("click", () => BloomAdmin.simAll());
+document.getElementById("bloom-line-sim")?.addEventListener("click", () => BloomAdmin.simLine());
 document.getElementById("bloom-save")?.addEventListener("click", () => BloomAdmin.save());
 document.getElementById("bloom-export")?.addEventListener("click", () => BloomAdmin.exportJson());
 document.getElementById("bloom-import")?.addEventListener("click", () => document.getElementById("bloom-import-file")?.click());
@@ -35172,6 +35173,99 @@ const BloomAdmin = {
         (flagged ? `Sim done — ${flagged} flower(s) off target (>±0.25%).`
                  : `Sim done — all ${this.flowers.length} flowers on target.`)
         + `  [${wheelNote}]`);
+    }, 20);
+  },
+
+  // ── 3-in-a-row odds (Monte Carlo over the weather deck only) ───────────────
+  // A round draws three reels from the deck; a POLLINATE line lands when every
+  // non-butterfly reel agrees (the live rule in bloom.html: reals.every(===)).
+  //   natural  = three identical real weathers (no butterfly helped)
+  //   wild     = a line that a 🦋 butterfly completed (reals.length < 3)
+  // Line odds depend on nothing but deck composition, so this is a pure draw sim.
+  lineRounds(){
+    const inp = document.getElementById('bloom-line-rounds');
+    return Math.max(1000, Math.min(5000000, Math.round(Number(inp?.value) || 500000)));
+  },
+  // Closed-form odds for the current deck — the exact target the Monte Carlo
+  // converges to, shown alongside the run as a sanity check.
+  lineExact(){
+    const N = this._weatherDeck().length;
+    const reals = this.realWeathers();
+    const bf = this.weather.filter(w => w.kind === 'butterfly');
+    const dc = (w) => Math.max(0, Math.round(w.deck_count == null ? 1 : w.deck_count));
+    const b = bf.reduce((s, w) => s + dc(w), 0) / N;          // butterfly share of the deck
+    const per = reals.map(w => ({ id: w.weather, name: w.display_name || w.weather,
+                                  icon: w.icon || '', count: dc(w), p: dc(w) / N }));
+    const S1 = per.reduce((s, w) => s + w.p, 0);
+    const S2 = per.reduce((s, w) => s + w.p * w.p, 0);
+    const S3 = per.reduce((s, w) => s + w.p * w.p * w.p, 0);
+    const natural = S3;                                        // all three the same real
+    const any = S3 + 3*b*S2 + 3*b*b*S1 + b*b*b;                // any line (incl. all-🦋)
+    const wild = any - natural;
+    const allBf = b*b*b;                                       // all three butterflies
+    per.forEach(w => { w.natural = w.p * w.p * w.p; });        // per-weather natural odds
+    return { N, b, bfCount: bf.reduce((s, w) => s + dc(w), 0), per, natural, wild, any, allBf };
+  },
+  simLine(){
+    const out = document.getElementById('bloom-line-results');
+    if (!out) return;
+    if (!this.weather.length){ out.innerHTML = '<p class="admin-cs-hint">Add at least one weather card first.</p>'; return; }
+    const deck = this._weatherDeck(), dl = deck.length;
+    if (!dl){ out.innerHTML = '<p class="admin-cs-hint">The deck is empty — every card has deck_count 0.</p>'; return; }
+    const rounds = this.lineRounds();
+    out.innerHTML = '<p class="admin-cs-hint">Running ' + rounds.toLocaleString() + ' rounds…</p>';
+    setTimeout(() => {
+      let nat = 0, wild = 0, allBf = 0;
+      const natBy = Object.create(null);          // real weather id → natural-line count
+      for (let r = 0; r < rounds; r++){
+        const a = deck[(Math.random()*dl)|0], b = deck[(Math.random()*dl)|0], c = deck[(Math.random()*dl)|0];
+        const ba = this._isButterfly(a), bb = this._isButterfly(b), bc = this._isButterfly(c);
+        // reals must all agree (or be absent) — mirrors reals.every(x===reals[0])
+        let key = null, ok = true;
+        if (!ba){ key = a; }
+        if (!bb){ if (key == null) key = b; else if (b !== key) ok = false; }
+        if (!bc){ if (key == null) key = c; else if (c !== key) ok = false; }
+        if (!ok) continue;                          // not a line
+        const bfCount = (ba?1:0) + (bb?1:0) + (bc?1:0);
+        if (bfCount === 0){ nat++; natBy[key] = (natBy[key]||0) + 1; }
+        else { wild++; if (bfCount === 3) allBf++; }
+      }
+      const any = nat + wild;
+      const pct = (n) => (100 * n / rounds);
+      const oneIn = (n) => n > 0 ? '1 in ' + (rounds / n).toFixed(rounds/n < 100 ? 1 : 0) : '—';
+      const ex = this.lineExact();
+
+      const pill = (label, mcN, exactP, cls) =>
+        '<div class="bloom-line-stat ' + cls + '">'
+        + '<div class="bloom-line-stat-lbl">' + label + '</div>'
+        + '<div class="bloom-line-stat-val">' + pct(mcN).toFixed(3) + '%</div>'
+        + '<div class="bloom-line-stat-sub">' + oneIn(mcN) + ' · exact ' + (exactP*100).toFixed(3) + '%</div>'
+        + '</div>';
+
+      // per-weather natural breakdown, richest first
+      const rows = ex.per.slice().sort((x,y) => y.natural - x.natural).map(w => {
+        const mc = natBy[w.id] || 0;
+        return '<tr><td>' + (w.icon ? w.icon + ' ' : '') + escapeAssistantHtml(w.name) + '</td>'
+          + '<td class="num">' + w.count + '</td>'
+          + '<td class="num">' + (100*w.p).toFixed(1) + '%</td>'
+          + '<td class="num">' + pct(mc).toFixed(3) + '%</td>'
+          + '<td class="num">' + oneIn(mc) + '</td></tr>';
+      }).join('');
+
+      out.innerHTML =
+        '<div class="bloom-line-deckline">Deck: <strong>' + dl + '</strong> cards · '
+          + '🦋 wild ×<strong>' + ex.bfCount + '</strong> (' + (100*ex.b).toFixed(1) + '% of deck) · '
+          + rounds.toLocaleString() + ' rounds</div>'
+        + '<div class="bloom-line-stats">'
+          + pill('Any 3-in-a-row', any, ex.any, 'all')
+          + pill('Natural', nat, ex.natural, 'nat')
+          + pill('Wild (🦋)', wild, ex.wild, 'wild')
+        + '</div>'
+        + '<div class="bloom-line-split">Of every line, <strong>' + (any? (100*nat/any).toFixed(1):'0') + '%</strong> are natural and '
+          + '<strong>' + (any? (100*wild/any).toFixed(1):'0') + '%</strong> are wild'
+          + (allBf ? ' (incl. ' + pct(allBf).toFixed(4) + '% all-🦋 rounds)' : '') + '.</div>'
+        + '<table class="bloom-line-tbl"><thead><tr><th>weather</th><th class="num">deck</th><th class="num">% deck</th>'
+          + '<th class="num">natural line</th><th class="num">rate</th></tr></thead><tbody>' + rows + '</tbody></table>';
     }, 20);
   },
 

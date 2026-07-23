@@ -32127,6 +32127,30 @@ select.bloom-in { cursor: pointer; }
 .bloom-fcard-simout.hot { color: #ff7a7a; }
 .bloom-fcard-simout.cold { color: #f5c518; }
 
+/* 3-in-a-row odds (weather deck Monte Carlo) */
+.bloom-line-deckline { font-size: 0.82rem; color: var(--muted, #9aa); margin: 0.15rem 0 0.75rem; }
+.bloom-line-deckline strong { color: var(--text, #eee); }
+.bloom-line-stats { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.bloom-line-stat {
+  flex: 1 1 140px; border: 1px solid var(--betting-panel-border); border-top: 3px solid #6a6a66;
+  border-radius: 10px; padding: 0.6rem 0.75rem; background: #0e0e0c;
+}
+.bloom-line-stat.all  { border-top-color: #f5c518; }
+.bloom-line-stat.nat  { border-top-color: #4be08a; }
+.bloom-line-stat.wild { border-top-color: #ff5fb0; }
+.bloom-line-stat-lbl { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted, #9aa); }
+.bloom-line-stat-val { font-size: 1.5rem; font-weight: 800; line-height: 1.1; margin-top: 0.15rem; color: var(--text, #eee); }
+.bloom-line-stat.all  .bloom-line-stat-val { color: #f5c518; }
+.bloom-line-stat.nat  .bloom-line-stat-val { color: #4be08a; }
+.bloom-line-stat.wild .bloom-line-stat-val { color: #ff7fc4; }
+.bloom-line-stat-sub { font-size: 0.7rem; color: var(--muted, #9aa); margin-top: 0.15rem; }
+.bloom-line-split { font-size: 0.82rem; color: var(--muted, #9aa); margin: 0.75rem 0; }
+.bloom-line-split strong { color: var(--text, #eee); }
+.bloom-line-tbl { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.bloom-line-tbl th, .bloom-line-tbl td { padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--betting-panel-border); text-align: left; }
+.bloom-line-tbl th { color: var(--muted, #9aa); font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.04em; }
+.bloom-line-tbl td.num, .bloom-line-tbl th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
 .bloom-weather-editor { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem; }
 .bloom-wrow {
   display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
