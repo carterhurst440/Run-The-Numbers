@@ -618,7 +618,7 @@
   .stage-play{padding:0;display:block}
   /* the whole play view is one centred column of cards */
   .reelwrap.kiiro-stack{max-width:520px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:10px;
-    padding:12px var(--card-gutter) 16px;box-sizing:border-box}
+    padding:12px var(--card-gutter) 16px;box-sizing:border-box;position:relative}
   /* header: BLOOM wordmark + BALANCE, ruled underline.
      The rule is drawn as an inset pseudo-element rather than a border-bottom so it
      stops at the card gutter and lines up with the panels below — a border would
@@ -645,36 +645,38 @@
     .blm-fx.on svg{transform-origin:50% 100%;animation:blmSway 5.5s ease-in-out infinite}
     @keyframes blmSway{0%,100%{transform:rotate(-0.7deg)}50%{transform:rotate(0.7deg)}}
   }
-  /* whimsical hummingbird — a static SVG whose whole flight + wing-blur is CSS, so it
-     adds nothing to the JS loop (the bloom rAF still stops once the cluster is grown).
-     Hidden until POLLINATE; body.pollinating starts the meander + flutter. It flits in
-     from the right, dips down to visit the corner bouquet, loops, then drifts off. */
-  .blm-hummer{position:absolute;left:0;top:0;width:42px;height:26px;z-index:3;
-    pointer-events:none;opacity:0;will-change:transform,opacity;
-    transform:translate(300px,-20px)}
+  /* whimsical hummingbird — static SVG. Its wing-blur is CSS; its flight path is
+     handed once to the Web Animations API (native, no per-frame JS) so it tours the
+     three bloom puffs. Fixed so the path can span header -> satchel. Hidden until
+     POLLINATE; TitleBloom computes the route from the live puff positions. */
+  .blm-hummer{position:fixed;left:0;top:0;width:42px;height:26px;z-index:40;
+    pointer-events:none;opacity:0;will-change:transform,opacity;transition:opacity .4s ease}
+  .blm-hummer.on{opacity:1}
   .blm-hummer svg{display:block;overflow:visible}
   .blm-wing{transform-box:view-box;transform-origin:0px -1px}
-  body.pollinating .blm-hummer{animation:blmHumFly 12s ease-in-out .7s infinite}
   @media (prefers-reduced-motion:no-preference){
     body.pollinating .blm-wing-u{animation:blmWingU .09s linear infinite}
     body.pollinating .blm-wing-l{animation:blmWingL .09s linear infinite}
   }
   @keyframes blmWingU{0%,100%{transform:rotate(32deg)}50%{transform:rotate(-28deg)}}
   @keyframes blmWingL{0%,100%{transform:rotate(-26deg)}50%{transform:rotate(22deg)}}
-  @keyframes blmHumFly{
-    0%   {opacity:0; transform:translate(320px,-26px) scaleX(-1)}
-    7%   {opacity:1; transform:translate(250px,6px)  scaleX(-1)}
-    18%  {opacity:1; transform:translate(158px,26px) scaleX(-1) rotate(-5deg)}
-    27%  {opacity:1; transform:translate(84px,8px)   scaleX(-1)}
-    35%  {opacity:1; transform:translate(46px,34px)  scaleX(-1) rotate(4deg)}
-    43%  {opacity:1; transform:translate(96px,4px)   scaleX(1)}
-    54%  {opacity:1; transform:translate(188px,30px) scaleX(1) rotate(-4deg)}
-    64%  {opacity:1; transform:translate(150px,-8px) scaleX(-1)}
-    74%  {opacity:1; transform:translate(88px,18px)  scaleX(-1) rotate(3deg)}
-    85%  {opacity:1; transform:translate(34px,2px)   scaleX(-1)}
-    100% {opacity:0; transform:translate(-64px,-22px) scaleX(-1)}
-  }
   @media (prefers-reduced-motion:reduce){ .blm-hummer{display:none} }
+  /* extra bloom puffs. The score puff hangs off the board's right at z1, tucked
+     behind it (board is z2). The satchel puff is tucked behind the satchel card
+     (card lifted to z1, puff at z0) pinned to the satchel row — it peeks out from
+     behind the card's left edge into the gutter. Positioned by JS from live rects. */
+  .blm-fx-score,.blm-fx-satchel{position:absolute;pointer-events:none;overflow:visible;
+    opacity:0;transition:opacity .45s ease}
+  .blm-fx-score.on,.blm-fx-satchel.on{opacity:.85}
+  .blm-fx-score{z-index:1}
+  /* z0 keeps the satchel puff above the pink pollinate backdrop (z-1 would vanish
+     behind it); the satchel card is lifted to z1 below so the puff tucks behind it. */
+  .blm-fx-satchel{z-index:0}
+  body.pollinating .satchel-bar{position:relative;z-index:1}
+  .blm-fx-score svg,.blm-fx-satchel svg{overflow:visible;display:block}
+  @media (prefers-reduced-motion:no-preference){
+    .blm-fx-score.on svg,.blm-fx-satchel.on svg{transform-origin:50% 100%;animation:blmSway 5.5s ease-in-out infinite}
+  }
   .kiiro-header h1{position:relative;z-index:2}
   .kiiro-header .hud-board,.kiiro-header .hud-row{position:relative;z-index:2}
   .kiiro-header .goddess{display:none}
@@ -1002,6 +1004,8 @@
   <div class="blm-fx blm-fx-back" id="blmFxBack" aria-hidden="true"></div>
   <h1>BLOOM</h1>
   <div class="blm-fx blm-fx-front" id="blmFxFront" aria-hidden="true"></div>
+  <!-- second puff: hangs off the right side of the scoreboard (sits behind it) -->
+  <div class="blm-fx-score" id="blmFxScore" aria-hidden="true"></div>
   <!-- whimsical hummingbird: visits the bouquet during POLLINATE. Static SVG, all
        motion (meandering flight + wing-blur) is CSS so it costs the JS loop nothing. -->
   <div class="blm-hummer" id="blmHummer" aria-hidden="true"><svg viewBox="-26 -16 52 32" width="42" height="26">
@@ -1071,6 +1075,8 @@
         </div>
       </div>
 
+      <!-- third puff: hangs off the left side of the satchel (sits behind the card) -->
+      <div class="blm-fx-satchel" id="blmFxSatchel" aria-hidden="true"></div>
       <!-- SATCHEL (single horizontal row) -->
       <div class="satchel-bar kiiro-satchel card">
         <div class="satchel-top">
@@ -4387,6 +4393,30 @@ const TitleBloom = (function(){
     {cx:252,cy:150,ang:40,  sc:1.6, d:0.10},
     {cx:18, cy:40, ang:-54, sc:1.4, d:0.14}
   ];
+  // two extra puffs (their hosts are positioned by JS at trigger). Each is a small
+  // self-contained bouquet clustered near the centre-bottom of the 545x300 box.
+  const SCORE=[
+    {cx:190,cy:150,sc:1.8, body:'poppy',     pal:'POP', d:0.02},
+    {cx:280,cy:120,sc:1.5, body:'anemone',   pal:'ANV', d:0.10},
+    {cx:120,cy:118,sc:1.35,body:'rose',      pal:'ROSE',d:0.16},
+    {cx:238,cy:195,sc:1.25,body:'dianthus',  pal:'DIAN',d:0.20},
+    {cx:328,cy:178,sc:1.05,body:'cornflower',pal:'CORN',d:0.24}
+  ];
+  const SCORE_LEAVES=[
+    {cx:150,cy:205,ang:-30,sc:1.6,d:0.05},
+    {cx:300,cy:210,ang:38, sc:1.4,d:0.10}
+  ];
+  const SATCHEL=[
+    {cx:205,cy:140,sc:1.9, body:'sunflower', pal:'SUN', d:0.02},
+    {cx:300,cy:120,sc:1.5, body:'anemone',   pal:'ANB', d:0.12},
+    {cx:128,cy:158,sc:1.4, body:'poppy',     pal:'POP', d:0.16},
+    {cx:255,cy:200,sc:1.3, body:'rose',      pal:'ROSE',d:0.22},
+    {cx:96, cy:120,sc:1.05,body:'dianthus',  pal:'DIAN',d:0.26}
+  ];
+  const SATCHEL_LEAVES=[
+    {cx:172,cy:205,ang:-36,sc:1.7,d:0.05},
+    {cx:284,cy:205,ang:34, sc:1.5,d:0.10}
+  ];
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   const easeGrow=x=>1-Math.pow(1-x,3);
   const easeBack=x=>{ const c1=1.55,c3=c1+1; return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2); };
@@ -4548,32 +4578,88 @@ const TitleBloom = (function(){
     return '<svg viewBox="0 0 545 300" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" style="overflow:visible;display:block">'+svg+'</svg>';
   }
   const REDUCED = (typeof matchMedia==='function') && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let start=-1e9, raf=0, active=false;
-  function hosts(){ return [document.getElementById('blmFxBack'), document.getElementById('blmFxFront')]; }
+  let start=-1e9, raf=0, active=false, birdAnim=null;
+  function hosts(){ return ['blmFxBack','blmFxFront','blmFxScore','blmFxSatchel'].map(id=>document.getElementById(id)); }
   function render(p, clk){
     const b=document.getElementById('blmFxBack'), f=document.getElementById('blmFxFront');
+    const s=document.getElementById('blmFxScore'), t=document.getElementById('blmFxSatchel');
     if(b) b.innerHTML=buildSvg(BACK, LEAVES, p, clk, 1);
     if(f) f.innerHTML=buildSvg(FRONT, null, p, clk, 1);
+    if(s) s.innerHTML=buildSvg(SCORE, SCORE_LEAVES, p, clk, 1);
+    if(t) t.innerHTML=buildSvg(SATCHEL, SATCHEL_LEAVES, p, clk, 1);
   }
+  // Size + place the two extra puff hosts from live geometry so each hangs off its
+  // card no matter the viewport: the score puff spills off the board's right edge,
+  // the satchel puff off the satchel's left edge. Both sit BEHIND via CSS z-index.
+  function positionPuffs(){
+    const header=document.querySelector('.kiiro-header');
+    const score=document.getElementById('blmFxScore');
+    const board=document.getElementById('roundWinCard');
+    if(header&&score&&board){
+      const hr=header.getBoundingClientRect(), br=board.getBoundingClientRect();
+      const w=Math.min(175, hr.width*0.44);
+      score.style.width=w+'px'; score.style.height=(w*0.60)+'px';
+      score.style.left=(br.right - hr.left - w*0.34)+'px';
+      score.style.top =(br.top   - hr.top  - w*0.34)+'px';
+    }
+    const wrap=document.querySelector('.reelwrap.kiiro-stack');
+    const sat=document.getElementById('blmFxSatchel');
+    const satBar=document.querySelector('.satchel-bar');
+    if(wrap&&sat&&satBar){
+      const wr=wrap.getBoundingClientRect(), sr=satBar.getBoundingClientRect();
+      const w=Math.min(165, wr.width*0.40);
+      sat.style.width=w+'px'; sat.style.height=(w*0.62)+'px';
+      // pinned to the satchel row, peeking out from BEHIND the card's left edge; the
+      // flowers sit level with the satchel and spill into the gutter/margin beside it.
+      sat.style.left=(sr.left - wr.left - w*0.62)+'px';
+      sat.style.top =(sr.bottom - wr.top - w*0.58)+'px';
+    }
+  }
+  const mid=(a,b,t,dy)=>({x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t+(dy||0)});
+  // The hummingbird tours the three puffs. We compute the route from their live
+  // centres and hand it to the Web Animations API — the browser runs it natively,
+  // so there is no sustained rAF (the grow loop still stops after the bloom).
+  function startBird(){
+    const bird=document.getElementById('blmHummer'); if(!bird) return;
+    const ctr=id=>{ const n=document.getElementById(id); if(!n) return null; const b=n.getBoundingClientRect();
+                    if(!b.width&&!b.height) return null; return {x:b.left+b.width*0.5, y:b.top+b.height*0.58}; };
+    const A=ctr('blmFxBack'), B=ctr('blmFxScore'), C=ctr('blmFxSatchel');
+    if(!A||!B||!C){ bird.classList.remove('on'); return; }
+    const wp=[ B, mid(B,A,0.5,-24), A, mid(A,C,0.4,-8), mid(A,C,0.72,20), C,
+               mid(C,B,0.42,28), mid(C,B,0.8,-6), B ];
+    const HW=21, HH=13;
+    const kf=wp.map((p,i)=>{
+      const nx=wp[(i+1)%wp.length];
+      const dir=(nx.x>=p.x)?-1:1;                       // SVG faces left; scaleX(-1) faces right
+      const rot=clamp((nx.y-p.y)*0.04,-7,7)*(-dir);
+      return { transform:'translate('+(p.x-HW).toFixed(1)+'px,'+(p.y-HH).toFixed(1)+'px) scaleX('+dir+') rotate('+rot.toFixed(1)+'deg)',
+               offset:i/(wp.length-1) };
+    });
+    if(birdAnim) birdAnim.cancel();
+    birdAnim = bird.animate(kf, { duration:9000, iterations:Infinity, easing:'ease-in-out' });
+    bird.classList.add('on');
+  }
+  function stopBird(){ if(birdAnim){ birdAnim.cancel(); birdAnim=null; } const bird=document.getElementById('blmHummer'); if(bird) bird.classList.remove('on'); }
   function frame(now){
     const clk=now/1000; let p=0;
     if(start>-9e8){ const el=(now-start)/1000; p=easeGrow(clamp(el/DUR,0,1)); }
     render(p, clk);
-    // Rebuilding the whole ~860-path cluster via innerHTML is only needed WHILE it
-    // grows. Once fully bloomed we stop the rAF and hold the final frame static — a
-    // cheap CSS transform (.blm-fx svg) carries the idle sway from there. Without this
-    // the loop ran at 60fps until NEW ROUND (the pink theme now holds), a heavy
-    // sustained churn that could starve the mobile renderer into a force-reload.
+    // Rebuilding the ~860-path clusters via innerHTML is only needed WHILE they grow.
+    // Once fully bloomed we stop the rAF and hold the final frame static — a cheap CSS
+    // transform (.blm-fx svg) carries the idle sway from there. The hummingbird runs on
+    // the Web Animations API, not this loop, so nothing keeps churning at 60fps.
     if(active && p<1){ raf=requestAnimationFrame(frame); }
     else { active=false; raf=0; }
   }
   function trigger(){
     hosts().forEach(h=>{ if(h) h.classList.add('on'); });
+    positionPuffs();
     if(REDUCED){ render(1, 0); return; }          // snap to the bloomed hold, no motion
     start=performance.now(); active=true; cancelAnimationFrame(raf); raf=requestAnimationFrame(frame);
+    startBird();
   }
   function stop(){
-    active=false; cancelAnimationFrame(raf);
+    active=false; cancelAnimationFrame(raf); stopBird();
     hosts().forEach(h=>{ if(h) h.classList.remove('on'); });   // fade out (CSS), then clear
     setTimeout(()=>{ if(!active) hosts().forEach(h=>{ if(h && !h.classList.contains('on')) h.innerHTML=''; }); }, 650);
   }
