@@ -708,9 +708,7 @@
   /* pink pollination theme: the BLOOM wordmark turns white, bigger + bolder, with a
      soft drop shadow so it reads over the pink field and the bouquet behind it */
   body.pollinating .kiiro-header h1{color:#ffffff;font-weight:900;font-size:24px;
-    background:linear-gradient(#3a0f28,#22071a);padding:5px 15px;border-radius:12px;
-    box-shadow:0 0 0 1px rgba(255,45,155,.5),0 0 16px rgba(255,45,155,.5),inset 0 1px 0 rgba(255,190,225,.22);
-    text-shadow:0 2px 7px rgba(150,20,85,.55),0 1px 2px rgba(0,0,0,.3)}
+    text-shadow:0 0 3px rgba(30,4,20,.95),0 0 9px rgba(30,4,20,.8),0 2px 8px rgba(150,20,85,.6),0 1px 2px rgba(0,0,0,.45)}
   /* pink pollination theme: the whole scoreboard goes special — deep magenta-black
      panel ringed in pulsing pink neon, every accent shifted from yellow/green to
      pink. Reads as a powered-up "bonus" readout for the duration of the phase. */
@@ -4013,10 +4011,28 @@ function polTestBar(){
     +`<option value="wild">butterfly line</option></select></label>`
     +`<label><input type="checkbox" id="ptBlooms"> all 10 bloom</label>`
     +`<button type="button" id="ptRun">CAST + FORCE</button>`
+    +`<button type="button" id="ptFx">🌸 TITLE FX</button>`
     +`<span id="ptSay" class="poltest-say"></span>`;
   document.body.appendChild(bar);
   $('#ptLine').onchange=e=>{ polTest.line=e.target.value; polTestSay(''); };
   $('#ptBlooms').onchange=e=>{ polTest.blooms=e.target.checked; };
+  // Preview the title bloom on demand: first press grows it (pink theme + bouquet),
+  // second press clears it — no round needed.
+  let _fxOn=false;
+  $('#ptFx').onclick=()=>{
+    _fxOn=!_fxOn;
+    if(_fxOn){
+      document.documentElement.classList.add('pollinating');
+      document.body.classList.add('pollinating');
+      TitleBloom.trigger();
+      polTestSay('title bloom preview on — press again to clear');
+    } else {
+      TitleBloom.stop();
+      document.documentElement.classList.remove('pollinating');
+      document.body.classList.remove('pollinating');
+      polTestSay('');
+    }
+  };
   // one press: clear any finished round, force a line, then reveal all three reels
   $('#ptRun').onclick=async()=>{
     if(polTest.line==='off'){ polTest.line='natural'; $('#ptLine').value='natural'; }
@@ -4528,8 +4544,8 @@ const TitleBloom = (function(){
   function hosts(){ return [document.getElementById('blmFxBack'), document.getElementById('blmFxFront')]; }
   function render(p, clk){
     const b=document.getElementById('blmFxBack'), f=document.getElementById('blmFxFront');
-    if(b) b.innerHTML=buildSvg(BACK, LEAVES, p, clk, 1, VINES);
-    if(f) f.innerHTML=buildSvg(FRONT, null, p, clk, 1);
+    if(b) b.innerHTML=buildSvg(BACK, LEAVES, p, clk, 2, VINES);   // lush=2 → flowers at twice size
+    if(f) f.innerHTML=buildSvg(FRONT, null, p, clk, 2);
   }
   function frame(now){
     const clk=now/1000; let p=0;
