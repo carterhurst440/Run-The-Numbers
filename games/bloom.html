@@ -630,21 +630,16 @@
     border-bottom:none}   /* the base header{} rule sets a full-width 1px border; ::after replaces it */
   .kiiro-header::after{content:'';position:absolute;bottom:0;height:2px;background:var(--line);
     left:var(--card-gutter);right:var(--card-gutter)}
-  /* POLLINATE title flourish: two flower-cluster layers anchored top-left, framing
-     the wordmark (back z1 behind it, front z3 over it). Authored in a 545x300 box;
-     ~0.5 scale here. Hidden until the bonus, then fades in. pointer-events:none. */
-  .blm-fx{position:absolute;left:-8px;top:-8px;width:min(210px,46vw);aspect-ratio:29/16;pointer-events:none;
-    overflow:visible;opacity:0;transition:opacity .45s ease}
-  .blm-fx.on{opacity:.8}   /* smaller + a touch translucent so it stays a subtle accent */
-  .blm-fx-back{z-index:1}
-  .blm-fx-front{z-index:1}   /* all flowers sit BEHIND the wordmark (h1 is z2) */
-  .blm-fx svg{overflow:visible}
-  /* idle sway once bloomed — a GPU transform on the whole cluster instead of the JS
-     per-frame rebuild (which is stopped after grow-in for performance) */
-  @media (prefers-reduced-motion:no-preference){
-    .blm-fx.on svg{transform-origin:50% 100%;animation:blmSway 5.5s ease-in-out infinite}
-    @keyframes blmSway{0%,100%{transform:rotate(-0.7deg)}50%{transform:rotate(0.7deg)}}
-  }
+  /* POLLINATE frame: flowers grow across the top header and vines weave down both
+     sides of the game panel. A body-level overlay sized to the content column, sat
+     BEHIND the panels (z-1) so it fills the header + side gutters and the vines read
+     as growing behind the cards. Hidden until the bonus, then fades in.
+     pointer-events:none. Authored per-render in the panel's own pixel space. */
+  .blm-frame{position:fixed;top:0;bottom:0;left:50%;transform:translateX(-50%);
+    width:100%;max-width:520px;pointer-events:none;z-index:5;
+    opacity:0;transition:opacity .5s ease}
+  .blm-frame.on{opacity:.92}
+  .blm-frame svg{overflow:visible;display:block}
   .kiiro-header h1{position:relative;z-index:2}
   .kiiro-header .hud-board,.kiiro-header .hud-row{position:relative;z-index:2}
   .kiiro-header .goddess{display:none}
@@ -705,6 +700,10 @@
     animation:winFinalGlow 1.6s ease-in-out infinite}
   @keyframes winFinalGlow{0%,100%{text-shadow:0 0 8px rgba(255,45,155,.9),0 0 18px rgba(255,45,155,.55),0 0 30px rgba(255,45,155,.3)}
     50%{text-shadow:0 0 12px rgba(255,80,180,1),0 0 26px rgba(255,45,155,.8),0 0 44px rgba(255,45,155,.5)}}
+  /* The frame overlay (flowers + side vines) sits at z-index:5 so its vines read over
+     the panel's edges. Lift the whole header above it during pollinate so the wordmark
+     and scoreboard stay legible — the bouquet then peeks around them like a garland. */
+  body.pollinating .kiiro-header{position:relative;z-index:8}
   /* pink pollination theme: the BLOOM wordmark turns white, bigger + bolder, with a
      soft drop shadow so it reads over the pink field and the bouquet behind it */
   body.pollinating .kiiro-header h1{color:#ffffff;font-weight:900;font-size:24px;
@@ -966,12 +965,12 @@
 </style>
 </head>
 <body>
+<!-- POLLINATE frame: a body-level overlay (behind the panels) where flowers grow
+     across the top header and vines run down both sides of the game panel. Hidden
+     until the bonus triggers. pointer-events:none. -->
+<div class="blm-frame" id="blmFrame" aria-hidden="true"></div>
 <header class="kiiro-header">
-  <!-- POLLINATE title flourish: a flower cluster grows behind (back) and over
-       (front) the BLOOM wordmark; hidden until the bonus triggers -->
-  <div class="blm-fx blm-fx-back" id="blmFxBack" aria-hidden="true"></div>
   <h1>BLOOM</h1>
-  <div class="blm-fx blm-fx-front" id="blmFxFront" aria-hidden="true"></div>
   <!-- BET / WIN / BALANCE all live in the title row; BET is centred between the
        wordmark and the WIN+BALANCE pair; WIN is a mini neon scoreboard -->
   <!-- ONE scoreboard, centred: the round's locked BET + the live WIN. BET is
@@ -4329,36 +4328,36 @@ const TitleBloom = (function(){
     CORN:{ base:'#2f6fd6', mid:'#5a92e8', tip:'#aac6f5', center:'#16306a', core:'#16306a', anther:'#0e2050', fila:'#3a5a9a', sh:'#1c4a9a' },
     FUX:{ base:'#e0348a', mid:'#ef62a8', tip:'#f8a8cf', center:'#7b2fc4', anther:'#5a1f94', fila:'#c86ad0', sh:'#a81f64' }
   };
-  const BACK=[
-    {cx:64, cy:34, sc:2.0, body:'poppy',    pal:'POP', d:0.00},
-    {cx:172,cy:52, sc:1.85,body:'anemone',  pal:'ANB', d:0.06},
-    {cx:120,cy:120,sc:2.15,body:'sunflower',pal:'SUN', d:0.03},
-    {cx:34, cy:116,sc:1.6, body:'rose',     pal:'ROSE',d:0.12},
-    {cx:234,cy:110,sc:1.35,body:'dianthus', pal:'DIAN',d:0.16},
-    {cx:252,cy:46, sc:1.5, body:'anemone',  pal:'ANV', d:0.10},
-    {cx:156,cy:6,  sc:0.95,body:'cornflower',pal:'CORN',d:0.20},
-    {cx:206,cy:150,sc:1.1, body:'sunflower',pal:'SUN', d:0.24},
-    {cx:6,  cy:66, sc:1.25,body:'dianthus', pal:'DIAN',d:0.22}
-  ];
-  const FRONT=[
-    {cx:96, cy:80, sc:0.85,body:'star', pal:'FUX', d:0.14},
-    {cx:190,cy:88, sc:0.8, body:'lily', pal:'POP', d:0.18}
-  ];
-  const LEAVES=[
-    {cx:150,cy:74, ang:22,  sc:2.0, d:0.02},
-    {cx:86, cy:150,ang:-34, sc:1.8, d:0.06},
-    {cx:252,cy:150,ang:40,  sc:1.6, d:0.10},
-    {cx:18, cy:40, ang:-54, sc:1.4, d:0.14}
-  ];
-  // Climbing vines (bezier stems with leaves budding along them) that grow up behind
-  // the bouquet — the "plants and vines" layer from the handoff.
-  const VINES=[
-    {pts:[[70,-10],[46,46],[100,86],[74,150]], leaves:5, d:0.00},
-    {pts:[[300,-10],[322,42],[268,78],[300,138]], leaves:5, d:0.06},
-    {pts:[[430,-10],[452,48],[404,86],[430,150]], leaves:5, d:0.12},
-    {pts:[[-10,44],[48,66],[30,120],[74,152]], leaves:4, d:0.08},
-    {pts:[[555,58],[496,82],[520,132],[476,162]], leaves:4, d:0.10}
-  ];
+  // The frame is authored in the panel's own pixel space (W x H, measured at trigger).
+  // Flowers spread across the top header; vines weave down both sides in the gutters.
+  function buildLayout(W,H){
+    const ty=30;   // top band the flowers sit in
+    const flowers=[
+      {cx:W*0.05, cy:ty+16, sc:2.0, body:'poppy',     pal:'POP', d:0.00},
+      {cx:W*0.16, cy:ty-2,  sc:1.35,body:'cornflower', pal:'CORN',d:0.12},
+      {cx:W*0.27, cy:ty+20, sc:1.8, body:'anemone',   pal:'ANB', d:0.05},
+      {cx:W*0.39, cy:ty-4,  sc:1.15,body:'dianthus',  pal:'DIAN',d:0.15},
+      {cx:W*0.50, cy:ty+13, sc:2.1, body:'sunflower', pal:'SUN', d:0.03},
+      {cx:W*0.61, cy:ty-4,  sc:1.25,body:'star',      pal:'FUX', d:0.16},
+      {cx:W*0.73, cy:ty+19, sc:1.8, body:'anemone',   pal:'ANV', d:0.07},
+      {cx:W*0.84, cy:ty-2,  sc:1.35,body:'rose',      pal:'ROSE',d:0.13},
+      {cx:W*0.95, cy:ty+16, sc:2.0, body:'poppy',     pal:'POP', d:0.02}
+    ];
+    const gx=Math.max(12, W*0.028);     // vine channel hugs the side gutter
+    const amp=W*0.028, nl=Math.min(9, Math.max(5, Math.round(H/130)));   // leaves along a full-height vine
+    const vine=(x,swing,d,lv)=>({pts:[[x,-14],[x+swing,H*0.3],[x-swing,H*0.62],[x+swing*0.4,H+14]], leaves:lv, d});
+    const vines=[
+      vine(gx,        amp,  0.02, nl),
+      vine(gx+amp*1.6,-amp, 0.12, nl-1),
+      vine(W-gx,      -amp, 0.02, nl),
+      vine(W-gx-amp*1.6,amp,0.12, nl-1)
+    ];
+    const leaves=[
+      {cx:W*0.11,cy:ty+34,ang:-42,sc:1.5,d:0.06},
+      {cx:W*0.89,cy:ty+34,ang:42, sc:1.5,d:0.06}
+    ];
+    return {flowers, vines, leaves};
+  }
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   const easeGrow=x=>1-Math.pow(1-x,3);
   const easeBack=x=>{ const c1=1.55,c3=c1+1; return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2); };
@@ -4527,47 +4526,52 @@ const TitleBloom = (function(){
     }
     return '<g>'+s+'</g>';
   }
-  function buildSvg(flowers, leaves, p, clk, lush, vines){
-    lush = (lush==null)?1:lush; let svg='';
-    (vines||[]).forEach((v)=>{ svg+=vine(v, (p-v.d)/0.6, clk); });   // vines grow up behind everything
-    (leaves||[]).forEach((l,i)=>{ svg+=bigLeaf(l.cx,l.cy,l.ang+Math.sin(clk*1.0+i)*2, l.sc, (p-l.d)/0.5); });
-    flowers.forEach((f,i)=>{
+  function buildSvg(W, H, layout, p, clk){
+    let svg='';
+    layout.vines.forEach((v)=>{ svg+=vine(v, (p-v.d)/0.7, clk); });   // vines grow down the sides
+    layout.leaves.forEach((l,i)=>{ svg+=bigLeaf(l.cx,l.cy,l.ang+Math.sin(clk*1.0+i)*2, l.sc, (p-l.d)/0.5); });
+    layout.flowers.forEach((f,i)=>{
       const open=easeBack(clamp((p-f.d)/0.5,0,1)); if(open<0.03) return;
-      const sway=Math.sin(clk*1.15 + i*0.7); const rot=sway*2.6*clamp(open,0,1);
-      const sc=f.sc*lush;
-      svg+='<g transform="translate('+(f.cx+sway*1.4).toFixed(1)+' '+f.cy.toFixed(1)+') rotate('+rot.toFixed(1)+')" style="filter:drop-shadow(0 3px 4px rgba(70,25,35,.28))">'+head(f.body,sc,open,PAL[f.pal])+'</g>';
+      const sway=Math.sin(clk*1.15 + i*0.7); const rot=sway*2.4*clamp(open,0,1);
+      svg+='<g transform="translate('+(f.cx+sway*1.4).toFixed(1)+' '+f.cy.toFixed(1)+') rotate('+rot.toFixed(1)+')" style="filter:drop-shadow(0 2px 4px rgba(70,25,35,.28))">'+head(f.body,f.sc,open,PAL[f.pal])+'</g>';
     });
-    return '<svg viewBox="0 0 545 300" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" style="overflow:visible;display:block">'+svg+'</svg>';
+    // viewBox matches the panel's pixel box 1:1, so nothing distorts at any size.
+    return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="100%" preserveAspectRatio="none" style="overflow:visible;display:block">'+svg+'</svg>';
   }
   const REDUCED = (typeof matchMedia==='function') && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let start=-1e9, raf=0, active=false;
-  function hosts(){ return [document.getElementById('blmFxBack'), document.getElementById('blmFxFront')]; }
+  let start=-1e9, raf=0, active=false, _W=0, _H=0, _layout=null;
+  function host(){ return document.getElementById('blmFrame'); }
+  function measure(){
+    const h=host(); if(!h) return false;
+    const r=h.getBoundingClientRect();
+    _W=Math.max(1,Math.round(r.width)); _H=Math.max(1,Math.round(r.height));
+    _layout=buildLayout(_W,_H); return true;
+  }
   function render(p, clk){
-    const b=document.getElementById('blmFxBack'), f=document.getElementById('blmFxFront');
-    if(b) b.innerHTML=buildSvg(BACK, LEAVES, p, clk, 2, VINES);   // lush=2 → flowers at twice size
-    if(f) f.innerHTML=buildSvg(FRONT, null, p, clk, 2);
+    const h=host(); if(!h || !_layout) return;
+    h.innerHTML=buildSvg(_W, _H, _layout, p, clk);
   }
   function frame(now){
     const clk=now/1000; let p=0;
     if(start>-9e8){ const el=(now-start)/1000; p=easeGrow(clamp(el/DUR,0,1)); }
     render(p, clk);
-    // Rebuilding the whole ~860-path cluster via innerHTML is only needed WHILE it
-    // grows. Once fully bloomed we stop the rAF and hold the final frame static — a
-    // cheap CSS transform (.blm-fx svg) carries the idle sway from there. Without this
-    // the loop ran at 60fps until NEW ROUND (the pink theme now holds), a heavy
-    // sustained churn that could starve the mobile renderer into a force-reload.
+    // Rebuilding the whole path cluster via innerHTML is only needed WHILE it grows.
+    // Once fully bloomed we stop the rAF and hold the final frame static. Without this
+    // the loop ran at 60fps until NEW ROUND (the pink theme holds), a heavy sustained
+    // churn that could starve the mobile renderer into a force-reload.
     if(active && p<1){ raf=requestAnimationFrame(frame); }
     else { active=false; raf=0; }
   }
   function trigger(){
-    hosts().forEach(h=>{ if(h) h.classList.add('on'); });
+    const h=host(); if(h) h.classList.add('on');
+    if(!measure()) return;                         // panel not in the DOM yet
     if(REDUCED){ render(1, 0); return; }          // snap to the bloomed hold, no motion
     start=performance.now(); active=true; cancelAnimationFrame(raf); raf=requestAnimationFrame(frame);
   }
   function stop(){
     active=false; cancelAnimationFrame(raf);
-    hosts().forEach(h=>{ if(h) h.classList.remove('on'); });   // fade out (CSS), then clear
-    setTimeout(()=>{ if(!active) hosts().forEach(h=>{ if(h && !h.classList.contains('on')) h.innerHTML=''; }); }, 650);
+    const h=host(); if(h) h.classList.remove('on');   // fade out (CSS), then clear
+    setTimeout(()=>{ const g=host(); if(!active && g && !g.classList.contains('on')) g.innerHTML=''; }, 650);
   }
   return { trigger, stop };
 })();
