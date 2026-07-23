@@ -1028,7 +1028,7 @@
   <div class="hud-board" id="roundWinCard">
     <div class="board-cell board-bet"><span class="hud-label">BET</span><b class="hud-val" id="lockedBet">—</b></div>
     <span class="board-div" aria-hidden="true"></span>
-    <div class="board-cell board-win"><span class="hud-label" id="roundWinCap">WIN</span><b class="hud-val" id="roundWinNum">0</b></div>
+    <div class="board-cell board-win"><span class="hud-label" id="roundWinCap">WIN</span><b class="hud-val" id="roundWinNum">0.00</b></div>
   </div>
   <div class="hud-row">
     <!-- Volume control (mirrors Monkey Moonshine): speaker icon opens MUSIC + SFX sliders -->
@@ -4629,8 +4629,8 @@ const TitleBloom = (function(){
       sat.style.width=w+'px'; sat.style.height=(w*0.62)+'px';
       // pinned to the satchel row, peeking out from BEHIND the card's left edge; the
       // flowers hug the satchel as a tall column and spill into the gutter/margin.
-      sat.style.left=(sr.left - wr.left - w*0.46)+'px';
-      sat.style.top =(sr.top - wr.top + sr.height*0.5 - w*0.345)+'px';
+      sat.style.left=(sr.left - wr.left - w*0.38)+'px';
+      sat.style.top =(sr.top - wr.top + sr.height*0.5 - w*0.42)+'px';
     }
   }
   const mid=(a,b,t,dy)=>({x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t+(dy||0)});
@@ -5556,8 +5556,8 @@ let _sbTween=null;
 // settles on the final payout. Its caption shows the running × of the bet.
 function setScoreWin(target, pulse){
   const el=$('#roundWinNum'); if(!el) return;
-  target=Math.round(target||0);
-  const from=parseInt((el.textContent||'0').replace(/[^0-9-]/g,''),10)||0;
+  target=(+target)||0;                             // keep cents — the WIN reads to 2dp
+  const from=parseFloat((el.textContent||'0').replace(/[^0-9.\-]/g,''))||0;
   if(_sbTween) cancelAnimationFrame(_sbTween);
   const bet=(round&&round.bet!=null)?round.bet:(state.config.bet||0);
   const cap=$('#roundWinCap');
@@ -5568,7 +5568,7 @@ function setScoreWin(target, pulse){
   const dur=420, t0=performance.now();
   const step=(now)=>{
     const p=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-p,3);
-    el.textContent=Math.round(from+(target-from)*e).toLocaleString();
+    el.textContent=(from+(target-from)*e).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
     if(p<1) _sbTween=requestAnimationFrame(step);
   };
   _sbTween=requestAnimationFrame(step);
