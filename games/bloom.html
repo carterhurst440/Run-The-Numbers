@@ -789,11 +789,14 @@
      plot, above the flowers (rain/snow fall in front) but below the POLLINATE
      swarm (z6). Fades in when a weather lands. */
   .garden-fx{position:absolute;inset:0;z-index:2;pointer-events:none;
-    opacity:0;transition:opacity .3s ease}                          /* fade-OUT (matches FX_FADE_OUT_MS) */
+    opacity:0;transition:opacity .3s ease;contain:layout paint}       /* fade-OUT (matches FX_FADE_OUT_MS) */
   .garden-fx.on{opacity:.9;transition:opacity .12s ease}           /* quick fade-IN so a short pass isn't faint */
   /* a fresh <img> is created per land (see paintGardenFx) so the gif always animates
-     from frame 0; stretched to fill the plot like the old background-size:100% 100% */
-  .garden-fx img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:block}
+     from frame 0; stretched to fill the plot like the old background-size:100% 100%.
+     Its own compositor layer (translateZ) isolates the gif's per-frame repaints so the
+     bed/plants beneath it are not re-rastered every gif frame — keeps spins smooth. */
+  .garden-fx img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:block;
+    transform:translateZ(0);will-change:transform;backface-visibility:hidden}
   /* sound on/off toggle — sits in the garden's top-left over empty sky (z5: above
      the weather fx, below the POLLINATE swarm) */
   .snd-toggle{position:absolute;top:6px;left:6px;z-index:5;width:30px;height:30px;padding:0;
@@ -848,14 +851,17 @@
   .bottom-bar .main-action{position:relative;overflow:hidden;flex:1 1 auto;
     background:var(--accent);color:var(--btn-ink);border:2px solid var(--accent);
     border-radius:2px;font-size:14px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
-    white-space:nowrap;padding:0 14px;min-height:44px;box-shadow:0 2px 0 rgba(20,20,20,.18)}
+    white-space:nowrap;padding:0 14px;min-height:44px;box-shadow:0 3px 0 rgba(20,20,20,.22);
+    touch-action:manipulation;user-select:none;-webkit-user-select:none;
+    transition:transform .07s ease,box-shadow .07s ease,filter .07s ease}
   /* moving light-sweep shimmer + a soft shine glow on the primary CTA */
   .bottom-bar .main-action::before{content:"";position:absolute;top:0;bottom:0;left:0;width:60%;
     background:linear-gradient(100deg,transparent 0%,rgba(255,255,255,.28) 40%,rgba(246,228,0,.92) 50%,rgba(255,255,255,.28) 60%,transparent 100%);
     transform:translateX(-180%) skewX(-18deg);animation:castshimmer 3.4s ease-in-out infinite;pointer-events:none;
     will-change:transform;backface-visibility:hidden}
   .bottom-bar .main-action:hover{box-shadow:0 0 0 2px var(--accent),0 0 16px -2px rgba(20,20,20,.5)}
-  .bottom-bar .main-action:active{transform:translateY(1px)}
+  .bottom-bar .main-action:active{transform:translateY(3px) scale(.99);
+    box-shadow:inset 0 2px 5px rgba(20,20,20,.32);filter:brightness(.94)}
   @keyframes castshimmer{0%{transform:translateX(-180%) skewX(-18deg)}55%,100%{transform:translateX(320%) skewX(-18deg)}}
   @media (prefers-reduced-motion:reduce){.bottom-bar .main-action::before{animation:none;opacity:0}}
   /* phones: the bet stepper was eating >half the bar, squeezing the action button
@@ -4596,7 +4602,7 @@ const TitleBloom = (function(){
     return '<svg viewBox="0 0 545 300" width="100%" height="100%" preserveAspectRatio="xMidYMax meet" style="overflow:visible;display:block">'+svg+'</svg>';
   }
   const REDUCED = (typeof matchMedia==='function') && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let start=-1e9, raf=0, active=false, birdAnim=null;
+  let start=-1e9, raf=0, active=false, birdAnim=null, _lastGrow=0;
   function hosts(){ return ['blmFxBack','blmFxFront','blmFxScore','blmFxSatchel'].map(id=>document.getElementById(id)); }
   function render(p, clk){
     const b=document.getElementById('blmFxBack'), f=document.getElementById('blmFxFront');
@@ -4661,11 +4667,15 @@ const TitleBloom = (function(){
   function frame(now){
     const clk=now/1000; let p=0;
     if(start>-9e8){ const el=(now-start)/1000; p=easeGrow(clamp(el/DUR,0,1)); }
-    render(p, clk);
-    // Rebuilding the ~860-path clusters via innerHTML is only needed WHILE they grow.
-    // Once fully bloomed we stop the rAF and hold the final frame static — a cheap CSS
-    // transform (.blm-fx svg) carries the idle sway from there. The hummingbird runs on
-    // the Web Animations API, not this loop, so nothing keeps churning at 60fps.
+    // Throttle the heavy multi-cluster innerHTML rebuild to ~33fps (the final frame
+    // always draws). Rebuilding four bouquets of SVG every 16ms briefly pegs the main
+    // thread when POLLINATE fires; at ~30ms the grow still reads smooth but leaves
+    // headroom so a button press right as the bonus starts still feels instant.
+    if(p>=1 || now-_lastGrow>=30){ _lastGrow=now; render(p, clk); }
+    // Rebuilding the clusters via innerHTML is only needed WHILE they grow. Once fully
+    // bloomed we stop the rAF and hold the final frame static — a cheap CSS transform
+    // (.blm-fx svg) carries the idle sway from there. The hummingbird runs on the Web
+    // Animations API, not this loop, so nothing keeps churning at 60fps.
     if(active && p<1){ raf=requestAnimationFrame(frame); }
     else { active=false; raf=0; }
   }
