@@ -489,6 +489,43 @@
     .rlog-scroll{max-height:170px}
   }
 
+  /* ---- WELCOME / LEARN TO PLAY banner (pinned at the top of the play view) ----
+     A soft, welcoming card that greets new players and expands into the full
+     rundown. Dismissable (remembered), so returning players aren't nagged. */
+  .htpbanner{position:relative;border-radius:14px;overflow:hidden;margin-bottom:2px;
+    background:linear-gradient(135deg,#fff6dc 0%,#ffe6f1 52%,#fbd7ec 100%);
+    border:1.5px solid #f3c7de;box-shadow:0 4px 16px -7px rgba(150,55,105,.4)}
+  .htpbanner[hidden]{display:none}
+  .htpbanner-head{display:flex;align-items:center;gap:12px;width:100%;
+    padding:13px 40px 13px 15px;background:transparent;border:none;cursor:pointer;
+    text-align:left;font-family:inherit;color:#5a3a48}
+  .htpbanner-emoji{font-size:27px;line-height:1;flex:none;
+    filter:drop-shadow(0 1px 2px rgba(150,55,105,.3))}
+  .htpbanner-txt{display:flex;flex-direction:column;gap:2px;flex:1 1 auto;min-width:0}
+  .htpbanner-title{font-family:var(--ui);font-weight:800;letter-spacing:.09em;font-size:14px;
+    text-transform:uppercase;color:#9c2f6b}
+  .htpbanner-sub{font-size:11px;line-height:1.35;color:#7c5768}
+  .htpbanner-chevron{font-size:13px;color:#c06a95;transition:transform .25s ease;flex:none}
+  .htpbanner.open .htpbanner-chevron{transform:rotate(180deg)}
+  .htpbanner-x{position:absolute;top:9px;right:9px;width:22px;height:22px;border-radius:50%;
+    border:none;background:rgba(156,47,107,.12);color:#9c2f6b;font-size:13px;line-height:1;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;
+    transition:background .15s ease}
+  .htpbanner-x:hover{background:rgba(156,47,107,.24)}
+  .htpbanner-body{max-height:0;opacity:0;overflow:hidden;
+    transition:max-height .38s cubic-bezier(.2,.9,.3,1),opacity .22s ease}
+  .htpbanner.open .htpbanner-body{max-height:1000px;opacity:1}
+  .htpbanner-inner{padding:3px 16px 15px}
+  .htpbanner-intro{font-size:11.5px;line-height:1.55;color:#5f4351;margin:0 0 11px}
+  .htpbanner-intro b{color:#b02e77}
+  /* re-tint the shared step/def styles to sit on the warm banner */
+  .htpbanner .htp-steps li{color:#5f4351}
+  .htpbanner .htp-steps li b{color:#b02e77}
+  .htpbanner .htp-steps li::before{background:#e0559a;color:#fff}
+  .htpbanner .htp-sub{color:#a5688a}
+  .htpbanner .htp-defs div{color:#5f4351;border-top-color:rgba(150,55,105,.16)}
+  .htpbanner .htp-defs b{color:#b02e77}
+
   /* DECK */
   .flowergrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(330px,100%),1fr));gap:14px}
   .fcard h3{margin:0 0 2px}
@@ -1066,6 +1103,40 @@
   <div class="stage stage-play">
     <div class="reelwrap kiiro-stack">
 
+      <!-- WELCOME / LEARN TO PLAY — a friendly banner pinned at the top of the play
+           view; expands into the full rundown, and can be dismissed (remembered). -->
+      <div class="htpbanner" id="htpBanner">
+        <button class="htpbanner-head" id="htpBannerHead" type="button" aria-expanded="false" aria-controls="htpBannerBody">
+          <span class="htpbanner-emoji" aria-hidden="true">🌸</span>
+          <span class="htpbanner-txt">
+            <span class="htpbanner-title">Welcome to BLOOM</span>
+            <span class="htpbanner-sub">Plant a satchel, read the weather, and chase the pollination bonus — here's how</span>
+          </span>
+          <span class="htpbanner-chevron" id="htpBannerChevron" aria-hidden="true">▾</span>
+        </button>
+        <button class="htpbanner-x" id="htpBannerX" type="button" aria-label="Dismiss">✕</button>
+        <div class="htpbanner-body" id="htpBannerBody">
+          <div class="htpbanner-inner">
+            <p class="htpbanner-intro">Plant a satchel of flowers, then let the weather decide which ones <b>bloom</b> and pay — and which ones <b>wilt</b>. Match the weather reels to send the bees out for a multiplier bonus.</p>
+            <ol class="htp-steps">
+              <li>Tap <b>EDIT</b> to fill your satchel with up to <b>10 seeds</b>. Every flower has its own sprout chance, payout, and weather it loves or fears.</li>
+              <li>Set your <b>bet</b> and press <b>CAST SEEDS</b>. Your bet is staked across the whole satchel; each seed then tries to <b>sprout</b> at its flower's take rate.</li>
+              <li>Spin the <b>weather reels</b> — three draws, one at a time. Each weather pushes your sprouted flowers to <b>bloom</b> (grow &amp; pay) or <b>wilt</b> (die for the round).</li>
+              <li>Every living <b>bloom</b> pays a percentage of your bet. Bloom a flower <b>twice</b> for a <b>SUPER BLOOM</b> — a bigger multiple of that flower's pay.</li>
+              <li>A <b>butterfly</b> weather is wild — it revives a wilted or dud seed back to life and helps complete a line.</li>
+              <li>Land <b>3 matching weathers</b> (butterflies count as wild) to trigger <b>POLLINATE</b>: the bees fly out and every blooming flower spins its own wheel, multiplying its payout up to <b>×10</b>.</li>
+            </ol>
+            <div class="htp-sub">Key terms</div>
+            <div class="htp-defs">
+              <div><b>Sprout</b> — a seed that took root. Only sprouted flowers can bloom.</div>
+              <div><b>Bloom / Super Bloom</b> — one / two growth steps. Each step pays more of your bet.</div>
+              <div><b>Wilt</b> — the flower died this round and pays nothing (a butterfly can revive it).</div>
+              <div><b>Pollinate</b> — the bonus a matching 3-reel line triggers: a wheel spin per blooming flower.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- GARDEN (blue sky + dirt) -->
       <div class="dirt dirt-stacked garden-card" id="dirt">
         <div class="bed-layer" id="bedLayer"></div>
@@ -1154,34 +1225,6 @@
         </div>
       </div>
 
-      <!-- HOW TO PLAY — collapsible player rundown of the mechanics (closed by
-           default), mirrors the round log's collapse pattern. -->
-      <div class="htp card" id="htpPanel">
-        <div class="htp-head" id="htpHead">
-          <span>📖 HOW TO PLAY · <span style="color:var(--gold)">THE GARDEN</span></span>
-          <span class="htp-chevron" id="htpChevron">▾</span>
-        </div>
-        <div class="htp-body">
-          <div class="htp-inner">
-            <p class="htp-p">Plant a satchel of flowers, then let the weather decide which ones <b>bloom</b> and pay — and which ones <b>wilt</b>. Match the weather reels to send the bees out for a multiplier bonus.</p>
-            <ol class="htp-steps">
-              <li>Tap <b>EDIT</b> to fill your satchel with up to <b>10 seeds</b>. Every flower has its own sprout chance, payout, and weather it loves or fears.</li>
-              <li>Set your <b>bet</b> and press <b>CAST SEEDS</b>. Your bet is staked across the whole satchel; each seed then tries to <b>sprout</b> at its flower's take rate.</li>
-              <li>Spin the <b>weather reels</b> — three draws, one at a time. Each weather pushes your sprouted flowers to <b>bloom</b> (grow &amp; pay) or <b>wilt</b> (die for the round).</li>
-              <li>Every living <b>bloom</b> pays a percentage of your bet. Bloom a flower <b>twice</b> for a <b>SUPER BLOOM</b> — a bigger multiple of that flower's pay.</li>
-              <li>A <b>butterfly</b> weather is wild — it revives a wilted or dud seed back to life and helps complete a line.</li>
-              <li>Land <b>3 matching weathers</b> (butterflies count as wild) to trigger <b>POLLINATE</b>: the bees fly out and every blooming flower spins its own wheel, multiplying its payout up to <b>×10</b>.</li>
-            </ol>
-            <div class="htp-sub">Key terms</div>
-            <div class="htp-defs">
-              <div><b>Sprout</b> — a seed that took root. Only sprouted flowers can bloom.</div>
-              <div><b>Bloom / Super Bloom</b> — one / two growth steps. Each step pays more of your bet.</div>
-              <div><b>Wilt</b> — the flower died this round and pays nothing (a butterfly can revive it).</div>
-              <div><b>Pollinate</b> — the bonus a matching 3-reel line triggers: a wheel spin per blooming flower.</div>
-            </div>
-          </div>
-        </div>
-      </div>
 
     </div>
   </div>
@@ -5015,9 +5058,16 @@ function renderRoundLog(){
   renderRoundLog();                            // paint the empty state on load
 })();
 
-(function wireHowToPlay(){
-  const head=$('#htpHead'), panel=$('#htpPanel');
-  if(head&&panel) head.addEventListener('click',()=>panel.classList.toggle('open'));
+(function wireWelcomeBanner(){
+  const banner=$('#htpBanner'), head=$('#htpBannerHead'), x=$('#htpBannerX');
+  if(!banner) return;
+  const ls=(k)=>{ try{ return localStorage.getItem(k); }catch(_){ return null; } };
+  const put=(k,v)=>{ try{ localStorage.setItem(k,v); }catch(_){} };
+  if(ls('bloom_welcome_hide')==='1'){ banner.hidden=true; return; }   // dismissed for good
+  const apply=(on)=>{ banner.classList.toggle('open',on); if(head) head.setAttribute('aria-expanded',on?'true':'false'); };
+  apply(ls('bloom_welcome_open')==='1');                              // default collapsed; restore if remembered open
+  if(head) head.addEventListener('click',()=>{ const on=!banner.classList.contains('open'); apply(on); put('bloom_welcome_open',on?'1':'0'); });
+  if(x) x.addEventListener('click',(e)=>{ e.stopPropagation(); banner.hidden=true; put('bloom_welcome_hide','1'); });
 })();
 
 // Casino reel spin: stack N random tiles above the landing tile, then scroll the
