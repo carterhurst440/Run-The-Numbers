@@ -21123,6 +21123,11 @@ body.state-open .auth-vault-grant .gline::after {
 .notifications-panel {
   background: #0e0e0c;
   border-left: 1px solid rgba(168, 255, 62, 0.08);
+  box-shadow: none;   /* only shadow when open — an always-on shadow here spilled onto
+                         the right edge of the screen while the panel was parked off-screen */
+}
+
+.notifications-panel.is-open {
   box-shadow: -16px 0 48px rgba(0, 0, 0, 0.85);
 }
 

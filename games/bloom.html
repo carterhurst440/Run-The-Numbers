@@ -522,17 +522,28 @@
     justify-content:center;padding:16px}
   .learn-modal[hidden]{display:none}
   .learn-modal-backdrop{position:absolute;inset:0;background:rgba(40,10,30,.55)}
-  .learn-modal-card{position:relative;z-index:1;width:min(560px,100%);max-height:88vh;overflow:auto;
+  .learn-modal-card{position:relative;z-index:1;width:min(560px,100%);max-height:88vh;
+    display:flex;flex-direction:column;overflow:hidden;
     background:linear-gradient(160deg,#fff6dc 0%,#ffe6f1 60%,#fbd7ec 100%);
     border:1.5px solid #f3c7de;border-radius:16px;box-shadow:0 20px 54px -12px rgba(120,30,80,.55);
     animation:learnpop .28s cubic-bezier(.2,.9,.3,1)}
   @keyframes learnpop{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
-  .learn-modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 16px 8px}
+  .learn-modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 16px 8px;flex:none}
   .learn-modal-title{font-family:var(--ui);font-weight:800;letter-spacing:.05em;font-size:15px;color:#9c2f6b}
-  .learn-modal-close{width:28px;height:28px;border-radius:50%;border:none;flex:none;cursor:pointer;
-    background:rgba(156,47,107,.14);color:#9c2f6b;font-size:14px}
-  .learn-modal-close:hover{background:rgba(156,47,107,.26)}
-  .learn-modal-body{padding:0 18px 18px}
+  .learn-modal-close{border:none;background:none;flex:none;cursor:pointer;color:#b06a92;
+    font-size:22px;line-height:1;padding:0 2px;transition:color .15s ease}
+  .learn-modal-close:hover{color:#9c2f6b}
+  .learn-modal-body{padding:0 18px 20px;overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1 1 auto;min-height:0}
+  /* bottom fade + bouncing chevron hinting that the guide scrolls; hides at the end */
+  .learn-modal-cue{position:absolute;left:0;right:0;bottom:0;height:42px;pointer-events:none;
+    display:flex;align-items:flex-end;justify-content:center;padding-bottom:5px;
+    border-radius:0 0 15px 15px;color:#b0367e;font-size:15px;
+    background:linear-gradient(to bottom,rgba(251,215,236,0),#fbd7ec 80%);
+    transition:opacity .2s ease}
+  .learn-modal-cue.hide{opacity:0}
+  .learn-modal-cue span{animation:learncuebob 1.4s ease-in-out infinite}
+  @keyframes learncuebob{0%,100%{transform:translateY(0)}50%{transform:translateY(3px)}}
+  @media (prefers-reduced-motion:reduce){ .learn-modal-cue span{animation:none} }
   .htpbanner-intro{font-size:11.5px;line-height:1.55;margin:0 0 11px}
   .learn-modal-body .htpbanner-intro,.learn-modal-body .htp-steps li,.learn-modal-body .htp-defs div{color:#5f4351}
   .learn-modal-body .htpbanner-intro b,.learn-modal-body .htp-steps li b,.learn-modal-body .htp-defs b{color:#b02e77}
@@ -1074,7 +1085,7 @@
       <div class="learn-modal-title"><span aria-hidden="true">🌸</span> How to play BLOOM</div>
       <button type="button" class="learn-modal-close" id="learnModalClose" aria-label="Close">✕</button>
     </div>
-    <div class="learn-modal-body">
+    <div class="learn-modal-body" id="learnModalBody">
       <p class="htpbanner-intro">Plant a satchel of flowers, then let the weather decide which ones <b>bloom</b> and pay — and which ones <b>wilt</b>. Match the weather reels to send the bees out for a multiplier bonus.</p>
       <ol class="htp-steps">
         <li>Tap <b>EDIT</b> to fill your satchel with up to <b>10 seeds</b>. Every flower has its own sprout chance, payout, and weather it loves or fears.</li>
@@ -1092,6 +1103,7 @@
         <div><b>Pollinate</b> — the bonus a matching 3-reel line triggers: a wheel spin per blooming flower.</div>
       </div>
     </div>
+    <div class="learn-modal-cue" id="learnModalCue" aria-hidden="true"><span>▾</span></div>
   </div>
 </div>
 <header class="kiiro-header">
@@ -5079,12 +5091,18 @@ function renderRoundLog(){
 
 (function wireLearnBar(){
   const bar=$('#learnBar'), modal=$('#learnModal'), close=$('#learnModalClose'), back=$('#learnModalBackdrop');
+  const body=$('#learnModalBody'), cue=$('#learnModalCue');
   if(!bar||!modal) return;
-  const open=()=>{ modal.hidden=false; };
+  const updateCue=()=>{ if(!body||!cue) return;
+    const more = body.scrollHeight - body.clientHeight - body.scrollTop > 8;   // content still below?
+    cue.classList.toggle('hide', !more);
+  };
+  const open=()=>{ modal.hidden=false; if(body) body.scrollTop=0; requestAnimationFrame(updateCue); };
   const shut=()=>{ modal.hidden=true; };
   bar.addEventListener('click',open);
   if(close) close.addEventListener('click',shut);
   if(back) back.addEventListener('click',shut);
+  if(body) body.addEventListener('scroll',updateCue);
   document.addEventListener('keydown',(e)=>{ if(e.key==='Escape' && !modal.hidden) shut(); });
 })();
 
